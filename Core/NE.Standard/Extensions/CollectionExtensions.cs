@@ -13,6 +13,7 @@ namespace NE.Standard.Extensions
     public static class CollectionExtensions
     {
         private static readonly Random _random = new Random();
+
         #region Filtering
 
         /// <summary>
@@ -23,8 +24,7 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns only non-null reference items from the sequence.
         /// </summary>
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) 
-            where T : class
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
         {
             return source.Where(x => x != null)!;
         }
@@ -32,14 +32,13 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns only non-null value type items from the sequence.
         /// </summary>
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source)
-            where T : struct
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : struct
         {
             foreach (var item in source)
                 if (item.HasValue)
                     yield return item.Value;
         }
-        
+
         #endregion
 
         #region Grouping
@@ -102,7 +101,7 @@ namespace NE.Standard.Extensions
                 yield return enumerator.Current;
             } while (++count < size && enumerator.MoveNext());
         }
-        
+
         #endregion
 
         #region Collection operations
@@ -204,7 +203,7 @@ namespace NE.Standard.Extensions
         {
             dict[key] = value;
         }
-        
+
         #endregion
 
         #region Parallel operations
@@ -242,7 +241,7 @@ namespace NE.Standard.Extensions
             Parallel.ForEach(source, item => result.Add(processor(item)));
             return result;
         }
-        
+
         #endregion
     }
 }

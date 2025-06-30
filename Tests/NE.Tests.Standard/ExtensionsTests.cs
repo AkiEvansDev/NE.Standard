@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using NE.Standard.Extensions;
-using Xunit;
 
 namespace NE.Tests.Standard
 {
