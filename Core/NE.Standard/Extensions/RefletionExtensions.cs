@@ -89,5 +89,60 @@ namespace NE.Standard.Extensions
 
             field.SetValue(obj, value);
         }
+
+        /// <summary>
+        /// Returns all properties of the given type.
+        /// </summary>
+        public static IEnumerable<PropertyInfo> GetProperties(this Type type, bool requireSetter = false)
+        {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+
+            var props = type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return requireSetter ? props.Where(p => p.SetMethod != null) : props;
+        }
+
+        /// <summary>
+        /// Returns all properties of the given type which are marked with the specified attribute.
+        /// </summary>
+        public static IEnumerable<PropertyInfo> GetProperties<TAttribute>(this Type type, bool requireSetter = false) where TAttribute : Attribute
+        {
+            return type.GetProperties(requireSetter).Where(p => p.HasAttribute<TAttribute>());
+        }
+
+        /// <summary>
+        /// Returns all fields of the given type.
+        /// </summary>
+        public static IEnumerable<FieldInfo> GetFields(this Type type)
+        {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+
+            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        }
+
+        /// <summary>
+        /// Returns all fields of the given type which are marked with the specified attribute.
+        /// </summary>
+        public static IEnumerable<FieldInfo> GetFields<TAttribute>(this Type type) where TAttribute : Attribute
+        {
+            return type.GetFields().Where(f => f.HasAttribute<TAttribute>());
+        }
+
+        /// <summary>
+        /// Retrieves an attribute applied to the property.
+        /// </summary>
+        public static TAttribute GetAttribute<TAttribute>(this PropertyInfo property) where TAttribute : Attribute
+        {
+            if (property == null) throw new ArgumentNullException(nameof(property));
+            return property.GetCustomAttribute<TAttribute>()!;
+        }
+
+        /// <summary>
+        /// Retrieves an attribute applied to the field.
+        /// </summary>
+        public static TAttribute GetAttribute<TAttribute>(this FieldInfo field) where TAttribute : Attribute
+        {
+            if (field == null) throw new ArgumentNullException(nameof(field));
+            return field.GetCustomAttribute<TAttribute>()!;
+        }
     }
 }
