@@ -16,7 +16,7 @@ public class ObjectSerializerTests
     {
         public bool V { get; set; }
         public int V1 { get; set; }
-        [ObjectSerializerIgnore]
+        [Ignore]
         public int V1Ignore { get; set; }
         public float V2 { get; set; }
         public double V3 { get; set; }
@@ -112,9 +112,9 @@ public class ObjectSerializerTests
 
         Assert.Equal(TestEnum.V3, obj2.Enum);
 
-        Assert.Equal(new[] {1, 2}, obj2.Ints);
+        Assert.Equal([1, 2], obj2.Ints ?? []);
 
-        Assert.Equal(new List<float>{2.2f,3.3f}, obj2.Floats);
+        Assert.Equal([2.2f, 3.3f], obj2.Floats);
 
         Assert.NotNull(obj2.TestInterface);
         Assert.Equal("~[Test&^$(']", obj2.TestInterface?.Text);
@@ -131,22 +131,22 @@ public class ObjectSerializerTests
     {
         public string? Data { get; set; }
 
-        public ReferenceTest SubData1 { get; set; }
-        public ReferenceTest SubData2 { get; set; }
+        public ReferenceTest? SubData1 { get; set; }
+        public ReferenceTest? SubData2 { get; set; }
     }
 
     [ObjectSerializable]
     public class ReferenceTestArray
     {
         public string? Data { get; set; }
-        public Dictionary<string, ReferenceTestArrayItem> Items { get; set; }
+        public Dictionary<string, ReferenceTestArrayItem>? Items { get; set; }
     }
 
     [ObjectSerializable]
     public class ReferenceTestArrayItem
     {
         public string? Data { get; set; }
-        public ReferenceTestArray Parent { get; set; }
+        public ReferenceTestArray? Parent { get; set; }
     }
 
     [Fact]
@@ -169,7 +169,8 @@ public class ObjectSerializerTests
         var data = serializer.Serialize(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        res.SubData1.Data = "0";
+        if (res.SubData1 != null)
+            res.SubData1.Data = "0";
 
         Assert.Equal("0", res.Data);
     }
@@ -194,9 +195,10 @@ public class ObjectSerializerTests
         var data = serializer.Serialize(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        res.SubData2.Data = "0";
+        if (res.SubData2 != null)
+            res.SubData2.Data = "0";
 
-        Assert.Equal("0", res.SubData1.Data);
+        Assert.Equal("0", res.SubData1?.Data);
     }
 
     [Fact]
@@ -219,9 +221,10 @@ public class ObjectSerializerTests
         var data = serializer.SerializeCopy(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        res.SubData2.Data = "0";
+        if (res.SubData2 != null)
+            res.SubData2.Data = "0";
 
-        Assert.NotEqual("0", res.SubData1.Data);
+        Assert.NotEqual("0", res.SubData1?.Data);
     }
 
     [Fact]
@@ -232,7 +235,7 @@ public class ObjectSerializerTests
         var r = new ReferenceTestArray
         {
             Data = "parent",
-            Items = new Dictionary<string, ReferenceTestArrayItem>(),
+            Items = [],
         };
 
         var r1 = new ReferenceTestArrayItem
@@ -255,9 +258,10 @@ public class ObjectSerializerTests
         var res = serializer.Deserialize<ReferenceTestArray>(data);
 
         res.Data = "0";
-        res.Items["1"].Data = "0";
+        if (res.Items?["1"] != null)
+            res.Items["1"].Data = "0";
 
-        Assert.Equal("0", res.Items["1"].Parent.Data);
-        Assert.Equal("0", res.Items["3"].Data);
+        Assert.Equal("0", res.Items?["1"]?.Parent?.Data);
+        Assert.Equal("0", res.Items?["3"].Data);
     }
 }

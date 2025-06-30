@@ -1,6 +1,5 @@
 using NE.Standard.Extensions;
 using System.ComponentModel;
-using System.Reflection;
 
 namespace NE.Tests.Standard;
 
@@ -55,33 +54,29 @@ public class RefletionExtensionsTests
         Assert.Contains("Annotated", all);
         Assert.Contains("ReadOnly", all);
 
-        var withSet = typeof(Sample).GetProperties(true).Select(p => p.Name);
+        var withSet = typeof(Sample).GetAllProperties(true).Select(p => p.Name);
         Assert.DoesNotContain("ReadOnly", withSet);
 
-        var annotated = typeof(Sample).GetProperties<DescriptionAttribute>().ToList();
+        var annotated = typeof(Sample).GetPropertiesWithAttribute<DescriptionAttribute>().ToList();
         Assert.Single(annotated);
         Assert.Equal("Annotated", annotated[0].Name);
+
+        var property = typeof(Sample).GetPropertiesWithoutAttribute<DescriptionAttribute>().ToList();
+        Assert.Equal("Property", property[0].Name);
     }
 
     [Fact]
     public void GetFields_ReturnsFiltered()
     {
-        var fields = typeof(Sample).GetFields().Select(f => f.Name).ToList();
+        var fields = typeof(Sample).GetAllFields().Select(f => f.Name).ToList();
         Assert.Contains("Field", fields);
         Assert.Contains("AnnotatedField", fields);
 
-        var annotated = typeof(Sample).GetFields<DescriptionAttribute>().ToList();
+        var annotated = typeof(Sample).GetFieldsWithAttribute<DescriptionAttribute>().ToList();
         Assert.Single(annotated);
         Assert.Equal("AnnotatedField", annotated[0].Name);
-    }
 
-    [Fact]
-    public void GetAttribute_ReturnsAttribute()
-    {
-        var propAttr = typeof(Sample).GetProperty("Annotated")!.GetAttribute<DescriptionAttribute>();
-        Assert.Equal("sample attr", propAttr.Description);
-
-        var fieldAttr = typeof(Sample).GetField("AnnotatedField")!.GetAttribute<DescriptionAttribute>();
-        Assert.Equal("field attr", fieldAttr.Description);
+        var field = typeof(Sample).GetFieldsWithoutAttribute<DescriptionAttribute>().ToList();
+        Assert.Equal("Field", field[0].Name);
     }
 }

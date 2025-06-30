@@ -4,7 +4,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reflection;
 
 namespace NE.Standard.Serialization
 {
@@ -131,7 +130,6 @@ namespace NE.Standard.Serialization
                 return null;
 
             Type? type = null;
-
             if (data.StartsWith(STRING_T))
             {
                 data = data[STRING_T.Length..];
@@ -270,13 +268,13 @@ namespace NE.Standard.Serialization
                 key = data[..data.IndexOf(']')];
                 data = data[(key.Length + 2)..];
 
-                var start = 1;
-                var end = 0;
-                var index = 0;
+                int start = 1;
+                int end = 0;
+                int index = 0;
 
-                for (var i = 0; i < data.Length; ++i)
+                for (int i = 0; i < data.Length; i++)
                 {
-                    var c = data[i];
+                    char c = data[i];
 
                     if (c == FIRST_ST && data[i..].StartsWith(STRING_T))
                     {

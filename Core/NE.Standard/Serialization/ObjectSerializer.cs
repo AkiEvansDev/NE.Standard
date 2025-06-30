@@ -10,7 +10,7 @@ namespace NE.Standard.Serialization
     public sealed class ObjectSerializableAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Property)]
-    public sealed class ObjectSerializerIgnoreAttribute : Attribute { }
+    public sealed class IgnoreAttribute : Attribute { }
 
     public partial class ObjectSerializer : IDisposable
     {

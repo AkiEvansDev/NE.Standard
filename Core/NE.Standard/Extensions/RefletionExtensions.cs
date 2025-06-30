@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace NE.Standard.Extensions
@@ -93,7 +95,7 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns all properties of the given type.
         /// </summary>
-        public static IEnumerable<PropertyInfo> GetProperties(this Type type, bool requireSetter = false)
+        public static IEnumerable<PropertyInfo> GetAllProperties(this Type type, bool requireSetter = false)
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
 
@@ -104,15 +106,23 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns all properties of the given type which are marked with the specified attribute.
         /// </summary>
-        public static IEnumerable<PropertyInfo> GetProperties<TAttribute>(this Type type, bool requireSetter = false) where TAttribute : Attribute
+        public static IEnumerable<PropertyInfo> GetPropertiesWithAttribute<TAttribute>(this Type type, bool requireSetter = false) where TAttribute : Attribute
         {
-            return type.GetProperties(requireSetter).Where(p => p.HasAttribute<TAttribute>());
+            return type.GetAllProperties(requireSetter).Where(p => p.HasAttribute<TAttribute>());
+        }
+
+        /// <summary>
+        /// Returns all properties of the given type which are marked without the specified attribute.
+        /// </summary>
+        public static IEnumerable<PropertyInfo> GetPropertiesWithoutAttribute<TAttribute>(this Type type, bool requireSetter = false) where TAttribute : Attribute
+        {
+            return type.GetAllProperties(requireSetter).Where(p => !p.HasAttribute<TAttribute>());
         }
 
         /// <summary>
         /// Returns all fields of the given type.
         /// </summary>
-        public static IEnumerable<FieldInfo> GetFields(this Type type)
+        public static IEnumerable<FieldInfo> GetAllFields(this Type type)
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
 
@@ -122,27 +132,28 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns all fields of the given type which are marked with the specified attribute.
         /// </summary>
-        public static IEnumerable<FieldInfo> GetFields<TAttribute>(this Type type) where TAttribute : Attribute
+        public static IEnumerable<FieldInfo> GetFieldsWithAttribute<TAttribute>(this Type type) where TAttribute : Attribute
         {
-            return type.GetFields().Where(f => f.HasAttribute<TAttribute>());
+            return type.GetAllFields().Where(f => f.HasAttribute<TAttribute>());
         }
 
         /// <summary>
-        /// Retrieves an attribute applied to the property.
+        /// Returns all fields of the given type which are marked without the specified attribute.
         /// </summary>
-        public static TAttribute GetAttribute<TAttribute>(this PropertyInfo property) where TAttribute : Attribute
+        public static IEnumerable<FieldInfo> GetFieldsWithoutAttribute<TAttribute>(this Type type) where TAttribute : Attribute
         {
-            if (property == null) throw new ArgumentNullException(nameof(property));
-            return property.GetCustomAttribute<TAttribute>()!;
+            return type.GetAllFields().Where(f => !f.HasAttribute<TAttribute>());
         }
 
         /// <summary>
-        /// Retrieves an attribute applied to the field.
+        /// Determines whether the member has the specified attribute applied.
         /// </summary>
-        public static TAttribute GetAttribute<TAttribute>(this FieldInfo field) where TAttribute : Attribute
+        public static bool HasAttribute<TAttribute>(this MemberInfo member, bool inherit = false) where TAttribute : Attribute
         {
-            if (field == null) throw new ArgumentNullException(nameof(field));
-            return field.GetCustomAttribute<TAttribute>()!;
+            if (member == null)
+                throw new ArgumentNullException(nameof(member));
+
+            return Attribute.IsDefined(member, typeof(TAttribute), inherit);
         }
     }
 }

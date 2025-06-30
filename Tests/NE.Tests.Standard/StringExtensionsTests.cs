@@ -60,7 +60,7 @@ public class StringExtensionsTests
         Assert.Null("bad".ToNullableTime());
 
         Assert.Equal(ParseEnum.Beta, "Beta".ToEnum<ParseEnum>());
-        Assert.Equal(ParseEnum.Alpha, "Alpha".ToEnum(typeof(ParseEnum)));
+        Assert.Equal(ParseEnum.Alpha, "Alpha".ToEnum<ParseEnum>());
     }
 
     [Fact]
