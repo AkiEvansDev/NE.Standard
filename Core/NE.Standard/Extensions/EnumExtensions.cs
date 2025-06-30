@@ -11,20 +11,32 @@ namespace NE.Standard.Extensions
     /// </summary>
     public static class EnumExtensions
     {
+        /// <summary>
+        /// Returns the name of the enumeration value.
+        /// </summary>
         public static string GetName(this Enum @enum)
             => Enum.GetName(@enum.GetType(), @enum)!;
 
+        /// <summary>
+        /// Returns all names defined in the enumeration type.
+        /// </summary>
         public static string[] GetNames(this Enum @enum)
             => Enum.GetNames(@enum.GetType());
 
+        /// <summary>
+        /// Returns all values defined in the enumeration type.
+        /// </summary>
         public static IEnumerable<T> GetValues<T>(this Enum @enum) where T : Enum
             => Enum.GetValues(@enum.GetType()).Cast<T>();
 
+        /// <summary>
+        /// Retrieves an attribute of the specified type attached to the enumeration value.
+        /// </summary>
         public static TAttribute GetAttribute<TAttribute>(this Enum @enum) where TAttribute : Attribute
         {
             return @enum
                 .GetType()
-                .GetMember(@enum.GetName()!)[0]
+                .GetField(@enum.ToString())!
                 .GetCustomAttribute<TAttribute>();
         }
     }
