@@ -11,6 +11,76 @@ namespace NE.Standard.Extensions
     /// </summary>
     public static class StringExtensions
     {
+        #region TryConversions
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="bool"/>.
+        /// </summary>
+        public static bool TryToBool(this string? value, out bool result)
+            => bool.TryParse(value, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="byte"/>.
+        /// </summary>
+        public static bool TryToByte(this string? value, out byte result)
+            => byte.TryParse(value, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="short"/>.
+        /// </summary>
+        public static bool TryToShort(this string? value, out short result)
+            => short.TryParse(value, out result);
+
+        /// <summary>
+        /// Tries to convert the string to an <see cref="int"/>.
+        /// </summary>
+        public static bool TryToInt(this string? value, out int result)
+            => int.TryParse(value, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="long"/>.
+        /// </summary>
+        public static bool TryToLong(this string? value, out long result)
+            => long.TryParse(value, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="float"/>.
+        /// </summary>
+        public static bool TryToFloat(this string? value, out float result)
+            => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="double"/>.
+        /// </summary>
+        public static bool TryToDouble(this string? value, out double result)
+            => double.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="decimal"/>.
+        /// </summary>
+        public static bool TryToDecimal(this string? value, out decimal result)
+            => decimal.TryParse(value?.Replace(',', '.'), NumberStyles.Number, GeneralConstants.NumberFormat, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="DateTime"/> using the provided format.
+        /// </summary>
+        public static bool TryToDate(this string? value, out DateTime result, string? format = null, IFormatProvider? provider = null)
+            => DateTime.TryParseExact(value, format ?? GeneralConstants.DATETIME_FORMAT, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+
+        /// <summary>
+        /// Tries to convert the string to a <see cref="TimeSpan"/> using the provided format.
+        /// </summary>
+        public static bool TryToTime(this string? value, out TimeSpan result, string? format = null, IFormatProvider? provider = null)
+            => TimeSpan.TryParseExact(value, format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture, out result);
+
+        /// <summary>
+        /// Tries to convert the string to an enum of specified type.
+        /// </summary>
+        public static bool TryToEnum<T>(this string? value, out T result) where T : struct, Enum
+            => Enum.TryParse(value, out result);
+
+        #endregion
+
         #region Conversions
 
         /// <summary>

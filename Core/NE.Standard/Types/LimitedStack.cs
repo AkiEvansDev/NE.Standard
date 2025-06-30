@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace NE.Standard.Models
+namespace NE.Standard.Types
 {
     /// <summary>
     /// Stack implementation that keeps only the most recent items up to the

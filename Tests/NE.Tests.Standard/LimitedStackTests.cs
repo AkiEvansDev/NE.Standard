@@ -1,4 +1,4 @@
-using NE.Standard.Models;
+using NE.Standard.Types;
 
 namespace NE.Tests.Standard;
 

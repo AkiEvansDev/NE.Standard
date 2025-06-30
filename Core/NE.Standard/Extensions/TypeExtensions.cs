@@ -17,6 +17,9 @@ namespace NE.Standard.Extensions
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
 
+            if (type.IsArray)
+                return Activator.CreateInstance(type, 0);
+
             if (parameters == null || parameters.Length == 0)
             {
                 try
