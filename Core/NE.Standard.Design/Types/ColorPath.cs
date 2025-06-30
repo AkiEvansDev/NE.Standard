@@ -60,26 +60,29 @@ namespace NE.Standard.Design.Types
         /// <exception cref="InvalidCastException"></exception>
         public static Color GetColor(string hex, FactorType factorType = FactorType.Color, int factor = 0)
         {
-            hex = hex.TrimStart('#');
+            if (hex is null)
+                throw new ArgumentNullException(nameof(hex));
 
-            if (hex.Length == 6)
-                return GetColor(
-                    255,
-                    byte.Parse(hex.Substring(0, 2), NumberStyles.HexNumber),
-                    byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber),
-                    byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber),
-                    factorType,
-                    factor
-                );
-            else if (hex.Length == 8)
-                return GetColor(
-                    byte.Parse(hex.Substring(0, 2), NumberStyles.HexNumber),
-                    byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber),
-                    byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber),
-                    byte.Parse(hex.Substring(6, 2), NumberStyles.HexNumber),
-                    factorType,
-                    factor
-                );
+            ReadOnlySpan<char> span = hex.AsSpan();
+            if (span.Length > 0 && span[0] == '#')
+                span = span[1..];
+
+            if (span.Length == 6)
+            {
+                byte r = byte.Parse(span.Slice(0, 2), NumberStyles.HexNumber);
+                byte g = byte.Parse(span.Slice(2, 2), NumberStyles.HexNumber);
+                byte b = byte.Parse(span.Slice(4, 2), NumberStyles.HexNumber);
+                return GetColor(255, r, g, b, factorType, factor);
+            }
+
+            if (span.Length == 8)
+            {
+                byte a = byte.Parse(span.Slice(0, 2), NumberStyles.HexNumber);
+                byte r = byte.Parse(span.Slice(2, 2), NumberStyles.HexNumber);
+                byte g = byte.Parse(span.Slice(4, 2), NumberStyles.HexNumber);
+                byte b = byte.Parse(span.Slice(6, 2), NumberStyles.HexNumber);
+                return GetColor(a, r, g, b, factorType, factor);
+            }
 
             throw new InvalidCastException($"{hex} is not a valid HEX format!");
         }
