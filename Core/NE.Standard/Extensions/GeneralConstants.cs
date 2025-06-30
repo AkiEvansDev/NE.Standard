@@ -10,7 +10,7 @@ namespace NE.Standard.Extensions
         public const string DATETIME_FORMAT = "MM.dd.yyyy HH:mm:ss.f";
         public const string TIMESPAN_FORMAT = "c";
 
-        public static readonly NumberFormatInfo NumberFormat = new()
+        public static readonly NumberFormatInfo NumberFormat = new NumberFormatInfo()
         {
             NumberGroupSeparator = ".",
             NumberDecimalSeparator = "."

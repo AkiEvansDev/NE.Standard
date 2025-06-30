@@ -29,6 +29,14 @@ namespace NE.Standard.Extensions
         public static DateTime EndOfDay(this DateTime date)
             => date.Date.AddDays(1).AddTicks(-1);
 
+        public static DateTime StartOfMonth(this DateTime date)
+            => new DateTime(date.Year, date.Month, 1);
+
+        public static DateTime EndOfMonth(this DateTime date)
+            => new DateTime(date.Year, date.Month, 1)
+                .AddMonths(1)
+                .AddTicks(-1);
+
         public static DateTime TrimMilliseconds(this DateTime date)
             => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Kind);
     }

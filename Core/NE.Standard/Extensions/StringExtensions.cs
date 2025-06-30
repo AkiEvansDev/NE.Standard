@@ -128,10 +128,10 @@ namespace NE.Standard.Extensions
             => string.IsNullOrEmpty(value) ? value : char.ToLower(value[0]) + value[1..];
 
         public static bool IsNull(this string? value)
-            => string.IsNullOrEmpty(value);
+            => string.IsNullOrWhiteSpace(value);
 
         public static string Empty(this string? value1, string value2)
-            => string.IsNullOrEmpty(value1) ? value2 : value1;
+            => string.IsNullOrWhiteSpace(value1) ? value2 : value1;
 
         public static string UniqueFrom(this string value, IEnumerable<string> values)
         {
@@ -148,8 +148,11 @@ namespace NE.Standard.Extensions
         public static bool AnyFrom(this string value, IEnumerable<string> values)
             => values.Any(v => v.EqualsIgnoreCase(value));
 
-        public static IEnumerable<string> SmartSplit(this string data, string separator)
-            => data.Split(separator).Select(e => e.Trim()).Where(e => !string.IsNullOrWhiteSpace(e));
+        public static IEnumerable<string> SmartSplit(this string data, params string[] separator)
+            => data
+                .Split(separator, StringSplitOptions.None)
+                .Select(e => e.Trim())
+                .Where(e => !string.IsNullOrEmpty(e));
 
         public static string ToBase64(this string data)
             => Convert.ToBase64String(Encoding.UTF8.GetBytes(data));

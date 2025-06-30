@@ -20,15 +20,6 @@ namespace NE.Standard.Extensions
         public static IEnumerable<T> GetValues<T>(this Enum @enum) where T : Enum
             => Enum.GetValues(@enum.GetType()).Cast<T>();
 
-        public static string GetDescription(this Enum @enum)
-            => @enum.GetAttribute<DescriptionAttribute>().Description;
-
-        public static IEnumerable<(T Value, string Description)> GetDescriptions<T>(this Enum @enum) where T : Enum
-        {
-            foreach (T value in @enum.GetValues<T>())
-                yield return (value, value.GetAttribute<DescriptionAttribute>().Description);
-        }
-
         public static TAttribute GetAttribute<TAttribute>(this Enum @enum) where TAttribute : Attribute
         {
             return @enum
