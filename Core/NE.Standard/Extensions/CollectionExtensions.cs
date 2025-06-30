@@ -12,7 +12,8 @@ namespace NE.Standard.Extensions
     /// </summary>
     public static class CollectionExtensions
     {
-#region Filtering
+        #region Filtering
+
         /// <summary>
         /// Determines whether the <paramref name="source"/> sequence is null or empty.
         /// </summary>
@@ -33,9 +34,11 @@ namespace NE.Standard.Extensions
         {
             return source.Where(x => x.HasValue).Select(x => x.Value);
         }
-#endregion
+        
+        #endregion
 
-#region Grouping
+        #region Grouping
+
         /// <summary>
         /// Splits the source into the specified number of groups with nearly equal sizes.
         /// </summary>
@@ -91,9 +94,11 @@ namespace NE.Standard.Extensions
                 yield return enumerator.Current;
             } while (++count < size && enumerator.MoveNext());
         }
-#endregion
+        
+        #endregion
 
-#region Collection operations
+        #region Collection operations
+
         /// <summary>
         /// Inserts an item into the list while keeping elements in ascending order.
         /// </summary>
@@ -163,9 +168,11 @@ namespace NE.Standard.Extensions
             else
                 dict.Add(key, value);
         }
-#endregion
+        
+        #endregion
 
-#region Parallel operations
+        #region Parallel operations
+
         /// <summary>
         /// Executes the specified action for each element of the sequence in parallel.
         /// </summary>
@@ -200,6 +207,7 @@ namespace NE.Standard.Extensions
             Parallel.ForEach(source, item => result.Add(processor(item)));
             return result;
         }
-#endregion
+        
+        #endregion
     }
 }
