@@ -7,6 +7,11 @@ using System.Runtime.CompilerServices;
 
 namespace NE.Standard.Models
 {
+    /// <summary>
+    /// Stack implementation that keeps only the most recent items up to the
+    /// specified maximum size. When the limit is reached, pushing a new item
+    /// discards the oldest one.
+    /// </summary>
     [Serializable]
     public class LimitedStack<T> : IEnumerable<T>, ICollection, IReadOnlyCollection<T>
     {
