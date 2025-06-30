@@ -12,6 +12,7 @@ namespace NE.Standard.Extensions
     /// </summary>
     public static class CollectionExtensions
     {
+        private static readonly Random _random = new Random();
         #region Filtering
 
         /// <summary>
@@ -31,10 +32,12 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns only non-null value type items from the sequence.
         /// </summary>
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) 
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source)
             where T : struct
         {
-            return source.Where(x => x.HasValue).Select(x => x ?? default);
+            foreach (var item in source)
+                if (item.HasValue)
+                    yield return item.Value;
         }
         
         #endregion
@@ -49,7 +52,7 @@ namespace NE.Standard.Extensions
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (groupCount <= 0) throw new ArgumentOutOfRangeException(nameof(groupCount));
 
-            var list = source.ToList();
+            var list = source as IList<T> ?? source.ToList();
             int total = list.Count;
             int baseSize = total / groupCount;
             int remainder = total % groupCount;
@@ -88,6 +91,9 @@ namespace NE.Standard.Extensions
                 yield return YieldChunkElements(enumerator, chunkSize);
         }
 
+        /// <summary>
+        /// Yields a single chunk from the given <paramref name="enumerator"/>.
+        /// </summary>
         private static IEnumerable<T> YieldChunkElements<T>(IEnumerator<T> enumerator, int size)
         {
             int count = 0;
@@ -106,6 +112,12 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void InsertSorted<T>(this IList list, T item) where T : IComparable<T>
         {
+            if (list is List<T> typedList)
+            {
+                typedList.InsertSorted(item);
+                return;
+            }
+
             int index = list.OfType<T>().TakeWhile(x => x.CompareTo(item) < 0).Count();
             list.Insert(index, item);
         }
@@ -115,6 +127,12 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void InsertSortedDescending<T>(this IList list, T item) where T : IComparable<T>
         {
+            if (list is List<T> typedList)
+            {
+                typedList.InsertSortedDescending(item);
+                return;
+            }
+
             int index = list.OfType<T>().TakeWhile(x => x.CompareTo(item) > 0).Count();
             list.Insert(index, item);
         }
@@ -153,10 +171,9 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void ShuffleInPlace<T>(this IList<T> list)
         {
-            var rnd = new Random();
             for (int i = list.Count - 1; i > 0; i--)
             {
-                int j = rnd.Next(i + 1);
+                int j = _random.Next(i + 1);
                 (list[i], list[j]) = (list[j], list[i]);
             }
         }
@@ -185,10 +202,7 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void AddOrUpdate<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue value)
         {
-            if (dict.ContainsKey(key))
-                dict[key] = value;
-            else
-                dict.Add(key, value);
+            dict[key] = value;
         }
         
         #endregion
@@ -216,8 +230,7 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void ParallelForEachPartitioned<T>(this IEnumerable<T> source, int degree, Action<IEnumerable<T>> partitionAction)
         {
-            var partitions = source.Partition(degree).ToList();
-            Parallel.ForEach(partitions, partitionAction);
+            Parallel.ForEach(source.Partition(degree), partitionAction);
         }
 
         /// <summary>
