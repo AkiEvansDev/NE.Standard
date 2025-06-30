@@ -25,8 +25,8 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns all values defined in the enumeration type.
         /// </summary>
-        public static IEnumerable<T> GetValues<T>(this Enum @enum) where T : Enum
-            => Enum.GetValues(@enum.GetType()).Cast<T>();
+        public static IEnumerable<T> GetValues<T>() where T : Enum
+            => Enum.GetValues(typeof(T)).Cast<T>();
 
         /// <summary>
         /// Retrieves an attribute of the specified type attached to the enumeration value.

@@ -14,7 +14,7 @@ public class LimitedStackTests
         stack.Push(4); // exceeds capacity
 
         Assert.Equal(3, stack.Count);
-        Assert.Equal([4,3,2], stack.ToArray());
+        Assert.Equal([4, 3, 2], [.. stack]);
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class LimitedStackTests
 
         int value = stack.Pop();
         Assert.Equal(2, value);
-        Assert.Equal(1, stack.Count);
-        Assert.Equal([1], stack.ToArray());
+        Assert.Single(stack);
+        Assert.Equal([1], [.. stack]);
     }
 }

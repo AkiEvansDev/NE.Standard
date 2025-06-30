@@ -21,7 +21,7 @@ public class CollectionExtensionsTests
     {
         string?[] data = { "a", null, "b" };
         var result = data.WhereNotNull();
-        Assert.Equal(["a","b"], result);
+        Assert.Equal(["a", "b"], result);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void InsertSorted_InsertsKeepingAscendingOrder()
     {
-        IList list = new List<int>{1, 3, 5};
+        IList list = new List<int> { 1, 3, 5 };
         list.InsertSorted(4);
         Assert.Equal([1, 3, 4, 5], list.Cast<int>());
     }
@@ -49,7 +49,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void InsertSortedDescending_InsertsKeepingDescendingOrder()
     {
-        IList list = new List<int>{5, 3, 1};
+        IList list = new List<int> { 5, 3, 1 };
         list.InsertSortedDescending(4);
         Assert.Equal([5, 4, 3, 1], list.Cast<int>());
     }
@@ -57,7 +57,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void InsertSorted_ListOverload_Works()
     {
-        var list = new List<int>{1, 3, 5};
+        var list = new List<int> { 1, 3, 5 };
         list.InsertSorted(2);
         Assert.Equal([1, 2, 3, 5], list);
     }
@@ -65,7 +65,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void InsertSortedDescending_ListOverload_Works()
     {
-        var list = new List<int>{5, 3, 1};
+        var list = new List<int> { 5, 3, 1 };
         list.InsertSortedDescending(4);
         Assert.Equal([5, 4, 3, 1], list);
     }
@@ -91,7 +91,7 @@ public class CollectionExtensionsTests
     {
         object gate = new();
         int sum = 0;
-        Enumerable.Range(1, 5).ParallelForEach(i => { lock(gate) { sum += i; }});
+        Enumerable.Range(1, 5).ParallelForEach(i => { lock (gate) { sum += i; } });
         Assert.Equal(15, sum);
     }
 
@@ -107,10 +107,10 @@ public class CollectionExtensionsTests
     {
         object gate = new();
         int total = 0;
-        Enumerable.Range(1,5).ParallelForEachPartitioned(2, part =>
+        Enumerable.Range(1, 5).ParallelForEachPartitioned(2, part =>
         {
             int partial = part.Sum();
-            lock(gate) total += partial;
+            lock (gate) total += partial;
         });
         Assert.Equal(15, total);
     }
@@ -118,7 +118,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void ParallelProcess_ReturnsResults()
     {
-        var bag = Enumerable.Range(1, 5).ParallelProcess(i => i *2 );
+        var bag = Enumerable.Range(1, 5).ParallelProcess(i => i * 2);
         Assert.Equal([2, 4, 6, 8, 10], bag.OrderBy(i => i));
     }
 }

@@ -87,10 +87,10 @@ namespace NE.Standard.Logging
             _logQueue.CompleteAdding();
             _cts.Cancel();
 
-            try 
-            { 
+            try
+            {
                 Task.WaitAll(new[] { _writerTask, _cleanupTask }, TimeSpan.FromSeconds(5));
-            } 
+            }
             catch { }
 
             _logQueue.Dispose();

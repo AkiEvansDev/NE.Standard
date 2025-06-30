@@ -62,10 +62,10 @@ namespace NE.Standard.Logging
             _logQueue.CompleteAdding();
             _cts.Cancel();
 
-            try 
-            { 
-                _writerTask.Wait(); 
-            } 
+            try
+            {
+                _writerTask.Wait();
+            }
             catch { }
 
             _logQueue.Dispose();

@@ -1,6 +1,6 @@
 
-using System.ComponentModel;
 using NE.Standard.Extensions;
+using System.ComponentModel;
 
 namespace NE.Tests.Standard;
 
@@ -31,7 +31,7 @@ public class EnumExtensionsTests
     [Fact]
     public void GetValues_ReturnsAllValues()
     {
-        var values = SampleEnum.First.GetValues<SampleEnum>();
+        var values = Enum.GetValues<SampleEnum>();
         Assert.Equal([SampleEnum.First, SampleEnum.Second], values);
     }
 

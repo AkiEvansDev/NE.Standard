@@ -82,19 +82,120 @@ namespace NE.Standard.Extensions
 
         #region Collection operations
 
+        #region InsertSorted (Ascending)
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this List<T> list, T item) where T : IComparable<T>
+        {
+            InsertSorted(list, item, Comparer<T>.Default);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this List<T> list, T item, IComparer<T> comparer)
+        {
+            int index = list.BinarySearch(item, comparer);
+            if (index < 0) index = ~index;
+            list.Insert(index, item);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this IList<T> list, T item) where T : IComparable<T>
+        {
+            InsertSorted(list, item, Comparer<T>.Default);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this IList<T> list, T item, IComparer<T> comparer)
+        {
+            if (list is List<T> concreteList)
+            {
+                concreteList.InsertSorted(item, comparer);
+                return;
+            }
+
+            int i = 0;
+            while (i < list.Count && comparer.Compare(list[i], item) < 0) i++;
+            list.Insert(i, item);
+        }
+
         /// <summary>
         /// Inserts an item into the list while keeping elements in ascending order.
         /// </summary>
         public static void InsertSorted<T>(this IList list, T item) where T : IComparable<T>
         {
-            if (list is List<T> typedList)
+            if (list is IList<T> genericList)
             {
-                typedList.InsertSorted(item);
+                genericList.InsertSorted(item);
                 return;
             }
 
-            int index = list.OfType<T>().TakeWhile(x => x.CompareTo(item) < 0).Count();
+            throw new InvalidOperationException("InsertSorted supports only IList<T> or List<T>.");
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this IList list, T item, IComparer<T> comparer)
+        {
+            if (list is IList<T> genericList)
+            {
+                genericList.InsertSorted(item, comparer);
+                return;
+            }
+
+            throw new InvalidOperationException("InsertSorted supports only IList<T> or List<T>.");
+        }
+
+        #endregion
+
+        #region InsertSortedDescending
+
+        public static void InsertSortedDescending<T>(this List<T> list, T item) where T : IComparable<T>
+        {
+            InsertSortedDescending(list, item, Comparer<T>.Default);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in descending order.
+        /// </summary>
+        public static void InsertSortedDescending<T>(this List<T> list, T item, IComparer<T> comparer)
+        {
+            var descendingComparer = Comparer<T>.Create((a, b) => comparer.Compare(b, a));
+            int index = list.BinarySearch(item, descendingComparer);
+            if (index < 0) index = ~index;
             list.Insert(index, item);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in descending order.
+        /// </summary>
+        public static void InsertSortedDescending<T>(this IList<T> list, T item) where T : IComparable<T>
+        {
+            InsertSortedDescending(list, item, Comparer<T>.Default);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in descending order.
+        /// </summary>
+        public static void InsertSortedDescending<T>(this IList<T> list, T item, IComparer<T> comparer)
+        {
+            if (list is List<T> concreteList)
+            {
+                concreteList.InsertSortedDescending(item, comparer);
+                return;
+            }
+
+            int i = 0;
+            while (i < list.Count && comparer.Compare(list[i], item) > 0) i++;
+            list.Insert(i, item);
         }
 
         /// <summary>
@@ -102,35 +203,30 @@ namespace NE.Standard.Extensions
         /// </summary>
         public static void InsertSortedDescending<T>(this IList list, T item) where T : IComparable<T>
         {
-            if (list is List<T> typedList)
+            if (list is IList<T> genericList)
             {
-                typedList.InsertSortedDescending(item);
+                genericList.InsertSortedDescending(item);
                 return;
             }
 
-            int index = list.OfType<T>().TakeWhile(x => x.CompareTo(item) > 0).Count();
-            list.Insert(index, item);
-        }
-
-        /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
-        /// </summary>
-        public static void InsertSorted<T>(this List<T> list, T item) where T : IComparable<T>
-        {
-            int index = list.BinarySearch(item);
-            if (index < 0) index = ~index;
-            list.Insert(index, item);
+            throw new InvalidOperationException("InsertSortedDescending supports only IList<T> or List<T>.");
         }
 
         /// <summary>
         /// Inserts an item into the list while keeping elements in descending order.
         /// </summary>
-        public static void InsertSortedDescending<T>(this List<T> list, T item) where T : IComparable<T>
+        public static void InsertSortedDescending<T>(this IList list, T item, IComparer<T> comparer)
         {
-            int index = list.BinarySearch(item, Comparer<T>.Create((a, b) => b.CompareTo(a)));
-            if (index < 0) index = ~index;
-            list.Insert(index, item);
+            if (list is IList<T> genericList)
+            {
+                genericList.InsertSortedDescending(item, comparer);
+                return;
+            }
+
+            throw new InvalidOperationException("InsertSortedDescending supports only IList<T> or List<T>.");
         }
+
+        #endregion
 
         /// <summary>
         /// Executes an action for each item in the sequence.

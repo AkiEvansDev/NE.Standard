@@ -59,14 +59,14 @@ public class StringExtensionsTests
         Assert.True("abc".EqualsIgnoreCase("ABC"));
         Assert.True("Hello".ContainsIgnoreCase("he"));
         Assert.True("Alpha Beta".Search("beta alp"));
-        Assert.True("Alpha,Beta".Search("beta;gamma",";"));
+        Assert.True("Alpha,Beta".Search("beta;gamma", ";"));
         Assert.Equal("Hello", "hello".UpFirst());
         Assert.Equal("world", "World".LowFirst());
         string? nullStr = null;
         Assert.True(nullStr.IsNull());
         Assert.Equal("fallback", nullStr.Empty("fallback"));
-        Assert.True("a".AnyFrom(["b","A"]));
-        Assert.Equal([ "a", "b", "c" ], [.. "a,b,, c".SmartSplit(",")]);
+        Assert.True("a".AnyFrom(["b", "A"]));
+        Assert.Equal(["a", "b", "c"], [.. "a,b,, c".SmartSplit(",")]);
         string base64 = "hi".ToBase64();
         Assert.Equal("hi", base64.FromBase64());
     }
