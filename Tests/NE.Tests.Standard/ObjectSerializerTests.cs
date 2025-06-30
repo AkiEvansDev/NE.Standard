@@ -52,7 +52,7 @@ public class ObjectSerializerTests
     }
 
     [Fact]
-    public void SerializeDeserialize_DateTimeAndTimeSpan()
+    public void SerializeDeserialize_AllTypes()
     {
         var serializer = new ObjectSerializer();
 
@@ -150,7 +150,7 @@ public class ObjectSerializerTests
     }
 
     [Fact]
-    public void TestReference1()
+    public void Serialize_PreservesSelfReference()
     {
         var serializer = new ObjectSerializer();
 
@@ -175,7 +175,7 @@ public class ObjectSerializerTests
     }
 
     [Fact]
-    public void TestReference2()
+    public void Serialize_PreservesSharedReference()
     {
         var serializer = new ObjectSerializer();
 
@@ -200,7 +200,7 @@ public class ObjectSerializerTests
     }
 
     [Fact]
-    public void TestReference3()
+    public void SerializeCopy_CreatesDeepCopy()
     {
         var serializer = new ObjectSerializer();
 
@@ -225,7 +225,7 @@ public class ObjectSerializerTests
     }
 
     [Fact]
-    public void TestReference4()
+    public void Serialize_PreservesCollectionReferences()
     {
         var serializer = new ObjectSerializer();
 
