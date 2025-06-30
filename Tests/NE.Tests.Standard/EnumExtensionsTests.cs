@@ -41,4 +41,19 @@ public class EnumExtensionsTests
         var attr = SampleEnum.First.GetAttribute<DescriptionAttribute>();
         Assert.Equal("First value", attr.Description);
     }
+
+    [Fact]
+    public void GetDescription_ReturnsDescription()
+    {
+        Assert.Equal("First value", SampleEnum.First.GetDescription());
+        Assert.Null(SampleEnum.Second.GetDescription());
+    }
+
+    [Fact]
+    public void GetDescriptions_ReturnsDictionary()
+    {
+        var dict = EnumExtensions.GetDescriptions<SampleEnum>();
+        Assert.Equal("First value", dict[SampleEnum.First]);
+        Assert.Null(dict[SampleEnum.Second]);
+    }
 }
