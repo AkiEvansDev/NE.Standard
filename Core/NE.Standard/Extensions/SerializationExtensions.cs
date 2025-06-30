@@ -25,7 +25,7 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Deserializes a string into an object using <see cref="ObjectSerializer"/>.
         /// </summary>
-        public static T DeserializeObject<T>(this string data, bool useBase64 = true)
+        public static T? DeserializeObject<T>(this string data, bool useBase64 = true) where T : class
         {
             using var serializer = new ObjectSerializer();
             return serializer.Deserialize<T>(data, useBase64);
@@ -44,7 +44,7 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Deserializes JSON into an object using <see cref="JsonSerializer"/>.
         /// </summary>
-        public static T? DeserializeJson<T>(this string json, JsonSerializerOptions? options = null)
+        public static T? DeserializeJson<T>(this string json, JsonSerializerOptions? options = null) where T : class
             => JsonSerializer.Deserialize<T>(json, options);
 
         #endregion
@@ -68,7 +68,7 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Deserializes XML into an object using <see cref="XmlSerializer"/>.
         /// </summary>
-        public static T? DeserializeXml<T>(this string xml)
+        public static T? DeserializeXml<T>(this string xml) where T : class
         {
             if (xml == null)
                 throw new ArgumentNullException(nameof(xml));

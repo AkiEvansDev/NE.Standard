@@ -54,10 +54,9 @@ namespace NE.Standard.Serialization
         public string SerializeCopy(object obj, bool useBase64 = true)
             => SerializeInternal(obj, useBase64, true);
 
-        public T Deserialize<T>(string data, bool useBase64 = true)
+        public T? Deserialize<T>(string data, bool useBase64 = true) where T : class
         {
-            var result = Deserialize(data, useBase64);
-            return result is null ? default! : (T)result;
+            return (T?)Deserialize(data, useBase64);
         }
 
         private object? GetReference(string refId)

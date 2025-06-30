@@ -6,7 +6,7 @@ namespace NE.Tests.Standard;
 public class SerializationExtensionsTests
 {
     [ObjectSerializable]
-    private class Sample
+    public class Sample
     {
         public int Value { get; set; }
         public string? Text { get; set; }
@@ -18,6 +18,7 @@ public class SerializationExtensionsTests
         var obj = new Sample { Value = 5, Text = "test" };
         string data = obj.SerializeObject();
         var res = data.DeserializeObject<Sample>();
+        Assert.NotNull(res);
         Assert.Equal(obj.Value, res.Value);
         Assert.Equal(obj.Text, res.Text);
     }

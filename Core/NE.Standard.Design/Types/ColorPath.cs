@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NE.Standard.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
@@ -6,6 +7,7 @@ using System.Globalization;
 
 namespace NE.Standard.Design.Types
 {
+    [ObjectSerializable]
     public struct ColorPath
     {
         public static IReadOnlyDictionary<ColorKey, Color> Colors { get; } = new ReadOnlyDictionary<ColorKey, Color>(

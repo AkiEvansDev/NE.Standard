@@ -42,4 +42,9 @@ namespace NE.Standard.Design.Types
         Shade = 1,
         Tint = 2,
     }
+
+    public enum PropertyType
+    {
+
+    }
 }
