@@ -1,3 +1,4 @@
+
 using System.ComponentModel;
 using NE.Standard.Extensions;
 
@@ -12,6 +13,8 @@ enum SampleEnum
 
 public class EnumExtensionsTests
 {
+    private static readonly string[] sourceArray = ["First", "Second"];
+
     [Fact]
     public void GetName_ReturnsName()
     {
@@ -22,14 +25,14 @@ public class EnumExtensionsTests
     public void GetNames_ReturnsAllNames()
     {
         var names = SampleEnum.First.GetNames();
-        Assert.Equal(new[]{"First","Second"}, names);
+        Assert.Equal(sourceArray, names);
     }
 
     [Fact]
     public void GetValues_ReturnsAllValues()
     {
         var values = SampleEnum.First.GetValues<SampleEnum>();
-        Assert.Equal(new[]{SampleEnum.First, SampleEnum.Second}, values);
+        Assert.Equal([SampleEnum.First, SampleEnum.Second], values);
     }
 
     [Fact]

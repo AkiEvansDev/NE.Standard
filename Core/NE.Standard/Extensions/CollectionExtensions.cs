@@ -78,30 +78,6 @@ namespace NE.Standard.Extensions
                 .Select(g => g.Select(p => p.x));
         }
 
-        /// <summary>
-        /// Splits the sequence into chunks of the specified <paramref name="chunkSize"/>.
-        /// </summary>
-        public static IEnumerable<IEnumerable<T>> Chunk<T>(this IEnumerable<T> source, int chunkSize)
-        {
-            if (chunkSize <= 0) throw new ArgumentOutOfRangeException(nameof(chunkSize));
-
-            using var enumerator = source.GetEnumerator();
-            while (enumerator.MoveNext())
-                yield return YieldChunkElements(enumerator, chunkSize);
-        }
-
-        /// <summary>
-        /// Yields a single chunk from the given <paramref name="enumerator"/>.
-        /// </summary>
-        private static IEnumerable<T> YieldChunkElements<T>(IEnumerator<T> enumerator, int size)
-        {
-            int count = 0;
-            do
-            {
-                yield return enumerator.Current;
-            } while (++count < size && enumerator.MoveNext());
-        }
-
         #endregion
 
         #region Collection operations
@@ -175,33 +151,6 @@ namespace NE.Standard.Extensions
                 int j = _random.Next(i + 1);
                 (list[i], list[j]) = (list[j], list[i]);
             }
-        }
-
-        /// <summary>
-        /// Returns distinct elements from a sequence according to a key selector.
-        /// </summary>
-        public static IEnumerable<T> DistinctBy<T, TKey>(this IEnumerable<T> source, Func<T, TKey> keySelector)
-        {
-            var seen = new HashSet<TKey>();
-            foreach (var item in source)
-                if (seen.Add(keySelector(item)))
-                    yield return item;
-        }
-
-        /// <summary>
-        /// Retrieves a value from the dictionary or returns the provided default.
-        /// </summary>
-        public static TValue GetValueOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue defaultValue)
-        {
-            return dict.TryGetValue(key, out var value) ? value : defaultValue;
-        }
-
-        /// <summary>
-        /// Adds a key/value pair to the dictionary or updates it if the key exists.
-        /// </summary>
-        public static void AddOrUpdate<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue value)
-        {
-            dict[key] = value;
         }
 
         #endregion

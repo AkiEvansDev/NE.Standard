@@ -42,14 +42,14 @@ public class StringExtensionsTests
         Assert.Equal(3.5m, "3.5".ToNullableDecimal());
         Assert.Null("x".ToNullableDecimal());
 
-        var dateStr = new DateTime(2024,1,2,3,4,5).ToFormat();
+        var dateStr = new DateTime(2024, 1, 2, 3, 4, 5).ToFormat();
         var date = dateStr.ToDate();
-        Assert.Equal(new DateTime(2024,1,2,3,4,5), date);
+        Assert.Equal(new DateTime(2024, 1, 2, 3, 4, 5), date);
         Assert.Null("bad".ToNullableDate());
 
-        var timeStr = new TimeSpan(1,2,3).ToFormat();
+        var timeStr = new TimeSpan(1, 2, 3).ToFormat();
         var time = timeStr.ToTime();
-        Assert.Equal(new TimeSpan(1,2,3), time);
+        Assert.Equal(new TimeSpan(1, 2, 3), time);
         Assert.Null("bad".ToNullableTime());
     }
 
@@ -65,8 +65,8 @@ public class StringExtensionsTests
         string? nullStr = null;
         Assert.True(nullStr.IsNull());
         Assert.Equal("fallback", nullStr.Empty("fallback"));
-        Assert.True("a".AnyFrom(new[]{"b","A"}));
-        Assert.Equal(new[]{"a","b","c"}, "a,b,, c".SmartSplit(",").ToArray());
+        Assert.True("a".AnyFrom(["b","A"]));
+        Assert.Equal([ "a", "b", "c" ], [.. "a,b,, c".SmartSplit(",")]);
         string base64 = "hi".ToBase64();
         Assert.Equal("hi", base64.FromBase64());
     }
