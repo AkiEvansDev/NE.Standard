@@ -7,6 +7,9 @@ using System.Linq;
 
 namespace NE.Standard.Serialization
 {
+    /// <summary>
+    /// See <see cref="ObjectSerializer"/> for type information.
+    /// </summary>
     public partial class ObjectSerializer
     {
         public object? Deserialize(string data, bool useBase64 = true)

@@ -12,6 +12,11 @@ namespace NE.Standard.Serialization
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class IgnoreAttribute : Attribute { }
 
+    /// <summary>
+    /// Provides methods for serializing and deserializing object graphs.
+    /// The serializer supports collections, dictionaries and preserves
+    /// references between objects when reading or writing.
+    /// </summary>
     public partial class ObjectSerializer : IDisposable
     {
         private const char FIRST_ST = '~';
