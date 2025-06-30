@@ -50,9 +50,9 @@ namespace NE.Standard.Serialization
             if (targetType == typeof(float)) return data.ToFloat();
             if (targetType == typeof(double)) return data.ToDouble();
             if (targetType == typeof(decimal)) return data.ToDecimal();
-            if (targetType.IsEnum) return Enum.Parse(targetType, data);
+            if (targetType.IsEnum) return data.ToEnum(targetType);
 
-            var instance = Activator.CreateInstance(targetType);
+            var instance = targetType.CreateInstance();
             if (instance == null) return null;
 
             if (targetType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>)))
@@ -79,7 +79,7 @@ namespace NE.Standard.Serialization
                     return enumerableType.GetMethod(nameof(Enumerable.ToArray))?.MakeGenericMethod(itemType!)
                         .Invoke(null, new object[] { casted });
                 if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(ObservableCollection<>))
-                    return Activator.CreateInstance(targetType, casted);
+                    return targetType.CreateInstance(new object[] { casted });
                 return enumerableType.GetMethod(nameof(Enumerable.ToList))?.MakeGenericMethod(itemType!)
                     .Invoke(null, new object[] { casted });
             }
