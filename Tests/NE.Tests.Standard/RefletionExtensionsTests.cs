@@ -44,13 +44,4 @@ public class RefletionExtensionsTests
         s.SetFieldValue("Field", 5);
         Assert.Equal(5, s.Field);
     }
-
-    [Fact]
-    public void GetAttribute_ReturnsAttribute()
-    {
-        var member = typeof(Sample).GetProperty(nameof(Sample.Annotated))!;
-        var attr = member.GetAttribute<DescriptionAttribute>();
-        Assert.NotNull(attr);
-        Assert.Equal("sample attr", attr!.Description);
-    }
 }

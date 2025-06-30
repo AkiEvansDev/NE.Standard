@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Reflection;
 
 namespace NE.Standard.Extensions
@@ -28,8 +27,11 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Gets the strongly typed value of a property with the specified name.
         /// </summary>
-        public static T? GetPropertyValue<T>(this object obj, string propertyName)
-            => (T?)GetPropertyValue(obj, propertyName);
+        public static T GetPropertyValue<T>(this object obj, string propertyName)
+        {
+            var result = GetPropertyValue(obj, propertyName);
+            return result is null ? default! : (T)result;
+        }
 
         /// <summary>
         /// Sets the value of a property with the specified name.
@@ -66,8 +68,11 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Gets the strongly typed value of a field with the specified name.
         /// </summary>
-        public static T? GetFieldValue<T>(this object obj, string fieldName)
-            => (T?)GetFieldValue(obj, fieldName);
+        public static T GetFieldValue<T>(this object obj, string fieldName)
+        {
+            var result = GetFieldValue(obj, fieldName);
+            return result is null ? default! : (T)result;
+        }
 
         /// <summary>
         /// Sets the value of a field with the specified name.
@@ -83,15 +88,6 @@ namespace NE.Standard.Extensions
                 ?? throw new ArgumentException($"Field '{fieldName}' not found on type '{obj.GetType().FullName}'.", nameof(fieldName));
 
             field.SetValue(obj, value);
-        }
-
-        /// <summary>
-        /// Retrieves the first attribute of the specified type applied to the member.
-        /// </summary>
-        public static TAttribute? GetAttribute<TAttribute>(this MemberInfo member, bool inherit = false) where TAttribute : Attribute
-        {
-            if (member == null) throw new ArgumentNullException(nameof(member));
-            return (TAttribute?)member.GetCustomAttributes(typeof(TAttribute), inherit).FirstOrDefault();
         }
     }
 }
