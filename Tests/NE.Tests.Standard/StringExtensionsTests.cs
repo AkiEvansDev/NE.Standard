@@ -2,6 +2,8 @@ using NE.Standard.Extensions;
 
 namespace NE.Tests.Standard;
 
+enum ParseEnum { Alpha, Beta }
+
 public class StringExtensionsTests
 {
     [Fact]
@@ -56,6 +58,9 @@ public class StringExtensionsTests
         var time = timeStr.ToTime();
         Assert.Equal(new TimeSpan(1, 2, 3), time);
         Assert.Null("bad".ToNullableTime());
+
+        Assert.Equal(ParseEnum.Beta, "Beta".ToEnum<ParseEnum>());
+        Assert.Equal(ParseEnum.Alpha, "Alpha".ToEnum(typeof(ParseEnum)));
     }
 
     [Fact]

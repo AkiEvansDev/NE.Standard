@@ -153,6 +153,18 @@ namespace NE.Standard.Extensions
             return TimeSpan.TryParseExact(value, format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture, out var exact) ? exact : (TimeSpan?)null;
         }
 
+        /// <summary>
+        /// Converts the string to the specified enumeration value.
+        /// </summary>
+        public static object ToEnum(this string value, Type enumType)
+            => Enum.Parse(enumType ?? throw new ArgumentNullException(nameof(enumType)), value);
+
+        /// <summary>
+        /// Converts the string to the specified enumeration value.
+        /// </summary>
+        public static T ToEnum<T>(this string value) where T : struct, Enum
+            => (T)Enum.Parse(typeof(T), value);
+
         #endregion
 
         #region String operations

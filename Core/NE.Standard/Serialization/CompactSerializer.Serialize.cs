@@ -45,6 +45,14 @@ namespace NE.Standard.Serialization
                     _builder.Append(">");
                 }
             }
+            else if (type == typeof(DateTime))
+            {
+                _builder.Append($"({GetOrAddTypeId(type)}){((DateTime)obj).ToFormat()}");
+            }
+            else if (type == typeof(TimeSpan))
+            {
+                _builder.Append($"({GetOrAddTypeId(type)}){((TimeSpan)obj).ToFormat()}");
+            }
             else
             {
                 _builder.Append($"({GetOrAddTypeId(type)}){obj}");
