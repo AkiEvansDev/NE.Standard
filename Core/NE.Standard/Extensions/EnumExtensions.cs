@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.ComponentModel;
 
 namespace NE.Standard.Extensions
 {
@@ -37,6 +38,22 @@ namespace NE.Standard.Extensions
                 .GetType()
                 .GetField(@enum.ToString())!
                 .GetCustomAttribute<TAttribute>();
+        }
+
+        /// <summary>
+        /// Returns the <see cref="DescriptionAttribute.Description"/> of the enumeration value.
+        /// </summary>
+        public static string? GetDescription(this Enum @enum)
+            => @enum.GetAttribute<DescriptionAttribute>()?.Description;
+
+        /// <summary>
+        /// Returns a dictionary mapping enumeration values to their descriptions.
+        /// </summary>
+        public static Dictionary<TEnum, string?> GetDescriptions<TEnum>() where TEnum : Enum
+        {
+            return Enum.GetValues(typeof(TEnum))
+                .Cast<TEnum>()
+                .ToDictionary(v => v, v => v.GetDescription());
         }
     }
 }
