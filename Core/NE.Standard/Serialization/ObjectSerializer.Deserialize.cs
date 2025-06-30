@@ -238,7 +238,7 @@ namespace NE.Standard.Serialization
                 return data.ToDecimal();
 
             if (type == typeof(DateTime))
-                data.ToDate();
+                return data.ToDate();
 
             if (type == typeof(TimeSpan))
                 return data.ToTime();

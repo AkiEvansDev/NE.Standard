@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace NE.Standard.Serialization
 {
@@ -23,13 +24,23 @@ namespace NE.Standard.Serialization
             public bool HasReference { get; set; }
         }
 
+        private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
+        {
+            bool IEqualityComparer<object>.Equals(object? x, object? y) => ReferenceEquals(x, y);
+            int IEqualityComparer<object>.GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
+        }
+
         private List<string> _typeIndex = new List<string>();
+        private Dictionary<string, int> _typeMap = new Dictionary<string, int>();
         private List<ReferenceEntry> _referenceTracker = new List<ReferenceEntry>();
+        private Dictionary<object, ReferenceEntry> _referenceLookup = new Dictionary<object, ReferenceEntry>(new ReferenceEqualityComparer());
 
         private void Init()
         {
             _typeIndex = new List<string>();
+            _typeMap = new Dictionary<string, int>();
             _referenceTracker = new List<ReferenceEntry>();
+            _referenceLookup = new Dictionary<object, ReferenceEntry>(new ReferenceEqualityComparer());
         }
 
         public string Serialize(object obj, bool useBase64 = true)
@@ -47,18 +58,18 @@ namespace NE.Standard.Serialization
         private object? GetReference(string refId)
         {
             int id = refId.ToInt(-1);
-            return _referenceTracker.FirstOrDefault(r => r.Id == id)?.Obj;
+            var reference = _referenceTracker.FirstOrDefault(r => r.Id == id);
+            return reference?.Obj;
         }
 
         private int GetReferenceId(object obj)
         {
-            var reference = _referenceTracker.FirstOrDefault(r => ReferenceEquals(r.Obj, obj));
-
-            if (reference == null)
-                return -1;
-
-            reference.HasReference = true;
-            return reference.Id;
+            if (_referenceLookup.TryGetValue(obj, out var reference))
+            {
+                reference.HasReference = true;
+                return reference.Id;
+            }
+            return -1;
         }
 
         private bool TrackReference(object? obj)
@@ -66,7 +77,7 @@ namespace NE.Standard.Serialization
             if (obj == null)
                 return false;
 
-            if (_referenceTracker.Exists(r => ReferenceEquals(r.Obj, obj))) 
+            if (_referenceLookup.ContainsKey(obj))
                 return false;
 
             TrackReference(_referenceTracker.Count, obj);
@@ -76,20 +87,26 @@ namespace NE.Standard.Serialization
 
         private void TrackReference(int id, object obj)
         {
-            _referenceTracker.Add(new ReferenceEntry
+            var entry = new ReferenceEntry
             {
                 Id = id,
                 Obj = obj,
                 HasReference = false
-            });
+            };
+            _referenceTracker.Add(entry);
+            _referenceLookup[obj] = entry;
         }
 
         private int GetOrAddTypeId(Type type)
         {
             var name = type.FullName!;
-            if (!_typeIndex.Contains(name))
+            if (!_typeMap.TryGetValue(name, out int id))
+            {
+                id = _typeIndex.Count;
                 _typeIndex.Add(name);
-            return _typeIndex.IndexOf(name);
+                _typeMap[name] = id;
+            }
+            return id;
         }
 
         private Type ResolveCompactType(string id)
@@ -104,7 +121,9 @@ namespace NE.Standard.Serialization
         public void Dispose()
         {
             _typeIndex.Clear();
+            _typeMap.Clear();
             _referenceTracker.Clear();
+            _referenceLookup.Clear();
         }
     }
 }

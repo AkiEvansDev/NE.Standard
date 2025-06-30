@@ -94,6 +94,7 @@ namespace NE.Standard.Serialization
                     referenceBuilder.Insert(0, $"{objBuilder.Length + reference.Id.ToString().Length + 2}&{reference.Id}&");
 
                     _referenceTracker.Remove(reference);
+                    _referenceLookup.Remove(reference.Obj);
                 }
 
                 newCount = _referenceTracker.Count;
