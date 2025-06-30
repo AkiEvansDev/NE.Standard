@@ -43,8 +43,13 @@ namespace NE.Standard.Design.Types
         Tint = 2,
     }
 
-    public enum PropertyType
+    public enum Alignment
     {
-
+        Start,
+        Center,
+        End,
+        Stretch,
+        Top = Start,
+        Bottom = End
     }
 }
