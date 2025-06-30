@@ -7,7 +7,7 @@ using System.Text;
 
 namespace NE.Standard.Serialization
 {
-    public partial class NESerializer
+    public partial class NeSerializer
     {
         private string SerializeInternal(object obj, bool useBase64 = true, bool ignoreReference = false)
         {
@@ -31,14 +31,14 @@ namespace NE.Standard.Serialization
             if (type == null)
                 return;
 
-            if (type.GetCustomAttribute<NESerializableAttribute>() != null)
+            if (type.HasAttribute<NESerializableAttribute>())
             {
                 if (!type.IsValueType && !TrackReference(obj))
                     return;
 
                 foreach (var prop in type.GetProperties())
                 {
-                    if (prop.SetMethod == null || prop.GetCustomAttribute<NEIgnoreAttribute>() != null)
+                    if (prop.SetMethod == null || prop.HasAttribute<NEIgnoreAttribute>())
                         continue;
 
                     var value = prop.GetValue(obj);
@@ -131,13 +131,13 @@ namespace NE.Standard.Serialization
             if (type == null)
                 return;
 
-            if (type.GetCustomAttribute<NESerializableAttribute>() != null)
+            if (type.HasAttribute<NESerializableAttribute>())
             {
                 builder.Append($"({GetOrAddTypeId(type)})");
 
                 foreach (var prop in type.GetProperties())
                 {
-                    if (prop.SetMethod == null || prop.GetCustomAttribute<NEIgnoreAttribute>() != null)
+                    if (prop.SetMethod == null || prop.HasAttribute<NEIgnoreAttribute>())
                         continue;
 
                     var value = prop.GetValue(obj);
