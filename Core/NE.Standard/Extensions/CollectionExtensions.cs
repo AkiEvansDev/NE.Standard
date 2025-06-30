@@ -22,7 +22,8 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns only non-null reference items from the sequence.
         /// </summary>
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) 
+            where T : class
         {
             return source.Where(x => x != null)!;
         }
@@ -30,9 +31,10 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns only non-null value type items from the sequence.
         /// </summary>
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : struct
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) 
+            where T : struct
         {
-            return source.Where(x => x.HasValue).Select(x => x.Value);
+            return source.Where(x => x.HasValue).Select(x => x ?? default);
         }
         
         #endregion
@@ -114,6 +116,26 @@ namespace NE.Standard.Extensions
         public static void InsertSortedDescending<T>(this IList list, T item) where T : IComparable<T>
         {
             int index = list.OfType<T>().TakeWhile(x => x.CompareTo(item) > 0).Count();
+            list.Insert(index, item);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in ascending order.
+        /// </summary>
+        public static void InsertSorted<T>(this List<T> list, T item) where T : IComparable<T>
+        {
+            int index = list.BinarySearch(item);
+            if (index < 0) index = ~index;
+            list.Insert(index, item);
+        }
+
+        /// <summary>
+        /// Inserts an item into the list while keeping elements in descending order.
+        /// </summary>
+        public static void InsertSortedDescending<T>(this List<T> list, T item) where T : IComparable<T>
+        {
+            int index = list.BinarySearch(item, Comparer<T>.Create((a, b) => b.CompareTo(a)));
+            if (index < 0) index = ~index;
             list.Insert(index, item);
         }
 

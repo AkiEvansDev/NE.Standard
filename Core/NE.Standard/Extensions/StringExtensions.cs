@@ -60,10 +60,7 @@ namespace NE.Standard.Extensions
             if (string.IsNullOrWhiteSpace(value))
                 return defaultValue;
 
-            if (string.IsNullOrEmpty(format))
-                return DateTime.TryParse(value, provider, DateTimeStyles.None, out var result) ? result : defaultValue;
-
-            return DateTime.TryParseExact(value, format, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact) ? exact : defaultValue;
+            return DateTime.TryParseExact(value, format ?? GeneralConstants.DATETIME_FORMAT, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact) ? exact : defaultValue;
         }
 
         public static DateTime? ToNullableDate(this string? value, string? format = null, IFormatProvider? provider = null)
@@ -71,10 +68,7 @@ namespace NE.Standard.Extensions
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            if (string.IsNullOrEmpty(format))
-                return DateTime.TryParse(value, provider, DateTimeStyles.None, out var result) ? result : (DateTime?)null;
-
-            return DateTime.TryParseExact(value, format, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact) ? exact : (DateTime?)null;
+            return DateTime.TryParseExact(value, format ?? GeneralConstants.DATETIME_FORMAT, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact) ? exact : (DateTime?)null;
         }
 
         public static TimeSpan ToTime(this string? value, string? format = null, IFormatProvider? provider = null, TimeSpan defaultValue = default)
@@ -82,10 +76,7 @@ namespace NE.Standard.Extensions
             if (string.IsNullOrWhiteSpace(value))
                 return defaultValue;
 
-            if (string.IsNullOrEmpty(format))
-                return TimeSpan.TryParse(value, provider, out var result) ? result : defaultValue;
-
-            return TimeSpan.TryParseExact(value, format, provider ?? CultureInfo.InvariantCulture, out var exact) ? exact : defaultValue;
+            return TimeSpan.TryParseExact(value, format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture, out var exact) ? exact : defaultValue;
         }
 
         public static TimeSpan? ToNullableTime(this string? value, string? format = null, IFormatProvider? provider = null)
@@ -93,10 +84,7 @@ namespace NE.Standard.Extensions
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            if (string.IsNullOrEmpty(format))
-                return TimeSpan.TryParse(value, provider, out var result) ? result : (TimeSpan?)null;
-
-            return TimeSpan.TryParseExact(value, format, provider ?? CultureInfo.InvariantCulture, out var exact) ? exact : (TimeSpan?)null;
+            return TimeSpan.TryParseExact(value, format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture, out var exact) ? exact : (TimeSpan?)null;
         }
 
         #endregion
@@ -106,7 +94,7 @@ namespace NE.Standard.Extensions
         public static bool EqualsIgnoreCase(this string? value1, string? value2)
             => string.Equals(value1, value2, StringComparison.OrdinalIgnoreCase);
 
-        public static bool ContainsIgnoreCase(this string value, string part)
+        public static bool ContainsIgnoreCase(this string? value, string part)
             => value?.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0;
 
         public static bool Search(this string value1, string value2)
@@ -115,7 +103,7 @@ namespace NE.Standard.Extensions
             return parts.Any(p => value1.Contains(p, StringComparison.OrdinalIgnoreCase));
         }
 
-        public static bool Search(this string value1, string value2, params char[] separator)
+        public static bool Search(this string value1, string value2, params string[] separator)
         {
             var parts = value2.Split(separator, StringSplitOptions.RemoveEmptyEntries);
             return parts.Any(p => value1.Contains(p, StringComparison.OrdinalIgnoreCase));
@@ -133,20 +121,19 @@ namespace NE.Standard.Extensions
         public static string Empty(this string? value1, string value2)
             => string.IsNullOrWhiteSpace(value1) ? value2 : value1;
 
-        public static string UniqueFrom(this string value, IEnumerable<string> values)
+        public static string UniqueFrom(this string value, IEnumerable<string> values, string separator = "#")
         {
-            var index = 1;
-            var newValue = value;
+            int index = 1;
+            string newValue = value;
             while (values.Any(v => v.EqualsIgnoreCase(newValue)))
             {
-                newValue = $"{value}#{index}";
-                index++;
+                newValue = $"{value}{separator}{index++}";
             }
             return newValue;
         }
 
         public static bool AnyFrom(this string value, IEnumerable<string> values)
-            => values.Any(v => v.EqualsIgnoreCase(value));
+            => values.Contains(value, StringComparer.OrdinalIgnoreCase);
 
         public static IEnumerable<string> SmartSplit(this string data, params string[] separator)
             => data
