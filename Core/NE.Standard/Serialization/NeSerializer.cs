@@ -11,7 +11,7 @@ namespace NE.Standard.Serialization
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class NEIgnoreAttribute : Attribute { }
 
-    public partial class NESerializer : IDisposable
+    public partial class NeSerializer : IDisposable
     {
         private const char FIRST_ST = '~';
         private const string STRING_T = "~[";

@@ -2,7 +2,7 @@ using NE.Standard.Serialization;
 
 namespace NE.Tests.Standard;
 
-public class NESerializerTests
+public class NeSerializerTests
 {
     private enum TestEnum
     {
@@ -54,7 +54,7 @@ public class NESerializerTests
     [Fact]
     public void SerializeDeserialize_DateTimeAndTimeSpan()
     {
-        var serializer = new NESerializer();
+        var serializer = new NeSerializer();
 
         var obj = new TestSerializer
         {
@@ -92,50 +92,38 @@ public class NESerializerTests
         var data = serializer.Serialize(obj);
         var obj2 = serializer.Deserialize<TestSerializer>(data);
 
-        if (obj2.V == false)
-            Assert.Fail();
+        Assert.True(obj2.V);
 
-        if (obj2.V1 != 1)
-            Assert.Fail();
+        Assert.Equal(1, obj2.V1);
 
-        if (obj2.V1Ignore == 1)
-            Assert.Fail();
+        Assert.NotEqual(1, obj2.V1Ignore);
 
-        if (obj2.V2 != 2.2f)
-            Assert.Fail();
+        Assert.Equal(2.2f, obj2.V2);
 
-        if (obj2.V3 != 3.3)
-            Assert.Fail();
+        Assert.Equal(3.3, obj2.V3);
 
-        if (obj2.Text != "~[Test&^$(']")
-            Assert.Fail();
+        Assert.Equal("~[Test&^$(']", obj2.Text);
 
-        if (obj2.Date != new DateTime(2000, 1, 1))
-            Assert.Fail();
+        Assert.Equal(new DateTime(2000, 1, 1), obj2.Date);
 
-        if (obj2.Time != new TimeSpan(1, 2, 3, 4, 5) - new TimeSpan(2, 3, 4, 5, 6))
-            Assert.Fail();
+        Assert.Equal(new TimeSpan(1, 2, 3, 4, 5) - new TimeSpan(2, 3, 4, 5, 6), obj2.Time);
 
-        if (obj2.DateNull != null)
-            Assert.Fail();
+        Assert.Null(obj2.DateNull);
 
-        if (obj2.Enum != TestEnum.V3)
-            Assert.Fail();
+        Assert.Equal(TestEnum.V3, obj2.Enum);
 
-        if (obj2.Ints?[0] != 1 || obj2.Ints[1] != 2)
-            Assert.Fail();
+        Assert.Equal(new[] {1, 2}, obj2.Ints);
 
-        if (obj2.Floats?[0] != 2.2f || obj2.Floats[1] != 3.3f)
-            Assert.Fail();
+        Assert.Equal(new List<float>{2.2f,3.3f}, obj2.Floats);
 
-        if (obj2.TestInterface == null || obj2.TestInterface.Text != "~[Test&^$(']")
-            Assert.Fail();
+        Assert.NotNull(obj2.TestInterface);
+        Assert.Equal("~[Test&^$(']", obj2.TestInterface?.Text);
 
-        if (obj2.SubTestClass == null || obj2.SubTestClass.Text != "~[Test&^$(']")
-            Assert.Fail();
+        Assert.NotNull(obj2.SubTestClass);
+        Assert.Equal("~[Test&^$(']", obj2.SubTestClass?.Text);
 
-        if (obj2.SubTestStruct == null || obj2.SubTestStruct?.Text != "~[Test&^$(']")
-            Assert.Fail();
+        Assert.NotNull(obj2.SubTestStruct);
+        Assert.Equal("~[Test&^$(']", obj2.SubTestStruct?.Text);
     }
 
     [NESerializable]
@@ -164,7 +152,7 @@ public class NESerializerTests
     [Fact]
     public void TestReference1()
     {
-        var serializer = new NESerializer();
+        var serializer = new NeSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -183,14 +171,13 @@ public class NESerializerTests
 
         res.SubData1.Data = "0";
 
-        if (res.Data != "0")
-            Assert.Fail();
+        Assert.Equal("0", res.Data);
     }
 
     [Fact]
     public void TestReference2()
     {
-        var serializer = new NESerializer();
+        var serializer = new NeSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -209,14 +196,13 @@ public class NESerializerTests
 
         res.SubData2.Data = "0";
 
-        if (res.SubData1.Data != "0")
-            Assert.Fail();
+        Assert.Equal("0", res.SubData1.Data);
     }
 
     [Fact]
     public void TestReference3()
     {
-        var serializer = new NESerializer();
+        var serializer = new NeSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -235,14 +221,13 @@ public class NESerializerTests
 
         res.SubData2.Data = "0";
 
-        if (res.SubData1.Data == "0")
-            Assert.Fail();
+        Assert.NotEqual("0", res.SubData1.Data);
     }
 
     [Fact]
     public void TestReference4()
     {
-        var serializer = new NESerializer();
+        var serializer = new NeSerializer();
 
         var r = new ReferenceTestArray
         {
@@ -272,10 +257,7 @@ public class NESerializerTests
         res.Data = "0";
         res.Items["1"].Data = "0";
 
-        if (res.Items["1"].Parent.Data != "0")
-            Assert.Fail();
-
-        if (res.Items["3"].Data != "0")
-            Assert.Fail();
+        Assert.Equal("0", res.Items["1"].Parent.Data);
+        Assert.Equal("0", res.Items["3"].Data);
     }
 }

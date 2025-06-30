@@ -8,7 +8,7 @@ using System.Reflection;
 
 namespace NE.Standard.Serialization
 {
-    public partial class NESerializer
+    public partial class NeSerializer
     {
         public object? Deserialize(string data, bool useBase64 = true)
         {
@@ -111,7 +111,7 @@ namespace NE.Standard.Serialization
 
             var type = obj.GetType();
 
-            if (type.GetCustomAttribute<NESerializableAttribute>() != null)
+            if (type.HasAttribute<NESerializableAttribute>())
             {
                 foreach (var param in ExtractSegments(data))
                 {
