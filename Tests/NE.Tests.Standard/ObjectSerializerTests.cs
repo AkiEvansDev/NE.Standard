@@ -2,7 +2,7 @@ using NE.Standard.Serialization;
 
 namespace NE.Tests.Standard;
 
-public class NeSerializerTests
+public class ObjectSerializerTests
 {
     private enum TestEnum
     {
@@ -11,12 +11,12 @@ public class NeSerializerTests
         V3,
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     private class TestSerializer
     {
         public bool V { get; set; }
         public int V1 { get; set; }
-        [NEIgnore]
+        [ObjectSerializerIgnore]
         public int V1Ignore { get; set; }
         public float V2 { get; set; }
         public double V3 { get; set; }
@@ -39,13 +39,13 @@ public class NeSerializerTests
         string? Text { get; set; }
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     private class SubTestSerializerClass : ITestClass
     {
         public string? Text { get; set; }
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     private struct SubTestSerializerStruct(string text)
     {
         public string? Text { get; set; } = text;
@@ -54,7 +54,7 @@ public class NeSerializerTests
     [Fact]
     public void SerializeDeserialize_DateTimeAndTimeSpan()
     {
-        var serializer = new NeSerializer();
+        var serializer = new ObjectSerializer();
 
         var obj = new TestSerializer
         {
@@ -126,7 +126,7 @@ public class NeSerializerTests
         Assert.Equal("~[Test&^$(']", obj2.SubTestStruct?.Text);
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     public class ReferenceTest
     {
         public string? Data { get; set; }
@@ -135,14 +135,14 @@ public class NeSerializerTests
         public ReferenceTest SubData2 { get; set; }
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     public class ReferenceTestArray
     {
         public string? Data { get; set; }
         public Dictionary<string, ReferenceTestArrayItem> Items { get; set; }
     }
 
-    [NESerializable]
+    [ObjectSerializable]
     public class ReferenceTestArrayItem
     {
         public string? Data { get; set; }
@@ -152,7 +152,7 @@ public class NeSerializerTests
     [Fact]
     public void TestReference1()
     {
-        var serializer = new NeSerializer();
+        var serializer = new ObjectSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -177,7 +177,7 @@ public class NeSerializerTests
     [Fact]
     public void TestReference2()
     {
-        var serializer = new NeSerializer();
+        var serializer = new ObjectSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -202,7 +202,7 @@ public class NeSerializerTests
     [Fact]
     public void TestReference3()
     {
-        var serializer = new NeSerializer();
+        var serializer = new ObjectSerializer();
 
         var r1 = new ReferenceTest
         {
@@ -227,7 +227,7 @@ public class NeSerializerTests
     [Fact]
     public void TestReference4()
     {
-        var serializer = new NeSerializer();
+        var serializer = new ObjectSerializer();
 
         var r = new ReferenceTestArray
         {

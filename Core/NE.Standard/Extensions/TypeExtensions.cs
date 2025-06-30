@@ -10,6 +10,17 @@ namespace NE.Standard.Extensions
     public static class TypeExtensions
     {
         /// <summary>
+        /// Determines whether the member has the specified attribute applied.
+        /// </summary>
+        public static bool HasAttribute<TAttribute>(this MemberInfo member, bool inherit = false) where TAttribute : Attribute
+        {
+            if (member == null)
+                throw new ArgumentNullException(nameof(member));
+
+            return Attribute.IsDefined(member, typeof(TAttribute), inherit);
+        }
+        
+        /// <summary>
         /// Creates an instance of the given type with optional constructor parameters.
         /// </summary>
         public static object CreateInstance(this Type type, object[]? parameters = null)
@@ -91,17 +102,6 @@ namespace NE.Standard.Extensions
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Determines whether the member has the specified attribute applied.
-        /// </summary>
-        public static bool HasAttribute<TAttribute>(this MemberInfo member, bool inherit = false) where TAttribute : Attribute
-        {
-            if (member == null)
-                throw new ArgumentNullException(nameof(member));
-
-            return Attribute.IsDefined(member, typeof(TAttribute), inherit);
         }
     }
 }

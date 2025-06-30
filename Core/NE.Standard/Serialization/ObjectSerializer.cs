@@ -6,12 +6,12 @@ using System.Linq;
 namespace NE.Standard.Serialization
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public sealed class NESerializableAttribute : Attribute { }
+    public sealed class ObjectSerializableAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Property)]
-    public sealed class NEIgnoreAttribute : Attribute { }
+    public sealed class ObjectSerializerIgnoreAttribute : Attribute { }
 
-    public partial class NeSerializer : IDisposable
+    public partial class ObjectSerializer : IDisposable
     {
         private const char FIRST_ST = '~';
         private const string STRING_T = "~[";
