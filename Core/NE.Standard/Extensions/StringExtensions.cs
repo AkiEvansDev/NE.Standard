@@ -38,6 +38,18 @@ namespace NE.Standard.Extensions
             => byte.TryParse(value, out var result) ? result : (byte?)null;
 
         /// <summary>
+        /// Converts the string to a <see cref="short"/> value or returns the specified default.
+        /// </summary>
+        public static short ToShort(this string? value, short defaultValue = default)
+            => short.TryParse(value, out var result) ? result : defaultValue;
+
+        /// <summary>
+        /// Converts the string to a nullable <see cref="short"/>.
+        /// </summary>
+        public static short? ToNullableShort(this string? value)
+            => short.TryParse(value, out var result) ? result : (short?)null;
+
+        /// <summary>
         /// Converts the string to an <see cref="int"/> value or returns the specified default.
         /// </summary>
         public static int ToInt(this string? value, int defaultValue = default)
@@ -64,13 +76,13 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts the string to a <see cref="float"/> value or returns the specified default.
         /// </summary>
-        public static float ToSingle(this string? value, float defaultValue = default)
+        public static float ToFloat(this string? value, float defaultValue = default)
             => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : defaultValue;
 
         /// <summary>
         /// Converts the string to a nullable <see cref="float"/>.
         /// </summary>
-        public static float? ToNullableSingle(this string? value)
+        public static float? ToNullableFloat(this string? value)
             => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : (float?)null;
 
         /// <summary>

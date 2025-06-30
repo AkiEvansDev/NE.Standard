@@ -55,9 +55,10 @@ public class TypeExtensionsTests
         Assert.Equal(typeof(TypeExtensions), "NE.Standard.Extensions.TypeExtensions".ResolveType());
         Assert.Equal(typeof(string), "System.String".ResolveType());
 
-        Assert.Throws<TypeLoadException>(() => "No.Such.Type".ResolveType());
+        Assert.Throws<TypeLoadException>("No.Such.Type".ResolveType);
+
         string? nullName = null;
-        Assert.Throws<ArgumentNullException>(() => nullName.ResolveType());
-        Assert.Throws<ArgumentNullException>(() => "".ResolveType());
+        Assert.Throws<ArgumentNullException>(nullName.ResolveType);
+        Assert.Throws<ArgumentNullException>("".ResolveType);
     }
 }

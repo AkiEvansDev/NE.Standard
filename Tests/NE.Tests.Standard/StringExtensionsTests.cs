@@ -17,6 +17,11 @@ public class StringExtensionsTests
         Assert.Equal((byte)5, "5".ToNullableByte());
         Assert.Null("x".ToNullableByte());
 
+        Assert.Equal((short)5, "5".ToShort());
+        Assert.Equal((short)0, "x".ToShort());
+        Assert.Equal((short)5, "5".ToNullableShort());
+        Assert.Null("x".ToNullableShort());
+
         Assert.Equal(42, "42".ToInt());
         Assert.Equal(0, "x".ToInt());
         Assert.Equal(42, "42".ToNullableInt());
@@ -27,10 +32,10 @@ public class StringExtensionsTests
         Assert.Equal(123L, "123".ToNullableLong());
         Assert.Null("x".ToNullableLong());
 
-        Assert.Equal(1.5f, "1.5".ToSingle());
-        Assert.Equal(0f, "x".ToSingle());
-        Assert.Equal(1.5f, "1.5".ToNullableSingle());
-        Assert.Null("x".ToNullableSingle());
+        Assert.Equal(1.5f, "1.5".ToFloat());
+        Assert.Equal(0f, "x".ToFloat());
+        Assert.Equal(1.5f, "1.5".ToNullableFloat());
+        Assert.Null("x".ToNullableFloat());
 
         Assert.Equal(2.5, "2.5".ToDouble());
         Assert.Equal(0d, "x".ToDouble());
