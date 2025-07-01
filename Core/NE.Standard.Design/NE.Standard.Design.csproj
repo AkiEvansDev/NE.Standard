@@ -9,4 +9,8 @@
     <ProjectReference Include="..\NE.Standard\NE.Standard.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
 </Project>

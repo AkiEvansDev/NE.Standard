@@ -1,6 +1,6 @@
 ﻿using NE.Standard.Serialization;
 
-namespace NE.Standard.Design.Types.Style
+namespace NE.Standard.Design.Styles
 {
     [ObjectSerializable]
     public class UIStyleConfig

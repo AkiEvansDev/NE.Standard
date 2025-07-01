@@ -117,9 +117,9 @@ namespace NE.Standard.Design.Types
             {
                 var f = factor / 10.0;
 
-                r = (byte)Math.Round(r + ((255 - r) * f));
-                g = (byte)Math.Round(g + ((255 - g) * f));
-                b = (byte)Math.Round(b + ((255 - b) * f));
+                r = (byte)Math.Round(r + (255 - r) * f);
+                g = (byte)Math.Round(g + (255 - g) * f);
+                b = (byte)Math.Round(b + (255 - b) * f);
             }
 
             return Color.FromArgb(a, r, g, b);

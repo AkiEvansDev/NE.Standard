@@ -43,13 +43,49 @@ namespace NE.Standard.Design.Types
         Tint = 2,
     }
 
-    public enum Alignment
+    public enum Alignment 
+    { 
+        Start, 
+        Center, 
+        End, 
+        Stretch 
+    }
+
+    public enum BindingType
     {
-        Start,
-        Center,
-        End,
-        Stretch,
-        Top = Start,
-        Bottom = End
+        TwoWay,
+        OneWayToSource
+    }
+
+    public enum ValidationType
+    {
+        Required,
+        Equals,
+        GreaterThanOrEqual,
+        LessThanOrEqual,
+        Like,
+        In,
+        Regax
+    }
+
+    public enum SyncMode
+    {
+        None,
+        Immediate,
+        Batched,
+        Debounced
+    }
+
+    public enum NotificationType
+    {
+        Message,
+        Warning,
+        Error
+    }
+
+    public enum NotificationDisplayType
+    {
+        Manual,
+        Timeout
     }
 }

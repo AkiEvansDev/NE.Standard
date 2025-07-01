@@ -1,6 +1,7 @@
-﻿using NE.Standard.Serialization;
+﻿using NE.Standard.Design.Types;
+using NE.Standard.Serialization;
 
-namespace NE.Standard.Design.Types.Style
+namespace NE.Standard.Design.Styles
 {
     [ObjectSerializable]
     public class ColorPalette
