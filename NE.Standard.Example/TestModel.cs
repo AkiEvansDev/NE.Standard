@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using NE.Standard.Design.Models;
+using System;
+using System.Threading.Tasks;
 
 namespace NE.Standard.Example
 {
@@ -18,6 +20,17 @@ namespace NE.Standard.Example
         {
             Title = "Test Title Update";
             Text = "...";
+        }
+
+        public  TestModel()
+        {
+            Test();
+        }
+
+        public async Task Test()
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            TestUpdate();
         }
     }
 }

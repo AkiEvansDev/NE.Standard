@@ -14,8 +14,7 @@ public static class WebInit
     public static void InitBuilder<TApp>(WebApplicationBuilder builder)
         where TApp : class, IUIApp
     {
-        builder.Services
-            .AddRazorComponents()
+        builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
         builder.Services.AddSingleton<IUIApp, TApp>();
@@ -26,6 +25,8 @@ public static class WebInit
     {
         app.UseRouting();
         app.UseAntiforgery();
-        app.MapRazorComponents<AppHost>();
+
+        app.MapRazorComponents<AppHost>()
+            .AddInteractiveServerRenderMode();
     }
 }

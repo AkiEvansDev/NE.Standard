@@ -19,11 +19,9 @@ internal class UIButtonRender
         builder.AddAttribute(3, "style", CssGenerator.GetDefaultStyle(button));
 
         if (!button.Action.IsNull())
-            builder.AddAttribute(4, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
-                    (ComponentBase)host, async _ =>
-                    {
-                        await host.HandleAction(button.Action!, button.RelatedParameters);
-                    }));
+        {
+            //throw new NotImplementedException();
+        }
 
         builder.AddContent(5, button.Label ?? "Button");
         builder.CloseElement();

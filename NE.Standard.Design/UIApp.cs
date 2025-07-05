@@ -32,10 +32,10 @@ namespace NE.Standard.Design
 
     public interface IUIRequest
     {
-        void RequestSync(List<UpdateProperty> updates);
-        bool RequestNavigate(string key);
-        bool RequestOpenDialog(string id);
-        bool RequestNotification(UINotification notification);
+        Task RequestSync(List<UpdateProperty> updates);
+        Task RequestNavigate(string key);
+        Task RequestOpenDialog(string id);
+        Task RequestNotification(UINotification notification);
     }
 
     [ObjectSerializable]

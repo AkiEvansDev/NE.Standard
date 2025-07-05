@@ -8,7 +8,6 @@
 
 @page "/"
 @implements IUIRequest
-@implements IHandleEvent
 
 @inject IUIApp App
 
@@ -42,12 +41,6 @@
         StateHasChanged();
     }
 
-    public async Task HandleAction(string action, object[]? parameters)
-    {
-        if (_result?.Model != null)
-            await _result.Model.InvokeActionAsync(action, parameters);
-    }
-
     private RenderFragment RenderLayout(IUILayout? layout) => builder =>
     {
         if (_result == null || layout == null)
@@ -56,15 +49,19 @@
         builder.AddContent(0, WebRendererRegistry.Render(layout, _result, BindingContext, this));
     };
 
-    void IUIRequest.RequestSync(List<UpdateProperty> updates)
+    async Task IUIRequest.RequestSync(List<UpdateProperty> updates)
     {
         foreach (var update in updates)
-            _ = BindingContext.ApplyUpdateAsync(update);
+            await BindingContext.ApplyUpdateAsync(update);
     }
 
-    bool IUIRequest.RequestNavigate(string key) { _ = NavigateAsync(key); return true; }
-    bool IUIRequest.RequestOpenDialog(string id) => false;
-    bool IUIRequest.RequestNotification(UINotification notification) => false;
+    async Task IUIRequest.RequestNavigate(string key) 
+    {
+        await NavigateAsync(key);
+    }
+
+    Task IUIRequest.RequestOpenDialog(string id) => Task.CompletedTask;
+    Task IUIRequest.RequestNotification(UINotification notification) => Task.CompletedTask;
 }
 
 

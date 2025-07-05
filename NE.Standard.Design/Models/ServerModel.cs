@@ -151,19 +151,19 @@ namespace NE.Standard.Design.Models
             _request = request;
         }
 
-        protected bool RequestNavigate(string key)
+        protected Task RequestNavigate(string key)
         {
-            return _request?.RequestNavigate(key) ?? false;
+            return _request?.RequestNavigate(key) ?? Task.CompletedTask;
         }
 
-        protected bool RequestOpenDialog(string id)
+        protected Task RequestOpenDialog(string id)
         {
-            return _request?.RequestOpenDialog(id) ?? false;
+            return _request?.RequestOpenDialog(id) ?? Task.CompletedTask;
         }
 
-        protected bool RequestNotification(UINotification notification)
+        protected Task RequestNotification(UINotification notification)
         {
-            return _request?.RequestNotification(notification) ?? false;
+            return _request?.RequestNotification(notification) ?? Task.CompletedTask;
         }
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
