@@ -24,6 +24,9 @@ namespace NE.Standard.Design.Elements
 
     public class UIButton : UIAction<UIButton>
     {
+        public override Alignment HorizontalAlignment { get; set; } = Alignment.Start;
+        public override Alignment VerticalAlignment { get; set; } = Alignment.Start;
+
         public string? Icon { get; set; }
     }
 

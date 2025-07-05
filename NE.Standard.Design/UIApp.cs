@@ -43,7 +43,7 @@ namespace NE.Standard.Design
     {
         public UIStyleConfig Style { get; set; } = default!;
         public UIAppLayout Layout { get; set; } = default!;
-        public IUIModel? Model { get; set; }
+        public IUICallback? Model { get; set; }
         public IUIPage? Page { get; set; }
     }
 

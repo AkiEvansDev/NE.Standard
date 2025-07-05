@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.Example
 {
-    public class TestPage : UIPageModel<TestModel, UIPage>
+    public class TestPage : PageModel<TestModel, UIPage>
     {
         public TestPage(ILogger logger) : base(logger) { }
 
@@ -41,9 +41,15 @@ namespace NE.Standard.Example
                             Label = "Test",
                             Description = "Test 2132342342",
                         }
-                        .SetLayout(1, 1)
+                        .SetLayout(1, 0)
                         .AddBinding(BindingType.TwoWay, nameof(TestModel.Title), nameof(UILabel.Label))
-                        .AddBinding(BindingType.TwoWay, nameof(TestModel.Text), nameof(UILabel.Description))
+                        .AddBinding(BindingType.TwoWay, nameof(TestModel.Text), nameof(UILabel.Description)),
+                        new UIButton
+                        {
+                            Label = "Update",
+                            Action = nameof(TestModel.TestUpdate)
+                        }
+                        .SetLayout(1, 1)
                     }
                 }
             });

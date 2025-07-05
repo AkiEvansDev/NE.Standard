@@ -53,11 +53,7 @@ namespace NE.Standard.Design.Models
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class UIAction : Attribute
-    {
-        public string Name { get; }
-        public UIAction(string name) => Name = name;
-    }
+    public class UIAction : Attribute { }
 
     [ObjectSerializable]
     public class UpdateProperty
@@ -87,20 +83,18 @@ namespace NE.Standard.Design.Models
         public string? ErrorMessage { get; set; }
     }
 
-    public interface IUIModel : IDisposable
-    {
-        SyncMode SyncMode { get; set; }
-
-        void UpdateProperty(UpdateProperty update);
-        Task<UIActionResult> ExecuteAsync(string methodName, object[]? parameters);
-    }
-
     internal interface IUIRequestModel
     {
         void SetRequest(IUIRequest request);
     }
 
-    public abstract class UIModel : ObservableObject, IUIModel, IUIRequestModel
+    public interface IUICallback
+    {
+        UIActionResult SyncProperties(List<UpdateProperty> updates);
+        Task<UIActionResult> InvokeActionAsync(string action, object[]? parameters);
+    }
+
+    public abstract class ServerModel : ObservableObject, IUIRequestModel, IUICallback
     {
         private readonly object _lock = new object();
 
@@ -115,17 +109,17 @@ namespace NE.Standard.Design.Models
         /// <summary>
         /// Set <see cref="SyncMode.None"/> for WPF app
         /// </summary>
-        public SyncMode SyncMode { get; set; } = SyncMode.None;
+        protected virtual SyncMode SyncMode { get; set; } = SyncMode.None;
         protected virtual TimeSpan DebounceDelay { get; } = TimeSpan.FromMilliseconds(150);
 
-        public UIModel()
+        public ServerModel()
         {
             var type = GetType();
 
             _changedProperties = new List<UpdateProperty>();
             _methodCache = type
                 .GetMethodsWithAttribute<UIAction>()
-                .ToDictionary(m => m.GetCustomAttribute<UIAction>().Name, m => m);
+                .ToDictionary(m => m.Name, m => m);
 
             _collCache = new Dictionary<string, PropertyInfo>();
             _propCache = new Dictionary<string, PropertyInfo>();
@@ -258,7 +252,47 @@ namespace NE.Standard.Design.Models
                 property.SetValue(this, value);
         }
 
-        public void UpdateProperty(UpdateProperty update)
+        UIActionResult IUICallback.SyncProperties(List<UpdateProperty> updates)
+        {
+            var mode = SyncMode;
+            SyncMode = SyncMode.None;
+
+            try
+            {
+                foreach (var update in updates)
+                {
+                    UpdateProperty(update);
+                }
+
+                return new UIActionResult { Success = true };
+            }
+            catch (Exception ex)
+            {
+                return new UIActionResult { Success = false, ErrorMessage = ex.Message };
+            }
+            finally
+            {
+                SyncMode = mode;
+            }
+        }
+
+        async Task<UIActionResult> IUICallback.InvokeActionAsync(string action, object[]? parameters)
+        {
+            try
+            {
+                var result = ExecuteMethod(action, parameters);
+                if (result is Task task)
+                    await task;
+
+                return new UIActionResult { Success = true };
+            }
+            catch (Exception ex)
+            {
+                return new UIActionResult { Success = false, ErrorMessage = ex.Message };
+            }
+        }
+
+        private void UpdateProperty(UpdateProperty update)
         {
             if (update.Action == UpdatePropertyType.Set)
             {
@@ -317,25 +351,12 @@ namespace NE.Standard.Design.Models
             }
         }
 
-        public async Task<UIActionResult> ExecuteAsync(string methodName, object[]? parameters)
+        private object? ExecuteMethod(string methodName, object[]? parameters)
         {
             if (_methodCache.TryGetValue(methodName, out var method))
-            {
-                try
-                {
-                    var result = method.Invoke(this, parameters ?? Array.Empty<object>());
-                    if (result is Task task)
-                        await task;
+                return method.Invoke(this, parameters ?? Array.Empty<object>());
 
-                    return new UIActionResult { Success = true };
-                }
-                catch (Exception ex)
-                {
-                    return new UIActionResult { Success = false, ErrorMessage = ex.Message };
-                }
-            }
-
-            return new UIActionResult { Success = false, ErrorMessage = "Action not found" };
+            return null;
         }
 
         public void Dispose()

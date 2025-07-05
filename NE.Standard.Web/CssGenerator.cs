@@ -24,8 +24,8 @@ public static class CssGenerator
         sb.AppendLine($"  --font-caption: {config.Font?.Caption ?? 12}px;");
 
         // Colors
-        sb.AppendLine($"  --color-primary: {(config.Colors?.Primary ?? new ColorPath(ColorKey.HarlequinGreen)).ToHex()};");
-        sb.AppendLine($"  --color-accent: {(config.Colors?.Accent ?? new ColorPath(ColorKey.HarlequinGreen, FactorType.Shade, 4)).ToHex()};");
+        sb.AppendLine($"  --color-primary: {(config.Colors?.Primary ?? new ColorPath(ColorKey.Eucalyptus, FactorType.Shade, 4)).ToHex()};");
+        sb.AppendLine($"  --color-accent: {(config.Colors?.Accent ?? new ColorPath(ColorKey.Eucalyptus, FactorType.Shade, 6)).ToHex()};");
         sb.AppendLine($"  --color-background: {(config.Colors?.Background ?? new ColorPath(ColorKey.SilverNight, FactorType.Shade, 10)).ToHex()};");
         sb.AppendLine($"  --color-foreground: {(config.Colors?.Foreground ?? new ColorPath(ColorKey.SilverNight, FactorType.Tint, 10, 200)).ToHex()};");
         sb.AppendLine($"  --color-success: {(config.Colors?.Success ?? new ColorPath(ColorKey.HarlequinGreen, FactorType.Tint, 2)).ToHex()};");
