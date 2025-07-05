@@ -1,8 +1,72 @@
-﻿@using NE.Standard.Design
+@using Microsoft.AspNetCore.Components
+@using NE.Standard.Design
 @using NE.Standard.Design.Models
 @using NE.Standard.Design.Elements
 @using NE.Standard.Design.Elements.Base
+@using System.Collections.Generic
+
+@implements IUIRequest
+
+@if (_result?.Layout != null)
+{
+    @RenderLayout(_result.Layout.Content)
+}
 
 @code {
+    [Parameter] public IUIApp? App { get; set; }
+    [Parameter] public string SessionId { get; set; } = "session";
+    [Parameter] public string? StartPage { get; set; }
 
+    private UIPageResult? _result;
+    private string? _current;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (App != null && _result == null)
+        {
+            var page = StartPage ?? _current ?? "test";
+            await NavigateAsync(page);
+        }
+    }
+
+    public async Task NavigateAsync(string key)
+    {
+        if (App == null)
+            return;
+
+        WebDefaultRenderers.Init();
+
+        _current = key;
+        _result?.Model?.Dispose();
+        _result = await App.NavigateAsync(key, SessionId, this);
+        StateHasChanged();
+    }
+
+    private RenderFragment RenderLayout(IUILayout? layout) => builder =>
+    {
+        if (layout == null || _result == null)
+            return;
+
+        int seq = 0;
+        builder.OpenElement(seq++, "div");
+
+        foreach (var el in layout.Elements)
+        {
+            if (el is UIPageRenderer)
+            {
+                builder.AddContent(seq++, RenderLayout(_result.Page?.Content));
+            }
+            else
+            {
+                builder.AddContent(seq++, WebRendererRegistry.Render(el, _result.Style));
+            }
+        }
+
+        builder.CloseElement();
+    };
+
+    void IUIRequest.RequestSync(List<UpdateProperty> updates) { }
+    bool IUIRequest.RequestNavigate(string key) { _ = NavigateAsync(key); return true; }
+    bool IUIRequest.RequestOpenDialog(string id) => false;
+    bool IUIRequest.RequestNotification(UINotification notification) => false;
 }
