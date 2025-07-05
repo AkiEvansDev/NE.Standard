@@ -80,7 +80,6 @@ namespace NE.Standard.Design.Elements.Base
         bool Visible { get; }
         Alignment HorizontalAlignment { get; }
         Alignment VerticalAlignment { get; }
-        UIStyleConfig? OverrideStyle { get; }
         UILayoutPlacement? LayoutPlacement { get; }
         List<UIBinding>? Bindings { get; }
         List<UIInteraction>? Interactions { get; }
@@ -94,10 +93,9 @@ namespace NE.Standard.Design.Elements.Base
         public bool Enabled { get; set; } = true;
         public bool Visible { get; set; } = true;
 
-        public Alignment HorizontalAlignment { get; set; } = Alignment.Stretch;
-        public Alignment VerticalAlignment { get; set; } = Alignment.Start;
+        public virtual Alignment HorizontalAlignment { get; set; } = Alignment.Stretch;
+        public virtual Alignment VerticalAlignment { get; set; } = Alignment.Start;
 
-        public UIStyleConfig? OverrideStyle { get; set; }
         public UILayoutPlacement? LayoutPlacement { get; set; }
 
         public List<UIBinding>? Bindings { get; set; }

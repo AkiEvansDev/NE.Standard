@@ -108,7 +108,7 @@ namespace NE.Standard.Logging
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            builder.Services.AddSingleton<ILoggerProvider>(_ => new AsyncConsoleLoggerProvider(minLevel));
+            builder.AddProvider(new AsyncConsoleLoggerProvider(minLevel));
             return builder;
         }
     }

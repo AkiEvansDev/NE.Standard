@@ -15,7 +15,6 @@ namespace NE.Standard.Design.Styles
         public ColorPath? Success { get; set; }
         public ColorPath? Warning { get; set; }
         public ColorPath? Error { get; set; }
-        public ColorPath? Disabled { get; set; }
         public ColorPath? Border { get; set; }
         public ColorPath? Hover { get; set; }
     }

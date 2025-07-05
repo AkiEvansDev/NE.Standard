@@ -5,6 +5,7 @@ using NE.Standard.Design.Styles;
 using NE.Standard.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -48,6 +49,7 @@ namespace NE.Standard.Design
 
     public interface IUIApp
     {
+        string DefaultPage { get; }
         Task<UIPageResult> NavigateAsync(string key, string sessionId, IUIRequest request);
     }
 
@@ -56,6 +58,8 @@ namespace NE.Standard.Design
         protected readonly ILogger _logger;
         private readonly Dictionary<string, Func<IUIPageModel>> _pages;
         private readonly Dictionary<string, string?> _permissionMap;
+
+        public abstract string DefaultPage { get; }
 
         public UIApp(ILogger logger)
         {

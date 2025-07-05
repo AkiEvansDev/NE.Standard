@@ -10,7 +10,9 @@ namespace NE.Standard.Example
 {
     public class TestApp : UIApp
     {
-        public TestApp(ILogger logger) : base(logger)
+        public override string DefaultPage => "test";
+
+        public TestApp(ILogger<TestApp> logger) : base(logger)
         { 
             RegisterPage<TestPage>("test", () => new TestPage(_logger));
         }
@@ -29,7 +31,7 @@ namespace NE.Standard.Example
             {
                 Content = new UIGrid
                 {
-                    Elements = new List<UIElement>
+                    Elements = new List<IUIElement>
                     {
                         new UIPageRenderer()
                     }

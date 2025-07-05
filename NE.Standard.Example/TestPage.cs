@@ -34,12 +34,16 @@ namespace NE.Standard.Example
                         new GridDefinition { Star = 1 },
                         new GridDefinition { Star = 1 }
                     },
-                    Elements = new List<UIElement>
+                    Elements = new List<IUIElement>
                     {
-                        new UILabel()
-                            .SetLayout(1, 1)
-                            .AddBinding(BindingType.TwoWay, nameof(TestModel.Title), nameof(UILabel.Label))
-                            .AddBinding(BindingType.TwoWay, nameof(TestModel.Text), nameof(UILabel.Description))
+                        new UILabel
+                        {
+                            Label = "Test",
+                            Description = "Test 2132342342",
+                        }
+                        .SetLayout(1, 1)
+                        .AddBinding(BindingType.TwoWay, nameof(TestModel.Title), nameof(UILabel.Label))
+                        .AddBinding(BindingType.TwoWay, nameof(TestModel.Text), nameof(UILabel.Description))
                     }
                 }
             });

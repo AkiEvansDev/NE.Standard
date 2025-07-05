@@ -88,6 +88,12 @@ namespace NE.Standard.Design.Styles
             Opacity = opacity;
         }
 
+        public readonly string ToHex()
+        {
+            var color = ToColor();
+            return $"#{color.R:X2}{color.G:X2}{color.B:X2}{color.A:X2}";
+        }
+
         public readonly Color ToColor()
         {
             var color = Colors[Key];
