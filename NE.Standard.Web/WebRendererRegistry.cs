@@ -8,18 +8,18 @@ namespace NE.Standard.Web;
 
 public static class WebRendererRegistry
 {
-    private static readonly Dictionary<Type, Func<IUIElement, UIPageResult, BindingContext, AppHost, RenderFragment>> _renderers = [];
+    private static readonly Dictionary<Type, Func<IUIElement, UIPageResult, RenderFragment>> _renderers = [];
 
-    public static void RegisterRenderer<T>(Func<T, UIPageResult, BindingContext, AppHost, RenderFragment> renderer)
+    public static void RegisterRenderer<T>(Func<T, UIPageResult, RenderFragment> renderer)
         where T : IUIElement
     {
-        _renderers[typeof(T)] = (el, page, context, host) => renderer((T)el, page, context, host);
+        _renderers[typeof(T)] = (el, page) => renderer((T)el, page);
     }
 
-    public static RenderFragment Render(IUIElement element, UIPageResult page, BindingContext context, AppHost host)
+    public static RenderFragment Render(IUIElement element, UIPageResult page)
     {
         if (_renderers.TryGetValue(element.GetType(), out var renderer))
-            return renderer(element, page, context, host);
+            return renderer(element, page);
 
         return builder => builder.AddContent(0, $"<!-- renderer not found for {element.GetType().Name} -->");
     }

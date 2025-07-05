@@ -5,7 +5,6 @@ using NE.Standard.Design.Styles;
 using NE.Standard.Serialization;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -30,12 +29,11 @@ namespace NE.Standard.Design
             => Permissions?.TryGetValue(key, out var allowed) == true && allowed;
     }
 
-    public interface IUIRequest
+    [ObjectSerializable]
+    public class UIActionResult
     {
-        Task RequestSync(List<UpdateProperty> updates);
-        Task RequestNavigate(string key);
-        Task RequestOpenDialog(string id);
-        Task RequestNotification(UINotification notification);
+        public bool Success { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 
     [ObjectSerializable]
@@ -43,20 +41,20 @@ namespace NE.Standard.Design
     {
         public UIStyleConfig Style { get; set; } = default!;
         public UIAppLayout Layout { get; set; } = default!;
-        public IUICallback? Model { get; set; }
+        public IServerModel? Model { get; set; }
         public IUIPage? Page { get; set; }
     }
 
     public interface IUIApp
     {
         string DefaultPage { get; }
-        Task<UIPageResult> NavigateAsync(string key, string sessionId, IUIRequest request);
+        Task<UIPageResult> NavigateAsync(string key, string sessionId);
     }
 
     public abstract class UIApp : IUIApp
     {
         protected readonly ILogger _logger;
-        private readonly Dictionary<string, Func<IUIPageModel>> _pages;
+        private readonly Dictionary<string, Func<IPageModel>> _pages;
         private readonly Dictionary<string, string?> _permissionMap;
 
         public abstract string DefaultPage { get; }
@@ -64,12 +62,12 @@ namespace NE.Standard.Design
         public UIApp(ILogger logger)
         {
             _logger = logger;
-            _pages = new Dictionary<string, Func<IUIPageModel>>();
+            _pages = new Dictionary<string, Func<IPageModel>>();
             _permissionMap = new Dictionary<string, string?>();
         }
 
-        protected void RegisterPage<TPageModel>(string key, Func<IUIPageModel> factory)
-            where TPageModel : IUIPageModel
+        protected void RegisterPage<TPageModel>(string key, Func<IPageModel> factory)
+            where TPageModel : IPageModel
         {
             _pages[key] = factory;
 
@@ -77,7 +75,7 @@ namespace NE.Standard.Design
             _permissionMap[key] = attr?.Permission;
         }
 
-        public async Task<UIPageResult> NavigateAsync(string key, string sessionId, IUIRequest request)
+        public async Task<UIPageResult> NavigateAsync(string key, string sessionId)
         {
             var context = await GetUserContextAsync(sessionId);
 
@@ -105,7 +103,7 @@ namespace NE.Standard.Design
             try
             {
                 var pageModel = factory();
-                (result.Model, result.Page) = await pageModel!.LoadAsync(context, request);
+                (result.Model, result.Page) = await pageModel!.LoadAsync(context);
 
                 result.Success = true;
                 return result;

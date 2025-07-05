@@ -7,15 +7,10 @@
 @using System.Collections.Generic
 
 @page "/"
-@implements IUIRequest
 
 @inject IUIApp App
 
 @code {
-    [Parameter] public string SessionId { get; set; } = "session";
-
-    [Inject] private BindingContext BindingContext { get; set; } = default!;
-
     private UIPageResult? _result;
     private string? _current;
 
@@ -27,16 +22,15 @@
         }
     }
 
-    public async Task NavigateAsync(string key)
+    private async Task NavigateAsync(string key)
     {
         if (App == null)
             return;
 
         WebDefaultRenderers.Init();
-        BindingContext.Clear();
 
         _current = key;
-        _result = await App.NavigateAsync(key, SessionId, this);
+        _result = await App.NavigateAsync(key, null);
 
         StateHasChanged();
     }
@@ -46,22 +40,8 @@
         if (_result == null || layout == null)
             return;
 
-        builder.AddContent(0, WebRendererRegistry.Render(layout, _result, BindingContext, this));
+        builder.AddContent(0, WebRendererRegistry.Render(layout, _result));
     };
-
-    async Task IUIRequest.RequestSync(List<UpdateProperty> updates)
-    {
-        foreach (var update in updates)
-            await BindingContext.ApplyUpdateAsync(update);
-    }
-
-    async Task IUIRequest.RequestNavigate(string key) 
-    {
-        await NavigateAsync(key);
-    }
-
-    Task IUIRequest.RequestOpenDialog(string id) => Task.CompletedTask;
-    Task IUIRequest.RequestNotification(UINotification notification) => Task.CompletedTask;
 }
 
 

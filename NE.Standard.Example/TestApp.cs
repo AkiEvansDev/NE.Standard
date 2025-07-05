@@ -13,8 +13,8 @@ namespace NE.Standard.Example
         public override string DefaultPage => "test";
 
         public TestApp(ILogger<TestApp> logger) : base(logger)
-        { 
-            RegisterPage<TestPage>("test", () => new TestPage(_logger));
+        {
+            RegisterPage<TestPage>("test", () => new TestPage());
         }
 
         protected override Task<UserContext> GetUserContextAsync(string sessionId)

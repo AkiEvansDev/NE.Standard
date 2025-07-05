@@ -1,9 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using NE.Standard.Design;
+﻿using NE.Standard.Design;
 using NE.Standard.Design.Elements;
 using NE.Standard.Design.Elements.Base;
 using NE.Standard.Design.Models;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -11,8 +9,6 @@ namespace NE.Standard.Example
 {
     public class TestPage : PageModel<TestModel, UIPage>
     {
-        public TestPage(ILogger logger) : base(logger) { }
-
         protected override Task<TestModel> InitAsync(UserContext user)
         {
             return Task.FromResult(new TestModel());

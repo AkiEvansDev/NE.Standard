@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using NE.Standard.Design.Elements;
 using NE.Standard.Extensions;
 using NE.Standard.Serialization;
 using System;
@@ -11,7 +10,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Models
 {
@@ -76,25 +74,12 @@ namespace NE.Standard.Design.Models
         public int? OldStartingIndex { get; set; }
     }
 
-    [ObjectSerializable]
-    public class UIActionResult
+    public interface IServerModel
     {
-        public bool Success { get; set; }
-        public string? ErrorMessage { get; set; }
+
     }
 
-    internal interface IUIRequestModel
-    {
-        void SetRequest(IUIRequest request);
-    }
-
-    public interface IUICallback
-    {
-        UIActionResult SyncProperties(List<UpdateProperty> updates);
-        Task<UIActionResult> InvokeActionAsync(string action, object[]? parameters);
-    }
-
-    public abstract class ServerModel : ObservableObject, IUIRequestModel, IUICallback
+    public abstract class ServerModel : ObservableObject, IServerModel
     {
         private readonly object _lock = new object();
 
@@ -104,7 +89,6 @@ namespace NE.Standard.Design.Models
         private readonly List<UpdateProperty> _changedProperties;
 
         private Timer? _debounceTimer;
-        private IUIRequest? _request;
 
         /// <summary>
         /// Set <see cref="SyncMode.None"/> for WPF app
@@ -146,26 +130,6 @@ namespace NE.Standard.Design.Models
             return name.UpFirst();
         }
 
-        void IUIRequestModel.SetRequest(IUIRequest request)
-        {
-            _request = request;
-        }
-
-        protected Task RequestNavigate(string key)
-        {
-            return _request?.RequestNavigate(key) ?? Task.CompletedTask;
-        }
-
-        protected Task RequestOpenDialog(string id)
-        {
-            return _request?.RequestOpenDialog(id) ?? Task.CompletedTask;
-        }
-
-        protected Task RequestNotification(UINotification notification)
-        {
-            return _request?.RequestNotification(notification) ?? Task.CompletedTask;
-        }
-
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
             base.OnPropertyChanged(e);
@@ -202,7 +166,7 @@ namespace NE.Standard.Design.Models
             switch (SyncMode)
             {
                 case SyncMode.Immediate:
-                    _request?.RequestSync(new List<UpdateProperty> { update });
+                    throw new NotImplementedException();
                     break;
                 case SyncMode.Batched:
                     lock (_lock)
@@ -240,7 +204,7 @@ namespace NE.Standard.Design.Models
             }
 
             if (updates != null)
-                _request?.RequestSync(updates);
+                throw new NotImplementedException();
         }
 
         protected object? GetValue(string propertyName)
@@ -250,46 +214,6 @@ namespace NE.Standard.Design.Models
         {
             if (_propCache.TryGetValue(propertyName, out var property))
                 property.SetValue(this, value);
-        }
-
-        UIActionResult IUICallback.SyncProperties(List<UpdateProperty> updates)
-        {
-            var mode = SyncMode;
-            SyncMode = SyncMode.None;
-
-            try
-            {
-                foreach (var update in updates)
-                {
-                    UpdateProperty(update);
-                }
-
-                return new UIActionResult { Success = true };
-            }
-            catch (Exception ex)
-            {
-                return new UIActionResult { Success = false, ErrorMessage = ex.Message };
-            }
-            finally
-            {
-                SyncMode = mode;
-            }
-        }
-
-        async Task<UIActionResult> IUICallback.InvokeActionAsync(string action, object[]? parameters)
-        {
-            try
-            {
-                var result = ExecuteMethod(action, parameters);
-                if (result is Task task)
-                    await task;
-
-                return new UIActionResult { Success = true };
-            }
-            catch (Exception ex)
-            {
-                return new UIActionResult { Success = false, ErrorMessage = ex.Message };
-            }
         }
 
         private void UpdateProperty(UpdateProperty update)

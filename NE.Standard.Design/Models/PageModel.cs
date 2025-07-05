@@ -1,36 +1,23 @@
-﻿using Microsoft.Extensions.Logging;
-using NE.Standard.Design.Elements;
-using System;
-using System.Collections.Generic;
+﻿using NE.Standard.Design.Elements;
 using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Models
 {
-    public interface IUIPageModel
+    public interface IPageModel
     {
-        Task<(IUICallback? model, IUIPage? ui)> LoadAsync(UserContext user, IUIRequest request);
+        Task<(IServerModel? model, IUIPage? ui)> LoadAsync(UserContext user);
     }
 
-    public abstract class PageModel<TModel, TPage> : IUIPageModel
-        where TModel : IUICallback
+    public abstract class PageModel<TModel, TPage> : IPageModel
+        where TModel : IServerModel
         where TPage : IUIPage
     {
-        protected readonly ILogger _logger;
-
-        public PageModel(ILogger logger)
+        public async Task<(IServerModel? model, IUIPage? ui)> LoadAsync(UserContext user)
         {
-            _logger = logger;
-        }
-
-        public async Task<(IUICallback? model, IUIPage? ui)> LoadAsync(UserContext user, IUIRequest request)
-        {
-            var model = await InitAsync(user);
-            var ui = await RenderAsync(user);
-
-            if (model is IUIRequestModel requestModel)
-                requestModel.SetRequest(request);
-
-            return (model, ui);
+            return (
+                await InitAsync(user),
+                await RenderAsync(user)
+            );
         }
 
         protected abstract Task<TModel> InitAsync(UserContext user);

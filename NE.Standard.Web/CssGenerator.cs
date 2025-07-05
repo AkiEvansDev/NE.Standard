@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Primitives;
-using NE.Standard.Design.Elements;
-using NE.Standard.Design.Elements.Base;
+﻿using NE.Standard.Design.Elements.Base;
 using NE.Standard.Design.Styles;
 using NE.Standard.Extensions;
 using System.Text;

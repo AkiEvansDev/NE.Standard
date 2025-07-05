@@ -8,7 +8,7 @@ namespace NE.Standard.Web.Renders;
 
 internal class UIButtonRender
 {
-    public static RenderFragment Render(UIButton button, UIPageResult page, BindingContext context, AppHost host) => builder =>
+    public static RenderFragment Render(UIButton button, UIPageResult page) => builder =>
     {
         builder.OpenElement(0, "button");
 
@@ -17,12 +17,6 @@ internal class UIButtonRender
 
         builder.AddAttribute(2, "class", "UIButton");
         builder.AddAttribute(3, "style", CssGenerator.GetDefaultStyle(button));
-
-        if (!button.Action.IsNull())
-        {
-            //throw new NotImplementedException();
-        }
-
         builder.AddContent(5, button.Label ?? "Button");
         builder.CloseElement();
     };

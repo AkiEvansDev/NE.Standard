@@ -8,7 +8,7 @@ namespace NE.Standard.Web.Renders;
 
 internal class UILabelRender
 {
-    public static RenderFragment Render(UILabel label, UIPageResult page, BindingContext context, AppHost host) => builder =>
+    public static RenderFragment Render(UILabel label, UIPageResult page) => builder =>
     {
         builder.OpenElement(0, "div");
         if (!label.Id.IsNull())
@@ -17,26 +17,10 @@ internal class UILabelRender
         builder.AddAttribute(3, "style", CssGenerator.GetDefaultStyle(label));
 
         builder.OpenElement(4, "h3");
-        builder.AddElementReferenceCapture(4, elRef =>
-        {
-            foreach (var binding in label.Bindings ?? Enumerable.Empty<UIBinding>())
-            {
-                if (binding.TargetProperty == nameof(UILabel.Label))
-                    context.RegisterBinding(binding.SourceProperty, elRef, "textContent");
-            }
-        });
         builder.AddContent(5, label.Description);
         builder.CloseElement();
 
         builder.OpenElement(6, "p");
-        builder.AddElementReferenceCapture(7, elRef =>
-        {
-            foreach (var binding in label.Bindings ?? Enumerable.Empty<UIBinding>())
-            {
-                if (binding.TargetProperty == nameof(UILabel.Description))
-                    context.RegisterBinding(binding.SourceProperty, elRef, "textContent");
-            }
-        });
         builder.AddContent(8, label.Description);
         builder.CloseElement();
 
