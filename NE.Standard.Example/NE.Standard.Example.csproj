@@ -5,4 +5,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.Design\NE.Standard.Design.csproj" />
+  </ItemGroup>
+
 </Project>

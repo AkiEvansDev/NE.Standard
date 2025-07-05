@@ -46,7 +46,12 @@ namespace NE.Standard.Design
         public IUIPage? Page { get; set; }
     }
 
-    public abstract class UIApp
+    public interface IUIApp
+    {
+        Task<UIPageResult> NavigateAsync(string key, string sessionId, IUIRequest request);
+    }
+
+    public abstract class UIApp : IUIApp
     {
         protected readonly ILogger _logger;
         private readonly Dictionary<string, Func<IUIPageModel>> _pages;
