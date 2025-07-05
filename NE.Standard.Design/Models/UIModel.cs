@@ -1,10 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using NE.Standard.Design.Elements;
-using NE.Standard.Design.Types;
 using NE.Standard.Extensions;
 using NE.Standard.Serialization;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
@@ -13,11 +15,69 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Models
 {
+    public enum SyncMode
+    {
+        None,
+        Immediate,
+        Batched,
+        Debounced
+    }
+
+    public enum UpdatePropertyType
+    {
+        /// <summary>
+        /// Only for property.
+        /// </summary>
+        Set = -1,
+
+        /// <summary>
+        /// An item was added to the collection.
+        /// </summary>
+        Add = 0,
+        /// <summary>
+        /// An item was removed from the collection.
+        /// </summary>
+        Remove = 1,
+        /// <summary>
+        /// An item was replaced in the collection.
+        /// </summary>
+        Replace = 2,
+        /// <summary>
+        /// An item was moved within the collection.
+        /// </summary>
+        Move = 3,
+        /// <summary>
+        /// The content of the collection was cleared.
+        /// </summary>
+        Reset = 4
+    }
+
     [AttributeUsage(AttributeTargets.Method)]
     public class UIAction : Attribute
     {
         public string Name { get; }
         public UIAction(string name) => Name = name;
+    }
+
+    [ObjectSerializable]
+    public class UpdateProperty
+    {
+        public string Property { get; set; }
+        public UpdatePropertyType Action { get; set; }
+
+        public UpdateProperty(string property, UpdatePropertyType type)
+        {
+            Property = property;
+            Action = type;
+        }
+
+        public object? Value { get; set; }
+
+        public List<object>? NewItems { get; set; }
+        public int? NewStartingIndex { get; set; }
+
+        public List<object>? OldItems { get; set; }
+        public int? OldStartingIndex { get; set; }
     }
 
     [ObjectSerializable]
@@ -27,17 +87,30 @@ namespace NE.Standard.Design.Models
         public string? ErrorMessage { get; set; }
     }
 
-    public abstract class UIModel : ObservableObject, IDisposable
+    public interface IUIModel : IDisposable
+    {
+        SyncMode SyncMode { get; set; }
+
+        void UpdateProperty(UpdateProperty update);
+        Task<UIActionResult> ExecuteAsync(string methodName, object[]? parameters);
+    }
+
+    internal interface IUIRequestModel
+    {
+        void SetRequest(IUIRequest request);
+    }
+
+    public abstract class UIModel : ObservableObject, IUIModel, IUIRequestModel
     {
         private readonly object _lock = new object();
 
+        private readonly Dictionary<string, PropertyInfo> _collCache;
         private readonly Dictionary<string, PropertyInfo> _propCache;
         private readonly Dictionary<string, MethodInfo> _methodCache;
-        private readonly HashSet<string> _changedProperties;
-        private Timer? _debounceTimer;
+        private readonly List<UpdateProperty> _changedProperties;
 
-        private IUICallback? _callback;
-        private Dictionary<string, string>? _propertiesMap;
+        private Timer? _debounceTimer;
+        private IUIRequest? _request;
 
         /// <summary>
         /// Set <see cref="SyncMode.None"/> for WPF app
@@ -45,23 +118,27 @@ namespace NE.Standard.Design.Models
         public SyncMode SyncMode { get; set; } = SyncMode.None;
         protected virtual TimeSpan DebounceDelay { get; } = TimeSpan.FromMilliseconds(150);
 
-        public event Action<List<(string property, object? value)>>? SyncRequired;
-
         public UIModel()
         {
             var type = GetType();
 
-            _changedProperties = new HashSet<string>();
+            _changedProperties = new List<UpdateProperty>();
             _methodCache = type
                 .GetMethodsWithAttribute<UIAction>()
                 .ToDictionary(m => m.GetCustomAttribute<UIAction>().Name, m => m);
 
+            _collCache = new Dictionary<string, PropertyInfo>();
             _propCache = new Dictionary<string, PropertyInfo>();
             foreach (var field in type.GetFieldsWithAttribute<ObservablePropertyAttribute>())
             {
                 var property = type.GetProperty(GetPropertyNameFromField(field), ReflectionExtensions.Flags);
                 if (property != null)
+                {
+                    if (property.PropertyType == typeof(ObservableCollection<>))
+                        _collCache[property.Name] = property;
+
                     _propCache[property.Name] = property;
+                }
             }
         }
 
@@ -75,56 +152,74 @@ namespace NE.Standard.Design.Models
             return name.UpFirst();
         }
 
-        internal void SetCallback(IUICallback callback, Dictionary<string, string> map)
+        void IUIRequestModel.SetRequest(IUIRequest request)
         {
-            _callback = callback;
-            _propertiesMap = map;
+            _request = request;
         }
 
         protected bool RequestNavigate(string key)
         {
-            if (_callback == null)
-                return false;
-
-            _callback!.RequestNavigate(key);
-            return true;
+            return _request?.RequestNavigate(key) ?? false;
         }
 
-        protected bool RequestOpenDialog(string key)
+        protected bool RequestOpenDialog(string id)
         {
-            if (_callback == null)
-                return false;
-
-            _callback!.RequestOpenDialog(key);
-            return true;
+            return _request?.RequestOpenDialog(id) ?? false;
         }
 
         protected bool RequestNotification(UINotification notification)
         {
-            if (_callback == null)
-                return false;
-
-            _callback!.RequestNotification(notification);
-            return true;
+            return _request?.RequestNotification(notification) ?? false;
         }
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
             base.OnPropertyChanged(e);
 
+            if (SyncMode == SyncMode.None)
+                return;
+
+            if (_collCache.TryGetValue(e.PropertyName, out var property))
+            {
+                var value = property.GetValue(this);
+                if (value is INotifyCollectionChanged notifyCollection)
+                {
+                    notifyCollection.CollectionChanged += (s, e) =>
+                    {
+                        Update(new UpdateProperty(property.Name, (UpdatePropertyType)e.Action)
+                        {
+                            NewItems = e.NewItems?.Cast<object>()?.ToList(),
+                            NewStartingIndex = e.NewStartingIndex,
+                            OldItems = e.OldItems?.Cast<object>()?.ToList(),
+                            OldStartingIndex = e.OldStartingIndex
+                        });
+                    };
+                }
+            }
+
+            Update(new UpdateProperty(e.PropertyName, UpdatePropertyType.Set)
+            {
+                Value = GetValue(e.PropertyName)
+            });
+        }
+
+        private void Update(UpdateProperty update)
+        {
             switch (SyncMode)
             {
                 case SyncMode.Immediate:
-                    RequestSync(new List<(string property, object? value)> { (e.PropertyName, GetValue(e.PropertyName)) });
+                    _request?.RequestSync(new List<UpdateProperty> { update });
                     break;
                 case SyncMode.Batched:
                     lock (_lock)
-                        _changedProperties.Add(e.PropertyName);
+                    {
+                        _changedProperties.Add(update);
+                    }
                     break;
                 case SyncMode.Debounced:
                     lock (_lock)
                     {
-                        _changedProperties.Add(e.PropertyName);
+                        _changedProperties.Add(update);
                         _debounceTimer?.Dispose();
                         _debounceTimer = new Timer(Commit, null, DebounceDelay, Timeout.InfiniteTimeSpan);
                     }
@@ -136,15 +231,13 @@ namespace NE.Standard.Design.Models
 
         private void Commit(object? state)
         {
-            List<(string property, object? value)>? updates = null;
+            List<UpdateProperty>? updates = null;
 
             lock (_lock)
             {
                 if (_changedProperties.Count > 0)
                 {
-                    updates = _changedProperties
-                        .Select(p => (p, GetValue(p)))
-                        .ToList();
+                    updates = _changedProperties.ToList();
 
                     _changedProperties.Clear();
                     _debounceTimer?.Dispose();
@@ -153,35 +246,78 @@ namespace NE.Standard.Design.Models
             }
 
             if (updates != null)
-                RequestSync(updates);
+                _request?.RequestSync(updates);
         }
 
-        private void RequestSync(List<(string property, object? value)> updates)
-        {
-            if (_callback == null || _propertiesMap == null)
-                return;
-
-            var send = new List<(string id, object? value)>();
-
-            foreach (var (property, value) in updates)
-            {
-                if (_propertiesMap!.TryGetValue(property, out var id))
-                    send.Add((id, value));
-            }
-
-            _callback?.RequestSync(send);
-        }
-
-        public virtual object? GetValue(string propertyName)
+        protected object? GetValue(string propertyName)
             => _propCache.TryGetValue(propertyName, out var property) ? property.GetValue(this) : null;
 
-        public virtual void SetValue(string propertyName, object? value)
+        protected void SetValue(string propertyName, object? value)
         {
             if (_propCache.TryGetValue(propertyName, out var property))
                 property.SetValue(this, value);
         }
 
-        public virtual async Task<UIActionResult> ExecuteAsync(string methodName, object[]? parameters)
+        public void UpdateProperty(UpdateProperty update)
+        {
+            if (update.Action == UpdatePropertyType.Set)
+            {
+                SetValue(update.Property, update.Value);
+            }
+            else
+            {
+                var value = GetValue(update.Property);
+                if (value is IList list)
+                {
+                    switch (update.Action)
+                    {
+                        case UpdatePropertyType.Add:
+                            if (update.NewItems != null && update.NewStartingIndex.HasValue)
+                            {
+                                int index = update.NewStartingIndex.Value;
+                                foreach (var item in update.NewItems)
+                                {
+                                    list.Insert(index++, item);
+                                }
+                            }
+                            break;
+                        case UpdatePropertyType.Remove:
+                            if (update.OldItems != null)
+                            {
+                                foreach (var item in update.OldItems)
+                                {
+                                    list.Remove(item);
+                                }
+                            }
+                            break;
+                        case UpdatePropertyType.Replace:
+                            if (update.NewItems != null && update.NewStartingIndex.HasValue)
+                            {
+                                int index = update.NewStartingIndex.Value;
+                                foreach (var item in update.NewItems)
+                                {
+                                    if (index < list.Count)
+                                        list[index++] = item;
+                                }
+                            }
+                            break;
+                        case UpdatePropertyType.Move:
+                            if (update.OldStartingIndex.HasValue && update.NewStartingIndex.HasValue && update.OldItems?.Count == 1)
+                            {
+                                var item = update.OldItems[0];
+                                list.RemoveAt(update.OldStartingIndex.Value);
+                                list.Insert(update.NewStartingIndex.Value, item);
+                            }
+                            break;
+                        case UpdatePropertyType.Reset:
+                            list.Clear();
+                            break;
+                    }
+                }
+            }
+        }
+
+        public async Task<UIActionResult> ExecuteAsync(string methodName, object[]? parameters)
         {
             if (_methodCache.TryGetValue(methodName, out var method))
             {

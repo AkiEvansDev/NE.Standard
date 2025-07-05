@@ -1,4 +1,4 @@
-using NE.Standard.Design.Types;
+using NE.Standard.Design.Styles;
 using System.Drawing;
 
 namespace NE.Tests.Standard;

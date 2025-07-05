@@ -2,11 +2,13 @@
 
 namespace NE.Standard.Design.Elements
 {
-    public class UILabel : UIElement
+    public class UILabel<T> : UIElement<T>
+        where T : UILabel<T>
     {
-        public string Label { get; set; } = default!;
+        public string? Label { get; set; }
         public string? Description { get; set; }
     }
 
-    public class UITest : UILabel { }
+    public class UILabel : UILabel<UILabel> { }
+    public class UIText : UILabel<UIText> { }
 }

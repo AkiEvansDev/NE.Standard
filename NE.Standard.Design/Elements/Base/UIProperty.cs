@@ -1,23 +1,42 @@
-﻿using NE.Standard.Design.Types;
-using NE.Standard.Serialization;
+﻿using NE.Standard.Serialization;
+using System.Collections.Generic;
 
 namespace NE.Standard.Design.Elements.Base
 {
+    /// <summary>
+    /// Handles client-side validation.
+    /// </summary>
     [ObjectSerializable]
     public struct UIValidationRule
     {
         public ValidationType ValidationType { get; set; }
-        public object? Value { get; set; }
+        public object? ValidationValue { get; set; }
         public string? ErrorMessage { get; set; }
     }
 
-    public abstract class UIProperty : UILabel
+    public interface IUIProperty : IUIElement
     {
-        public bool Editable { get; set; } = true;
+        bool ReadOnly { get; }
+        List<UIValidationRule>? ValidationRules { get; }
+    }
 
-        public BindingType BindingType { get; set; }
-        public string? BindingProperty { get; set; }
+    public abstract class UIProperty<T> : UIElement<T>, IUIProperty
+        where T : UIProperty<T>
+    {
+        public bool ReadOnly { get; set; } = false;
+        public List<UIValidationRule>? ValidationRules { get; set; }
 
-        public UIValidationRule[]? ValidationRules { get; set; }
+        public T AddValidationRule(ValidationType validation, object? value = null, string? error = null)
+        {
+            ValidationRules ??= new List<UIValidationRule>();
+            ValidationRules.Add(new UIValidationRule
+            {
+                ValidationType = validation,
+                ValidationValue = value,
+                ErrorMessage = error
+            });
+
+            return (T)this;
+        }
     }
 }

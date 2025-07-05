@@ -1,11 +1,16 @@
 ﻿using NE.Standard.Design.Elements.Base;
-using NE.Standard.Design.Types;
 
 namespace NE.Standard.Design.Elements
 {
-    public class UIStackPanel : UIContainer
+    public enum StackOrientation
     {
-        public StackOrientation Orientation { get; set; } = StackOrientation.Vertical;
-        public int Spacing { get; set; } = 0;
+        Vertical,
+        Horizontal
+    }
+
+    public class UIStackPanel : UILayout<UIStackPanel>
+    {
+        public StackOrientation Orientation { get; set; }
+        public int Spacing { get; set; }
     }
 }

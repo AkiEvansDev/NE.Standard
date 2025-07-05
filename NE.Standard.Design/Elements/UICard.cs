@@ -2,8 +2,11 @@
 
 namespace NE.Standard.Design.Elements
 {
-    public class UICard : UIElement
+    public abstract class UICard<T> : UIElement<UICard>
+        where T : UICard<T>
     {
-        public UIContainer Container { get; set; } = default!;
+        public IUILayout? Content { get; set; }
     }
+
+    public class UICard : UICard<UICard> { }
 }

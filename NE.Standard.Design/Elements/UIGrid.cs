@@ -1,6 +1,5 @@
 ﻿using NE.Standard.Design.Elements.Base;
 using NE.Standard.Serialization;
-using System;
 
 namespace NE.Standard.Design.Elements
 {
@@ -14,9 +13,15 @@ namespace NE.Standard.Design.Elements
         public double? Max { get; set; }
     }
 
-    public class UIGrid : UIContainer
+    public class UIGrid : UILayout<UIGrid>
     {
-        public GridDefinition[] Columns { get; set; } = Array.Empty<GridDefinition>();
-        public GridDefinition[] Rows { get; set; } = Array.Empty<GridDefinition>();
+        public GridDefinition[] Columns { get; set; }
+        public GridDefinition[] Rows { get; set; }
+
+        public UIGrid()
+        {
+            Columns = new GridDefinition[0];
+            Rows = new GridDefinition[0];
+        }
     }
 }

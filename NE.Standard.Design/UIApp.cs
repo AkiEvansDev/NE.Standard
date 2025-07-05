@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using NE.Standard.Design.Elements;
-using NE.Standard.Design.Elements.Base;
 using NE.Standard.Design.Models;
 using NE.Standard.Design.Styles;
 using NE.Standard.Serialization;
@@ -11,12 +10,31 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.Design
 {
-    public interface IUICallback
+    [AttributeUsage(AttributeTargets.Class)]
+    public class UIPermissionAttribute : Attribute
     {
-        void RequestSync(List<(string property, object? value)> updates);
-        void RequestNavigate(string key);
-        void RequestOpenDialog(string key);
-        void RequestNotification(UINotification notification);
+        public string Permission { get; }
+        public UIPermissionAttribute(string permission) => Permission = permission;
+    }
+
+    [ObjectSerializable]
+    public class UserContext
+    {
+        public UIStyleConfig UIStyle { get; set; } = default!;
+
+        public Dictionary<string, object>? Options { get; set; }
+        public Dictionary<string, bool>? Permissions { get; set; }
+
+        public bool HasPermission(string key)
+            => Permissions?.TryGetValue(key, out var allowed) == true && allowed;
+    }
+
+    public interface IUIRequest
+    {
+        void RequestSync(List<UpdateProperty> updates);
+        bool RequestNavigate(string key);
+        bool RequestOpenDialog(string id);
+        bool RequestNotification(UINotification notification);
     }
 
     [ObjectSerializable]
@@ -24,26 +42,25 @@ namespace NE.Standard.Design
     {
         public UIStyleConfig Style { get; set; } = default!;
         public UIAppLayout Layout { get; set; } = default!;
-        public UIModel? Model { get; set; }
-        public UIPage? Page { get; set; }
+        public IUIModel? Model { get; set; }
+        public IUIPage? Page { get; set; }
     }
 
-    public abstract class UIApp<TUserContext>
-        where TUserContext : UserContext
+    public abstract class UIApp
     {
         protected readonly ILogger _logger;
-        protected readonly Dictionary<string, Func<UIPageModel>> _pages;
-        protected readonly Dictionary<string, string?> _permissionMap;
+        private readonly Dictionary<string, Func<IUIPageModel>> _pages;
+        private readonly Dictionary<string, string?> _permissionMap;
 
         public UIApp(ILogger logger)
         {
             _logger = logger;
-            _pages = new Dictionary<string, Func<UIPageModel>>();
+            _pages = new Dictionary<string, Func<IUIPageModel>>();
             _permissionMap = new Dictionary<string, string?>();
         }
 
-        protected void RegisterPage<TPageModel>(string key, Func<TPageModel> factory)
-            where TPageModel : UIPageModel
+        protected void RegisterPage<TPageModel>(string key, Func<IUIPageModel> factory)
+            where TPageModel : IUIPageModel
         {
             _pages[key] = factory;
 
@@ -51,7 +68,7 @@ namespace NE.Standard.Design
             _permissionMap[key] = attr?.Permission;
         }
 
-        public async Task<UIPageResult> NavigateAsync(string key, string sessionId, IUICallback callback)
+        public async Task<UIPageResult> NavigateAsync(string key, string sessionId, IUIRequest request)
         {
             var context = await GetUserContextAsync(sessionId);
 
@@ -79,7 +96,7 @@ namespace NE.Standard.Design
             try
             {
                 var pageModel = factory();
-                (result.Model, result.Page) = await pageModel!.LoadAsync(context, callback);
+                (result.Model, result.Page) = await pageModel!.LoadAsync(context, request);
 
                 result.Success = true;
                 return result;
@@ -92,7 +109,7 @@ namespace NE.Standard.Design
             }
         }
 
-        public abstract Task<TUserContext> GetUserContextAsync(string sessionId);
-        public abstract Task<UIAppLayout> LayoutAsync(UserContext user);
+        protected abstract Task<UserContext> GetUserContextAsync(string sessionId);
+        protected abstract Task<UIAppLayout> LayoutAsync(UserContext user);
     }
 }
