@@ -1,5 +1,4 @@
-﻿using NE.Standard.Serialization;
-using System;
+﻿using System;
 
 namespace NE.Standard.Design.Elements
 {
@@ -16,7 +15,6 @@ namespace NE.Standard.Design.Elements
         Timeout
     }
 
-    [ObjectSerializable]
     public struct UINotification
     {
         public string? Label { get; set; }
@@ -28,5 +26,5 @@ namespace NE.Standard.Design.Elements
         public TimeSpan? Timeout { get; set; }
     }
 
-    public class UIDialog : UICard<UIDialog> { }
+    public sealed class UIDialog : UICard<UIDialog> { }
 }

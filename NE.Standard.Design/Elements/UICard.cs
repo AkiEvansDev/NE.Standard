@@ -8,5 +8,5 @@ namespace NE.Standard.Design.Elements
         public IUILayout? Content { get; set; }
     }
 
-    public class UICard : UICard<UICard> { }
+    public sealed class UICard : UICard<UICard> { }
 }

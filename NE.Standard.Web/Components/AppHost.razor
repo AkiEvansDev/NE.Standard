@@ -1,0 +1,40 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Html
+@using System.Collections.Generic
+@using System.Text.Json
+@using NE.Standard.Extensions
+@using NE.Standard.Design
+@using NE.Standard.Design.Models
+@using NE.Standard.Design.Elements
+@using NE.Standard.Design.Elements.Base
+@using NE.Standard.Web.Renders.Binding
+@using System.Text.Encodings.Web
+
+@inject IApp App
+@inject IDataBuilder BindingBuilder
+
+<HeadContent>
+    <style>
+        @CssGenerator.GenerateRootCss(App.DefaultStyle)
+    </style>
+</HeadContent>
+
+@code {
+    protected override void OnInitialized()
+    {
+        WebDefaultRenderers.Init();
+    }
+
+    private RenderFragment RenderLayout(IUILayout? layout) => builder =>
+    {
+        if (layout == null || App.UIApp.AppModel == null)
+            return;
+
+        builder.AddContent(0, WebRendererRegistry.Render(layout, App.UIApp.AppModel, BindingBuilder, this));
+    };
+}
+
+@RenderLayout(App.UIApp.ContentLayout)

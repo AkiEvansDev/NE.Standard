@@ -1,16 +1,14 @@
 ﻿using NE.Standard.Design.Elements.Base;
-using NE.Standard.Serialization;
 
 namespace NE.Standard.Design.Elements
 {
-    [ObjectSerializable]
     public struct GridDefinition
     {
         public double? Absolute { get; set; }
         public double? Star { get; set; }
     }
 
-    public class UIGrid : UILayout<UIGrid>
+    public sealed class UIGrid : UILayout<UIGrid>
     {
         public override Alignment HorizontalAlignment { get; set; } = Alignment.Stretch;
         public override Alignment VerticalAlignment { get; set; } = Alignment.Stretch;

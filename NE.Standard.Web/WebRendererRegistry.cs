@@ -1,27 +1,27 @@
 using Microsoft.AspNetCore.Components;
-using NE.Standard.Design;
-using NE.Standard.Design.Elements;
 using NE.Standard.Design.Elements.Base;
+using NE.Standard.Design.Models;
 using NE.Standard.Web.Renders;
+using NE.Standard.Web.Renders.Binding;
 
 namespace NE.Standard.Web;
 
 public static class WebRendererRegistry
 {
-    private static readonly Dictionary<Type, Func<IUIElement, UIPageResult, RenderFragment>> _renderers = [];
+    private static readonly Dictionary<Type, Func<IUIElement, IModel, IDataBuilder, ComponentBase, RenderFragment>> _renderers = [];
 
-    public static void RegisterRenderer<T>(Func<T, UIPageResult, RenderFragment> renderer)
+    public static void RegisterRenderer<T>(IUIElementRenderer<T> renderer)
         where T : IUIElement
     {
-        _renderers[typeof(T)] = (el, page) => renderer((T)el, page);
+        _renderers[typeof(T)] = (el, model, data, context) => renderer.Render((T)el, model, data, context);
     }
 
-    public static RenderFragment Render(IUIElement element, UIPageResult page)
+    public static RenderFragment Render(IUIElement el, IModel model, IDataBuilder data, ComponentBase context)
     {
-        if (_renderers.TryGetValue(element.GetType(), out var renderer))
-            return renderer(element, page);
+        if (_renderers.TryGetValue(el.GetType(), out var renderer))
+            return renderer(el, model, data, context);
 
-        return builder => builder.AddContent(0, $"<!-- renderer not found for {element.GetType().Name} -->");
+        return builder => builder.AddContent(0, $"<!-- renderer not found for {el.GetType().Name} -->");
     }
 }
 
@@ -29,9 +29,9 @@ public static class WebDefaultRenderers
 {
     static WebDefaultRenderers()
     {
-        WebRendererRegistry.RegisterRenderer<UIGrid>(UIGridRender.Render);
-        WebRendererRegistry.RegisterRenderer<UILabel>(UILabelRender.Render);
-        WebRendererRegistry.RegisterRenderer<UIButton>(UIButtonRender.Render);
+        WebRendererRegistry.RegisterRenderer(new UIGridRenderer());
+        WebRendererRegistry.RegisterRenderer(new UILabelRenderer());
+        WebRendererRegistry.RegisterRenderer(new UIButtonRenderer());
     }
 
     public static void Init() { }

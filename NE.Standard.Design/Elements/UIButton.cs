@@ -20,9 +20,9 @@ namespace NE.Standard.Design.Elements
         public object[]? RelatedParameters { get; set; }
     }
 
-    public class UILink : UIAction<UIButton> { }
+    public sealed class UILink : UIAction<UIButton> { }
 
-    public class UIButton : UIAction<UIButton>
+    public sealed class UIButton : UIAction<UIButton>
     {
         public override Alignment HorizontalAlignment { get; set; } = Alignment.Start;
         public override Alignment VerticalAlignment { get; set; } = Alignment.Start;
@@ -30,7 +30,7 @@ namespace NE.Standard.Design.Elements
         public string? Icon { get; set; }
     }
 
-    public class UIOption : UIAction<UIButton>
+    public sealed class UIOption : UIAction<UIButton>
     {
         public string? Icon { get; set; }
         public string? Description { get; set; }

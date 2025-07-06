@@ -1,5 +1,4 @@
 ﻿using NE.Standard.Extensions;
-using NE.Standard.Serialization;
 using System.Collections.Generic;
 
 namespace NE.Standard.Design.Elements.Base
@@ -36,7 +35,6 @@ namespace NE.Standard.Design.Elements.Base
         Hide,
     }
 
-    [ObjectSerializable]
     public struct UILayoutPlacement
     {
         public int Row { get; set; }
@@ -48,22 +46,20 @@ namespace NE.Standard.Design.Elements.Base
     /// <summary>
     /// Handles communication between the client and the client server.
     /// </summary>
-    [ObjectSerializable]
-    public struct UIBinding
+    public class UIBinding
     {
         public BindingType BindingType { get; set; }
-        public string SourceProperty { get; set; }
-        public string TargetProperty { get; set; }
+        public string SourceProperty { get; set; } = default!;
+        public string TargetProperty { get; set; } = default!;
     }
 
     /// <summary>
     /// Handles the relationship between elements on the client side.
     /// </summary>
-    [ObjectSerializable]
-    public struct UIInteraction
+    public class UIInteraction
     {
-        public string SourceId { get; set; }
-        public string TargetId { get; set; }
+        public string SourceProperty { get; set; } = default!;
+        public string TargetId { get; set; } = default!;
 
         public InteractionType InteractionType { get; set; }
         public ValidationType ValidationType { get; set; }
@@ -84,7 +80,6 @@ namespace NE.Standard.Design.Elements.Base
         List<UIInteraction>? Interactions { get; }
     }
 
-    [ObjectSerializable]
     public abstract class UIElement : IUIElement
     {
         public string Id { get; set; } = default!;
@@ -156,12 +151,12 @@ namespace NE.Standard.Design.Elements.Base
             return (T)this;
         }
 
-        public T AddInteraction(string targetId, InteractionType type = InteractionType.Disable, ValidationType validation = ValidationType.Required, object? value = null, bool invert = false)
+        public T AddInteraction(string source, string targetId, InteractionType type = InteractionType.Disable, ValidationType validation = ValidationType.Required, object? value = null, bool invert = false)
         {
             Interactions ??= new List<UIInteraction>();
             Interactions.Add(new UIInteraction
             {
-                SourceId = Id,
+                SourceProperty = source,
                 TargetId = targetId,
                 InteractionType = type,
                 ValidationType = validation,

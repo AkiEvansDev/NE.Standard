@@ -1,13 +1,11 @@
-﻿using NE.Standard.Serialization;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace NE.Standard.Design.Elements.Base
 {
     /// <summary>
     /// Handles client-side validation.
     /// </summary>
-    [ObjectSerializable]
-    public struct UIValidationRule
+    public class UIValidationRule
     {
         public ValidationType ValidationType { get; set; }
         public object? ValidationValue { get; set; }

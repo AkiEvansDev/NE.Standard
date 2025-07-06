@@ -1,0 +1,40 @@
+﻿.hide {
+    display: none;
+}
+
+.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.justify-start {
+    justify-self: start;
+}
+
+.justify-center {
+    justify-self: center;
+}
+
+.justify-end {
+    justify-self: end;
+}
+
+.justify-stretch {
+    justify-self: stretch;
+}
+
+.align-start {
+    align-self: start;
+}
+
+.align-center {
+    align-self: center;
+}
+
+.align-end {
+    align-self: end;
+}
+
+.align-stretch {
+    align-self: stretch;
+}

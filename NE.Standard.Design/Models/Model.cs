@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using NE.Standard.Design.Elements;
 using NE.Standard.Extensions;
-using NE.Standard.Serialization;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Models
 {
@@ -53,7 +54,6 @@ namespace NE.Standard.Design.Models
     [AttributeUsage(AttributeTargets.Method)]
     public class UIAction : Attribute { }
 
-    [ObjectSerializable]
     public class UpdateProperty
     {
         public string Property { get; set; }
@@ -74,12 +74,29 @@ namespace NE.Standard.Design.Models
         public int? OldStartingIndex { get; set; }
     }
 
-    public interface IServerModel
+    public interface IClientBridge
     {
-
+        Task<bool> SyncToClient(List<UpdateProperty> updates);
+        Task<bool> ShowDialog(string id);
+        Task<bool> ShowNotification(UINotification notification);
     }
 
-    public abstract class ServerModel : ObservableObject, IServerModel
+    public class ServerResult
+    {
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+    }
+
+    public interface IModel : IDisposable
+    {
+        IClientBridge? Bridge { get; set; }
+        Task InitAsync();
+        object? GetValue(string propertyName);
+        Task<ServerResult> Sync(List<UpdateProperty> updates);
+        Task<ServerResult> ExecuteAction(string action, object[]? parameters);
+    }
+
+    public abstract class Model : ObservableObject, IModel
     {
         private readonly object _lock = new object();
 
@@ -93,10 +110,17 @@ namespace NE.Standard.Design.Models
         /// <summary>
         /// Set <see cref="SyncMode.None"/> for WPF app
         /// </summary>
-        protected virtual SyncMode SyncMode { get; set; } = SyncMode.None;
+        protected abstract SyncMode SyncMode { get; set; }
         protected virtual TimeSpan DebounceDelay { get; } = TimeSpan.FromMilliseconds(150);
 
-        public ServerModel()
+        private IClientBridge? _bridge;
+        IClientBridge? IModel.Bridge
+        {
+            get => _bridge;
+            set => _bridge = value;
+        }
+
+        public Model()
         {
             var type = GetType();
 
@@ -166,7 +190,8 @@ namespace NE.Standard.Design.Models
             switch (SyncMode)
             {
                 case SyncMode.Immediate:
-                    throw new NotImplementedException();
+                    if (_bridge != null)
+                        Task.Run(async () => await _bridge.SyncToClient(new List<UpdateProperty> { update }));
                     break;
                 case SyncMode.Batched:
                     lock (_lock)
@@ -185,10 +210,13 @@ namespace NE.Standard.Design.Models
             }
         }
 
-        protected void Commit() => Commit(null);
+        private void Commit(object? state) => Task.Run(async () => await Commit());
 
-        private void Commit(object? state)
+        protected Task<bool> Commit()
         {
+            if (SyncMode == SyncMode.None)
+                return Task.FromResult(false);
+
             List<UpdateProperty>? updates = null;
 
             lock (_lock)
@@ -203,17 +231,62 @@ namespace NE.Standard.Design.Models
                 }
             }
 
-            if (updates != null)
-                throw new NotImplementedException();
+            if (_bridge != null && updates != null)
+                return _bridge.SyncToClient(updates);
+
+            return Task.FromResult(false);
         }
 
-        protected object? GetValue(string propertyName)
-            => _propCache.TryGetValue(propertyName, out var property) ? property.GetValue(this) : null;
-
-        protected void SetValue(string propertyName, object? value)
+        public virtual Task InitAsync()
         {
-            if (_propCache.TryGetValue(propertyName, out var property))
-                property.SetValue(this, value);
+            return Task.CompletedTask;
+        }
+
+        protected Task<bool> ShowDialog(string id)
+        {
+            if (_bridge != null)
+                return _bridge.ShowDialog(id);
+
+            return Task.FromResult(false);
+        }
+
+        protected Task<bool> ShowNotification(UINotification notification)
+        {
+            if (_bridge != null)
+                return _bridge.ShowNotification(notification);
+
+            return Task.FromResult(false);
+        }
+
+        Task<ServerResult> IModel.Sync(List<UpdateProperty> updates)
+        {
+            try
+            {
+                foreach (var update in updates)
+                    UpdateProperty(update);
+
+                return Task.FromResult(new ServerResult { Success = true });
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(new ServerResult { Error = ex.Message });
+            }
+        }
+
+        async Task<ServerResult> IModel.ExecuteAction(string action, object[]? parameters)
+        {
+            try
+            {
+                var result = ExecuteMethod(action, parameters);
+                if (result is Task task)
+                    await task;
+
+                return new ServerResult { Success = true };
+            }
+            catch (Exception ex)
+            {
+                return new ServerResult { Error = ex.Message };
+            }
         }
 
         private void UpdateProperty(UpdateProperty update)
@@ -273,6 +346,18 @@ namespace NE.Standard.Design.Models
                     }
                 }
             }
+        }
+
+        object? IModel.GetValue(string propertyName)
+            => GetValue(propertyName);
+
+        private object? GetValue(string propertyName)
+            => _propCache.TryGetValue(propertyName, out var property) ? property.GetValue(this) : null;
+
+        private void SetValue(string propertyName, object? value)
+        {
+            if (_propCache.TryGetValue(propertyName, out var property))
+                property.SetValue(this, value);
         }
 
         private object? ExecuteMethod(string methodName, object[]? parameters)

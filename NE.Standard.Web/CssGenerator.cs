@@ -1,5 +1,4 @@
-﻿using NE.Standard.Design.Elements.Base;
-using NE.Standard.Design.Styles;
+﻿using NE.Standard.Design.Styles;
 using NE.Standard.Extensions;
 using System.Text;
 
@@ -37,51 +36,6 @@ public static class CssGenerator
         sb.AppendLine($"  --radius-input: {config.InputRadius ?? 6}px;");
 
         sb.AppendLine("}");
-
-        return sb.ToString();
-    }
-
-    public static string GetDefaultStyle(IUIElement el)
-    {
-        var sb = new StringBuilder();
-
-        if (el.LayoutPlacement is { } placement)
-        {
-            var colStart = placement.Column + 1;
-            var colEnd = colStart + placement.ColumnSpan;
-            var rowStart = placement.Row + 1;
-            var rowEnd = rowStart + placement.RowSpan;
-
-            sb.Append($"grid-column:{colStart}/{colEnd};");
-            sb.Append($"grid-row:{rowStart}/{rowEnd};");
-        }
-
-        if (!el.Visible)
-            sb.Append("display:none;");
-
-        if (!el.Enabled)
-        {
-            sb.Append("pointer-events:none;");
-            sb.Append("opacity:0.6;");
-        }
-
-        sb.Append(el.HorizontalAlignment switch
-        {
-            Alignment.Start => "justify-self:start;",
-            Alignment.Center => "justify-self:center;",
-            Alignment.End => "justify-self:end;",
-            Alignment.Stretch => "justify-self:stretch;",
-            _ => ""
-        });
-
-        sb.Append(el.VerticalAlignment switch
-        {
-            Alignment.Start => "align-self:start;",
-            Alignment.Center => "align-self:center;",
-            Alignment.End => "align-self:end;",
-            Alignment.Stretch => "align-self:stretch;",
-            _ => ""
-        });
 
         return sb.ToString();
     }

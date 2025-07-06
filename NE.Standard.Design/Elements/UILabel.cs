@@ -9,6 +9,6 @@ namespace NE.Standard.Design.Elements
         public string? Description { get; set; }
     }
 
-    public class UILabel : UILabel<UILabel> { }
-    public class UIText : UILabel<UIText> { }
+    public sealed class UILabel : UILabel<UILabel> { }
+    public sealed class UIText : UILabel<UIText> { }
 }

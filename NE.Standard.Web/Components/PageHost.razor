@@ -1,0 +1,58 @@
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Html
+@using System.Collections.Generic
+@using System.Text.Json
+@using NE.Standard.Extensions
+@using NE.Standard.Design
+@using NE.Standard.Design.Models
+@using NE.Standard.Design.Elements
+@using NE.Standard.Design.Elements.Base
+@using NE.Standard.Web.Renders.Binding
+@using System.Text.Encodings.Web
+
+@rendermode InteractiveServer
+@page "/{*link}"
+@inject IApp App
+@inject IClientBridge ClientBridge
+@inject IDataBuilder BindingBuilder
+
+<HeadContent>
+    <style>
+        @CssGenerator.GenerateRootCss(App.DefaultStyle)
+    </style>
+</HeadContent>
+
+@code {
+    [Parameter]
+    public string? Link { get; set; }
+
+    private string? _current;
+    private ServerNavigateResult? _result;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _current = Link.IsNull() ? App.HomePage : Link;
+            _result = await App.NavigateAsync(_current!, ClientBridge);
+
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment RenderLayout(IUILayout? layout) => builder =>
+    {
+        if (layout == null || _result == null)
+            return;
+
+        builder.AddContent(0, WebRendererRegistry.Render(layout, _result.Model, BindingBuilder, this));
+    };
+}
+
+@if (_result?.Success == true)
+{
+    @RenderLayout(_result.View.Layout)
+}

@@ -8,7 +8,7 @@ namespace NE.Standard.Design.Elements
         Horizontal
     }
 
-    public class UIStackPanel : UILayout<UIStackPanel>
+    public sealed class UIStackPanel : UILayout<UIStackPanel>
     {
         public StackOrientation Orientation { get; set; }
         public int Spacing { get; set; }

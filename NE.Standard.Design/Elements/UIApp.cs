@@ -1,5 +1,5 @@
 ﻿using NE.Standard.Design.Elements.Base;
-using NE.Standard.Serialization;
+using NE.Standard.Design.Models;
 
 namespace NE.Standard.Design.Elements
 {
@@ -18,10 +18,10 @@ namespace NE.Standard.Design.Elements
     /// </summary>
     public class UIPageRenderer : UIElement<UIPageRenderer> { }
 
-    [ObjectSerializable]
-    public class UIAppLayout
+    public sealed class UIApp
     {
-        public IUILayout? Overlay { get; set; }
-        public IUILayout? Content { get; set; }
+        public IModel? AppModel { get; set; }
+        public IUILayout? OverlayLayout { get; set; }
+        public IUILayout? ContentLayout { get; set; }
     }
 }

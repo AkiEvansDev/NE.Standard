@@ -1,0 +1,26 @@
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using NE.Standard.Web.Components
+
+@page "/"
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+    <link rel="stylesheet" href="_content/NE.Standard.Web/app.css" />
+    <link rel="stylesheet" href="_content/NE.Standard.Web/element.css" />
+    <link rel="stylesheet" href="_content/NE.Standard.Web/binding.css" />
+</head>
+
+<body>
+    <AppHost />
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/NE.Standard.Web/app.js"></script>
+</body>
+
+</html>
