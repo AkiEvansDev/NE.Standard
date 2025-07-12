@@ -49,6 +49,12 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public static Color WithAlpha(this Color color, byte alpha)
+            => Color.FromArgb(alpha, color.R, color.G, color.B);
+
+        /// <summary>
         /// Determines whether the color is considered "light" based on brightness.
         /// </summary>
         /// <param name="color">The background color.</param>
