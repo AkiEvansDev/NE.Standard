@@ -1,9 +1,7 @@
 ﻿using NE.Standard.Types;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
-using System.Text;
 
 namespace NE.Standard.Extensions
 {
@@ -49,7 +47,7 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// 
+        /// Apply alpha to color
         /// </summary>
         public static Color WithAlpha(this Color color, byte alpha)
             => Color.FromArgb(alpha, color.R, color.G, color.B);

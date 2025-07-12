@@ -1,10 +1,5 @@
 ﻿using NE.Standard.Extensions;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NE.Tests.Standard;
 
@@ -36,7 +31,7 @@ public class ColorExtensionsTests
     [Theory]
     [InlineData("#FFFFFFFF", 255, 255, 255, 255)]
     [InlineData("#00000000", 0, 0, 0, 0)]
-    [InlineData("#00FF0080", 128, 255, 0, 0)]
+    [InlineData("#FF000080", 128, 255, 0, 0)]
     public void FromHex_ParsesVariousFormats(string hex, int a, int r, int g, int b)
     {
         var color = hex.FromHex();

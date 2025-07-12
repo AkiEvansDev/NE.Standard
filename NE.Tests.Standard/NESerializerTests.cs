@@ -101,7 +101,7 @@ public class NESerializerTests
         Assert.Equal(1, obj2.V1);
 
         Assert.Null(obj2.V1Null);
-        
+
         Assert.Equal(2, obj2.V1NullValue);
 
         Assert.NotEqual(1, obj2.V1Ignore);
@@ -177,7 +177,7 @@ public class NESerializerTests
         var data = serializer.Serialize(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        if (res.SubData1 != null)
+        if (res!.SubData1 != null)
             res.SubData1.Data = "0";
 
         Assert.Equal("0", res.Data);
@@ -203,7 +203,7 @@ public class NESerializerTests
         var data = serializer.Serialize(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        if (res.SubData2 != null)
+        if (res!.SubData2 != null)
             res.SubData2.Data = "0";
 
         Assert.Equal("0", res.SubData1?.Data);
@@ -229,7 +229,7 @@ public class NESerializerTests
         var data = serializer.SerializeCopy(r1);
         var res = serializer.Deserialize<ReferenceTest>(data);
 
-        if (res.SubData2 != null)
+        if (res!.SubData2 != null)
             res.SubData2.Data = "0";
 
         Assert.NotEqual("0", res.SubData1?.Data);
@@ -265,7 +265,7 @@ public class NESerializerTests
         var data = serializer.Serialize(r);
         var res = serializer.Deserialize<ReferenceTestArray>(data);
 
-        res.Data = "0";
+        res!.Data = "0";
         if (res.Items?["1"] != null)
             res.Items["1"].Data = "0";
 

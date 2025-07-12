@@ -19,7 +19,7 @@ public class CollectionExtensionsTests
     [Fact]
     public void WhereNotNull_FiltersReferenceTypes()
     {
-        string?[] data = { "a", null, "b" };
+        string?[] data = ["a", null, "b"];
         var result = data.WhereNotNull();
         Assert.Equal(["a", "b"], result);
     }

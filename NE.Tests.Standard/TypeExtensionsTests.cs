@@ -58,7 +58,7 @@ public class TypeExtensionsTests
         Assert.Throws<TypeLoadException>("No.Such.Type".ResolveType);
 
         string? nullName = null;
-        Assert.Throws<ArgumentNullException>(nullName.ResolveType);
+        Assert.Throws<ArgumentNullException>(nullName!.ResolveType);
         Assert.Throws<ArgumentNullException>("".ResolveType);
     }
 }

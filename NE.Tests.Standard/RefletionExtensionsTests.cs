@@ -5,13 +5,16 @@ namespace NE.Tests.Standard;
 
 public class RefletionExtensionsTests
 {
-    private class Sample
+    public class Sample
     {
         public int Field;
         public string Property { get; set; } = string.Empty;
+        
         [Description("sample attr")] public int Annotated { get; set; }
         public int ReadOnly { get; } = 1;
-        [Description("field attr")] public int AnnotatedField;
+        
+        [Description("field attr")]
+        public int AnnotatedField;
 
         private string SecretMethod() => "secret";
         public string Echo(string input) => $"Echo: {input}";
@@ -151,13 +154,13 @@ public class RefletionExtensionsTests
     public void HasAttribute_ReturnsExpected()
     {
         var prop = typeof(Sample).GetProperty("Annotated");
-        Assert.True(prop.HasAttribute<DescriptionAttribute>());
+        Assert.True(prop!.HasAttribute<DescriptionAttribute>());
 
         var field = typeof(Sample).GetField("AnnotatedField");
-        Assert.True(field.HasAttribute<DescriptionAttribute>());
+        Assert.True(field!.HasAttribute<DescriptionAttribute>());
 
         var nonMarkedProp = typeof(Sample).GetProperty("Property");
-        Assert.False(nonMarkedProp.HasAttribute<DescriptionAttribute>());
+        Assert.False(nonMarkedProp!.HasAttribute<DescriptionAttribute>());
     }
 
     [Fact]
