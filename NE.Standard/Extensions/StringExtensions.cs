@@ -7,7 +7,7 @@ using System.Text;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Helper extensions for <see cref="string"/>.
+    /// Extensions for working with <see cref="string"/> instances.
     /// </summary>
     public static class StringExtensions
     {

@@ -215,4 +215,14 @@ namespace NE.Standard.Types
         [Description("Double Click")]
         DoubleClick = 5,
     }
+
+    public enum ColorAdjustment
+    {
+        [Description("None")]
+        None = 0,
+        [Description("Shade")]
+        Shade = 1,
+        [Description("Tint")]
+        Tint = 2,
+    }
 }

@@ -7,7 +7,7 @@ using System.Reflection;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Useful helpers for working with enums.
+    /// Extensions for working with <see cref="Enum"/> instances.
     /// </summary>
     public static class EnumExtensions
     {

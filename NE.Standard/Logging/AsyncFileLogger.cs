@@ -48,7 +48,7 @@ namespace NE.Standard.Logging
                     using var stream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
                     using var writer = new StreamWriter(stream) { AutoFlush = true };
 
-                    await writer.WriteLineAsync(message);
+                    await writer.WriteLineAsync(message).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) { }
@@ -76,7 +76,7 @@ namespace NE.Standard.Logging
                         try { File.Delete(file); } catch { }
                     }
 
-                    await Task.Delay(TimeSpan.FromHours(12), _cts.Token);
+                    await Task.Delay(TimeSpan.FromHours(12), _cts.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) { }

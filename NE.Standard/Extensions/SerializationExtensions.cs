@@ -7,27 +7,27 @@ using System.Xml.Serialization;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Extension methods for serializing objects using different serializers.
+    /// Extensions for working with serialization.
     /// </summary>
     public static class SerializationExtensions
     {
         #region ObjectSerializer
 
         /// <summary>
-        /// Serializes an object using <see cref="ObjectSerializer"/>.
+        /// Serializes an object using <see cref="NESerializer"/>.
         /// </summary>
         public static string SerializeObject(this object obj, bool useBase64 = true)
         {
-            using var serializer = new ObjectSerializer();
+            using var serializer = new NESerializer();
             return serializer.Serialize(obj, useBase64);
         }
 
         /// <summary>
-        /// Deserializes a string into an object using <see cref="ObjectSerializer"/>.
+        /// Deserializes a string into an object using <see cref="NESerializer"/>.
         /// </summary>
         public static T? DeserializeObject<T>(this string data, bool useBase64 = true) where T : class
         {
-            using var serializer = new ObjectSerializer();
+            using var serializer = new NESerializer();
             return serializer.Deserialize<T>(data, useBase64);
         }
 

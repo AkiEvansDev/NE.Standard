@@ -2,7 +2,7 @@ using NE.Standard.Serialization;
 
 namespace NE.Tests.Standard;
 
-public class ObjectSerializerTests
+public class NESerializerTests
 {
     private enum TestEnum
     {
@@ -11,12 +11,14 @@ public class ObjectSerializerTests
         V3,
     }
 
-    [ObjectSerializable]
+    [NEObject]
     private class TestSerializer
     {
         public bool V { get; set; }
         public int V1 { get; set; }
-        [Ignore]
+        public int? V1Null { get; set; }
+        public int? V1NullValue { get; set; }
+        [NEIgnore]
         public int V1Ignore { get; set; }
         public float V2 { get; set; }
         public double V3 { get; set; }
@@ -39,13 +41,13 @@ public class ObjectSerializerTests
         string? Text { get; set; }
     }
 
-    [ObjectSerializable]
+    [NEObject]
     private class SubTestSerializerClass : ITestClass
     {
         public string? Text { get; set; }
     }
 
-    [ObjectSerializable]
+    [NEObject]
     private struct SubTestSerializerStruct(string text)
     {
         public string? Text { get; set; } = text;
@@ -54,12 +56,14 @@ public class ObjectSerializerTests
     [Fact]
     public void SerializeDeserialize_AllTypes()
     {
-        var serializer = new ObjectSerializer();
+        var serializer = new NESerializer();
 
         var obj = new TestSerializer
         {
             V = true,
             V1 = 1,
+            V1Null = null,
+            V1NullValue = 2,
             V1Ignore = 1,
             V2 = 2.2f,
             V3 = 3.3,
@@ -92,9 +96,13 @@ public class ObjectSerializerTests
         var data = serializer.Serialize(obj);
         var obj2 = serializer.Deserialize<TestSerializer>(data);
 
-        Assert.True(obj2.V);
+        Assert.True(obj2!.V);
 
         Assert.Equal(1, obj2.V1);
+
+        Assert.Null(obj2.V1Null);
+        
+        Assert.Equal(2, obj2.V1NullValue);
 
         Assert.NotEqual(1, obj2.V1Ignore);
 
@@ -126,7 +134,7 @@ public class ObjectSerializerTests
         Assert.Equal("~[Test&^$(']", obj2.SubTestStruct?.Text);
     }
 
-    [ObjectSerializable]
+    [NEObject]
     public class ReferenceTest
     {
         public string? Data { get; set; }
@@ -135,14 +143,14 @@ public class ObjectSerializerTests
         public ReferenceTest? SubData2 { get; set; }
     }
 
-    [ObjectSerializable]
+    [NEObject]
     public class ReferenceTestArray
     {
         public string? Data { get; set; }
         public Dictionary<string, ReferenceTestArrayItem>? Items { get; set; }
     }
 
-    [ObjectSerializable]
+    [NEObject]
     public class ReferenceTestArrayItem
     {
         public string? Data { get; set; }
@@ -152,7 +160,7 @@ public class ObjectSerializerTests
     [Fact]
     public void Serialize_PreservesSelfReference()
     {
-        var serializer = new ObjectSerializer();
+        var serializer = new NESerializer();
 
         var r1 = new ReferenceTest
         {
@@ -178,7 +186,7 @@ public class ObjectSerializerTests
     [Fact]
     public void Serialize_PreservesSharedReference()
     {
-        var serializer = new ObjectSerializer();
+        var serializer = new NESerializer();
 
         var r1 = new ReferenceTest
         {
@@ -204,7 +212,7 @@ public class ObjectSerializerTests
     [Fact]
     public void SerializeCopy_CreatesDeepCopy()
     {
-        var serializer = new ObjectSerializer();
+        var serializer = new NESerializer();
 
         var r1 = new ReferenceTest
         {
@@ -230,7 +238,7 @@ public class ObjectSerializerTests
     [Fact]
     public void Serialize_PreservesCollectionReferences()
     {
-        var serializer = new ObjectSerializer();
+        var serializer = new NESerializer();
 
         var r = new ReferenceTestArray
         {

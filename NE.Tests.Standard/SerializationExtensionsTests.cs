@@ -5,7 +5,7 @@ namespace NE.Tests.Standard;
 
 public class SerializationExtensionsTests
 {
-    [ObjectSerializable]
+    [NEObject]
     public class Sample
     {
         public int Value { get; set; }

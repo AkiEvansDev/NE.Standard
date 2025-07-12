@@ -21,7 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NE.Standard.Design\NE.Standard.Design.csproj" />
     <ProjectReference Include="..\NE.Standard\NE.Standard.csproj" />
   </ItemGroup>
 

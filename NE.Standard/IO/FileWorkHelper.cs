@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NE.Standard.IO
 {
@@ -58,6 +60,31 @@ namespace NE.Standard.IO
 
             if (File.Exists(path))
                 File.Delete(path);
+        }
+
+        /// <summary>
+        /// Asynchronously writes content to a file. Overwrites if file exists.
+        /// </summary>
+        public static async Task WriteAsync(string path, string content, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentNullException(nameof(path));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, content ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Asynchronously reads the contents of a file.
+        /// </summary>
+        public static async Task<string> ReadAsync(string path, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentNullException(nameof(path));
+            if (!File.Exists(path))
+                throw new FileNotFoundException("File not found", path);
+
+            return await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
         }
     }
 }

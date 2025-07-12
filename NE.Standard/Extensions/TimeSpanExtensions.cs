@@ -4,7 +4,7 @@ using System.Globalization;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Extensions for <see cref="TimeSpan"/> instances.
+    /// Extensions for working with <see cref="TimeSpan"/> instances.
     /// </summary>
     public static class TimeSpanExtensions
     {

@@ -7,17 +7,17 @@ using System.Runtime.CompilerServices;
 namespace NE.Standard.Serialization
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public sealed class ObjectSerializableAttribute : Attribute { }
+    public sealed class NEObjectAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Property)]
-    public sealed class IgnoreAttribute : Attribute { }
+    public sealed class NEIgnoreAttribute : Attribute { }
 
     /// <summary>
     /// Provides methods for serializing and deserializing object graphs.
     /// The serializer supports collections, dictionaries and preserves
     /// references between objects when reading or writing.
     /// </summary>
-    public partial class ObjectSerializer : IDisposable
+    public partial class NESerializer : IDisposable
     {
         private const char FIRST_ST = '~';
         private const string STRING_T = "~[";

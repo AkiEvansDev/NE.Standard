@@ -7,9 +7,9 @@ using System.Text;
 namespace NE.Standard.Serialization
 {
     /// <summary>
-    /// See <see cref="ObjectSerializer"/> for type information.
+    /// See <see cref="NESerializer"/> for type information.
     /// </summary>
-    public partial class ObjectSerializer
+    public partial class NESerializer
     {
         private string SerializeInternal(object obj, bool useBase64 = true, bool ignoreReference = false)
         {
@@ -33,12 +33,12 @@ namespace NE.Standard.Serialization
             if (type == null)
                 return;
 
-            if (type.HasAttribute<ObjectSerializableAttribute>())
+            if (type.HasAttribute<NEObjectAttribute>())
             {
                 if (!type.IsValueType && !TrackReference(obj))
                     return;
 
-                foreach (var prop in type.GetPropertiesWithoutAttribute<IgnoreAttribute>(true))
+                foreach (var prop in type.GetPropertiesWithoutAttribute<NEIgnoreAttribute>(true))
                 {
                     var value = prop.GetValue(obj);
 
@@ -185,11 +185,11 @@ namespace NE.Standard.Serialization
             if (type == null)
                 return;
 
-            if (type.HasAttribute<ObjectSerializableAttribute>())
+            if (type.HasAttribute<NEObjectAttribute>())
             {
                 builder.Append($"({GetOrAddTypeId(type)})");
 
-                foreach (var prop in type.GetPropertiesWithoutAttribute<IgnoreAttribute>(true))
+                foreach (var prop in type.GetPropertiesWithoutAttribute<NEIgnoreAttribute>(true))
                 {
                     var value = prop.GetValue(obj);
 

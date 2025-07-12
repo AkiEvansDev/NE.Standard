@@ -6,7 +6,7 @@ using System.Reflection;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Helper methods for working with reflection.
+    /// Extensions for working with reflection.
     /// </summary>
     public static class ReflectionExtensions
     {

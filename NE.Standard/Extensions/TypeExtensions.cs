@@ -5,7 +5,7 @@ using System.Reflection;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Extensions for <see cref="Type"/> instances.
+    /// Extensions for working with <see cref="Type"/> instances.
     /// </summary>
     public static class TypeExtensions
     {
