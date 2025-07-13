@@ -1,8 +1,8 @@
-﻿using NE.Standard.Design.Elements.Base;
+﻿using NE.Standard.Design.UI.Common;
 
-namespace NE.Standard.Design.Elements
+namespace NE.Standard.Design.UI
 {
-    public class UILabel<T> : UIElement<T>
+    public abstract class UILabel<T> : Block<T>
         where T : UILabel<T>
     {
         public string? Label { get; set; }

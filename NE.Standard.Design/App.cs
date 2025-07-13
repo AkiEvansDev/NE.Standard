@@ -1,34 +1,31 @@
-﻿using NE.Standard.Design.Elements;
-using NE.Standard.Design.Models;
-using NE.Standard.Design.Styles;
+﻿using NE.Standard.Design.Components;
+using NE.Standard.Design.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace NE.Standard.Design
 {
-    public class ServerNavigateResult : ServerResult
+    public sealed class UINavigateResult : UIActionResult
     {
-        public IModel Model { get; set; } = default!;
-        public IView View { get; set; } = default!;
+        public IInternalDataContext? Context { get; set; }
     }
 
-    public interface IApp
+    public interface IInternalApp
     {
         string HomePage { get; }
-        UIStyleConfig DefaultStyle { get; }
-        UIApp UIApp { get; }
-        Task<ServerNavigateResult> NavigateAsync(string link, IClientBridge? bridge);
+        AppStyle DefaultStyle { get; }
+
+        Task<UINavigateResult> NavigateAsync(string key, IInternalDataContextProvider contextProvider, SyncMode mode);
     }
 
-    public abstract class App : IApp
+    public abstract class App : IInternalApp
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly Dictionary<string, Func<IViewModel>> _pages;
 
         public abstract string HomePage { get; }
-        public abstract UIStyleConfig DefaultStyle { get; }
-        public abstract UIApp UIApp { get; }
+        public abstract AppStyle DefaultStyle { get; }
 
         public App(IServiceProvider serviceProvider)
         {
@@ -36,24 +33,41 @@ namespace NE.Standard.Design
             _pages = new Dictionary<string, Func<IViewModel>>();
         }
 
-        protected void RegisterPage<TModel, TView>(string link)
-            where TModel : IModel
-            where TView : IView
+        protected void RegisterPage<TModel, TView>(string key)
+            where TModel : Model<DataContext>
+            where TView : View<DataContext>
         {
-            _pages[link] = () => new ViewModel<TModel, TView>(_serviceProvider);
+            _pages[key] = () => new ViewModel<TModel, TView>(_serviceProvider);
         }
 
-        async Task<ServerNavigateResult> IApp.NavigateAsync(string link, IClientBridge? bridge)
+        async Task<UINavigateResult> IInternalApp.NavigateAsync(string key, IInternalDataContextProvider contextProvider, SyncMode mode)
         {
-            var result = new ServerNavigateResult();
+            var result = new UINavigateResult
+            {
+                Context = contextProvider.GetCurrentDataContext()
+            };
 
-            if (_pages.TryGetValue(link, out var factory))
+            if (result.Context == null)
+            {
+                result.Error = "Context not found";
+                return result;
+            }
+
+            if (result.Context.Key == key && result.Context.Model != null && result.Context.View != null)
+            {
+                result.Success = true;
+                return result;
+            }
+
+            if (_pages.TryGetValue(key, out var factory))
             {
                 try
                 {
-                    (result.Model, result.View) = await factory().LoadAsync(bridge);
+                    (result.Context.Model, result.Context.View) = await factory().LoadAsync(result.Context, mode);
 
+                    result.Context.Key = key;
                     result.Success = true;
+
                     return result;
                 }
                 catch (Exception ex)
@@ -63,7 +77,7 @@ namespace NE.Standard.Design
                 }
             }
 
-            result.Error = "Not Found";
+            result.Error = $"Key `{key}` not found";
             return result;
         }
     }
