@@ -1,87 +1,123 @@
 <!DOCTYPE html>
-<!--[if IE]><![endif]-->
 <html>
-
   <head>
     <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
       <title>Class FileHelper | NE.Standard </title>
-      <meta name="viewport" content="width=device-width">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class FileHelper | NE.Standard ">
-    
-    <meta name="description" content="Provides helper methods for performing common file system operations, including synchronous and asynchronous read/write utilities.">
-      <link rel="shortcut icon" href="../favicon.ico">
-      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
-      <link rel="stylesheet" href="../styles/docfx.css">
-      <link rel="stylesheet" href="../styles/main.css">
-      <meta property="docfx:navrel" content="../toc.html">
-      <meta property="docfx:tocrel" content="toc.html">
-    
-    
-    
+      
+      <meta name="description" content="Provides helper methods for performing common file system operations, including synchronous and asynchronous read/write utilities.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/AkiEvansDev/NE.Standard/new/master/apiSpec/new?filename=NE_Standard_IO_FileHelper.md&amp;value=---%0Auid%3A%20NE.Standard.IO.FileHelper%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
   </head>
-  <body data-spy="scroll" data-target="#affix" data-offset="120">
-    <div id="wrapper">
-      <header>
 
-        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
-          <div class="container">
-            <div class="navbar-header">
-              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-              </button>
-
-              <a class="navbar-brand" href="../index.html">
-                <img id="logo" class="svg" src="../logo.svg" alt="">
-              </a>
-            </div>
-            <div class="collapse navbar-collapse" id="navbar">
-              <form class="navbar-form navbar-right" role="search" id="search">
-                <div class="form-group">
-                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
-                </div>
-              </form>
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
+    </header>
 
-        <div class="subnav navbar navbar-default">
-          <div class="container hide-when-search" id="breadcrumb">
-            <ul class="breadcrumb">
-              <li></li>
-            </ul>
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
           </div>
         </div>
-      </header>
-      <div role="main" class="container body-content hide-when-search">
+      </div>
 
-        <div class="sidenav hide-when-search">
-          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
-          <div class="sidetoggle collapse" id="sidetoggle">
-            <div id="sidetoc"></div>
-          </div>
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
         </div>
-        <div class="article row grid-right">
-          <div class="col-md-10">
-            <article class="content wrap" id="_content" data-uid="NE.Standard.IO.FileHelper">
+
+        <article data-uid="NE.Standard.IO.FileHelper">
 
 
 
-  <h1 id="NE_Standard_IO_FileHelper" data-uid="NE.Standard.IO.FileHelper" class="text-break">Class FileHelper</h1>
-  <div class="markdown level0 summary"><p>Provides helper methods for performing common file system operations,
+  <h1 id="NE_Standard_IO_FileHelper" data-uid="NE.Standard.IO.FileHelper" class="text-break">
+Class FileHelper  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L16"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.IO.html">IO</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>NE.Standard.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Provides helper methods for performing common file system operations,
 including synchronous and asynchronous read/write utilities.</p>
 </div>
-  <div class="markdown level0 conceptual"></div>
-  <div class="inheritance">
-    <h5>Inheritance</h5>
-    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
-    <div class="level1"><span class="xref">FileHelper</span></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static class FileHelper</code></pre>
   </div>
-  <div class="inheritedMembers">
-    <h5>Inherited Members</h5>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">FileHelper</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
     </div>
@@ -103,719 +139,578 @@ including synchronous and asynchronous read/write utilities.</p>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
     </div>
-  </div>
-  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.IO.html">IO</a></h6>
-  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
-  <h5 id="NE_Standard_IO_FileHelper_syntax">Syntax</h5>
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static class FileHelper</code></pre>
-  </div>
-  <h3 id="methods">Methods
-</h3>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
   <a id="NE_Standard_IO_FileHelper_AppendLinesBuffered_" data-uid="NE.Standard.IO.FileHelper.AppendLinesBuffered*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_AppendLinesBuffered_System_String_System_Collections_Generic_IEnumerable_System_String__" data-uid="NE.Standard.IO.FileHelper.AppendLinesBuffered(System.String,System.Collections.Generic.IEnumerable{System.String})">AppendLinesBuffered(string, IEnumerable&lt;string&gt;)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_AppendLinesBuffered_System_String_System_Collections_Generic_IEnumerable_System_String__" data-uid="NE.Standard.IO.FileHelper.AppendLinesBuffered(System.String,System.Collections.Generic.IEnumerable{System.String})">
+  AppendLinesBuffered(string, IEnumerable&lt;string&gt;)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L222"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Appends multiple lines to a file using buffered streaming.
 Creates the file and directory if they do not exist.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static void AppendLinesBuffered(string path, IEnumerable&lt;string&gt; lines)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the target file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><span class="parametername">lines</span></td>
-        <td><p>The collection of lines to append.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> or <code class="paramref">lines</code> is null or whitespace.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the target file.</p>
+</dd>
+    <dt><code>lines</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>The collection of lines to append.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> or <code class="paramref">lines</code> is null or whitespace.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_Create_" data-uid="NE.Standard.IO.FileHelper.Create*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_Create_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.Create(System.String,System.String)">Create(string, string?)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_Create_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.Create(System.String,System.String)">
+  Create(string, string?)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L25"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Creates a new file at the specified <code class="paramref">path</code> with the given <code class="paramref">content</code>.
 If the file already exists, it will be overwritten.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static void Create(string path, string? content = null)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path where the file will be created.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">content</span></td>
-        <td><p>The content to write to the file. If <code>null</code>, an empty string will be used.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path where the file will be created.</p>
+</dd>
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The content to write to the file. If <code>null</code>, an empty string will be used.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_Delete_" data-uid="NE.Standard.IO.FileHelper.Delete*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_Delete_System_String_" data-uid="NE.Standard.IO.FileHelper.Delete(System.String)">Delete(string)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_Delete_System_String_" data-uid="NE.Standard.IO.FileHelper.Delete(System.String)">
+  Delete(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L70"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Deletes the file at the specified <code class="paramref">path</code>, if it exists.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static void Delete(string path)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path to the file to delete.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path to the file to delete.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_EnumerateLines_" data-uid="NE.Standard.IO.FileHelper.EnumerateLines*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_EnumerateLines_System_String_" data-uid="NE.Standard.IO.FileHelper.EnumerateLines(System.String)">EnumerateLines(string)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_EnumerateLines_System_String_" data-uid="NE.Standard.IO.FileHelper.EnumerateLines(System.String)">
+  EnumerateLines(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L176"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Lazily enumerates lines from the specified file without loading the entire content into memory.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static IEnumerable&lt;string&gt; EnumerateLines(string path)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the file.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><p>An enumerable of lines in the file.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is null or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></td>
-        <td><p>Thrown if the file does not exist.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the file.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>An enumerable of lines in the file.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is null or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></dt>
+    <dd><p>Thrown if the file does not exist.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_FindLinesContaining_" data-uid="NE.Standard.IO.FileHelper.FindLinesContaining*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_FindLinesContaining_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.FindLinesContaining(System.String,System.String)">FindLinesContaining(string, string)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_FindLinesContaining_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.FindLinesContaining(System.String,System.String)">
+  FindLinesContaining(string, string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L118"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Searches for lines in a file that contain the specified keyword (case-insensitive).</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static IEnumerable&lt;string&gt; FindLinesContaining(string path, string keyword)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">keyword</span></td>
-        <td><p>The keyword to search for.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><p>Enumerable of matching lines.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the file.</p>
+</dd>
+    <dt><code>keyword</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The keyword to search for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>Enumerable of matching lines.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_IO_FileHelper_ProcessLines_" data-uid="NE.Standard.IO.FileHelper.ProcessLines*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_ProcessLines_System_String_System_Action_System_String__" data-uid="NE.Standard.IO.FileHelper.ProcessLines(System.String,System.Action{System.String})">ProcessLines(string, Action&lt;string&gt;)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_ProcessLines_System_String_System_Action_System_String__" data-uid="NE.Standard.IO.FileHelper.ProcessLines(System.String,System.Action{System.String})">
+  ProcessLines(string, Action&lt;string&gt;)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L132"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Processes each line of a large file using the provided <code class="paramref">lineProcessor</code> action.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static void ProcessLines(string path, Action&lt;string&gt; lineProcessor)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><span class="parametername">lineProcessor</span></td>
-        <td><p>Action to apply to each line.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the file.</p>
+</dd>
+    <dt><code>lineProcessor</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>Action to apply to each line.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_IO_FileHelper_ProcessLinesAsync_" data-uid="NE.Standard.IO.FileHelper.ProcessLinesAsync*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_ProcessLinesAsync_System_String_System_Func_System_String_System_Threading_Tasks_Task__System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ProcessLinesAsync(System.String,System.Func{System.String,System.Threading.Tasks.Task},System.Threading.CancellationToken)">ProcessLinesAsync(string, Func&lt;string, Task&gt;, CancellationToken)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_ProcessLinesAsync_System_String_System_Func_System_String_System_Threading_Tasks_Task__System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ProcessLinesAsync(System.String,System.Func{System.String,System.Threading.Tasks.Task},System.Threading.CancellationToken)">
+  ProcessLinesAsync(string, Func&lt;string, Task&gt;, CancellationToken)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L149"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Asynchronously processes each line of a large file using the provided <code class="paramref">asyncProcessor</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Task ProcessLinesAsync(string path, Func&lt;string, Task&gt; asyncProcessor, CancellationToken cancellationToken = default)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-2">Func</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a>&gt;</td>
-        <td><span class="parametername">asyncProcessor</span></td>
-        <td><p>An async delegate to process each line.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></td>
-        <td><span class="parametername">cancellationToken</span></td>
-        <td><p>A cancellation token to cancel the operation.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the file.</p>
+</dd>
+    <dt><code>asyncProcessor</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-2">Func</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a>&gt;</dt>
+    <dd><p>An async delegate to process each line.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>A cancellation token to cancel the operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_IO_FileHelper_Read_" data-uid="NE.Standard.IO.FileHelper.Read*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_Read_System_String_" data-uid="NE.Standard.IO.FileHelper.Read(System.String)">Read(string)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_Read_System_String_" data-uid="NE.Standard.IO.FileHelper.Read(System.String)">
+  Read(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L56"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Reads and returns the entire content of the file at the specified <code class="paramref">path</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static string Read(string path)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path to the file.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><p>The file content as a string.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></td>
-        <td><p>Thrown if the file does not exist.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path to the file.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The file content as a string.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></dt>
+    <dd><p>Thrown if the file does not exist.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_ReadAsync_" data-uid="NE.Standard.IO.FileHelper.ReadAsync*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_ReadAsync_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ReadAsync(System.String,System.Threading.CancellationToken)">ReadAsync(string, CancellationToken)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_ReadAsync_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ReadAsync(System.String,System.Threading.CancellationToken)">
+  ReadAsync(string, CancellationToken)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L103"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Asynchronously reads the entire content of the file at the specified <code class="paramref">path</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Task&lt;string&gt; ReadAsync(string path, CancellationToken cancellationToken = default)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></td>
-        <td><span class="parametername">cancellationToken</span></td>
-        <td><p>A cancellation token that can be used to cancel the operation.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><p>A task that represents the asynchronous read operation. The result contains the file content as a string.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></td>
-        <td><p>Thrown if the file does not exist.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path to the file.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>A cancellation token that can be used to cancel the operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>A task that represents the asynchronous read operation. The result contains the file content as a string.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></dt>
+    <dd><p>Thrown if the file does not exist.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_ReadLinesAsync_" data-uid="NE.Standard.IO.FileHelper.ReadLinesAsync*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_ReadLinesAsync_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ReadLinesAsync(System.String,System.Threading.CancellationToken)">ReadLinesAsync(string, CancellationToken)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_ReadLinesAsync_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.ReadLinesAsync(System.String,System.Threading.CancellationToken)">
+  ReadLinesAsync(string, CancellationToken)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L197"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Asynchronously and lazily reads lines from a file using <code>IAsyncEnumerable&lt;string&gt;</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static IAsyncEnumerable&lt;string&gt; ReadLinesAsync(string path, CancellationToken cancellationToken = default)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></td>
-        <td><span class="parametername">cancellationToken</span></td>
-        <td><p>A cancellation token for the operation.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.iasyncenumerable-1">IAsyncEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><p>An async enumerable of lines in the file.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is null or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></td>
-        <td><p>Thrown if the file does not exist.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The path to the file.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>A cancellation token for the operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.iasyncenumerable-1">IAsyncEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>An async enumerable of lines in the file.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is null or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></dt>
+    <dd><p>Thrown if the file does not exist.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_Update_" data-uid="NE.Standard.IO.FileHelper.Update*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_Update_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.Update(System.String,System.String)">Update(string, string)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_Update_System_String_System_String_" data-uid="NE.Standard.IO.FileHelper.Update(System.String,System.String)">
+  Update(string, string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L40"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Updates the content of an existing file at the specified <code class="paramref">path</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static void Update(string path, string content)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path to the file to update.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">content</span></td>
-        <td><p>The new content to write to the file.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></td>
-        <td><p>Thrown if the file does not exist.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path to the file to update.</p>
+</dd>
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The new content to write to the file.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.filenotfoundexception">FileNotFoundException</a></dt>
+    <dd><p>Thrown if the file does not exist.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_IO_FileHelper_WriteAsync_" data-uid="NE.Standard.IO.FileHelper.WriteAsync*"></a>
-  <h4 id="NE_Standard_IO_FileHelper_WriteAsync_System_String_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.WriteAsync(System.String,System.String,System.Threading.CancellationToken)">WriteAsync(string, string, CancellationToken)</h4>
+
+  <h3 id="NE_Standard_IO_FileHelper_WriteAsync_System_String_System_String_System_Threading_CancellationToken_" data-uid="NE.Standard.IO.FileHelper.WriteAsync(System.String,System.String,System.Threading.CancellationToken)">
+  WriteAsync(string, string, CancellationToken)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/IO/FileHelper.cs/#L87"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Asynchronously writes the specified <code class="paramref">content</code> to a file at the given <code class="paramref">path</code>.
 If the file already exists, its content will be overwritten.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Task WriteAsync(string path, string content, CancellationToken cancellationToken = default)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">path</span></td>
-        <td><p>The full path to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">content</span></td>
-        <td><p>The content to write to the file.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></td>
-        <td><span class="parametername">cancellationToken</span></td>
-        <td><p>A cancellation token that can be used to cancel the operation.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></td>
-        <td><p>A task representing the asynchronous write operation.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
-        <td><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The full path to the file.</p>
+</dd>
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The content to write to the file.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>A cancellation token that can be used to cancel the operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd><p>A task representing the asynchronous write operation.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
+    <dd><p>Thrown if <code class="paramref">path</code> is <code>null</code> or whitespace.</p>
+</dd>
+  </dl>
+
+
+
 
 </article>
-          </div>
 
-          <div class="hidden-sm col-md-2" role="complementary">
-            <div class="sideaffix">
-              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
-                <h5>In this article</h5>
-                <div></div>
-              </nav>
-            </div>
-          </div>
-        </div>
+
+
       </div>
 
-      <footer>
-        <div class="grad-bottom"></div>
-        <div class="footer">
-          <div class="container">
-            <span class="pull-right">
-              <a href="#top">Back to top</a>
-            </span>
-      
-      <span>Generated by <strong>DocFX</strong></span>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
 
-    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
-    <script type="text/javascript" src="../styles/docfx.js"></script>
-    <script type="text/javascript" src="../styles/main.js"></script>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

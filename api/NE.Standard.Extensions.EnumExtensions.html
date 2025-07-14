@@ -1,87 +1,123 @@
 <!DOCTYPE html>
-<!--[if IE]><![endif]-->
 <html>
-
   <head>
     <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
       <title>Class EnumExtensions | NE.Standard </title>
-      <meta name="viewport" content="width=device-width">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class EnumExtensions | NE.Standard ">
-    
-    <meta name="description" content="Provides extension methods for working with  types, including name resolution, metadata access, and description extraction.">
-      <link rel="shortcut icon" href="../favicon.ico">
-      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
-      <link rel="stylesheet" href="../styles/docfx.css">
-      <link rel="stylesheet" href="../styles/main.css">
-      <meta property="docfx:navrel" content="../toc.html">
-      <meta property="docfx:tocrel" content="toc.html">
-    
-    
-    
+      
+      <meta name="description" content="Provides extension methods for working with  types, including name resolution, metadata access, and description extraction.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/AkiEvansDev/NE.Standard/new/master/apiSpec/new?filename=NE_Standard_Extensions_EnumExtensions.md&amp;value=---%0Auid%3A%20NE.Standard.Extensions.EnumExtensions%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
   </head>
-  <body data-spy="scroll" data-target="#affix" data-offset="120">
-    <div id="wrapper">
-      <header>
 
-        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
-          <div class="container">
-            <div class="navbar-header">
-              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-              </button>
-
-              <a class="navbar-brand" href="../index.html">
-                <img id="logo" class="svg" src="../logo.svg" alt="">
-              </a>
-            </div>
-            <div class="collapse navbar-collapse" id="navbar">
-              <form class="navbar-form navbar-right" role="search" id="search">
-                <div class="form-group">
-                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
-                </div>
-              </form>
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
+    </header>
 
-        <div class="subnav navbar navbar-default">
-          <div class="container hide-when-search" id="breadcrumb">
-            <ul class="breadcrumb">
-              <li></li>
-            </ul>
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
           </div>
         </div>
-      </header>
-      <div role="main" class="container body-content hide-when-search">
+      </div>
 
-        <div class="sidenav hide-when-search">
-          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
-          <div class="sidetoggle collapse" id="sidetoggle">
-            <div id="sidetoc"></div>
-          </div>
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
         </div>
-        <div class="article row grid-right">
-          <div class="col-md-10">
-            <article class="content wrap" id="_content" data-uid="NE.Standard.Extensions.EnumExtensions">
+
+        <article data-uid="NE.Standard.Extensions.EnumExtensions">
 
 
 
-  <h1 id="NE_Standard_Extensions_EnumExtensions" data-uid="NE.Standard.Extensions.EnumExtensions" class="text-break">Class EnumExtensions</h1>
-  <div class="markdown level0 summary"><p>Provides extension methods for working with <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a> types,
+  <h1 id="NE_Standard_Extensions_EnumExtensions" data-uid="NE.Standard.Extensions.EnumExtensions" class="text-break">
+Class EnumExtensions  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L13"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>NE.Standard.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Provides extension methods for working with <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a> types,
 including name resolution, metadata access, and description extraction.</p>
 </div>
-  <div class="markdown level0 conceptual"></div>
-  <div class="inheritance">
-    <h5>Inheritance</h5>
-    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
-    <div class="level1"><span class="xref">EnumExtensions</span></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static class EnumExtensions</code></pre>
   </div>
-  <div class="inheritedMembers">
-    <h5>Inherited Members</h5>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">EnumExtensions</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
     </div>
@@ -103,319 +139,279 @@ including name resolution, metadata access, and description extraction.</p>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
     </div>
-  </div>
-  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></h6>
-  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
-  <h5 id="NE_Standard_Extensions_EnumExtensions_syntax">Syntax</h5>
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static class EnumExtensions</code></pre>
-  </div>
-  <h3 id="methods">Methods
-</h3>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetAttribute_" data-uid="NE.Standard.Extensions.EnumExtensions.GetAttribute*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetAttribute__1_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetAttribute``1(System.Enum)">GetAttribute&lt;TAttribute&gt;(Enum)</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetAttribute__1_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetAttribute``1(System.Enum)">
+  GetAttribute&lt;TAttribute&gt;(Enum)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L46"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Retrieves a custom attribute of type <code class="typeparamref">TAttribute</code>
 that is applied to the specified enumeration <code class="paramref">enum</code> value.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static TAttribute GetAttribute&lt;TAttribute&gt;(this Enum @enum) where TAttribute : Attribute</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></td>
-        <td><span class="parametername">enum</span></td>
-        <td><p>The enum value whose attribute is to be retrieved.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><span class="xref">TAttribute</span></td>
-        <td><p>The attribute of type <code class="typeparamref">TAttribute</code>, or <code>null</code> if not found.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="typeParameters">Type Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><span class="parametername">TAttribute</span></td>
-        <td><p>The type of the attribute to retrieve.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
+    <dd><p>The enum value whose attribute is to be retrieved.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><span class="xref">TAttribute</span></dt>
+    <dd><p>The attribute of type <code class="typeparamref">TAttribute</code>, or <code>null</code> if not found.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Type Parameters</h4>
+  <dl class="parameters">
+    <dt><code>TAttribute</code></dt>
+    <dd><p>The type of the attribute to retrieve.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetDescription_" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescription*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetDescription_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescription(System.Enum)">GetDescription(Enum)</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetDescription_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescription(System.Enum)">
+  GetDescription(Enum)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L59"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Returns the <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.descriptionattribute.description">Description</a> of the specified enumeration <code class="paramref">enum</code> value.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static string? GetDescription(this Enum @enum)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></td>
-        <td><span class="parametername">enum</span></td>
-        <td><p>The enum value to retrieve the description for.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><p>The description string if <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.descriptionattribute">DescriptionAttribute</a> is defined; otherwise, <code>null</code>.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
+    <dd><p>The enum value to retrieve the description for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The description string if <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.descriptionattribute">DescriptionAttribute</a> is defined; otherwise, <code>null</code>.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetDescriptions_" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescriptions*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetDescriptions__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescriptions``1">GetDescriptions&lt;TEnum&gt;()</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetDescriptions__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescriptions``1">
+  GetDescriptions&lt;TEnum&gt;()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L71"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Creates a dictionary mapping each value of the enumeration type <code class="typeparamref">TEnum</code>
 to its corresponding <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.descriptionattribute.description">Description</a>, if available.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Dictionary&lt;TEnum, string?&gt; GetDescriptions&lt;TEnum&gt;() where TEnum : Enum</code></pre>
   </div>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.dictionary-2">Dictionary</a>&lt;TEnum, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
-        <td><p>A dictionary where keys are enum values and values are their associated descriptions,
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.dictionary-2">Dictionary</a>&lt;TEnum, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd><p>A dictionary where keys are enum values and values are their associated descriptions,
 or <code>null</code> if a description is not defined.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="typeParameters">Type Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><span class="parametername">TEnum</span></td>
-        <td><p>The enumeration type.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+</dd>
+  </dl>
+
+  <h4 class="section">Type Parameters</h4>
+  <dl class="parameters">
+    <dt><code>TEnum</code></dt>
+    <dd><p>The enumeration type.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetName_" data-uid="NE.Standard.Extensions.EnumExtensions.GetName*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetName_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetName(System.Enum)">GetName(Enum)</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetName_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetName(System.Enum)">
+  GetName(Enum)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L20"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Returns the name of the specified enumeration <code class="paramref">enum</code> value.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static string GetName(this Enum @enum)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></td>
-        <td><span class="parametername">enum</span></td>
-        <td><p>The enumeration value.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><p>The name of the enum value as defined in its type.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
+    <dd><p>The enumeration value.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The name of the enum value as defined in its type.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetNames_" data-uid="NE.Standard.Extensions.EnumExtensions.GetNames*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetNames_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetNames(System.Enum)">GetNames(Enum)</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetNames_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetNames(System.Enum)">
+  GetNames(Enum)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L28"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Returns all defined names in the enumeration type of the specified <code class="paramref">enum</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static string[] GetNames(this Enum @enum)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></td>
-        <td><span class="parametername">enum</span></td>
-        <td><p>An instance of the enum whose type will be used to retrieve names.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</td>
-        <td><p>An array of names defined in the enum type.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
+    <dd><p>An instance of the enum whose type will be used to retrieve names.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd><p>An array of names defined in the enum type.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_EnumExtensions_GetValues_" data-uid="NE.Standard.Extensions.EnumExtensions.GetValues*"></a>
-  <h4 id="NE_Standard_Extensions_EnumExtensions_GetValues__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetValues``1">GetValues&lt;T&gt;()</h4>
+
+  <h3 id="NE_Standard_Extensions_EnumExtensions_GetValues__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetValues``1">
+  GetValues&lt;T&gt;()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L36"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Returns all defined values of the enumeration type <code class="typeparamref">T</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static IEnumerable&lt;T&gt; GetValues&lt;T&gt;() where T : Enum</code></pre>
   </div>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
-        <td><p>An enumerable containing all values of the specified enum type.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="typeParameters">Type Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><span class="parametername">T</span></td>
-        <td><p>The enumeration type.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</dt>
+    <dd><p>An enumerable containing all values of the specified enum type.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Type Parameters</h4>
+  <dl class="parameters">
+    <dt><code>T</code></dt>
+    <dd><p>The enumeration type.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
 
 </article>
-          </div>
 
-          <div class="hidden-sm col-md-2" role="complementary">
-            <div class="sideaffix">
-              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
-                <h5>In this article</h5>
-                <div></div>
-              </nav>
-            </div>
-          </div>
-        </div>
+
+
       </div>
 
-      <footer>
-        <div class="grad-bottom"></div>
-        <div class="footer">
-          <div class="container">
-            <span class="pull-right">
-              <a href="#top">Back to top</a>
-            </span>
-      
-      <span>Generated by <strong>DocFX</strong></span>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
 
-    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
-    <script type="text/javascript" src="../styles/docfx.js"></script>
-    <script type="text/javascript" src="../styles/main.js"></script>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

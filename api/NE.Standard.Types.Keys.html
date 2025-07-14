@@ -1,419 +1,121 @@
 <!DOCTYPE html>
-<!--[if IE]><![endif]-->
 <html>
-
   <head>
     <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
       <title>Enum Keys | NE.Standard </title>
-      <meta name="viewport" content="width=device-width">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Enum Keys | NE.Standard ">
-    
-    
-      <link rel="shortcut icon" href="../favicon.ico">
-      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
-      <link rel="stylesheet" href="../styles/docfx.css">
-      <link rel="stylesheet" href="../styles/main.css">
-      <meta property="docfx:navrel" content="../toc.html">
-      <meta property="docfx:tocrel" content="toc.html">
-    
-    
-    
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/AkiEvansDev/NE.Standard/new/master/apiSpec/new?filename=NE_Standard_Types_Keys.md&amp;value=---%0Auid%3A%20NE.Standard.Types.Keys%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
   </head>
-  <body data-spy="scroll" data-target="#affix" data-offset="120">
-    <div id="wrapper">
-      <header>
 
-        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
-          <div class="container">
-            <div class="navbar-header">
-              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-              </button>
-
-              <a class="navbar-brand" href="../index.html">
-                <img id="logo" class="svg" src="../logo.svg" alt="">
-              </a>
-            </div>
-            <div class="collapse navbar-collapse" id="navbar">
-              <form class="navbar-form navbar-right" role="search" id="search">
-                <div class="form-group">
-                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
-                </div>
-              </form>
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
+    </header>
 
-        <div class="subnav navbar navbar-default">
-          <div class="container hide-when-search" id="breadcrumb">
-            <ul class="breadcrumb">
-              <li></li>
-            </ul>
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
           </div>
         </div>
-      </header>
-      <div role="main" class="container body-content hide-when-search">
+      </div>
 
-        <div class="sidenav hide-when-search">
-          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
-          <div class="sidetoggle collapse" id="sidetoggle">
-            <div id="sidetoc"></div>
-          </div>
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
         </div>
-        <div class="article row grid-right">
-          <div class="col-md-10">
-            <article class="content wrap" id="_content" data-uid="NE.Standard.Types.Keys">
+
+        <article data-uid="NE.Standard.Types.Keys">
 
 
 
 
-  <h1 id="NE_Standard_Types_Keys" data-uid="NE.Standard.Types.Keys" class="text-break">Enum Keys</h1>
-  <div class="markdown level0 summary"></div>
-  <div class="markdown level0 conceptual"></div>
-  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Types.html">Types</a></h6>
-  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
-  <h5 id="NE_Standard_Types_Keys_syntax">Syntax</h5>
+  <h1 id="NE_Standard_Types_Keys" data-uid="NE.Standard.Types.Keys" class="text-break">
+Enum Keys  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Types/Enums.cs/#L6"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Types.html">Types</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>NE.Standard.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public enum Keys</code></pre>
   </div>
-  <h3 id="fields">Fields
-</h3>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    <thead>
-    </thead></thead><tbody>
-      <tr>
-        <td id="NE_Standard_Types_Keys_A">A</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_ArrowDown">ArrowDown</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_ArrowLeft">ArrowLeft</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_ArrowRight">ArrowRight</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_ArrowUp">ArrowUp</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_B">B</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Backspace">Backspace</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_C">C</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_CapsLock">CapsLock</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Comma">Comma</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D">D</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D0">D0</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D1">D1</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D2">D2</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D3">D3</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D4">D4</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D5">D5</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D6">D6</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D7">D7</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D8">D8</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_D9">D9</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Delete">Delete</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_E">E</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Enter">Enter</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Esc">Esc</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F">F</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F1">F1</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F10">F10</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F11">F11</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F12">F12</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F2">F2</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F3">F3</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F4">F4</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F5">F5</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F6">F6</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F7">F7</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F8">F8</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_F9">F9</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_G">G</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_H">H</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_I">I</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_J">J</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_K">K</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_L">L</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_LeftAlt">LeftAlt</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_LeftControl">LeftControl</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_LeftShift">LeftShift</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_LeftWin">LeftWin</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_M">M</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Minus">Minus</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_N">N</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_None">None</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_O">O</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem1">Oem1</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem2">Oem2</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem3">Oem3</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem4">Oem4</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem5">Oem5</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem6">Oem6</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Oem7">Oem7</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_P">P</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Period">Period</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Plus">Plus</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Q">Q</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_R">R</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_RightAlt">RightAlt</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_RightControl">RightControl</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_RightShift">RightShift</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_RightWin">RightWin</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_S">S</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Space">Space</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_T">T</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Tab">Tab</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_U">U</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_V">V</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_W">W</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_X">X</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Y">Y</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td id="NE_Standard_Types_Keys_Z">Z</td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
-  <h3 id="extensionmethods">Extension Methods</h3>
+
+
+
+
+
+
+
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
   <div>
-      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_">SerializationExtensions.SerializeJson&lt;Keys&gt;(Keys, JsonSerializerOptions)</a>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_">SerializationExtensions.SerializeJson&lt;T&gt;(T, JsonSerializerOptions?)</a>
   </div>
   <div>
-      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_">SerializationExtensions.SerializeXml&lt;Keys&gt;(Keys)</a>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_">SerializationExtensions.SerializeXml&lt;T&gt;(T)</a>
   </div>
   <div>
       <a class="xref" href="NE.Standard.Extensions.EnumExtensions.html#NE_Standard_Extensions_EnumExtensions_GetAttribute__1_System_Enum_">EnumExtensions.GetAttribute&lt;TAttribute&gt;(Enum)</a>
@@ -446,44 +148,278 @@
       <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod&lt;T&gt;(object, string, params object[])</a>
   </div>
   <div>
-      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetFieldValue(object, string, object)</a>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetFieldValue(object, string, object?)</a>
   </div>
   <div>
-      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetPropertyValue(object, string, object)</a>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetPropertyValue(object, string, object?)</a>
   </div>
   <div>
       <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeObject_System_Object_System_Boolean_">SerializationExtensions.SerializeObject(object, bool)</a>
   </div>
-</article>
-          </div>
+  </dd></dl>
 
-          <div class="hidden-sm col-md-2" role="complementary">
-            <div class="sideaffix">
-              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
-                <h5>In this article</h5>
-                <div></div>
-              </nav>
-            </div>
-          </div>
-        </div>
+  <h2 id="fields">Fields
+</h2>
+  <dl class="parameters">
+    <dt id="NE_Standard_Types_Keys_A"><code>A = 65</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_ArrowDown"><code>ArrowDown = 40</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_ArrowLeft"><code>ArrowLeft = 37</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_ArrowRight"><code>ArrowRight = 39</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_ArrowUp"><code>ArrowUp = 38</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_B"><code>B = 66</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Backspace"><code>Backspace = 8</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_C"><code>C = 67</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_CapsLock"><code>CapsLock = 20</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Comma"><code>Comma = 188</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D"><code>D = 68</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D0"><code>D0 = 48</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D1"><code>D1 = 49</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D2"><code>D2 = 50</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D3"><code>D3 = 51</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D4"><code>D4 = 52</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D5"><code>D5 = 53</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D6"><code>D6 = 54</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D7"><code>D7 = 55</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D8"><code>D8 = 56</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_D9"><code>D9 = 57</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Delete"><code>Delete = 46</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_E"><code>E = 69</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Enter"><code>Enter = 13</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Esc"><code>Esc = 27</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F"><code>F = 70</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F1"><code>F1 = 112</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F10"><code>F10 = 121</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F11"><code>F11 = 122</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F12"><code>F12 = 123</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F2"><code>F2 = 113</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F3"><code>F3 = 114</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F4"><code>F4 = 115</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F5"><code>F5 = 116</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F6"><code>F6 = 117</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F7"><code>F7 = 118</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F8"><code>F8 = 119</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_F9"><code>F9 = 120</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_G"><code>G = 71</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_H"><code>H = 72</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_I"><code>I = 73</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_J"><code>J = 74</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_K"><code>K = 75</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_L"><code>L = 76</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_LeftAlt"><code>LeftAlt = 164</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_LeftControl"><code>LeftControl = 162</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_LeftShift"><code>LeftShift = 160</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_LeftWin"><code>LeftWin = 91</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_M"><code>M = 77</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Minus"><code>Minus = 189</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_N"><code>N = 78</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_None"><code>None = 0</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_O"><code>O = 79</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem1"><code>Oem1 = 186</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem2"><code>Oem2 = 191</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem3"><code>Oem3 = 192</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem4"><code>Oem4 = 219</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem5"><code>Oem5 = 220</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem6"><code>Oem6 = 221</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Oem7"><code>Oem7 = 222</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_P"><code>P = 80</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Period"><code>Period = 190</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Plus"><code>Plus = 187</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Q"><code>Q = 81</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_R"><code>R = 82</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_RightAlt"><code>RightAlt = 165</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_RightControl"><code>RightControl = 163</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_RightShift"><code>RightShift = 161</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_RightWin"><code>RightWin = 92</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_S"><code>S = 83</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Space"><code>Space = 32</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_T"><code>T = 84</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Tab"><code>Tab = 9</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_U"><code>U = 85</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_V"><code>V = 86</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_W"><code>W = 87</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_X"><code>X = 88</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Y"><code>Y = 89</code></dt>
+  
+  <dd></dd>
+    <dt id="NE_Standard_Types_Keys_Z"><code>Z = 90</code></dt>
+  
+  <dd></dd>
+  </dl>
+
+
+
+</article>
+
+
+
       </div>
 
-      <footer>
-        <div class="grad-bottom"></div>
-        <div class="footer">
-          <div class="container">
-            <span class="pull-right">
-              <a href="#top">Back to top</a>
-            </span>
-      
-      <span>Generated by <strong>DocFX</strong></span>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
 
-    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
-    <script type="text/javascript" src="../styles/docfx.js"></script>
-    <script type="text/javascript" src="../styles/main.js"></script>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

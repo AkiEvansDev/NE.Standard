@@ -1,5 +1,5 @@
 {
-  "source_base_path": "/home/runner/work/NE.Standard/NE.Standard",
+  "source_base_path": "/home/runner/work/NE.Standard/NE.Standard/docs",
   "xrefmap": "xrefmap.yml",
   "files": [
     {
@@ -653,6 +653,16 @@
       "output": {
         ".html": {
           "relative_path": "articles/wpf.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "index.md",
+      "output": {
+        ".html": {
+          "relative_path": "index.html"
         }
       },
       "version": ""

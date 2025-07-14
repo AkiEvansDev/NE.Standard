@@ -1,87 +1,123 @@
 <!DOCTYPE html>
-<!--[if IE]><![endif]-->
 <html>
-
   <head>
     <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
       <title>Class ColorExtensions | NE.Standard </title>
-      <meta name="viewport" content="width=device-width">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class ColorExtensions | NE.Standard ">
-    
-    <meta name="description" content="Provides extension methods for manipulating and analyzing  instances, including conversion, brightness evaluation, alpha adjustment, and tint/shade operations.">
-      <link rel="shortcut icon" href="../favicon.ico">
-      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
-      <link rel="stylesheet" href="../styles/docfx.css">
-      <link rel="stylesheet" href="../styles/main.css">
-      <meta property="docfx:navrel" content="../toc.html">
-      <meta property="docfx:tocrel" content="toc.html">
-    
-    
-    
+      
+      <meta name="description" content="Provides extension methods for manipulating and analyzing  instances, including conversion, brightness evaluation, alpha adjustment, and tint/shade operations.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/AkiEvansDev/NE.Standard/new/master/apiSpec/new?filename=NE_Standard_Extensions_ColorExtensions.md&amp;value=---%0Auid%3A%20NE.Standard.Extensions.ColorExtensions%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
   </head>
-  <body data-spy="scroll" data-target="#affix" data-offset="120">
-    <div id="wrapper">
-      <header>
 
-        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
-          <div class="container">
-            <div class="navbar-header">
-              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-              </button>
-
-              <a class="navbar-brand" href="../index.html">
-                <img id="logo" class="svg" src="../logo.svg" alt="">
-              </a>
-            </div>
-            <div class="collapse navbar-collapse" id="navbar">
-              <form class="navbar-form navbar-right" role="search" id="search">
-                <div class="form-group">
-                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
-                </div>
-              </form>
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
+    </header>
 
-        <div class="subnav navbar navbar-default">
-          <div class="container hide-when-search" id="breadcrumb">
-            <ul class="breadcrumb">
-              <li></li>
-            </ul>
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
           </div>
         </div>
-      </header>
-      <div role="main" class="container body-content hide-when-search">
+      </div>
 
-        <div class="sidenav hide-when-search">
-          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
-          <div class="sidetoggle collapse" id="sidetoggle">
-            <div id="sidetoc"></div>
-          </div>
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
         </div>
-        <div class="article row grid-right">
-          <div class="col-md-10">
-            <article class="content wrap" id="_content" data-uid="NE.Standard.Extensions.ColorExtensions">
+
+        <article data-uid="NE.Standard.Extensions.ColorExtensions">
 
 
 
-  <h1 id="NE_Standard_Extensions_ColorExtensions" data-uid="NE.Standard.Extensions.ColorExtensions" class="text-break">Class ColorExtensions</h1>
-  <div class="markdown level0 summary"><p>Provides extension methods for manipulating and analyzing <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instances,
+  <h1 id="NE_Standard_Extensions_ColorExtensions" data-uid="NE.Standard.Extensions.ColorExtensions" class="text-break">
+Class ColorExtensions  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L12"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>NE.Standard.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Provides extension methods for manipulating and analyzing <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instances,
 including conversion, brightness evaluation, alpha adjustment, and tint/shade operations.</p>
 </div>
-  <div class="markdown level0 conceptual"></div>
-  <div class="inheritance">
-    <h5>Inheritance</h5>
-    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
-    <div class="level1"><span class="xref">ColorExtensions</span></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static class ColorExtensions</code></pre>
   </div>
-  <div class="inheritedMembers">
-    <h5>Inherited Members</h5>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">ColorExtensions</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
     </div>
@@ -103,316 +139,255 @@ including conversion, brightness evaluation, alpha adjustment, and tint/shade op
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
     </div>
-  </div>
-  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></h6>
-  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
-  <h5 id="NE_Standard_Extensions_ColorExtensions_syntax">Syntax</h5>
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static class ColorExtensions</code></pre>
-  </div>
-  <h3 id="methods">Methods
-</h3>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
   <a id="NE_Standard_Extensions_ColorExtensions_AdjustColor_" data-uid="NE.Standard.Extensions.ColorExtensions.AdjustColor*"></a>
-  <h4 id="NE_Standard_Extensions_ColorExtensions_AdjustColor_System_Drawing_Color_NE_Standard_Types_ColorAdjustment_System_Int32_" data-uid="NE.Standard.Extensions.ColorExtensions.AdjustColor(System.Drawing.Color,NE.Standard.Types.ColorAdjustment,System.Int32)">AdjustColor(Color, ColorAdjustment, int)</h4>
+
+  <h3 id="NE_Standard_Extensions_ColorExtensions_AdjustColor_System_Drawing_Color_NE_Standard_Types_ColorAdjustment_System_Int32_" data-uid="NE.Standard.Extensions.ColorExtensions.AdjustColor(System.Drawing.Color,NE.Standard.Types.ColorAdjustment,System.Int32)">
+  AdjustColor(Color, ColorAdjustment, int)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L82"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Applies a tint or shade transformation to the specified <code class="paramref">color</code> using a given intensity <code class="paramref">factor</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Color AdjustColor(this Color color, ColorAdjustment adjustment, int factor)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><span class="parametername">color</span></td>
-        <td><p>The color to adjust.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="NE.Standard.Types.ColorAdjustment.html">ColorAdjustment</a></td>
-        <td><span class="parametername">adjustment</span></td>
-        <td><p>The type of adjustment to apply: <a class="xref" href="NE.Standard.Types.ColorAdjustment.html#NE_Standard_Types_ColorAdjustment_Tint">Tint</a> or <a class="xref" href="NE.Standard.Types.ColorAdjustment.html#NE_Standard_Types_ColorAdjustment_Shade">Shade</a>.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></td>
-        <td><span class="parametername">factor</span></td>
-        <td><p>The adjustment intensity ranging from 0 (no change) to 10 (maximum adjustment).</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><p>A new <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> with the applied tint or shade.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception">ArgumentOutOfRangeException</a></td>
-        <td><p>Thrown when <code class="paramref">factor</code> is outside the range 0–10.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>color</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>The color to adjust.</p>
+</dd>
+    <dt><code>adjustment</code> <a class="xref" href="NE.Standard.Types.ColorAdjustment.html">ColorAdjustment</a></dt>
+    <dd><p>The type of adjustment to apply: <a class="xref" href="NE.Standard.Types.ColorAdjustment.html#NE_Standard_Types_ColorAdjustment_Tint">Tint</a> or <a class="xref" href="NE.Standard.Types.ColorAdjustment.html#NE_Standard_Types_ColorAdjustment_Shade">Shade</a>.</p>
+</dd>
+    <dt><code>factor</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd><p>The adjustment intensity ranging from 0 (no change) to 10 (maximum adjustment).</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>A new <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> with the applied tint or shade.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception">ArgumentOutOfRangeException</a></dt>
+    <dd><p>Thrown when <code class="paramref">factor</code> is outside the range 0–10.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_Extensions_ColorExtensions_FromHex_" data-uid="NE.Standard.Extensions.ColorExtensions.FromHex*"></a>
-  <h4 id="NE_Standard_Extensions_ColorExtensions_FromHex_System_String_" data-uid="NE.Standard.Extensions.ColorExtensions.FromHex(System.String)">FromHex(string)</h4>
+
+  <h3 id="NE_Standard_Extensions_ColorExtensions_FromHex_System_String_" data-uid="NE.Standard.Extensions.ColorExtensions.FromHex(System.String)">
+  FromHex(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L29"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Creates a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instance from a hexadecimal string in the format <code>#RRGGBBAA</code> or <code>#RRGGBB</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Color FromHex(this string hex)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><span class="parametername">hex</span></td>
-        <td><p>The hexadecimal color string. May start with <code>#</code>.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><p>A <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instance corresponding to the given hex string.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="exceptions">Exceptions</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Condition</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
-        <td><p>Thrown when the input string is null, empty, or whitespace.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.formatexception">FormatException</a></td>
-        <td><p>Thrown when the string is not a valid 6- or 8-digit hex color format.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>hex</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The hexadecimal color string. May start with <code>#</code>.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>A <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instance corresponding to the given hex string.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></dt>
+    <dd><p>Thrown when the input string is null, empty, or whitespace.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.formatexception">FormatException</a></dt>
+    <dd><p>Thrown when the string is not a valid 6- or 8-digit hex color format.</p>
+</dd>
+  </dl>
+
+
+
   <a id="NE_Standard_Extensions_ColorExtensions_IsLight_" data-uid="NE.Standard.Extensions.ColorExtensions.IsLight*"></a>
-  <h4 id="NE_Standard_Extensions_ColorExtensions_IsLight_System_Drawing_Color_" data-uid="NE.Standard.Extensions.ColorExtensions.IsLight(System.Drawing.Color)">IsLight(Color)</h4>
+
+  <h3 id="NE_Standard_Extensions_ColorExtensions_IsLight_System_Drawing_Color_" data-uid="NE.Standard.Extensions.ColorExtensions.IsLight(System.Drawing.Color)">
+  IsLight(Color)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L68"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Determines whether the specified <code class="paramref">color</code> is considered light based on its perceived brightness.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static bool IsLight(this Color color)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><span class="parametername">color</span></td>
-        <td><p>The color to evaluate.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
-        <td><p><code>true</code> if the brightness is greater than 128; otherwise, <code>false</code>.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>color</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>The color to evaluate.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p><code>true</code> if the brightness is greater than 128; otherwise, <code>false</code>.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_ColorExtensions_ToHex_" data-uid="NE.Standard.Extensions.ColorExtensions.ToHex*"></a>
-  <h4 id="NE_Standard_Extensions_ColorExtensions_ToHex_System_Drawing_Color_" data-uid="NE.Standard.Extensions.ColorExtensions.ToHex(System.Drawing.Color)">ToHex(Color)</h4>
+
+  <h3 id="NE_Standard_Extensions_ColorExtensions_ToHex_System_Drawing_Color_" data-uid="NE.Standard.Extensions.ColorExtensions.ToHex(System.Drawing.Color)">
+  ToHex(Color)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L19"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Converts the specified <code class="paramref">color</code> to a hexadecimal string representation in the format <code>#RRGGBBAA</code>.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static string ToHex(this Color color)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><span class="parametername">color</span></td>
-        <td><p>The <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> to convert.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
-        <td><p>A hexadecimal string representing the color, including alpha channel.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>color</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>The <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> to convert.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>A hexadecimal string representing the color, including alpha channel.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
   <a id="NE_Standard_Extensions_ColorExtensions_WithAlpha_" data-uid="NE.Standard.Extensions.ColorExtensions.WithAlpha*"></a>
-  <h4 id="NE_Standard_Extensions_ColorExtensions_WithAlpha_System_Drawing_Color_System_Byte_" data-uid="NE.Standard.Extensions.ColorExtensions.WithAlpha(System.Drawing.Color,System.Byte)">WithAlpha(Color, byte)</h4>
+
+  <h3 id="NE_Standard_Extensions_ColorExtensions_WithAlpha_System_Drawing_Color_System_Byte_" data-uid="NE.Standard.Extensions.ColorExtensions.WithAlpha(System.Drawing.Color,System.Byte)">
+  WithAlpha(Color, byte)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/ColorExtensions.cs/#L60"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
   <div class="markdown level1 summary"><p>Creates a new <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> instance based on the current one, but with the specified <code class="paramref">alpha</code> channel value.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
-  <h5 class="declaration">Declaration</h5>
+
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">public static Color WithAlpha(this Color color, byte alpha)</code></pre>
   </div>
-  <h5 class="parameters">Parameters</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><span class="parametername">color</span></td>
-        <td><p>The source color.</p>
-</td>
-      </tr>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></td>
-        <td><span class="parametername">alpha</span></td>
-        <td><p>The new alpha (opacity) value to apply.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
-  <h5 class="returns">Returns</h5>
-  <table class="table table-bordered table-condensed">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></td>
-        <td><p>A <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> with updated alpha and original RGB values.</p>
-</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>color</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>The source color.</p>
+</dd>
+    <dt><code>alpha</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></dt>
+    <dd><p>The new alpha (opacity) value to apply.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a></dt>
+    <dd><p>A <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.drawing.color">Color</a> with updated alpha and original RGB values.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
 
 </article>
-          </div>
 
-          <div class="hidden-sm col-md-2" role="complementary">
-            <div class="sideaffix">
-              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
-                <h5>In this article</h5>
-                <div></div>
-              </nav>
-            </div>
-          </div>
-        </div>
+
+
       </div>
 
-      <footer>
-        <div class="grad-bottom"></div>
-        <div class="footer">
-          <div class="container">
-            <span class="pull-right">
-              <a href="#top">Back to top</a>
-            </span>
-      
-      <span>Generated by <strong>DocFX</strong></span>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
 
-    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
-    <script type="text/javascript" src="../styles/docfx.js"></script>
-    <script type="text/javascript" src="../styles/main.js"></script>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>
