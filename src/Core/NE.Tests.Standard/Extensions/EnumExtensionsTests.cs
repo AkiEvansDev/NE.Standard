@@ -1,7 +1,7 @@
 using NE.Standard.Extensions;
 using System.ComponentModel;
 
-namespace NE.Tests.Standard.Extensions;
+namespace NE.Test.Standard.Extensions;
 
 public enum SampleEnum
 {

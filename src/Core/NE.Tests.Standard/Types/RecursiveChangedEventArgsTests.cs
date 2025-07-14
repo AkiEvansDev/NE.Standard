@@ -1,7 +1,7 @@
 ﻿using NE.Standard.Types;
 using System.Collections;
 
-namespace NE.Tests.Standard.Types;
+namespace NE.Test.Standard.Types;
 
 public class RecursiveChangedEventArgsTests
 {

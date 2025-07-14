@@ -1,6 +1,6 @@
 using NE.Standard.Extensions;
 
-namespace NE.Tests.Standard.Extensions;
+namespace NE.Test.Standard.Extensions;
 
 public class Dummy
 {

@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Standard", "src\Core\NE.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Standard.Design", "src\Core\NE.Standard.Design\NE.Standard.Design.csproj", "{45D6C6A4-7EA6-3D57-FD54-8CBF9D9E3E4C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Tests.Standard", "src\Core\NE.Tests.Standard\NE.Tests.Standard.csproj", "{BBD183CE-6963-A4A6-92EF-D69CBC33950F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Test.Standard", "src\Core\NE.Tests.Standard\NE.Test.Standard.csproj", "{BBD183CE-6963-A4A6-92EF-D69CBC33950F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Platforms", "Platforms", "{DA2AC649-9FAE-4D5D-9CE1-1B45E5E8737F}"
 EndProject

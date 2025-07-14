@@ -1,6 +1,6 @@
 using NE.Standard.Types;
 
-namespace NE.Tests.Standard.Types;
+namespace NE.Test.Standard.Types;
 
 public class TestTarget
 {

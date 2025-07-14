@@ -1,7 +1,7 @@
 using NE.Standard.Extensions;
 using NE.Standard.Serialization;
 
-namespace NE.Tests.Standard.Serialization;
+namespace NE.Test.Standard.Serialization;
 
 [NEObject]
 public class Dummy

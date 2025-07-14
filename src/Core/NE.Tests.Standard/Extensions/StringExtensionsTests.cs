@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using Xunit;
 
-namespace NE.Tests.Standard.Extensions;
+namespace NE.Test.Standard.Extensions;
 
 public class StringExtensionsTests
 {

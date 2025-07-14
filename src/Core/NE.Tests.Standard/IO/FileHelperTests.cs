@@ -1,6 +1,6 @@
 using NE.Standard.IO;
 
-namespace NE.Tests.Standard.IO;
+namespace NE.Test.Standard.IO;
 
 public class FileHelperTests : IDisposable
 {

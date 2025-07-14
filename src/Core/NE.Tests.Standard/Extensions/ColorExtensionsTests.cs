@@ -2,7 +2,7 @@ using NE.Standard.Extensions;
 using NE.Standard.Types;
 using System.Drawing;
 
-namespace NE.Tests.Standard.Extensions;
+namespace NE.Test.Standard.Extensions;
 
 public class ColorExtensionsTests
 {
