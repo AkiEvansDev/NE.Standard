@@ -1,0 +1,34 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [ "**/*.csproj" ],
+          "src": "src/Core/NE.Standard"
+        }
+      ],
+      "dest": "api"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [ "articles/*.md", "toc.yml" ]
+      },
+      {
+        "files": [ "api/**.yml" ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [ "styles/**" ]
+      }
+    ],
+    "dest": "_site",
+    "globalMetadata": {
+      "_appTitle": "NE.Standard",
+      "_disableContribution": true
+    },
+    "template": [ "default" ]
+  }
+}

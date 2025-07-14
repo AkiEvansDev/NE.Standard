@@ -5,6 +5,17 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591</NoWarn>
+    <PackageId>NE.Standard</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Aki Evans</Authors>
+    <PackageTags>Helpers, Utilities</PackageTags>
+    <Description>Base helpers and utilities.</Description>
+    <RepositoryUrl>https://github.com/AkiEvansDev/NE.Standard</RepositoryUrl>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />

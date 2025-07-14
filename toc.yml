@@ -1,0 +1,10 @@
+- name: Standard
+  href: articles/standard.md
+- name: Design
+  href: articles/design.md
+- name: Web
+  href: articles/web.md
+- name: WPF
+  href: articles/wpf.md
+- name: API Reference
+  href: api/index.md

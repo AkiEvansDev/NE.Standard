@@ -7,8 +7,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
+		docfx.json = docfx.json
 		LICENSE = LICENSE
 		README.md = README.md
+		toc.yml = toc.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
@@ -34,6 +36,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Standard.Web.Example", "src\Samples\NE.Standard.Web.Example\NE.Standard.Web.Example.csproj", "{75232DB5-BAA6-4740-8C14-3ED0F909AE38}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Standard.WPF.Example", "src\Samples\NE.Standard.WPF.Example\NE.Standard.WPF.Example.csproj", "{077F8652-2A39-3CE0-BC4A-3E09FC81322C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "articles", "articles", "{B504D425-BD93-40CF-B5CF-9BEDF2CD6AF9}"
+	ProjectSection(SolutionItems) = preProject
+		articles\design.md = articles\design.md
+		articles\wpf.md = articles\wpf.md
+		articles\standard.md = articles\standard.md
+		articles\web.md = articles\web.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
