@@ -70,7 +70,7 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "NE.Standard.Extensions.GeneralConstants",
-      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.GeneralConstants.yml\" sourcestartlinenumber=\"1\">Defines general-purpose constants shared across formatting and conversion extensions,\nincluding default formats for DateTime and TimeSpan, and number formatting rules.</p>\n"
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.GeneralConstants.yml\" sourcestartlinenumber=\"1\">Defines general-purpose constants shared across formatting and conversion extensions,\nincluding default formats for <xref href=\"System.DateTime\" data-throw-if-not-resolved=\"false\"></xref> and <xref href=\"System.TimeSpan\" data-throw-if-not-resolved=\"false\"></xref>, and number formatting rules.</p>\n"
     },
     {
       "type": "ManagedReference",
