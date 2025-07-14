@@ -1,0 +1,52 @@
+name: Build, Test, DocFX, Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore
+      run: dotnet restore src/Core/NE.Standard/NE.Standard.csproj
+
+    - name: Build
+      run: dotnet build src/Core/NE.Standard/NE.Standard.csproj --configuration Release
+
+    - name: Test
+      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build
+
+    - name: Pack
+      run: dotnet pack src/Core/NE.Standard/NE.Standard.csproj --configuration Release --no-build -o ./nuget
+
+    - name: Add GitHub NuGet source
+      run: dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+
+    - name: Push to GitHub Packages
+      run: dotnet nuget push ./nuget/*.nupkg --source "github" --api-key ${{ secrets.GITHUB_TOKEN }}
+      env:
+        NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install DocFX
+      run: dotnet tool install -g docfx
+
+    - name: Generate DocFX
+      run: docfx docfx.json
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./_site
