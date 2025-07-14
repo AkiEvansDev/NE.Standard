@@ -7,10 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
-		docfx.json = docfx.json
 		LICENSE = LICENSE
 		README.md = README.md
-		toc.yml = toc.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
@@ -39,10 +37,24 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NE.Standard.WPF.Example", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "articles", "articles", "{B504D425-BD93-40CF-B5CF-9BEDF2CD6AF9}"
 	ProjectSection(SolutionItems) = preProject
-		articles\design.md = articles\design.md
-		articles\wpf.md = articles\wpf.md
-		articles\standard.md = articles\standard.md
-		articles\web.md = articles\web.md
+		docs\articles\design.md = docs\articles\design.md
+		docs\articles\standard.md = docs\articles\standard.md
+		docs\articles\web.md = docs\articles\web.md
+		docs\articles\wpf.md = docs\articles\wpf.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{7DF1E22C-F40B-45D2-96C9-A799B7F63B46}"
+	ProjectSection(SolutionItems) = preProject
+		docs\docfx.json = docs\docfx.json
+		docs\index.md = docs\index.md
+		docs\toc.yml = docs\toc.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "custom", "custom", "{7DDBF7DC-F483-47E0-A69C-98D72DB77636}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "public", "public", "{9FAB8FA0-6BE2-4F42-A8E7-834D0D26BD32}"
+	ProjectSection(SolutionItems) = preProject
+		docs\custom\public\main.css = docs\custom\public\main.css
 	EndProjectSection
 EndProject
 Global
@@ -99,6 +111,9 @@ Global
 		{DB064F43-3FA9-6815-4F6C-C03961F44E2F} = {CF104B21-E5F1-4DDD-AE50-0BE63B6C8F10}
 		{75232DB5-BAA6-4740-8C14-3ED0F909AE38} = {CF104B21-E5F1-4DDD-AE50-0BE63B6C8F10}
 		{077F8652-2A39-3CE0-BC4A-3E09FC81322C} = {CF104B21-E5F1-4DDD-AE50-0BE63B6C8F10}
+		{B504D425-BD93-40CF-B5CF-9BEDF2CD6AF9} = {7DF1E22C-F40B-45D2-96C9-A799B7F63B46}
+		{7DDBF7DC-F483-47E0-A69C-98D72DB77636} = {7DF1E22C-F40B-45D2-96C9-A799B7F63B46}
+		{9FAB8FA0-6BE2-4F42-A8E7-834D0D26BD32} = {7DDBF7DC-F483-47E0-A69C-98D72DB77636}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B1888DF8-6775-4E8B-8A98-8875C3A1C461}

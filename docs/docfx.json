@@ -4,7 +4,7 @@
       "src": [
         {
           "files": [ "**/*.csproj" ],
-          "src": "src/Core/NE.Standard"
+          "src": "../src/Core/NE.Standard"
         }
       ],
       "dest": "api"
@@ -13,15 +13,7 @@
   "build": {
     "content": [
       {
-        "files": [ "articles/*.md", "toc.yml" ]
-      },
-      {
-        "files": [ "api/**.yml" ]
-      }
-    ],
-    "resource": [
-      {
-        "files": [ "styles/**" ]
+        "files": [ "index.md", "toc.yml", "articles/**.md", "api/**.yml" ]
       }
     ],
     "dest": "_site",
@@ -29,6 +21,6 @@
       "_appTitle": "NE.Standard",
       "_disableContribution": true
     },
-    "template": [ "default" ]
+    "template": [ "default", "modern", "custom" ]
   }
 }

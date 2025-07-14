@@ -34,23 +34,9 @@ namespace NE.Standard.Logging
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
         /// <inheritdoc/>
-        /// <summary>
-        /// Determines whether the specified <paramref name="logLevel"/> is enabled based on the configured minimum level.
-        /// </summary>
-        /// <param name="logLevel">The log level to evaluate.</param>
-        /// <returns><c>true</c> if the level is enabled; otherwise, <c>false</c>.</returns>
         public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel;
         
         /// <inheritdoc/>
-        /// <summary>
-        /// Logs a message with the specified log level, state, exception, and formatter.
-        /// </summary>
-        /// <typeparam name="TState">The type of the state object.</typeparam>
-        /// <param name="logLevel">The severity level of the log message.</param>
-        /// <param name="eventId">The event identifier.</param>
-        /// <param name="state">The state object to log.</param>
-        /// <param name="exception">An optional exception associated with the log entry.</param>
-        /// <param name="formatter">A function to create the log message from the state and exception.</param>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel)) return;

@@ -56,7 +56,3 @@ Thread-safe, non-blocking async loggers with modular backends:
   - Buffered I/O and flush loop.
 - **ILoggerProvider** integrations for dependency injection and logging builder setup.
 
----
-
-> Documentation generated with [DocFX](https://dotnet.github.io/docfx), powered by rich XML `<summary>` comments in the source code.
-

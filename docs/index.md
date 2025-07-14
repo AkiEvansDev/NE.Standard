@@ -21,16 +21,3 @@
 | `NE.Standard.Web`         | 🛠 In Dev     | Web renderer implementation (Blazor/Web)    |
 | `NE.Standard.WPF`         | 🛠 In Dev     | WPF renderer implementation                 |
 
----
-
-## 📚 Documentation
-
-Latest docs: [https://AkiEvansDev.github.io/NE.Standard](https://AkiEvansDev.github.io/NE.Standard)
-
-Generated via [DocFX](https://dotnet.github.io/docfx/)
-
----
-
-## 📄 License
-
-[MIT](LICENSE)

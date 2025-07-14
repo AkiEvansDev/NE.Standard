@@ -1,0 +1,22 @@
+- name: NE
+  href: index.md
+- name: Standard
+  items:
+  - name: Home
+    href: articles/standard.md
+  - name: Extensions
+    href: api/NE.Standard.Extensions.yml
+  - name: IO
+    href: api/NE.Standard.IO.yml
+  - name: Logging
+    href: api/NE.Standard.Logging.yml
+  - name: Serialization
+    href: api/NE.Standard.Serialization.yml
+  - name: Types
+    href: api/NE.Standard.Types.yml
+- name: Design
+  href: articles/design.md
+- name: Web
+  href: articles/web.md
+- name: WPF
+  href: articles/wpf.md

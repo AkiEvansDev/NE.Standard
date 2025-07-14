@@ -1,12 +1,10 @@
-homepage: articles/standard.md
-items:
-  - name: Standard
-    href: articles/standard.md
-  - name: Design
-    href: articles/design.md
-  - name: Web
-    href: articles/web.md
-  - name: WPF
-    href: articles/wpf.md
-  - name: API Reference
-    href: api/index.md
+- name: Index
+  href: ../index.md
+- name: Standard
+  href: standard.md
+- name: Design
+  href: design.md
+- name: Web
+  href: web.md
+- name: WPF
+  href: wpf.md
