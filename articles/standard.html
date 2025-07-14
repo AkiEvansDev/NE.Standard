@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>NE.Standard | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="NE.Standard | NE.Standard ">
+    
+    
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="../toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+        <div class="article row grid">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="">
+<h1 id="nestandard">NE.Standard</h1>
+
+<p><strong>NE.Standard</strong> is a cross-platform, modular .NET library that provides a broad set of foundational helpers and utilities.</p>
+<hr>
+<h2 id="-extensions">🧩 Extensions</h2>
+<p>NE.Standard offers rich, low-level extension methods across common .NET types:</p>
+<ul>
+<li><strong>Collections</strong>: Filtering, grouping, partitioning, sorted insertion (both ascending &amp; descending), in-place shuffling, parallel processing (<code>ParallelForEach</code>, <code>ParallelSelect</code>, etc.).</li>
+<li><strong>Strings</strong>: Advanced parsing and transformation, including snake_case ↔ PascalCase, base64 encoding, safe conversions to numbers, dates, enums.</li>
+<li><strong>Enums</strong>: Reflection-based access to enum descriptions, values, and attributes.</li>
+<li><strong>Reflection</strong>: Strong utility layer for invoking methods, accessing properties/fields dynamically.</li>
+<li><strong>DateTime &amp; TimeSpan</strong>: Safe formatting, boundary calculation (e.g., <code>StartOfMonth</code>, <code>TrimMilliseconds</code>).</li>
+<li><strong>Colors</strong>: Hex conversion, tint/shade adjustment, lightness evaluation.</li>
+<li><strong>Serialization</strong>:
+<ul>
+<li>Custom serializer (<code>NESerializer</code>) with reference tracking and type compression.</li>
+<li>JSON/XML serialization helpers.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="-types">📦 Types</h2>
+<p>Reusable types designed for platform-agnostic MVVM apps:</p>
+<ul>
+<li><strong>RecursiveObservable &amp; RecursiveCollection</strong>: Observable objects/collections with hierarchical change tracking.</li>
+<li><strong>LimitedStack&lt;T&gt;</strong>: Bounded stack with automatic eviction on overflow.</li>
+<li><strong>WeakDelegate utilities</strong>: Memory-safe event delegation (<code>WeakAction</code>, <code>WeakFunc</code>, etc.).</li>
+</ul>
+<hr>
+<h2 id="-io-utilities">📁 I/O Utilities</h2>
+<p>Simple and robust tools for file and directory operations:</p>
+<ul>
+<li><strong>FileHelper</strong>:
+<ul>
+<li>Synchronous and async read/write.</li>
+<li>Line-level filtering, streaming, appending.</li>
+</ul>
+</li>
+<li><strong>DirectoryHelper</strong>:
+<ul>
+<li>Recursive copy/move/delete.</li>
+<li>Pattern-based file search.</li>
+</ul>
+</li>
+</ul>
+<p>All utilities are built with guard clauses and consistent path validation for reliability.</p>
+<hr>
+<h2 id="-logging">📝 Logging</h2>
+<p>Thread-safe, non-blocking async loggers with modular backends:</p>
+<ul>
+<li><strong>AsyncConsoleLogger</strong>: Buffered console logging with colored output.</li>
+<li><strong>AsyncFileLogger</strong>:
+<ul>
+<li>Log rotation by day.</li>
+<li>Retention policy (configurable).</li>
+<li>Buffered I/O and flush loop.</li>
+</ul>
+</li>
+<li><strong>ILoggerProvider</strong> integrations for dependency injection and logging builder setup.</li>
+</ul>
+<hr>
+<blockquote>
+<p>Documentation generated with <a href="https://dotnet.github.io/docfx">DocFX</a>, powered by rich XML <code>&lt;summary&gt;</code> comments in the source code.</p>
+</blockquote>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>

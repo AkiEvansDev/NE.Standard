@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>Class CollectionExtensions | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="Class CollectionExtensions | NE.Standard ">
+    
+    <meta name="description" content="Provides extension methods for working with collections, enumerables, and lists, including filtering, grouping, sorting, and parallel processing.">
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="NE.Standard.Extensions.CollectionExtensions">
+
+
+
+  <h1 id="NE_Standard_Extensions_CollectionExtensions" data-uid="NE.Standard.Extensions.CollectionExtensions" class="text-break">Class CollectionExtensions</h1>
+  <div class="markdown level0 summary"><p>Provides extension methods for working with collections, enumerables, and lists,
+including filtering, grouping, sorting, and parallel processing.</p>
+</div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="inheritance">
+    <h5>Inheritance</h5>
+    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+    <div class="level1"><span class="xref">CollectionExtensions</span></div>
+  </div>
+  <div class="inheritedMembers">
+    <h5>Inherited Members</h5>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </div>
+  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></h6>
+  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
+  <h5 id="NE_Standard_Extensions_CollectionExtensions_syntax">Syntax</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static class CollectionExtensions</code></pre>
+  </div>
+  <h3 id="methods">Methods
+</h3>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ForEach_" data-uid="NE.Standard.Extensions.CollectionExtensions.ForEach*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ForEach__1_System_Collections_Generic_IEnumerable___0__System_Action___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.ForEach``1(System.Collections.Generic.IEnumerable{``0},System.Action{``0})">ForEach&lt;T&gt;(IEnumerable&lt;T&gt;, Action&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Performs the specified <code class="paramref">action</code> on each element of the <code class="paramref">source</code> sequence.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void ForEach&lt;T&gt;(this IEnumerable&lt;T&gt; source, Action&lt;T&gt; action)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The sequence whose elements the action will be applied to.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;T&gt;</td>
+        <td><span class="parametername">action</span></td>
+        <td><p>The action to perform on each element.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_Groups_" data-uid="NE.Standard.Extensions.CollectionExtensions.Groups*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_Groups__1_System_Collections_Generic_IEnumerable___0__System_Int32_" data-uid="NE.Standard.Extensions.CollectionExtensions.Groups``1(System.Collections.Generic.IEnumerable{``0},System.Int32)">Groups&lt;T&gt;(IEnumerable&lt;T&gt;, int)</h4>
+  <div class="markdown level1 summary"><p>Splits the <code class="paramref">source</code> sequence into a specified number of groups with approximately equal sizes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;IEnumerable&lt;T&gt;&gt; Groups&lt;T&gt;(this IEnumerable&lt;T&gt; source, int groupCount)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The sequence to be grouped.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></td>
+        <td><span class="parametername">groupCount</span></td>
+        <td><p>The number of groups to create.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;&gt;</td>
+        <td><p>An enumerable of groups, each containing a portion of the original sequence.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the source sequence.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></td>
+        <td><p>Thrown if <code class="paramref">source</code> is <code>null</code>.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception">ArgumentOutOfRangeException</a></td>
+        <td><p>Thrown if <code class="paramref">groupCount</code> is less than or equal to zero.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_Generic_IList___0____0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.Generic.IList{``0},``0)">InsertSortedDescending&lt;T&gt;(IList&lt;T&gt;, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into an <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a> while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this IList&lt;T&gt; list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_Generic_IList___0____0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.Generic.IList{``0},``0,System.Collections.Generic.IComparer{``0})">InsertSortedDescending&lt;T&gt;(IList&lt;T&gt;, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into an <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a> using a specified comparer, while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this IList&lt;T&gt; list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_Generic_List___0____0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.Generic.List{``0},``0)">InsertSortedDescending&lt;T&gt;(List&lt;T&gt;, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List&lt;T&gt;</a> while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this List&lt;T&gt; list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_Generic_List___0____0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.Generic.List{``0},``0,System.Collections.Generic.IComparer{``0})">InsertSortedDescending&lt;T&gt;(List&lt;T&gt;, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List&lt;T&gt;</a> using a specified comparer, while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this List&lt;T&gt; list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_IList___0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.IList,``0)">InsertSortedDescending&lt;T&gt;(IList, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a non-generic <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a> while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this IList list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a></td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the item, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.invalidoperationexception">InvalidOperationException</a></td>
+        <td><p>Thrown if the list is not a compatible <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_IList___0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSortedDescending``1(System.Collections.IList,``0,System.Collections.Generic.IComparer{``0})">InsertSortedDescending&lt;T&gt;(IList, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a non-generic <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a> using a specified comparer, while preserving descending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSortedDescending&lt;T&gt;(this IList list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a></td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the item.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.invalidoperationexception">InvalidOperationException</a></td>
+        <td><p>Thrown if the list is not a compatible <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_Generic_IList___0____0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.Generic.IList{``0},``0)">InsertSorted&lt;T&gt;(IList&lt;T&gt;, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into an <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a> while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this IList&lt;T&gt; list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_Generic_IList___0____0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.Generic.IList{``0},``0,System.Collections.Generic.IComparer{``0})">InsertSorted&lt;T&gt;(IList&lt;T&gt;, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into an <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a> using a specified comparer, while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this IList&lt;T&gt; list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_Generic_List___0____0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.Generic.List{``0},``0)">InsertSorted&lt;T&gt;(List&lt;T&gt;, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List&lt;T&gt;</a> while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this List&lt;T&gt; list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_Generic_List___0____0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.Generic.List{``0},``0,System.Collections.Generic.IComparer{``0})">InsertSorted&lt;T&gt;(List&lt;T&gt;, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List&lt;T&gt;</a> using a specified comparer, while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this List&lt;T&gt; list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_IList___0_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.IList,``0)">InsertSorted&lt;T&gt;(IList, T)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a non-generic <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a> while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this IList list, T item) where T : IComparable&lt;T&gt;</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a></td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the item, which must implement <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.invalidoperationexception">InvalidOperationException</a></td>
+        <td><p>Thrown if the list is not a compatible <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_InsertSorted_" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_IList___0_System_Collections_Generic_IComparer___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.InsertSorted``1(System.Collections.IList,``0,System.Collections.Generic.IComparer{``0})">InsertSorted&lt;T&gt;(IList, T, IComparer&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Inserts an item into a non-generic <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a> using a specified comparer, while preserving ascending sort order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void InsertSorted&lt;T&gt;(this IList list, T item, IComparer&lt;T&gt; comparer)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a></td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list into which the item will be inserted.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><span class="parametername">item</span></td>
+        <td><p>The item to insert.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icomparer-1">IComparer</a>&lt;T&gt;</td>
+        <td><span class="parametername">comparer</span></td>
+        <td><p>The comparer to determine the sort order.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the item.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.invalidoperationexception">InvalidOperationException</a></td>
+        <td><p>Thrown if the list is not a compatible <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_IsNullOrEmpty_" data-uid="NE.Standard.Extensions.CollectionExtensions.IsNullOrEmpty*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_IsNullOrEmpty__1_System_Collections_Generic_IEnumerable___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.IsNullOrEmpty``1(System.Collections.Generic.IEnumerable{``0})">IsNullOrEmpty&lt;T&gt;(IEnumerable&lt;T&gt;?)</h4>
+  <div class="markdown level1 summary"><p>Determines whether the specified <code class="paramref">source</code> sequence is either <code>null</code> or contains no elements.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool IsNullOrEmpty&lt;T&gt;(this IEnumerable&lt;T&gt;? source)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The sequence to check for null or emptiness.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><p><code>true</code> if the sequence is <code>null</code> or empty; otherwise, <code>false</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the sequence.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ParallelForEachPartitioned_" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelForEachPartitioned*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ParallelForEachPartitioned__1_System_Collections_Generic_IEnumerable___0__System_Int32_System_Action_System_Collections_Generic_IEnumerable___0___" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelForEachPartitioned``1(System.Collections.Generic.IEnumerable{``0},System.Int32,System.Action{System.Collections.Generic.IEnumerable{``0}})">ParallelForEachPartitioned&lt;T&gt;(IEnumerable&lt;T&gt;, int, Action&lt;IEnumerable&lt;T&gt;&gt;)</h4>
+  <div class="markdown level1 summary"><p>Divides the source sequence into <code class="paramref">degree</code> partitions and processes each partition in parallel using the specified <code class="paramref">partitionAction</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void ParallelForEachPartitioned&lt;T&gt;(this IEnumerable&lt;T&gt; source, int degree, Action&lt;IEnumerable&lt;T&gt;&gt; partitionAction)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The source sequence to partition and process.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></td>
+        <td><span class="parametername">degree</span></td>
+        <td><p>The number of parallel partitions.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;&gt;</td>
+        <td><span class="parametername">partitionAction</span></td>
+        <td><p>The action to perform on each partition.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the source.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ParallelForEach_" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelForEach*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ParallelForEach__1_System_Collections_Generic_IEnumerable___0__System_Action___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelForEach``1(System.Collections.Generic.IEnumerable{``0},System.Action{``0})">ParallelForEach&lt;T&gt;(IEnumerable&lt;T&gt;, Action&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Performs the specified <code class="paramref">action</code> on each element of the <code class="paramref">source</code> sequence in parallel.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void ParallelForEach&lt;T&gt;(this IEnumerable&lt;T&gt; source, Action&lt;T&gt; action)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The source sequence to process in parallel.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;T&gt;</td>
+        <td><span class="parametername">action</span></td>
+        <td><p>The action to perform on each element.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the sequence.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ParallelProcess_" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelProcess*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ParallelProcess__2_System_Collections_Generic_IEnumerable___0__System_Func___0___1__" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelProcess``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1})">ParallelProcess&lt;T, TResult&gt;(IEnumerable&lt;T&gt;, Func&lt;T, TResult&gt;)</h4>
+  <div class="markdown level1 summary"><p>Processes each element of the source sequence in parallel using the specified <code class="paramref">processor</code> and collects the results in a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentbag-1">ConcurrentBag&lt;T&gt;</a>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static ConcurrentBag&lt;TResult&gt; ParallelProcess&lt;T, TResult&gt;(this IEnumerable&lt;T&gt; source, Func&lt;T, TResult&gt; processor)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The source sequence of elements to process.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-2">Func</a>&lt;T, TResult&gt;</td>
+        <td><span class="parametername">processor</span></td>
+        <td><p>A function to process each element.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentbag-1">ConcurrentBag</a>&lt;TResult&gt;</td>
+        <td><p>A <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentbag-1">ConcurrentBag&lt;T&gt;</a> containing the processed results.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of input elements.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="parametername">TResult</span></td>
+        <td><p>The type of results produced by the processor.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ParallelSelect_" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelSelect*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ParallelSelect__2_System_Collections_Generic_IEnumerable___0__System_Func___0___1__" data-uid="NE.Standard.Extensions.CollectionExtensions.ParallelSelect``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1})">ParallelSelect&lt;T, TResult&gt;(IEnumerable&lt;T&gt;, Func&lt;T, TResult&gt;)</h4>
+  <div class="markdown level1 summary"><p>Projects each element of a sequence into a new form in parallel using the provided <code class="paramref">selector</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;TResult&gt; ParallelSelect&lt;T, TResult&gt;(this IEnumerable&lt;T&gt; source, Func&lt;T, TResult&gt; selector)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The sequence of input elements.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-2">Func</a>&lt;T, TResult&gt;</td>
+        <td><span class="parametername">selector</span></td>
+        <td><p>A transform function to apply to each source element.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;TResult&gt;</td>
+        <td><p>An enumerable containing the transformed elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of the input elements.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="parametername">TResult</span></td>
+        <td><p>The type of the result elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_Partition_" data-uid="NE.Standard.Extensions.CollectionExtensions.Partition*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_Partition__1_System_Collections_Generic_IEnumerable___0__System_Int32_" data-uid="NE.Standard.Extensions.CollectionExtensions.Partition``1(System.Collections.Generic.IEnumerable{``0},System.Int32)">Partition&lt;T&gt;(IEnumerable&lt;T&gt;, int)</h4>
+  <div class="markdown level1 summary"><p>Divides the <code class="paramref">source</code> sequence into partitions of a specified maximum size.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;IEnumerable&lt;T&gt;&gt; Partition&lt;T&gt;(this IEnumerable&lt;T&gt; source, int partitionSize)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The sequence to partition.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></td>
+        <td><span class="parametername">partitionSize</span></td>
+        <td><p>The maximum size of each partition.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;&gt;</td>
+        <td><p>A sequence of partitions, where each is a subsequence of the original.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the source sequence.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception">ArgumentOutOfRangeException</a></td>
+        <td><p>Thrown if <code class="paramref">partitionSize</code> is less than or equal to zero.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_ShuffleInPlace_" data-uid="NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_ShuffleInPlace__1_System_Collections_Generic_IList___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace``1(System.Collections.Generic.IList{``0})">ShuffleInPlace&lt;T&gt;(IList&lt;T&gt;)</h4>
+  <div class="markdown level1 summary"><p>Randomly reorders the elements of the specified <code class="paramref">list</code> in place using the Fisher-Yates algorithm.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void ShuffleInPlace&lt;T&gt;(this IList&lt;T&gt; list)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</td>
+        <td><span class="parametername">list</span></td>
+        <td><p>The list to shuffle.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the list.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_WhereNotNull_" data-uid="NE.Standard.Extensions.CollectionExtensions.WhereNotNull*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_WhereNotNull__1_System_Collections_Generic_IEnumerable_System_Nullable___0___" data-uid="NE.Standard.Extensions.CollectionExtensions.WhereNotNull``1(System.Collections.Generic.IEnumerable{System.Nullable{``0}})">WhereNotNull&lt;T&gt;(IEnumerable&lt;T?&gt;)</h4>
+  <div class="markdown level1 summary"><p>Filters out <code>null</code> values from a sequence of nullable value types.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;T&gt; WhereNotNull&lt;T&gt;(this IEnumerable&lt;T?&gt; source) where T : struct</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T?&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The source sequence potentially containing <code>null</code> values.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><p>A sequence containing only defined <code class="typeparamref">T</code> values.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The value type of the elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_CollectionExtensions_WhereNotNull_" data-uid="NE.Standard.Extensions.CollectionExtensions.WhereNotNull*"></a>
+  <h4 id="NE_Standard_Extensions_CollectionExtensions_WhereNotNull__1_System_Collections_Generic_IEnumerable___0__" data-uid="NE.Standard.Extensions.CollectionExtensions.WhereNotNull``1(System.Collections.Generic.IEnumerable{``0})">WhereNotNull&lt;T&gt;(IEnumerable&lt;T?&gt;)</h4>
+  <div class="markdown level1 summary"><p>Filters out <code>null</code> references from a sequence of reference types.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;T&gt; WhereNotNull&lt;T&gt;(this IEnumerable&lt;T?&gt; source) where T : class</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><span class="parametername">source</span></td>
+        <td><p>The source sequence potentially containing <code>null</code> elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</td>
+        <td><p>A sequence containing only non-null elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The reference type of the elements.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>

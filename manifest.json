@@ -1,0 +1,679 @@
+{
+  "source_base_path": "/home/runner/work/NE.Standard/NE.Standard",
+  "xrefmap": "xrefmap.yml",
+  "files": [
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.CollectionExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.CollectionExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.CollectionExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.CollectionExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with collections, enumerables, and lists,\nincluding filtering, grouping, sorting, and parallel processing.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.ColorExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.ColorExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.ColorExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.ColorExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for manipulating and analyzing <xref href=\"System.Drawing.Color\" data-throw-if-not-resolved=\"false\"></xref> instances,\nincluding conversion, brightness evaluation, alpha adjustment, and tint/shade operations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.DateTimeExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.DateTimeExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.DateTimeExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.DateTimeExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for <xref href=\"System.DateTime\" data-throw-if-not-resolved=\"false\"></xref> operations,\nincluding formatting, Unix time conversions, and date boundary calculations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.EnumExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.EnumExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.EnumExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.EnumExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with <xref href=\"System.Enum\" data-throw-if-not-resolved=\"false\"></xref> types,\nincluding name resolution, metadata access, and description extraction.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.GeneralConstants.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.GeneralConstants.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.GeneralConstants",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.GeneralConstants.yml\" sourcestartlinenumber=\"1\">Defines general-purpose constants shared across formatting and conversion extensions,\nincluding default formats for DateTime and TimeSpan, and number formatting rules.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.ReflectionExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.ReflectionExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.ReflectionExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.ReflectionExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with reflection, including invocation,\nproperty and field access, and metadata inspection on types and members.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.SerializationExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.SerializationExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.SerializationExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.SerializationExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for serializing and deserializing objects using various formats,\nincluding custom binary-like serialization (<xref href=\"NE.Standard.Serialization.NESerializer\" data-throw-if-not-resolved=\"false\"></xref>), JSON, and XML.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.StringExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.StringExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.StringExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.StringExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with <xref href=\"System.String\" data-throw-if-not-resolved=\"false\"></xref> values,\nincluding type conversion, case-insensitive operations, formatting, and manipulation.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.TimeSpanExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.TimeSpanExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.TimeSpanExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.TimeSpanExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with <xref href=\"System.TimeSpan\" data-throw-if-not-resolved=\"false\"></xref> instances,\nincluding formatting, zero-checking, and absolute value calculation.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.TypeExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.TypeExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions.TypeExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Extensions.TypeExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for working with <xref href=\"System.Type\" data-throw-if-not-resolved=\"false\"></xref> instances,\nincluding instance creation and runtime type resolution.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Extensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Extensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Extensions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.IO.DirectoryHelper.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.IO.DirectoryHelper.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.IO.DirectoryHelper",
+      "Summary": "<p sourcefile=\"api/NE.Standard.IO.DirectoryHelper.yml\" sourcestartlinenumber=\"1\">Provides helper methods for performing common directory operations,\nsuch as creating, deleting, copying, moving, and listing contents.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.IO.FileHelper.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.IO.FileHelper.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.IO.FileHelper",
+      "Summary": "<p sourcefile=\"api/NE.Standard.IO.FileHelper.yml\" sourcestartlinenumber=\"1\">Provides helper methods for performing common file system operations,\nincluding synchronous and asynchronous read/write utilities.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.IO.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.IO.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.IO",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Logging.AsyncBaseLogger.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Logging.AsyncBaseLogger.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Logging.AsyncBaseLogger",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Logging.AsyncBaseLogger.yml\" sourcestartlinenumber=\"1\">Provides a base implementation of <xref href=\"Microsoft.Extensions.Logging.ILogger\" data-throw-if-not-resolved=\"false\"></xref> for asynchronous logging scenarios.\nFormats messages with timestamp, log level, and category, and defers actual log handling to subclasses via <xref href=\"NE.Standard.Logging.AsyncBaseLogger.EnqueueMessage(Microsoft.Extensions.Logging.LogLevel%2cSystem.String)\" data-throw-if-not-resolved=\"false\"></xref>.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Logging.AsyncConsoleLoggerExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Logging.AsyncConsoleLoggerExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Logging.AsyncConsoleLoggerExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Logging.AsyncConsoleLoggerExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for registering <xref href=\"NE.Standard.Logging.AsyncConsoleLogger\" data-throw-if-not-resolved=\"false\"></xref> with a logging builder.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Logging.AsyncFileLoggerExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Logging.AsyncFileLoggerExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Logging.AsyncFileLoggerExtensions",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Logging.AsyncFileLoggerExtensions.yml\" sourcestartlinenumber=\"1\">Provides extension methods for registering <xref href=\"NE.Standard.Logging.AsyncFileLogger\" data-throw-if-not-resolved=\"false\"></xref> with the logging builder infrastructure.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Logging.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Logging.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Logging",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Serialization.NEIgnoreAttribute.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Serialization.NEIgnoreAttribute.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Serialization.NEIgnoreAttribute",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Serialization.NEIgnoreAttribute.yml\" sourcestartlinenumber=\"1\">Excludes a property from serialization and deserialization in <xref href=\"NE.Standard.Serialization.NESerializer\" data-throw-if-not-resolved=\"false\"></xref>.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Serialization.NEObjectAttribute.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Serialization.NEObjectAttribute.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Serialization.NEObjectAttribute",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Serialization.NEObjectAttribute.yml\" sourcestartlinenumber=\"1\">Marks a class or struct as serializable by <xref href=\"NE.Standard.Serialization.NESerializer\" data-throw-if-not-resolved=\"false\"></xref>.\nOnly types with this attribute are eligible for object graph serialization.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Serialization.NESerializer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Serialization.NESerializer.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Serialization.NESerializer",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Serialization.NESerializer.yml\" sourcestartlinenumber=\"1\">Provides methods for serializing and deserializing object graphs.\nSupports nested collections, dictionaries, value types, strings,\nand preserves references between objects during the process.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Serialization.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Serialization.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Serialization",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.ColorAdjustment.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.ColorAdjustment.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.ColorAdjustment",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.ColorAdjustment.yml\" sourcestartlinenumber=\"1\">Specifies the type of color adjustment to apply, such as tinting or shading.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.IRecursiveObservable.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.IRecursiveObservable.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.IRecursiveObservable",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.IRecursiveObservable.yml\" sourcestartlinenumber=\"1\">Defines a mechanism for recursive change notification across nested observable objects.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.KeyModifiers.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.KeyModifiers.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.KeyModifiers",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.Keys.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.Keys.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.Keys",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.LimitedStack-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.LimitedStack-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.LimitedStack<T>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.LimitedStack-1.yml\" sourcestartlinenumber=\"1\">A bounded stack that holds only the most recent elements up to a specified maximum size.\nWhen the maximum size is reached, pushing a new item removes the oldest (bottom-most) one.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.MouseButtonType.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.MouseButtonType.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.MouseButtonType",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.MouseEventType.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.MouseEventType.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.MouseEventType",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.RecursiveChangedAction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.RecursiveChangedAction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.RecursiveChangedAction",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveChangedAction.yml\" sourcestartlinenumber=\"1\">Describes the type of change that occurred in a recursive structure (e.g., observable hierarchy).</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.RecursiveChangedEventArgs.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.RecursiveChangedEventArgs.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.RecursiveChangedEventArgs",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveChangedEventArgs.yml\" sourcestartlinenumber=\"1\">Provides data for changes that occur within a recursive data structure,\nsuch as nested collections or object trees.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.RecursiveCollection-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.RecursiveCollection-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.RecursiveCollection<T>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveCollection-1.yml\" sourcestartlinenumber=\"1\">An observable collection of <xref href=\"NE.Standard.Types.IRecursiveObservable\" data-throw-if-not-resolved=\"false\"></xref> elements that propagates\nnested change notifications using index-based paths (e.g. &quot;[0].Property&quot;).</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.RecursiveObservable.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.RecursiveObservable.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.RecursiveObservable",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveObservable.yml\" sourcestartlinenumber=\"1\">Provides recursive property change tracking by automatically wiring and propagating\nchange notifications through nested <xref href=\"NE.Standard.Types.IRecursiveObservable\" data-throw-if-not-resolved=\"false\"></xref> instances.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakAction-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakAction-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakAction<T>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakAction-1.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to an <xref href=\"System.Action%601\" data-throw-if-not-resolved=\"false\"></xref> delegate with one parameter.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakAction-2.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakAction-2.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakAction<T1, T2>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakAction-2.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to an <xref href=\"System.Action%602\" data-throw-if-not-resolved=\"false\"></xref> delegate with two parameters.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakAction-3.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakAction-3.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakAction<T1, T2, T3>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakAction-3.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to an <xref href=\"System.Action%603\" data-throw-if-not-resolved=\"false\"></xref> delegate with three parameters.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakAction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakAction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakAction",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakAction.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to a parameterless <xref href=\"System.Action\" data-throw-if-not-resolved=\"false\"></xref> delegate.\nPrevents memory leaks by not keeping strong references to the target object.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakDelegate.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakDelegate.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakDelegate",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakDelegate.yml\" sourcestartlinenumber=\"1\">Represents the base class for weakly referenced delegates.\nAllows capturing the method and its target without preventing garbage collection of the target object.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakFunc-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakFunc-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakFunc<TResult>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakFunc-1.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to a parameterless <xref href=\"System.Func%601\" data-throw-if-not-resolved=\"false\"></xref> delegate.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakFunc-2.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakFunc-2.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakFunc<T, TResult>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakFunc-2.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to a <xref href=\"System.Func%602\" data-throw-if-not-resolved=\"false\"></xref> delegate with one parameter.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakFunc-3.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakFunc-3.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakFunc<T1, T2, TResult>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakFunc-3.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to a <xref href=\"System.Func%603\" data-throw-if-not-resolved=\"false\"></xref> delegate with two parameters.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.WeakFunc-4.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.WeakFunc-4.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.WeakFunc<T1, T2, T3, TResult>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.WeakFunc-4.yml\" sourcestartlinenumber=\"1\">Represents a weak reference to a <xref href=\"System.Func%604\" data-throw-if-not-resolved=\"false\"></xref> delegate with three parameters.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types",
+      "Summary": null
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "api/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/toc.html"
+        },
+        ".json": {
+          "relative_path": "api/toc.json"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/design.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/design.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/standard.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/standard.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/web.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/web.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/wpf.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/wpf.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "toc.html"
+        },
+        ".json": {
+          "relative_path": "toc.json"
+        }
+      },
+      "version": ""
+    }
+  ],
+  "groups": [
+    {
+      "xrefmap": "xrefmap.yml"
+    }
+  ]
+}

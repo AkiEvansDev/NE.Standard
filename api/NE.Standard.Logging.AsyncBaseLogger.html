@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>Class AsyncBaseLogger | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="Class AsyncBaseLogger | NE.Standard ">
+    
+    <meta name="description" content="Provides a base implementation of  for asynchronous logging scenarios. Formats messages with timestamp, log level, and category, and defers actual log handling to subclasses via .">
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="NE.Standard.Logging.AsyncBaseLogger">
+
+
+
+  <h1 id="NE_Standard_Logging_AsyncBaseLogger" data-uid="NE.Standard.Logging.AsyncBaseLogger" class="text-break">Class AsyncBaseLogger</h1>
+  <div class="markdown level0 summary"><p>Provides a base implementation of <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a> for asynchronous logging scenarios.
+Formats messages with timestamp, log level, and category, and defers actual log handling to subclasses via <a class="xref" href="NE.Standard.Logging.AsyncBaseLogger.html#NE_Standard_Logging_AsyncBaseLogger_EnqueueMessage_Microsoft_Extensions_Logging_LogLevel_System_String_">EnqueueMessage(LogLevel, string)</a>.</p>
+</div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="inheritance">
+    <h5>Inheritance</h5>
+    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+    <div class="level1"><span class="xref">AsyncBaseLogger</span></div>
+  </div>
+  <div class="implements">
+    <h5>Implements</h5>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a></div>
+  </div>
+  <div class="inheritedMembers">
+    <h5>Inherited Members</h5>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </div>
+  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Logging.html">Logging</a></h6>
+  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
+  <h5 id="NE_Standard_Logging_AsyncBaseLogger_syntax">Syntax</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public abstract class AsyncBaseLogger : ILogger, IDisposable</code></pre>
+  </div>
+  <h3 id="constructors">Constructors
+</h3>
+  <a id="NE_Standard_Logging_AsyncBaseLogger__ctor_" data-uid="NE.Standard.Logging.AsyncBaseLogger.#ctor*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger__ctor_System_String_Microsoft_Extensions_Logging_LogLevel_" data-uid="NE.Standard.Logging.AsyncBaseLogger.#ctor(System.String,Microsoft.Extensions.Logging.LogLevel)">AsyncBaseLogger(string, LogLevel)</h4>
+  <div class="markdown level1 summary"><p>Initializes a new instance of the <a class="xref" href="NE.Standard.Logging.AsyncBaseLogger.html">AsyncBaseLogger</a> class with the specified logging <code class="paramref">category</code> and minimum <code class="paramref">minLevel</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">protected AsyncBaseLogger(string category, LogLevel minLevel)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">category</span></td>
+        <td><p>The logging category. If it contains a dot ('.'), only the last segment will be used as the internal category label.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.loglevel">LogLevel</a></td>
+        <td><span class="parametername">minLevel</span></td>
+        <td><p>The minimum <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.loglevel">LogLevel</a> required for a message to be logged.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="methods">Methods
+</h3>
+  <a id="NE_Standard_Logging_AsyncBaseLogger_BeginScope_" data-uid="NE.Standard.Logging.AsyncBaseLogger.BeginScope*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger_BeginScope__1___0_" data-uid="NE.Standard.Logging.AsyncBaseLogger.BeginScope``1(``0)">BeginScope&lt;TState&gt;(TState)</h4>
+  <div class="markdown level1 summary"><p>Begins a logical operation scope.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IDisposable? BeginScope&lt;TState&gt;(TState state) where TState : notnull</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="xref">TState</span></td>
+        <td><span class="parametername">state</span></td>
+        <td><p>The identifier for the scope.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a></td>
+        <td><p>An <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a> that ends the logical operation scope on dispose.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TState</span></td>
+        <td><p>The type of the state to begin scope for.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 id="NE_Standard_Logging_AsyncBaseLogger_BeginScope__1___0__remarks">Remarks</h5>
+  <div class="markdown level1 remarks"><p>Scopes are not supported by this logger and this method returns <code>null</code>.</p>
+</div>
+  <a id="NE_Standard_Logging_AsyncBaseLogger_Dispose_" data-uid="NE.Standard.Logging.AsyncBaseLogger.Dispose*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger_Dispose" data-uid="NE.Standard.Logging.AsyncBaseLogger.Dispose">Dispose()</h4>
+  <div class="markdown level1 summary"><p>Releases any unmanaged resources used by the logger. This base implementation is a no-op.
+Override if resource cleanup is required.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public virtual void Dispose()</code></pre>
+  </div>
+  <a id="NE_Standard_Logging_AsyncBaseLogger_EnqueueMessage_" data-uid="NE.Standard.Logging.AsyncBaseLogger.EnqueueMessage*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger_EnqueueMessage_Microsoft_Extensions_Logging_LogLevel_System_String_" data-uid="NE.Standard.Logging.AsyncBaseLogger.EnqueueMessage(Microsoft.Extensions.Logging.LogLevel,System.String)">EnqueueMessage(LogLevel, string)</h4>
+  <div class="markdown level1 summary"><p>When implemented in a derived class, enqueues the formatted log <code class="paramref">message</code> for asynchronous handling.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">protected abstract void EnqueueMessage(LogLevel level, string message)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.loglevel">LogLevel</a></td>
+        <td><span class="parametername">level</span></td>
+        <td><p>The severity level of the message.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">message</span></td>
+        <td><p>The fully formatted log message.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Logging_AsyncBaseLogger_IsEnabled_" data-uid="NE.Standard.Logging.AsyncBaseLogger.IsEnabled*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger_IsEnabled_Microsoft_Extensions_Logging_LogLevel_" data-uid="NE.Standard.Logging.AsyncBaseLogger.IsEnabled(Microsoft.Extensions.Logging.LogLevel)">IsEnabled(LogLevel)</h4>
+  <div class="markdown level1 summary"><p>Checks if the given <code class="paramref">logLevel</code> is enabled.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool IsEnabled(LogLevel logLevel)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.loglevel">LogLevel</a></td>
+        <td><span class="parametername">logLevel</span></td>
+        <td><p>Level to be checked.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><p><a href="https://learn.microsoft.com/dotnet/csharp/language-reference/builtin-types/bool">true</a> if enabled.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Logging_AsyncBaseLogger_Log_" data-uid="NE.Standard.Logging.AsyncBaseLogger.Log*"></a>
+  <h4 id="NE_Standard_Logging_AsyncBaseLogger_Log__1_Microsoft_Extensions_Logging_LogLevel_Microsoft_Extensions_Logging_EventId___0_System_Exception_System_Func___0_System_Exception_System_String__" data-uid="NE.Standard.Logging.AsyncBaseLogger.Log``1(Microsoft.Extensions.Logging.LogLevel,Microsoft.Extensions.Logging.EventId,``0,System.Exception,System.Func{``0,System.Exception,System.String})">Log&lt;TState&gt;(LogLevel, EventId, TState, Exception?, Func&lt;TState, Exception?, string&gt;)</h4>
+  <div class="markdown level1 summary"><p>Writes a log entry.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Log&lt;TState&gt;(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func&lt;TState, Exception?, string&gt; formatter)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.loglevel">LogLevel</a></td>
+        <td><span class="parametername">logLevel</span></td>
+        <td><p>Entry will be written on this level.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.eventid">EventId</a></td>
+        <td><span class="parametername">eventId</span></td>
+        <td><p>Id of the event.</p>
+</td>
+      </tr>
+      <tr>
+        <td><span class="xref">TState</span></td>
+        <td><span class="parametername">state</span></td>
+        <td><p>The entry to be written. Can be also an object.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.exception">Exception</a></td>
+        <td><span class="parametername">exception</span></td>
+        <td><p>The exception related to this entry.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-3">Func</a>&lt;TState, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.exception">Exception</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</td>
+        <td><span class="parametername">formatter</span></td>
+        <td><p>Function to create a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a> message of the <code class="paramref">state</code> and <code class="paramref">exception</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TState</span></td>
+        <td><p>The type of the object to be written.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="implements">Implements</h3>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a>
+  </div>
+  <h3 id="extensionmethods">Extension Methods</h3>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_">SerializationExtensions.SerializeJson&lt;T&gt;(T, JsonSerializerOptions?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_">SerializationExtensions.SerializeXml&lt;T&gt;(T)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_System_Object_System_String_">ReflectionExtensions.GetFieldValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue__1_System_Object_System_String_">ReflectionExtensions.GetFieldValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_System_Object_System_String_">ReflectionExtensions.GetPropertyValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue__1_System_Object_System_String_">ReflectionExtensions.GetPropertyValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod&lt;T&gt;(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetFieldValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetPropertyValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeObject_System_Object_System_Boolean_">SerializationExtensions.SerializeObject(object, bool)</a>
+  </div>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>

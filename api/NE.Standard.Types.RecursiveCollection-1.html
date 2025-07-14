@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>Class RecursiveCollection&lt;T&gt; | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="Class RecursiveCollection&lt;T&gt; | NE.Standard ">
+    
+    <meta name="description" content="An observable collection of  elements that propagates nested change notifications using index-based paths (e.g. &amp;quot;[0].Property&amp;quot;).">
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="NE.Standard.Types.RecursiveCollection`1">
+
+
+
+  <h1 id="NE_Standard_Types_RecursiveCollection_1" data-uid="NE.Standard.Types.RecursiveCollection`1" class="text-break">Class RecursiveCollection&lt;T&gt;</h1>
+  <div class="markdown level0 summary"><p>An observable collection of <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a> elements that propagates
+nested change notifications using index-based paths (e.g. &quot;[0].Property&quot;).</p>
+</div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="inheritance">
+    <h5>Inheritance</h5>
+    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+    <div class="level1"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1">Collection</a>&lt;T&gt;</div>
+    <div class="level2"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1">ObservableCollection</a>&lt;T&gt;</div>
+    <div class="level3"><span class="xref">RecursiveCollection&lt;T&gt;</span></div>
+  </div>
+  <div class="implements">
+    <h5>Implements</h5>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList</a>&lt;T&gt;</div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;T&gt;</div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;T&gt;</div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection</a>&lt;T&gt;</div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;T&gt;</div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.icollection">ICollection</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ienumerable">IEnumerable</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.specialized.inotifycollectionchanged">INotifyCollectionChanged</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanged">INotifyPropertyChanged</a></div>
+    <div><a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a></div>
+  </div>
+  <div class="inheritedMembers">
+    <h5>Inherited Members</h5>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.blockreentrancy">ObservableCollection&lt;T&gt;.BlockReentrancy()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.checkreentrancy">ObservableCollection&lt;T&gt;.CheckReentrancy()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.clearitems">ObservableCollection&lt;T&gt;.ClearItems()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.insertitem">ObservableCollection&lt;T&gt;.InsertItem(int, T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.move">ObservableCollection&lt;T&gt;.Move(int, int)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.moveitem">ObservableCollection&lt;T&gt;.MoveItem(int, int)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.onpropertychanged">ObservableCollection&lt;T&gt;.OnPropertyChanged(PropertyChangedEventArgs)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.removeitem">ObservableCollection&lt;T&gt;.RemoveItem(int)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.setitem">ObservableCollection&lt;T&gt;.SetItem(int, T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.collectionchanged">ObservableCollection&lt;T&gt;.CollectionChanged</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.propertychanged">ObservableCollection&lt;T&gt;.PropertyChanged</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.add">Collection&lt;T&gt;.Add(T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.clear">Collection&lt;T&gt;.Clear()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.contains">Collection&lt;T&gt;.Contains(T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.copyto">Collection&lt;T&gt;.CopyTo(T[], int)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.getenumerator">Collection&lt;T&gt;.GetEnumerator()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.indexof">Collection&lt;T&gt;.IndexOf(T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.insert">Collection&lt;T&gt;.Insert(int, T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.remove">Collection&lt;T&gt;.Remove(T)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.removeat">Collection&lt;T&gt;.RemoveAt(int)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.count">Collection&lt;T&gt;.Count</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">Collection&lt;T&gt;.this[int]</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.collection-1.items">Collection&lt;T&gt;.Items</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </div>
+  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Types.html">Types</a></h6>
+  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
+  <h5 id="NE_Standard_Types_RecursiveCollection_1_syntax">Syntax</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public class RecursiveCollection&lt;T&gt; : ObservableCollection&lt;T&gt;, IList&lt;T&gt;, ICollection&lt;T&gt;, IReadOnlyList&lt;T&gt;, IReadOnlyCollection&lt;T&gt;, IEnumerable&lt;T&gt;, IList, ICollection, IEnumerable, INotifyCollectionChanged, INotifyPropertyChanged, IRecursiveObservable where T : IRecursiveObservable</code></pre>
+  </div>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The type of elements in the collection. Must implement <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="methods">Methods
+</h3>
+  <a id="NE_Standard_Types_RecursiveCollection_1_ClearNotifier_" data-uid="NE.Standard.Types.RecursiveCollection`1.ClearNotifier*"></a>
+  <h4 id="NE_Standard_Types_RecursiveCollection_1_ClearNotifier" data-uid="NE.Standard.Types.RecursiveCollection`1.ClearNotifier">ClearNotifier()</h4>
+  <div class="markdown level1 summary"><p>Removes the recursive notifier from this collection and all nested elements.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void ClearNotifier()</code></pre>
+  </div>
+  <a id="NE_Standard_Types_RecursiveCollection_1_OnCollectionChanged_" data-uid="NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged*"></a>
+  <h4 id="NE_Standard_Types_RecursiveCollection_1_OnCollectionChanged_System_Collections_Specialized_NotifyCollectionChangedEventArgs_" data-uid="NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged(System.Collections.Specialized.NotifyCollectionChangedEventArgs)">OnCollectionChanged(NotifyCollectionChangedEventArgs)</h4>
+  <div class="markdown level1 summary"><p>Handles collection change events (add, remove, replace, move, reset) and automatically
+updates nested change tracking and path re-indexing for affected items.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.specialized.notifycollectionchangedeventargs">NotifyCollectionChangedEventArgs</a></td>
+        <td><span class="parametername">e</span></td>
+        <td><p>The collection change event arguments.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="overrides">Overrides</h5>
+  <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.oncollectionchanged">ObservableCollection&lt;T&gt;.OnCollectionChanged(NotifyCollectionChangedEventArgs)</a></div>
+  <a id="NE_Standard_Types_RecursiveCollection_1_SetNotifier_" data-uid="NE.Standard.Types.RecursiveCollection`1.SetNotifier*"></a>
+  <h4 id="NE_Standard_Types_RecursiveCollection_1_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_" data-uid="NE.Standard.Types.RecursiveCollection`1.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)">SetNotifier(Action&lt;RecursiveChangedEventArgs&gt;, string?)</h4>
+  <div class="markdown level1 summary"><p>Sets a recursive change notifier for this collection and all nested items.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void SetNotifier(Action&lt;RecursiveChangedEventArgs&gt; notify, string? prefix = null)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="NE.Standard.Types.RecursiveChangedEventArgs.html">RecursiveChangedEventArgs</a>&gt;</td>
+        <td><span class="parametername">notify</span></td>
+        <td><p>The callback to invoke when changes occur in any nested element.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">prefix</span></td>
+        <td><p>An optional string to prefix to the property path for each change. Useful for tracking nested context.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="implements">Implements</h3>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection&lt;T&gt;</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList&lt;T&gt;</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection&lt;T&gt;</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable&lt;T&gt;</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ilist">IList</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.icollection">ICollection</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.ienumerable">IEnumerable</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.specialized.inotifycollectionchanged">INotifyCollectionChanged</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanged">INotifyPropertyChanged</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a>
+  </div>
+  <h3 id="extensionmethods">Extension Methods</h3>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_">SerializationExtensions.SerializeJson&lt;T&gt;(T, JsonSerializerOptions?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_">SerializationExtensions.SerializeXml&lt;T&gt;(T)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ForEach__1_System_Collections_Generic_IEnumerable___0__System_Action___0__">CollectionExtensions.ForEach&lt;T&gt;(IEnumerable&lt;T&gt;, Action&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_Groups__1_System_Collections_Generic_IEnumerable___0__System_Int32_">CollectionExtensions.Groups&lt;T&gt;(IEnumerable&lt;T&gt;, int)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_IsNullOrEmpty__1_System_Collections_Generic_IEnumerable___0__">CollectionExtensions.IsNullOrEmpty&lt;T&gt;(IEnumerable&lt;T&gt;?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ParallelForEachPartitioned__1_System_Collections_Generic_IEnumerable___0__System_Int32_System_Action_System_Collections_Generic_IEnumerable___0___">CollectionExtensions.ParallelForEachPartitioned&lt;T&gt;(IEnumerable&lt;T&gt;, int, Action&lt;IEnumerable&lt;T&gt;&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ParallelForEach__1_System_Collections_Generic_IEnumerable___0__System_Action___0__">CollectionExtensions.ParallelForEach&lt;T&gt;(IEnumerable&lt;T&gt;, Action&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ParallelProcess__2_System_Collections_Generic_IEnumerable___0__System_Func___0___1__">CollectionExtensions.ParallelProcess&lt;T, TResult&gt;(IEnumerable&lt;T&gt;, Func&lt;T, TResult&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ParallelSelect__2_System_Collections_Generic_IEnumerable___0__System_Func___0___1__">CollectionExtensions.ParallelSelect&lt;T, TResult&gt;(IEnumerable&lt;T&gt;, Func&lt;T, TResult&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_Partition__1_System_Collections_Generic_IEnumerable___0__System_Int32_">CollectionExtensions.Partition&lt;T&gt;(IEnumerable&lt;T&gt;, int)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_Generic_IList___0____0_System_Collections_Generic_IComparer___0__">CollectionExtensions.InsertSortedDescending&lt;T&gt;(IList&lt;T&gt;, T, IComparer&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_Generic_IList___0____0_System_Collections_Generic_IComparer___0__">CollectionExtensions.InsertSorted&lt;T&gt;(IList&lt;T&gt;, T, IComparer&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ShuffleInPlace__1_System_Collections_Generic_IList___0__">CollectionExtensions.ShuffleInPlace&lt;T&gt;(IList&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_IList___0_">CollectionExtensions.InsertSortedDescending&lt;T&gt;(IList, T)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSortedDescending__1_System_Collections_IList___0_System_Collections_Generic_IComparer___0__">CollectionExtensions.InsertSortedDescending&lt;T&gt;(IList, T, IComparer&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_IList___0_">CollectionExtensions.InsertSorted&lt;T&gt;(IList, T)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_InsertSorted__1_System_Collections_IList___0_System_Collections_Generic_IComparer___0__">CollectionExtensions.InsertSorted&lt;T&gt;(IList, T, IComparer&lt;T&gt;)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_System_Object_System_String_">ReflectionExtensions.GetFieldValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue__1_System_Object_System_String_">ReflectionExtensions.GetFieldValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_System_Object_System_String_">ReflectionExtensions.GetPropertyValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue__1_System_Object_System_String_">ReflectionExtensions.GetPropertyValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod&lt;T&gt;(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetFieldValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetPropertyValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeObject_System_Object_System_Boolean_">SerializationExtensions.SerializeObject(object, bool)</a>
+  </div>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>

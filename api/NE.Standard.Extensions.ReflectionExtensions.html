@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>Class ReflectionExtensions | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="Class ReflectionExtensions | NE.Standard ">
+    
+    <meta name="description" content="Provides extension methods for working with reflection, including invocation, property and field access, and metadata inspection on types and members.">
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="NE.Standard.Extensions.ReflectionExtensions">
+
+
+
+  <h1 id="NE_Standard_Extensions_ReflectionExtensions" data-uid="NE.Standard.Extensions.ReflectionExtensions" class="text-break">Class ReflectionExtensions</h1>
+  <div class="markdown level0 summary"><p>Provides extension methods for working with reflection, including invocation,
+property and field access, and metadata inspection on types and members.</p>
+</div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="inheritance">
+    <h5>Inheritance</h5>
+    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+    <div class="level1"><span class="xref">ReflectionExtensions</span></div>
+  </div>
+  <div class="inheritedMembers">
+    <h5>Inherited Members</h5>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </div>
+  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Extensions.html">Extensions</a></h6>
+  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
+  <h5 id="NE_Standard_Extensions_ReflectionExtensions_syntax">Syntax</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static class ReflectionExtensions</code></pre>
+  </div>
+  <h3 id="fields">Fields
+</h3>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_Flags" data-uid="NE.Standard.Extensions.ReflectionExtensions.Flags">Flags</h4>
+  <div class="markdown level1 summary"><p>Default binding flags for instance-level, public and non-public member access.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public const BindingFlags Flags = Instance | Public | NonPublic</code></pre>
+  </div>
+  <h5 class="fieldValue">Field Value</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.bindingflags">BindingFlags</a></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="methods">Methods
+</h3>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetAllFields_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllFields*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetAllFields_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllFields(System.Type)">GetAllFields(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level fields (public and non-public) declared on the specified <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;FieldInfo&gt; GetAllFields(this Type type)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type whose fields will be retrieved.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a>&gt;</td>
+        <td><p>A collection of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a> objects representing the fields.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetAllMethods_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllMethods*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetAllMethods_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllMethods(System.Type)">GetAllMethods(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level methods (public and non-public) declared on the specified <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;MethodInfo&gt; GetAllMethods(this Type type)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type whose methods will be retrieved.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a>&gt;</td>
+        <td><p>A collection of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a> objects representing the methods.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetAllProperties_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllProperties*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetAllProperties_System_Type_System_Boolean_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetAllProperties(System.Type,System.Boolean)">GetAllProperties(Type, bool)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance properties of the given <code class="paramref">type</code>.
+Optionally filters to properties with a setter.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;PropertyInfo&gt; GetAllProperties(this Type type, bool requireSetter = false)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type to inspect.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><span class="parametername">requireSetter</span></td>
+        <td><p>If <code>true</code>, only returns properties with a setter.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a>&gt;</td>
+        <td><p>A sequence of matching <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a> instances.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue(System.Object,System.String)">GetFieldValue(object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a field by name from the specified <code class="paramref">obj</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? GetFieldValue(this object obj, string fieldName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to read from.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">fieldName</span></td>
+        <td><p>The name of the field to retrieve.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The value of the field, or <code>null</code> if not found.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_System_Type_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue(System.Type,System.Object,System.String)">GetFieldValue(Type, object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a field from the specified <code class="paramref">obj</code>, using the provided <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? GetFieldValue(this Type type, object obj, string fieldName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type that defines the field.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to read from.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">fieldName</span></td>
+        <td><p>The name of the field.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The value of the field.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
+        <td><p>Thrown if the field is not found on the type.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetFieldValue__1_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldValue``1(System.Object,System.String)">GetFieldValue&lt;T&gt;(object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a field by name from the specified <code class="paramref">obj</code> and casts it to type <code class="typeparamref">T</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static T GetFieldValue&lt;T&gt;(this object obj, string fieldName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to read from.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">fieldName</span></td>
+        <td><p>The name of the field to retrieve.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><p>The field value cast to <code class="typeparamref">T</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The expected type of the field value.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetFieldsWithAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldsWithAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetFieldsWithAttribute__1_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldsWithAttribute``1(System.Type)">GetFieldsWithAttribute&lt;TAttribute&gt;(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level fields of the specified <code class="paramref">type</code> that are decorated with <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;FieldInfo&gt; GetFieldsWithAttribute&lt;TAttribute&gt;(this Type type) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type whose fields will be inspected.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a> objects that have the specified attribute.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The type of attribute to filter by.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetFieldsWithoutAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldsWithoutAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetFieldsWithoutAttribute__1_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetFieldsWithoutAttribute``1(System.Type)">GetFieldsWithoutAttribute&lt;TAttribute&gt;(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level fields of the specified <code class="paramref">type</code> that are not decorated with <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;FieldInfo&gt; GetFieldsWithoutAttribute&lt;TAttribute&gt;(this Type type) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type whose fields will be inspected.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.fieldinfo">FieldInfo</a> objects without the specified attribute.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The type of attribute to exclude.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetMethodsWithAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetMethodsWithAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetMethodsWithAttribute__1_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetMethodsWithAttribute``1(System.Type)">GetMethodsWithAttribute&lt;TAttribute&gt;(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level methods of the specified <code class="paramref">type</code> that are decorated with <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;MethodInfo&gt; GetMethodsWithAttribute&lt;TAttribute&gt;(this Type type) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type to inspect for methods.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a> objects that have the specified attribute.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The attribute type to search for.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetMethodsWithoutAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetMethodsWithoutAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetMethodsWithoutAttribute__1_System_Type_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetMethodsWithoutAttribute``1(System.Type)">GetMethodsWithoutAttribute&lt;TAttribute&gt;(Type)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance-level methods of the specified <code class="paramref">type</code> that are not decorated with <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;MethodInfo&gt; GetMethodsWithoutAttribute&lt;TAttribute&gt;(this Type type) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type to inspect for methods.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.methodinfo">MethodInfo</a> objects without the specified attribute.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The attribute type to exclude.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetPropertiesWithAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertiesWithAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetPropertiesWithAttribute__1_System_Type_System_Boolean_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertiesWithAttribute``1(System.Type,System.Boolean)">GetPropertiesWithAttribute&lt;TAttribute&gt;(Type, bool)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance properties of a type that are decorated with the specified <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;PropertyInfo&gt; GetPropertiesWithAttribute&lt;TAttribute&gt;(this Type type, bool requireSetter = false) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type to inspect.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><span class="parametername">requireSetter</span></td>
+        <td><p>Whether to require a property setter.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a> objects that match.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The attribute type to filter by.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetPropertiesWithoutAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertiesWithoutAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetPropertiesWithoutAttribute__1_System_Type_System_Boolean_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertiesWithoutAttribute``1(System.Type,System.Boolean)">GetPropertiesWithoutAttribute&lt;TAttribute&gt;(Type, bool)</h4>
+  <div class="markdown level1 summary"><p>Retrieves all instance properties of a type that are not decorated with the specified <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;PropertyInfo&gt; GetPropertiesWithoutAttribute&lt;TAttribute&gt;(this Type type, bool requireSetter = false) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type to inspect.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><span class="parametername">requireSetter</span></td>
+        <td><p>Whether to require a property setter.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a>&gt;</td>
+        <td><p>A sequence of <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a> objects that match.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The attribute type to exclude.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue(System.Object,System.String)">GetPropertyValue(object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a property by name from the specified <code class="paramref">obj</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? GetPropertyValue(this object obj, string propertyName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">propertyName</span></td>
+        <td><p>The name of the property.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The property value, or <code>null</code> if not found.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_System_Type_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue(System.Type,System.Object,System.String)">GetPropertyValue(Type, object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a property from the specified <code class="paramref">obj</code> using the specified <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? GetPropertyValue(this Type type, object obj, string propertyName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type that defines the property.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to read from.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">propertyName</span></td>
+        <td><p>The property name.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The property value.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
+        <td><p>Thrown if the property is not found.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue__1_System_Object_System_String_" data-uid="NE.Standard.Extensions.ReflectionExtensions.GetPropertyValue``1(System.Object,System.String)">GetPropertyValue&lt;T&gt;(object, string)</h4>
+  <div class="markdown level1 summary"><p>Retrieves the value of a property by name and casts it to type <code class="typeparamref">T</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static T GetPropertyValue&lt;T&gt;(this object obj, string propertyName)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">propertyName</span></td>
+        <td><p>The property name.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><p>The property value as <code class="typeparamref">T</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The expected type of the property value.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_HasAttribute_" data-uid="NE.Standard.Extensions.ReflectionExtensions.HasAttribute*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_HasAttribute__1_System_Reflection_MemberInfo_System_Boolean_" data-uid="NE.Standard.Extensions.ReflectionExtensions.HasAttribute``1(System.Reflection.MemberInfo,System.Boolean)">HasAttribute&lt;TAttribute&gt;(MemberInfo, bool)</h4>
+  <div class="markdown level1 summary"><p>Determines whether the specified <code class="paramref">member</code> is decorated with the attribute <code class="typeparamref">TAttribute</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool HasAttribute&lt;TAttribute&gt;(this MemberInfo member, bool inherit = false) where TAttribute : Attribute</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.reflection.memberinfo">MemberInfo</a></td>
+        <td><span class="parametername">member</span></td>
+        <td><p>The member to inspect (property, method, field, etc.).</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><span class="parametername">inherit</span></td>
+        <td><p>Whether to search the inheritance chain.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></td>
+        <td><p><code>true</code> if the attribute is defined; otherwise, <code>false</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">TAttribute</span></td>
+        <td><p>The type of the attribute to check for.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_System_Object_System_String_System_Object___" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod(System.Object,System.String,System.Object[])">InvokeMethod(object, string, params object[])</h4>
+  <div class="markdown level1 summary"><p>Invokes a method by name on the specified <code class="paramref">obj</code> with the given parameters.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? InvokeMethod(this object obj, string methodName, params object[] parameters)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The target object.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">methodName</span></td>
+        <td><p>The name of the method to invoke.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a>[]</td>
+        <td><span class="parametername">parameters</span></td>
+        <td><p>An array of parameters to pass to the method.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The return value of the invoked method, or <code>null</code> if void.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_System_Type_System_Object_System_String_System_Object___" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod(System.Type,System.Object,System.String,System.Object[])">InvokeMethod(Type, object, string, params object[])</h4>
+  <div class="markdown level1 summary"><p>Invokes a method by name on the given <code class="paramref">obj</code>, using the provided <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static object? InvokeMethod(this Type type, object obj, string methodName, params object[] parameters)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type containing the method definition.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The instance on which to invoke the method.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">methodName</span></td>
+        <td><p>The name of the method to invoke.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a>[]</td>
+        <td><span class="parametername">parameters</span></td>
+        <td><p>Optional parameters for the method.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><p>The return value of the method, or <code>null</code> if void.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
+        <td><p>Thrown if the method cannot be found.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Object_System_String_System_Object___" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod``1(System.Object,System.String,System.Object[])">InvokeMethod&lt;T&gt;(object, string, params object[])</h4>
+  <div class="markdown level1 summary"><p>Invokes a method by name on the specified <code class="paramref">obj</code> and returns the result as type <code class="typeparamref">T</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static T InvokeMethod&lt;T&gt;(this object obj, string methodName, params object[] parameters)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The target object.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">methodName</span></td>
+        <td><p>The name of the method to invoke.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a>[]</td>
+        <td><span class="parametername">parameters</span></td>
+        <td><p>An array of parameters to pass to the method.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><p>The result cast to <code class="typeparamref">T</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The expected return type.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Type_System_Object_System_String_System_Object___" data-uid="NE.Standard.Extensions.ReflectionExtensions.InvokeMethod``1(System.Type,System.Object,System.String,System.Object[])">InvokeMethod&lt;T&gt;(Type, object, string, params object[])</h4>
+  <div class="markdown level1 summary"><p>Invokes a method by name using the given <code class="paramref">type</code> and <code class="paramref">obj</code> and returns the result as type <code class="typeparamref">T</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static T InvokeMethod&lt;T&gt;(this Type type, object obj, string methodName, params object[] parameters)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type containing the method.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object to invoke the method on.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">methodName</span></td>
+        <td><p>The name of the method.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a>[]</td>
+        <td><span class="parametername">parameters</span></td>
+        <td><p>Method parameters.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="returns">Returns</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="xref">T</span></td>
+        <td><p>The result cast to <code class="typeparamref">T</code>.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="typeParameters">Type Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="parametername">T</span></td>
+        <td><p>The expected return type.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetFieldValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetFieldValue(System.Object,System.String,System.Object)">SetFieldValue(object, string, object?)</h4>
+  <div class="markdown level1 summary"><p>Sets the value of a field by name on the specified <code class="paramref">obj</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void SetFieldValue(this object obj, string fieldName, object? value)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to modify.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">fieldName</span></td>
+        <td><p>The name of the field to set.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">value</span></td>
+        <td><p>The value to assign to the field.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetFieldValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Type_System_Object_System_String_System_Object_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetFieldValue(System.Type,System.Object,System.String,System.Object)">SetFieldValue(Type, object, string, object?)</h4>
+  <div class="markdown level1 summary"><p>Sets the value of a field by name on the specified <code class="paramref">obj</code>, using the provided <code class="paramref">type</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void SetFieldValue(this Type type, object obj, string fieldName, object? value)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type that declares the field.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to modify.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">fieldName</span></td>
+        <td><p>The name of the field to set.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">value</span></td>
+        <td><p>The value to assign to the field.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
+        <td><p>Thrown if the field is not found on the type.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetPropertyValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetPropertyValue(System.Object,System.String,System.Object)">SetPropertyValue(object, string, object?)</h4>
+  <div class="markdown level1 summary"><p>Sets the value of a property by name on the specified <code class="paramref">obj</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void SetPropertyValue(this object obj, string propertyName, object? value)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">propertyName</span></td>
+        <td><p>The property name.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">value</span></td>
+        <td><p>The new value to assign.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <a id="NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetPropertyValue*"></a>
+  <h4 id="NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Type_System_Object_System_String_System_Object_" data-uid="NE.Standard.Extensions.ReflectionExtensions.SetPropertyValue(System.Type,System.Object,System.String,System.Object)">SetPropertyValue(Type, object, string, object?)</h4>
+  <div class="markdown level1 summary"><p>Sets the value of a property using the specified <code class="paramref">type</code> on the provided <code class="paramref">obj</code>.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static void SetPropertyValue(this Type type, object obj, string propertyName, object? value)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></td>
+        <td><span class="parametername">type</span></td>
+        <td><p>The type that defines the property.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">obj</span></td>
+        <td><p>The object instance to modify.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">propertyName</span></td>
+        <td><p>The property name.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></td>
+        <td><span class="parametername">value</span></td>
+        <td><p>The value to assign.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="exceptions">Exceptions</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentexception">ArgumentException</a></td>
+        <td><p>Thrown if the property is not found.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>

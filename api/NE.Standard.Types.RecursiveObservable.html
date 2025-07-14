@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+
+  <head>
+    <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+      <title>Class RecursiveObservable | NE.Standard </title>
+      <meta name="viewport" content="width=device-width">
+      <meta name="title" content="Class RecursiveObservable | NE.Standard ">
+    
+    <meta name="description" content="Provides recursive property change tracking by automatically wiring and propagating change notifications through nested  instances.">
+      <link rel="shortcut icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../styles/docfx.vendor.min.css">
+      <link rel="stylesheet" href="../styles/docfx.css">
+      <link rel="stylesheet" href="../styles/main.css">
+      <meta property="docfx:navrel" content="../toc.html">
+      <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="NE.Standard.Types.RecursiveObservable">
+
+
+
+  <h1 id="NE_Standard_Types_RecursiveObservable" data-uid="NE.Standard.Types.RecursiveObservable" class="text-break">Class RecursiveObservable</h1>
+  <div class="markdown level0 summary"><p>Provides recursive property change tracking by automatically wiring and propagating
+change notifications through nested <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a> instances.</p>
+</div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="inheritance">
+    <h5>Inheritance</h5>
+    <div class="level0"><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+    <div class="level1"><a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject">ObservableObject</a></div>
+    <div class="level2"><span class="xref">RecursiveObservable</span></div>
+  </div>
+  <div class="implements">
+    <h5>Implements</h5>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanged">INotifyPropertyChanged</a></div>
+    <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanging">INotifyPropertyChanging</a></div>
+    <div><a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a></div>
+  </div>
+  <div class="inheritedMembers">
+    <h5>Inherited Members</h5>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.onpropertychanging#communitytoolkit-mvvm-componentmodel-observableobject-onpropertychanging(system-componentmodel-propertychangingeventargs)">ObservableObject.OnPropertyChanging(PropertyChangingEventArgs)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.onpropertychanged#communitytoolkit-mvvm-componentmodel-observableobject-onpropertychanged(system-string)">ObservableObject.OnPropertyChanged(string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.onpropertychanging#communitytoolkit-mvvm-componentmodel-observableobject-onpropertychanging(system-string)">ObservableObject.OnPropertyChanging(string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-1(-0@-0-system-string)">ObservableObject.SetProperty&lt;T&gt;(ref T, T, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-1(-0@-0-system-collections-generic-iequalitycomparer((-0))-system-string)">ObservableObject.SetProperty&lt;T&gt;(ref T, T, IEqualityComparer&lt;T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-1(-0-0-system-action((-0))-system-string)">ObservableObject.SetProperty&lt;T&gt;(T, T, Action&lt;T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-1(-0-0-system-collections-generic-iequalitycomparer((-0))-system-action((-0))-system-string)">ObservableObject.SetProperty&lt;T&gt;(T, T, IEqualityComparer&lt;T&gt;, Action&lt;T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-2(-1-1-0-system-action((-0-1))-system-string)">ObservableObject.SetProperty&lt;TModel, T&gt;(T, T, TModel, Action&lt;TModel, T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setproperty#communitytoolkit-mvvm-componentmodel-observableobject-setproperty-2(-1-1-system-collections-generic-iequalitycomparer((-1))-0-system-action((-0-1))-system-string)">ObservableObject.SetProperty&lt;TModel, T&gt;(T, T, IEqualityComparer&lt;T&gt;, TModel, Action&lt;TModel, T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setpropertyandnotifyoncompletion#communitytoolkit-mvvm-componentmodel-observableobject-setpropertyandnotifyoncompletion(communitytoolkit-mvvm-componentmodel-observableobject-tasknotifier@-system-threading-tasks-task-system-string)">ObservableObject.SetPropertyAndNotifyOnCompletion(ref ObservableObject.TaskNotifier, Task, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setpropertyandnotifyoncompletion#communitytoolkit-mvvm-componentmodel-observableobject-setpropertyandnotifyoncompletion(communitytoolkit-mvvm-componentmodel-observableobject-tasknotifier@-system-threading-tasks-task-system-action((system-threading-tasks-task))-system-string)">ObservableObject.SetPropertyAndNotifyOnCompletion(ref ObservableObject.TaskNotifier, Task, Action&lt;Task&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setpropertyandnotifyoncompletion#communitytoolkit-mvvm-componentmodel-observableobject-setpropertyandnotifyoncompletion-1(communitytoolkit-mvvm-componentmodel-observableobject-tasknotifier((-0))@-system-threading-tasks-task((-0))-system-string)">ObservableObject.SetPropertyAndNotifyOnCompletion&lt;T&gt;(ref ObservableObject.TaskNotifier&lt;T&gt;, Task&lt;T&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.setpropertyandnotifyoncompletion#communitytoolkit-mvvm-componentmodel-observableobject-setpropertyandnotifyoncompletion-1(communitytoolkit-mvvm-componentmodel-observableobject-tasknotifier((-0))@-system-threading-tasks-task((-0))-system-action((system-threading-tasks-task((-0))))-system-string)">ObservableObject.SetPropertyAndNotifyOnCompletion&lt;T&gt;(ref ObservableObject.TaskNotifier&lt;T&gt;, Task&lt;T&gt;, Action&lt;Task&lt;T&gt;&gt;, string)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.propertychanged">ObservableObject.PropertyChanged</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.propertychanging">ObservableObject.PropertyChanging</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </div>
+  <h6><strong>Namespace</strong>: <a class="xref" href="NE.html">NE</a>.<a class="xref" href="NE.Standard.html">Standard</a>.<a class="xref" href="NE.Standard.Types.html">Types</a></h6>
+  <h6><strong>Assembly</strong>: NE.Standard.dll</h6>
+  <h5 id="NE_Standard_Types_RecursiveObservable_syntax">Syntax</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public class RecursiveObservable : ObservableObject, INotifyPropertyChanged, INotifyPropertyChanging, IRecursiveObservable</code></pre>
+  </div>
+  <h3 id="constructors">Constructors
+</h3>
+  <a id="NE_Standard_Types_RecursiveObservable__ctor_" data-uid="NE.Standard.Types.RecursiveObservable.#ctor*"></a>
+  <h4 id="NE_Standard_Types_RecursiveObservable__ctor" data-uid="NE.Standard.Types.RecursiveObservable.#ctor">RecursiveObservable()</h4>
+  <div class="markdown level1 summary"><p>Initializes a new instance of the <a class="xref" href="NE.Standard.Types.RecursiveObservable.html">RecursiveObservable</a> class.
+Caches observable properties using reflection for efficient traversal.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public RecursiveObservable()</code></pre>
+  </div>
+  <h3 id="methods">Methods
+</h3>
+  <a id="NE_Standard_Types_RecursiveObservable_ClearNotifier_" data-uid="NE.Standard.Types.RecursiveObservable.ClearNotifier*"></a>
+  <h4 id="NE_Standard_Types_RecursiveObservable_ClearNotifier" data-uid="NE.Standard.Types.RecursiveObservable.ClearNotifier">ClearNotifier()</h4>
+  <div class="markdown level1 summary"><p>Removes the current recursive notifier and clears notification propagation to nested children.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void ClearNotifier()</code></pre>
+  </div>
+  <a id="NE_Standard_Types_RecursiveObservable_OnPropertyChanged_" data-uid="NE.Standard.Types.RecursiveObservable.OnPropertyChanged*"></a>
+  <h4 id="NE_Standard_Types_RecursiveObservable_OnPropertyChanged_System_ComponentModel_PropertyChangedEventArgs_" data-uid="NE.Standard.Types.RecursiveObservable.OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs)">OnPropertyChanged(PropertyChangedEventArgs)</h4>
+  <div class="markdown level1 summary"><p>Overrides the base property change handler to propagate change tracking recursively
+and raise <a class="xref" href="NE.Standard.Types.RecursiveChangedEventArgs.html">RecursiveChangedEventArgs</a> for external listeners.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">protected override void OnPropertyChanged(PropertyChangedEventArgs e)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.propertychangedeventargs">PropertyChangedEventArgs</a></td>
+        <td><span class="parametername">e</span></td>
+        <td><p>The property change event arguments.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h5 class="overrides">Overrides</h5>
+  <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/communitytoolkit.mvvm.componentmodel.observableobject.onpropertychanged#communitytoolkit-mvvm-componentmodel-observableobject-onpropertychanged(system-componentmodel-propertychangedeventargs)">ObservableObject.OnPropertyChanged(PropertyChangedEventArgs)</a></div>
+  <a id="NE_Standard_Types_RecursiveObservable_SetNotifier_" data-uid="NE.Standard.Types.RecursiveObservable.SetNotifier*"></a>
+  <h4 id="NE_Standard_Types_RecursiveObservable_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_" data-uid="NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)">SetNotifier(Action&lt;RecursiveChangedEventArgs&gt;, string?)</h4>
+  <div class="markdown level1 summary"><p>Sets a recursive notifier that will be triggered on property changes in this object and its nested children.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+  <h5 class="declaration">Declaration</h5>
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void SetNotifier(Action&lt;RecursiveChangedEventArgs&gt; notify, string? prefix = null)</code></pre>
+  </div>
+  <h5 class="parameters">Parameters</h5>
+  <table class="table table-bordered table-condensed">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="NE.Standard.Types.RecursiveChangedEventArgs.html">RecursiveChangedEventArgs</a>&gt;</td>
+        <td><span class="parametername">notify</span></td>
+        <td><p>The callback to execute when a change occurs.</p>
+</td>
+      </tr>
+      <tr>
+        <td><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></td>
+        <td><span class="parametername">prefix</span></td>
+        <td><p>Optional string prefix to prepend to the path of the property in the change event.
+This helps identify the nesting hierarchy.</p>
+</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="implements">Implements</h3>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanged">INotifyPropertyChanged</a>
+  </div>
+  <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.inotifypropertychanging">INotifyPropertyChanging</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a>
+  </div>
+  <h3 id="extensionmethods">Extension Methods</h3>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_">SerializationExtensions.SerializeJson&lt;T&gt;(T, JsonSerializerOptions?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_">SerializationExtensions.SerializeXml&lt;T&gt;(T)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue_System_Object_System_String_">ReflectionExtensions.GetFieldValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetFieldValue__1_System_Object_System_String_">ReflectionExtensions.GetFieldValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue_System_Object_System_String_">ReflectionExtensions.GetPropertyValue(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_GetPropertyValue__1_System_Object_System_String_">ReflectionExtensions.GetPropertyValue&lt;T&gt;(object, string)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_InvokeMethod__1_System_Object_System_String_System_Object___">ReflectionExtensions.InvokeMethod&lt;T&gt;(object, string, params object[])</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetFieldValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetFieldValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.ReflectionExtensions.html#NE_Standard_Extensions_ReflectionExtensions_SetPropertyValue_System_Object_System_String_System_Object_">ReflectionExtensions.SetPropertyValue(object, string, object?)</a>
+  </div>
+  <div>
+      <a class="xref" href="NE.Standard.Extensions.SerializationExtensions.html#NE_Standard_Extensions_SerializationExtensions_SerializeObject_System_Object_System_Boolean_">SerializationExtensions.SerializeObject(object, bool)</a>
+  </div>
+
+</article>
+          </div>
+
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+                <h5>In this article</h5>
+                <div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+      
+      <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="text/javascript" src="../styles/docfx.vendor.min.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>
