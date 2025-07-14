@@ -28,4 +28,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="IO\" />
+    <Folder Include="Serialization\" />
+  </ItemGroup>
+
 </Project>

@@ -7,11 +7,15 @@ using System.Linq;
 
 namespace NE.Standard.Serialization
 {
-    /// <summary>
-    /// See <see cref="NESerializer"/> for type information.
-    /// </summary>
     public partial class NESerializer
     {
+        /// <summary>
+        /// Deserializes the given string into an object instance of the original type.
+        /// </summary>
+        /// <param name="data">The serialized string to deserialize.</param>
+        /// <param name="useBase64">Specifies whether the input is Base64 encoded.</param>
+        /// <returns>The deserialized object instance, or <c>null</c> if input is empty or invalid.</returns>
+        /// <exception cref="Exception">Thrown when data is malformed or missing expected structure.</exception>
         public object? Deserialize(string data, bool useBase64 = true)
         {
             if (useBase64)

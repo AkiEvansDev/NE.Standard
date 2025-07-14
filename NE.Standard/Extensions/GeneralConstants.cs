@@ -3,22 +3,24 @@ using System.Globalization;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Common constants shared across extensions.
+    /// Defines general-purpose constants shared across formatting and conversion extensions,
+    /// including default formats for <see cref="DateTime"/> and <see cref="TimeSpan"/>, and number formatting rules.
     /// </summary>
     public static class GeneralConstants
     {
         /// <summary>
-        /// Default format string used for <see cref="DateTime"/> values.
+        /// The default format string for <see cref="DateTime"/> values, using the constant format specifier <c>"o"</c>.
         /// </summary>
-        public const string DATETIME_FORMAT = "MM.dd.yyyy HH:mm:ss.f";
+        public const string DATETIME_FORMAT = "o";
 
         /// <summary>
-        /// Default format string used for <see cref="TimeSpan"/> values.
+        /// The default format string for <see cref="TimeSpan"/> values, using the constant format specifier <c>"c"</c>.
         /// </summary>
         public const string TIMESPAN_FORMAT = "c";
 
         /// <summary>
-        /// Number formatting rules used by the extension methods.
+        /// A shared <see cref="NumberFormatInfo"/> instance used for numeric parsing and formatting operations.
+        /// Uses dot <c>'.'</c> as both the group and decimal separator.
         /// </summary>
         public static readonly NumberFormatInfo NumberFormat = new NumberFormatInfo()
         {

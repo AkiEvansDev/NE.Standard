@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Extensions for working with collections and enumerables.
+    /// Provides extension methods for working with collections, enumerables, and lists, 
+    /// including filtering, grouping, sorting, and parallel processing.
     /// </summary>
     public static class CollectionExtensions
     {
@@ -17,21 +18,30 @@ namespace NE.Standard.Extensions
         #region Filtering
 
         /// <summary>
-        /// Determines whether the <paramref name="source"/> sequence is null or empty.
+        /// Determines whether the specified <paramref name="source"/> sequence is either <c>null</c> or contains no elements.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the sequence.</typeparam>
+        /// <param name="source">The sequence to check for null or emptiness.</param>
+        /// <returns><c>true</c> if the sequence is <c>null</c> or empty; otherwise, <c>false</c>.</returns>
         public static bool IsNullOrEmpty<T>(this IEnumerable<T>? source) => source == null || !source.Any();
 
         /// <summary>
-        /// Returns only non-null reference items from the sequence.
+        /// Filters out <c>null</c> references from a sequence of reference types.
         /// </summary>
+        /// <typeparam name="T">The reference type of the elements.</typeparam>
+        /// <param name="source">The source sequence potentially containing <c>null</c> elements.</param>
+        /// <returns>A sequence containing only non-null elements.</returns>
         public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
         {
             return source.Where(x => x != null)!;
         }
 
         /// <summary>
-        /// Returns only non-null value type items from the sequence.
+        /// Filters out <c>null</c> values from a sequence of nullable value types.
         /// </summary>
+        /// <typeparam name="T">The value type of the elements.</typeparam>
+        /// <param name="source">The source sequence potentially containing <c>null</c> values.</param>
+        /// <returns>A sequence containing only defined <typeparamref name="T"/> values.</returns>
         public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : struct
         {
             foreach (var item in source)
@@ -44,8 +54,14 @@ namespace NE.Standard.Extensions
         #region Grouping
 
         /// <summary>
-        /// Splits the source into the specified number of groups with nearly equal sizes.
+        /// Splits the <paramref name="source"/> sequence into a specified number of groups with approximately equal sizes.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the source sequence.</typeparam>
+        /// <param name="source">The sequence to be grouped.</param>
+        /// <param name="groupCount">The number of groups to create.</param>
+        /// <returns>An enumerable of groups, each containing a portion of the original sequence.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="groupCount"/> is less than or equal to zero.</exception>
         public static IEnumerable<IEnumerable<T>> Groups<T>(this IEnumerable<T> source, int groupCount)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -66,8 +82,13 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Partitions the sequence into sets of the given <paramref name="partitionSize"/>.
+        /// Divides the <paramref name="source"/> sequence into partitions of a specified maximum size.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the source sequence.</typeparam>
+        /// <param name="source">The sequence to partition.</param>
+        /// <param name="partitionSize">The maximum size of each partition.</param>
+        /// <returns>A sequence of partitions, where each is a subsequence of the original.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="partitionSize"/> is less than or equal to zero.</exception>
         public static IEnumerable<IEnumerable<T>> Partition<T>(this IEnumerable<T> source, int partitionSize)
         {
             if (partitionSize <= 0) throw new ArgumentOutOfRangeException(nameof(partitionSize));
@@ -85,16 +106,23 @@ namespace NE.Standard.Extensions
         #region InsertSorted (Ascending)
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into a <see cref="List{T}"/> while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
         public static void InsertSorted<T>(this List<T> list, T item) where T : IComparable<T>
         {
             InsertSorted(list, item, Comparer<T>.Default);
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into a <see cref="List{T}"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSorted<T>(this List<T> list, T item, IComparer<T> comparer)
         {
             int index = list.BinarySearch(item, comparer);
@@ -103,16 +131,23 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into an <see cref="IList{T}"/> while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
         public static void InsertSorted<T>(this IList<T> list, T item) where T : IComparable<T>
         {
             InsertSorted(list, item, Comparer<T>.Default);
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into an <see cref="IList{T}"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSorted<T>(this IList<T> list, T item, IComparer<T> comparer)
         {
             if (list is List<T> concreteList)
@@ -127,8 +162,12 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into a non-generic <see cref="IList"/> while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of the item, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSorted<T>(this IList list, T item) where T : IComparable<T>
         {
             if (list is IList<T> genericList)
@@ -141,8 +180,13 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in ascending order.
+        /// Inserts an item into a non-generic <see cref="IList"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of the item.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
+        /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSorted<T>(this IList list, T item, IComparer<T> comparer)
         {
             if (list is IList<T> genericList)
@@ -156,16 +200,26 @@ namespace NE.Standard.Extensions
 
         #endregion
 
-        #region InsertSortedDescending
+        #region InsertSorted (Descending)
 
+        /// <summary>
+        /// Inserts an item into a <see cref="List{T}"/> while preserving descending sort order.
+        /// </summary>
+        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
         public static void InsertSortedDescending<T>(this List<T> list, T item) where T : IComparable<T>
         {
             InsertSortedDescending(list, item, Comparer<T>.Default);
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in descending order.
+        /// Inserts an item into a <see cref="List{T}"/> using a specified comparer, while preserving descending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSortedDescending<T>(this List<T> list, T item, IComparer<T> comparer)
         {
             var descendingComparer = Comparer<T>.Create((a, b) => comparer.Compare(b, a));
@@ -175,16 +229,23 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in descending order.
+        /// Inserts an item into an <see cref="IList{T}"/> while preserving descending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
         public static void InsertSortedDescending<T>(this IList<T> list, T item) where T : IComparable<T>
         {
             InsertSortedDescending(list, item, Comparer<T>.Default);
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in descending order.
+        /// Inserts an item into an <see cref="IList{T}"/> using a specified comparer, while preserving descending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of elements.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSortedDescending<T>(this IList<T> list, T item, IComparer<T> comparer)
         {
             if (list is List<T> concreteList)
@@ -199,8 +260,12 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in descending order.
+        /// Inserts an item into a non-generic <see cref="IList"/> while preserving descending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of the item, which must implement <see cref="IComparable{T}"/>.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSortedDescending<T>(this IList list, T item) where T : IComparable<T>
         {
             if (list is IList<T> genericList)
@@ -213,8 +278,13 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Inserts an item into the list while keeping elements in descending order.
+        /// Inserts an item into a non-generic <see cref="IList"/> using a specified comparer, while preserving descending sort order.
         /// </summary>
+        /// <typeparam name="T">The type of the item.</typeparam>
+        /// <param name="list">The list into which the item will be inserted.</param>
+        /// <param name="item">The item to insert.</param>
+        /// <param name="comparer">The comparer to determine the sort order.</param>
+        /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSortedDescending<T>(this IList list, T item, IComparer<T> comparer)
         {
             if (list is IList<T> genericList)
@@ -229,8 +299,11 @@ namespace NE.Standard.Extensions
         #endregion
 
         /// <summary>
-        /// Executes an action for each item in the sequence.
+        /// Performs the specified <paramref name="action"/> on each element of the <paramref name="source"/> sequence.
         /// </summary>
+        /// <typeparam name="T">The type of the elements.</typeparam>
+        /// <param name="source">The sequence whose elements the action will be applied to.</param>
+        /// <param name="action">The action to perform on each element.</param>
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
         {
             foreach (var item in source)
@@ -238,8 +311,10 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Randomly shuffles the contents of the list in place.
+        /// Randomly reorders the elements of the specified <paramref name="list"/> in place using the Fisher-Yates algorithm.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the list.</typeparam>
+        /// <param name="list">The list to shuffle.</param>
         public static void ShuffleInPlace<T>(this IList<T> list)
         {
             for (int i = list.Count - 1; i > 0; i--)
@@ -254,32 +329,49 @@ namespace NE.Standard.Extensions
         #region Parallel operations
 
         /// <summary>
-        /// Executes the specified action for each element of the sequence in parallel.
+        /// Performs the specified <paramref name="action"/> on each element of the <paramref name="source"/> sequence in parallel.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the sequence.</typeparam>
+        /// <param name="source">The source sequence to process in parallel.</param>
+        /// <param name="action">The action to perform on each element.</param>
         public static void ParallelForEach<T>(this IEnumerable<T> source, Action<T> action)
         {
             Parallel.ForEach(source, action);
         }
 
         /// <summary>
-        /// Projects each element of the sequence into a new form in parallel.
+        /// Projects each element of a sequence into a new form in parallel using the provided <paramref name="selector"/>.
         /// </summary>
+        /// <typeparam name="T">The type of the input elements.</typeparam>
+        /// <typeparam name="TResult">The type of the result elements.</typeparam>
+        /// <param name="source">The sequence of input elements.</param>
+        /// <param name="selector">A transform function to apply to each source element.</param>
+        /// <returns>An enumerable containing the transformed elements.</returns>
         public static IEnumerable<TResult> ParallelSelect<T, TResult>(this IEnumerable<T> source, Func<T, TResult> selector)
         {
             return source.AsParallel().Select(selector);
         }
 
         /// <summary>
-        /// Processes partitions of the source collection in parallel using the provided action.
+        /// Divides the source sequence into <paramref name="degree"/> partitions and processes each partition in parallel using the specified <paramref name="partitionAction"/>.
         /// </summary>
+        /// <typeparam name="T">The type of elements in the source.</typeparam>
+        /// <param name="source">The source sequence to partition and process.</param>
+        /// <param name="degree">The number of parallel partitions.</param>
+        /// <param name="partitionAction">The action to perform on each partition.</param>
         public static void ParallelForEachPartitioned<T>(this IEnumerable<T> source, int degree, Action<IEnumerable<T>> partitionAction)
         {
             Parallel.ForEach(source.Partition(degree), partitionAction);
         }
 
         /// <summary>
-        /// Processes each element in parallel and collects the results in a <see cref="ConcurrentBag{TResult}"/>.
+        /// Processes each element of the source sequence in parallel using the specified <paramref name="processor"/> and collects the results in a <see cref="ConcurrentBag{TResult}"/>.
         /// </summary>
+        /// <typeparam name="T">The type of input elements.</typeparam>
+        /// <typeparam name="TResult">The type of results produced by the processor.</typeparam>
+        /// <param name="source">The source sequence of elements to process.</param>
+        /// <param name="processor">A function to process each element.</param>
+        /// <returns>A <see cref="ConcurrentBag{TResult}"/> containing the processed results.</returns>
         public static ConcurrentBag<TResult> ParallelProcess<T, TResult>(this IEnumerable<T> source, Func<T, TResult> processor)
         {
             var result = new ConcurrentBag<TResult>();

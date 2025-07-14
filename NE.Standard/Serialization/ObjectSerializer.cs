@@ -6,16 +6,23 @@ using System.Runtime.CompilerServices;
 
 namespace NE.Standard.Serialization
 {
+    /// <summary>
+    /// Marks a class or struct as serializable by <see cref="NESerializer"/>.
+    /// Only types with this attribute are eligible for object graph serialization.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public sealed class NEObjectAttribute : Attribute { }
 
+    /// <summary>
+    /// Excludes a property from serialization and deserialization in <see cref="NESerializer"/>.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class NEIgnoreAttribute : Attribute { }
 
     /// <summary>
     /// Provides methods for serializing and deserializing object graphs.
-    /// The serializer supports collections, dictionaries and preserves
-    /// references between objects when reading or writing.
+    /// Supports nested collections, dictionaries, value types, strings,
+    /// and preserves references between objects during the process.
     /// </summary>
     public partial class NESerializer : IDisposable
     {
@@ -48,12 +55,33 @@ namespace NE.Standard.Serialization
             _referenceLookup = new Dictionary<object, ReferenceEntry>(new ReferenceEqualityComparer());
         }
 
+        /// <summary>
+        /// Serializes the specified object into a compact string format with preserved references and type metadata.
+        /// </summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <param name="useBase64">
+        /// Indicates whether the output should be encoded using Base64. Defaults to <c>true</c>.
+        /// </param>
+        /// <returns>The serialized string representation of the object.</returns>
         public string Serialize(object obj, bool useBase64 = true)
             => SerializeInternal(obj, useBase64, false);
 
+        /// <summary>
+        /// Serializes the specified object into a copy-safe string format by ignoring reference tracking.
+        /// </summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <param name="useBase64">Indicates whether the result should be Base64 encoded.</param>
+        /// <returns>A serialized representation of the object, without reference links.</returns>
         public string SerializeCopy(object obj, bool useBase64 = true)
             => SerializeInternal(obj, useBase64, true);
 
+        /// <summary>
+        /// Deserializes the given data string into an object of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The target type, which must be a reference type.</typeparam>
+        /// <param name="data">The serialized data string.</param>
+        /// <param name="useBase64">Indicates whether the input string is Base64 encoded.</param>
+        /// <returns>The deserialized object of type <typeparamref name="T"/>.</returns>
         public T? Deserialize<T>(string data, bool useBase64 = true) where T : class
         {
             return (T?)Deserialize(data, useBase64);
@@ -122,6 +150,9 @@ namespace NE.Standard.Serialization
             return id.ResolveType();
         }
 
+        /// <summary>
+        /// Releases internal resources and clears reference and type tracking state.
+        /// </summary>
         public void Dispose()
         {
             _typeIndex.Clear();

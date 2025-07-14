@@ -5,13 +5,22 @@ using System.Reflection;
 namespace NE.Standard.Extensions
 {
     /// <summary>
-    /// Extensions for working with <see cref="Type"/> instances.
+    /// Provides extension methods for working with <see cref="Type"/> instances,
+    /// including instance creation and runtime type resolution.
     /// </summary>
     public static class TypeExtensions
     {
         /// <summary>
-        /// Creates an instance of the given type with optional constructor parameters.
+        /// Creates an instance of the specified <paramref name="type"/> using an appropriate constructor, optionally passing constructor arguments.
         /// </summary>
+        /// <param name="type">The type to instantiate.</param>
+        /// <param name="parameters">
+        /// Optional parameters to pass to the constructor. If <c>null</c> or empty, the default constructor is used.
+        /// </param>
+        /// <returns>A newly created instance of the specified <see cref="Type"/>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="type"/> is <c>null</c>.</exception>
+        /// <exception cref="MissingMethodException">Thrown when no matching constructor is found.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the instance cannot be created.</exception>
         public static object CreateInstance(this Type type, object[]? parameters = null)
         {
             if (type == null)
@@ -48,8 +57,12 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Tries to resolve a Type from the given type name using all loaded assemblies.
+        /// Attempts to resolve a <see cref="Type"/> object by searching all loaded assemblies for a type with the specified <paramref name="typeName"/>.
         /// </summary>
+        /// <param name="typeName">The full name of the type to resolve, including namespace.</param>
+        /// <returns>The resolved <see cref="Type"/> if found.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="typeName"/> is <c>null</c> or whitespace.</exception>
+        /// <exception cref="TypeLoadException">Thrown when the type cannot be resolved from any loaded assemblies.</exception>
         public static Type ResolveType(this string typeName)
         {
             if (string.IsNullOrWhiteSpace(typeName))

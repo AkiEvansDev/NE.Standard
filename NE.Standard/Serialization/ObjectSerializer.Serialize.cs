@@ -6,9 +6,6 @@ using System.Text;
 
 namespace NE.Standard.Serialization
 {
-    /// <summary>
-    /// See <see cref="NESerializer"/> for type information.
-    /// </summary>
     public partial class NESerializer
     {
         private string SerializeInternal(object obj, bool useBase64 = true, bool ignoreReference = false)
