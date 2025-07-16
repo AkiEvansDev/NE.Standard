@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: write
+  checks: write
   packages: write
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
       run: dotnet build src/Core/NE.Standard/NE.Standard.csproj --configuration Release
 
     - name: Test
-      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults
+      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults
 
     - name: Debug TestResults
       run: |
