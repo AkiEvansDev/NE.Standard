@@ -1,6 +1,6 @@
 ﻿using NE.Standard.Serialization;
 
-namespace NE.Standard.Design.Components
+namespace NE.Standard.Design.Common
 {
     public enum IconStyle
     {

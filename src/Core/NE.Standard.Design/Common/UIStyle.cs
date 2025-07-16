@@ -6,18 +6,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing;
 
-namespace NE.Standard.Design.Components
+namespace NE.Standard.Design.Common
 {
-    public enum BlockStyle
-    {
-        Primary = 1,
-        Accent = 2,
-        Info = 3,
-        Warning = 4,
-        Success = 5,
-        Error = 6
-    }
-
     public enum ColorName
     {
         [Description("Iron Fog")]
@@ -223,7 +213,7 @@ namespace NE.Standard.Design.Components
     }
 
     [NEObject]
-    public class NEAppStyle
+    public class UIStyle
     {
         public PaletteConfig Dark { get; set; }
         public PaletteConfig Light { get; set; }
@@ -231,7 +221,7 @@ namespace NE.Standard.Design.Components
         public FontConfig FontConfig { get; set; }
         public RadiusConfig RadiusConfig { get; set; }
 
-        public NEAppStyle()
+        public UIStyle()
         {
             Dark = new PaletteConfig();
             Light = new PaletteConfig();

@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace NE.Standard.Design.Components
+namespace NE.Standard.Design.Common
 {
     public enum MaterialIcon
     {

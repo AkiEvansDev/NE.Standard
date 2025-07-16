@@ -239,40 +239,4 @@ namespace NE.Standard.Types
         [Description("Tint")]
         Tint = 2,
     }
-
-    /// <summary>
-    /// Describes the type of change that occurred in a recursive structure (e.g., observable hierarchy).
-    /// </summary>
-    public enum RecursiveChangedAction
-    {
-        /// <summary>
-        /// Indicates that a property or value was directly set.
-        /// </summary>
-        Set = -1,
-
-        /// <summary>
-        /// An item or items were added.
-        /// </summary>
-        Add = 0,
-
-        /// <summary>
-        /// An item or items were removed.
-        /// </summary>
-        Remove = 1,
-
-        /// <summary>
-        /// An item or items were replaced.
-        /// </summary>
-        Replace = 2,
-
-        /// <summary>
-        /// An item was moved from one index to another.
-        /// </summary>
-        Move = 3,
-
-        /// <summary>
-        /// The entire structure was reset (e.g., cleared or reassigned).
-        /// </summary>
-        Reset = 4
-    }
 }

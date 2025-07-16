@@ -1,10 +1,10 @@
-﻿using NE.Standard.Design.Components;
-using NE.Standard.Design.Data;
+﻿using NE.Standard.Design._old.Components;
+using NE.Standard.Design._old.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace NE.Standard.Design
+namespace NE.Standard.Design._old
 {
     public sealed class UINavigateResult : UIActionResult
     {
@@ -14,7 +14,7 @@ namespace NE.Standard.Design
     public interface IInternalApp
     {
         string HomePage { get; }
-        NEAppStyle DefaultStyle { get; }
+        UIStyle DefaultStyle { get; }
 
         Task<UINavigateResult> NavigateAsync(string key, IInternalDataContextProvider contextProvider, SyncMode mode);
     }
@@ -25,7 +25,7 @@ namespace NE.Standard.Design
         private readonly Dictionary<string, Func<IViewModel>> _pages;
 
         public abstract string HomePage { get; }
-        public abstract NEAppStyle DefaultStyle { get; }
+        public abstract UIStyle DefaultStyle { get; }
 
         public NEApp(IServiceProvider serviceProvider)
         {

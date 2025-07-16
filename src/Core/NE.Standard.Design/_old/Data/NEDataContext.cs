@@ -1,10 +1,10 @@
-﻿using NE.Standard.Design.Components;
+﻿using NE.Standard.Design._old.Components;
 using NE.Standard.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace NE.Standard.Design.Data
+namespace NE.Standard.Design._old.Data
 {
     public enum UpdateType
     {
@@ -18,7 +18,6 @@ namespace NE.Standard.Design.Data
     [NEObject]
     public class UIUpdate
     {
-        public UpdateType Type { get; set; } = UpdateType.Set;
         public string Property { get; set; } = default!;
         public object? Value { get; set; }
     }

@@ -3,114 +3,118 @@ using NE.Standard.Types;
 
 namespace NE.Test.Standard.Types;
 
-public partial class TestNode(string name) : RecursiveObservable
+public class TestObservable : RecursiveObservable
+{
+    public List<RecursiveChangedEventArgs> Notifications { get; } = [];
+
+    protected override void OnNotify(RecursiveChangedEventArgs e)
+    {
+        Notifications.Add(e);
+    }
+
+    public void ClearNotifications() => Notifications.Clear();
+}
+
+public partial class TestItem(string name) : TestObservable
 {
     [ObservableProperty]
     private string _name = name;
+}
 
-    [ObservableProperty]
-    private TestNode? _child = null;
+public class TestCollection : RecursiveCollection<TestItem>
+{
+    public List<RecursiveChangedEventArgs> Notifications { get; } = [];
+
+    protected override void OnNotify(RecursiveChangedEventArgs e)
+    {
+        Notifications.Add(e);
+    }
+
+    public void ClearNotifications() => Notifications.Clear();
 }
 
 public class RecursiveObservableTests
 {
     [Fact]
-    public void Notifier_TriggersOnPropertyChange()
+    public void AddItem_ShouldRaiseRecursiveAddNotification()
     {
-        var changedPath = "";
-        var changedValue = "";
+        var collection = new TestCollection();
+        var item = new TestItem("A");
 
-        var node = new TestNode("initial");
-        node.SetNotifier(args => {
-            changedPath = args.Path;
-            changedValue = args.Value?.ToString() ?? "";
-        });
+        collection.Add(item);
 
-        node.Name = "updated";
-
-        Assert.Equal("Name", changedPath);
-        Assert.Equal("updated", changedValue);
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Add, notification.Action);
+        Assert.Equal("[0]", notification.Path);
+        Assert.Equal(0, notification.Index);
+        Assert.Equal(1, notification.Count);
     }
 
     [Fact]
-    public void ClearNotifier_PreventsFurtherNotifications()
+    public void RemoveItem_ShouldRaiseRecursiveRemoveNotification()
     {
-        var wasCalled = false;
+        var collection = new TestCollection();
+        var item = new TestItem("A");
 
-        var node = new TestNode("start");
-        node.SetNotifier(_ => wasCalled = true);
+        collection.Add(item);
+        collection.ClearNotifications();
 
-        node.ClearNotifier();
-        node.Name = "new";
+        collection.Remove(item);
 
-        Assert.False(wasCalled);
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Remove, notification.Action);
+        Assert.Equal("[0]", notification.Path);
     }
 
     [Fact]
-    public void NestedNode_ChangeTriggersPrefixedPath()
+    public void SetPropertyInItem_ShouldRaiseRecursiveSetNotification()
     {
-        string? observedPath = null;
-        string? observedValue = null;
+        var collection = new TestCollection();
+        var item = new TestItem("Initial");
 
-        var root = new TestNode("root")
+        collection.Add(item);
+        collection.ClearNotifications();
+
+        item.SetValue("Name", "Updated");
+
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Set, notification.Action);
+        Assert.Equal("[0].Name", notification.Path);
+    }
+
+    [Fact]
+    public void ReplaceItem_ShouldRaiseReplaceNotification()
+    {
+        var collection = new TestCollection
         {
-            Child = new TestNode("child")
+            new TestItem("A")
         };
+        collection.ClearNotifications();
 
-        root.SetNotifier(evt =>
-        {
-            observedPath = evt.Path;
-            observedValue = evt.Value?.ToString();
-        });
+        collection[0] = new TestItem("B");
 
-        root.Child.Name = "newName";
-
-        Assert.Equal("Child.Name", observedPath);
-        Assert.Equal("newName", observedValue);
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Replace, notification.Action);
+        Assert.Equal("[0]", notification.Path);
     }
 
     [Fact]
-    public void RecursiveCollection_ItemChangeShouldIncludeIndexInPath()
+    public void Clear_ShouldRaiseResetNotification()
     {
-        string? receivedPath = null;
-        string? receivedValue = null;
-
-        var item1 = new TestNode("one");
-        var item2 = new TestNode("two");
-
-        var collection = new RecursiveCollection<TestNode> { item1, item2 };
-        collection.SetNotifier(evt =>
+        var collection = new TestCollection
         {
-            receivedPath = evt.Path;
-            receivedValue = evt.Value?.ToString();
-        }, "Items");
+            new TestItem("X")
+        };
+        collection.ClearNotifications();
 
-        item2.Name = "updated";
+        collection.Clear();
 
-        Assert.Equal("Items.[1].Name", receivedPath);
-        Assert.Equal("updated", receivedValue);
-    }
-
-    [Fact]
-    public void RecursiveCollection_ReplaceShouldUpdateNotifierPath()
-    {
-        string? updatedPath = null;
-        string? updatedValue = null;
-
-        var oldItem = new TestNode("old");
-        var newItem = new TestNode("new");
-
-        var collection = new RecursiveCollection<TestNode> { oldItem };
-        collection.SetNotifier(evt =>
-        {
-            updatedPath = evt.Path;
-            updatedValue = evt.Value?.ToString();
-        }, "List");
-
-        collection[0] = newItem;
-        newItem.Name = "fresh";
-
-        Assert.Equal("List.[0].Name", updatedPath);
-        Assert.Equal("fresh", updatedValue);
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Reset, notification.Action);
     }
 }

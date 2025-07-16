@@ -2,7 +2,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace NE.Standard.Design.Data
+namespace NE.Standard.Design._old.Data
 {
     internal interface IViewModel
     {

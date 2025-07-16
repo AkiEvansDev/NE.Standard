@@ -1,151 +1,364 @@
-﻿using NE.Standard.Extensions;
-using System;
-using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 
 namespace NE.Standard.Types
 {
     /// <summary>
-    /// An observable collection of <see cref="IRecursiveObservable"/> elements that propagates
-    /// nested change notifications using index-based paths (e.g. "[0].Property").
+    /// A recursively observable, thread-safe collection that tracks deep changes in items of type <typeparamref name="T"/>.
+    /// Implements <see cref="IList{T}"/>, <see cref="INotifyCollectionChanged"/>.
     /// </summary>
-    /// <typeparam name="T">The type of elements in the collection. Must implement <see cref="IRecursiveObservable"/>.</typeparam>
-    public class RecursiveCollection<T> : ObservableCollection<T>, IRecursiveObservable
-        where T : IRecursiveObservable
+    public class RecursiveCollection<T> : RecursiveObservable, IList<T>, INotifyCollectionChanged
+        where T : RecursiveObservable
     {
-        private WeakAction<RecursiveChangedEventArgs>? _notifier;
-        private string _propertyPrefix = "";
+        private readonly List<T> _items = new List<T>();
+        private readonly object _sync = new object();
 
-        /// <summary>
-        /// Sets a recursive change notifier for this collection and all nested items.
-        /// </summary>
-        /// <param name="notify">The callback to invoke when changes occur in any nested element.</param>
-        /// <param name="prefix">
-        /// An optional string to prefix to the property path for each change. Useful for tracking nested context.
-        /// </param>
-        public void SetNotifier(Action<RecursiveChangedEventArgs> notify, string? prefix = null)
+        public event NotifyCollectionChangedEventHandler? CollectionChanged;
+
+        public int Count
         {
-            _notifier = new WeakAction<RecursiveChangedEventArgs>(notify);
-            _propertyPrefix = prefix.IsNull() ? "" : $"{prefix}.";
+            get { lock (_sync) return _items.Count; }
+        }
 
-            for (var i = 0; i < Count; i++)
+        public bool IsReadOnly => false;
+
+        public T this[int index]
+        {
+            get { lock (_sync) return _items[index]; }
+            set
             {
-                this[i].SetNotifier(NotifyChange, $"[{i}]");
+                lock (_sync)
+                {
+                    var old = _items[index];
+
+                    if (!ReferenceEquals(old, value))
+                    {
+                        old?.ResetNotifier();
+                        _items[index] = value;
+                        value.SetNotifier(Notify, $"[{index}]");
+
+                        RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                            NotifyCollectionChangedAction.Replace,
+                            value,
+                            old,
+                            index
+                        ));
+
+                        Notify(new RecursiveChangedEventArgs(
+                            RecursiveChangedAction.Replace,
+                            $"[{index}]", index
+                        ));
+                    }
+                }
             }
         }
 
-        /// <summary>
-        /// Removes the recursive notifier from this collection and all nested elements.
-        /// </summary>
-        public void ClearNotifier()
+        /// <inheritdoc />
+        public void Add(T item)
         {
-            _notifier = null;
-            _propertyPrefix = "";
+            lock (_sync)
+            {
+                var index = _items.Count;
+                _items.Add(item);
+                item?.SetNotifier(Notify, $"[{index}]");
 
-            foreach (var item in this)
-                item.ClearNotifier();
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Add,
+                    item,
+                    index
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Add,
+                    $"[{index}]", index, 1
+                ));
+            }
+
+            OnPropertyChanged(nameof(Count));
         }
 
         /// <summary>
-        /// Handles collection change events (add, remove, replace, move, reset) and automatically
-        /// updates nested change tracking and path re-indexing for affected items.
+        /// Adds a range of items to the end of the collection and raises appropriate notifications.
         /// </summary>
-        /// <param name="e">The collection change event arguments.</param>
-        protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
+        /// <param name="collection">The items to add.</param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="collection"/> is null.</exception>
+        public void AddRange(IEnumerable<T> collection)
         {
-            base.OnCollectionChanged(e);
+            if (collection == null) throw new ArgumentNullException(nameof(collection));
 
-            switch (e.Action)
+            lock (_sync)
             {
-                case NotifyCollectionChangedAction.Add:
-                    if (e.NewItems != null)
+                var startIndex = _items.Count;
+                var itemsToAdd = collection.ToList();
+                if (itemsToAdd.Count == 0) return;
+
+                var visited = new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+                foreach (var item in itemsToAdd)
+                {
+                    _items.Add(item);
+                    item.SetNotifier(Notify, $"[{_items.Count - 1}]", visited);
+                }
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Add,
+                    itemsToAdd,
+                    startIndex
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Add,
+                    $"[{startIndex}]",
+                    startIndex,
+                    itemsToAdd.Count
+                ));
+            }
+
+            OnPropertyChanged(nameof(Count));
+        }
+
+        /// <inheritdoc />
+        public void Insert(int index, T item)
+        {
+            lock (_sync)
+            {
+                _items.Insert(index, item);
+                UpdateIndices(index);
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Add,
+                    item,
+                    index
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Add,
+                    $"[{index}]", index, 1
+                ));
+            }
+
+            OnPropertyChanged(nameof(Count));
+        }
+
+        /// <inheritdoc />
+        public bool Remove(T item)
+        {
+            lock (_sync)
+            {
+                var index = _items.IndexOf(item);
+                if (index < 0) return false;
+
+                item?.ResetNotifier();
+                _items.RemoveAt(index);
+                UpdateIndices(index);
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Remove,
+                    item,
+                    index
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Remove,
+                    $"[{index}]", index, 1
+                ));
+            }
+
+            OnPropertyChanged(nameof(Count));
+            return true;
+        }
+
+        /// <inheritdoc />
+        public void RemoveAt(int index)
+        {
+            lock (_sync)
+            {
+                var item = _items[index];
+                item?.ResetNotifier();
+                _items.RemoveAt(index);
+                UpdateIndices(index);
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Remove,
+                    item,
+                    index
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Remove,
+                    $"[{index}]", index, 1
+                ));
+            }
+
+            OnPropertyChanged(nameof(Count));
+        }
+
+        /// <summary>
+        /// Removes a range of items from the collection starting at the specified index.
+        /// </summary>
+        /// <param name="index">The zero-based index at which to begin removing items.</param>
+        /// <param name="count">The number of items to remove.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> or <paramref name="count"/> is invalid.</exception>
+        public void RemoveRange(int index, int count)
+        {
+            if (index < 0 || count < 0 || index + count > _items.Count)
+                throw new ArgumentOutOfRangeException();
+
+            lock (_sync)
+            {
+                var removed = _items.GetRange(index, count);
+
+                var visited = new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+                foreach (var item in removed)
+                    item.ResetNotifier(visited);
+
+                _items.RemoveRange(index, count);
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(
+                    NotifyCollectionChangedAction.Remove,
+                    removed,
+                    index
+                ));
+
+                Notify(new RecursiveChangedEventArgs(
+                    RecursiveChangedAction.Remove,
+                    $"[{index}]",
+                    index,
+                    count
+                ));
+
+                UpdateIndices(index);
+            }
+
+            OnPropertyChanged(nameof(Count));
+        }
+
+        /// <inheritdoc />
+        public void Clear()
+        {
+            lock (_sync)
+            {
+                var visited = new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+                foreach (var item in _items)
+                    item.ResetNotifier(visited);
+
+                _items.Clear();
+
+                RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                Notify(new RecursiveChangedEventArgs(RecursiveChangedAction.Reset, ""));
+            }
+
+            OnPropertyChanged(nameof(Count));
+        }
+
+        /// <inheritdoc />
+        public bool Contains(T item) => _items.Contains(item);
+
+        /// <inheritdoc />
+        public int IndexOf(T item) => _items.IndexOf(item);
+
+        /// <inheritdoc />
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            lock (_sync) _items.CopyTo(array, arrayIndex);
+        }
+
+        /// <inheritdoc />
+        public IEnumerator<T> GetEnumerator()
+        {
+            lock (_sync) return _items.ToList().GetEnumerator();
+        }
+
+        /// <inheritdoc />
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        protected internal override void ResetNotifier(HashSet<RecursiveObservable>? visited = null)
+        {
+            visited ??= new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+
+            base.ResetNotifier(visited);
+
+            foreach (var item in _items)
+                item.ResetNotifier(visited);
+        }
+
+        protected internal override void SetNotifier(Action<RecursiveChangedEventArgs> notify, string? prefix = null, HashSet<RecursiveObservable>? visited = null)
+        {
+            visited ??= new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+
+            base.SetNotifier(notify, prefix, visited);
+
+            for (var i = 0; i < _items.Count; i++)
+                _items[i].SetNotifier(notify, BuildPath($"[{i}]"), visited);
+        }
+
+        /// <inheritdoc />
+        public override object? GetValue(string path)
+        {
+            if (path.StartsWith('['))
+            {
+                SplitPath(path, out var head, out var tail);
+
+                if (int.TryParse(head.Trim('[', ']'), out var index))
+                {
+                    lock (_sync)
                     {
-                        for (int i = 0; i < e.NewItems.Count; i++)
+                        if (index >= 0 && index < _items.Count)
                         {
-                            var item = (T)e.NewItems[i]!;
-                            int index = e.NewStartingIndex + i;
-                            item.SetNotifier(NotifyChange, $"[{index}]");
+                            var item = _items[index];
+                            return tail == null ? item : item.GetValue(tail);
                         }
                     }
-                    break;
 
-                case NotifyCollectionChangedAction.Remove:
-                    if (e.OldItems != null)
+                    throw new IndexOutOfRangeException($"Index {index} is out of range.");
+                }
+            }
+
+            return base.GetValue(path);
+        }
+
+        /// <inheritdoc />
+        public override void SetValue(string path, object? value)
+        {
+            if (path.StartsWith('['))
+            {
+                SplitPath(path, out var head, out var tail);
+
+                if (int.TryParse(head.Trim('[', ']'), out var index))
+                {
+                    lock (_sync)
                     {
-                        foreach (T item in e.OldItems)
-                            item.ClearNotifier();
-
-                        ResequenceFrom(e.OldStartingIndex);
-                    }
-                    break;
-
-                case NotifyCollectionChangedAction.Replace:
-                    if (e.OldItems != null)
-                    {
-                        foreach (T item in e.OldItems)
-                            item.ClearNotifier();
-                    }
-
-                    if (e.NewItems != null)
-                    {
-                        for (int i = 0; i < e.NewItems.Count; i++)
+                        if (index >= 0 && index < _items.Count)
                         {
-                            var item = (T)e.NewItems[i]!;
-                            int index = e.NewStartingIndex + i;
-                            item.SetNotifier(NotifyChange, $"[{index}]");
+                            var item = _items[index];
+                            if (tail == null)
+                                this[index] = (T)value!;
+                            else
+                                item.SetValue(tail, value);
+                            return;
                         }
                     }
-                    break;
 
-                case NotifyCollectionChangedAction.Move:
-                    if (e.OldStartingIndex != e.NewStartingIndex)
-                    {
-                        ResequenceFrom(Math.Min(e.OldStartingIndex, e.NewStartingIndex));
-                    }
-                    break;
-
-                case NotifyCollectionChangedAction.Reset:
-                    foreach (var item in this)
-                    {
-                        item.ClearNotifier();
-                    }
-
-                    for (int i = 0; i < Count; i++)
-                    {
-                        this[i].SetNotifier(NotifyChange, $"[{i}]");
-                    }
-                    break;
+                    throw new IndexOutOfRangeException($"Index {index} is out of range.");
+                }
             }
+
+            base.SetValue(path, value);
         }
 
-        private void ResequenceFrom(int startIndex)
+        private void UpdateIndices(int start = 0)
         {
-            for (int i = startIndex; i < Count; i++)
-            {
-                this[i].SetNotifier(NotifyChange, $"[{i}]");
-            }
+            var visited = new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance);
+
+            for (var i = start; i < _items.Count; i++)
+                _items[i].SetNotifier(Notify, $"[{i}]", visited);
         }
 
-        private void NotifyChange(RecursiveChangedEventArgs e)
+        private void RaiseCollectionChanged(NotifyCollectionChangedEventArgs args)
         {
-            if (_notifier is null)
-                return;
-
-            var fullPath = $"{_propertyPrefix}{e.Path}";
-            var forwarded = e.Action switch
-            {
-                RecursiveChangedAction.Set => new RecursiveChangedEventArgs(fullPath, e.Value),
-                _ => new RecursiveChangedEventArgs(
-                    e.Action,
-                    fullPath,
-                    e.NewStartingIndex,
-                    e.NewItems,
-                    e.OldStartingIndex,
-                    e.OldItems
-                )
-            };
-
-            _notifier.Execute(forwarded);
+            CollectionChanged?.Invoke(this, args);
         }
     }
 }

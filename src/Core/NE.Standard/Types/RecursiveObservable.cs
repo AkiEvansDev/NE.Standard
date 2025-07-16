@@ -1,44 +1,25 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using NE.Standard.Extensions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Reflection;
 
 namespace NE.Standard.Types
 {
     /// <summary>
-    /// Defines a mechanism for recursive change notification across nested observable objects.
+    /// Provides recursive property change tracking by automatically wiring and propagating change notifications
+    /// through nested <see cref="RecursiveObservable"/> instances.
     /// </summary>
-    public interface IRecursiveObservable
+    public class RecursiveObservable : ObservableObject
     {
-        /// <summary>
-        /// Registers a notification callback that will be invoked when a nested property changes.
-        /// </summary>
-        /// <param name="notify">The callback to invoke on property changes.</param>
-        /// <param name="prefix">
-        /// Optional prefix to prepend to property paths in <see cref="RecursiveChangedEventArgs.Path"/>.
-        /// Useful for nested object hierarchies.
-        /// </param>
-        void SetNotifier(Action<RecursiveChangedEventArgs> notify, string? prefix);
-
-        /// <summary>
-        /// Clears the previously registered change notification callback.
-        /// </summary>
-        void ClearNotifier();
-    }
-
-    /// <summary>
-    /// Provides recursive property change tracking by automatically wiring and propagating
-    /// change notifications through nested <see cref="IRecursiveObservable"/> instances.
-    /// </summary>
-    public class RecursiveObservable : ObservableObject, IRecursiveObservable
-    {
-        private static readonly Dictionary<Type, Dictionary<string, PropertyInfo>> _typeCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
+        private static readonly ConcurrentDictionary<Type, Dictionary<string, PropertyInfo>> _typeCache = new ConcurrentDictionary<Type, Dictionary<string, PropertyInfo>>();
         private readonly Type _type;
 
         private WeakAction<RecursiveChangedEventArgs>? _notifier;
-        private string _propertyPrefix = "";
+        private string _prefix = "";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RecursiveObservable"/> class.
@@ -47,22 +28,16 @@ namespace NE.Standard.Types
         public RecursiveObservable()
         {
             _type = GetType();
-
-            if (!_typeCache.ContainsKey(_type))
-            {
-                var props = new Dictionary<string, PropertyInfo>();
-
-                foreach (var field in _type.GetFieldsWithAttribute<ObservablePropertyAttribute>())
+            _typeCache.GetOrAdd(_type, t => t.GetFieldsWithAttribute<ObservablePropertyAttribute>()
+                .Select(f => new
                 {
-                    var property = _type.GetProperty(GetPropertyNameFromField(field), ReflectionExtensions.Flags);
-                    if (property != null)
-                    {
-                        props[property.Name] = property;
-                    }
-                }
+                    Property = t.GetProperty(GetPropertyNameFromField(f), ReflectionExtensions.Flags)
+                })
+                .Where(x => x.Property != null)
+                .ToDictionary(x => x.Property!.Name, x => x.Property!)
+            );
 
-                _typeCache[_type] = props;
-            }
+            ResetNotifier();
         }
 
         private static string GetPropertyNameFromField(FieldInfo field)
@@ -76,100 +51,173 @@ namespace NE.Standard.Types
         }
 
         /// <summary>
-        /// Sets a recursive notifier that will be triggered on property changes in this object and its nested children.
+        /// Resets the change notification delegate and re-propagates it through child observables.
         /// </summary>
-        /// <param name="notify">The callback to execute when a change occurs.</param>
-        /// <param name="prefix">
-        /// Optional string prefix to prepend to the path of the property in the change event.
-        /// This helps identify the nesting hierarchy.
-        /// </param>
-        public void SetNotifier(Action<RecursiveChangedEventArgs> notify, string? prefix = null)
+        /// <param name="visited">Used to track visited nodes and prevent recursion loops.</param>
+        protected internal virtual void ResetNotifier(HashSet<RecursiveObservable>? visited = null)
         {
-            _notifier = new WeakAction<RecursiveChangedEventArgs>(notify);
-            _propertyPrefix = prefix.IsNull() ? "" : $"{prefix}.";
-
-            var visited = new HashSet<object> { this };
-            PropagateNotifier(notify, visited);
+            SetNotifier(OnNotify, visited: visited);
         }
 
-        private void PropagateNotifier(Action<RecursiveChangedEventArgs> notify, HashSet<object> visited)
+        /// <summary>
+        /// Sets the recursive notifier callback and updates child <see cref="RecursiveObservable"/> instances.
+        /// </summary>
+        /// <param name="notify">The notification delegate to propagate.</param>
+        /// <param name="prefix">Optional path prefix for this object within the structure.</param>
+        /// <param name="visited">Used to track visited nodes and prevent recursion loops.</param>
+        protected internal virtual void SetNotifier(Action<RecursiveChangedEventArgs> notify, string? prefix = null, HashSet<RecursiveObservable>? visited = null)
         {
-            foreach (var prop in _typeCache[_type].Values)
+            if (visited == null || visited.Add(this))
             {
-                var value = prop.GetValue(this);
-                if (value is IRecursiveObservable ro && visited.Add(ro))
-                {
-                    ro.SetNotifier(notify, prop.Name);
-                }
+                _notifier = new WeakAction<RecursiveChangedEventArgs>(notify);
+                _prefix = prefix ?? "";
+
+                PropagateNotifier(
+                    notify,
+                    visited ?? new HashSet<RecursiveObservable>(ReferenceComparer<RecursiveObservable>.Instance)
+                    {
+                        this
+                    }
+                );
             }
         }
 
         /// <summary>
-        /// Removes the current recursive notifier and clears notification propagation to nested children.
+        /// Propagates the notifier to all child <see cref="RecursiveObservable"/> instances.
         /// </summary>
-        public void ClearNotifier()
-        {
-            _notifier = null;
-            _propertyPrefix = "";
-
-            var visited = new HashSet<object> { this };
-            PropagateClear(visited);
-        }
-
-        private void PropagateClear(HashSet<object> visited)
+        /// <param name="notify">The notification callback.</param>
+        /// <param name="visited">The set of already visited nodes.</param>
+        protected internal virtual void PropagateNotifier(Action<RecursiveChangedEventArgs> notify, HashSet<RecursiveObservable> visited)
         {
             foreach (var prop in _typeCache[_type].Values)
             {
-                var value = prop.GetValue(this);
-                if (value is IRecursiveObservable ro && visited.Add(ro))
-                {
-                    ro.ClearNotifier();
-                }
+                if (prop.GetValue(this) is RecursiveObservable ro && visited.Add(ro))
+                    ro.SetNotifier(notify, BuildPath(prop.Name), visited);
             }
         }
 
         /// <summary>
-        /// Overrides the base property change handler to propagate change tracking recursively
-        /// and raise <see cref="RecursiveChangedEventArgs"/> for external listeners.
+        /// Retrieves the value located at the specified dot-separated path within the object graph.
         /// </summary>
-        /// <param name="e">The property change event arguments.</param>
+        /// <param name="path">Dot-separated path (e.g. "Parent.Child.Property").</param>
+        /// <returns>The object found at the path, or throws if unresolved.</returns>
+        public virtual object? GetValue(string path)
+        {
+            if (path.IsNull())
+                return this;
+
+            SplitPath(path, out var head, out var tail);
+
+            if (!_typeCache[_type].TryGetValue(head, out var prop))
+                throw new ArgumentException($"Property '{head}' not found on type '{_type.Name}'.");
+
+            var value = prop.GetValue(this);
+            return tail == null ? value : (value as RecursiveObservable)?.GetValue(tail);
+        }
+
+        /// <summary>
+        /// Sets the value at the specified dot-separated path within the object graph.
+        /// </summary>
+        /// <param name="path">Dot-separated path (e.g. "Parent.Child.Property").</param>
+        /// <param name="value">The new value to set.</param>
+        public virtual void SetValue(string path, object? value)
+        {
+            if (path.IsNull())
+                throw new ArgumentException("Path cannot be null or empty.");
+
+            SplitPath(path, out var head, out var tail);
+
+            if (!_typeCache[_type].TryGetValue(head, out var prop))
+                throw new ArgumentException($"Property '{head}' not found on type '{_type.Name}'.");
+
+            if (tail == null)
+                prop.SetValue(this, value);
+            else
+            {
+                if (prop.GetValue(this) is RecursiveObservable ro)
+                    ro.SetValue(tail, value);
+                else
+                    throw new InvalidOperationException($"Property '{head}' is not recursive.");
+            }
+        }
+
+        /// <summary>
+        /// Splits a dot-separated path into its head (first property) and tail (remaining path).
+        /// </summary>
+        /// <param name="path">The path string to split.</param>
+        /// <param name="head">The first property in the path.</param>
+        /// <param name="tail">The remaining part of the path, or <c>null</c> if there is none.</param>
+        protected internal static void SplitPath(string path, out string head, out string? tail)
+        {
+            var dot = path.IndexOf('.');
+            if (dot < 0)
+            {
+                head = path;
+                tail = null;
+            }
+            else
+            {
+                head = path[..dot];
+                tail = path[(dot + 1)..];
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnPropertyChanging(PropertyChangingEventArgs e)
+        {
+            base.OnPropertyChanging(e);
+
+            if (_typeCache[_type].TryGetValue(e.PropertyName, out var prop))
+            {
+                if (prop.GetValue(this) is RecursiveObservable ro)
+                    ro.ResetNotifier();
+            }
+        }
+
+        /// <inheritdoc/>
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
             base.OnPropertyChanged(e);
 
             if (_typeCache[_type].TryGetValue(e.PropertyName, out var prop))
             {
-                var value = prop.GetValue(this);
-                if (value is IRecursiveObservable ro)
-                {
-                    ro.SetNotifier(NotifyChange, prop.Name);
-                }
+                if (prop.GetValue(this) is RecursiveObservable ro)
+                    ro.SetNotifier(Notify, e.PropertyName);
 
-                var evt = new RecursiveChangedEventArgs(e.PropertyName, value);
-                NotifyChange(evt);
+                Notify(new RecursiveChangedEventArgs(e.PropertyName));
             }
         }
 
-        private void NotifyChange(RecursiveChangedEventArgs e)
+        /// <summary>
+        /// Executes the recursive change notification for the current object.
+        /// </summary>
+        /// <param name="e">The recursive change arguments.</param>
+        protected internal void Notify(RecursiveChangedEventArgs e)
         {
-            if (_notifier is null)
-                return;
-
-            var fullPath = $"{_propertyPrefix}{e.Path}";
-            var forwarded = e.Action switch
-            {
-                RecursiveChangedAction.Set => new RecursiveChangedEventArgs(fullPath, e.Value),
-                _ => new RecursiveChangedEventArgs(
+            _notifier?.Execute(e.Action == RecursiveChangedAction.Set
+                ? new RecursiveChangedEventArgs(BuildPath(e.Path))
+                : new RecursiveChangedEventArgs(
                     e.Action,
-                    fullPath,
-                    e.NewStartingIndex,
-                    e.NewItems,
-                    e.OldStartingIndex,
-                    e.OldItems
+                    BuildPath(e.Path),
+                    e.Index,
+                    e.Count
                 )
-            };
-
-            _notifier.Execute(forwarded);
+            );
         }
+
+        /// <summary>
+        /// Builds a full path by prepending the current object's prefix.
+        /// </summary>
+        /// <param name="property">The property name.</param>
+        /// <returns>A fully-qualified property path.</returns>
+        protected internal string BuildPath(string property)
+            => _prefix.IsNull() ? property : $"{_prefix}{(property.IsNull() ? "" : $".{property}")}";
+
+        /// <summary>
+        /// Called when a recursive change occurs.
+        /// Override this method to handle propagated change events.
+        /// </summary>
+        /// <param name="e">The recursive change event args.</param>
+        protected virtual void OnNotify(RecursiveChangedEventArgs e) { }
     }
 }

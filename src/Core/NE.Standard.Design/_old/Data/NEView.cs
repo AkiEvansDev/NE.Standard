@@ -1,7 +1,7 @@
-﻿using NE.Standard.Design.UI.Common;
+﻿using NE.Standard.Design._old.UI.Common;
 using System.Threading.Tasks;
 
-namespace NE.Standard.Design.Data
+namespace NE.Standard.Design._old.Data
 {
     public interface IInternalView
     {
