@@ -69,64 +69,83 @@
         <article data-uid="">
 <h1 id="nestandard">NE.Standard</h1>
 
-<p><strong>NE.Standard</strong> is a cross-platform, modular .NET library that provides a broad set of foundational helpers and utilities.</p>
+<p><strong>NE.Standard</strong> is a modular, cross-platform .NET library providing essential helpers and utilities for application development.</p>
 <hr>
 <h2 id="-extensions">🧩 Extensions</h2>
-<p>NE.Standard offers rich, low-level extension methods across common .NET types:</p>
+<p>Low-level, high-performance extension methods for everyday .NET types:</p>
 <ul>
-<li><strong>Collections</strong>: Filtering, grouping, partitioning, sorted insertion (both ascending &amp; descending), in-place shuffling, parallel processing (<code>ParallelForEach</code>, <code>ParallelSelect</code>, etc.).</li>
-<li><strong>Strings</strong>: Advanced parsing and transformation, including snake_case ↔ PascalCase, base64 encoding, safe conversions to numbers, dates, enums.</li>
-<li><strong>Enums</strong>: Reflection-based access to enum descriptions, values, and attributes.</li>
-<li><strong>Reflection</strong>: Strong utility layer for invoking methods, accessing properties/fields dynamically.</li>
-<li><strong>DateTime &amp; TimeSpan</strong>: Safe formatting, boundary calculation (e.g., <code>StartOfMonth</code>, <code>TrimMilliseconds</code>).</li>
-<li><strong>Colors</strong>: Hex conversion, tint/shade adjustment, lightness evaluation.</li>
+<li><strong>Collections</strong>: Efficient filtering, grouping, partitioning, sorted insert (ascending/descending), shuffling, parallel operations (<code>ParallelForEach</code>, <code>ParallelSelect</code>, etc.).</li>
+<li><strong>Strings</strong>: Safe and flexible parsing, snake_case ↔ PascalCase, base64, robust type conversions (numbers, dates, enums).</li>
+<li><strong>Enums</strong>: Reflection-based access to names, values, descriptions, and custom attributes.</li>
+<li><strong>Reflection</strong>: Fast helpers for dynamic invocation, property/field access, and metadata inspection.</li>
+<li><strong>DateTime &amp; TimeSpan</strong>: Reliable formatting, boundary/trim utilities (e.g., <code>StartOfMonth</code>, <code>EndOfDay</code>).</li>
+<li><strong>Colors</strong>: Hex conversion, lightness check, tint/shade adjustment.</li>
 <li><strong>Serialization</strong>:
 <ul>
-<li>Custom serializer (<code>NESerializer</code>) with reference tracking and type compression.</li>
-<li>JSON/XML serialization helpers.</li>
+<li>Custom binary serializer (<code>NESerializer</code>) with reference and type optimization.</li>
+<li>Helpers for JSON/XML serialization and deserialization.</li>
 </ul>
 </li>
 </ul>
 <hr>
-<h2 id="-types">📦 Types</h2>
-<p>Reusable types designed for platform-agnostic MVVM apps:</p>
+<h2 id="-neserializer-advanced-binary-like-object-serialization">🚀 NESerializer: Advanced Binary-like Object Serialization</h2>
+<p><code>NESerializer</code> is a custom, attribute-driven serializer designed for complex object graphs.</p>
 <ul>
-<li><strong>RecursiveObservable &amp; RecursiveCollection</strong>: Observable objects/collections with hierarchical change tracking.</li>
-<li><strong>LimitedStack&lt;T&gt;</strong>: Bounded stack with automatic eviction on overflow.</li>
-<li><strong>WeakDelegate utilities</strong>: Memory-safe event delegation (<code>WeakAction</code>, <code>WeakFunc</code>, etc.).</li>
+<li><strong>Features</strong>:
+<ul>
+<li>Preserves object references (handles cycles, shared nodes).</li>
+<li>Supports nested collections, dictionaries, primitives, and value types.</li>
+<li>Type metadata is compressed for output size reduction.</li>
+<li>Fine control via <code>[NEObject]</code> and <code>[NEIgnore]</code> attributes.</li>
+<li>Optional Base64 encoding for safe storage/transmission.</li>
+<li>Fast reflection, minimal allocations.</li>
+</ul>
+</li>
+<li><strong>Typical use</strong>: deep model snapshots, state saving, app data export/import.</li>
+</ul>
+<hr>
+<h2 id="-types">📦 Types</h2>
+<p>Reusable, platform-agnostic types for modern .NET apps:</p>
+<ul>
+<li><strong>RecursiveObservable &amp; RecursiveCollection</strong>: Deep, hierarchical change tracking for nested object graphs.</li>
+<li><strong>LimitedStack&lt;T&gt;</strong>: Fixed-capacity stack with auto-eviction.</li>
+<li><strong>WeakDelegate utilities</strong>: Memory-leak safe event delegation (<code>WeakAction</code>, <code>WeakFunc</code>, etc.).</li>
+<li><strong>ReferenceComparer</strong>: Identity-based equality comparer for reference types.</li>
 </ul>
 <hr>
 <h2 id="-io-utilities">📁 I/O Utilities</h2>
-<p>Simple and robust tools for file and directory operations:</p>
+<p>Reliable, concise file and directory helpers:</p>
 <ul>
 <li><strong>FileHelper</strong>:
 <ul>
-<li>Synchronous and async read/write.</li>
-<li>Line-level filtering, streaming, appending.</li>
+<li>Sync and async read/write.</li>
+<li>Streamed line processing, filtering, and batch append.</li>
 </ul>
 </li>
 <li><strong>DirectoryHelper</strong>:
 <ul>
-<li>Recursive copy/move/delete.</li>
+<li>Safe recursive copy, move, delete.</li>
 <li>Pattern-based file search.</li>
 </ul>
 </li>
 </ul>
-<p>All utilities are built with guard clauses and consistent path validation for reliability.</p>
+<p>All I/O methods feature strict path validation and guard clauses for robustness.</p>
 <hr>
 <h2 id="-logging">📝 Logging</h2>
-<p>Thread-safe, non-blocking async loggers with modular backends:</p>
+<p>Non-blocking, thread-safe asynchronous logging:</p>
 <ul>
-<li><strong>AsyncConsoleLogger</strong>: Buffered console logging with colored output.</li>
+<li><strong>AsyncConsoleLogger</strong>: Buffered colored console logging.</li>
 <li><strong>AsyncFileLogger</strong>:
 <ul>
-<li>Log rotation by day.</li>
-<li>Retention policy (configurable).</li>
-<li>Buffered I/O and flush loop.</li>
+<li>Daily log rotation and retention.</li>
+<li>Buffered write and periodic flush for performance.</li>
 </ul>
 </li>
-<li><strong>ILoggerProvider</strong> integrations for dependency injection and logging builder setup.</li>
+<li><strong>ILoggerProvider</strong> adapters for DI and logging setup.</li>
 </ul>
+<hr>
+<h2 id="quality">Quality</h2>
+<p>All utilities are unit-testable, thread-safe where applicable, and come with detailed XML-docs for <a href="https://dotnet.github.io/docfx/">docfx</a> documentation generation.</p>
 
 </article>
 

@@ -104,14 +104,20 @@ such as nested collections or object trees.</p>
     </dl>
     <dl class="jumplist">
       <dt><a class="xref" href="NE.Standard.Types.RecursiveCollection-1.html">RecursiveCollection&lt;T&gt;</a></dt>
-      <dd><p>An observable collection of <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a> elements that propagates
-nested change notifications using index-based paths (e.g. &quot;[0].Property&quot;).</p>
+      <dd><p>A recursively observable, thread-safe collection that tracks deep changes in items of type <code class="typeparamref">T</code>.
+Implements <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ilist-1">IList&lt;T&gt;</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.specialized.inotifycollectionchanged">INotifyCollectionChanged</a>.</p>
 </dd>
     </dl>
     <dl class="jumplist">
       <dt><a class="xref" href="NE.Standard.Types.RecursiveObservable.html">RecursiveObservable</a></dt>
-      <dd><p>Provides recursive property change tracking by automatically wiring and propagating
-change notifications through nested <a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a> instances.</p>
+      <dd><p>Provides recursive property change tracking by automatically wiring and propagating change notifications
+through nested <a class="xref" href="NE.Standard.Types.RecursiveObservable.html">RecursiveObservable</a> instances.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="NE.Standard.Types.ReferenceComparer-1.html">ReferenceComparer&lt;T&gt;</a></dt>
+      <dd><p>Provides a reference-based equality comparer for reference types.
+Compares objects by their reference identity rather than value equality.</p>
 </dd>
     </dl>
     <dl class="jumplist">
@@ -159,14 +165,6 @@ Allows capturing the method and its target without preventing garbage collection
     <dl class="jumplist">
       <dt><a class="xref" href="NE.Standard.Types.WeakFunc-4.html">WeakFunc&lt;T1, T2, T3, TResult&gt;</a></dt>
       <dd><p>Represents a weak reference to a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.func-4">Func&lt;T1, T2, T3, TResult&gt;</a> delegate with three parameters.</p>
-</dd>
-    </dl>
-    <h3 id="interfaces">
-Interfaces
-</h3>
-    <dl class="jumplist">
-      <dt><a class="xref" href="NE.Standard.Types.IRecursiveObservable.html">IRecursiveObservable</a></dt>
-      <dd><p>Defines a mechanism for recursive change notification across nested observable objects.</p>
 </dd>
     </dl>
     <h3 id="enums">

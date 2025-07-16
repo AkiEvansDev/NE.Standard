@@ -154,37 +154,33 @@ including name resolution, metadata access, and description extraction.</p>
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetAttribute__1_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetAttribute``1(System.Enum)">
   GetAttribute&lt;TAttribute&gt;(Enum)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L46"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L40"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Retrieves a custom attribute of type <code class="typeparamref">TAttribute</code>
-that is applied to the specified enumeration <code class="paramref">enum</code> value.</p>
+  <div class="markdown level1 summary"><p>Returns the custom attribute of type <code class="typeparamref">TAttribute</code> for the enum value, or <code>null</code> if not found.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static TAttribute GetAttribute&lt;TAttribute&gt;(this Enum @enum) where TAttribute : Attribute</code></pre>
+    <pre><code class="lang-csharp hljs">public static TAttribute? GetAttribute&lt;TAttribute&gt;(this Enum @enum) where TAttribute : Attribute</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
-    <dd><p>The enum value whose attribute is to be retrieved.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
   <dl class="parameters">
     <dt><span class="xref">TAttribute</span></dt>
-    <dd><p>The attribute of type <code class="typeparamref">TAttribute</code>, or <code>null</code> if not found.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Type Parameters</h4>
   <dl class="parameters">
     <dt><code>TAttribute</code></dt>
-    <dd><p>The type of the attribute to retrieve.</p>
-</dd>
+    <dd></dd>
   </dl>
 
 
@@ -200,7 +196,7 @@ that is applied to the specified enumeration <code class="paramref">enum</code> 
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetDescription_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescription(System.Enum)">
   GetDescription(Enum)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L59"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L50"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Returns the <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.componentmodel.descriptionattribute.description">Description</a> of the specified enumeration <code class="paramref">enum</code> value.</p>
@@ -214,8 +210,7 @@ that is applied to the specified enumeration <code class="paramref">enum</code> 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
-    <dd><p>The enum value to retrieve the description for.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
@@ -239,7 +234,7 @@ that is applied to the specified enumeration <code class="paramref">enum</code> 
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetDescriptions__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetDescriptions``1">
   GetDescriptions&lt;TEnum&gt;()
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L71"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L62"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Creates a dictionary mapping each value of the enumeration type <code class="typeparamref">TEnum</code>
@@ -280,7 +275,7 @@ or <code>null</code> if a description is not defined.</p>
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetName_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetName(System.Enum)">
   GetName(Enum)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L20"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L19"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Returns the name of the specified enumeration <code class="paramref">enum</code> value.</p>
@@ -294,8 +289,7 @@ or <code>null</code> if a description is not defined.</p>
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
-    <dd><p>The enumeration value.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
@@ -319,7 +313,7 @@ or <code>null</code> if a description is not defined.</p>
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetNames_System_Enum_" data-uid="NE.Standard.Extensions.EnumExtensions.GetNames(System.Enum)">
   GetNames(Enum)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L28"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L26"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Returns all defined names in the enumeration type of the specified <code class="paramref">enum</code>.</p>
@@ -333,8 +327,7 @@ or <code>null</code> if a description is not defined.</p>
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>enum</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.enum">Enum</a></dt>
-    <dd><p>An instance of the enum whose type will be used to retrieve names.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
@@ -358,7 +351,7 @@ or <code>null</code> if a description is not defined.</p>
 
   <h3 id="NE_Standard_Extensions_EnumExtensions_GetValues__1" data-uid="NE.Standard.Extensions.EnumExtensions.GetValues``1">
   GetValues&lt;T&gt;()
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L36"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/EnumExtensions.cs/#L34"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Returns all defined values of the enumeration type <code class="typeparamref">T</code>.</p>

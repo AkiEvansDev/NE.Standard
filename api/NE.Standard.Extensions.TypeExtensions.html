@@ -154,10 +154,10 @@ including instance creation and runtime type resolution.</p>
 
   <h3 id="NE_Standard_Extensions_TypeExtensions_CreateInstance_System_Type_System_Object___" data-uid="NE.Standard.Extensions.TypeExtensions.CreateInstance(System.Type,System.Object[])">
   CreateInstance(Type, object[]?)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/TypeExtensions.cs/#L24"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/TypeExtensions.cs/#L20"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Creates an instance of the specified <code class="paramref">type</code> using an appropriate constructor, optionally passing constructor arguments.</p>
+  <div class="markdown level1 summary"><p>Returns a new instance of the type, using the given constructor arguments.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -168,11 +168,9 @@ including instance creation and runtime type resolution.</p>
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>type</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a></dt>
-    <dd><p>The type to instantiate.</p>
-</dd>
+    <dd></dd>
     <dt><code>parameters</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a>[]</dt>
-    <dd><p>Optional parameters to pass to the constructor. If <code>null</code> or empty, the default constructor is used.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
@@ -208,10 +206,10 @@ including instance creation and runtime type resolution.</p>
 
   <h3 id="NE_Standard_Extensions_TypeExtensions_ResolveType_System_String_" data-uid="NE.Standard.Extensions.TypeExtensions.ResolveType(System.String)">
   ResolveType(string)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/TypeExtensions.cs/#L66"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/TypeExtensions.cs/#L61"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Attempts to resolve a <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.type">Type</a> object by searching all loaded assemblies for a type with the specified <code class="paramref">typeName</code>.</p>
+  <div class="markdown level1 summary"><p>Resolves the type by name from all loaded assemblies.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -222,8 +220,7 @@ including instance creation and runtime type resolution.</p>
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>typeName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
-    <dd><p>The full name of the type to resolve, including namespace.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>

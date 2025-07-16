@@ -154,10 +154,10 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
   <h3 id="NE_Standard_Extensions_SerializationExtensions_DeserializeJson__1_System_String_System_Text_Json_JsonSerializerOptions_" data-uid="NE.Standard.Extensions.SerializationExtensions.DeserializeJson``1(System.String,System.Text.Json.JsonSerializerOptions)">
   DeserializeJson&lt;T&gt;(string, JsonSerializerOptions?)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L63"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L55"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Deserializes the specified JSON string into an object of type <code class="typeparamref">T</code> using <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializer">JsonSerializer</a>.</p>
+  <div class="markdown level1 summary"><p>Returns the deserialized object of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -168,25 +168,21 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>json</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
-    <dd><p>The JSON string to deserialize.</p>
-</dd>
+    <dd></dd>
     <dt><code>options</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializeroptions">JsonSerializerOptions</a></dt>
-    <dd><p>Optional <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializeroptions">JsonSerializerOptions</a> for deserialization behavior.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
   <dl class="parameters">
     <dt><span class="xref">T</span></dt>
-    <dd><p>The deserialized object of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Type Parameters</h4>
   <dl class="parameters">
     <dt><code>T</code></dt>
-    <dd><p>The target type to deserialize into. Must be a reference type.</p>
-</dd>
+    <dd></dd>
   </dl>
 
 
@@ -202,10 +198,10 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
   <h3 id="NE_Standard_Extensions_SerializationExtensions_DeserializeObject__1_System_String_System_Boolean_" data-uid="NE.Standard.Extensions.SerializationExtensions.DeserializeObject``1(System.String,System.Boolean)">
   DeserializeObject&lt;T&gt;(string, bool)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L36"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L32"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Deserializes the specified string into an object of type <code class="typeparamref">T</code> using <a class="xref" href="NE.Standard.Serialization.NESerializer.html">NESerializer</a>.</p>
+  <div class="markdown level1 summary"><p>Returns the deserialized object of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -216,25 +212,21 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
-    <dd><p>The serialized data string.</p>
-</dd>
+    <dd></dd>
     <dt><code>useBase64</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd><p>Specifies whether the input is Base64 encoded. Defaults to <code>true</code>.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
   <dl class="parameters">
     <dt><span class="xref">T</span></dt>
-    <dd><p>The deserialized object instance of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Type Parameters</h4>
   <dl class="parameters">
     <dt><code>T</code></dt>
-    <dd><p>The type of the object to deserialize. Must be a reference type.</p>
-</dd>
+    <dd></dd>
   </dl>
 
 
@@ -250,10 +242,10 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
   <h3 id="NE_Standard_Extensions_SerializationExtensions_DeserializeXml__1_System_String_" data-uid="NE.Standard.Extensions.SerializationExtensions.DeserializeXml``1(System.String)">
   DeserializeXml&lt;T&gt;(string)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L95"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L83"><i class="bi bi-code-slash"></i></a>
   </h3>
 
-  <div class="markdown level1 summary"><p>Deserializes the specified XML string into an object of type <code class="typeparamref">T</code> using <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.xml.serialization.xmlserializer">XmlSerializer</a>.</p>
+  <div class="markdown level1 summary"><p>Returns the deserialized object of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -264,22 +256,19 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>xml</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
-    <dd><p>The XML string to deserialize.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Returns</h4>
   <dl class="parameters">
     <dt><span class="xref">T</span></dt>
-    <dd><p>The deserialized object of type <code class="typeparamref">T</code>, or <code>null</code> if deserialization fails.</p>
-</dd>
+    <dd></dd>
   </dl>
 
   <h4 class="section">Type Parameters</h4>
   <dl class="parameters">
     <dt><code>T</code></dt>
-    <dd><p>The target type to deserialize into. Must be a reference type.</p>
-</dd>
+    <dd></dd>
   </dl>
 
 
@@ -288,12 +277,6 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
 
 
-  <h4 class="section">Exceptions</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.argumentnullexception">ArgumentNullException</a></dt>
-    <dd><p>Thrown if <code class="paramref">xml</code> is <code>null</code>.</p>
-</dd>
-  </dl>
 
 
 
@@ -301,7 +284,7 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
   <h3 id="NE_Standard_Extensions_SerializationExtensions_SerializeJson__1___0_System_Text_Json_JsonSerializerOptions_" data-uid="NE.Standard.Extensions.SerializationExtensions.SerializeJson``1(``0,System.Text.Json.JsonSerializerOptions)">
   SerializeJson&lt;T&gt;(T, JsonSerializerOptions?)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L53"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L49"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Serializes the specified object into a JSON string using <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializer">JsonSerializer</a>.</p>
@@ -391,7 +374,7 @@ including custom binary-like serialization (<a class="xref" href="NE.Standard.Se
 
   <h3 id="NE_Standard_Extensions_SerializationExtensions_SerializeXml__1___0_" data-uid="NE.Standard.Extensions.SerializationExtensions.SerializeXml``1(``0)">
   SerializeXml&lt;T&gt;(T)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L77"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Extensions/SerializationExtensions.cs/#L69"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Serializes the specified object into an XML string using <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.xml.serialization.xmlserializer">XmlSerializer</a>.</p>

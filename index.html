@@ -69,13 +69,14 @@
         <article data-uid="">
 <h1 id="nestandard">NE.Standard</h1>
 
-<p><strong>NE.Standard</strong> is a modular, cross-platform .NET library designed to support MVVM-based applications. It provides a wide range of foundational utilities, reusable types, and UI abstractions for building maintainable applications across WPF, Web, and other platforms.</p>
+<p><strong>NE.Standard</strong> is a modular, cross-platform .NET library for modern MVVM applications and UI abstractions.<br>
+It provides foundational helpers, reusable types, and infrastructure for building maintainable codebases across WPF, Web, and other .NET platforms.</p>
 <hr>
 <h2 id="-project-goals">🎯 Project Goals</h2>
 <ul>
-<li>Define UIs declaratively via configuration and render them across platforms.</li>
-<li>Share logic through a unified MVVM architecture.</li>
-<li>Provide platform-specific renderers and design-time tooling.</li>
+<li>Describe UIs declaratively via configuration and render them on any platform.</li>
+<li>Unify app logic through a powerful MVVM architecture.</li>
+<li>Offer extensible infrastructure for custom renderers, tools, and integrations.</li>
 </ul>
 <hr>
 <h2 id="-project-structure">🧱 Project Structure</h2>
@@ -91,22 +92,22 @@
 <tr>
 <td><code>NE.Standard</code></td>
 <td>✅ Stable</td>
-<td>Core helpers and utilities</td>
+<td>Core helpers, extensions, and types</td>
 </tr>
 <tr>
 <td><code>NE.Standard.Design</code></td>
 <td>🛠 In Dev</td>
-<td>Design-time view definitions</td>
+<td>UI abstraction &amp; configuration for cross-platform MVVM</td>
 </tr>
 <tr>
 <td><code>NE.Standard.Web</code></td>
 <td>🛠 In Dev</td>
-<td>Web renderer implementation (Blazor/Web)</td>
+<td>Web (Blazor) renderer for <code>Design</code> configs</td>
 </tr>
 <tr>
 <td><code>NE.Standard.WPF</code></td>
 <td>🛠 In Dev</td>
-<td>WPF renderer implementation</td>
+<td>WPF renderer for <code>Design</code> configs</td>
 </tr>
 </tbody>
 </table>

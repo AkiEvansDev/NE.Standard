@@ -263,22 +263,6 @@ references:
   fullName.vb: NE.Standard.Extensions.CollectionExtensions.Partition(Of T)(System.Collections.Generic.IEnumerable(Of T), Integer)
   nameWithType: CollectionExtensions.Partition<T>(IEnumerable<T>, int)
   nameWithType.vb: CollectionExtensions.Partition(Of T)(IEnumerable(Of T), Integer)
-- uid: NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace*
-  name: ShuffleInPlace
-  href: api/NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ShuffleInPlace_
-  commentId: Overload:NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace
-  isSpec: "True"
-  fullName: NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace
-  nameWithType: CollectionExtensions.ShuffleInPlace
-- uid: NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace``1(System.Collections.Generic.IList{``0})
-  name: ShuffleInPlace<T>(IList<T>)
-  href: api/NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_ShuffleInPlace__1_System_Collections_Generic_IList___0__
-  commentId: M:NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace``1(System.Collections.Generic.IList{``0})
-  name.vb: ShuffleInPlace(Of T)(IList(Of T))
-  fullName: NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace<T>(System.Collections.Generic.IList<T>)
-  fullName.vb: NE.Standard.Extensions.CollectionExtensions.ShuffleInPlace(Of T)(System.Collections.Generic.IList(Of T))
-  nameWithType: CollectionExtensions.ShuffleInPlace<T>(IList<T>)
-  nameWithType.vb: CollectionExtensions.ShuffleInPlace(Of T)(IList(Of T))
 - uid: NE.Standard.Extensions.CollectionExtensions.WhereNotNull*
   name: WhereNotNull
   href: api/NE.Standard.Extensions.CollectionExtensions.html#NE_Standard_Extensions_CollectionExtensions_WhereNotNull_
@@ -2502,41 +2486,6 @@ references:
   commentId: F:NE.Standard.Types.ColorAdjustment.Tint
   fullName: NE.Standard.Types.ColorAdjustment.Tint
   nameWithType: ColorAdjustment.Tint
-- uid: NE.Standard.Types.IRecursiveObservable
-  name: IRecursiveObservable
-  href: api/NE.Standard.Types.IRecursiveObservable.html
-  commentId: T:NE.Standard.Types.IRecursiveObservable
-  fullName: NE.Standard.Types.IRecursiveObservable
-  nameWithType: IRecursiveObservable
-- uid: NE.Standard.Types.IRecursiveObservable.ClearNotifier
-  name: ClearNotifier()
-  href: api/NE.Standard.Types.IRecursiveObservable.html#NE_Standard_Types_IRecursiveObservable_ClearNotifier
-  commentId: M:NE.Standard.Types.IRecursiveObservable.ClearNotifier
-  fullName: NE.Standard.Types.IRecursiveObservable.ClearNotifier()
-  nameWithType: IRecursiveObservable.ClearNotifier()
-- uid: NE.Standard.Types.IRecursiveObservable.ClearNotifier*
-  name: ClearNotifier
-  href: api/NE.Standard.Types.IRecursiveObservable.html#NE_Standard_Types_IRecursiveObservable_ClearNotifier_
-  commentId: Overload:NE.Standard.Types.IRecursiveObservable.ClearNotifier
-  isSpec: "True"
-  fullName: NE.Standard.Types.IRecursiveObservable.ClearNotifier
-  nameWithType: IRecursiveObservable.ClearNotifier
-- uid: NE.Standard.Types.IRecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name: SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  href: api/NE.Standard.Types.IRecursiveObservable.html#NE_Standard_Types_IRecursiveObservable_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_
-  commentId: M:NE.Standard.Types.IRecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name.vb: SetNotifier(Action(Of RecursiveChangedEventArgs), String)
-  fullName: NE.Standard.Types.IRecursiveObservable.SetNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, string?)
-  fullName.vb: NE.Standard.Types.IRecursiveObservable.SetNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), String)
-  nameWithType: IRecursiveObservable.SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  nameWithType.vb: IRecursiveObservable.SetNotifier(Action(Of RecursiveChangedEventArgs), String)
-- uid: NE.Standard.Types.IRecursiveObservable.SetNotifier*
-  name: SetNotifier
-  href: api/NE.Standard.Types.IRecursiveObservable.html#NE_Standard_Types_IRecursiveObservable_SetNotifier_
-  commentId: Overload:NE.Standard.Types.IRecursiveObservable.SetNotifier
-  isSpec: "True"
-  fullName: NE.Standard.Types.IRecursiveObservable.SetNotifier
-  nameWithType: IRecursiveObservable.SetNotifier
 - uid: NE.Standard.Types.KeyModifiers
   name: KeyModifiers
   href: api/NE.Standard.Types.KeyModifiers.html
@@ -3426,24 +3375,24 @@ references:
   commentId: T:NE.Standard.Types.RecursiveChangedEventArgs
   fullName: NE.Standard.Types.RecursiveChangedEventArgs
   nameWithType: RecursiveChangedEventArgs
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.#ctor(NE.Standard.Types.RecursiveChangedAction,System.String,System.Nullable{System.Int32},System.Collections.IList,System.Nullable{System.Int32},System.Collections.IList)
-  name: RecursiveChangedEventArgs(RecursiveChangedAction, string, int?, IList?, int?, IList?)
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs__ctor_NE_Standard_Types_RecursiveChangedAction_System_String_System_Nullable_System_Int32__System_Collections_IList_System_Nullable_System_Int32__System_Collections_IList_
-  commentId: M:NE.Standard.Types.RecursiveChangedEventArgs.#ctor(NE.Standard.Types.RecursiveChangedAction,System.String,System.Nullable{System.Int32},System.Collections.IList,System.Nullable{System.Int32},System.Collections.IList)
-  name.vb: New(RecursiveChangedAction, String, Integer?, IList, Integer?, IList)
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.RecursiveChangedEventArgs(NE.Standard.Types.RecursiveChangedAction, string, int?, System.Collections.IList?, int?, System.Collections.IList?)
-  fullName.vb: NE.Standard.Types.RecursiveChangedEventArgs.New(NE.Standard.Types.RecursiveChangedAction, String, Integer?, System.Collections.IList, Integer?, System.Collections.IList)
-  nameWithType: RecursiveChangedEventArgs.RecursiveChangedEventArgs(RecursiveChangedAction, string, int?, IList?, int?, IList?)
-  nameWithType.vb: RecursiveChangedEventArgs.New(RecursiveChangedAction, String, Integer?, IList, Integer?, IList)
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.#ctor(System.String,System.Object)
-  name: RecursiveChangedEventArgs(string, object?)
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs__ctor_System_String_System_Object_
-  commentId: M:NE.Standard.Types.RecursiveChangedEventArgs.#ctor(System.String,System.Object)
-  name.vb: New(String, Object)
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.RecursiveChangedEventArgs(string, object?)
-  fullName.vb: NE.Standard.Types.RecursiveChangedEventArgs.New(String, Object)
-  nameWithType: RecursiveChangedEventArgs.RecursiveChangedEventArgs(string, object?)
-  nameWithType.vb: RecursiveChangedEventArgs.New(String, Object)
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.#ctor(NE.Standard.Types.RecursiveChangedAction,System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})
+  name: RecursiveChangedEventArgs(RecursiveChangedAction, string, int?, int?)
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs__ctor_NE_Standard_Types_RecursiveChangedAction_System_String_System_Nullable_System_Int32__System_Nullable_System_Int32__
+  commentId: M:NE.Standard.Types.RecursiveChangedEventArgs.#ctor(NE.Standard.Types.RecursiveChangedAction,System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})
+  name.vb: New(RecursiveChangedAction, String, Integer?, Integer?)
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.RecursiveChangedEventArgs(NE.Standard.Types.RecursiveChangedAction, string, int?, int?)
+  fullName.vb: NE.Standard.Types.RecursiveChangedEventArgs.New(NE.Standard.Types.RecursiveChangedAction, String, Integer?, Integer?)
+  nameWithType: RecursiveChangedEventArgs.RecursiveChangedEventArgs(RecursiveChangedAction, string, int?, int?)
+  nameWithType.vb: RecursiveChangedEventArgs.New(RecursiveChangedAction, String, Integer?, Integer?)
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.#ctor(System.String)
+  name: RecursiveChangedEventArgs(string)
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs__ctor_System_String_
+  commentId: M:NE.Standard.Types.RecursiveChangedEventArgs.#ctor(System.String)
+  name.vb: New(String)
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.RecursiveChangedEventArgs(string)
+  fullName.vb: NE.Standard.Types.RecursiveChangedEventArgs.New(String)
+  nameWithType: RecursiveChangedEventArgs.RecursiveChangedEventArgs(string)
+  nameWithType.vb: RecursiveChangedEventArgs.New(String)
 - uid: NE.Standard.Types.RecursiveChangedEventArgs.#ctor*
   name: RecursiveChangedEventArgs
   href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs__ctor_
@@ -3467,58 +3416,32 @@ references:
   isSpec: "True"
   fullName: NE.Standard.Types.RecursiveChangedEventArgs.Action
   nameWithType: RecursiveChangedEventArgs.Action
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.NewItems
-  name: NewItems
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_NewItems
-  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.NewItems
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.NewItems
-  nameWithType: RecursiveChangedEventArgs.NewItems
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.NewItems*
-  name: NewItems
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_NewItems_
-  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.NewItems
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.Count
+  name: Count
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Count
+  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.Count
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Count
+  nameWithType: RecursiveChangedEventArgs.Count
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.Count*
+  name: Count
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Count_
+  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.Count
   isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.NewItems
-  nameWithType: RecursiveChangedEventArgs.NewItems
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex
-  name: NewStartingIndex
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_NewStartingIndex
-  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex
-  nameWithType: RecursiveChangedEventArgs.NewStartingIndex
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex*
-  name: NewStartingIndex
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_NewStartingIndex_
-  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Count
+  nameWithType: RecursiveChangedEventArgs.Count
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.Index
+  name: Index
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Index
+  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.Index
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Index
+  nameWithType: RecursiveChangedEventArgs.Index
+- uid: NE.Standard.Types.RecursiveChangedEventArgs.Index*
+  name: Index
+  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Index_
+  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.Index
   isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.NewStartingIndex
-  nameWithType: RecursiveChangedEventArgs.NewStartingIndex
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.OldItems
-  name: OldItems
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_OldItems
-  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.OldItems
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.OldItems
-  nameWithType: RecursiveChangedEventArgs.OldItems
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.OldItems*
-  name: OldItems
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_OldItems_
-  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.OldItems
-  isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.OldItems
-  nameWithType: RecursiveChangedEventArgs.OldItems
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex
-  name: OldStartingIndex
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_OldStartingIndex
-  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex
-  nameWithType: RecursiveChangedEventArgs.OldStartingIndex
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex*
-  name: OldStartingIndex
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_OldStartingIndex_
-  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex
-  isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.OldStartingIndex
-  nameWithType: RecursiveChangedEventArgs.OldStartingIndex
+  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Index
+  nameWithType: RecursiveChangedEventArgs.Index
 - uid: NE.Standard.Types.RecursiveChangedEventArgs.Path
   name: Path
   href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Path
@@ -3532,19 +3455,6 @@ references:
   isSpec: "True"
   fullName: NE.Standard.Types.RecursiveChangedEventArgs.Path
   nameWithType: RecursiveChangedEventArgs.Path
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.Value
-  name: Value
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Value
-  commentId: P:NE.Standard.Types.RecursiveChangedEventArgs.Value
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Value
-  nameWithType: RecursiveChangedEventArgs.Value
-- uid: NE.Standard.Types.RecursiveChangedEventArgs.Value*
-  name: Value
-  href: api/NE.Standard.Types.RecursiveChangedEventArgs.html#NE_Standard_Types_RecursiveChangedEventArgs_Value_
-  commentId: Overload:NE.Standard.Types.RecursiveChangedEventArgs.Value
-  isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveChangedEventArgs.Value
-  nameWithType: RecursiveChangedEventArgs.Value
 - uid: NE.Standard.Types.RecursiveCollection`1
   name: RecursiveCollection<T>
   href: api/NE.Standard.Types.RecursiveCollection-1.html
@@ -3554,49 +3464,304 @@ references:
   fullName.vb: NE.Standard.Types.RecursiveCollection(Of T)
   nameWithType: RecursiveCollection<T>
   nameWithType.vb: RecursiveCollection(Of T)
-- uid: NE.Standard.Types.RecursiveCollection`1.ClearNotifier
-  name: ClearNotifier()
-  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_ClearNotifier
-  commentId: M:NE.Standard.Types.RecursiveCollection`1.ClearNotifier
-  fullName: NE.Standard.Types.RecursiveCollection<T>.ClearNotifier()
-  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).ClearNotifier()
-  nameWithType: RecursiveCollection<T>.ClearNotifier()
-  nameWithType.vb: RecursiveCollection(Of T).ClearNotifier()
-- uid: NE.Standard.Types.RecursiveCollection`1.ClearNotifier*
-  name: ClearNotifier
-  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_ClearNotifier_
-  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.ClearNotifier
+- uid: NE.Standard.Types.RecursiveCollection`1.Add(`0)
+  name: Add(T)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Add__0_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.Add(`0)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Add(T)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Add(T)
+  nameWithType: RecursiveCollection<T>.Add(T)
+  nameWithType.vb: RecursiveCollection(Of T).Add(T)
+- uid: NE.Standard.Types.RecursiveCollection`1.Add*
+  name: Add
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Add_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Add
   isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveCollection<T>.ClearNotifier
-  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).ClearNotifier
-  nameWithType: RecursiveCollection<T>.ClearNotifier
-  nameWithType.vb: RecursiveCollection(Of T).ClearNotifier
-- uid: NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged(System.Collections.Specialized.NotifyCollectionChangedEventArgs)
-  name: OnCollectionChanged(NotifyCollectionChangedEventArgs)
-  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_OnCollectionChanged_System_Collections_Specialized_NotifyCollectionChangedEventArgs_
-  commentId: M:NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged(System.Collections.Specialized.NotifyCollectionChangedEventArgs)
-  fullName: NE.Standard.Types.RecursiveCollection<T>.OnCollectionChanged(System.Collections.Specialized.NotifyCollectionChangedEventArgs)
-  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).OnCollectionChanged(System.Collections.Specialized.NotifyCollectionChangedEventArgs)
-  nameWithType: RecursiveCollection<T>.OnCollectionChanged(NotifyCollectionChangedEventArgs)
-  nameWithType.vb: RecursiveCollection(Of T).OnCollectionChanged(NotifyCollectionChangedEventArgs)
-- uid: NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged*
-  name: OnCollectionChanged
-  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_OnCollectionChanged_
-  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.OnCollectionChanged
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Add
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Add
+  nameWithType: RecursiveCollection<T>.Add
+  nameWithType.vb: RecursiveCollection(Of T).Add
+- uid: NE.Standard.Types.RecursiveCollection`1.AddRange(System.Collections.Generic.IEnumerable{`0})
+  name: AddRange(IEnumerable<T>)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_AddRange_System_Collections_Generic_IEnumerable__0__
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.AddRange(System.Collections.Generic.IEnumerable{`0})
+  name.vb: AddRange(IEnumerable(Of T))
+  fullName: NE.Standard.Types.RecursiveCollection<T>.AddRange(System.Collections.Generic.IEnumerable<T>)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).AddRange(System.Collections.Generic.IEnumerable(Of T))
+  nameWithType: RecursiveCollection<T>.AddRange(IEnumerable<T>)
+  nameWithType.vb: RecursiveCollection(Of T).AddRange(IEnumerable(Of T))
+- uid: NE.Standard.Types.RecursiveCollection`1.AddRange*
+  name: AddRange
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_AddRange_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.AddRange
   isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveCollection<T>.OnCollectionChanged
-  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).OnCollectionChanged
-  nameWithType: RecursiveCollection<T>.OnCollectionChanged
-  nameWithType.vb: RecursiveCollection(Of T).OnCollectionChanged
-- uid: NE.Standard.Types.RecursiveCollection`1.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name: SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_
-  commentId: M:NE.Standard.Types.RecursiveCollection`1.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name.vb: SetNotifier(Action(Of RecursiveChangedEventArgs), String)
-  fullName: NE.Standard.Types.RecursiveCollection<T>.SetNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, string?)
-  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).SetNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), String)
-  nameWithType: RecursiveCollection<T>.SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  nameWithType.vb: RecursiveCollection(Of T).SetNotifier(Action(Of RecursiveChangedEventArgs), String)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.AddRange
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).AddRange
+  nameWithType: RecursiveCollection<T>.AddRange
+  nameWithType.vb: RecursiveCollection(Of T).AddRange
+- uid: NE.Standard.Types.RecursiveCollection`1.Clear
+  name: Clear()
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Clear
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.Clear
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Clear()
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Clear()
+  nameWithType: RecursiveCollection<T>.Clear()
+  nameWithType.vb: RecursiveCollection(Of T).Clear()
+- uid: NE.Standard.Types.RecursiveCollection`1.Clear*
+  name: Clear
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Clear_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Clear
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Clear
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Clear
+  nameWithType: RecursiveCollection<T>.Clear
+  nameWithType.vb: RecursiveCollection(Of T).Clear
+- uid: NE.Standard.Types.RecursiveCollection`1.CollectionChanged
+  name: CollectionChanged
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_CollectionChanged
+  commentId: E:NE.Standard.Types.RecursiveCollection`1.CollectionChanged
+  fullName: NE.Standard.Types.RecursiveCollection<T>.CollectionChanged
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).CollectionChanged
+  nameWithType: RecursiveCollection<T>.CollectionChanged
+  nameWithType.vb: RecursiveCollection(Of T).CollectionChanged
+- uid: NE.Standard.Types.RecursiveCollection`1.Contains(`0)
+  name: Contains(T)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Contains__0_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.Contains(`0)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Contains(T)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Contains(T)
+  nameWithType: RecursiveCollection<T>.Contains(T)
+  nameWithType.vb: RecursiveCollection(Of T).Contains(T)
+- uid: NE.Standard.Types.RecursiveCollection`1.Contains*
+  name: Contains
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Contains_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Contains
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Contains
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Contains
+  nameWithType: RecursiveCollection<T>.Contains
+  nameWithType.vb: RecursiveCollection(Of T).Contains
+- uid: NE.Standard.Types.RecursiveCollection`1.CopyTo(`0[],System.Int32)
+  name: CopyTo(T[], int)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_CopyTo__0___System_Int32_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.CopyTo(`0[],System.Int32)
+  name.vb: CopyTo(T(), Integer)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.CopyTo(T[], int)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).CopyTo(T(), Integer)
+  nameWithType: RecursiveCollection<T>.CopyTo(T[], int)
+  nameWithType.vb: RecursiveCollection(Of T).CopyTo(T(), Integer)
+- uid: NE.Standard.Types.RecursiveCollection`1.CopyTo*
+  name: CopyTo
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_CopyTo_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.CopyTo
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.CopyTo
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).CopyTo
+  nameWithType: RecursiveCollection<T>.CopyTo
+  nameWithType.vb: RecursiveCollection(Of T).CopyTo
+- uid: NE.Standard.Types.RecursiveCollection`1.Count
+  name: Count
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Count
+  commentId: P:NE.Standard.Types.RecursiveCollection`1.Count
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Count
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Count
+  nameWithType: RecursiveCollection<T>.Count
+  nameWithType.vb: RecursiveCollection(Of T).Count
+- uid: NE.Standard.Types.RecursiveCollection`1.Count*
+  name: Count
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Count_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Count
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Count
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Count
+  nameWithType: RecursiveCollection<T>.Count
+  nameWithType.vb: RecursiveCollection(Of T).Count
+- uid: NE.Standard.Types.RecursiveCollection`1.GetEnumerator
+  name: GetEnumerator()
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_GetEnumerator
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.GetEnumerator
+  fullName: NE.Standard.Types.RecursiveCollection<T>.GetEnumerator()
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).GetEnumerator()
+  nameWithType: RecursiveCollection<T>.GetEnumerator()
+  nameWithType.vb: RecursiveCollection(Of T).GetEnumerator()
+- uid: NE.Standard.Types.RecursiveCollection`1.GetEnumerator*
+  name: GetEnumerator
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_GetEnumerator_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.GetEnumerator
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.GetEnumerator
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).GetEnumerator
+  nameWithType: RecursiveCollection<T>.GetEnumerator
+  nameWithType.vb: RecursiveCollection(Of T).GetEnumerator
+- uid: NE.Standard.Types.RecursiveCollection`1.GetValue(System.String)
+  name: GetValue(string)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_GetValue_System_String_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.GetValue(System.String)
+  name.vb: GetValue(String)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.GetValue(string)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).GetValue(String)
+  nameWithType: RecursiveCollection<T>.GetValue(string)
+  nameWithType.vb: RecursiveCollection(Of T).GetValue(String)
+- uid: NE.Standard.Types.RecursiveCollection`1.GetValue*
+  name: GetValue
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_GetValue_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.GetValue
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.GetValue
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).GetValue
+  nameWithType: RecursiveCollection<T>.GetValue
+  nameWithType.vb: RecursiveCollection(Of T).GetValue
+- uid: NE.Standard.Types.RecursiveCollection`1.IndexOf(`0)
+  name: IndexOf(T)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_IndexOf__0_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.IndexOf(`0)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.IndexOf(T)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).IndexOf(T)
+  nameWithType: RecursiveCollection<T>.IndexOf(T)
+  nameWithType.vb: RecursiveCollection(Of T).IndexOf(T)
+- uid: NE.Standard.Types.RecursiveCollection`1.IndexOf*
+  name: IndexOf
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_IndexOf_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.IndexOf
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.IndexOf
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).IndexOf
+  nameWithType: RecursiveCollection<T>.IndexOf
+  nameWithType.vb: RecursiveCollection(Of T).IndexOf
+- uid: NE.Standard.Types.RecursiveCollection`1.Insert(System.Int32,`0)
+  name: Insert(int, T)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Insert_System_Int32__0_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.Insert(System.Int32,`0)
+  name.vb: Insert(Integer, T)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Insert(int, T)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Insert(Integer, T)
+  nameWithType: RecursiveCollection<T>.Insert(int, T)
+  nameWithType.vb: RecursiveCollection(Of T).Insert(Integer, T)
+- uid: NE.Standard.Types.RecursiveCollection`1.Insert*
+  name: Insert
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Insert_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Insert
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Insert
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Insert
+  nameWithType: RecursiveCollection<T>.Insert
+  nameWithType.vb: RecursiveCollection(Of T).Insert
+- uid: NE.Standard.Types.RecursiveCollection`1.IsReadOnly
+  name: IsReadOnly
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_IsReadOnly
+  commentId: P:NE.Standard.Types.RecursiveCollection`1.IsReadOnly
+  fullName: NE.Standard.Types.RecursiveCollection<T>.IsReadOnly
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).IsReadOnly
+  nameWithType: RecursiveCollection<T>.IsReadOnly
+  nameWithType.vb: RecursiveCollection(Of T).IsReadOnly
+- uid: NE.Standard.Types.RecursiveCollection`1.IsReadOnly*
+  name: IsReadOnly
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_IsReadOnly_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.IsReadOnly
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.IsReadOnly
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).IsReadOnly
+  nameWithType: RecursiveCollection<T>.IsReadOnly
+  nameWithType.vb: RecursiveCollection(Of T).IsReadOnly
+- uid: NE.Standard.Types.RecursiveCollection`1.Item(System.Int32)
+  name: this[int]
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Item_System_Int32_
+  commentId: P:NE.Standard.Types.RecursiveCollection`1.Item(System.Int32)
+  name.vb: this[](Integer)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.this[int]
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).this[](Integer)
+  nameWithType: RecursiveCollection<T>.this[int]
+  nameWithType.vb: RecursiveCollection(Of T).this[](Integer)
+- uid: NE.Standard.Types.RecursiveCollection`1.Item*
+  name: this
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Item_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Item
+  isSpec: "True"
+  name.vb: this[]
+  fullName: NE.Standard.Types.RecursiveCollection<T>.this
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).this[]
+  nameWithType: RecursiveCollection<T>.this
+  nameWithType.vb: RecursiveCollection(Of T).this[]
+- uid: NE.Standard.Types.RecursiveCollection`1.Remove(`0)
+  name: Remove(T)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Remove__0_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.Remove(`0)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Remove(T)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Remove(T)
+  nameWithType: RecursiveCollection<T>.Remove(T)
+  nameWithType.vb: RecursiveCollection(Of T).Remove(T)
+- uid: NE.Standard.Types.RecursiveCollection`1.Remove*
+  name: Remove
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_Remove_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.Remove
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.Remove
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).Remove
+  nameWithType: RecursiveCollection<T>.Remove
+  nameWithType.vb: RecursiveCollection(Of T).Remove
+- uid: NE.Standard.Types.RecursiveCollection`1.RemoveAt(System.Int32)
+  name: RemoveAt(int)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_RemoveAt_System_Int32_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.RemoveAt(System.Int32)
+  name.vb: RemoveAt(Integer)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.RemoveAt(int)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).RemoveAt(Integer)
+  nameWithType: RecursiveCollection<T>.RemoveAt(int)
+  nameWithType.vb: RecursiveCollection(Of T).RemoveAt(Integer)
+- uid: NE.Standard.Types.RecursiveCollection`1.RemoveAt*
+  name: RemoveAt
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_RemoveAt_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.RemoveAt
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.RemoveAt
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).RemoveAt
+  nameWithType: RecursiveCollection<T>.RemoveAt
+  nameWithType.vb: RecursiveCollection(Of T).RemoveAt
+- uid: NE.Standard.Types.RecursiveCollection`1.RemoveRange(System.Int32,System.Int32)
+  name: RemoveRange(int, int)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_RemoveRange_System_Int32_System_Int32_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.RemoveRange(System.Int32,System.Int32)
+  name.vb: RemoveRange(Integer, Integer)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.RemoveRange(int, int)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).RemoveRange(Integer, Integer)
+  nameWithType: RecursiveCollection<T>.RemoveRange(int, int)
+  nameWithType.vb: RecursiveCollection(Of T).RemoveRange(Integer, Integer)
+- uid: NE.Standard.Types.RecursiveCollection`1.RemoveRange*
+  name: RemoveRange
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_RemoveRange_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.RemoveRange
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.RemoveRange
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).RemoveRange
+  nameWithType: RecursiveCollection<T>.RemoveRange
+  nameWithType.vb: RecursiveCollection(Of T).RemoveRange
+- uid: NE.Standard.Types.RecursiveCollection`1.ResetNotifier(System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name: ResetNotifier(HashSet<RecursiveObservable>?)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_ResetNotifier_System_Collections_Generic_HashSet_NE_Standard_Types_RecursiveObservable__
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.ResetNotifier(System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name.vb: ResetNotifier(HashSet(Of RecursiveObservable))
+  fullName: NE.Standard.Types.RecursiveCollection<T>.ResetNotifier(System.Collections.Generic.HashSet<NE.Standard.Types.RecursiveObservable>?)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).ResetNotifier(System.Collections.Generic.HashSet(Of NE.Standard.Types.RecursiveObservable))
+  nameWithType: RecursiveCollection<T>.ResetNotifier(HashSet<RecursiveObservable>?)
+  nameWithType.vb: RecursiveCollection(Of T).ResetNotifier(HashSet(Of RecursiveObservable))
+- uid: NE.Standard.Types.RecursiveCollection`1.ResetNotifier*
+  name: ResetNotifier
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_ResetNotifier_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.ResetNotifier
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.ResetNotifier
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).ResetNotifier
+  nameWithType: RecursiveCollection<T>.ResetNotifier
+  nameWithType.vb: RecursiveCollection(Of T).ResetNotifier
+- uid: NE.Standard.Types.RecursiveCollection`1.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String,System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name: SetNotifier(Action<RecursiveChangedEventArgs>, string?, HashSet<RecursiveObservable>?)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_System_Collections_Generic_HashSet_NE_Standard_Types_RecursiveObservable__
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String,System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name.vb: SetNotifier(Action(Of RecursiveChangedEventArgs), String, HashSet(Of RecursiveObservable))
+  fullName: NE.Standard.Types.RecursiveCollection<T>.SetNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, string?, System.Collections.Generic.HashSet<NE.Standard.Types.RecursiveObservable>?)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).SetNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), String, System.Collections.Generic.HashSet(Of NE.Standard.Types.RecursiveObservable))
+  nameWithType: RecursiveCollection<T>.SetNotifier(Action<RecursiveChangedEventArgs>, string?, HashSet<RecursiveObservable>?)
+  nameWithType.vb: RecursiveCollection(Of T).SetNotifier(Action(Of RecursiveChangedEventArgs), String, HashSet(Of RecursiveObservable))
 - uid: NE.Standard.Types.RecursiveCollection`1.SetNotifier*
   name: SetNotifier
   href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_SetNotifier_
@@ -3606,6 +3771,24 @@ references:
   fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).SetNotifier
   nameWithType: RecursiveCollection<T>.SetNotifier
   nameWithType.vb: RecursiveCollection(Of T).SetNotifier
+- uid: NE.Standard.Types.RecursiveCollection`1.SetValue(System.String,System.Object)
+  name: SetValue(string, object?)
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_SetValue_System_String_System_Object_
+  commentId: M:NE.Standard.Types.RecursiveCollection`1.SetValue(System.String,System.Object)
+  name.vb: SetValue(String, Object)
+  fullName: NE.Standard.Types.RecursiveCollection<T>.SetValue(string, object?)
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).SetValue(String, Object)
+  nameWithType: RecursiveCollection<T>.SetValue(string, object?)
+  nameWithType.vb: RecursiveCollection(Of T).SetValue(String, Object)
+- uid: NE.Standard.Types.RecursiveCollection`1.SetValue*
+  name: SetValue
+  href: api/NE.Standard.Types.RecursiveCollection-1.html#NE_Standard_Types_RecursiveCollection_1_SetValue_
+  commentId: Overload:NE.Standard.Types.RecursiveCollection`1.SetValue
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveCollection<T>.SetValue
+  fullName.vb: NE.Standard.Types.RecursiveCollection(Of T).SetValue
+  nameWithType: RecursiveCollection<T>.SetValue
+  nameWithType.vb: RecursiveCollection(Of T).SetValue
 - uid: NE.Standard.Types.RecursiveObservable
   name: RecursiveObservable
   href: api/NE.Standard.Types.RecursiveObservable.html
@@ -3631,19 +3814,64 @@ references:
   fullName.vb: NE.Standard.Types.RecursiveObservable.New
   nameWithType: RecursiveObservable.RecursiveObservable
   nameWithType.vb: RecursiveObservable.New
-- uid: NE.Standard.Types.RecursiveObservable.ClearNotifier
-  name: ClearNotifier()
-  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_ClearNotifier
-  commentId: M:NE.Standard.Types.RecursiveObservable.ClearNotifier
-  fullName: NE.Standard.Types.RecursiveObservable.ClearNotifier()
-  nameWithType: RecursiveObservable.ClearNotifier()
-- uid: NE.Standard.Types.RecursiveObservable.ClearNotifier*
-  name: ClearNotifier
-  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_ClearNotifier_
-  commentId: Overload:NE.Standard.Types.RecursiveObservable.ClearNotifier
+- uid: NE.Standard.Types.RecursiveObservable.BuildPath(System.String)
+  name: BuildPath(string)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_BuildPath_System_String_
+  commentId: M:NE.Standard.Types.RecursiveObservable.BuildPath(System.String)
+  name.vb: BuildPath(String)
+  fullName: NE.Standard.Types.RecursiveObservable.BuildPath(string)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.BuildPath(String)
+  nameWithType: RecursiveObservable.BuildPath(string)
+  nameWithType.vb: RecursiveObservable.BuildPath(String)
+- uid: NE.Standard.Types.RecursiveObservable.BuildPath*
+  name: BuildPath
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_BuildPath_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.BuildPath
   isSpec: "True"
-  fullName: NE.Standard.Types.RecursiveObservable.ClearNotifier
-  nameWithType: RecursiveObservable.ClearNotifier
+  fullName: NE.Standard.Types.RecursiveObservable.BuildPath
+  nameWithType: RecursiveObservable.BuildPath
+- uid: NE.Standard.Types.RecursiveObservable.GetValue(System.String)
+  name: GetValue(string)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_GetValue_System_String_
+  commentId: M:NE.Standard.Types.RecursiveObservable.GetValue(System.String)
+  name.vb: GetValue(String)
+  fullName: NE.Standard.Types.RecursiveObservable.GetValue(string)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.GetValue(String)
+  nameWithType: RecursiveObservable.GetValue(string)
+  nameWithType.vb: RecursiveObservable.GetValue(String)
+- uid: NE.Standard.Types.RecursiveObservable.GetValue*
+  name: GetValue
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_GetValue_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.GetValue
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.GetValue
+  nameWithType: RecursiveObservable.GetValue
+- uid: NE.Standard.Types.RecursiveObservable.Notify(NE.Standard.Types.RecursiveChangedEventArgs)
+  name: Notify(RecursiveChangedEventArgs)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_Notify_NE_Standard_Types_RecursiveChangedEventArgs_
+  commentId: M:NE.Standard.Types.RecursiveObservable.Notify(NE.Standard.Types.RecursiveChangedEventArgs)
+  fullName: NE.Standard.Types.RecursiveObservable.Notify(NE.Standard.Types.RecursiveChangedEventArgs)
+  nameWithType: RecursiveObservable.Notify(RecursiveChangedEventArgs)
+- uid: NE.Standard.Types.RecursiveObservable.Notify*
+  name: Notify
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_Notify_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.Notify
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.Notify
+  nameWithType: RecursiveObservable.Notify
+- uid: NE.Standard.Types.RecursiveObservable.OnNotify(NE.Standard.Types.RecursiveChangedEventArgs)
+  name: OnNotify(RecursiveChangedEventArgs)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_OnNotify_NE_Standard_Types_RecursiveChangedEventArgs_
+  commentId: M:NE.Standard.Types.RecursiveObservable.OnNotify(NE.Standard.Types.RecursiveChangedEventArgs)
+  fullName: NE.Standard.Types.RecursiveObservable.OnNotify(NE.Standard.Types.RecursiveChangedEventArgs)
+  nameWithType: RecursiveObservable.OnNotify(RecursiveChangedEventArgs)
+- uid: NE.Standard.Types.RecursiveObservable.OnNotify*
+  name: OnNotify
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_OnNotify_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.OnNotify
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.OnNotify
+  nameWithType: RecursiveObservable.OnNotify
 - uid: NE.Standard.Types.RecursiveObservable.OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs)
   name: OnPropertyChanged(PropertyChangedEventArgs)
   href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_OnPropertyChanged_System_ComponentModel_PropertyChangedEventArgs_
@@ -3657,15 +3885,60 @@ references:
   isSpec: "True"
   fullName: NE.Standard.Types.RecursiveObservable.OnPropertyChanged
   nameWithType: RecursiveObservable.OnPropertyChanged
-- uid: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name: SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_
-  commentId: M:NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String)
-  name.vb: SetNotifier(Action(Of RecursiveChangedEventArgs), String)
-  fullName: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, string?)
-  fullName.vb: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), String)
-  nameWithType: RecursiveObservable.SetNotifier(Action<RecursiveChangedEventArgs>, string?)
-  nameWithType.vb: RecursiveObservable.SetNotifier(Action(Of RecursiveChangedEventArgs), String)
+- uid: NE.Standard.Types.RecursiveObservable.OnPropertyChanging(System.ComponentModel.PropertyChangingEventArgs)
+  name: OnPropertyChanging(PropertyChangingEventArgs)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_OnPropertyChanging_System_ComponentModel_PropertyChangingEventArgs_
+  commentId: M:NE.Standard.Types.RecursiveObservable.OnPropertyChanging(System.ComponentModel.PropertyChangingEventArgs)
+  fullName: NE.Standard.Types.RecursiveObservable.OnPropertyChanging(System.ComponentModel.PropertyChangingEventArgs)
+  nameWithType: RecursiveObservable.OnPropertyChanging(PropertyChangingEventArgs)
+- uid: NE.Standard.Types.RecursiveObservable.OnPropertyChanging*
+  name: OnPropertyChanging
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_OnPropertyChanging_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.OnPropertyChanging
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.OnPropertyChanging
+  nameWithType: RecursiveObservable.OnPropertyChanging
+- uid: NE.Standard.Types.RecursiveObservable.PropagateNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name: PropagateNotifier(Action<RecursiveChangedEventArgs>, HashSet<RecursiveObservable>)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_PropagateNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_Collections_Generic_HashSet_NE_Standard_Types_RecursiveObservable__
+  commentId: M:NE.Standard.Types.RecursiveObservable.PropagateNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name.vb: PropagateNotifier(Action(Of RecursiveChangedEventArgs), HashSet(Of RecursiveObservable))
+  fullName: NE.Standard.Types.RecursiveObservable.PropagateNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, System.Collections.Generic.HashSet<NE.Standard.Types.RecursiveObservable>)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.PropagateNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), System.Collections.Generic.HashSet(Of NE.Standard.Types.RecursiveObservable))
+  nameWithType: RecursiveObservable.PropagateNotifier(Action<RecursiveChangedEventArgs>, HashSet<RecursiveObservable>)
+  nameWithType.vb: RecursiveObservable.PropagateNotifier(Action(Of RecursiveChangedEventArgs), HashSet(Of RecursiveObservable))
+- uid: NE.Standard.Types.RecursiveObservable.PropagateNotifier*
+  name: PropagateNotifier
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_PropagateNotifier_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.PropagateNotifier
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.PropagateNotifier
+  nameWithType: RecursiveObservable.PropagateNotifier
+- uid: NE.Standard.Types.RecursiveObservable.ResetNotifier(System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name: ResetNotifier(HashSet<RecursiveObservable>?)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_ResetNotifier_System_Collections_Generic_HashSet_NE_Standard_Types_RecursiveObservable__
+  commentId: M:NE.Standard.Types.RecursiveObservable.ResetNotifier(System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name.vb: ResetNotifier(HashSet(Of RecursiveObservable))
+  fullName: NE.Standard.Types.RecursiveObservable.ResetNotifier(System.Collections.Generic.HashSet<NE.Standard.Types.RecursiveObservable>?)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.ResetNotifier(System.Collections.Generic.HashSet(Of NE.Standard.Types.RecursiveObservable))
+  nameWithType: RecursiveObservable.ResetNotifier(HashSet<RecursiveObservable>?)
+  nameWithType.vb: RecursiveObservable.ResetNotifier(HashSet(Of RecursiveObservable))
+- uid: NE.Standard.Types.RecursiveObservable.ResetNotifier*
+  name: ResetNotifier
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_ResetNotifier_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.ResetNotifier
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.ResetNotifier
+  nameWithType: RecursiveObservable.ResetNotifier
+- uid: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String,System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name: SetNotifier(Action<RecursiveChangedEventArgs>, string?, HashSet<RecursiveObservable>?)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SetNotifier_System_Action_NE_Standard_Types_RecursiveChangedEventArgs__System_String_System_Collections_Generic_HashSet_NE_Standard_Types_RecursiveObservable__
+  commentId: M:NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action{NE.Standard.Types.RecursiveChangedEventArgs},System.String,System.Collections.Generic.HashSet{NE.Standard.Types.RecursiveObservable})
+  name.vb: SetNotifier(Action(Of RecursiveChangedEventArgs), String, HashSet(Of RecursiveObservable))
+  fullName: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action<NE.Standard.Types.RecursiveChangedEventArgs>, string?, System.Collections.Generic.HashSet<NE.Standard.Types.RecursiveObservable>?)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.SetNotifier(System.Action(Of NE.Standard.Types.RecursiveChangedEventArgs), String, System.Collections.Generic.HashSet(Of NE.Standard.Types.RecursiveObservable))
+  nameWithType: RecursiveObservable.SetNotifier(Action<RecursiveChangedEventArgs>, string?, HashSet<RecursiveObservable>?)
+  nameWithType.vb: RecursiveObservable.SetNotifier(Action(Of RecursiveChangedEventArgs), String, HashSet(Of RecursiveObservable))
 - uid: NE.Standard.Types.RecursiveObservable.SetNotifier*
   name: SetNotifier
   href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SetNotifier_
@@ -3673,6 +3946,98 @@ references:
   isSpec: "True"
   fullName: NE.Standard.Types.RecursiveObservable.SetNotifier
   nameWithType: RecursiveObservable.SetNotifier
+- uid: NE.Standard.Types.RecursiveObservable.SetValue(System.String,System.Object)
+  name: SetValue(string, object?)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SetValue_System_String_System_Object_
+  commentId: M:NE.Standard.Types.RecursiveObservable.SetValue(System.String,System.Object)
+  name.vb: SetValue(String, Object)
+  fullName: NE.Standard.Types.RecursiveObservable.SetValue(string, object?)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.SetValue(String, Object)
+  nameWithType: RecursiveObservable.SetValue(string, object?)
+  nameWithType.vb: RecursiveObservable.SetValue(String, Object)
+- uid: NE.Standard.Types.RecursiveObservable.SetValue*
+  name: SetValue
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SetValue_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.SetValue
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.SetValue
+  nameWithType: RecursiveObservable.SetValue
+- uid: NE.Standard.Types.RecursiveObservable.SplitPath(System.String,System.String@,System.String@)
+  name: SplitPath(string, out string, out string?)
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SplitPath_System_String_System_String__System_String__
+  commentId: M:NE.Standard.Types.RecursiveObservable.SplitPath(System.String,System.String@,System.String@)
+  name.vb: SplitPath(String, String, String)
+  fullName: NE.Standard.Types.RecursiveObservable.SplitPath(string, out string, out string?)
+  fullName.vb: NE.Standard.Types.RecursiveObservable.SplitPath(String, String, String)
+  nameWithType: RecursiveObservable.SplitPath(string, out string, out string?)
+  nameWithType.vb: RecursiveObservable.SplitPath(String, String, String)
+- uid: NE.Standard.Types.RecursiveObservable.SplitPath*
+  name: SplitPath
+  href: api/NE.Standard.Types.RecursiveObservable.html#NE_Standard_Types_RecursiveObservable_SplitPath_
+  commentId: Overload:NE.Standard.Types.RecursiveObservable.SplitPath
+  isSpec: "True"
+  fullName: NE.Standard.Types.RecursiveObservable.SplitPath
+  nameWithType: RecursiveObservable.SplitPath
+- uid: NE.Standard.Types.ReferenceComparer`1
+  name: ReferenceComparer<T>
+  href: api/NE.Standard.Types.ReferenceComparer-1.html
+  commentId: T:NE.Standard.Types.ReferenceComparer`1
+  name.vb: ReferenceComparer(Of T)
+  fullName: NE.Standard.Types.ReferenceComparer<T>
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T)
+  nameWithType: ReferenceComparer<T>
+  nameWithType.vb: ReferenceComparer(Of T)
+- uid: NE.Standard.Types.ReferenceComparer`1.Equals(`0,`0)
+  name: Equals(T, T)
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_Equals__0__0_
+  commentId: M:NE.Standard.Types.ReferenceComparer`1.Equals(`0,`0)
+  fullName: NE.Standard.Types.ReferenceComparer<T>.Equals(T, T)
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).Equals(T, T)
+  nameWithType: ReferenceComparer<T>.Equals(T, T)
+  nameWithType.vb: ReferenceComparer(Of T).Equals(T, T)
+- uid: NE.Standard.Types.ReferenceComparer`1.Equals*
+  name: Equals
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_Equals_
+  commentId: Overload:NE.Standard.Types.ReferenceComparer`1.Equals
+  isSpec: "True"
+  fullName: NE.Standard.Types.ReferenceComparer<T>.Equals
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).Equals
+  nameWithType: ReferenceComparer<T>.Equals
+  nameWithType.vb: ReferenceComparer(Of T).Equals
+- uid: NE.Standard.Types.ReferenceComparer`1.GetHashCode(`0)
+  name: GetHashCode(T)
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_GetHashCode__0_
+  commentId: M:NE.Standard.Types.ReferenceComparer`1.GetHashCode(`0)
+  fullName: NE.Standard.Types.ReferenceComparer<T>.GetHashCode(T)
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).GetHashCode(T)
+  nameWithType: ReferenceComparer<T>.GetHashCode(T)
+  nameWithType.vb: ReferenceComparer(Of T).GetHashCode(T)
+- uid: NE.Standard.Types.ReferenceComparer`1.GetHashCode*
+  name: GetHashCode
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_GetHashCode_
+  commentId: Overload:NE.Standard.Types.ReferenceComparer`1.GetHashCode
+  isSpec: "True"
+  fullName: NE.Standard.Types.ReferenceComparer<T>.GetHashCode
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).GetHashCode
+  nameWithType: ReferenceComparer<T>.GetHashCode
+  nameWithType.vb: ReferenceComparer(Of T).GetHashCode
+- uid: NE.Standard.Types.ReferenceComparer`1.Instance
+  name: Instance
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_Instance
+  commentId: P:NE.Standard.Types.ReferenceComparer`1.Instance
+  fullName: NE.Standard.Types.ReferenceComparer<T>.Instance
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).Instance
+  nameWithType: ReferenceComparer<T>.Instance
+  nameWithType.vb: ReferenceComparer(Of T).Instance
+- uid: NE.Standard.Types.ReferenceComparer`1.Instance*
+  name: Instance
+  href: api/NE.Standard.Types.ReferenceComparer-1.html#NE_Standard_Types_ReferenceComparer_1_Instance_
+  commentId: Overload:NE.Standard.Types.ReferenceComparer`1.Instance
+  isSpec: "True"
+  fullName: NE.Standard.Types.ReferenceComparer<T>.Instance
+  fullName.vb: NE.Standard.Types.ReferenceComparer(Of T).Instance
+  nameWithType: ReferenceComparer<T>.Instance
+  nameWithType.vb: ReferenceComparer(Of T).Instance
 - uid: NE.Standard.Types.WeakAction
   name: WeakAction
   href: api/NE.Standard.Types.WeakAction.html

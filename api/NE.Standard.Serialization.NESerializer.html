@@ -198,7 +198,7 @@ and preserves references between objects during the process.</p>
 
   <h3 id="NE_Standard_Serialization_NESerializer_Deserialize_System_String_System_Boolean_" data-uid="NE.Standard.Serialization.NESerializer.Deserialize(System.String,System.Boolean)">
   Deserialize(string, bool)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.Deserialize.cs/#L19"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.Deserialize.cs/#L20"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Deserializes the given string into an object instance of the original type.</p>
@@ -235,6 +235,9 @@ and preserves references between objects during the process.</p>
 
   <h4 class="section">Exceptions</h4>
   <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.formatexception">FormatException</a></dt>
+    <dd><p>Thrown when the input is not a valid Base64 string.</p>
+</dd>
     <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.exception">Exception</a></dt>
     <dd><p>Thrown when data is malformed or missing expected structure.</p>
 </dd>
@@ -246,7 +249,7 @@ and preserves references between objects during the process.</p>
 
   <h3 id="NE_Standard_Serialization_NESerializer_Deserialize__1_System_String_System_Boolean_" data-uid="NE.Standard.Serialization.NESerializer.Deserialize``1(System.String,System.Boolean)">
   Deserialize&lt;T&gt;(string, bool)
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.cs/#L85"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.cs/#L87"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Deserializes the given data string into an object of type <code class="typeparamref">T</code>.</p>
@@ -287,6 +290,15 @@ and preserves references between objects during the process.</p>
 
 
 
+  <h4 class="section">Exceptions</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.formatexception">FormatException</a></dt>
+    <dd><p>Thrown when the input is not a valid Base64 string.</p>
+</dd>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.exception">Exception</a></dt>
+    <dd><p>Thrown when data is malformed or missing expected structure.</p>
+</dd>
+  </dl>
 
 
 
@@ -294,7 +306,7 @@ and preserves references between objects during the process.</p>
 
   <h3 id="NE_Standard_Serialization_NESerializer_Dispose" data-uid="NE.Standard.Serialization.NESerializer.Dispose">
   Dispose()
-  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.cs/#L156"><i class="bi bi-code-slash"></i></a>
+  <a class="header-action link-secondary" title="View source" href="https://github.com/AkiEvansDev/NE.Standard/blob/master/src/Core/NE.Standard/Serialization/ObjectSerializer.cs/#L158"><i class="bi bi-code-slash"></i></a>
   </h3>
 
   <div class="markdown level1 summary"><p>Releases internal resources and clears reference and type tracking state.</p>

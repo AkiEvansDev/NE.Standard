@@ -326,20 +326,6 @@
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "api/NE.Standard.Types.IRecursiveObservable.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/NE.Standard.Types.IRecursiveObservable.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "NE.Standard.Types.IRecursiveObservable",
-      "Summary": "<p sourcefile=\"api/NE.Standard.Types.IRecursiveObservable.yml\" sourcestartlinenumber=\"1\">Defines a mechanism for recursive change notification across nested observable objects.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
       "source_relative_path": "api/NE.Standard.Types.KeyModifiers.yml",
       "output": {
         ".html": {
@@ -448,7 +434,7 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "NE.Standard.Types.RecursiveCollection<T>",
-      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveCollection-1.yml\" sourcestartlinenumber=\"1\">An observable collection of <xref href=\"NE.Standard.Types.IRecursiveObservable\" data-throw-if-not-resolved=\"false\"></xref> elements that propagates\nnested change notifications using index-based paths (e.g. &quot;[0].Property&quot;).</p>\n"
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveCollection-1.yml\" sourcestartlinenumber=\"1\">A recursively observable, thread-safe collection that tracks deep changes in items of type <code class=\"typeparamref\">T</code>.\nImplements <xref href=\"System.Collections.Generic.IList%601\" data-throw-if-not-resolved=\"false\"></xref>, <xref href=\"System.Collections.Specialized.INotifyCollectionChanged\" data-throw-if-not-resolved=\"false\"></xref>.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -462,7 +448,21 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "NE.Standard.Types.RecursiveObservable",
-      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveObservable.yml\" sourcestartlinenumber=\"1\">Provides recursive property change tracking by automatically wiring and propagating\nchange notifications through nested <xref href=\"NE.Standard.Types.IRecursiveObservable\" data-throw-if-not-resolved=\"false\"></xref> instances.</p>\n"
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.RecursiveObservable.yml\" sourcestartlinenumber=\"1\">Provides recursive property change tracking by automatically wiring and propagating change notifications\nthrough nested <xref href=\"NE.Standard.Types.RecursiveObservable\" data-throw-if-not-resolved=\"false\"></xref> instances.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/NE.Standard.Types.ReferenceComparer-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/NE.Standard.Types.ReferenceComparer-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "NE.Standard.Types.ReferenceComparer<T>",
+      "Summary": "<p sourcefile=\"api/NE.Standard.Types.ReferenceComparer-1.yml\" sourcestartlinenumber=\"1\">Provides a reference-based equality comparer for reference types.\nCompares objects by their reference identity rather than value equality.</p>\n"
     },
     {
       "type": "ManagedReference",
