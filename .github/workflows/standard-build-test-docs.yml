@@ -26,7 +26,7 @@ jobs:
       run: dotnet build src/Core/NE.Standard/NE.Standard.csproj --configuration Release
 
     - name: Test
-      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build -logger trx --results-directory ./TestResults
+      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build -logger:trx --results-directory ./TestResults
 
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
