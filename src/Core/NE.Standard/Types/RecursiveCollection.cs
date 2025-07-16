@@ -83,7 +83,6 @@ namespace NE.Standard.Types
         /// <summary>
         /// Adds a range of items to the end of the collection and raises appropriate notifications.
         /// </summary>
-        /// <param name="collection">The items to add.</param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="collection"/> is null.</exception>
         public void AddRange(IEnumerable<T> collection)
         {
@@ -198,8 +197,6 @@ namespace NE.Standard.Types
         /// <summary>
         /// Removes a range of items from the collection starting at the specified index.
         /// </summary>
-        /// <param name="index">The zero-based index at which to begin removing items.</param>
-        /// <param name="count">The number of items to remove.</param>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> or <paramref name="count"/> is invalid.</exception>
         public void RemoveRange(int index, int count)
         {

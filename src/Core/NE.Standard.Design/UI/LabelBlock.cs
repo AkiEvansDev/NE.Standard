@@ -1,7 +1,4 @@
 ﻿using NE.Standard.Design.Components;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace NE.Standard.Design.UI
 {

@@ -29,7 +29,7 @@ namespace NE.Standard.Types
             _maxSize = maxSize;
             _array = new T[Math.Min(DEFAULT_CAPACITY, _maxSize)];
         }
-        
+
         /// <summary>
         /// Gets the number of elements contained in the stack.
         /// </summary>

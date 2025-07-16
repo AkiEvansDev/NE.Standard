@@ -59,6 +59,14 @@ public class CollectionExtensionsTests
     }
 
     [Fact]
+    public void Groups_Throws_OnInvalidGroupCount()
+    {
+        var source = Enumerable.Range(1, 5);
+        Assert.Throws<ArgumentOutOfRangeException>(() => source.Groups(0).ToList());
+        Assert.Throws<ArgumentOutOfRangeException>(() => source.Groups(-3).ToList());
+    }
+
+    [Fact]
     public void Partition_SplitsSequenceIntoPartitionsOfGivenSize()
     {
         var source = Enumerable.Range(1, 10).ToList();
@@ -66,6 +74,14 @@ public class CollectionExtensionsTests
 
         Assert.Equal(4, result.Count); // 3+3+3+1
         Assert.Contains(result, p => p.Count == 1);
+    }
+
+    [Fact]
+    public void Partition_Throws_OnInvalidSize()
+    {
+        var source = Enumerable.Range(1, 5);
+        Assert.Throws<ArgumentOutOfRangeException>(() => source.Partition(0).ToList());
+        Assert.Throws<ArgumentOutOfRangeException>(() => source.Partition(-1).ToList());
     }
 
     [Fact]
@@ -91,19 +107,6 @@ public class CollectionExtensionsTests
         var sum = 0;
         source.ForEach(x => sum += x);
         Assert.Equal(6, sum);
-    }
-
-    [Fact]
-    public void ShuffleInPlace_ShufflesElements()
-    {
-        var list = Enumerable.Range(1, 100).ToList();
-        var original = list.ToList();
-
-        list.ShuffleInPlace();
-
-        Assert.Equal(100, list.Count);
-        Assert.True(list.All(original.Contains));
-        Assert.NotEqual(original, list); // Could be same by chance, but very rare
     }
 
     [Fact]

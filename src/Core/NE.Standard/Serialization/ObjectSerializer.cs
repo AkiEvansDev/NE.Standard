@@ -82,6 +82,8 @@ namespace NE.Standard.Serialization
         /// <param name="data">The serialized data string.</param>
         /// <param name="useBase64">Indicates whether the input string is Base64 encoded.</param>
         /// <returns>The deserialized object of type <typeparamref name="T"/>.</returns>
+        /// <exception cref="FormatException">Thrown when the input is not a valid Base64 string.</exception>
+        /// <exception cref="Exception">Thrown when data is malformed or missing expected structure.</exception>
         public T? Deserialize<T>(string data, bool useBase64 = true) where T : class
         {
             return (T?)Deserialize(data, useBase64);

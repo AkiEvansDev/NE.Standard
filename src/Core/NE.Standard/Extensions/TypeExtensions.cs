@@ -11,12 +11,8 @@ namespace NE.Standard.Extensions
     public static class TypeExtensions
     {
         /// <summary>
-        /// Creates an instance of the specified <paramref name="type"/> using an appropriate constructor, optionally passing constructor arguments.
+        /// Returns a new instance of the type, using the given constructor arguments.
         /// </summary>
-        /// <param name="type">The type to instantiate.</param>
-        /// <param name="parameters">
-        /// Optional parameters to pass to the constructor. If <c>null</c> or empty, the default constructor is used.
-        /// </param>
         /// <returns>A newly created instance of the specified <see cref="Type"/>.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="type"/> is <c>null</c>.</exception>
         /// <exception cref="MissingMethodException">Thrown when no matching constructor is found.</exception>
@@ -57,9 +53,8 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Attempts to resolve a <see cref="Type"/> object by searching all loaded assemblies for a type with the specified <paramref name="typeName"/>.
+        /// Resolves the type by name from all loaded assemblies.
         /// </summary>
-        /// <param name="typeName">The full name of the type to resolve, including namespace.</param>
         /// <returns>The resolved <see cref="Type"/> if found.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="typeName"/> is <c>null</c> or whitespace.</exception>
         /// <exception cref="TypeLoadException">Thrown when the type cannot be resolved from any loaded assemblies.</exception>

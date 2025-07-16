@@ -15,7 +15,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns the name of the specified enumeration <paramref name="enum"/> value.
         /// </summary>
-        /// <param name="enum">The enumeration value.</param>
         /// <returns>The name of the enum value as defined in its type.</returns>
         public static string GetName(this Enum @enum)
             => Enum.GetName(@enum.GetType(), @enum)!;
@@ -23,7 +22,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns all defined names in the enumeration type of the specified <paramref name="enum"/>.
         /// </summary>
-        /// <param name="enum">An instance of the enum whose type will be used to retrieve names.</param>
         /// <returns>An array of names defined in the enum type.</returns>
         public static string[] GetNames(this Enum @enum)
             => Enum.GetNames(@enum.GetType());
@@ -37,24 +35,17 @@ namespace NE.Standard.Extensions
             => Enum.GetValues(typeof(T)).Cast<T>();
 
         /// <summary>
-        /// Retrieves a custom attribute of type <typeparamref name="TAttribute"/> 
-        /// that is applied to the specified enumeration <paramref name="enum"/> value.
+        /// Returns the custom attribute of type <typeparamref name="TAttribute"/> for the enum value, or <c>null</c> if not found.
         /// </summary>
-        /// <typeparam name="TAttribute">The type of the attribute to retrieve.</typeparam>
-        /// <param name="enum">The enum value whose attribute is to be retrieved.</param>
-        /// <returns>The attribute of type <typeparamref name="TAttribute"/>, or <c>null</c> if not found.</returns>
-        public static TAttribute GetAttribute<TAttribute>(this Enum @enum) where TAttribute : Attribute
+        public static TAttribute? GetAttribute<TAttribute>(this Enum @enum) where TAttribute : Attribute
         {
-            return @enum
-                .GetType()
-                .GetField(@enum.ToString())!
-                .GetCustomAttribute<TAttribute>();
+            var field = @enum.GetType().GetField(@enum.ToString());
+            return field?.GetCustomAttribute<TAttribute>();
         }
 
         /// <summary>
         /// Returns the <see cref="DescriptionAttribute.Description"/> of the specified enumeration <paramref name="enum"/> value.
         /// </summary>
-        /// <param name="enum">The enum value to retrieve the description for.</param>
         /// <returns>The description string if <see cref="DescriptionAttribute"/> is defined; otherwise, <c>null</c>.</returns>
         public static string? GetDescription(this Enum @enum)
             => @enum.GetAttribute<DescriptionAttribute>()?.Description;

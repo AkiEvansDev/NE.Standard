@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using NE.Standard.Design.Data;
-using NE.Standard.Design.UI.Common;
 
 namespace NE.Standard.Web.Renders;
 

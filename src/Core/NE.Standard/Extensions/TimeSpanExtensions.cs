@@ -20,17 +20,13 @@ namespace NE.Standard.Extensions
             => span.ToString(format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture);
 
         /// <summary>
-        /// Determines whether the specified <paramref name="span"/> is equal to <see cref="TimeSpan.Zero"/>.
+        /// Returns <c>true</c> if the time span is zero; otherwise, <c>false</c>.
         /// </summary>
-        /// <param name="span">The time span to evaluate.</param>
-        /// <returns><c>true</c> if the time span is zero; otherwise, <c>false</c>.</returns>
         public static bool IsZero(this TimeSpan span) => span == TimeSpan.Zero;
 
         /// <summary>
-        /// Returns the absolute value of the specified <paramref name="span"/> as a positive <see cref="TimeSpan"/>.
+        /// Returns the absolute value of the <see cref="TimeSpan"/>.
         /// </summary>
-        /// <param name="span">The time span whose duration is to be calculated.</param>
-        /// <returns>A <see cref="TimeSpan"/> representing the absolute value of the original span.</returns>
         public static TimeSpan Abs(this TimeSpan span) => span.Duration();
     }
 }

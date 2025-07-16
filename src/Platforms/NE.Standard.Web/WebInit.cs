@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.DependencyInjection;
-using NE.Standard.Design;
-using NE.Standard.Design.Data;
 using NE.Standard.Web.Context;
 using System.Collections.Concurrent;
 

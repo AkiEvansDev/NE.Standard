@@ -15,6 +15,7 @@ namespace NE.Standard.Serialization
         /// <param name="data">The serialized string to deserialize.</param>
         /// <param name="useBase64">Specifies whether the input is Base64 encoded.</param>
         /// <returns>The deserialized object instance, or <c>null</c> if input is empty or invalid.</returns>
+        /// <exception cref="FormatException">Thrown when the input is not a valid Base64 string.</exception>
         /// <exception cref="Exception">Thrown when data is malformed or missing expected structure.</exception>
         public object? Deserialize(string data, bool useBase64 = true)
         {

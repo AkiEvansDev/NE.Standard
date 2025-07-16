@@ -47,7 +47,7 @@ namespace NE.Standard.Design._old.Data
         Task<IUIActionResult> Sync(List<UIUpdate> updates);
         Task<IUIActionResult> Execute(string action, object[]? parameters);
     }
-    
+
     public abstract class NEModelItem : ObservableObject
     {
         public Guid Id { get; set; }

@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Http;
-using NE.Standard.Design.Data;
-using NE.Standard.Extensions;
 using System.Collections.Concurrent;
 
 namespace NE.Standard.Web.Context;
@@ -71,7 +69,7 @@ internal class CookieAwareCircuitHandler(
         if (!match.Key.IsNull())
         {
             _contextStore.TryRemove(match.Key, out var removed);
-            if (removed?.Model != null) 
+            if (removed?.Model != null)
                 removed.Model.Dispose();
         }
 
@@ -80,7 +78,7 @@ internal class CookieAwareCircuitHandler(
 }
 
 internal class CurrentContextProvider(
-    IHttpContextAccessor httpContextAccessor, 
+    IHttpContextAccessor httpContextAccessor,
     ConcurrentDictionary<string, IInternalDataContext> contextStore
 ) : IInternalDataContextProvider
 {

@@ -100,7 +100,7 @@ namespace NE.Standard.Design.Components
             return (T)this;
         }
 
-        public T Bind<TConverter>(string property, string path, BlockBindingMode mode = BlockBindingMode.OneWay) 
+        public T Bind<TConverter>(string property, string path, BlockBindingMode mode = BlockBindingMode.OneWay)
             where TConverter : class, IBindingValueConverter, new()
         {
             Bindings ??= new List<BlockBinding>();

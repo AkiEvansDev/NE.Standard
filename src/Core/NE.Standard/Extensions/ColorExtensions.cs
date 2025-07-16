@@ -14,7 +14,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts the specified <paramref name="color"/> to a hexadecimal string representation in the format <c>#RRGGBBAA</c>.
         /// </summary>
-        /// <param name="color">The <see cref="Color"/> to convert.</param>
         /// <returns>A hexadecimal string representing the color, including alpha channel.</returns>
         public static string ToHex(this Color color)
             => $"#{color.R:X2}{color.G:X2}{color.B:X2}{color.A:X2}";
@@ -54,17 +53,12 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Creates a new <see cref="Color"/> instance based on the current one, but with the specified <paramref name="alpha"/> channel value.
         /// </summary>
-        /// <param name="color">The source color.</param>
-        /// <param name="alpha">The new alpha (opacity) value to apply.</param>
-        /// <returns>A <see cref="Color"/> with updated alpha and original RGB values.</returns>
         public static Color WithAlpha(this Color color, byte alpha)
             => Color.FromArgb(alpha, color.R, color.G, color.B);
 
         /// <summary>
-        /// Determines whether the specified <paramref name="color"/> is considered light based on its perceived brightness.
+        /// Returns <c>true</c> if the color is considered light based on its perceived brightness.
         /// </summary>
-        /// <param name="color">The color to evaluate.</param>
-        /// <returns><c>true</c> if the brightness is greater than 128; otherwise, <c>false</c>.</returns>
         public static bool IsLight(this Color color)
         {
             var brightness = color.R * 0.299 + color.G * 0.587 + color.B * 0.114;

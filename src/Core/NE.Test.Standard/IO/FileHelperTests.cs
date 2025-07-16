@@ -40,6 +40,20 @@ public class FileHelperTests : IDisposable
     }
 
     [Fact]
+    public void Read_ThrowsArgumentNullException_OnNullOrWhitespace()
+    {
+        Assert.Throws<ArgumentNullException>(() => FileHelper.Read(null!));
+        Assert.Throws<ArgumentNullException>(() => FileHelper.Read("   "));
+    }
+
+    [Fact]
+    public void Read_ThrowsFileNotFoundException_IfFileDoesNotExist()
+    {
+        string path = Path.Combine(_testDir, "nofile.txt");
+        Assert.Throws<FileNotFoundException>(() => FileHelper.Read(path));
+    }
+
+    [Fact]
     public void Delete_RemovesFile()
     {
         string path = Path.Combine(_testDir, "delete.txt");
@@ -55,6 +69,15 @@ public class FileHelperTests : IDisposable
         await FileHelper.WriteAsync(path, "AsyncContent");
         Assert.True(File.Exists(path));
         Assert.Equal("AsyncContent", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public async Task WriteAsync_CanBeCancelled()
+    {
+        string path = Path.Combine(_testDir, "cancel.txt");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => FileHelper.WriteAsync(path, "data", cts.Token));
     }
 
     [Fact]
@@ -129,6 +152,16 @@ public class FileHelperTests : IDisposable
         FileHelper.AppendLinesBuffered(path, ["new1", "new2"]);
         var lines = File.ReadAllLines(path);
         Assert.True(lines.Length >= 3);
+    }
+
+    [Fact]
+    public void AppendLinesBuffered_CreatesFileIfNotExists()
+    {
+        string path = Path.Combine(_testDir, "newappend.txt");
+        FileHelper.AppendLinesBuffered(path, new[] { "first", "second" });
+        Assert.True(File.Exists(path));
+        var lines = File.ReadAllLines(path);
+        Assert.Equal(2, lines.Length);
     }
 
     public void Dispose()

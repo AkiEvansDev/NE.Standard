@@ -35,7 +35,7 @@ namespace NE.Standard.Logging
 
         /// <inheritdoc/>
         public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel;
-        
+
         /// <inheritdoc/>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {

@@ -49,6 +49,14 @@ public class ColorExtensionsTests
         Assert.Equal(Color.FromArgb(255, 200, 150, 50), newColor);
     }
 
+    [Fact]
+    public void WithAlpha_SupportsZeroAndMax()
+    {
+        var color = Color.FromArgb(50, 100, 100, 100);
+        Assert.Equal(Color.FromArgb(0, 100, 100, 100), color.WithAlpha(0));
+        Assert.Equal(Color.FromArgb(255, 100, 100, 100), color.WithAlpha(255));
+    }
+
     [Theory]
     [InlineData(255, 255, 255, true)]
     [InlineData(10, 10, 10, false)]

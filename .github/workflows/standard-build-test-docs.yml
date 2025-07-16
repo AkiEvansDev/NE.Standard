@@ -26,7 +26,18 @@ jobs:
       run: dotnet build src/Core/NE.Standard/NE.Standard.csproj --configuration Release
 
     - name: Test
-      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build
+      run: dotnet test src/Core/NE.Test.Standard/NE.Test.Standard.csproj --configuration Release --no-build -logger trx --results-directory ./TestResults
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: ./TestResults
+
+    - name: Publish Test Results
+      uses: EnricoMi/publish-unit-test-result-action/composite@v2
+      with:
+        files: ./TestResults/*.trx
 
     - name: Pack
       run: dotnet pack src/Core/NE.Standard/NE.Standard.csproj --configuration Release --no-build -o ./nuget

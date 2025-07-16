@@ -1,10 +1,8 @@
 using NE.Standard.Extensions;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using Xunit;
 
 namespace NE.Test.Standard.Extensions;
+
+public enum TestEnum { One, Two }
 
 public class StringExtensionsTests
 {
@@ -41,6 +39,12 @@ public class StringExtensionsTests
         string input = "2024-01-01T12:30:00.0000000";
         Assert.True(input.TryToDate(out var result));
         Assert.Equal(new DateTime(2024, 1, 1, 12, 30, 0), result);
+    }
+
+    [Fact]
+    public void ToEnum_Throws_OnInvalidValue()
+    {
+        Assert.Throws<ArgumentException>(() => "NotAnEnum".ToEnum<TestEnum>());
     }
 
     [Fact]

@@ -22,7 +22,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts the specified <paramref name="date"/> to Unix time in seconds.
         /// </summary>
-        /// <param name="date">The date to convert.</param>
         /// <returns>The number of seconds that have elapsed since 1970-01-01T00:00:00Z (Unix epoch).</returns>
         public static long ToUnixTimeSeconds(this DateTime date)
             => new DateTimeOffset(date).ToUnixTimeSeconds();
@@ -30,7 +29,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts the specified <paramref name="date"/> to Unix time in milliseconds.
         /// </summary>
-        /// <param name="date">The date to convert.</param>
         /// <returns>The number of milliseconds that have elapsed since 1970-01-01T00:00:00Z (Unix epoch).</returns>
         public static long ToUnixTimeMilliseconds(this DateTime date)
             => new DateTimeOffset(date).ToUnixTimeMilliseconds();
@@ -38,7 +36,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts a Unix time value in seconds to a <see cref="DateTime"/>.
         /// </summary>
-        /// <param name="seconds">The number of seconds since the Unix epoch (1970-01-01T00:00:00Z).</param>
         /// <returns>A <see cref="DateTime"/> representing the specified Unix time.</returns>
         public static DateTime FromUnixTimeSeconds(this long seconds)
             => DateTimeOffset.FromUnixTimeSeconds(seconds).DateTime;
@@ -46,7 +43,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Converts a Unix time value in milliseconds to a <see cref="DateTime"/>.
         /// </summary>
-        /// <param name="milliseconds">The number of milliseconds since the Unix epoch (1970-01-01T00:00:00Z).</param>
         /// <returns>A <see cref="DateTime"/> representing the specified Unix time.</returns>
         public static DateTime FromUnixTimeMilliseconds(this long milliseconds)
             => DateTimeOffset.FromUnixTimeMilliseconds(milliseconds).DateTime;
@@ -54,7 +50,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns a new <see cref="DateTime"/> representing the start of the day (00:00:00.000) for the specified <paramref name="date"/>.
         /// </summary>
-        /// <param name="date">The original date.</param>
         /// <returns>A <see cref="DateTime"/> at the beginning of the same day.</returns>
         public static DateTime StartOfDay(this DateTime date)
             => date.Date;
@@ -62,7 +57,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns a new <see cref="DateTime"/> representing the end of the day (23:59:59.9999999) for the specified <paramref name="date"/>.
         /// </summary>
-        /// <param name="date">The original date.</param>
         /// <returns>A <see cref="DateTime"/> at the end of the same day.</returns>
         public static DateTime EndOfDay(this DateTime date)
             => date.Date.AddDays(1).AddTicks(-1);
@@ -70,7 +64,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns a new <see cref="DateTime"/> representing the first moment of the month for the specified <paramref name="date"/>.
         /// </summary>
-        /// <param name="date">The date whose month to evaluate.</param>
         /// <returns>A <see cref="DateTime"/> at 00:00:00.000 on the first day of the month.</returns>
         public static DateTime StartOfMonth(this DateTime date)
             => new DateTime(date.Year, date.Month, 1);
@@ -78,7 +71,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Returns a new <see cref="DateTime"/> representing the last possible moment of the month for the specified <paramref name="date"/>.
         /// </summary>
-        /// <param name="date">The date whose month to evaluate.</param>
         /// <returns>A <see cref="DateTime"/> at 23:59:59.9999999 on the last day of the month.</returns>
         public static DateTime EndOfMonth(this DateTime date)
             => new DateTime(date.Year, date.Month, 1)
@@ -86,10 +78,8 @@ namespace NE.Standard.Extensions
                 .AddTicks(-1);
 
         /// <summary>
-        /// Removes the milliseconds component from the specified <paramref name="date"/>, rounding down to the nearest second.
+        /// Returns a new <see cref="DateTime"/> without milliseconds (rounded down to the nearest second).
         /// </summary>
-        /// <param name="date">The date to trim.</param>
-        /// <returns>A <see cref="DateTime"/> without milliseconds (with ticks rounded to the nearest second).</returns>
         public static DateTime TrimMilliseconds(this DateTime date)
             => date.AddTicks(-(date.Ticks % TimeSpan.TicksPerSecond));
     }

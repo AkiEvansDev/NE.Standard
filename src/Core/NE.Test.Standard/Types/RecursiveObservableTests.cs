@@ -117,4 +117,56 @@ public class RecursiveObservableTests
         var notification = collection.Notifications[0];
         Assert.Equal(RecursiveChangedAction.Reset, notification.Action);
     }
+
+    [Fact]
+    public void AddRange_RaisesRecursiveAddNotification_WithCorrectCount()
+    {
+        var collection = new TestCollection();
+        var items = new[] { new TestItem("A"), new TestItem("B") };
+
+        collection.AddRange(items);
+
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Add, notification.Action);
+        Assert.Equal("[0]", notification.Path);
+        Assert.Equal(0, notification.Index);
+        Assert.Equal(2, notification.Count);
+    }
+
+    [Fact]
+    public void RemoveRange_RaisesRecursiveRemoveNotification_WithCorrectCount()
+    {
+        var collection = new TestCollection();
+        var items = new[] { new TestItem("A"), new TestItem("B"), new TestItem("C") };
+        collection.AddRange(items);
+        collection.ClearNotifications();
+
+        collection.RemoveRange(0, 2);
+
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Remove, notification.Action);
+        Assert.Equal("[0]", notification.Path);
+        Assert.Equal(0, notification.Index);
+        Assert.Equal(2, notification.Count);
+    }
+
+    [Fact]
+    public void Insert_RaisesAddNotification_WithCorrectIndex()
+    {
+        var collection = new TestCollection
+        {
+            new TestItem("A")
+        };
+        collection.ClearNotifications();
+
+        collection.Insert(0, new TestItem("B"));
+
+        Assert.Single(collection.Notifications);
+        var notification = collection.Notifications[0];
+        Assert.Equal(RecursiveChangedAction.Add, notification.Action);
+        Assert.Equal("[0]", notification.Path);
+        Assert.Equal(0, notification.Index);
+    }
 }

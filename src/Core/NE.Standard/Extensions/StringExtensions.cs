@@ -15,81 +15,55 @@ namespace NE.Standard.Extensions
         #region TryConversions
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="bool"/>.
+        /// Tries to convert the string to an <see cref="bool"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">When this method returns, contains the parsed boolean value if conversion succeeded; otherwise, <c>false</c>.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToBool(this string? value, out bool result)
             => bool.TryParse(value, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="byte"/>.
+        /// Tries to convert the string to an <see cref="byte"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output byte value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToByte(this string? value, out byte result)
             => byte.TryParse(value, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="short"/>.
+        /// Tries to convert the string to an <see cref="short"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output short value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToShort(this string? value, out short result)
             => short.TryParse(value, out result);
 
         /// <summary>
-        /// Attempts to convert the string to an <see cref="int"/>.
+        /// Tries to convert the string to an <see cref="int"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output integer value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToInt(this string? value, out int result)
             => int.TryParse(value, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="long"/>.
+        /// Tries to convert the string to an <see cref="long"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output long value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToLong(this string? value, out long result)
             => long.TryParse(value, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="float"/>.
-        /// Replaces ',' with '.' and uses <see cref="GeneralConstants.NumberFormat"/>.
+        /// Tries to convert the string to an <see cref="float"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output float value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToFloat(this string? value, out float result)
             => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="double"/>.
-        /// Replaces ',' with '.' and uses <see cref="GeneralConstants.NumberFormat"/>.
+        /// Tries to convert the string to an <see cref="double"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output double value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToDouble(this string? value, out double result)
             => double.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="decimal"/> using <see cref="GeneralConstants.NumberFormat"/>.
+        /// Tries to convert the string to an <see cref="decimal"/>.
         /// </summary>
-        /// <param name="value">The input string.</param>
-        /// <param name="result">The output decimal value if conversion succeeds.</param>
-        /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
         public static bool TryToDecimal(this string? value, out decimal result)
             => decimal.TryParse(value?.Replace(',', '.'), NumberStyles.Number, GeneralConstants.NumberFormat, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="DateTime"/> using a specified or default format.
+        /// Tries to convert the string to an <see cref="DateTime"/>.
         /// </summary>
         /// <param name="value">The input string.</param>
         /// <param name="result">The resulting <see cref="DateTime"/> if conversion succeeds.</param>
@@ -100,7 +74,7 @@ namespace NE.Standard.Extensions
             => DateTime.TryParseExact(value, format ?? GeneralConstants.DATETIME_FORMAT, provider ?? CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a <see cref="TimeSpan"/> using a specified or default format.
+        /// Tries to convert the string to an <see cref="TimeSpan"/>.
         /// </summary>
         /// <param name="value">The input string.</param>
         /// <param name="result">The resulting <see cref="TimeSpan"/> if conversion succeeds.</param>
@@ -111,7 +85,7 @@ namespace NE.Standard.Extensions
             => TimeSpan.TryParseExact(value, format ?? GeneralConstants.TIMESPAN_FORMAT, provider ?? CultureInfo.InvariantCulture, out result);
 
         /// <summary>
-        /// Attempts to convert the string to a value of the specified enumeration type <typeparamref name="T"/>.
+        /// Tries to convert the string to an <see cref="Enum"/> of the specified type <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">The target enum type.</typeparam>
         /// <param name="value">The input string.</param>
@@ -125,143 +99,103 @@ namespace NE.Standard.Extensions
         #region Conversions
 
         /// <summary>
-        /// Converts the string to a <see cref="bool"/> value, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="bool"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <param name="defaultValue">The value to return if the conversion fails. Default is <c>false</c>.</param>
-        /// <returns>A <see cref="bool"/> value parsed from the string, or <paramref name="defaultValue"/> if conversion fails.</returns>
         public static bool ToBool(this string? value, bool defaultValue = default)
             => bool.TryParse(value, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="bool"/>.
+        /// Returns the <see cref="bool"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="bool"/> value, or <c>null</c> if conversion fails.</returns>
         public static bool? ToNullableBool(this string? value)
             => bool.TryParse(value, out var result) ? result : (bool?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="byte"/> value, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="byte"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="byte"/> value parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static byte ToByte(this string? value, byte defaultValue = default)
             => byte.TryParse(value, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="byte"/>.
+        /// Returns the <see cref="byte"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="byte"/> value, or <c>null</c> if conversion fails.</returns>
         public static byte? ToNullableByte(this string? value)
             => byte.TryParse(value, out var result) ? result : (byte?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="short"/> value, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="short"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="short"/> value parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static short ToShort(this string? value, short defaultValue = default)
             => short.TryParse(value, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="short"/>.
+        /// Returns the <see cref="short"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="short"/> value, or <c>null</c> if conversion fails.</returns>
         public static short? ToNullableShort(this string? value)
             => short.TryParse(value, out var result) ? result : (short?)null;
 
         /// <summary>
-        /// Converts the string to an <see cref="int"/> value, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="int"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>An <see cref="int"/> parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static int ToInt(this string? value, int defaultValue = default)
             => int.TryParse(value, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="int"/>.
+        /// Returns the <see cref="int"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="int"/> value, or <c>null</c> if conversion fails.</returns>
         public static int? ToNullableInt(this string? value)
             => int.TryParse(value, out var result) ? result : (int?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="long"/> value, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="long"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="long"/> parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static long ToLong(this string? value, long defaultValue = default)
             => long.TryParse(value, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="long"/>.
+        /// Returns the <see cref="long"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="long"/> value, or <c>null</c> if conversion fails.</returns>
         public static long? ToNullableLong(this string? value)
             => long.TryParse(value, out var result) ? result : (long?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="float"/> value using <see cref="GeneralConstants.NumberFormat"/>, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="float"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert. Commas are replaced with dots before parsing.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="float"/> parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static float ToFloat(this string? value, float defaultValue = default)
             => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="float"/> using <see cref="GeneralConstants.NumberFormat"/>.
+        /// Returns the <see cref="float"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="float"/> value, or <c>null</c> if conversion fails.</returns>
         public static float? ToNullableFloat(this string? value)
             => float.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : (float?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="double"/> value using <see cref="GeneralConstants.NumberFormat"/>, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="double"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert. Commas are replaced with dots before parsing.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="double"/> parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static double ToDouble(this string? value, double defaultValue = default)
             => double.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="double"/> using <see cref="GeneralConstants.NumberFormat"/>.
+        /// Returns the <see cref="double"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="double"/> value, or <c>null</c> if conversion fails.</returns>
         public static double? ToNullableDouble(this string? value)
             => double.TryParse(value?.Replace(',', '.'), NumberStyles.AllowThousands | NumberStyles.Float, GeneralConstants.NumberFormat, out var result) ? result : (double?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="decimal"/> using <see cref="GeneralConstants.NumberFormat"/>, or returns the specified <paramref name="defaultValue"/> if parsing fails.
+        /// Returns the <see cref="decimal"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert. Commas are replaced with dots before parsing.</param>
-        /// <param name="defaultValue">The fallback value if conversion fails. Default is 0.</param>
-        /// <returns>A <see cref="decimal"/> parsed from the string, or <paramref name="defaultValue"/> if parsing fails.</returns>
         public static decimal ToDecimal(this string? value, decimal defaultValue = default)
             => decimal.TryParse(value?.Replace(',', '.'), NumberStyles.Number, GeneralConstants.NumberFormat, out var result) ? result : defaultValue;
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="decimal"/> using <see cref="GeneralConstants.NumberFormat"/>.
+        /// Returns the <see cref="decimal"/> value, or <c>null</c> if parsing fails.
         /// </summary>
-        /// <param name="value">The input string to convert.</param>
-        /// <returns>The parsed <see cref="decimal"/> value, or <c>null</c> if conversion fails.</returns>
         public static decimal? ToNullableDecimal(this string? value)
             => decimal.TryParse(value?.Replace(',', '.'), NumberStyles.Number, GeneralConstants.NumberFormat, out var result) ? result : (decimal?)null;
 
         /// <summary>
-        /// Converts the string to a <see cref="DateTime"/> using the specified or default format.
+        /// Returns the <see cref="DateTime"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
         /// <param name="value">The input string to convert.</param>
         /// <param name="format">The expected format. Defaults to <see cref="GeneralConstants.DATETIME_FORMAT"/> if <c>null</c>.</param>
@@ -277,7 +211,7 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="DateTime"/> using the specified or default format.
+        /// Returns the <see cref="DateTime"/> value, or <c>null</c> if parsing fails.
         /// </summary>
         /// <param name="value">The input string to convert.</param>
         /// <param name="format">The expected format. Defaults to <see cref="GeneralConstants.DATETIME_FORMAT"/> if <c>null</c>.</param>
@@ -292,7 +226,7 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Converts the string to a <see cref="TimeSpan"/> using the specified or default format.
+        /// Returns the <see cref="TimeSpan"/> value, or <paramref name="defaultValue"/> if parsing fails.
         /// </summary>
         /// <param name="value">The input string to convert.</param>
         /// <param name="format">The expected format. Defaults to <see cref="GeneralConstants.TIMESPAN_FORMAT"/> if <c>null</c>.</param>
@@ -308,7 +242,7 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Converts the string to a nullable <see cref="TimeSpan"/> using the specified or default format.
+        /// Returns the <see cref="TimeSpan"/> value, or <c>null</c> if parsing fails.
         /// </summary>
         /// <param name="value">The input string to convert.</param>
         /// <param name="format">The expected format. Defaults to <see cref="GeneralConstants.TIMESPAN_FORMAT"/> if <c>null</c>.</param>

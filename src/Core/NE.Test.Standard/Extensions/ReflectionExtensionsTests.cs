@@ -58,6 +58,13 @@ public class ReflectionExtensionsTests
     }
 
     [Fact]
+    public void SetPropertyValue_Throws_WhenPropertyNotFound()
+    {
+        var obj = new TestClass();
+        Assert.Throws<ArgumentException>(() => obj.SetPropertyValue("NotExists", 123));
+    }
+
+    [Fact]
     public void GetFieldValue_ReturnsPrivateField()
     {
         var obj = new TestClass();

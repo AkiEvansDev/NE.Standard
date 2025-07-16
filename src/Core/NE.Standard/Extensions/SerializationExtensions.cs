@@ -27,12 +27,8 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Deserializes the specified string into an object of type <typeparamref name="T"/> using <see cref="NESerializer"/>.
+        /// Returns the deserialized object of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.
         /// </summary>
-        /// <typeparam name="T">The type of the object to deserialize. Must be a reference type.</typeparam>
-        /// <param name="data">The serialized data string.</param>
-        /// <param name="useBase64">Specifies whether the input is Base64 encoded. Defaults to <c>true</c>.</param>
-        /// <returns>The deserialized object instance of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.</returns>
         public static T? DeserializeObject<T>(this string data, bool useBase64 = true) where T : class
         {
             using var serializer = new NESerializer();
@@ -54,12 +50,8 @@ namespace NE.Standard.Extensions
             => JsonSerializer.Serialize(obj, options);
 
         /// <summary>
-        /// Deserializes the specified JSON string into an object of type <typeparamref name="T"/> using <see cref="JsonSerializer"/>.
+        /// Returns the deserialized object of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.
         /// </summary>
-        /// <typeparam name="T">The target type to deserialize into. Must be a reference type.</typeparam>
-        /// <param name="json">The JSON string to deserialize.</param>
-        /// <param name="options">Optional <see cref="JsonSerializerOptions"/> for deserialization behavior.</param>
-        /// <returns>The deserialized object of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.</returns>
         public static T? DeserializeJson<T>(this string json, JsonSerializerOptions? options = null) where T : class
             => JsonSerializer.Deserialize<T>(json, options);
 
@@ -86,12 +78,8 @@ namespace NE.Standard.Extensions
         }
 
         /// <summary>
-        /// Deserializes the specified XML string into an object of type <typeparamref name="T"/> using <see cref="XmlSerializer"/>.
+        /// Returns the deserialized object of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.
         /// </summary>
-        /// <typeparam name="T">The target type to deserialize into. Must be a reference type.</typeparam>
-        /// <param name="xml">The XML string to deserialize.</param>
-        /// <returns>The deserialized object of type <typeparamref name="T"/>, or <c>null</c> if deserialization fails.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if <paramref name="xml"/> is <c>null</c>.</exception>
         public static T? DeserializeXml<T>(this string xml) where T : class
         {
             if (xml == null)

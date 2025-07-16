@@ -1,11 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.Extensions.Logging;
-using NE.Standard.Design;
-using NE.Standard.Design.Data;
-using NE.Standard.Design.Elements;
-using NE.Standard.Design.Elements.Base;
-using NE.Standard.Design.Styles;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -96,7 +89,7 @@ namespace NE.Standard.Example
                 },
                 Elements = new List<IUIElement>
                 {
-                    new UILabel 
+                    new UILabel
                     {
                         Label = "TestApp"
                     },

@@ -173,4 +173,29 @@ public class NESerializerTests
         Assert.Equal("0", res.Items["1"].Parent?.Data);
         Assert.Equal("0", res.Items["3"].Data);
     }
+
+    [Fact]
+    public void SerializeDeserialize_NullableAndEmptyCollections()
+    {
+        var serializer = new NESerializer();
+        var obj = new TestSerializer
+        {
+            Ints = null,
+            Floats = new List<float>(),
+            KeyValuePairs = null
+        };
+        var data = serializer.Serialize(obj);
+        var result = serializer.Deserialize<TestSerializer>(data);
+        Assert.Null(result!.Ints);
+        Assert.Empty(result.Floats!);
+        Assert.Null(result.KeyValuePairs);
+    }
+
+    [Fact]
+    public void Deserialize_Throws_OnInvalidInput()
+    {
+        var serializer = new NESerializer();
+        Assert.Throws<FormatException>(() => serializer.Deserialize<TestSerializer>("badstring"));
+        Assert.Throws<Exception>(() => serializer.Deserialize<TestSerializer>("", false));
+    }
 }

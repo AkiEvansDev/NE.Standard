@@ -16,6 +16,13 @@ public class TestTarget
     public int SumThree(int a, int b, int c) => a + b + c;
 }
 
+public static class StaticTestTarget
+{
+    public static int Value = 0;
+    public static void StaticAction() => Value++;
+    public static int StaticFunc() => 123;
+}
+
 public class WeakDelegateTests
 {
     [Fact]
@@ -133,5 +140,39 @@ public class WeakDelegateTests
         Assert.NotNull(weak);
         var success = weak!.TryExecute(out var result);
         Assert.False(success);
+    }
+
+    [Fact]
+    public void WeakAction_StaticTarget_AlwaysAlive()
+    {
+        StaticTestTarget.Value = 0;
+        var weak = new WeakAction(StaticTestTarget.StaticAction);
+
+        Assert.True(weak.IsAlive);
+        weak.Execute();
+        Assert.Equal(1, StaticTestTarget.Value);
+    }
+
+    [Fact]
+    public void WeakFunc_StaticTarget_AlwaysAlive()
+    {
+        var weak = new WeakFunc<int>(StaticTestTarget.StaticFunc);
+        Assert.True(weak.IsAlive);
+        Assert.Equal(123, weak.Execute());
+    }
+
+    [Fact]
+    public void WeakAction_TryExecute_ReturnsFalse_OnMethodException()
+    {
+        var weak = new WeakAction(new Action(() => throw new InvalidOperationException()));
+        Assert.False(weak.TryExecute());
+    }
+
+    [Fact]
+    public void WeakFunc_TryExecute_ReturnsFalse_OnMethodException()
+    {
+        var weak = new WeakFunc<int>(new Func<int>(() => throw new InvalidOperationException()));
+        var result = 0;
+        Assert.False(weak.TryExecute(out result));
     }
 }

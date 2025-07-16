@@ -1,6 +1,4 @@
 using NE.Standard.Example;
-using NE.Standard.Logging;
-using NE.Standard.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 

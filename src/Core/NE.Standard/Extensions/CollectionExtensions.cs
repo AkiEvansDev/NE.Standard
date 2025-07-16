@@ -18,35 +18,28 @@ namespace NE.Standard.Extensions
         #region Filtering
 
         /// <summary>
-        /// Determines whether the specified <paramref name="source"/> sequence is either <c>null</c> or contains no elements.
+        /// Determines whether the specified sequence is <c>null</c> or contains no elements.
+        /// Optimized for <see cref="ICollection{T}"/>.
         /// </summary>
-        /// <typeparam name="T">The type of elements in the sequence.</typeparam>
-        /// <param name="source">The sequence to check for null or emptiness.</param>
-        /// <returns><c>true</c> if the sequence is <c>null</c> or empty; otherwise, <c>false</c>.</returns>
-        public static bool IsNullOrEmpty<T>(this IEnumerable<T>? source) => source == null || !source.Any();
+        public static bool IsNullOrEmpty<T>(this IEnumerable<T>? source)
+            => source == null || (source is ICollection<T> col ? col.Count == 0 : !source.Any());
 
         /// <summary>
         /// Filters out <c>null</c> references from a sequence of reference types.
         /// </summary>
-        /// <typeparam name="T">The reference type of the elements.</typeparam>
-        /// <param name="source">The source sequence potentially containing <c>null</c> elements.</param>
-        /// <returns>A sequence containing only non-null elements.</returns>
         public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
-        {
-            return source.Where(x => x != null)!;
-        }
+            => source.OfType<T>();
 
         /// <summary>
         /// Filters out <c>null</c> values from a sequence of nullable value types.
         /// </summary>
-        /// <typeparam name="T">The value type of the elements.</typeparam>
-        /// <param name="source">The source sequence potentially containing <c>null</c> values.</param>
-        /// <returns>A sequence containing only defined <typeparamref name="T"/> values.</returns>
         public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : struct
         {
             foreach (var item in source)
+            {
                 if (item.HasValue)
                     yield return item.Value;
+            }
         }
 
         #endregion
@@ -92,11 +85,19 @@ namespace NE.Standard.Extensions
         public static IEnumerable<IEnumerable<T>> Partition<T>(this IEnumerable<T> source, int partitionSize)
         {
             if (partitionSize <= 0) throw new ArgumentOutOfRangeException(nameof(partitionSize));
+            List<T> buffer = new List<T>(partitionSize);
 
-            return source
-                .Select((x, i) => new { x, i })
-                .GroupBy(p => p.i / partitionSize)
-                .Select(g => g.Select(p => p.x));
+            foreach (var item in source)
+            {
+                buffer.Add(item);
+                if (buffer.Count == partitionSize)
+                {
+                    yield return buffer;
+                    buffer = new List<T>(partitionSize);
+                }
+            }
+            if (buffer.Count > 0)
+                yield return buffer;
         }
 
         #endregion
@@ -108,9 +109,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into a <see cref="List{T}"/> while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
         public static void InsertSorted<T>(this List<T> list, T item) where T : IComparable<T>
         {
             InsertSorted(list, item, Comparer<T>.Default);
@@ -119,10 +117,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into a <see cref="List{T}"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of elements.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
-        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSorted<T>(this List<T> list, T item, IComparer<T> comparer)
         {
             int index = list.BinarySearch(item, comparer);
@@ -133,9 +127,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into an <see cref="IList{T}"/> while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of elements, which must implement <see cref="IComparable{T}"/>.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
         public static void InsertSorted<T>(this IList<T> list, T item) where T : IComparable<T>
         {
             InsertSorted(list, item, Comparer<T>.Default);
@@ -144,10 +135,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into an <see cref="IList{T}"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of elements.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
-        /// <param name="comparer">The comparer to determine the sort order.</param>
         public static void InsertSorted<T>(this IList<T> list, T item, IComparer<T> comparer)
         {
             if (list is List<T> concreteList)
@@ -164,9 +151,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into a non-generic <see cref="IList"/> while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of the item, which must implement <see cref="IComparable{T}"/>.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
         /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSorted<T>(this IList list, T item) where T : IComparable<T>
         {
@@ -182,10 +166,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Inserts an item into a non-generic <see cref="IList"/> using a specified comparer, while preserving ascending sort order.
         /// </summary>
-        /// <typeparam name="T">The type of the item.</typeparam>
-        /// <param name="list">The list into which the item will be inserted.</param>
-        /// <param name="item">The item to insert.</param>
-        /// <param name="comparer">The comparer to determine the sort order.</param>
         /// <exception cref="InvalidOperationException">Thrown if the list is not a compatible <see cref="IList{T}"/>.</exception>
         public static void InsertSorted<T>(this IList list, T item, IComparer<T> comparer)
         {
@@ -301,27 +281,10 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Performs the specified <paramref name="action"/> on each element of the <paramref name="source"/> sequence.
         /// </summary>
-        /// <typeparam name="T">The type of the elements.</typeparam>
-        /// <param name="source">The sequence whose elements the action will be applied to.</param>
-        /// <param name="action">The action to perform on each element.</param>
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
         {
             foreach (var item in source)
                 action(item);
-        }
-
-        /// <summary>
-        /// Randomly reorders the elements of the specified <paramref name="list"/> in place using the Fisher-Yates algorithm.
-        /// </summary>
-        /// <typeparam name="T">The type of elements in the list.</typeparam>
-        /// <param name="list">The list to shuffle.</param>
-        public static void ShuffleInPlace<T>(this IList<T> list)
-        {
-            for (int i = list.Count - 1; i > 0; i--)
-            {
-                int j = _random.Next(i + 1);
-                (list[i], list[j]) = (list[j], list[i]);
-            }
         }
 
         #endregion
@@ -331,9 +294,6 @@ namespace NE.Standard.Extensions
         /// <summary>
         /// Performs the specified <paramref name="action"/> on each element of the <paramref name="source"/> sequence in parallel.
         /// </summary>
-        /// <typeparam name="T">The type of elements in the sequence.</typeparam>
-        /// <param name="source">The source sequence to process in parallel.</param>
-        /// <param name="action">The action to perform on each element.</param>
         public static void ParallelForEach<T>(this IEnumerable<T> source, Action<T> action)
         {
             Parallel.ForEach(source, action);
