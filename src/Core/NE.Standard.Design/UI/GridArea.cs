@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace NE.Standard.Design.UI
 {
-    public sealed class GridArea : AreaBlock<GridArea>
+    public sealed class GridArea : Area<GridArea>
     {
         public List<GridUnit> Columns { get; set; }
         public List<GridUnit> Rows { get; set; }

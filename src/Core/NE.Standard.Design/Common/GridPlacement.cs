@@ -19,12 +19,6 @@ namespace NE.Standard.Design.Common
             Unit = unit;
             Value = value;
         }
-
-        public static GridUnit Star(double value)
-            => new GridUnit(UnitType.Star, value);
-
-        public static GridUnit Absolute(double value)
-            => new GridUnit(UnitType.Absolute, value);
     }
 
     [NEObject]
