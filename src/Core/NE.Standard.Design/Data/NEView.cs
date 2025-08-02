@@ -1,5 +1,7 @@
-﻿using NE.Standard.Design.Components;
+﻿using Microsoft.Extensions.Primitives;
+using NE.Standard.Design.Components;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Data
@@ -13,7 +15,7 @@ namespace NE.Standard.Design.Data
     }
 
     public abstract class NEView<T> : INEView
-        where T : ISessionContext
+        where T : class, ISessionContext
     {
         private ISessionContext _context = default!;
 

@@ -9,7 +9,7 @@
     public abstract class ActionBlock<T> : Block<T>, IActionBlock
         where T : ActionBlock<T>
     {
-        public override Alignment HorizontalAlignment { get; set; } = Alignment.Stretch;
+        public override Alignment HorizontalAlignment { get; set; } = Alignment.Center;
         public override Alignment VerticalAlignment { get; set; } = Alignment.Center;
 
         public string Action { get; set; } = default!;

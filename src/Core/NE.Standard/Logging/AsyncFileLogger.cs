@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -266,7 +265,10 @@ namespace NE.Standard.Logging
             if (string.IsNullOrWhiteSpace(logDir)) throw new ArgumentException("Path required", nameof(logDir));
             if (retentionDays < 1) throw new ArgumentOutOfRangeException(nameof(retentionDays), "Retention must be at least 1 day");
 
-            builder.Services.AddSingleton<ILoggerProvider>(_ => new AsyncFileLoggerProvider(logDir, minLevel, retentionDays));
+            builder
+                .AddProvider(new AsyncFileLoggerProvider(logDir, minLevel, retentionDays))
+                .SetMinimumLevel(minLevel);
+
             return builder;
         }
     }

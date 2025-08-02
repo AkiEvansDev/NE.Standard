@@ -14,6 +14,9 @@ namespace NE.Standard.Design.UI
         {
             Columns = new List<GridUnit>(24);
             Rows = new List<GridUnit>(24);
+
+            for (var i = 0; i < 24; i++)
+                AddColumn(UnitType.Star, 1);
         }
 
         public GridArea AddColumn(UnitType unit, double value)

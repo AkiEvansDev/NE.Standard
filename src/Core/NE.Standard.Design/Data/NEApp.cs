@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Primitives;
 using NE.Standard.Design.Common;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace NE.Standard.Design.Data
@@ -13,10 +15,11 @@ namespace NE.Standard.Design.Data
 
     public interface INEApp
     {
-        string DefaultKey { get; }
+        string DefaultUri { get; }
         UIStyle DefaultStyle { get; }
 
-        Task<NENavigateResult> NavigateAsync(string key, ISessionContextProvider contextProvider, SyncMode mode);
+        Task<NENavigateResult> NavigateAsync<T>(string uri, string query, ISessionContextProvider contextProvider, SyncMode mode)
+            where T : class, IPlatformBinding, new();
     }
 
     public abstract class NEApp : INEApp
@@ -24,7 +27,7 @@ namespace NE.Standard.Design.Data
         private static readonly ConcurrentDictionary<string, IViewModel> _pages = new ConcurrentDictionary<string, IViewModel>();
         private readonly IServiceProvider _serviceProvider;
 
-        public abstract string DefaultKey { get; }
+        public abstract string DefaultUri { get; }
         public abstract UIStyle DefaultStyle { get; }
 
         public NEApp(IServiceProvider serviceProvider)
@@ -32,14 +35,15 @@ namespace NE.Standard.Design.Data
             _serviceProvider = serviceProvider;
         }
 
-        protected void RegisterPage<TModel, TView>(string key)
+        protected void RegisterPage<TModel, TView>(string uri)
             where TModel : class, INEModel
             where TView : class, INEView
         {
-            _pages.GetOrAdd(key, new ViewModel<TModel, TView>(_serviceProvider));
+            _pages.GetOrAdd(uri, new ViewModel<TModel, TView>(_serviceProvider));
         }
 
-        public async Task<NENavigateResult> NavigateAsync(string key, ISessionContextProvider contextProvider, SyncMode mode)
+        public async Task<NENavigateResult> NavigateAsync<T>(string uri, string query, ISessionContextProvider contextProvider, SyncMode mode)
+            where T : class, IPlatformBinding, new()
         {
             var result = new NENavigateResult
             {
@@ -52,31 +56,39 @@ namespace NE.Standard.Design.Data
                 return result;
             }
 
-            if (result.Context.Key == key && result.Context.Model != null && result.Context.View != null)
+            if (result.Context.Uri == uri && result.Context.Query == query && result.Context.Model != null && result.Context.View != null)
             {
                 result.Success = true;
                 return result;
             }
 
-            if (_pages.TryGetValue(key, out var viewModel))
+            if (_pages.TryGetValue(uri, out var viewModel))
             {
+                var saveUri = result.Context.Uri;
+                var saveQuery = result.Context.Query;
+
                 try
                 {
+                    result.Context.BindingContext = new T();
+                    result.Context.Uri = uri;
+                    result.Context.Query = query;
+
                     (result.Context.Model, result.Context.View) = await viewModel.LoadAsync(result.Context, mode);
 
-                    result.Context.Key = key;
                     result.Success = true;
 
                     return result;
                 }
                 catch (Exception ex)
                 {
-                    result.Error = $"Error while navigate to `{key}`: {ex.Message}";
+                    result.Context.Uri = saveUri;
+                    result.Context.Query = saveQuery;
+                    result.Error = $"Error while navigate to `{uri}`: {ex.Message}";
                     return result;
                 }
             }
 
-            result.Error = $"Key `{key}` not found.";
+            result.Error = $"Uri `{uri}` not found.";
             return result;
         }
 
@@ -106,7 +118,7 @@ namespace NE.Standard.Design.Data
 
                 if (!await model.InitAsync())
                     return (null, null);
-                
+
                 view.Context = context;
 
                 if (!await view.InitAsync())

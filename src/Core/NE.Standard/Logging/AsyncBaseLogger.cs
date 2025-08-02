@@ -41,7 +41,7 @@ namespace NE.Standard.Logging
         {
             if (!IsEnabled(logLevel)) return;
 
-            var message = $"[{DateTime.Now.ToFormat()}][{logLevel}] {_category}: {formatter(state, exception)}";
+            var message = $"[{DateTime.UtcNow.ToFormat("yyyy-MM-dd HH:mm:ss")}][{logLevel}] {_category}: {formatter(state, exception)}";
             if (exception != null)
                 message += $" {exception}";
 

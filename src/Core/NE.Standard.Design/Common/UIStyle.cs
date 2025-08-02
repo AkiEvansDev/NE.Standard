@@ -183,17 +183,29 @@ namespace NE.Standard.Design.Common
     {
         public string? FontFamily { get; set; }
 
-        public double Default { get; set; }
         public double Title { get; set; }
         public double Header { get; set; }
+        public double Default { get; set; }
         public double Caption { get; set; }
+
+        public double TitleLine { get; set; }
+        public double HeaderLine { get; set; }
+        public double DefaultLine { get; set; }
+        public double CaptionLine { get; set; }
 
         public FontConfig()
         {
-            Default = 14;
-            Title = 22;
+            FontFamily = "Inter";
+
+            Title = 24;
             Header = 18;
+            Default = 14;
             Caption = 12;
+
+            TitleLine = 28;
+            HeaderLine = 28;
+            DefaultLine = 20;
+            CaptionLine = 20;
         }
     }
 

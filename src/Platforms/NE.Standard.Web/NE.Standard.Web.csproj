@@ -6,17 +6,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
   </PropertyGroup>
-	
+
+  <PropertyGroup>
+	<NoWarn>$(NoWarn);ASP0006</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NE.Standard.Design\NE.Standard.Design.csproj" />
+    <Folder Include="wwwroot\fonts\Inter\" />
+    <Folder Include="wwwroot\js\dist\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\font\" />
+    <ProjectReference Include="..\..\Core\NE.Standard.Design\NE.Standard.Design.csproj" />
   </ItemGroup>
+	
+  <Target Name="CompileAndBundle" BeforeTargets="Build">
+	<Exec Command="npm install" />
+	<Exec Command="npm run build" />
+  </Target>
 
 </Project>

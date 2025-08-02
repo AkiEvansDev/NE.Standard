@@ -1,10 +1,14 @@
+using NE.Standard.Design.Data;
 using NE.Standard.Example;
+using NE.Standard.Logging;
+using NE.Standard.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.AddAsyncConsoleLogger();
+builder.Logging.ClearProviders();
+builder.Logging.AddAsyncConsoleLogger(LogLevel.Debug);
 
-WebInit.InitBuilder<TestApp>(builder);
+WebInit.InitBuilder<TestApp, SessionContext>(builder);
 
 var app = builder.Build();
 

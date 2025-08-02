@@ -1,28 +1,40 @@
 ﻿@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
-@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using NE.Standard.Design.Data
 @using NE.Standard.Web.Components
+@using NE.Standard.Web.Renderer
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
 
-@page "/"
+@inject INEApp NEApp
+
+@page "/{*link}"
+
+@code {
+#if DEBUG
+    private const string CssPath = "_content/NE.Standard.Web/css/app.css";
+    private const string JsPath = "_content/NE.Standard.Web/js/dist/app.js";
+#else
+    private const string CssPath = "_content/NE.Standard.Web/css/app.min.css";
+    private const string JsPath = "_content/NE.Standard.Web/js/dist/app.min.js";
+#endif
+}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <HeadOutlet @rendermode="InteractiveServer" />
-    <link rel="stylesheet" href="_content/NE.Standard.Web/css/app.css" />
-    <link rel="stylesheet" href="_content/NE.Standard.Web/layout/app.css" />
-    <link rel="stylesheet" href="_content/NE.Standard.Web/icons/app.css" />
-    <link rel="stylesheet" href="_content/NE.Standard.Web/ui/app.css" />
-    <link rel="stylesheet" href="_content/NE.Standard.Web/bind/app.css" />
+    <style>
+        @((MarkupString)CssGenerator.GenerateRootCss(NEApp.DefaultStyle))
+    </style>
+    <link rel="stylesheet" href="@CssPath" />
 </head>
 
 <body>
-    <AppHost />
+    <AppHost @rendermode=InteractiveServer />
+    <script type="module" src="@JsPath"></script>
     <script src="_framework/blazor.web.js"></script>
-    <script src="_content/NE.Standard.Web/js/app.ts"></script>
 </body>
 
 </html>

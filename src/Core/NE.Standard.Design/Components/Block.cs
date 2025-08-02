@@ -28,16 +28,16 @@ namespace NE.Standard.Design.Components
     {
         string Id { get; }
 
-        bool Enabled { get; }
         bool Visible { get; }
+        bool Enabled { get; }
 
         Alignment HorizontalAlignment { get; }
         Alignment VerticalAlignment { get; }
         BlockThickness? Margin { get; }
 
-        GridPlacement? MobileLayout { get; }
-        GridPlacement? TabletLayout { get; }
-        GridPlacement? DesktopLayout { get; }
+        GridPlacement? Layout { get; }
+        GridPlacement? LayoutMD { get; }
+        GridPlacement? LayoutXL { get; }
 
         List<BlockBinding>? Bindings { get; }
         List<BlockInteraction>? Interactions { get; }
@@ -46,18 +46,29 @@ namespace NE.Standard.Design.Components
     [NEObject]
     public abstract class Block : IBlock
     {
+        public const string ContextProperty = "Context";
+
+        public const string EnabledProperty = nameof(Enabled);
+        public const string VisibleProperty = nameof(Visible);
+        public const string HorizontalAlignmentProperty = nameof(HorizontalAlignment);
+        public const string VerticalAlignmentProperty = nameof(VerticalAlignment);
+        public const string MarginProperty = nameof(Margin);
+        public const string MobileLayoutProperty = nameof(Layout);
+        public const string TabletLayoutProperty = nameof(LayoutMD);
+        public const string DesktopLayoutProperty = nameof(LayoutXL);
+
         public string Id { get; set; }
 
-        public virtual bool Enabled { get; set; } = true;
         public virtual bool Visible { get; set; } = true;
+        public virtual bool Enabled { get; set; } = true;
 
         public virtual Alignment HorizontalAlignment { get; set; } = Alignment.Start;
         public virtual Alignment VerticalAlignment { get; set; } = Alignment.Start;
         public virtual BlockThickness? Margin { get; set; }
 
-        public GridPlacement? MobileLayout { get; set; }
-        public GridPlacement? TabletLayout { get; set; }
-        public GridPlacement? DesktopLayout { get; set; }
+        public GridPlacement? Layout { get; set; }
+        public GridPlacement? LayoutMD { get; set; }
+        public GridPlacement? LayoutXL { get; set; }
 
         public List<BlockBinding>? Bindings { get; set; }
         public List<BlockInteraction>? Interactions { get; set; }
@@ -71,16 +82,14 @@ namespace NE.Standard.Design.Components
     public abstract class Block<T> : Block
         where T : Block<T>
     {
-        public const string ContextProperty = "Context";
+        public T BindContext(string path)
+            => Bind(ContextProperty, path);
 
-        public const string EnabledProperty = nameof(Enabled);
-        public const string VisibleProperty = nameof(Visible);
-        public const string HorizontalAlignmentProperty = nameof(HorizontalAlignment);
-        public const string VerticalAlignmentProperty = nameof(VerticalAlignment);
-        public const string MarginProperty = nameof(Margin);
-        public const string MobileLayoutProperty = nameof(MobileLayout);
-        public const string TabletLayoutProperty = nameof(TabletLayout);
-        public const string DesktopLayoutProperty = nameof(DesktopLayout);
+        public T BindVisible(string path, BlockBindingMode mode = BlockBindingMode.OneWay)
+            => Bind(VisibleProperty, path, mode);
+
+        public T BindEnabled(string path, BlockBindingMode mode = BlockBindingMode.OneWay)
+            => Bind(EnabledProperty, path, mode);
 
         public T Bind(string property, string path, BlockBindingMode mode = BlockBindingMode.OneWay)
         {

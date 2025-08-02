@@ -71,7 +71,7 @@ namespace NE.Standard.Logging
             {
                 LogLevel.Trace => ConsoleColor.DarkGray,
                 LogLevel.Debug => ConsoleColor.Gray,
-                LogLevel.Information => ConsoleColor.White,
+                LogLevel.Information => ConsoleColor.Blue,
                 LogLevel.Warning => ConsoleColor.Yellow,
                 LogLevel.Error => ConsoleColor.Red,
                 LogLevel.Critical => ConsoleColor.Magenta,
@@ -134,7 +134,10 @@ namespace NE.Standard.Logging
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            builder.AddProvider(new AsyncConsoleLoggerProvider(minLevel));
+            builder
+                .AddProvider(new AsyncConsoleLoggerProvider(minLevel))
+                .SetMinimumLevel(minLevel);
+
             return builder;
         }
     }

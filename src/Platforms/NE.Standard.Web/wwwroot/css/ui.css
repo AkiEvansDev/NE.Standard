@@ -1,1 +1,55 @@
-﻿
+﻿.GridArea {
+    display: grid;
+    gap: 0;
+}
+    .GridArea.justify-stretch {
+        width: 100%;
+    }
+
+    .GridArea.align-stretch {
+        height: 100%;
+    }
+
+.LabelBlock {
+    display: grid;
+    gap: 4px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+    .LabelBlock > h2 {
+        color: var(--on-background);
+        font-size: var(--font-header);
+        line-height: var(--font-header-line);
+        letter-spacing: -0.1px;
+        font-weight: 600;
+    }
+
+    .LabelBlock > h6 {
+        color: var(--on-surface);
+        font-size: var(--font-default);
+        line-height: var(--font-default-line);
+        letter-spacing: -0.1px;
+        font-weight: 500;
+    }
+
+.ButtonBlock {
+    padding: 8px 16px;
+    border-radius: var(--radius-button);
+    font-size: var(--font-default);
+    font-family: var(--font-family);
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background-color: var(--primary);
+    color: var(--on-primary);
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+    .ButtonBlock:hover:not(.disabled) {
+        opacity: 0.9;
+    }
+
+    .ButtonBlock:active:not(.disabled) {
+        opacity: 0.75;
+    }

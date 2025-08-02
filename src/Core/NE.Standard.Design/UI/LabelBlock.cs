@@ -10,6 +10,12 @@ namespace NE.Standard.Design.UI
 
         public string Label { get; set; } = default!;
         public string? Description { get; set; }
+
+        public T BindLabel(string path)
+            => Bind(LabelProperty, path);
+
+        public T BindDescription(string path)
+            => Bind(DescriptionProperty, path);
     }
 
     public sealed class LabelBlock : LabelBlock<LabelBlock> { }

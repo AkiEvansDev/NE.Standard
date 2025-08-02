@@ -1,107 +1,99 @@
-﻿using System;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using NE.Standard.Design.Common;
+using NE.Standard.Design.Components;
+using NE.Standard.Design.Data;
+using NE.Standard.Design.UI;
+using NE.Standard.Types;
+using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace NE.Standard.Example
 {
-    public partial class TestModel : NEModel
+    public partial class TestLabelData : RecursiveObservable
     {
-        protected override SyncMode SyncMode { get; set; } = SyncMode.Debounced;
-
         [ObservableProperty]
         private string _title = "";
 
         [ObservableProperty]
         private string _text = "";
-
-        [UIAction]
-        public void TestUpdate()
-        {
-            Title = "Test Title Update";
-            Text = "...";
-        }
-
-        public override Task InitAsync()
-        {
-            return Task.CompletedTask;
-        }
     }
 
-    public class TestAppModel : NEModel
+    public partial class TestModel : NEModel<SessionContext>
     {
-        protected override SyncMode SyncMode { get; set; } = SyncMode.None;
-    }
+        [ObservableProperty]
+        private string _title = "Test 1";
 
-    public class TestView : NEView
-    {
-        public override List<UIDialog>? Dialogs { get; }
-        public override IUILayout? Layout { get; } = new UIGrid
+        [ObservableProperty]
+        private string _text = "Test 1";
+
+        [ObservableProperty]
+        private TestLabelData _label = new TestLabelData
         {
-            Rows = new GridDefinition[2]
-            {
-                new GridDefinition { Star = 1 },
-                new GridDefinition { Star = 1 }
-            },
-            Columns = new GridDefinition[2]
-            {
-                new GridDefinition { Star = 1 },
-                new GridDefinition { Star = 1 }
-            },
-            Elements = new List<IUIElement>
-            {
-                new UILabel
-                {
-                    Label = "Test",
-                    Description = "Test 2132342342",
-                }
-                .SetId("test_label")
-                .SetLayout(1, 0)
-                .AddBinding(BindingType.TwoWay, nameof(TestModel.Title), nameof(UILabel.Label))
-                .AddBinding(BindingType.TwoWay, nameof(TestModel.Text), nameof(UILabel.Description)),
-                new UIButton
-                {
-                    Label = "Update",
-                    Action = nameof(TestModel.TestUpdate)
-                }
-                .SetLayout(1, 1)
-            }
+            Title = "Test 2",
+            Text = "Test 2"
         };
 
-        public override Task InitAsync()
+        public NEActionResult TestUpdate()
         {
-            return Task.CompletedTask;
+            Title = "Test Title Update " + DateTime.Now;
+            Text = "...";
+
+            //Label = new TestLabelData
+            //{
+            //    Title = "ddddd " + DateTime.Now,
+            //    Text = "Update???!!!",
+            //};
+
+            return new NEActionResult { Success = true };
         }
+    }
+
+    public class TestView : NEView<SessionContext>
+    {
+        public override IArea Area { get; } = new GridArea
+        {
+            Blocks = new List<IBlock>
+            {
+                new LabelBlock
+                {
+                    Label = "___________",
+                    Description = "___________",
+                    Layout = new GridPlacement(1, 1, 10)
+                }
+                .BindLabel(nameof(TestModel.Title))
+                .BindDescription(nameof(TestModel.Text)),
+                new LabelBlock
+                {
+                    Label = "___________",
+                    Description = "___________",
+                    Layout = new GridPlacement(1, 2, 10)
+                }
+                .BindContext(nameof(TestModel.Label))
+                .BindLabel(nameof(TestLabelData.Title))
+                .BindDescription(nameof(TestLabelData.Text)),
+                new ButtonBlock
+                {
+                    Label = "Click!",
+                    Action = nameof(TestModel.TestUpdate),
+                    Layout = new GridPlacement(1, 3)
+                }
+            }
+        }
+        .AddRow(UnitType.Star, 1)
+        .AddRow(UnitType.Star, 2)
+        .AddRow(UnitType.Star, 2)
+        .AddRow(UnitType.Star, 2)
+        .AddRow(UnitType.Star, 1);
     }
 
     public class TestApp : NEApp
     {
-        public override string HomePage { get; } = "test";
-        public override UIStyleConfig DefaultStyle { get; } = new UIStyleConfig();
-        public override UIApp UIApp { get; } = new UIApp
-        {
-            AppModel = new TestAppModel(),
-            ContentLayout = new UIGrid
-            {
-                Rows = new GridDefinition[2]
-                {
-                    new GridDefinition { Absolute = 40 },
-                    new GridDefinition { Star = 1 }
-                },
-                Elements = new List<IUIElement>
-                {
-                    new UILabel
-                    {
-                        Label = "TestApp"
-                    },
-                    new UIPageRenderer()
-                        .SetLayout(0, 1)
-                }
-            }
-        };
+        public override string DefaultUri { get; } = "/test";
+        public override UIStyle DefaultStyle { get; } = new UIStyle();
 
         public TestApp(IServiceProvider serviceProvider) : base(serviceProvider)
         {
-            RegisterPage<TestModel, TestView>("test");
+            RegisterPage<TestModel, TestView>("/test");
         }
     }
 }

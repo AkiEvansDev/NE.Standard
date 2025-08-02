@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Platforms\NE.Standard.Web\NE.Standard.Web.csproj" />
     <ProjectReference Include="..\NE.Standard.Example\NE.Standard.Example.csproj" />
-    <ProjectReference Include="..\NE.Standard.Web\NE.Standard.Web.csproj" />
   </ItemGroup>
 
 </Project>

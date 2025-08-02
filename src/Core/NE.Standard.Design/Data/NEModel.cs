@@ -1,4 +1,5 @@
-﻿using NE.Standard.Extensions;
+﻿using Microsoft.Extensions.Primitives;
+using NE.Standard.Extensions;
 using NE.Standard.Serialization;
 using NE.Standard.Types;
 using System;
@@ -38,10 +39,13 @@ namespace NE.Standard.Design.Data
 
         Task<bool> InitAsync();
         Task<INEActionResult> Execute(string action, object[]? parameters);
+
+        object? GetValue(string path);
+        void SetValue(string path, object? value);
     }
 
     public abstract class NEModel<T> : RecursiveObservable, INEModel
-        where T : ISessionContext
+        where T : class, ISessionContext
     {
         private static readonly ConcurrentDictionary<Type, Dictionary<string, MethodInfo>> _typeCache = new ConcurrentDictionary<Type, Dictionary<string, MethodInfo>>();
         private readonly Type _type;

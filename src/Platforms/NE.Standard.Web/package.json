@@ -1,0 +1,20 @@
+{
+  "name": "ne.standard.web",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build:js:debug": "esbuild wwwroot/js/src/app.ts --bundle --format=esm --outfile=wwwroot/js/dist/app.js",
+    "build:js:release": "esbuild wwwroot/js/src/app.ts --bundle --minify --format=esm --outfile=wwwroot/js/dist/app.min.js",
+    "build:js": "npm run build:js:debug && npm run build:js:release",
+    "build:css": "esbuild wwwroot/css/app.css --bundle --minify --outfile=wwwroot/css/app.min.css --external:/_content/*",
+    "build": "npm run build:js && npm run build:css"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "esbuild": "^0.25.8",
+    "typescript": "^5.9.2"
+  }
+}
