@@ -1,0 +1,35 @@
+@import "../mixins/responsive.less";
+
+.ui-image {
+
+    display: block;
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+}
+
+.ui-image-fit--default {
+
+}
+
+.ui-image-fit--fill {
+    .ui-responsive-property(width, --ui-width, 100%);
+    .ui-responsive-property(height, --ui-height, 100%);
+    object-fit: fill;
+}
+
+.ui-image-fit--contain {
+    .ui-responsive-property(width, --ui-width, 100%);
+    .ui-responsive-property(height, --ui-height, 100%);
+    object-fit: contain;
+}
+
+.ui-image-fit--cover {
+    .ui-responsive-property(width, --ui-width, 100%);
+    .ui-responsive-property(height, --ui-height, 100%);
+    object-fit: cover;
+}
+
+.ui-image-fit--none {
+    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(height, --ui-height, auto);
+    object-fit: none;
+}

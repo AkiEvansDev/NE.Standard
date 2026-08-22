@@ -1,0 +1,157 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/responsive.less";
+
+.ui-select {
+
+    // A trigger showing the selected option through its full item template, plus a popup listbox. The popup
+    // is position: fixed and placed by anchored-popup.ts; the classes here carry appearance only.
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    .ui-responsive-property(min-width, --ui-min-width, 12rem);
+    gap: @ui-space-1;
+    font: inherit;
+}
+
+.ui-select__trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+    width: 100%;
+    min-height: @ui-control-height;
+    padding: 0 @ui-space-3;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-surface-raised);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-surface-raised);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-select__trigger:hover {
+        border-color: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+    }
+
+// The same inset ring the text family draws, for the same reason: an outer one is clipped left and right by
+// the panel the control is stretched across. Drawn here rather than left to the library's keyboard ring,
+// which nothing draws by default — see core/reset.less.
+.ui-select:not(.ui-disabled) > .ui-select__trigger:focus {
+    border-color: var(--ui-color-primary);
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
+}
+
+.ui-select.ui-invalid > .ui-select__trigger {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+}
+
+.ui-select.ui-invalid:not(.ui-disabled) > .ui-select__trigger:focus {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-validation-color, var(--ui-color-danger));
+}
+
+.ui-select__trigger-content {
+    display: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: @ui-space-2 0;
+    overflow: hidden;
+}
+
+.ui-select__placeholder {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ui-text-muted);
+}
+
+.ui-select__clear {
+    display: none;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    color: var(--ui-text-muted);
+    line-height: 1;
+    cursor: pointer;
+}
+
+    .ui-select__clear:hover {
+        background: color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent);
+        color: var(--ui-color-on-surface);
+    }
+
+    .ui-select__clear::before {
+        content: "\2715";
+        font-size: 0.7em;
+    }
+
+.ui-select__chevron {
+    flex: 0 0 auto;
+    width: 0.5em;
+    height: 0.5em;
+    margin-top: -0.25em;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-select--open .ui-select__chevron {
+    margin-top: 0.25em;
+    transform: rotate(-135deg);
+}
+
+.ui-select__popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    display: none;
+    max-height: 16rem;
+    overflow-y: auto;
+    padding: @ui-space-1;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-color-surface);
+    .ui-elevation-2();
+}
+
+.ui-select--open > .ui-select__popup {
+    display: block;
+}
+
+.ui-select__option {
+    display: block;
+    padding: @ui-space-2 @ui-space-3;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+    .ui-select__option:hover {
+        background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+    }
+
+.ui-select__option[aria-selected="true"] {
+    background: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
+}
+
+.ui-select__message {
+    display: none;
+    padding: 0 @ui-space-1;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-select.ui-invalid > .ui-select__message {
+    display: block;
+}

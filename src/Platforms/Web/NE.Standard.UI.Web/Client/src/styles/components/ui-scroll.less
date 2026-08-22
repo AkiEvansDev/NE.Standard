@@ -1,0 +1,40 @@
+.ui-scroll {
+
+    display: block;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    // Declared so BorderThickness has something to draw with — see the note on .ui-stack-panel.
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.ui-scroll.ui-scroll-x--disabled {
+    overflow-x: hidden;
+}
+
+.ui-scroll.ui-scroll-x--auto {
+    overflow-x: auto;
+}
+
+.ui-scroll.ui-scroll-x--always {
+    overflow-x: scroll;
+}
+
+.ui-scroll.ui-scroll-x--auto > [data-ui-id],
+.ui-scroll.ui-scroll-x--always > [data-ui-id] {
+    width: max-content;
+    min-width: 100%;
+}
+
+.ui-scroll.ui-scroll-y--disabled {
+    overflow-y: hidden;
+}
+
+.ui-scroll.ui-scroll-y--auto {
+    overflow-y: auto;
+}
+
+.ui-scroll.ui-scroll-y--always {
+    overflow-y: scroll;
+}

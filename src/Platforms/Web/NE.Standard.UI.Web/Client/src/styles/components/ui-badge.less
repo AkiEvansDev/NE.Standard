@@ -1,0 +1,104 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-badge {
+
+    // .ui-badge is worn both by a component root and by a nested __badge part. Anything reading a --ui-*
+    // custom property here must be gated on [data-ui-id]: those inherit, and runtime.less resets them there.
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    min-height: 1.75em;
+    padding: @ui-space-1 @ui-space-2;
+    border-radius: 999px;
+    overflow: hidden;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.ui-badge[data-ui-id] {
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-responsive-property(min-height, --ui-min-height, 1.75em);
+}
+
+.ui-badge__icon,
+.ui-badge__text {
+    min-width: 0;
+}
+
+.ui-badge__icon {
+    display: none;
+}
+
+.ui-badge__text {
+    display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-badge[data-ui-badge-icon] > .ui-badge__icon {
+    display: inline-flex;
+}
+
+    .ui-badge[data-ui-badge-icon] > .ui-badge__icon::before {
+        display: block;
+    }
+
+.ui-badge[data-ui-badge-text] > .ui-badge__text {
+    display: block;
+}
+
+.ui-badge[data-ui-badge-icon][data-ui-badge-text] > .ui-badge__icon {
+    margin-right: 0.1em;
+}
+
+    .ui-badge[data-ui-badge-icon][data-ui-badge-text] > .ui-badge__icon.ui-icon-size--small {
+        margin-right: 0.2em;
+    }
+
+.ui-badge[data-ui-badge-icon]:not([data-ui-badge-text]) {
+    padding: 0.5em;
+    aspect-ratio: 1;
+    border-radius: 999px;
+}
+
+.ui-badge-style--primary {
+    background: var(--ui-color-primary);
+    color: var(--ui-color-on-primary);
+}
+
+.ui-badge-style--accent {
+    background: var(--ui-color-accent);
+    color: var(--ui-color-on-accent);
+}
+
+.ui-badge-style--info {
+    background: var(--ui-color-info);
+    color: var(--ui-color-on-info);
+}
+
+.ui-badge-style--warning {
+    background: var(--ui-color-warning);
+    color: var(--ui-color-on-warning);
+}
+
+.ui-badge-style--success {
+    background: var(--ui-color-success);
+    color: var(--ui-color-on-success);
+}
+
+.ui-badge-style--danger {
+    background: var(--ui-color-danger);
+    color: var(--ui-color-on-danger);
+}
+
+.ui-badge-style--surface {
+    background: var(--ui-color-surface);
+    color: var(--ui-color-on-surface);
+}
+
+.ui-badge--tinted {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+}

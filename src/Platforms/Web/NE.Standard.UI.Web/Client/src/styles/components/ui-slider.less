@@ -1,0 +1,133 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-slider {
+
+    // Row-level layout, because the ShowValue readout is a sibling of the track inside __row rather than a
+    // direct child of the root — a rule that assumes otherwise silently never matches.
+    display: inline-flex;
+    flex-direction: column;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    gap: @ui-space-1;
+    .ui-responsive-property(min-width, --ui-min-width, 12rem);
+    font: inherit;
+}
+
+.ui-slider__row {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+}
+
+.ui-slider.ui-orientation--vertical {
+    .ui-responsive-property(height, --ui-height, 10rem);
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+.ui-slider.ui-orientation--vertical > .ui-slider__row {
+    flex-direction: column;
+    height: 100%;
+}
+
+.ui-slider__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 1.25rem;
+    background: transparent;
+    appearance: none;
+    cursor: pointer;
+}
+
+    .ui-slider.ui-orientation--vertical .ui-slider__input {
+        writing-mode: vertical-lr;
+        direction: rtl;
+        width: 1.25rem;
+        height: 100%;
+    }
+
+    .ui-slider__input::-webkit-slider-runnable-track {
+        height: 0.35rem;
+        border-radius: 999px;
+        background: var(--ui-surface-raised);
+    }
+
+    .ui-slider__input::-moz-range-track {
+        height: 0.35rem;
+        border-radius: 999px;
+        background: var(--ui-surface-raised);
+    }
+
+    .ui-slider__input::-webkit-slider-thumb {
+        appearance: none;
+        width: 1.1rem;
+        height: 1.1rem;
+        margin-top: -0.375rem;
+        border: 2px solid var(--ui-color-surface);
+        border-radius: 999px;
+        background: var(--ui-color-primary);
+        box-shadow: 0 1px 2px var(--ui-color-shadow);
+        cursor: pointer;
+        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-slider__input::-moz-range-thumb {
+        width: 1.1rem;
+        height: 1.1rem;
+        border: 2px solid var(--ui-color-surface);
+        border-radius: 999px;
+        background: var(--ui-color-primary);
+        box-shadow: 0 1px 2px var(--ui-color-shadow);
+        cursor: pointer;
+        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-slider__input:disabled {
+        cursor: default;
+    }
+
+.ui-slider__value {
+    display: none;
+    flex: 0 0 auto;
+    min-width: 2.5em;
+    text-align: end;
+    color: var(--ui-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ui-slider--show-value > .ui-slider__row > .ui-slider__value {
+    display: inline-block;
+}
+
+.ui-slider__min,
+.ui-slider__max {
+    display: none;
+    flex: 0 0 auto;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+    font-variant-numeric: tabular-nums;
+}
+
+.ui-slider--show-range > .ui-slider__row > .ui-slider__min,
+.ui-slider--show-range > .ui-slider__row > .ui-slider__max {
+    display: inline-block;
+}
+
+.ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
+    background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+}
+
+.ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
+    background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+}
+
+.ui-slider__message {
+    display: none;
+    padding: 0 @ui-space-1;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-slider.ui-invalid > .ui-slider__message {
+    display: block;
+}

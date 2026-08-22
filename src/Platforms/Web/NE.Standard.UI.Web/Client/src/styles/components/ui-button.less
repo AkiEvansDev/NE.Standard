@@ -1,0 +1,148 @@
+@import "../mixins/interactive.less";
+@import "../mixins/responsive.less";
+
+@keyframes ui-button-loading-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ui-button {
+    // min-height/max-width/padding go through .ui-responsive-property, never a flat literal: runtime.less
+    // resolves those through a var() chain at the same specificity, and a literal here would silently swallow
+    // the authoring property. ResponsivePropertyCollisionTests enforces it.
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-button);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+}
+
+    // An icon with no title is a round icon button. Detected from the content element's own attributes
+    // rather than a modifier class, so the shape follows what was actually authored.
+    .ui-button:has(> .ui-button-content[data-ui-button-content-icon]:not([data-ui-button-content-title])) {
+        // Re-called with this variant's own default rather than written flat — see the note on .ui-button.
+        .ui-responsive-property(width, --ui-width, @ui-control-height);
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+        border-radius: 999px;
+    }
+
+    // Alignment lives on the button, not only on its content: .ui-button sets its own text-align: center,
+    // which otherwise cascades into every alignment and makes Justify look centred.
+    .ui-button:has(> .ui-button-content--align-start) {
+        justify-content: flex-start;
+    }
+
+    .ui-button:has(> .ui-button-content--align-end) {
+        justify-content: flex-end;
+    }
+
+    .ui-button.ui-disabled,
+    .ui-button:disabled {
+        .ui-disabled-state();
+    }
+
+    .ui-button.ui-loading {
+        opacity: var(--ui-disabled-opacity);
+        cursor: progress;
+    }
+
+        .ui-button.ui-loading .ui-button-content[data-ui-button-content-icon] > .ui-button-content__icon::before {
+            display: block;
+            width: 1em;
+            height: 1em;
+            border: 0.14em solid color-mix(in srgb, currentColor 28%, transparent);
+            border-top-color: currentColor;
+            border-radius: 999px;
+            background: none;
+            mask: none;
+            -webkit-mask: none;
+            animation: ui-button-loading-spin 800ms linear infinite;
+        }
+
+// No elevation on the filled variants: the shadow is only visible in the notches of the rounded corners,
+// where it darkens the surface underneath down to roughly the page background and reads as four torn-out
+// corner patches rather than as depth. A control sitting on a surface does not cast a shadow here; cards,
+// dialogs and popups still do.
+.ui-button--primary {
+    background: var(--ui-color-primary);
+    color: var(--ui-color-on-primary);
+}
+
+.ui-button--accent {
+    background: var(--ui-color-accent);
+    color: var(--ui-color-on-accent);
+}
+
+.ui-button--danger {
+    background: var(--ui-color-danger);
+    color: var(--ui-color-on-danger);
+}
+
+.ui-button--outline {
+    border-color: color-mix(in srgb, currentColor 34%, transparent);
+    background: transparent;
+    color: var(--ui-color-on-surface);
+}
+
+.ui-button--ghost {
+    background: transparent;
+    color: var(--ui-color-on-surface);
+}
+
+.ui-button--link {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ui-color-primary);
+}
+
+// An inset tint rather than a raised shadow, for the same reason the resting state carries no elevation.
+.ui-button--primary:not(.ui-disabled):not(.ui-loading):not(:disabled):hover,
+.ui-button--accent:not(.ui-disabled):not(.ui-loading):not(:disabled):hover,
+.ui-button--danger:not(.ui-disabled):not(.ui-loading):not(:disabled):hover {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, black 10%, transparent);
+}
+
+.ui-button:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, black 6%, transparent);
+}
+
+.ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled) {
+    .ui-reveal-hover();
+}
+
+    .ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled):hover {
+        border-color: color-mix(in srgb, currentColor 62%, transparent);
+    }
+
+    .ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
+        background-color: color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+.ui-button--ghost:not(.ui-disabled):not(.ui-loading):not(:disabled),
+.ui-button--link:not(.ui-disabled):not(.ui-loading):not(:disabled) {
+    .ui-reveal-hover();
+}
+
+    .ui-button--ghost:not(.ui-disabled):not(.ui-loading):not(:disabled):active,
+    .ui-button--link:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
+        background-color: color-mix(in srgb, currentColor 10%, transparent);
+    }

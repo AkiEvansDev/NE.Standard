@@ -1,0 +1,27 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-command-bar {
+
+    // Items live in an inner __host, not in the root: the client resolves an items host with
+    // querySelector, which searches descendants only, so a bound Items would never populate without it.
+    .ui-responsive-reset(--ui-command-bar-spacing);
+
+    display: flex;
+}
+
+.ui-command-bar__host {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    .ui-responsive-property(gap, --ui-command-bar-spacing, @ui-space-2);
+}
+
+.ui-command-bar.ui-orientation--vertical .ui-command-bar__host {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.ui-command-bar--wrap .ui-command-bar__host {
+    flex-wrap: wrap;
+}

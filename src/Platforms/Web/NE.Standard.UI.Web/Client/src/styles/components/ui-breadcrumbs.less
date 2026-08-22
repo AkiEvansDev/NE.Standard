@@ -1,0 +1,94 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-breadcrumbs {
+    // Reset on the root that carries [data-ui-id], where the renderer writes the authoring value; the gap
+    // itself is on the host below, where the steps actually are. Same split as .ui-menu.
+    .ui-responsive-reset(--ui-breadcrumbs-spacing);
+
+    display: flex;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+// A trail wraps rather than scrolls or collapses: nothing is hidden, and a long path takes a second line.
+.ui-breadcrumbs__host {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    .ui-responsive-property(gap, --ui-breadcrumbs-spacing, 2px);
+    min-width: 0;
+}
+
+.ui-breadcrumbs__item {
+    display: flex;
+    align-items: center;
+    gap: inherit;
+    min-width: 0;
+}
+
+    // The mark belongs to the trail, not to the step, so it is drawn beside the step instead of inside it —
+    // inside the anchor it would sit in the link's own hover block and answer to its clicks.
+    .ui-breadcrumbs__item + .ui-breadcrumbs__item::before {
+        content: var(--ui-breadcrumbs-separator, "\203a");
+        color: var(--ui-text-muted);
+        user-select: none;
+    }
+
+    // A hidden step takes its mark with it. Visible hides the *step*, and the mark belongs to the wrapper
+    // around it, so without this a trail with a step switched off keeps a separator leading nowhere — and,
+    // Visible being responsive, one rule per tier is what "hidden" actually means.
+    .ui-breadcrumbs-hide-step(@attribute) {
+        .ui-breadcrumbs__item:has(> [@{attribute}]) {
+            display: none;
+        }
+    }
+
+    .ui-breadcrumbs-hide-step(data-ui-hidden);
+
+    @media (min-width: @ui-breakpoint-sm) {
+        .ui-breadcrumbs-hide-step(data-ui-hidden-sm);
+    }
+
+    @media (min-width: @ui-breakpoint-md) {
+        .ui-breadcrumbs-hide-step(data-ui-hidden-md);
+    }
+
+    @media (min-width: @ui-breakpoint-xl) {
+        .ui-breadcrumbs-hide-step(data-ui-hidden-xl);
+    }
+
+    @media (min-width: @ui-breakpoint-xxl) {
+        .ui-breadcrumbs-hide-step(data-ui-hidden-xxl);
+    }
+
+    // The filter's own way of taking an item out, which lands on the wrapper rather than on the step.
+    .ui-breadcrumbs__item.ui-hidden {
+        display: none;
+    }
+
+.ui-breadcrumb {
+    // Through the mixin, never flat: this element carries [data-ui-id], where runtime.less resolves the
+    // authoring value through a var() chain at the same specificity — see the note on .ui-button.
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(min-height, --ui-min-height, 1.75rem);
+    // The step's own padding is most of what stands between two steps, so it is part of the trail's rhythm
+    // rather than of the step: a comfortable button padding here read as a trail with room for another word.
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    color: var(--ui-text-muted);
+    text-decoration: none;
+}
+
+    .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover {
+        background: none;
+        color: var(--ui-color-on-surface);
+        text-decoration: underline;
+    }
+
+// The page you are on: plain text that keeps the trail's rhythm, and no longer a link — the pointer half of
+// what breadcrumbs-engine.ts says to a reader with aria-current.
+.ui-breadcrumb--current {
+    color: var(--ui-color-on-surface);
+    font-weight: 600;
+    pointer-events: none;
+}

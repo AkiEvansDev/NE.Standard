@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Shell</PackageId>
+    <Description>The hosting and runtime contracts of the NE.Standard UI framework: IUIHost, IUIRuntime, IUIUpdateSink, sessions, services and the file-transfer surface a platform implements.</Description>
+    <PackageTags>NE.Standard,UI,Contracts,Shell</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Standard.UI</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+    <ProjectReference Include="..\NE.Standard.UI.Abstractions\NE.Standard.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\NE.Standard.UI.Compiled\NE.Standard.UI.Compiled.csproj" />
+  </ItemGroup>
+
+</Project>

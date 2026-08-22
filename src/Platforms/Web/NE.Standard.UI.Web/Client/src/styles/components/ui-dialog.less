@@ -1,0 +1,84 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+
+@ui-dialog-z: 100;
+
+.ui-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: @ui-dialog-z;
+    display: grid;
+    place-items: center;
+}
+
+.ui-dialog[hidden] {
+    display: none;
+}
+
+.ui-dialog__backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--ui-color-overlay, rgba(0, 0, 0, 0.45));
+    animation: ui-dialog-backdrop-in @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-dialog:not([data-ui-dialog-modal]) .ui-dialog__backdrop {
+    background: transparent;
+    pointer-events: none;
+}
+
+.ui-dialog__surface {
+    position: relative;
+    // Sized against the viewport rather than its content: the surface holds ordinary compiled components,
+    // whose own responsive width/height would otherwise let a dialog grow past the screen.
+    margin: @ui-space-4;
+    max-width: min(560px, calc(100% - (@ui-space-4 * 2)));
+    max-height: calc(100% - (@ui-space-4 * 2));
+    overflow: auto;
+    padding: @ui-space-4;
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-surface-raised);
+    color: var(--ui-color-on-surface);
+    .ui-elevation-4();
+    animation: ui-dialog-surface-in @ui-motion-normal @ui-motion-ease;
+}
+
+// The other kind of dialog: not a card over a page but a screen of its own, so it takes the page's own
+// background and states its edge with a border instead of with a lift.
+.ui-dialog__surface[data-ui-dialog-surface="background"] {
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    background: var(--ui-color-background);
+}
+
+.ui-dialog__surface:focus {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-dialog__backdrop,
+    .ui-dialog__surface {
+        animation: none;
+    }
+}
+
+@keyframes ui-dialog-backdrop-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes ui-dialog-surface-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}

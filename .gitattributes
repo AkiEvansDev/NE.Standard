@@ -1,0 +1,7 @@
+###############################################################################
+# Set default behavior to automatically normalize line endings.
+###############################################################################
+* text=auto
+
+# The mirror script is run by bash on a Linux runner; CRLF would break its shebang.
+*.sh text eol=lf

@@ -1,0 +1,31 @@
+// Search reuses the Select shell, but its trigger *is* a live text input rather than a display span.
+.ui-search__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+    .ui-search__input::-webkit-search-cancel-button {
+        display: none;
+    }
+
+.ui-search:not(.ui-search-mode--replace) .ui-select__trigger-content {
+    display: none !important;
+}
+
+.ui-search.ui-search-mode--replace:not(.ui-select--open) .ui-search__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

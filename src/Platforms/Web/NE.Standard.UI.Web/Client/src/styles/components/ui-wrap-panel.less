@@ -1,0 +1,57 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-wrap-panel {
+    .ui-responsive-reset(--ui-wrap-panel-horizontal-gap);
+    .ui-responsive-reset(--ui-wrap-panel-vertical-gap);
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+
+    .ui-responsive-property(row-gap, --ui-wrap-panel-vertical-gap, 0);
+    .ui-responsive-property(column-gap, --ui-wrap-panel-horizontal-gap, 0);
+    // Declared so BorderThickness has something to draw with — see the note on .ui-stack-panel.
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+}
+
+:where(.ui-wrap-panel) > [data-ui-id] {
+    align-self: var(--ui-align-v, flex-start);
+}
+
+.ui-wrap-panel > [data-ui-id] {
+    .ui-responsive-reset-infix(--ui-placement, column-span);
+    --ui-wrap-panel-span: var(--ui-placement-column-span);
+
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: auto;
+    flex-basis: calc((100% - 23 * var(--ui-wrap-panel-horizontal-gap, 0px)) / 24 * var(--ui-wrap-panel-span) + (var(--ui-wrap-panel-span) - 1) * var(--ui-wrap-panel-horizontal-gap, 0px));
+}
+
+@media (min-width: @ui-breakpoint-sm) {
+    .ui-wrap-panel > [data-ui-id] {
+        --ui-wrap-panel-span: var(--ui-placement-sm-column-span, var(--ui-placement-column-span));
+    }
+}
+
+@media (min-width: @ui-breakpoint-md) {
+    .ui-wrap-panel > [data-ui-id] {
+        --ui-wrap-panel-span: var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)));
+    }
+}
+
+@media (min-width: @ui-breakpoint-xl) {
+    .ui-wrap-panel > [data-ui-id] {
+        --ui-wrap-panel-span: var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span))));
+    }
+}
+
+@media (min-width: @ui-breakpoint-xxl) {
+    .ui-wrap-panel > [data-ui-id] {
+        --ui-wrap-panel-span: var(--ui-placement-xxl-column-span, var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)))));
+    }
+}

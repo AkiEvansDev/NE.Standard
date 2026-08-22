@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Compiled</PackageId>
+    <Description>The compiler's output in the NE.Standard UI framework: CompiledView, the indexes a renderer and a runtime address it through, and the resolution over them.</Description>
+    <PackageTags>NE.Standard,UI,Contracts,Compiled</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+    <ProjectReference Include="..\NE.Standard.UI.Abstractions\NE.Standard.UI.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

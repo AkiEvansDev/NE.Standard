@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Web.Abstractions</PackageId>
+    <Description>The render contracts of the NE.Standard UI web platform: what a component renderer is asked for, and what an add-on package implements to render one of its own.</Description>
+    <PackageTags>NE.Standard,UI,Platform,Web,Abstractions</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Abstractions\NE.Standard.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Shell\NE.Standard.UI.Shell.csproj" />
+  </ItemGroup>
+
+</Project>

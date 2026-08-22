@@ -1,0 +1,77 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-progress {
+    --ui-progress-min: 0;
+    --ui-progress-max: 100;
+    --ui-progress-value: 0;
+
+    display: inline-flex;
+    align-items: center;
+    gap: @ui-space-2;
+}
+
+.ui-progress__value {
+    display: none;
+    flex: 0 0 auto;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-progress[data-ui-progress-value] > .ui-progress__value {
+    display: block;
+}
+
+.ui-progress--linear {
+    .ui-responsive-property(width, --ui-width, 100%);
+}
+
+.ui-progress--linear > .ui-progress__track {
+    flex: 1 1 auto;
+    height: 0.4rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.ui-progress--linear > .ui-progress__track > .ui-progress__fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: currentColor;
+    width: calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100%);
+    transition: width @ui-motion-normal @ui-motion-ease;
+}
+
+.ui-progress--circular {
+    position: relative;
+    justify-content: center;
+    .ui-responsive-property(width, --ui-width, 2.75rem);
+    .ui-responsive-property(height, --ui-height, 2.75rem);
+}
+
+.ui-progress--circular > .ui-progress__track {
+    display: block;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    background: conic-gradient(currentColor calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100% - 0.25%), color-mix(in srgb, currentColor 18%, transparent) calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100% + 0.25%));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 0.3rem - 0.5px), #000 calc(100% - 0.3rem + 0.5px), #000 calc(100% - 0.5px), transparent 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.3rem - 0.5px), #000 calc(100% - 0.3rem + 0.5px), #000 calc(100% - 0.5px), transparent 100%);
+    transition: background @ui-motion-normal @ui-motion-ease;
+}
+
+.ui-progress--circular > .ui-progress__track > .ui-progress__fill {
+    display: none;
+}
+
+.ui-progress--circular > .ui-progress__value {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.ui-progress--circular[data-ui-progress-value] > .ui-progress__value {
+    display: flex;
+}

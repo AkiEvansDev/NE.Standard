@@ -1,0 +1,93 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-radio-group {
+
+    // Options are wrapped client-side and kept in step by RadioGroupSyncEngine, because one bound Value has
+    // to reach N radios. The required marker sits under the options — a group has no single field to mark.
+    display: flex;
+    flex-direction: column;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    gap: @ui-space-1;
+    font: inherit;
+}
+
+.ui-radio-group__host {
+    display: flex;
+    flex-direction: column;
+    gap: @ui-space-2;
+}
+
+.ui-radio-group.ui-orientation--horizontal > .ui-radio-group__host {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: @ui-space-4;
+}
+
+.ui-radio-group__item {
+    display: inline-flex;
+    align-items: center;
+    gap: @ui-space-2;
+    min-width: 0;
+    cursor: pointer;
+}
+
+    .ui-radio-group__item:has(.ui-radio-group__input:disabled) {
+        cursor: default;
+    }
+
+.ui-radio-group__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.ui-radio-group__dot {
+    position: relative;
+    flex: 0 0 auto;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: 999px;
+    background: var(--ui-surface-raised);
+    transition: border-color @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-radio-group__input:checked ~ .ui-radio-group__dot {
+    border-color: var(--ui-color-primary);
+}
+
+.ui-radio-group__dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: var(--ui-color-primary);
+    opacity: 0;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-radio-group__input:checked ~ .ui-radio-group__dot::after {
+    opacity: 1;
+}
+
+.ui-radio-group__message {
+    display: none;
+    padding: 0 @ui-space-1;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-radio-group.ui-invalid > .ui-radio-group__message {
+    display: block;
+}

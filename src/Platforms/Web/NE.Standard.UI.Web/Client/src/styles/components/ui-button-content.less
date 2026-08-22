@@ -1,0 +1,148 @@
+.ui-button-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-button-content__icon {
+    display: none;
+    flex: 0 0 auto;
+    margin-right: 0.35em;
+}
+
+.ui-button-content__body {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-button-content__header {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-button-content__title {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-button-content__badge {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+    transform: scale(0.9);
+    transform-origin: top left;
+}
+
+.ui-button-content__badge--inline {
+    margin-left: 0.5em;
+}
+
+.ui-button-content__badge--trailing {
+    margin-left: auto;
+    transform-origin: top right;
+}
+
+.ui-button-content:has(> .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) {
+    width: 100%;
+    justify-content: stretch;
+}
+
+    .ui-button-content:has(> .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-button-content__body {
+        width: 100%;
+    }
+
+        .ui-button-content:has(> .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-button-content__body > .ui-button-content__header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            column-gap: 0.5em;
+            width: 100%;
+            min-width: 0;
+        }
+
+            .ui-button-content:has(> .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-button-content__body > .ui-button-content__header > .ui-button-content__title {
+                justify-self: start;
+            }
+
+            .ui-button-content:has(> .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-button-content__body > .ui-button-content__header > .ui-button-content__badge {
+                justify-self: end;
+                margin-left: 0;
+            }
+
+.ui-button-content__description {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    margin-top: -0.25em;
+    margin-bottom: 0.25em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-button-content[data-ui-button-content-icon] > .ui-button-content__icon {
+    display: inline-flex;
+}
+
+    .ui-button-content[data-ui-button-content-icon] > .ui-button-content__icon::before {
+        display: block;
+    }
+
+.ui-button-content[data-ui-button-content-icon]:not([data-ui-button-content-title]) > .ui-button-content__icon {
+    margin-right: 0;
+}
+
+.ui-button-content[data-ui-button-content-title] > .ui-button-content__body > .ui-button-content__header > .ui-button-content__title {
+    display: block;
+}
+
+.ui-button-content__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+    display: inline-flex;
+}
+
+.ui-button-content[data-ui-button-content-description] > .ui-button-content__body > .ui-button-content__description {
+    display: block;
+}
+
+.ui-button-content--align-start {
+    text-align: start;
+}
+
+.ui-button-content--align-start > .ui-button-content__body {
+    justify-items: start;
+}
+
+.ui-button-content--align-center {
+    text-align: center;
+}
+
+.ui-button-content--align-center > .ui-button-content__body {
+    justify-items: center;
+}
+
+.ui-button-content--align-end {
+    text-align: end;
+}
+
+.ui-button-content--align-end > .ui-button-content__body {
+    justify-items: end;
+}
+
+.ui-button-content--align-justify {
+    width: 100%;
+    justify-content: stretch;
+    text-align: justify;
+}
+
+    .ui-button-content--align-justify > .ui-button-content__body {
+        width: 100%;
+        justify-items: stretch;
+    }

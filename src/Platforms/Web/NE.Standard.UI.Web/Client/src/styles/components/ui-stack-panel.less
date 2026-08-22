@@ -1,0 +1,39 @@
+@import "../mixins/responsive.less";
+
+.ui-stack-panel {
+
+    .ui-responsive-reset(--ui-stack-panel-spacing);
+
+    display: flex;
+    .ui-responsive-property(gap, --ui-stack-panel-spacing, 0);
+    // border-style/-width/-color are declared so BorderThickness has something to draw with:
+    // BorderStyleRenderer writes width, colour and radius but never the style, and the initial style is
+    // `none`. Same three lines as .ui-container.
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.ui-stack-panel > [data-ui-id] {
+    flex-shrink: 0;
+}
+
+.ui-stack-panel.ui-orientation--horizontal {
+    flex-direction: row;
+}
+
+.ui-stack-panel.ui-orientation--vertical {
+    flex-direction: column;
+}
+
+.ui-stack-panel--wrap {
+    flex-wrap: wrap;
+}
+
+:where(.ui-stack-panel.ui-orientation--horizontal) > [data-ui-id] {
+    align-self: var(--ui-align-v, normal);
+}
+
+:where(.ui-stack-panel.ui-orientation--vertical) > [data-ui-id] {
+    align-self: var(--ui-align-h, normal);
+}

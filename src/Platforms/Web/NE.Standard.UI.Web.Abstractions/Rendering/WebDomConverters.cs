@@ -1,0 +1,93 @@
+namespace NE.Standard.UI.Web.Abstractions.Rendering;
+
+public static class WebDomConverters
+{
+    public const string ColorClass = "colorClass";
+    public const string ThemeColorClass = "themeColorClass";
+    public const string IconSizeClass = "iconSizeClass";
+    public const string TextTypeClass = "textTypeClass";
+    public const string TextAppearanceClass = "textAppearanceClass";
+    public const string TextAlignmentClass = "textAlignmentClass";
+    public const string TextWrapClass = "textWrapClass";
+    public const string TextBadgePlacementClass = "textBadgePlacementClass";
+    public const string ButtonContentBadgePlacementClass = "buttonContentBadgePlacementClass";
+    public const string ButtonContentTextAlignmentClass = "buttonContentTextAlignmentClass";
+    public const string BadgeStyleClass = "badgeStyleClass";
+    public const string ButtonClass = "buttonClass";
+    public const string OrientationClass = "orientationClass";
+    public const string ItemsViewLayoutClass = "itemsViewLayoutClass";
+    public const string ScrollXClass = "scrollXClass";
+    public const string ScrollYClass = "scrollYClass";
+    public const string ScrollSnapClass = "scrollSnapClass";
+    public const string SkeletonVariantClass = "skeletonVariantClass";
+    public const string InputAppearanceClass = "inputAppearanceClass";
+    public const string InputBadgePlacementClass = "inputBadgePlacementClass";
+    public const string TextInputTypeAttribute = "textInputTypeAttribute";
+
+    public const string ThemeNameCss = "themeNameCss";
+    public const string AlignmentCss = "alignmentCss";
+    public const string AlignmentStretchFallbackCss = "alignmentStretchFallbackCss";
+    public const string OverflowCss = "overflowCss";
+    public const string LayoutLengthCss = "layoutLengthCss";
+    public const string ThicknessCss = "thicknessCss";
+    public const string RadiusCss = "radiusCss";
+    public const string GridUnitCss = "gridUnitCss";
+    public const string PixelsCss = "pixelsCss";
+    public const string GridTemplateCss = "gridTemplateCss";
+    public const string ColorVariantCss = "colorVariantCss";
+    public const string ThemeColorCss = "themeColorCss";
+    public const string TextAppearanceFontSizeCss = "textAppearanceFontSizeCss";
+    public const string TextAppearanceFontWeightCss = "textAppearanceFontWeightCss";
+    public const string TextAppearanceLineHeightCss = "textAppearanceLineHeightCss";
+    public const string TextAppearanceLetterSpacingCss = "textAppearanceLetterSpacingCss";
+    public const string IconClass = "iconClass";
+    public const string ImageFitClass = "imageFitClass";
+    public const string ProgressVariantClass = "progressVariantClass";
+    public const string ProgressPercentText = "progressPercentText";
+    public const string SearchSelectionModeClass = "searchSelectionModeClass";
+    public const string TextAreaResizeCss = "textAreaResizeCss";
+    public const string FlyoutPlacementClass = "flyoutPlacementClass";
+
+    public const string ResponsiveLayoutLengthBaseCss = "responsiveLayoutLengthBaseCss";
+    public const string ResponsiveLayoutLengthSmCss = "responsiveLayoutLengthSmCss";
+    public const string ResponsiveLayoutLengthMdCss = "responsiveLayoutLengthMdCss";
+    public const string ResponsiveLayoutLengthXlCss = "responsiveLayoutLengthXlCss";
+    public const string ResponsiveLayoutLengthXxlCss = "responsiveLayoutLengthXxlCss";
+    public const string ResponsiveThicknessBaseCss = "responsiveThicknessBaseCss";
+    public const string ResponsiveThicknessSmCss = "responsiveThicknessSmCss";
+    public const string ResponsiveThicknessMdCss = "responsiveThicknessMdCss";
+    public const string ResponsiveThicknessXlCss = "responsiveThicknessXlCss";
+    public const string ResponsiveThicknessXxlCss = "responsiveThicknessXxlCss";
+    public const string ResponsivePixelsBaseCss = "responsivePixelsBaseCss";
+    public const string ResponsivePixelsSmCss = "responsivePixelsSmCss";
+    public const string ResponsivePixelsMdCss = "responsivePixelsMdCss";
+    public const string ResponsivePixelsXlCss = "responsivePixelsXlCss";
+    public const string ResponsivePixelsXxlCss = "responsivePixelsXxlCss";
+
+    public const string GridPlacementBaseColumnCss = "gridPlacementBaseColumnCss";
+    public const string GridPlacementBaseRowCss = "gridPlacementBaseRowCss";
+    public const string GridPlacementBaseColumnSpanCss = "gridPlacementBaseColumnSpanCss";
+    public const string GridPlacementBaseRowSpanCss = "gridPlacementBaseRowSpanCss";
+    public const string GridPlacementSmColumnCss = "gridPlacementSmColumnCss";
+    public const string GridPlacementSmRowCss = "gridPlacementSmRowCss";
+    public const string GridPlacementSmColumnSpanCss = "gridPlacementSmColumnSpanCss";
+    public const string GridPlacementSmRowSpanCss = "gridPlacementSmRowSpanCss";
+    public const string GridPlacementMdColumnCss = "gridPlacementMdColumnCss";
+    public const string GridPlacementMdRowCss = "gridPlacementMdRowCss";
+    public const string GridPlacementMdColumnSpanCss = "gridPlacementMdColumnSpanCss";
+    public const string GridPlacementMdRowSpanCss = "gridPlacementMdRowSpanCss";
+    public const string GridPlacementXlColumnCss = "gridPlacementXlColumnCss";
+    public const string GridPlacementXlRowCss = "gridPlacementXlRowCss";
+    public const string GridPlacementXlColumnSpanCss = "gridPlacementXlColumnSpanCss";
+    public const string GridPlacementXlRowSpanCss = "gridPlacementXlRowSpanCss";
+    public const string GridPlacementXxlColumnCss = "gridPlacementXxlColumnCss";
+    public const string GridPlacementXxlRowCss = "gridPlacementXxlRowCss";
+    public const string GridPlacementXxlColumnSpanCss = "gridPlacementXxlColumnSpanCss";
+    public const string GridPlacementXxlRowSpanCss = "gridPlacementXxlRowSpanCss";
+
+    public const string VisibleHiddenBaseAttribute = "visibleHiddenBaseAttribute";
+    public const string VisibleHiddenSmAttribute = "visibleHiddenSmAttribute";
+    public const string VisibleHiddenMdAttribute = "visibleHiddenMdAttribute";
+    public const string VisibleHiddenXlAttribute = "visibleHiddenXlAttribute";
+    public const string VisibleHiddenXxlAttribute = "visibleHiddenXxlAttribute";
+}

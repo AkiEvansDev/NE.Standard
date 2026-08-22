@@ -1,0 +1,51 @@
+<!-- Copied to the mirror's root as NE.Standard.slnx; its paths only resolve there, not from here. -->
+<Solution>
+  <Folder Name="/src/">
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+
+  <Folder Name="/src/Contracts/">
+    <Project Path="src/Contracts/NE.Standard.UI.Abstractions/NE.Standard.UI.Abstractions.csproj" />
+    <Project Path="src/Contracts/NE.Standard.UI.Authoring/NE.Standard.UI.Authoring.csproj" />
+    <Project Path="src/Contracts/NE.Standard.UI.Compiled/NE.Standard.UI.Compiled.csproj" />
+    <Project Path="src/Contracts/NE.Standard.UI.Primitives/NE.Standard.UI.Primitives.csproj" />
+    <Project Path="src/Contracts/NE.Standard.UI.Shell/NE.Standard.UI.Shell.csproj" />
+  </Folder>
+
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/NE.Standard.UI.Components/NE.Standard.UI.Components.csproj" />
+    <Project Path="src/Core/NE.Standard.UI/NE.Standard.UI.csproj" />
+  </Folder>
+
+  <Folder Name="/src/Generators/">
+    <Project Path="src/Generators/NE.Standard.UI.Generators/NE.Standard.UI.Generators.csproj" />
+  </Folder>
+
+  <Folder Name="/src/Packages/">
+    <Project Path="src/Packages/NE.Standard.UI.Extensions/NE.Standard.UI.Extensions.csproj" />
+  </Folder>
+
+  <Folder Name="/src/Platforms/" />
+  <Folder Name="/src/Platforms/Web/">
+    <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Abstractions/NE.Standard.UI.Web.Abstractions.csproj" />
+    <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Renderers/NE.Standard.UI.Web.Renderers.csproj" />
+    <Project Path="src/Platforms/Web/NE.Standard.UI.Web/NE.Standard.UI.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/Platforms/Wpf/" />
+
+  <Folder Name="/examples/">
+    <Project Path="examples/DemoApp.Web/DemoApp.Web.csproj" />
+    <Project Path="examples/DemoApp/DemoApp.csproj" />
+  </Folder>
+
+  <Folder Name="/solution/">
+    <File Path=".editorconfig" />
+    <File Path="global.json" />
+    <File Path="Directory.Build.props" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE.md" />
+    <File Path="README.md" />
+    <File Path="CHANGELOG.md" />
+  </Folder>
+</Solution>

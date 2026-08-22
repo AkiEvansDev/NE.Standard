@@ -1,0 +1,45 @@
+# Runs in the public mirror. Tests live in the private repository and are not mirrored, so this proves that
+# the sources compile and are formatted — and that the demo, which builds against the published packages,
+# restores them. That second half is the useful one: it is a real test of what is on the feed.
+name: Build
+
+on:
+  # Branches only: a sync pushes the tag too, and an unfiltered push would build the same commit twice.
+  push:
+    branches:
+      - '**'
+  pull_request:
+  # nuget.org indexes a new version a few minutes after it is pushed, and the sync lands sooner than that.
+  # A run that failed to restore the packages the demo pins can be started again from here.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # The TypeScript client builds as part of `dotnet build`, so node has to be here before restore.
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes

@@ -1,0 +1,194 @@
+@import "./tokens.less";
+@import "../mixins/responsive.less";
+
+[data-ui-root] {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
+    min-height: 100vh;
+    min-width: 0;
+    background: var(--ui-color-background);
+    color: var(--ui-color-on-background);
+    z-index: 1;
+}
+    [data-ui-root]::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse 80rem 40rem at -14rem -14rem, color-mix(in srgb, var(--ui-color-primary) 12%, transparent) 20%, color-mix(in srgb, var(--ui-color-primary) 8%, transparent) 20%, color-mix(in srgb, var(--ui-color-primary) 4%, transparent) 60%, color-mix(in srgb, var(--ui-color-primary) 1%, transparent) 80%, transparent 100% ), var(--ui-color-background);
+        z-index: -1;
+    }
+
+[data-ui-region] {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    color: inherit;
+    align-self: stretch;
+    justify-self: stretch;
+}
+
+[data-ui-region="header"] {
+    grid-column: 1 / 4;
+    grid-row: 1;
+}
+
+// The page scrolls in the document, not inside a pane, so a sticky header is a sticky *grid row* — it needs
+// its own background, because what slides under it is the page and the region is transparent.
+[data-ui-region="header"][data-ui-sticky] {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--ui-color-background);
+}
+
+[data-ui-region="left-side"] {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+[data-ui-region="content"] {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+[data-ui-region="right-side"] {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+[data-ui-region="footer"] {
+    grid-column: 1 / 4;
+    grid-row: 3;
+}
+
+[data-ui-id] {
+    --ui-align-h: initial;
+    --ui-align-v: initial;
+    --ui-align-v-stretch-fallback: initial;
+
+    .ui-responsive-reset(--ui-width);
+    .ui-responsive-reset(--ui-min-width);
+    .ui-responsive-reset(--ui-max-width);
+    .ui-responsive-reset(--ui-height);
+    .ui-responsive-reset(--ui-min-height);
+    .ui-responsive-reset(--ui-max-height);
+    .ui-responsive-reset(--ui-margin);
+    .ui-responsive-reset(--ui-padding);
+
+    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(max-width, --ui-max-width, none);
+    .ui-responsive-property(height, --ui-height, auto);
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+    .ui-responsive-property(max-height, --ui-max-height, none);
+    .ui-responsive-property(margin, --ui-margin, 0);
+    .ui-responsive-property(padding, --ui-padding, 0);
+
+    justify-self: var(--ui-align-h, normal);
+    align-self: var(--ui-align-v, normal);
+    transition: opacity @ui-motion-normal @ui-motion-ease, display @ui-motion-normal allow-discrete;
+}
+
+:where([data-ui-id]) {
+    color: inherit;
+}
+
+.ui-hidden {
+    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+[data-ui-hidden] {
+    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (min-width: @ui-breakpoint-sm) {
+    [data-ui-hidden-sm] {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+@media (min-width: @ui-breakpoint-md) {
+    [data-ui-hidden-md] {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+@media (min-width: @ui-breakpoint-xl) {
+    [data-ui-hidden-xl] {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+@media (min-width: @ui-breakpoint-xxl) {
+    [data-ui-hidden-xxl] {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+.ui-disabled {
+    opacity: var(--ui-disabled-opacity);
+    pointer-events: none;
+}
+
+.ui-loading {
+    cursor: progress;
+}
+
+@keyframes ui-preview-pulse {
+    from {
+        background-position: 200% 0;
+    }
+
+    to {
+        background-position: -200% 0;
+    }
+}
+
+.ui-preview-text,
+.ui-preview-card,
+.ui-preview-circle {
+    position: relative;
+}
+
+.ui-preview-text::after,
+.ui-preview-card::after,
+.ui-preview-circle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 10%, transparent), transparent);
+    background-size: 200% 100%;
+    animation: ui-preview-pulse 1.2s ease-in-out infinite;
+}
+
+.ui-preview-text::after {
+    min-height: 1em;
+}
+
+.ui-preview-card::after {
+    border-radius: var(--ui-radius-md, 8px);
+}
+
+.ui-preview-circle::after {
+    border-radius: 999px;
+}

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Web.Renderers</PackageId>
+    <Description>The HTML renderers for the built-in NE.Standard UI components, and the registry a host resolves them through.</Description>
+    <PackageTags>NE.Standard,UI,Platform,Web,Renderers</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Authoring\NE.Standard.UI.Authoring.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Compiled\NE.Standard.UI.Compiled.csproj" />
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+  </ItemGroup>
+
+</Project>

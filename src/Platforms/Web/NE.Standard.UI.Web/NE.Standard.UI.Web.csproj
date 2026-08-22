@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Web</PackageId>
+    <Description>The ASP.NET Core host of the NE.Standard UI framework: the shell, the SignalR live channel, file transfer over HTTP, and the TypeScript client, which ships embedded in the assembly — there is no separate front-end deploy step.</Description>
+    <PackageTags>NE.Standard,UI,Platform,Web</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+    <ProjectReference Include="..\..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Client\dist\ui.css" />
+    <None Remove="Client\dist\ui.js" />
+    <Content Remove="Client\dist\ui.css" />
+    <Content Remove="Client\dist\ui.js" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <WebClientDist>$(MSBuildProjectDirectory)\Client\dist</WebClientDist>
+    <WebClientCss>$(WebClientDist)\ui.css</WebClientCss>
+    <WebClientJs>$(WebClientDist)\ui.js</WebClientJs>
+  </PropertyGroup>
+
+  <Target Name="BuildWebClientAssets" BeforeTargets="PrepareResources" Condition="'$(SkipWebClientBuild)' != 'true'">
+    <Exec
+      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
+      Command="npm install"
+      Condition="!Exists('$(MSBuildProjectDirectory)\Client\node_modules')" />
+
+    <Exec
+      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
+      Command="npm run build" />
+
+    <Error Condition="!Exists('$(WebClientCss)')" Text="Web client CSS was not generated: $(WebClientCss)" />
+    <Error Condition="!Exists('$(WebClientJs)')" Text="Web client JavaScript was not generated: $(WebClientJs)" />
+  </Target>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(WebClientCss)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.css" />
+    <EmbeddedResource Include="$(WebClientJs)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.js" />
+  </ItemGroup>
+
+</Project>

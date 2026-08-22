@@ -1,0 +1,46 @@
+@import "../mixins/responsive.less";
+
+.ui-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    font-style: normal;
+    line-height: 0;
+}
+
+.ui-icon[data-ui-id] {
+    .ui-responsive-property(width, --ui-width, 1em);
+    .ui-responsive-property(height, --ui-height, 1em);
+}
+
+    .ui-icon::before {
+        content: "";
+        display: none;
+        width: 1em;
+        height: 1em;
+        background-color: currentColor;
+        mask: var(--ui-icon-url) center / contain no-repeat;
+        -webkit-mask: var(--ui-icon-url) center / contain no-repeat;
+    }
+
+    // .ui-icon is worn both by a component root and by a nested __icon part, so anything reading a --ui-*
+    // custom property here has to be gated on [data-ui-id] — those inherit, and runtime.less only resets them
+    // there. An ungated width chain once turned a 320px-wide Text into a 320px glyph.
+    .ui-icon[data-ui-icon]::before {
+        display: block;
+    }
+
+.ui-icon-size--small {
+    font-size: 0.85rem;
+}
+
+.ui-icon-size--medium {
+    font-size: 1.25rem;
+}
+
+.ui-icon-size--large {
+    font-size: 1.45rem;
+}

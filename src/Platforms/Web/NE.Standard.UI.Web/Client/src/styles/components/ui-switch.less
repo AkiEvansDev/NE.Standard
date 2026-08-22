@@ -1,0 +1,126 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-switch {
+
+    // Shares CheckboxComponentRenderer's body, so the two stylesheets have to stay in step — a hook renamed
+    // in one and not the other is silent, which is exactly how the switch badge once stopped displaying.
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    gap: @ui-space-1;
+    font: inherit;
+    cursor: pointer;
+}
+
+    .ui-switch.ui-disabled {
+        cursor: default;
+    }
+
+.ui-switch__row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: @ui-space-2;
+    min-height: 1.5rem;
+}
+
+.ui-switch__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.ui-switch__box {
+    position: relative;
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 1.25rem;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: 999px;
+    background: var(--ui-surface-raised);
+    transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-switch__input:checked ~ .ui-switch__box {
+    background: var(--ui-color-primary);
+    border-color: var(--ui-color-primary);
+}
+
+.ui-switch__box::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0.2rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 999px;
+    background: var(--ui-color-border);
+    transform: translateY(-50%);
+    transition: transform @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-switch__input:checked ~ .ui-switch__box::after {
+    background: var(--ui-color-on-primary);
+    transform: translate(1rem, -50%);
+}
+
+.ui-switch__icon {
+    display: none;
+    flex: 0 0 auto;
+}
+
+.ui-switch[data-ui-switch-icon] > .ui-switch__row > .ui-switch__icon {
+    display: inline-flex;
+}
+
+    .ui-switch[data-ui-switch-icon] > .ui-switch__row > .ui-switch__icon::before {
+        display: block;
+    }
+
+.ui-switch__title {
+    display: none;
+    min-width: 0;
+}
+
+.ui-switch[data-ui-switch-title] > .ui-switch__row > .ui-switch__title {
+    display: block;
+}
+
+.ui-switch__badge {
+    display: none;
+    flex: 0 0 auto;
+}
+
+.ui-switch__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+    display: inline-flex;
+}
+
+.ui-switch__required {
+    flex: 0 0 auto;
+    color: var(--ui-color-danger);
+    line-height: 1;
+}
+
+.ui-switch__message {
+    display: none;
+    padding: 0 @ui-space-1;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-switch.ui-invalid > .ui-switch__message {
+    display: block;
+}
+
+.ui-switch.ui-invalid > .ui-switch__row > .ui-switch__box {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+}

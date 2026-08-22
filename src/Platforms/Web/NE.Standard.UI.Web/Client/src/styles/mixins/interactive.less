@@ -1,0 +1,24 @@
+@import "../core/tokens.less";
+
+.ui-interactive-base() {
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.ui-disabled-state() {
+    opacity: var(--ui-disabled-opacity);
+    cursor: default;
+    pointer-events: none;
+}
+
+.ui-reveal-hover(@tint: currentColor) {
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+
+    &:hover {
+        background-color: color-mix(in srgb, @tint 10%, transparent);
+    }
+
+    &:active {
+        background-color: color-mix(in srgb, @tint 16%, transparent);
+    }
+}

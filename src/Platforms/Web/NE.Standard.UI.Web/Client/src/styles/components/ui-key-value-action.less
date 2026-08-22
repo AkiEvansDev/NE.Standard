@@ -1,0 +1,73 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-key-value-action {
+
+    // A row is composed from four template variants (key, value, action, and a contentless host), so the
+    // column layout lives on the inner __host — which is also what makes the items host addressable.
+    display: flex;
+    flex-direction: column;
+    .ui-responsive-property(width, --ui-width, 100%);
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-card);
+    padding: 0 @ui-space-3;
+}
+
+.ui-key-value-action__host {
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-key-value-action--no-border {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+}
+
+.ui-key-value-action__row {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-3;
+    padding: @ui-space-2 0;
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+.ui-key-value-action:not(.ui-key-value-action--no-border) .ui-key-value-action__row {
+    margin: 0 -@ui-space-3;
+    padding: @ui-space-2 @ui-space-3;
+}
+
+.ui-key-value-action--row-hover .ui-key-value-action__row:hover {
+    background-color: color-mix(in srgb, var(--ui-color-surface) 94%, var(--ui-color-on-surface) 6%);
+}
+
+    .ui-key-value-action--no-separators .ui-key-value-action__row {
+        border-bottom: none;
+    }
+
+    .ui-key-value-action__row:last-child {
+        border-bottom: none;
+    }
+
+.ui-key-value-action__key {
+    flex: 0 0 auto;
+    min-width: 8rem;
+    color: var(--ui-text-muted);
+}
+
+.ui-key-value-action__value {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+    .ui-key-value-action--no-stretch .ui-key-value-action__value {
+        flex: 0 1 auto;
+    }
+
+.ui-key-value-action__action {
+    flex: 0 0 auto;
+}
+
+    .ui-key-value-action--no-actions .ui-key-value-action__action {
+        display: none;
+    }

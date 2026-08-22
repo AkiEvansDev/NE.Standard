@@ -1,0 +1,144 @@
+@import "../mixins/responsive.less";
+
+.ui-items-view {
+
+    .ui-responsive-reset(--ui-items-view-spacing);
+}
+
+.ui-items-view > template {
+    display: none !important;
+}
+
+.ui-items-view__host,
+.ui-items-view > [data-ui-items-host] {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+}
+
+.ui-items-view--stack > .ui-items-view__host,
+.ui-items-view--stack > [data-ui-items-host] {
+    display: flex;
+    .ui-responsive-property(gap, --ui-items-view-spacing, 0);
+}
+
+.ui-items-view--stack.ui-orientation--horizontal > .ui-items-view__host,
+.ui-items-view--stack.ui-orientation--horizontal > [data-ui-items-host] {
+    flex-direction: row;
+}
+
+.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host,
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] {
+    flex-direction: column;
+}
+
+.ui-items-view--wrap > .ui-items-view__host,
+.ui-items-view--wrap > [data-ui-items-host] {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    .ui-responsive-property(gap, --ui-items-view-spacing, 0);
+}
+
+.ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item,
+.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item,
+.ui-items-view--wrap > .ui-items-view__host > [data-ui-id],
+.ui-items-view--wrap > [data-ui-items-host] > [data-ui-id] {
+    --ui-placement-column-span: 24;
+
+    grid-column: span var(--ui-placement-column-span, 24);
+    grid-row: auto;
+}
+
+// A windowed host is the scroller, and its content is deliberately taller than the source could ever be —
+// the spacers stand for every item outside the window. Without a bound it would size to that instead of
+// scrolling inside it, which is what the author's height on the view is for.
+.ui-items-view:has(> [data-ui-windowed]),
+.ui-items-view:has(> [data-ui-virtualized]) {
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-items-view > [data-ui-windowed],
+.ui-items-view > [data-ui-virtualized] {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+// A row outside the view is left out of the layout, not out of the DOM: it stays addressable, and every
+// patch aimed at it still lands. See items-virtualization-engine.ts.
+.ui-items-view > [data-ui-virtualized] > [data-ui-offscreen] {
+    // Important for the same reason `.ui-hidden` is: a row's own renderer writes its display inline, and an
+    // inline style beats any selector without it.
+    display: none !important;
+}
+
+// Nothing inside a windowed host may shrink. It is a flex column whose content is deliberately far taller
+// than itself, and flex children shrink by default — which squeezed fifty rows and a spacer standing for
+// ninety-nine thousand into the height of one.
+.ui-items-view > [data-ui-windowed] > *,
+.ui-items-view > [data-ui-virtualized] > * {
+    flex-shrink: 0;
+}
+
+.ui-items-view__host.ui-scroll-x--disabled {
+    overflow-x: hidden;
+}
+
+.ui-items-view__host.ui-scroll-x--auto {
+    overflow-x: auto;
+}
+
+.ui-items-view__host.ui-scroll-x--always {
+    overflow-x: scroll;
+}
+
+.ui-items-view__host.ui-scroll-y--disabled {
+    overflow-y: hidden;
+}
+
+.ui-items-view__host.ui-scroll-y--auto {
+    overflow-y: auto;
+}
+
+.ui-items-view__host.ui-scroll-y--always {
+    overflow-y: scroll;
+}
+
+.ui-items-view__host.ui-scroll-snap--disabled {
+    scroll-snap-type: none;
+}
+
+.ui-items-view:not(.ui-orientation--horizontal) > .ui-items-view__host.ui-scroll-snap--proximity,
+.ui-items-view.ui-orientation--vertical > .ui-items-view__host.ui-scroll-snap--proximity {
+    scroll-snap-type: y proximity;
+}
+
+.ui-items-view:not(.ui-orientation--horizontal) > .ui-items-view__host.ui-scroll-snap--mandatory,
+.ui-items-view.ui-orientation--vertical > .ui-items-view__host.ui-scroll-snap--mandatory {
+    scroll-snap-type: y mandatory;
+}
+
+.ui-items-view.ui-orientation--horizontal > .ui-items-view__host.ui-scroll-snap--proximity {
+    scroll-snap-type: x proximity;
+}
+
+.ui-items-view.ui-orientation--horizontal > .ui-items-view__host.ui-scroll-snap--mandatory {
+    scroll-snap-type: x mandatory;
+}
+
+.ui-items-view__item {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    scroll-snap-align: start;
+}
+
+.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > .ui-items-view__item,
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > .ui-items-view__item {
+    width: 100%;
+}
+
+.ui-items-view__item > [data-ui-id] {
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+}

@@ -1,0 +1,80 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-container {
+
+    display: grid;
+    gap: 0;
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+    background: transparent;
+}
+
+.ui-responsive-grid-line-base(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
+    @{property}: var(~"@{prefix}-@{position-suffix}", auto) / span var(~"@{prefix}-@{span-suffix}", @span-default);
+}
+
+.ui-responsive-grid-line-sm(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
+    @{property}: var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto))
+        / span var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default));
+}
+
+.ui-responsive-grid-line-md(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
+    @{property}: var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto)))
+        / span var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default)));
+}
+
+.ui-responsive-grid-line-xl(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
+    @{property}: var(~"@{prefix}-xl-@{position-suffix}", var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto))))
+        / span var(~"@{prefix}-xl-@{span-suffix}", var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default))));
+}
+
+.ui-responsive-grid-line-xxl(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
+    @{property}: var(~"@{prefix}-xxl-@{position-suffix}", var(~"@{prefix}-xl-@{position-suffix}", var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto)))))
+        / span var(~"@{prefix}-xxl-@{span-suffix}", var(~"@{prefix}-xl-@{span-suffix}", var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default)))));
+}
+
+.ui-container > [data-ui-id] {
+
+    .ui-responsive-reset-infix(--ui-placement, column);
+    .ui-responsive-reset-infix(--ui-placement, row);
+    .ui-responsive-reset-infix(--ui-placement, column-span);
+    .ui-responsive-reset-infix(--ui-placement, row-span);
+
+    --ui-placement-column: 1;
+    --ui-placement-row: 1;
+    --ui-placement-column-span: 24;
+    --ui-placement-row-span: 1;
+
+    .ui-responsive-grid-line-base(grid-column, --ui-placement, column, column-span, 24);
+    .ui-responsive-grid-line-base(grid-row, --ui-placement, row, row-span, 1);
+}
+
+@media (min-width: @ui-breakpoint-sm) {
+    .ui-container > [data-ui-id] {
+        .ui-responsive-grid-line-sm(grid-column, --ui-placement, column, column-span, 24);
+        .ui-responsive-grid-line-sm(grid-row, --ui-placement, row, row-span, 1);
+    }
+}
+
+@media (min-width: @ui-breakpoint-md) {
+    .ui-container > [data-ui-id] {
+        .ui-responsive-grid-line-md(grid-column, --ui-placement, column, column-span, 24);
+        .ui-responsive-grid-line-md(grid-row, --ui-placement, row, row-span, 1);
+    }
+}
+
+@media (min-width: @ui-breakpoint-xl) {
+    .ui-container > [data-ui-id] {
+        .ui-responsive-grid-line-xl(grid-column, --ui-placement, column, column-span, 24);
+        .ui-responsive-grid-line-xl(grid-row, --ui-placement, row, row-span, 1);
+    }
+}
+
+@media (min-width: @ui-breakpoint-xxl) {
+    .ui-container > [data-ui-id] {
+        .ui-responsive-grid-line-xxl(grid-column, --ui-placement, column, column-span, 24);
+        .ui-responsive-grid-line-xxl(grid-row, --ui-placement, row, row-span, 1);
+    }
+}

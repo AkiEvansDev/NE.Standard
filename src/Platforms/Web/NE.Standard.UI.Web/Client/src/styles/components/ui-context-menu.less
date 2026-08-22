@@ -1,0 +1,23 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+
+// position: fixed for the same reason every popup here is — the layout panels are all overflow: hidden and
+// would clip it. It stays where it is in the DOM, so closest() paths keep working; that holds only while no
+// ancestor establishes a fixed containing block (transform/filter/will-change/contain).
+.ui-context-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    display: none;
+    min-width: 10rem;
+    padding: @ui-space-1;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-color-surface);
+    .ui-elevation-3();
+}
+
+.ui-context-menu--open {
+    display: block;
+}

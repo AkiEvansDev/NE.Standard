@@ -1,0 +1,147 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/responsive.less";
+
+.ui-card {
+
+    display: flex;
+    flex-direction: column;
+    .ui-responsive-property(padding, --ui-padding, @ui-space-4);
+    border-style: solid;
+    border-width: var(--ui-border-width, 1.5px);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-card);
+    background: transparent;
+}
+
+// Deliberately no `pointer-events: none` on a card that is not clickable. It was there, and it made the
+// card's whole subtree inert: pointer-events inherits, so nothing inside took a click, a selection, a
+// tooltip or a right-click. It went unnoticed because no demo card held a control — until one was given a
+// context menu and the browser's own menu came up instead.
+
+.ui-card--clickable {
+    cursor: pointer;
+    background: var(--ui-surface-raised);
+    transition: background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+    .ui-elevation-1();
+}
+
+    .ui-card--clickable:hover {
+        background-color: color-mix(in srgb, var(--ui-surface-raised) 94%, var(--ui-color-on-surface) 6%);
+        border-color: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+        .ui-elevation-2();
+    }
+
+    .ui-card--clickable:active {
+        background-color: color-mix(in srgb, var(--ui-surface-raised) 88%, var(--ui-color-on-surface) 12%);
+        .ui-elevation-1();
+    }
+
+.ui-card__header {
+    flex: 0 0 auto;
+    margin: -@ui-space-4 -@ui-space-4 0 -@ui-space-4;
+    padding: @ui-space-3 @ui-space-4;
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+.ui-card__content {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    margin-top: @ui-space-3;
+}
+
+.ui-card__footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: @ui-space-2;
+    margin: @ui-space-4 -@ui-space-4 -@ui-space-4 -@ui-space-4;
+    padding: @ui-space-3 @ui-space-4 @ui-space-4 @ui-space-4;
+    border-top: 1px solid var(--ui-color-border);
+}
+
+.ui-card-header {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-card-header--selectable {
+    user-select: text;
+}
+
+.ui-card-header:not(.ui-card-header--selectable) {
+    user-select: none;
+}
+
+.ui-card-header__icon {
+    display: none;
+    flex: 0 0 auto;
+}
+
+    .ui-card-header__icon::before {
+        display: block;
+    }
+
+.ui-card-header__body {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-card-header__title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: @ui-space-1 @ui-space-2;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-card-header__title {
+    display: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-card-header__badge {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+}
+
+.ui-card-header__badge--trailing {
+    margin-left: auto;
+}
+
+.ui-card-header__description {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.ui-card-header[data-ui-card-header-icon] > .ui-card-header__icon {
+    display: inline-flex;
+}
+
+.ui-card-header[data-ui-card-header-title] > .ui-card-header__body > .ui-card-header__title-row > .ui-card-header__title {
+    display: block;
+}
+
+.ui-card-header__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+    display: inline-flex;
+}
+
+.ui-card-header[data-ui-card-header-description] > .ui-card-header__body > .ui-card-header__description {
+    display: block;
+}

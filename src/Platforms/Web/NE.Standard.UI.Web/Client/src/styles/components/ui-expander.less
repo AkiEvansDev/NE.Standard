@@ -1,0 +1,137 @@
+@import "../core/tokens.less";
+
+.ui-expander {
+
+    display: block;
+    border-style: solid;
+    border-width: var(--ui-border-width, 1.5px);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-card);
+    background: transparent;
+}
+
+.ui-expander:not([open]) {
+    align-self: var(--ui-align-v-stretch-fallback, var(--ui-align-v, normal));
+}
+
+.ui-expander__header {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+    padding: @ui-space-3 @ui-space-4;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .ui-expander__header::-webkit-details-marker {
+        display: none;
+    }
+
+.ui-expander[open] > .ui-expander__header {
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+.ui-expander__content {
+    margin-top: @ui-space-3;
+    padding: 0 @ui-space-4 @ui-space-4;
+}
+
+.ui-expander-header {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    gap: @ui-space-2;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-expander-header__body {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-expander-header__title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: @ui-space-1 @ui-space-2;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-expander-header__chevron {
+    flex: 0 0 auto;
+    width: 0.6em;
+    height: 0.6em;
+    margin-left: auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform @ui-motion-fast @ui-motion-ease;
+}
+
+// Secondary to the title rather than sharing its colour: the chevron is an affordance, not content.
+// :where() so a .ui-color--* utility on the chevron itself still wins, as on .ui-temporal-input__icon.
+:where(.ui-expander-header__chevron) {
+    color: var(--ui-text-muted);
+}
+
+.ui-expander[open] > .ui-expander__header .ui-expander-header__chevron {
+    transform: rotate(45deg);
+}
+
+.ui-expander-header__icon {
+    display: none;
+    flex: 0 0 auto;
+}
+
+    .ui-expander-header__icon::before {
+        display: block;
+    }
+
+.ui-expander-header__title {
+    display: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-expander-header__badge {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+}
+
+.ui-expander-header__badge--trailing {
+    margin-left: auto;
+}
+
+.ui-expander-header__description {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.ui-expander-header[data-ui-expander-header-icon] > .ui-expander-header__icon {
+    display: inline-flex;
+}
+
+.ui-expander-header[data-ui-expander-header-title] > .ui-expander-header__body > .ui-expander-header__title-row > .ui-expander-header__title {
+    display: block;
+}
+
+.ui-expander-header__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+    display: inline-flex;
+}
+
+.ui-expander-header[data-ui-expander-header-description] > .ui-expander-header__body > .ui-expander-header__description {
+    display: block;
+}

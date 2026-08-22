@@ -1,0 +1,33 @@
+<Project>
+
+  <!-- MSBuild stops at the first Directory.Build.props it finds, so the repository-wide one is pulled in by
+       hand rather than inherited. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- Everything under src/ ships. A project that must not is expected to say so itself. -->
+    <IsPackable>true</IsPackable>
+    <Version>$(CoreVersion)</Version>
+
+    <Authors>Aki Evans</Authors>
+    <Copyright>Copyright (c) 2026 Aki Evans</Copyright>
+    <!-- The public mirror, not the private repository the sources actually live in. -->
+    <PackageProjectUrl>https://github.com/AkiEvansDev/NE.Standard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AkiEvansDev/NE.Standard</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <!-- No commit hash in the package or the assembly: the SDK would take it from this private repository,
+         and a hash the public mirror has never seen makes both the nuspec's repository commit and the
+         assembly's informational version dead references. -->
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <!-- A file rather than an expression: Prosperity is not an OSI-approved licence, and only those have an
+         SPDX expression NuGet will accept. -->
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../LICENSE.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+</Project>

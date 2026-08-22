@@ -1,0 +1,65 @@
+@import "../mixins/focus.less";
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    background: var(--ui-color-background);
+    color: var(--ui-color-on-background);
+    font-family: var(--ui-font-family), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: var(--ui-text-body-font-size);
+    line-height: var(--ui-text-body-line-height);
+    font-weight: var(--ui-text-body-font-weight);
+    color-scheme: dark;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+img,
+svg,
+canvas,
+video {
+    display: block;
+    max-width: 100%;
+}
+
+// Focus policy for the whole library. The UA ring is unthemed and Chrome paints it on programmatic focus
+// too, so nothing draws one by default: it is an outer box laid over shapes that are not built for one, and
+// it landed on tab captions, list rows and edit-in-place fields that already say "current" some other way.
+// The components that need a visible focus state draw it themselves.
+//
+// The cost is that keyboard focus is invisible outside those components, which is an accessibility loss. A
+// host that wants the ring back takes it per page by setting the attribute on its root, and the ring is
+// themed rather than the UA's.
+:focus {
+    outline: none;
+}
+
+[data-ui-focus-ring] :focus-visible {
+    .ui-focus-ring();
+}
+
+// Selected text follows the theme instead of the UA's own blue, which is the one colour on the page nothing
+// else sets. Translucent, so the text it covers keeps its own colour and stays readable on any surface.
+::selection {
+    background: color-mix(in srgb, var(--ui-color-primary) 32%, transparent);
+}

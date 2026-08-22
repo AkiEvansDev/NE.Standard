@@ -1,0 +1,282 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/responsive.less";
+
+.ui-menu {
+    // Reset on the root that carries [data-ui-id], where the renderer writes the authoring value; the gap
+    // itself is on the host below, where the entries actually are. Same split as .ui-command-bar.
+    .ui-responsive-reset(--ui-menu-spacing);
+
+    display: flex;
+    flex-direction: column;
+    // Through the mixin, never a flat literal: runtime.less resolves these on any [data-ui-id] through a
+    // var() chain at the same specificity, so a literal here would swallow the authoring property.
+    // ResponsivePropertyCollisionTests enforces it.
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+.ui-menu__host {
+    display: flex;
+    flex: 1 1 auto;
+    .ui-responsive-property(gap, --ui-menu-spacing, 2px);
+    min-width: 0;
+}
+
+.ui-menu.ui-orientation--vertical > .ui-menu__host {
+    flex-direction: column;
+}
+
+.ui-menu.ui-orientation--horizontal > .ui-menu__host {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+// The wrapper the items host puts around each entry is a plain block, so an entry's own Stretch alignment —
+// which the runtime maps to align-self — had nothing to act on and every entry shrank to its own text, taking
+// the hover, the current mark and the shortcut's trailing edge with it.
+.ui-menu__item {
+    // Column, so the wrapper's cross axis is the horizontal one and the entry's own align-self: stretch is
+    // what fills the row. A row here would stretch its height instead and change nothing.
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+// An entry wears .ui-button, so hover, active, disabled and the type variants all come from there. What is
+// left here is the row shape and the states a button has no idea about: current, caption, rule.
+.ui-menu-item {
+    justify-content: flex-start;
+    gap: @ui-space-2;
+    // Re-called with this control's own defaults rather than written flat — see the note on .ui-button.
+    .ui-responsive-property(min-height, --ui-min-height, 2rem);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    text-align: start;
+}
+
+.ui-menu-item--selected {
+    background: color-mix(in srgb, var(--ui-color-primary) 16%, transparent);
+    color: var(--ui-color-primary);
+}
+
+    // Beats .ui-button--ghost's own reveal-hover, which would otherwise wash the current entry back out.
+    .ui-menu-item--selected:hover {
+        background: color-mix(in srgb, var(--ui-color-primary) 24%, transparent);
+    }
+
+// The switch for the collapsed state. Library chrome rather than an entry, so it is drawn here and not taken
+// from an icon pack: a host is free to install none. Two borders of a square, turned — a chevron with no
+// glyph behind it.
+.ui-menu__collapse {
+    display: flex;
+    flex: 0 0 auto;
+    align-self: flex-end;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-bottom: @ui-space-2;
+    border: 0;
+    border-radius: var(--ui-radius-button);
+    background: none;
+    color: var(--ui-text-muted);
+    cursor: pointer;
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-menu__collapse:hover {
+        background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+        color: var(--ui-color-on-surface);
+    }
+
+    .ui-menu__collapse::before {
+        content: "";
+        width: 0.45rem;
+        height: 0.45rem;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+        // Pointing at the edge the menu will travel to, so the control reads as "put this away".
+        transform: rotate(-45deg) translate(1px, 1px);
+        transition: transform @ui-motion-fast @ui-motion-ease;
+    }
+
+// Collapsed the rail is as wide as an icon and no wider: the authored width belongs to the menu with its
+// titles on, and holding it would leave the icons floating in an empty column. After .ui-menu, so it wins the
+// tie against the responsive min-width declared there.
+.ui-menu--collapsed {
+    min-width: 0;
+    width: fit-content;
+}
+
+    .ui-menu--collapsed .ui-menu-item {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+.ui-menu--collapsed > .ui-menu__collapse {
+    align-self: center;
+}
+
+    .ui-menu--collapsed > .ui-menu__collapse::before {
+        transform: rotate(135deg) translate(1px, 1px);
+    }
+
+// Sub-entries: the same entries, one step in. The indent is on the wrapper rather than on the entry's own
+// padding, which is a responsive authoring property and would swallow the value on the next render.
+.ui-menu__submenu {
+    display: none;
+    flex-direction: column;
+    .ui-responsive-property(gap, --ui-menu-spacing, 2px);
+    padding-left: @ui-space-4;
+    padding-top: 2px;
+}
+
+[data-ui-menu-group][data-ui-menu-open] > .ui-menu__submenu {
+    display: flex;
+}
+
+// The mark that says an entry has more under it, and which way it currently points.
+[data-ui-menu-group] > .ui-menu-item::after {
+    content: "";
+    flex: 0 0 auto;
+    width: 0.35rem;
+    height: 0.35rem;
+    margin-left: auto;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.6;
+    transform: rotate(-45deg);
+    transition: transform @ui-motion-fast @ui-motion-ease;
+}
+
+[data-ui-menu-group][data-ui-menu-open] > .ui-menu-item::after {
+    transform: rotate(45deg);
+}
+
+// Collapsed, a group has nowhere to put its sub-entries inline, so the same block is placed beside the icon.
+// Everything here is the popup shape only — the entries inside are unchanged, which is the point of leaving
+// them where they are in the DOM.
+.ui-menu__submenu[data-ui-menu-flyout] {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    min-width: 10rem;
+    padding: @ui-space-1;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-color-surface);
+    .ui-elevation-3();
+}
+
+// A caption is not a control: it neither reacts nor takes focus, it just names the entries under it.
+.ui-menu-item[data-ui-menu-item-kind="header"] {
+    margin-top: @ui-space-3;
+    padding-bottom: 0;
+    background: none;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-overline-font-size);
+    font-weight: var(--ui-text-overline-font-weight);
+    letter-spacing: var(--ui-text-overline-letter-spacing);
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.ui-menu__host > *:first-child > .ui-menu-item[data-ui-menu-item-kind="header"],
+.ui-menu__host > .ui-menu-item[data-ui-menu-item-kind="header"]:first-child {
+    margin-top: 0;
+}
+
+// A rule carries no content of its own — the content region is still rendered, so it is taken out of the
+// flow rather than left to occupy a line.
+.ui-menu-item[data-ui-menu-item-kind="separator"] {
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+    .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
+    .ui-responsive-property(padding, --ui-padding, 0);
+    border-top: 1px solid var(--ui-color-border);
+    background: none;
+    pointer-events: none;
+}
+
+    .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button-content {
+        display: none;
+    }
+
+.ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] {
+    align-self: stretch;
+    .ui-responsive-property(width, --ui-width, 0);
+    .ui-responsive-property(margin, --ui-margin, 0 @ui-space-2);
+    border-top: none;
+    border-left: 1px solid var(--ui-color-border);
+}
+
+// The combination sits against the trailing edge, quiet enough to read as a label rather than as content.
+// :empty rather than a render-time decision, so a bound Shortcut can appear and disappear with the data.
+.ui-menu-item__shortcut {
+    margin-left: auto;
+    padding-left: @ui-space-4;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+    white-space: nowrap;
+}
+
+    .ui-menu-item__shortcut:empty {
+        display: none;
+    }
+
+// A caption and a rule take no key, and a collapsed menu has no room for the text.
+.ui-menu-item[data-ui-menu-item-kind="header"] > .ui-menu-item__shortcut,
+.ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-menu-item__shortcut,
+.ui-menu--collapsed .ui-menu-item__shortcut {
+    display: none;
+}
+
+// Collapsed: the title goes, the icon stays and centres. The title is still in the DOM as the tooltip the
+// content region already renders, so nothing is lost to a pointer.
+.ui-menu--collapsed .ui-menu-item {
+    justify-content: center;
+}
+
+    .ui-menu--collapsed .ui-menu-item > .ui-button-content > .ui-button-content__body {
+        display: none;
+    }
+
+    .ui-menu--collapsed .ui-menu-item > .ui-button-content > .ui-button-content__icon {
+        margin-right: 0;
+    }
+
+.ui-menu--collapsed .ui-menu-item[data-ui-menu-item-kind="header"] {
+    // A caption with no text would be an empty gap, so it becomes the rule it visually stands in for.
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+    .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
+    .ui-responsive-property(padding, --ui-padding, 0);
+    border-top: 1px solid var(--ui-color-border);
+}
+
+// Collapsed, the indent and the chevron both go: there is no title for them to relate to, and the group's
+// sub-entries are in a popup that carries its own padding. The mark inside that popup stays.
+.ui-menu--collapsed .ui-menu__submenu:not([data-ui-menu-flyout]) {
+    display: none;
+}
+
+.ui-menu--collapsed [data-ui-menu-group] > .ui-menu-item::after {
+    display: none;
+}
+
+.ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] {
+    padding-left: @ui-space-1;
+}
+
+// Inside the flyout the entries are not collapsed: the popup exists precisely to give them back the titles
+// the icon rail has no room for. Every collapsed rule above is taken back here, and only here.
+.ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item {
+    justify-content: flex-start;
+}
+
+    .ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item > .ui-button-content > .ui-button-content__body {
+        display: grid;
+    }
+
+    .ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item__shortcut {
+        display: block;
+    }

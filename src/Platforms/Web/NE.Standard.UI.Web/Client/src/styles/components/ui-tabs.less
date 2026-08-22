@@ -1,0 +1,95 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-tabs {
+    display: flex;
+    flex-direction: column;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+// The rule under the whole strip is the track the selected caption's own underline sits on, so the two read
+// as one line rather than as a mark floating above a border.
+.ui-tabs__strip {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    gap: @ui-space-4;
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+.ui-tabs__pages {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.ui-tabs__page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+    // The engine hides a page with the `hidden` attribute, and the UA rule behind it is a bare `[hidden]` at
+    // specificity 0,0,1 — the class rule above outranks it, so every page stayed visible without this.
+    .ui-tabs__page[hidden] {
+        display: none;
+    }
+
+// A caption is a label with an underline, not a filled control: it wears .ui-button for the hover, disabled
+// and focus behaviour, and takes the fill back off.
+.ui-tab-header {
+    position: relative;
+    // .ui-button clips its own content, which a caption is not: the line below is drawn *outside* the
+    // caption's box, over the strip's rule, and a clipping button threw it away entirely.
+    overflow: visible;
+    border-radius: 0;
+    .ui-responsive-property(min-height, --ui-min-height, 2.5rem);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2 0);
+}
+
+// Not :where(): .ui-button gives every caption the on-surface colour at one class, so a zero-specificity
+// rule lost and the strip read as one row of identical captions with a line under one of them.
+.ui-tab-header:not(.ui-tab-header--selected) {
+    color: var(--ui-text-muted);
+}
+
+    // Drawn on the element rather than as a border, so it lies over the strip's own rule instead of stacking
+    // a second line under it. Offset by its own height, not by the rule's: starting one pixel higher put its
+    // top edge above the rule, and the caption read as underlined a step too high.
+    .ui-tab-header::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 2px;
+        background: transparent;
+        transition: background-color @ui-motion-fast @ui-motion-ease;
+    }
+
+// A caption reacts by changing its text and its line, never by filling: .ui-button--ghost's reveal-hover
+// would put a block behind a label that is supposed to read as part of the strip. The :not() chain is the
+// one that rule carries, because taking it back needs the same specificity — a shorter chain lost, and the
+// block came through under the line this file draws.
+.ui-tab-header:not(.ui-disabled):not(.ui-loading):not(:disabled):is(:hover, :active) {
+    background: none;
+    color: var(--ui-color-on-surface);
+}
+
+    .ui-tab-header:not(.ui-disabled):not(:disabled):hover::after {
+        background: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+    }
+
+.ui-tab-header--selected {
+    color: var(--ui-color-on-surface);
+    font-weight: 600;
+}
+
+    // After the hover rule, so the current caption keeps its own line while the pointer is over it.
+    .ui-tab-header--selected::after,
+    .ui-tab-header--selected:hover::after {
+        background: var(--ui-color-primary);
+    }

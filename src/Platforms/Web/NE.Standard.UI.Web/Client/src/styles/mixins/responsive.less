@@ -1,0 +1,22 @@
+// One authoring property resolves through a five-tier var() chain, widest matching tier first, so a
+// component only has to declare its default once. Every rule that touches a responsive property must go
+// through this mixin — a flat literal on the same element wins the cascade and swallows the property.
+.ui-responsive-property(@property, @variable, @default) {
+    @{property}: var(~"@{variable}-xxl", var(~"@{variable}-xl", var(~"@{variable}-md", var(~"@{variable}-sm", var(~"@{variable}", @default)))));
+}
+
+.ui-responsive-reset(@variable) {
+    @{variable}: initial;
+    @{variable}-sm: initial;
+    @{variable}-md: initial;
+    @{variable}-xl: initial;
+    @{variable}-xxl: initial;
+}
+
+.ui-responsive-reset-infix(@prefix, @suffix) {
+    @{prefix}-@{suffix}: initial;
+    @{prefix}-sm-@{suffix}: initial;
+    @{prefix}-md-@{suffix}: initial;
+    @{prefix}-xl-@{suffix}: initial;
+    @{prefix}-xxl-@{suffix}: initial;
+}

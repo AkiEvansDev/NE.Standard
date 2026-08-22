@@ -1,0 +1,66 @@
+@import "./styles/core/tokens.less";
+@import "./styles/core/reset.less";
+@import "./styles/core/color.less";
+@import "./styles/core/typography.less";
+@import "./styles/core/scrollbar.less";
+@import "./styles/core/runtime.less";
+
+@import "./styles/components/ui-container.less";
+@import "./styles/components/ui-stack-panel.less";
+@import "./styles/components/ui-wrap-panel.less";
+@import "./styles/components/ui-separator.less";
+@import "./styles/components/ui-icon.less";
+@import "./styles/components/ui-image.less";
+@import "./styles/components/ui-badge.less";
+@import "./styles/components/ui-text.less";
+@import "./styles/components/ui-link.less";
+@import "./styles/components/ui-button.less";
+@import "./styles/components/ui-button-content.less";
+// After ui-button: these refine what that file establishes and have to win the ties.
+@import "./styles/components/ui-action.less";
+@import "./styles/components/ui-menu.less";
+@import "./styles/components/ui-context-menu.less";
+@import "./styles/components/ui-tabs.less";
+@import "./styles/components/ui-breadcrumbs.less";
+@import "./styles/components/ui-tabs-view.less";
+@import "./styles/components/ui-items-view.less";
+@import "./styles/components/ui-text-input.less";
+@import "./styles/components/ui-checkbox.less";
+@import "./styles/components/ui-switch.less";
+@import "./styles/components/ui-radio-group.less";
+@import "./styles/components/ui-select.less";
+@import "./styles/components/ui-search.less";
+@import "./styles/components/ui-slider.less";
+@import "./styles/components/ui-temporal-input.less";
+@import "./styles/components/ui-number-input.less";
+@import "./styles/components/ui-text-area.less";
+@import "./styles/components/ui-file-input.less";
+// After every input: ui-input.less carries the shared header and the underline appearance, and the underline
+// rules take back what each input's own file set — a tie on specificity has to fall this way round.
+@import "./styles/components/ui-input.less";
+@import "./styles/components/ui-command-bar.less";
+@import "./styles/components/ui-key-value-action.less";
+@import "./styles/components/ui-spinner.less";
+@import "./styles/components/ui-progress.less";
+@import "./styles/components/ui-scroll.less";
+@import "./styles/components/ui-card.less";
+@import "./styles/components/ui-expander.less";
+@import "./styles/components/ui-flyout.less";
+@import "./styles/components/ui-dialog.less";
+@import "./styles/components/ui-notification.less";
+
+:where([data-ui-theme]) {
+    color: var(--ui-color-on-background);
+}
+
+[data-ui-theme="light"] {
+    color-scheme: light;
+}
+
+[data-ui-theme="dark"] {
+    color-scheme: dark;
+}
+
+[data-ui-theme="auto"] {
+    color-scheme: light dark;
+}

@@ -1,0 +1,34 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/responsive.less";
+
+.ui-flyout {
+
+    // An anchor/content pair. The ui-flyout--<placement> modifiers only carry the value; anchored-popup.ts
+    // does the positioning, and open state lives in a class the server can patch directly.
+    display: inline-flex;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+}
+
+.ui-flyout__anchor {
+    display: inline-flex;
+}
+
+.ui-flyout__content {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    display: none;
+    min-width: 12rem;
+    padding: @ui-space-3;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-color-surface);
+    .ui-elevation-2();
+}
+
+.ui-flyout--open > .ui-flyout__content {
+    display: block;
+}

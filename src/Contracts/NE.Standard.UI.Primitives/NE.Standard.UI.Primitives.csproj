@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Primitives</PackageId>
+    <Description>The bottom layer of the NE.Standard UI framework: the enums, attributes and value types everything above it is written in — UIThickness, UIResponsive&lt;T&gt;, the styling and binding vocabulary. No dependencies.</Description>
+    <PackageTags>NE.Standard,UI,Contracts,Primitives</PackageTags>
+  </PropertyGroup>
+
+</Project>

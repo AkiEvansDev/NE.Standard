@@ -1,0 +1,147 @@
+@import "../mixins/responsive.less";
+
+.ui-text {
+
+    display: flex;
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+}
+
+.ui-text__icon {
+    display: none;
+    flex: 0 0 auto;
+    margin-right: 0.35em;
+}
+
+.ui-text[data-ui-text-icon] > .ui-text__body > .ui-text__header > .ui-text__icon {
+    display: inline-flex;
+}
+
+.ui-text[data-ui-text-icon] > .ui-text__body > .ui-text__header > .ui-text__icon::before {
+    display: block;
+}
+
+.ui-text__body {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-text__header {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ui-text__title {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-text__badge {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+    transform: scale(0.9);
+    transform-origin: top left;
+}
+
+.ui-text__badge--inline {
+    margin-left: 0.5em;
+}
+
+.ui-text__badge--trailing {
+    margin-left: auto;
+}
+
+.ui-text:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header {
+    width: 100%;
+    min-width: 0;
+}
+
+.ui-text__description {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.ui-text[data-ui-text-title] > .ui-text__body > .ui-text__header > .ui-text__title {
+    display: block;
+}
+
+.ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+    display: inline-flex;
+}
+
+.ui-text[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    display: block;
+}
+
+.ui-text--align-start {
+    text-align: start;
+}
+
+.ui-text--align-center {
+    text-align: center;
+}
+
+.ui-text--align-end {
+    text-align: end;
+}
+
+.ui-text--align-justify {
+    text-align: justify;
+}
+
+.ui-text--align-start > .ui-text__body {
+    justify-items: start;
+}
+
+.ui-text--align-center > .ui-text__body {
+    justify-items: center;
+}
+
+.ui-text--align-end > .ui-text__body {
+    justify-items: end;
+}
+
+.ui-text--align-justify > .ui-text__body {
+    justify-items: stretch;
+}
+
+.ui-text--nowrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-text--wrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    white-space: normal;
+}
+
+.ui-text--wrap-ellipsis[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    line-clamp: var(--ui-text-max-lines, 2);
+    -webkit-line-clamp: var(--ui-text-max-lines, 2);
+    -webkit-box-orient: vertical;
+}
+
+.ui-text--selectable {
+    user-select: text;
+}
+
+.ui-text:not(.ui-text--selectable) {
+    user-select: none;
+}

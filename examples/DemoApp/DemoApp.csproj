@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!-- In the monorepo the demo is the framework's verification surface and builds against the sources next
+       to it. In a mirror there are no sources, so it builds against the published packages — which is also
+       what someone who clones the mirror gets, and what makes the mirror's build a real test of the feed. -->
+  <ItemGroup Condition="'$(InMonorepo)' == 'true'">
+    <ProjectReference Include="..\..\src\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\..\src\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
+    <ProjectReference Include="..\..\src\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+    <ProjectReference Include="..\..\addons\Icons\src\NE.Standard.UI.Icons.Lucide\NE.Standard.UI.Icons.Lucide.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(InMonorepo)' != 'true'">
+    <PackageReference Include="NE.Standard.UI.Generators" Version="$(CoreVersion)" />
+    <PackageReference Include="NE.Standard.UI" Version="$(CoreVersion)" />
+    <PackageReference Include="NE.Standard.UI.Components" Version="$(CoreVersion)" />
+    <PackageReference Include="NE.Standard.UI.Icons.Lucide" Version="$(IconsVersion)" />
+  </ItemGroup>
+
+</Project>

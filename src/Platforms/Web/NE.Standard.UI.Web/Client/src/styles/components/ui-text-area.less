@@ -1,0 +1,61 @@
+@import "../core/tokens.less";
+@import "../mixins/focus.less";
+@import "../mixins/responsive.less";
+
+.ui-text-area {
+
+    // The same header/row/message shell as .ui-text-input, with a resizable multi-line field.
+    display: flex;
+    flex-direction: column;
+    gap: @ui-space-1;
+    .ui-responsive-property(width, --ui-width, 100%);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    font: inherit;
+}
+
+.ui-text-area__field {
+    width: 100%;
+    max-width: 100%;
+    min-height: @ui-control-height;
+    padding: @ui-space-2 @ui-space-3;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-surface-raised);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-surface-raised);
+    color: var(--ui-color-on-surface);
+    font: inherit;
+    transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-text-area__field:hover {
+        border-color: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+    }
+
+    .ui-text-area__field:read-only {
+        cursor: default;
+    }
+
+// The same inset ring the rest of the family draws, and for the same reason — see ui-text-input.less.
+.ui-text-area:not(.ui-disabled) > .ui-text-area__field:focus {
+    border-color: var(--ui-color-primary);
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
+}
+
+.ui-text-area.ui-invalid > .ui-text-area__field {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+}
+
+.ui-text-area.ui-invalid:not(.ui-disabled) > .ui-text-area__field:focus {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-validation-color, var(--ui-color-danger));
+}
+
+.ui-text-area__message {
+    display: none;
+    padding: 0 @ui-space-1;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-text-area.ui-invalid > .ui-text-area__message {
+    display: block;
+}

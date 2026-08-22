@@ -1,0 +1,56 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+.ui-link {
+
+    display: inline-flex;
+    align-items: center;
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    border-radius: var(--ui-radius-button);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color @ui-motion-fast @ui-motion-ease;
+}
+
+:where(.ui-link) {
+    color: var(--ui-color-primary);
+}
+
+.ui-link:hover {
+    color: color-mix(in srgb, currentColor 82%, black);
+}
+
+.ui-link:hover .ui-link__text {
+    text-decoration-line: underline;
+}
+
+.ui-link__icon {
+    display: none;
+    flex: 0 0 auto;
+    margin-right: 0.35em;
+}
+
+.ui-link__text {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration-line: none;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+    transition: text-decoration-color 120ms ease;
+}
+
+.ui-link[data-ui-link-icon] > .ui-link__icon {
+    display: inline-flex;
+}
+
+    .ui-link[data-ui-link-icon] > .ui-link__icon::before {
+        display: block;
+    }
+
+.ui-link[data-ui-link-text] > .ui-link__text {
+    display: block;
+}

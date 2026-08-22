@@ -1,0 +1,80 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+// A row, not a button: the content takes the space and the trailing side is pushed against the far edge.
+// Everything else — hover, active, disabled, the type variants — comes from .ui-button, which this wears
+// alongside its own class.
+.ui-action {
+    justify-content: flex-start;
+    gap: @ui-space-3;
+    // Re-called with this control's own defaults rather than written flat: runtime.less resolves these
+    // through a var() chain at the same specificity, and a literal would swallow the authoring property.
+    // See the note on .ui-button.
+    .ui-responsive-property(min-height, --ui-min-height, 3.25rem);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-3);
+    text-align: start;
+}
+
+// The raised surface only for the untinted variant — an action explicitly given a primary or danger type
+// keeps that type's own colour, which a flat rule on .ui-action would have overridden.
+.ui-button--ghost.ui-action {
+    background: var(--ui-surface-raised);
+}
+
+.ui-action > .ui-button-content {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.ui-action__trailing {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: @ui-space-2;
+    margin-left: auto;
+}
+
+:where(.ui-action__trailing) {
+    color: var(--ui-text-muted);
+}
+
+.ui-action__trailing-text {
+    display: none;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--ui-text-caption-font-size);
+}
+
+.ui-action[data-ui-action-text] > .ui-action__trailing > .ui-action__trailing-text {
+    display: block;
+}
+
+.ui-action__icon {
+    display: none;
+}
+
+.ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__icon {
+    display: inline-flex;
+}
+
+    .ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__icon::before {
+        display: block;
+    }
+
+// Drawn from two borders rotated 45°, exactly like the expander's chevron, so the default trailing glyph
+// needs no icon package. Hidden as soon as the author names a real icon.
+.ui-action__chevron {
+    flex: 0 0 auto;
+    width: 0.45em;
+    height: 0.45em;
+    border-top: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__chevron {
+    display: none;
+}

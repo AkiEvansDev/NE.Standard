@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Extensions</PackageId>
+    <Description>Presets over the NE.Standard UI components: shorthands for the component arrangements an application writes again and again. Reserved and empty in this pre-release.</Description>
+    <PackageTags>NE.Standard,UI,Extensions,Presets</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Nothing here yet: the reference is what a preset will be written against, and it keeps the package's
+         dependency shape honest from the first pre-release rather than appearing later as a surprise. -->
+    <ProjectReference Include="..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+  </ItemGroup>
+
+</Project>

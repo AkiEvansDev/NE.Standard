@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Components</PackageId>
+    <Description>The built-in components of the NE.Standard UI framework — layouts, contents, actions, navigation, inputs, indicators, items and overlays — with their bases and the default templates a host renders them through.</Description>
+    <PackageTags>NE.Standard,UI,Core,Components</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Abstractions\NE.Standard.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Authoring\NE.Standard.UI.Authoring.csproj" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+  </ItemGroup>
+
+</Project>

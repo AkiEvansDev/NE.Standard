@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Abstractions</PackageId>
+    <Description>The binding and addressing model of the NE.Standard UI framework: RecursiveObservable, the items and interaction contracts, the colour and theme roles, and the client-effect vocabulary a command and an interaction both run.</Description>
+    <PackageTags>NE.Standard,UI,Contracts,Abstractions</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NE.Colors" Version="1.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+  </ItemGroup>
+
+</Project>
