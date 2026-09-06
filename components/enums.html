@@ -1,0 +1,563 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Enums — NE.Standard</title>
+    <meta name="description" content="The enums a component property takes.">
+    <link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="../index.html">NE.Standard</a>
+        <nav>
+            <a href="../getting-started.html">Guides</a>
+            <a href="../components/index.html">Components</a>
+            <a href="../packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="../index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="../getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="../views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="../controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="../binding.html" title="Paths, scopes, modes, responsive values, and validation on inputs.">Binding</a></li>
+                <li><a href="../interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="../items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="../routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="../security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="../localization.html" title="Translation sources, the session&#39;s language, [Translatable] properties, and the framework&#39;s own strings.">Localization</a></li>
+                <li><a href="../files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="../dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command is reported.">Dialogs and notifications</a></li>
+                <li><a href="../theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="../web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="../platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="../packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="../components/index.html">All components</a></li>
+                <li class="current"><a href="../components/enums.html">Enums</a></li>
+                <li><a href="../components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="../components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="../components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="../components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="../components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="../components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="../components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="../components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="../components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="../components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="../components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="../components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="../components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="../components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="../components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="../components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="../components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="../components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="../components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="../components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line.">Text</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="../components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="../components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="../components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="../components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="../components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="../components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="../components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="../components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="../components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="../components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="../components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="../components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="../components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="../components/search.html" title="A search input that filters a bound list of options as the user types.">Search</a></li>
+                <li><a href="../components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="../components/slider.html" title="A slider input that lets the user pick a numeric value by dragging a handle along a track.">Slider</a></li>
+                <li><a href="../components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="../components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="../components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="../components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="../components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="../components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="../components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="../components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="../components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="../components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="../components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="../components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="../components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="../components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="../components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="../components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="../components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="../components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="../components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="../components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="../components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="../components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="../components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="../components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="../components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="../components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="../components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="../components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="../components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="../components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="../components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="../components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="../components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="reference">
+<h1>Enums</h1>
+<p class="lead">Every enum a component property or an item model carries, with what each member means. A property page links here from its type.</p>
+<h2 id="UIAlignment"><code>UIAlignment</code></h2>
+<p>Defines cross-axis or main-axis alignment for UI layout.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Start</code></td><td>Aligns content to the start of the axis.</td></tr>
+<tr><td><code>Center</code></td><td>Aligns content to the center of the axis.</td></tr>
+<tr><td><code>End</code></td><td>Aligns content to the end of the axis.</td></tr>
+<tr><td><code>Stretch</code></td><td>Stretches content to fill the axis.</td></tr>
+</tbody>
+</table>
+<h2 id="UIBadgeType"><code>UIBadgeType</code></h2>
+<p>Defines visual variants for badge-like components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Primary</code></td><td>The theme&#39;s primary brand color variant.</td></tr>
+<tr><td><code>Accent</code></td><td>The theme&#39;s secondary accent color variant.</td></tr>
+<tr><td><code>Info</code></td><td>The informational status color variant.</td></tr>
+<tr><td><code>Warning</code></td><td>The warning status color variant.</td></tr>
+<tr><td><code>Success</code></td><td>The success status color variant.</td></tr>
+<tr><td><code>Danger</code></td><td>The danger/error status color variant.</td></tr>
+<tr><td><code>Surface</code></td><td>A card-like distinct background variant with no color accent.</td></tr>
+</tbody>
+</table>
+<h2 id="UIBindingMode"><code>UIBindingMode</code></h2>
+<p>Defines how data flows between a binding source and a UI target.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>OneWay</code></td><td>Updates flow only from the binding source to the UI target.</td></tr>
+<tr><td><code>TwoWay</code></td><td>Updates flow in both directions between the binding source and the UI target.</td></tr>
+<tr><td><code>OneWayToSource</code></td><td>Updates flow only from the UI target to the binding source.</td></tr>
+<tr><td><code>OnSubmit</code></td><td>Target-to-source updates are buffered until an explicit submit occurs.</td></tr>
+</tbody>
+</table>
+<h2 id="UIBindingScope"><code>UIBindingScope</code></h2>
+<p>Defines the component context used to resolve a binding path.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Relative</code></td><td>Resolves the binding path relative to the component&#39;s own context.</td></tr>
+<tr><td><code>Parent</code></td><td>Resolves the binding path relative to the parent component&#39;s context.</td></tr>
+<tr><td><code>Root</code></td><td>Resolves the binding path relative to the root context.</td></tr>
+</tbody>
+</table>
+<h2 id="UIButtonSize"><code>UIButtonSize</code></h2>
+<p>How much room a button takes, independent of what it holds.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Small</code></td><td>Sized to sit inside a row, a toolbar or a list without setting its height.</td></tr>
+<tr><td><code>Medium</code></td><td>The ordinary control height — a button standing on its own.</td></tr>
+<tr><td><code>Large</code></td><td>A call to action, where the button is the point of what it sits in.</td></tr>
+</tbody>
+</table>
+<h2 id="UIButtonType"><code>UIButtonType</code></h2>
+<p>Defines visual variants for button-like components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Primary</code></td><td>The theme&#39;s primary brand color variant.</td></tr>
+<tr><td><code>Accent</code></td><td>The theme&#39;s secondary accent color variant.</td></tr>
+<tr><td><code>Danger</code></td><td>The danger/error status color variant.</td></tr>
+<tr><td><code>Outline</code></td><td>A bordered variant with a transparent background.</td></tr>
+<tr><td><code>Ghost</code></td><td>A borderless, transparent-background variant.</td></tr>
+<tr><td><code>Link</code></td><td>A variant styled as an inline text link.</td></tr>
+<tr><td><code>Surface</code></td><td>A raised surface with no tint of its own — what a row in a list of destinations looks like, and the variant <code>ActionComponent</code> starts on.</td></tr>
+</tbody>
+</table>
+<h2 id="UIColorInputVariant"><code>UIColorInputVariant</code></h2>
+<p>How a colour input presents itself when it is closed.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Field</code></td><td>A field, reading the colour as text, with a swatch beside it and the picker&#39;s own button.</td></tr>
+<tr><td><code>Swatch</code></td><td>A swatch alone, with the colour written across it.</td></tr>
+</tbody>
+</table>
+<h2 id="UIColorTextFormat"><code>UIColorTextFormat</code></h2>
+<p>How a colour input writes the colour it holds.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Hex</code></td><td><code>#RRGGBB</code>, and <code>#RRGGBBAA</code> once the colour is not fully opaque.</td></tr>
+<tr><td><code>Rgb</code></td><td><code>rgb(r, g, b)</code>, and <code>rgba(r, g, b, a)</code> once the colour is not fully opaque.</td></tr>
+</tbody>
+</table>
+<h2 id="UIDayOfWeek"><code>UIDayOfWeek</code></h2>
+<p>Defines days of week using Monday as the first day.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Monday</code></td><td>Monday.</td></tr>
+<tr><td><code>Tuesday</code></td><td>Tuesday.</td></tr>
+<tr><td><code>Wednesday</code></td><td>Wednesday.</td></tr>
+<tr><td><code>Thursday</code></td><td>Thursday.</td></tr>
+<tr><td><code>Friday</code></td><td>Friday.</td></tr>
+<tr><td><code>Saturday</code></td><td>Saturday.</td></tr>
+<tr><td><code>Sunday</code></td><td>Sunday.</td></tr>
+</tbody>
+</table>
+<h2 id="UIGroupSeparator"><code>UIGroupSeparator</code></h2>
+<p>Defines what a bar draws between two groups of its items.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>None</code></td><td>Nothing: the groups run into each other.</td></tr>
+<tr><td><code>Gap</code></td><td>A step of air wider than the spacing between items.</td></tr>
+<tr><td><code>Rule</code></td><td>A hairline across the bar.</td></tr>
+</tbody>
+</table>
+<h2 id="UIIconSize"><code>UIIconSize</code></h2>
+<p>Defines standard icon sizes used by UI components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Small</code></td><td>The smallest standard icon size.</td></tr>
+<tr><td><code>Medium</code></td><td>The default, medium icon size.</td></tr>
+<tr><td><code>Large</code></td><td>The largest standard icon size.</td></tr>
+</tbody>
+</table>
+<h2 id="UIImageFit"><code>UIImageFit</code></h2>
+<p>Defines how an image is fitted into its layout bounds; <code>null</code> leaves it to the platform&#39;s default.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Fill</code></td><td>Stretches the image to fill its bounds, ignoring aspect ratio.</td></tr>
+<tr><td><code>Contain</code></td><td>Scales the image to fit entirely within its bounds while preserving aspect ratio.</td></tr>
+<tr><td><code>Cover</code></td><td>Scales the image to cover its bounds while preserving aspect ratio, cropping if needed.</td></tr>
+<tr><td><code>None</code></td><td>Renders the image at its natural size, without scaling.</td></tr>
+</tbody>
+</table>
+<h2 id="UIImageInputShape"><code>UIImageInputShape</code></h2>
+<p>The shape an image input takes.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Picture</code></td><td>A large picture: a drop area with the picture as its preview.</td></tr>
+<tr><td><code>Avatar</code></td><td>A small round picture replaced in place — a person, a team, a project.</td></tr>
+<tr><td><code>Inline</code></td><td>A row like the file input&#39;s: a thumbnail, the picture&#39;s name, and the pick control at the end.</td></tr>
+</tbody>
+</table>
+<h2 id="UIInputAppearance"><code>UIInputAppearance</code></h2>
+<p>Defines how an input draws the surface around its field.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Filled</code></td><td>One fill and no visible edge: the field reads as the surface one level above the page it sits on.</td></tr>
+<tr><td><code>Outline</code></td><td>No fill, and a border all the way round.</td></tr>
+<tr><td><code>Underline</code></td><td>No fill, and a single rule under the text — what an edit-in-place field wants.</td></tr>
+<tr><td><code>Ghost</code></td><td>No box until it is touched: the text sits on whatever is behind it, a wash under the pointer says it can be edited, the ring says it is. Tighter than the others, for a field that stands in a row of a list.</td></tr>
+</tbody>
+</table>
+<h2 id="UIItemsHostMode"><code>UIItemsHostMode</code></h2>
+<p>How an items host holds its rows.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Plain</code></td><td>Every row is in the document.</td></tr>
+<tr><td><code>Virtualized</code></td><td>The client holds every item&#39;s value and keeps only the rows in view in the document.</td></tr>
+<tr><td><code>Windowed</code></td><td>The items come from a source on the controller, one window at a time.</td></tr>
+</tbody>
+</table>
+<h2 id="UIItemsLayoutType"><code>UIItemsLayoutType</code></h2>
+<p>Defines layout modes for items-based components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Stack</code></td><td>Lays out items sequentially along a single axis.</td></tr>
+<tr><td><code>Wrap</code></td><td>Lays out items along an axis, wrapping onto new lines when space runs out.</td></tr>
+</tbody>
+</table>
+<h2 id="UIMenuItemKind"><code>UIMenuItemKind</code></h2>
+<p>Defines what one entry of a menu is: a selectable item, a section header, a separator, an option with a check mark, or a setting whose choices open beside it.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Item</code></td><td>A selectable entry: icon, title, and either a URL or a command.</td></tr>
+<tr><td><code>Header</code></td><td>A caption introducing the entries below it. Not selectable.</td></tr>
+<tr><td><code>Separator</code></td><td>A rule between entries. Carries no content.</td></tr>
+<tr><td><code>Check</code></td><td>An option that is on or off: a check mark at the entry&#39;s end says which. The click is the entry&#39;s command; the controller flips <code>Checked</code>.</td></tr>
+<tr><td><code>Select</code></td><td>A setting: its current <code>Value</code> at the entry&#39;s end, and its nested entries — the choices — opening beside it on click, whatever the menu&#39;s fold.</td></tr>
+</tbody>
+</table>
+<h2 id="UIOrientation"><code>UIOrientation</code></h2>
+<p>Defines horizontal or vertical orientation.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Horizontal</code></td><td>Content flows along the horizontal axis.</td></tr>
+<tr><td><code>Vertical</code></td><td>Content flows along the vertical axis.</td></tr>
+</tbody>
+</table>
+<h2 id="UIOverflow"><code>UIOverflow</code></h2>
+<p>Defines whether a container clips content that overflows its bounds.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Hidden</code></td><td>Content that overflows the container&#39;s bounds is clipped.</td></tr>
+<tr><td><code>Show</code></td><td>Content that overflows the container&#39;s bounds remains visible.</td></tr>
+</tbody>
+</table>
+<h2 id="UIPopupPlacement"><code>UIPopupPlacement</code></h2>
+<p>Defines where a popup prefers to sit relative to its anchor; a side with no room for it flips to its opposite.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>BottomStart</code></td><td>Below the anchor, aligned to its start edge.</td></tr>
+<tr><td><code>Bottom</code></td><td>Below the anchor, centered on it.</td></tr>
+<tr><td><code>BottomEnd</code></td><td>Below the anchor, aligned to its end edge.</td></tr>
+<tr><td><code>TopStart</code></td><td>Above the anchor, aligned to its start edge.</td></tr>
+<tr><td><code>Top</code></td><td>Above the anchor, centered on it.</td></tr>
+<tr><td><code>TopEnd</code></td><td>Above the anchor, aligned to its end edge.</td></tr>
+<tr><td><code>LeftStart</code></td><td>To the left of the anchor, aligned to its start edge.</td></tr>
+<tr><td><code>Left</code></td><td>To the left of the anchor, centered on it.</td></tr>
+<tr><td><code>LeftEnd</code></td><td>To the left of the anchor, aligned to its end edge.</td></tr>
+<tr><td><code>RightStart</code></td><td>To the right of the anchor, aligned to its start edge.</td></tr>
+<tr><td><code>Right</code></td><td>To the right of the anchor, centered on it.</td></tr>
+<tr><td><code>RightEnd</code></td><td>To the right of the anchor, aligned to its end edge.</td></tr>
+</tbody>
+</table>
+<h2 id="UIProgressVariant"><code>UIProgressVariant</code></h2>
+<p>Defines progress indicator presentation variants.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Linear</code></td><td>Renders progress as a horizontal bar.</td></tr>
+<tr><td><code>Circular</code></td><td>Renders progress as a circular ring.</td></tr>
+</tbody>
+</table>
+<h2 id="UIScrollAnchor"><code>UIScrollAnchor</code></h2>
+<p>Defines how a scrollable container reacts when its content grows.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>None</code></td><td>The container keeps its scroll position, which is the platform&#39;s own behavior.</td></tr>
+<tr><td><code>End</code></td><td>The container follows content appended at the end while the viewer is already at the end.</td></tr>
+</tbody>
+</table>
+<h2 id="UIScrollMode"><code>UIScrollMode</code></h2>
+<p>Defines scroll behavior for scrollable UI regions.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Disabled</code></td><td>Scrolling is disabled; overflowing content is not reachable by scrolling.</td></tr>
+<tr><td><code>Auto</code></td><td>Scrolling is enabled only when content overflows the available space.</td></tr>
+<tr><td><code>Always</code></td><td>Scrolling is always enabled, regardless of whether content overflows.</td></tr>
+</tbody>
+</table>
+<h2 id="UIScrollSnapMode"><code>UIScrollSnapMode</code></h2>
+<p>Defines the strictness with which a scrollable region snaps to item boundaries.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Disabled</code></td><td>Scroll snapping is disabled.</td></tr>
+<tr><td><code>Proximity</code></td><td>The scroll position snaps to the nearest boundary only when it comes to rest near one.</td></tr>
+<tr><td><code>Mandatory</code></td><td>The scroll position always snaps to a boundary at the end of scrolling.</td></tr>
+</tbody>
+</table>
+<h2 id="UISearchSelectionDisplayMode"><code>UISearchSelectionDisplayMode</code></h2>
+<p>Defines how a selected search item is displayed in the search input.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>KeepSearchInput</code></td><td>Keeps the user&#39;s typed search text in the input after a selection is made.</td></tr>
+<tr><td><code>ReplaceWithSelectedItem</code></td><td>Replaces the input&#39;s text with the selected item&#39;s display value.</td></tr>
+</tbody>
+</table>
+<h2 id="UISelectionMode"><code>UISelectionMode</code></h2>
+<p>Defines how many of a list&#39;s items the viewer can have chosen at once.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>None</code></td><td>None: the rows are not chosen by clicking them.</td></tr>
+<tr><td><code>One</code></td><td>One at a time — choosing a row lets the previous one go.</td></tr>
+<tr><td><code>Many</code></td><td>Any number — a click toggles the row it lands on.</td></tr>
+</tbody>
+</table>
+<h2 id="UISide"><code>UISide</code></h2>
+<p>Defines the edge of its parent a component is attached to — the side a panel folds toward when it collapses.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Left</code></td><td>The left edge.</td></tr>
+<tr><td><code>Right</code></td><td>The right edge.</td></tr>
+<tr><td><code>Top</code></td><td>The top edge.</td></tr>
+<tr><td><code>Bottom</code></td><td>The bottom edge.</td></tr>
+</tbody>
+</table>
+<h2 id="UISplitButtonMode"><code>UISplitButtonMode</code></h2>
+<p>Which part of a split button opens its menu.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Split</code></td><td>The main part runs the button&#39;s own command; the end part opens the menu.</td></tr>
+<tr><td><code>Menu</code></td><td>The whole button opens the menu — a menu button; the button&#39;s own click command is not used.</td></tr>
+</tbody>
+</table>
+<h2 id="UISurfaceStyle"><code>UISurfaceStyle</code></h2>
+<p>What a bordered surface is made of.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Background</code></td><td>The page&#39;s own background inside a border — a surface that reads as part of the page.</td></tr>
+<tr><td><code>Raised</code></td><td>A panel lifted off the page it sits on, with its own fill and shadow.</td></tr>
+<tr><td><code>Tinted</code></td><td>The surface&#39;s own colour mixed into the page instead of painted over it; takes the colour from <code>Background</code>, falling back to the theme&#39;s primary when none is set.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextAlignment"><code>UITextAlignment</code></h2>
+<p>Defines text alignment within its layout bounds.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Start</code></td><td>Aligns text to the leading edge of its container.</td></tr>
+<tr><td><code>Center</code></td><td>Centers text within its container.</td></tr>
+<tr><td><code>End</code></td><td>Aligns text to the trailing edge of its container.</td></tr>
+<tr><td><code>Justify</code></td><td>Stretches text so each line fills the width of its container.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextAreaResizeMode"><code>UITextAreaResizeMode</code></h2>
+<p>Defines resize behavior for multiline text input components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>None</code></td><td>The text area cannot be resized by the user.</td></tr>
+<tr><td><code>Vertical</code></td><td>The text area can be resized vertically only.</td></tr>
+<tr><td><code>Horizontal</code></td><td>The text area can be resized horizontally only.</td></tr>
+<tr><td><code>Both</code></td><td>The text area can be resized both horizontally and vertically.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextBadgeAlignment"><code>UITextBadgeAlignment</code></h2>
+<p>Defines where a trailing badge sits against the text beside it.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Title</code></td><td>On the title&#39;s own line, at its far end — the badge marks the title.</td></tr>
+<tr><td><code>Content</code></td><td>Centred against title and description together — the badge stands for the whole block.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextBadgePlacement"><code>UITextBadgePlacement</code></h2>
+<p>Defines where a badge in text content is placed.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Inline</code></td><td>The badge is placed inline within the text content.</td></tr>
+<tr><td><code>Trailing</code></td><td>The badge is placed after the text content.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextIconAlignment"><code>UITextIconAlignment</code></h2>
+<p>Where a text body&#39;s leading icon sits against the text beside it.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Title</code></td><td>On the title&#39;s own line, with the description flowing underneath it — the icon marks the title.</td></tr>
+<tr><td><code>Content</code></td><td>Centred against title and description together — the icon stands for the whole block, as in a list row or a card header.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextInputType"><code>UITextInputType</code></h2>
+<p>Defines semantic input types for text input components.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Text</code></td><td>Plain, unformatted text input.</td></tr>
+<tr><td><code>Email</code></td><td>Input intended for an email address, with matching keyboard/validation hints.</td></tr>
+<tr><td><code>Password</code></td><td>Input intended for a password, masking the entered characters.</td></tr>
+<tr><td><code>Search</code></td><td>Input intended for a search query.</td></tr>
+<tr><td><code>Tel</code></td><td>Input intended for a telephone number, with matching keyboard hints.</td></tr>
+<tr><td><code>Url</code></td><td>Input intended for a URL, with matching keyboard/validation hints.</td></tr>
+</tbody>
+</table>
+<h2 id="UITextWrapMode"><code>UITextWrapMode</code></h2>
+<p>Defines text wrapping behavior.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>NoWrap</code></td><td>Text is kept on a single line, overflowing its container if needed.</td></tr>
+<tr><td><code>Wrap</code></td><td>Text wraps onto multiple lines as needed to fit its container.</td></tr>
+<tr><td><code>WrapEllipsis</code></td><td>Text wraps onto multiple lines, truncating with an ellipsis when it exceeds the available space.</td></tr>
+</tbody>
+</table>
+<h2 id="UIThemeMode"><code>UIThemeMode</code></h2>
+<p>The two themes a surface can be forced into. <code>null</code> means &quot;inherit&quot; on a component and &quot;follow the platform&quot; on a session.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Light</code></td><td>Always uses the light theme.</td></tr>
+<tr><td><code>Dark</code></td><td>Always uses the dark theme.</td></tr>
+</tbody>
+</table>
+<h2 id="UIVisibility"><code>UIVisibility</code></h2>
+<p>Defines what a component does with the room it was given: fills it, keeps it empty, or gives it back.</p>
+<table>
+<thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Visible</code></td><td>Drawn, and taking part in everything: layout, hit-testing, focus and assistive technology.</td></tr>
+<tr><td><code>Hidden</code></td><td>Not drawn, but still holding its place — the layout around it does not move.</td></tr>
+<tr><td><code>Collapsed</code></td><td>Gone from the layout as well: everything after it closes the gap.</td></tr>
+</tbody>
+</table>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>

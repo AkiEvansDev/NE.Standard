@@ -1,0 +1,280 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Security — NE.Standard</title>
+    <meta name="description" content="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">
+    <link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, and validation on inputs.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li class="current"><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation sources, the session&#39;s language, [Translatable] properties, and the framework&#39;s own strings.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line.">Text</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A search input that filters a bound list of options as the user types.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value by dragging a handle along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Security</h1>
+<p>Authorization runs entirely in the framework, against a session it stores itself; the host's own
+authentication (cookies, OIDC, whatever ASP.NET Core is configured with) is a separate concern the framework
+only consumes when told to.</p>
+<h2 id="sessions">Sessions</h2>
+<p>Every request resolves to a <code>UserSessionState</code> — <code>SessionId</code>, <code>Language</code>, <code>ThemeMode</code>, <code>IsAuthenticated</code>,
+<code>UserId</code>, <code>Roles</code>, <code>Permissions</code> — held by <code>IUserSessionStore</code> (<code>TryGetAsync</code>/<code>SaveAsync</code>/<code>RemoveAsync</code>/
+<code>CleanupAsync</code>). The shipped store keeps sessions in memory, which is wrong once there is more than one
+process. On the web the id travels in an <code>HttpOnly</code> cookie (<code>SameSite=Lax</code>, <code>Secure</code> when the request is
+HTTPS) named <code>UISessionOptions.ClientKey</code> (default <code>&quot;ne.ui.session&quot;</code>); only the shell render can write it, and
+the SignalR hub reads the same cookie off its negotiate request so both halves of a page load share one
+session. <code>ConfigureSessions</code> sets <code>IdleTimeout</code> (default 2 hours — how long a session survives unused),
+<code>CleanupInterval</code> (default 5 minutes) and <code>ClientKey</code>:</p>
+<pre><code class="language-csharp">application.ConfigureSessions(o =&gt; o.IdleTimeout = TimeSpan.FromHours(8));
+</code></pre>
+<h2 id="signing-in">Signing in</h2>
+<p>A controller changes the session through <code>UIContext</code>, never by writing to a <code>UserSessionState</code> directly (it
+is an immutable record):</p>
+<pre><code class="language-csharp">[UICommand]
+public async Task SignInAsync(string userId, string password, CancellationToken cancellationToken)
+{
+    if (!await _users.VerifyAsync(userId, password, cancellationToken))
+        throw new UnauthorizedAccessException(&quot;Wrong username or password.&quot;);
+
+    await Context.SignInAsync(userId, roles: new HashSet&lt;string&gt; { &quot;User&quot; }, cancellationToken: cancellationToken);
+
+    // Sign-in must end in a navigation, or the old session id stays valid.
+}
+</code></pre>
+<ul>
+<li><code>Context.SignInAsync(userId, roles, permissions, cancellationToken)</code> marks the session authenticated and
+gives it its roles and permissions.</li>
+<li><code>Context.SignOutAsync(cancellationToken)</code> removes the session outright — every later command on the
+connection is then refused.</li>
+<li><code>Context.UpdateSessionAsync(update, cancellationToken)</code> applies any other change that must outlive the
+connection — language, theme, anything else — as <code>session =&gt; session with { ... }</code>; a no-op if the session
+is already gone.</li>
+</ul>
+<p><strong>Sign-in rotates the session id</strong>, as a defence against session fixation — but the rotation happens only at
+the next shell render, the one half of a page load that can write the cookie. <code>SignInAsync</code> only sets
+<code>PendingIdRotation</code>; a command that signs in without returning a <code>NavigateEffect</code> (or otherwise causing a full
+navigation) leaves the old, pre-rotation id valid.</p>
+<h2 id="uiauthorize-and-uiallowanonymous"><code>[UIAuthorize]</code> and <code>[UIAllowAnonymous]</code></h2>
+<p>Both attach to a view, a controller class, or an individual command method:</p>
+<pre><code class="language-csharp">[UIAuthorize(Roles = &quot;Admin,Support&quot;, Permissions = &quot;billing.view&quot;, RolesMode = UIAccessMode.Any)]
+internal sealed partial class BillingController : UIControllerBase { ... }
+</code></pre>
+<p><code>UIAuthorizeAttribute</code> takes a comma-separated <code>Roles</code> string (constructor) and <code>Permissions</code> (init-only),
+plus <code>RolesMode</code>/<code>PermissionsMode</code> (<code>UIAccessMode.Any</code> — the default — or <code>.All</code>). <code>[UIAllowAnonymous]</code> takes
+no arguments and lets the route or command resolve with no authenticated session. Both are collected into
+<code>UIAccessRule</code>s (<code>UIAccessRule.FromAttributes</code>) and evaluated by <code>IUIAuthorizationService.IsAuthorized(session, rules)</code> — every rule must pass, and within a rule roles and permissions are checked independently under their
+own mode.</p>
+<p><strong>A route with neither attribute is open by default.</strong> That suits a public site and is a trap behind a login,
+where a forgotten attribute publishes a page — <code>ConfigureSecurity(o =&gt; o.DefaultPolicy = UIAuthorizationDefault.Authenticated)</code> inverts the default so the same omission closes a page instead. An
+explicit attribute on the view or controller always wins over the policy, and <code>Require(rule)</code> on
+<code>UIRouteDefinitionBuilder</code> adds further rules the same attribute would.</p>
+<p>A command with no <code>[UIAuthorize]</code>/<code>[UIAllowAnonymous]</code> of its own follows its <strong>route</strong>:
+<code>IUICommandMetadata.AllowAnonymous</code> is <code>bool?</code>, and <code>null</code> reads <code>UIContext.Route.AllowAnonymous</code> — one
+<code>DefaultPolicy</code> therefore governs a page and every command on it together.</p>
+<h2 id="where-permissions-are-read">Where permissions are read</h2>
+<p><strong>Route access is checked against the session resolved for that request</strong>, so it is always current. <strong>A
+command is checked against the session <em>store</em></strong> (<code>EnsureCommandAuthorizedAsync</code>), not against
+<code>UIHandle.Session</code> — that one is a snapshot taken when the connection attached and refreshed only on the next
+attach, so checking it would let a revoked role go on granting access to an already-open tab.</p>
+<h2 id="uisecurityoptions"><code>UISecurityOptions</code></h2>
+<p>Set through <code>application.ConfigureSecurity(configure)</code>:</p>
+<ul>
+<li><code>DefaultPolicy</code> — <code>UIAuthorizationDefault.Anonymous</code> (default) or <code>.Authenticated</code>; see above.</li>
+<li><code>SignInRoute</code>/<code>ForbiddenRoute</code> — set by <code>UIApplicationBuilder.SignInView&lt;TView&gt;(route)</code>/
+<code>ForbiddenView&lt;TView&gt;(route)</code> (each with a controller-backed overload), which also register the route
+anonymous, since a page that explains a refusal must not be able to refuse anyone itself.</li>
+<li><code>IdentitySource</code> — <code>UIIdentitySource.Session</code> (default: the application signs users in itself, and any
+<code>ClaimsPrincipal</code> the host supplies is ignored) or <code>.Claims</code> (the host's <code>ClaimsPrincipal</code>, via
+<code>HttpContext.User</code> on the web, is authoritative in both directions, mapped by <code>IUserClaimsMapper.Map</code>). The
+framework consumes a principal and never authenticates — the host owns <code>AddAuthentication()</code>.</li>
+<li><code>PermissionClaimType</code> — the claim type permissions are read from under <code>Claims</code> (default <code>&quot;permission&quot;</code>);
+roles need no equivalent, since a <code>ClaimsIdentity</code> already declares its own <code>RoleClaimType</code>.</li>
+</ul>
+<pre><code class="language-csharp">application.ConfigureSecurity(o =&gt;
+{
+    o.DefaultPolicy = UIAuthorizationDefault.Authenticated;
+});
+
+application.SignInView&lt;SignInView, SignInController&gt;(&quot;/sign-in&quot;);
+application.ForbiddenView&lt;ForbiddenView&gt;(&quot;/forbidden&quot;);
+</code></pre>
+<h2 id="refusals">Refusals</h2>
+<p>Two exceptions mean two different things, and are routed differently by the built-in resolve-exception
+handler:</p>
+<ul>
+<li><strong>No identity yet</strong> — a plain <code>UnauthorizedAccessException</code> — goes to <code>Security.SignInRoute</code> with the
+refused route as the <code>returnUrl</code> navigation parameter.</li>
+<li><strong>An authenticated session that fails the rules</strong> — <code>UIForbiddenAccessException</code> — goes to
+<code>Security.ForbiddenRoute</code> with the refused route as <code>deniedUrl</code>, falling back to the sign-in route when no
+forbidden view is registered. <code>EnsureCommandAuthorizedAsync</code> throws the former when the store holds no live
+session, and the latter when the session fails an access rule.</li>
+</ul>
+<p>With neither <code>SignInView</code> nor <code>ForbiddenView</code> configured, the exception propagates unchanged rather than
+being redirected.</p>
+<h2 id="iuiauthorizationservice-and-iuserclaimsmapper"><code>IUIAuthorizationService</code> and <code>IUserClaimsMapper</code></h2>
+<p><code>IUIAuthorizationService.IsAuthorized(session, rules)</code>/<code>IsAuthorized(session, rule)</code> is the seam evaluating
+access rules — the shipped <code>StandardAuthorizationService</code> checks roles and permissions independently, each
+under its own <code>Any</code>/<code>All</code> mode, and every rule in a list must pass. <code>IUserClaimsMapper.Map(ClaimsPrincipal)</code>
+turns the host's principal into a <code>UserClaimsIdentity</code> (<code>IsAuthenticated</code>, <code>UserId</code>, <code>Roles</code>, <code>Permissions</code>)
+under <code>UIIdentitySource.Claims</code> — replace the registered implementation to map an application's own claim
+shapes. Both are ordinary DI services, replaceable with <code>services.AddSingleton&lt;IUIAuthorizationService, MyAuthorizationService&gt;()</code>.</p>
+<h2 id="the-web-hosts-own-authorization">The web host's own authorization</h2>
+<p><code>WebEndpointOptions.RequireAuthorization</code> and <code>AuthorizationPolicy</code> gate the framework's two ASP.NET Core
+endpoints — the SignalR hub and the catch-all shell route — with ordinary ASP.NET Core authorization,
+independent of everything above:</p>
+<pre><code class="language-csharp">services.Configure&lt;WebEndpointOptions&gt;(o =&gt;
+{
+    o.RequireAuthorization = true;
+    o.AuthorizationPolicy = &quot;MyPolicy&quot;;
+});
+</code></pre>
+<p>This is the host deciding who may reach the framework at all (useful behind a reverse proxy or a corporate
+SSO gate); the framework's own <code>[UIAuthorize]</code>/<code>DefaultPolicy</code> machinery above still runs independently on top
+of whatever gets through.</p>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>

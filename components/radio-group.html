@@ -1,0 +1,289 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Radio group — NE.Standard</title>
+    <meta name="description" content="A group of radio buttons that lets the user select a single option from a list.">
+    <link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="../index.html">NE.Standard</a>
+        <nav>
+            <a href="../getting-started.html">Guides</a>
+            <a href="../components/index.html">Components</a>
+            <a href="../packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="../index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="../getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="../views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="../controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="../binding.html" title="Paths, scopes, modes, responsive values, and validation on inputs.">Binding</a></li>
+                <li><a href="../interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="../items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="../routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="../security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="../localization.html" title="Translation sources, the session&#39;s language, [Translatable] properties, and the framework&#39;s own strings.">Localization</a></li>
+                <li><a href="../files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="../dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command is reported.">Dialogs and notifications</a></li>
+                <li><a href="../theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="../web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="../platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="../packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="../components/index.html">All components</a></li>
+                <li><a href="../components/enums.html">Enums</a></li>
+                <li><a href="../components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="../components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="../components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="../components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="../components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="../components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="../components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="../components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="../components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="../components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="../components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="../components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="../components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="../components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="../components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="../components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="../components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="../components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="../components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="../components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line.">Text</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="../components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="../components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="../components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="../components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="../components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="../components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="../components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="../components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="../components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="../components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="../components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="../components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li class="current"><a href="../components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="../components/search.html" title="A search input that filters a bound list of options as the user types.">Search</a></li>
+                <li><a href="../components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="../components/slider.html" title="A slider input that lets the user pick a numeric value by dragging a handle along a track.">Slider</a></li>
+                <li><a href="../components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="../components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="../components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="../components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="../components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="../components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="../components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="../components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="../components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="../components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="../components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="../components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="../components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="../components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="../components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="../components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="../components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="../components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="../components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="../components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="../components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="../components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="../components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="../components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="../components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="../components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="../components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="../components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="../components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="../components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="../components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="../components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="../components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="component">
+<h1>Radio group</h1>
+<p class="lead">A group of radio buttons that lets the user select a single option from a list.</p>
+<p class="meta"><code>RadioGroupComponent</code> · type key <code>standard.input.radio-group</code> · Inputs</p>
+<pre><code class="language-csharp">new RadioGroupComponent("radio-group")</code></pre>
+<h2>Properties</h2>
+<table class="props">
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Binding</th><th>Description</th></tr></thead>
+<tbody>
+<tr class="group"><td colspan="5">Own</td></tr>
+<tr><td><code>Orientation</code><br><small>SetOrientation · BindOrientation</small></td><td><code><a href="enums.html#UIOrientation">UIOrientation</a>?</code></td><td><code>UIOrientation.Vertical</code></td><td>one-way</td><td>The layout orientation of the radio buttons.</td></tr>
+<tr><td><code>Spacing</code><br><small>SetSpacing · BindSpacing</small></td><td><code>UIResponsive&lt;double&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The gap between options; unset, the stylesheet&#39;s own gap for the orientation applies.</td></tr>
+<tr class="group"><td colspan="5">From InputTemplatedComponentBase</td></tr>
+<tr><td><code>Value</code><br><small>SetValue · BindValue</small></td><td><code>string</code></td><td><code>null</code></td><td>two-way</td><td>The input value.</td></tr>
+<tr><td><code>IconColor</code><br><small>SetIconColor · BindIconColor</small></td><td><code>UIThemeColor?</code></td><td><code>Primary</code></td><td>one-way</td><td>The leading icon color.</td></tr>
+<tr><td><code>TitleType</code><br><small>SetTitleType · BindTitleType</small></td><td><code>UITextAppearance?</code></td><td><code>Caption</code></td><td>one-way</td><td>The primary text type.</td></tr>
+<tr><td><code>BadgePlacement</code><br><small>SetBadgePlacement · BindBadgePlacement</small></td><td><code><a href="enums.html#UITextBadgePlacement">UITextBadgePlacement</a>?</code></td><td><code>UITextBadgePlacement.Trailing</code></td><td>one-way</td><td>Where badge content is placed.</td></tr>
+<tr><td><code>IsReadOnly</code><br><small>SetIsReadOnly · BindIsReadOnly</small></td><td><code>bool?</code></td><td><code>false</code></td><td>one-way</td><td>Whether the input is read-only.</td></tr>
+<tr><td><code>FormId</code><br><small>SetFormId · BindFormId</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The id of the form this input belongs to, used to scope Submit-trigger validation.</td></tr>
+<tr><td><code>Validation</code><br><small>SetValidation · BindValidation</small></td><td><code>UIValidationMessage?</code></td><td><code>null</code></td><td>one-way</td><td>A message the controller puts on the field, beside whatever the client rules say; the strongest one shows.</td></tr>
+<tr><td><code>Icon</code><br><small>SetIcon · BindIcon</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The leading icon name. <span class="tag">translatable</span></td></tr>
+<tr><td><code>IconSize</code><br><small>SetIconSize · BindIconSize</small></td><td><code><a href="enums.html#UIIconSize">UIIconSize</a>?</code></td><td><code>null</code></td><td>one-way</td><td>The leading icon size; left unset the glyph is as tall as the title beside it.</td></tr>
+<tr><td><code>Title</code><br><small>SetTitle · BindTitle</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The primary text. <span class="tag">translatable</span></td></tr>
+<tr><td><code>TitleColor</code><br><small>SetTitleColor · BindTitleColor</small></td><td><code>UIThemeColor?</code></td><td><code>Default</code></td><td>one-way</td><td>The primary text colour, which also colours the icon and the description unless either is overridden by <code>ITextModel.DescriptionColor</code> or <code>IconColor</code>.</td></tr>
+<tr><td><code>Selectable</code><br><small>SetSelectable · BindSelectable</small></td><td><code>bool?</code></td><td><code>true</code></td><td>one-way</td><td>Whether the text can be selected with the pointer; content says yes, a control&#39;s caption says no.</td></tr>
+<tr><td><code>BadgeStyle</code><br><small>SetBadgeStyle · BindBadgeStyle</small></td><td><code><a href="enums.html#UIBadgeType">UIBadgeType</a>?</code></td><td><code>UIBadgeType.Info</code></td><td>one-way</td><td>The badge visual variant.</td></tr>
+<tr><td><code>BadgeColor</code><br><small>SetBadgeColor · BindBadgeColor</small></td><td><code>UIThemeColor?</code></td><td><code>null</code></td><td>one-way</td><td>The badge&#39;s own colour, overriding <code>IBadgeModel.BadgeStyle</code> when set — a tag or a category swatch, which the closed style enum cannot name.</td></tr>
+<tr><td><code>BadgeIcon</code><br><small>SetBadgeIcon · BindBadgeIcon</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The badge icon name. <span class="tag">translatable</span></td></tr>
+<tr><td><code>BadgeIconColor</code><br><small>SetBadgeIconColor · BindBadgeIconColor</small></td><td><code>UIThemeColor?</code></td><td><code>Default</code></td><td>one-way</td><td>The badge icon color.</td></tr>
+<tr><td><code>BadgeIconSize</code><br><small>SetBadgeIconSize · BindBadgeIconSize</small></td><td><code><a href="enums.html#UIIconSize">UIIconSize</a>?</code></td><td><code>null</code></td><td>one-way</td><td>The badge icon size. Left unset the glyph is as tall as the badge&#39;s own text.</td></tr>
+<tr><td><code>BadgeText</code><br><small>SetBadgeText · BindBadgeText</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The badge text. <span class="tag">translatable</span></td></tr>
+<tr><td><code>BadgeTextType</code><br><small>SetBadgeTextType · BindBadgeTextType</small></td><td><code>UITextAppearance?</code></td><td><code>Overline</code></td><td>one-way</td><td>The badge text type.</td></tr>
+<tr><td><code>BadgeTooltip</code><br><small>SetBadgeTooltip · BindBadgeTooltip</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The tooltip for the badge content. <span class="tag">translatable</span></td></tr>
+<tr><td><code>BadgeTooltipPlacement</code><br><small>SetBadgeTooltipPlacement · BindBadgeTooltipPlacement</small></td><td><code><a href="enums.html#UIPopupPlacement">UIPopupPlacement</a>?</code></td><td><code>UIPopupPlacement.Top</code></td><td>one-way</td><td>The side the badge&#39;s own tooltip prefers, placed against the badge rather than against the row.</td></tr>
+<tr><td><code>Tooltip</code><br><small>SetTooltip · BindTooltip</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way</td><td>The tooltip shown on hover and on focus. <span class="tag">translatable</span></td></tr>
+<tr><td><code>TooltipPlacement</code><br><small>SetTooltipPlacement · BindTooltipPlacement</small></td><td><code><a href="enums.html#UIPopupPlacement">UIPopupPlacement</a>?</code></td><td><code>UIPopupPlacement.Top</code></td><td>one-way</td><td>The side the tooltip prefers; flips to the opposite side when there is no room for it there.</td></tr>
+<tr class="group"><td colspan="5">From ItemsComponentBase</td></tr>
+<tr><td><code>Items</code><br><small>SetItems · BindItems</small></td><td><code>IReadOnlyList&lt;OptionItem&gt;</code></td><td><code>null</code></td><td>one-way</td><td>The component items.</td></tr>
+<tr><td><code>ItemsView</code><br><small>BindItemsView</small></td><td><code>UIItemsView</code></td><td><code>null</code></td><td>one-way</td><td>Filtering and sorting rules applied to the items collection.</td></tr>
+<tr class="group"><td colspan="5">From TemplatedComponentBase</td></tr>
+<tr><td><code>TemplateKeyProperty</code><br><small>SetTemplateKeyProperty · BindTemplateKeyProperty</small></td><td><code>string</code></td><td><code>null</code></td><td>one-way, relative scope</td><td>The name of the item field whose value selects a named template variant.</td></tr>
+<tr><td><code>FallbackTemplateKey</code><br><small>SetFallbackTemplateKey</small></td><td><code>string</code></td><td><code>null</code></td><td><span class="muted">—</span></td><td>The fallback template key used when <code>ITemplatedComponent.TemplateKeyProperty</code> does not resolve to a template.</td></tr>
+</tbody>
+</table>
+<h2>Events</h2>
+<dl class="members">
+<dt><code>OnChange(string command)</code></dt>
+<dd>Registers a change event command.</dd>
+<dt><code>OnChange(string command, params KeyValuePair&lt;string, UIActionArgument&gt;[] arguments)</code></dt>
+<dd>Registers a change event command with action arguments.</dd>
+<dt><code>OnChangeLiteral(string command, params KeyValuePair&lt;string, object&gt;[] arguments)</code></dt>
+<dd>Registers a change event command with literal action arguments.</dd>
+<dt><code>OnBlur(string command)</code></dt>
+<dd>Registers a blur event command.</dd>
+<dt><code>OnBlur(string command, params KeyValuePair&lt;string, UIActionArgument&gt;[] arguments)</code></dt>
+<dd>Registers a blur event command with action arguments.</dd>
+<dt><code>OnBlurLiteral(string command, params KeyValuePair&lt;string, object&gt;[] arguments)</code></dt>
+<dd>Registers a blur event command with literal action arguments.</dd>
+</dl>
+<h2>Methods</h2>
+<dl class="members">
+<dt><code>AddOption(OptionItem option)</code></dt>
+<dd>Adds a single option to the list.</dd>
+<dt><code>AddOptions(IEnumerable&lt;OptionItem&gt; options)</code></dt>
+<dd>Adds multiple options to the list.</dd>
+<dt><code>SetOptions(IEnumerable&lt;OptionItem&gt; options)</code></dt>
+<dd>Replaces the list of options.</dd>
+<dt><code>BindOptions(string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)</code></dt>
+<dd>Binds the list of options to a property at the given string path.</dd>
+<dt><code>BindOptions(RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)</code></dt>
+<dd>Binds the list of options to a property at the given recursive path.</dd>
+<dt><code>SetGroupTemplate(IVisualComponent template)</code></dt>
+<dd>Sets the template used to render item groups.</dd>
+<dt><code>SetTemplate(ITextComponent visualTemplate)</code></dt>
+<dd>Sets the item template.</dd>
+<dt><code>AddTemplateVariant(string key, ITextComponent visualTemplate)</code></dt>
+<dd>Adds or replaces a named template variant.</dd>
+<dt><code>AddItem(OptionItem item)</code></dt>
+<dd>Adds an item to the component.</dd>
+<dt><code>AddItems(IEnumerable&lt;OptionItem&gt; items)</code></dt>
+<dd>Adds items to the component.</dd>
+<dt><code>FilterBy(UIProperty source, string itemProperty, UIComparisonOperator operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object activeValue = null)</code></dt>
+<dd>Adds a filter controlled by a local component property.<br><small>Defaults to a case-insensitive substring match; pass the operator explicitly where case matters.</small></dd>
+<dt><code>FilterBy(string sourceComponentId, UIProperty source, string itemProperty, UIComparisonOperator operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object activeValue = null)</code></dt>
+<dd>Adds a filter controlled by another component property.</dd>
+<dt><code>FilterBy(UIPropertyReference source, string itemProperty, UIComparisonOperator operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object activeValue = null)</code></dt>
+<dd>Adds a filter controlled by a property reference.</dd>
+<dt><code>FilterBy(string itemProperty, UIComparisonOperator operator = UIComparisonOperator.LikeIgnoreCase, object value = null)</code></dt>
+<dd>Adds an unconditionally active filter with no source, comparing against a constant value.</dd>
+<dt><code>SortBy(UIProperty source, string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object activeValue = null, int priority = 0)</code></dt>
+<dd>Adds a sort rule controlled by a local component property.</dd>
+<dt><code>SortBy(string sourceComponentId, UIProperty source, string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object activeValue = null, int priority = 0)</code></dt>
+<dd>Adds a sort rule controlled by another component property.</dd>
+<dt><code>SortBy(UIPropertyReference source, string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object activeValue = null, int priority = 0)</code></dt>
+<dd>Adds a sort rule controlled by a property reference.</dd>
+<dt><code>SortBy(string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, int priority = 0)</code></dt>
+<dd>Adds an unconditionally active sort rule with no source.</dd>
+<dt><code>SetEmptyTemplate(IVisualComponent visualTemplate)</code></dt>
+<dd>Sets the template used when there are no items or no content.</dd>
+<dt><code>Required(string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)</code></dt>
+<dd>Adds a required-value validation rule.</dd>
+<dt><code>Regex(string pattern, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)</code></dt>
+<dd>Adds a regular-expression validation rule.</dd>
+<dt><code>Validate(UIValidationTrigger trigger, UIComparisonOperator operator, object value, string message, UIValidationSeverity severity = UIValidationSeverity.Error)</code></dt>
+<dd>Adds a validation rule.</dd>
+</dl>
+<details class="common"><summary>Common properties (16) — layout, visibility, theme, and the rest every component shares</summary>
+<table class="props">
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Binding</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>Visibility</code><br><small>SetVisibility · BindVisibility</small></td><td><code>UIResponsive&lt;<a href="enums.html#UIVisibility">UIVisibility</a>&gt;?</code></td><td><code>Visible</code></td><td>one-way</td><td>What the component does with the room it was given, optionally overridden per breakpoint (e.g. collapsed from a given width up).</td></tr>
+<tr><td><code>Enabled</code><br><small>SetEnabled · BindEnabled</small></td><td><code>bool?</code></td><td><code>true</code></td><td>one-way</td><td>Whether the component is enabled.</td></tr>
+<tr><td><code>Theme</code><br><small>SetTheme · BindTheme</small></td><td><code><a href="enums.html#UIThemeMode">UIThemeMode</a>?</code></td><td><code>null</code></td><td>one-way</td><td>The theme mode forced on this component&#39;s subtree, or <code>null</code> to inherit the ambient theme.</td></tr>
+<tr><td><code>HorizontalAlignment</code><br><small>SetHorizontalAlignment · BindHorizontalAlignment</small></td><td><code><a href="enums.html#UIAlignment">UIAlignment</a>?</code></td><td><code>UIAlignment.Stretch</code></td><td>one-way</td><td>The horizontal alignment.</td></tr>
+<tr><td><code>VerticalAlignment</code><br><small>SetVerticalAlignment · BindVerticalAlignment</small></td><td><code><a href="enums.html#UIAlignment">UIAlignment</a>?</code></td><td><code>UIAlignment.Stretch</code></td><td>one-way</td><td>The vertical alignment.</td></tr>
+<tr><td><code>Width</code><br><small>SetWidth · BindWidth</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component width, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>MinWidth</code><br><small>SetMinWidth · BindMinWidth</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component minimum width, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>MaxWidth</code><br><small>SetMaxWidth · BindMaxWidth</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component maximum width, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>Height</code><br><small>SetHeight · BindHeight</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component height, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>MinHeight</code><br><small>SetMinHeight · BindMinHeight</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component minimum height, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>MaxHeight</code><br><small>SetMaxHeight · BindMaxHeight</small></td><td><code>UIResponsive&lt;UILayoutLength&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The component maximum height, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>ZIndex</code><br><small>SetZIndex · BindZIndex</small></td><td><code>int?</code></td><td><code>0</code></td><td>one-way</td><td>The stacking order within the visual tree.</td></tr>
+<tr><td><code>Margin</code><br><small>SetMargin · BindMargin</small></td><td><code>UIResponsive&lt;UIThickness&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The outer spacing around the component, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>Placement</code><br><small>SetPlacement · BindPlacement</small></td><td><code>UIResponsive&lt;UIGridPlacement&gt;?</code></td><td><code>null</code></td><td>one-way</td><td>The grid placement, optionally overridden per breakpoint.</td></tr>
+<tr><td><code>Loading</code><br><small>SetLoading · BindLoading</small></td><td><code>bool?</code></td><td><code>false</code></td><td>one-way</td><td>Whether the component is in loading state — a live state a controller turns on and off.</td></tr>
+<tr><td><code>ShowContextMenu</code><br><small>SetShowContextMenu · BindShowContextMenu</small></td><td><code>bool?</code></td><td><code>true</code></td><td>one-way</td><td>Whether a right-click opens the <code>IVisualComponent.ContextMenu</code>; on a host with rows, whether it opens any row&#39;s. Off, the menu stays in the tree and nothing opens it.</td></tr>
+</tbody>
+</table>
+</details>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>

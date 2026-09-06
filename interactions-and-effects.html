@@ -1,0 +1,411 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Interactions and Effects — NE.Standard</title>
+    <meta name="description" content="Client-side reactions between components, and what a command can ask the client to do.">
+    <link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, and validation on inputs.">Binding</a></li>
+                <li class="current"><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation sources, the session&#39;s language, [Translatable] properties, and the framework&#39;s own strings.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line.">Text</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A search input that filters a bound list of options as the user types.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value by dragging a handle along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Interactions and Effects</h1>
+<p>Two mechanisms make a component react to something besides its own bound values: an interaction, entirely
+client-side, and a client effect, which a command (or an interaction) hands the client to run.</p>
+<h2 id="interactions">Interactions</h2>
+<p>An interaction watches one component's event and writes a property on another — or on itself — with no
+round trip. Every visual component exposes them through <code>VisualComponentBase&lt;TComponent&gt;</code>.</p>
+<p><strong>The id always names the source, never the target.</strong> The component the call is made <em>on</em> is the one whose
+property changes; the id argument is the component whose event is watched:</p>
+<pre><code class="language-csharp">new StackPanelComponent()
+    .SetVisibility(UIVisibility.Hidden)
+    .InteractOnHoverStart(CardId, IVisualComponent.VisibilityProperty, UIVisibility.Visible)
+    .InteractOnHoverEnd(CardId, IVisualComponent.VisibilityProperty, UIVisibility.Hidden)
+</code></pre>
+<p>Written the other way round it compiles and does nothing — the source would be a component that is hidden
+and can never raise the event. The single-argument overloads default the source to the component itself,
+which is why <code>InteractBeforeClick(LoadingProperty, true)</code> reads naturally.</p>
+<h3 id="interact-comparing-a-value"><code>Interact</code> — comparing a value</h3>
+<pre><code class="language-csharp">public TComponent Interact(UIProperty property, UIComparisonOperator @operator = UIComparisonOperator.Equal,
+    object? value = null, object? whenTrue = null, object? whenFalse = null)
+
+public TComponent Interact(UIProperty source, UIProperty target, UIComparisonOperator @operator = UIComparisonOperator.Equal,
+    object? value = null, object? whenTrue = null, object? whenFalse = null)
+
+public TComponent Interact(string sourceComponentId, UIProperty source, UIProperty target,
+    UIComparisonOperator @operator = UIComparisonOperator.Equal, object? value = null, object? whenTrue = null, object? whenFalse = null)
+</code></pre>
+<p>Watches <code>source</code> continuously and writes <code>target</code> to <code>whenTrue</code> or <code>whenFalse</code> depending on whether <code>source @operator value</code> holds. <code>UIComparisonOperator</code> has eleven members: <code>Required</code>, <code>Equal</code>, <code>NotEqual</code>,
+<code>Greater</code>, <code>GreaterOrEqual</code>, <code>Less</code>, <code>LessOrEqual</code>, <code>Like</code>, <code>In</code>, <code>Regex</code>, <code>LikeIgnoreCase</code>.</p>
+<h3 id="interacton-reacting-to-an-event"><code>InteractOn*</code> — reacting to an event</h3>
+<pre><code class="language-csharp">public TComponent InteractBeforeClick(UIProperty target, object? value)
+public TComponent InteractAfterClick(UIProperty target, object? value)
+public TComponent InteractOnFocus(UIProperty target, object? value)
+public TComponent InteractOnBlur(UIProperty target, object? value)
+public TComponent InteractOnHoverStart(UIProperty target, object? value)
+public TComponent InteractOnHoverEnd(UIProperty target, object? value)
+public TComponent InteractOn(string sourceEvent, UIProperty target, object? whenTriggered)
+</code></pre>
+<p>Each has a <code>sourceComponentId</code>-taking overload for watching another component. <code>InteractBeforeClick</code> fires
+after validation and just before the command dispatches; <code>InteractAfterClick</code> fires after the command's
+result — changes and effects — has been applied. Together they are the &quot;busy while this round trip runs&quot;
+idiom, and <code>ButtonComponent.OnClickWithLoading(command)</code> is exactly this pair wired to <code>Loading</code>:</p>
+<pre><code class="language-csharp">public T OnClickWithLoading(string command)
+    =&gt; OnClick(command)
+        .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
+        .InteractAfterClick(IVisualComponent.LoadingProperty, false);
+</code></pre>
+<p>This is one of two independent ways to say a control is busy — entirely client-side, nothing bound, nothing
+for a controller to clear. The other is binding <code>Loading</code> to a controller flag the command itself sets; that
+one starts and stops on the server's own timing, for when being busy outlives the single command. Using
+<code>InteractBeforeClick</code> without a matching <code>InteractAfterClick</code> (or a binding that clears it) leaves a spinner
+that never stops.</p>
+<p>An interaction may run a client effect instead of writing a property:</p>
+<pre><code class="language-csharp">public TComponent InteractOn(string sourceEvent, ClientEffect effect)
+public TComponent InteractOn(string sourceComponentId, string sourceEvent, ClientEffect effect)
+public TComponent Interact(UIProperty source, ClientEffect effect, UIComparisonOperator @operator = UIComparisonOperator.Required, object? value = null)
+public TComponent Interact(string sourceComponentId, UIProperty source, ClientEffect effect, UIComparisonOperator @operator = UIComparisonOperator.Required, object? value = null)
+</code></pre>
+<p>Only an effect whose <code>CanRunInInteraction</code> is <code>true</code> may be used this way — true only for an effect that
+completes entirely on the client, with no round trip behind it (see the table below).</p>
+<h2 id="client-effects">Client effects</h2>
+<p>A <code>ClientEffect</code> is something a command (or a qualifying interaction) hands the client to run after the
+result — changes first, then effects, so an effect that focuses or scrolls sees what the command just
+changed. <code>ClientEffectKinds</code> lists the built-in kinds; a package can add its own by returning a new <code>Kind</code>
+string.</p>
+<table>
+<thead>
+<tr>
+<th>Effect</th>
+<th>Constructor</th>
+<th>Does</th>
+<th>In an interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NavigateEffect</code></td>
+<td><code>NavigateEffect(UINavigationRequest request)</code></td>
+<td>Navigates the client to another route.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>FocusEffect</code></td>
+<td><code>FocusEffect(string targetComponentId, params object?[]? dynamicParameters)</code></td>
+<td>Focuses a component.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>ScrollToEffect</code></td>
+<td><code>ScrollToEffect(string targetComponentId, ScrollToBehavior behavior, ScrollToBlock block, params object?[]? dynamicParameters)</code></td>
+<td>Scrolls a component into view.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>ScrollEffect</code></td>
+<td><code>ScrollEffect(string targetComponentId, ScrollPosition position, params object?[]? dynamicParameters)</code></td>
+<td>Scrolls a <em>container</em> (start/end/offset/page), as opposed to bringing a component into view.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>ShowEffect</code></td>
+<td><code>ShowEffect(string targetComponentId, params object?[]? dynamicParameters)</code></td>
+<td>Shows a component.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>HideEffect</code></td>
+<td><code>HideEffect(string targetComponentId, params object?[]? dynamicParameters)</code></td>
+<td>Hides a component; it keeps the room it holds.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>CollapseEffect</code></td>
+<td><code>CollapseEffect(string targetComponentId, params object?[]? dynamicParameters)</code></td>
+<td>Takes a component out of the layout; the room it held closes up.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>OpenDialogEffect</code></td>
+<td><code>OpenDialogEffect(string dialogKey)</code></td>
+<td>Opens a dialog declared by the view.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>CloseDialogEffect</code></td>
+<td><code>CloseDialogEffect(string dialogKey)</code></td>
+<td>Closes a dialog.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>ShowNotificationEffect</code></td>
+<td><code>ShowNotificationEffect(string message, UIColorStyle severity = UIColorStyle.Info)</code></td>
+<td>Shows a toast.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>DownloadFileEffect</code></td>
+<td><code>DownloadFileEffect(string requestPath, string fileName)</code></td>
+<td>Fetches a file staged through <code>Context.Downloads</code>; the path is single-use.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>SetThemeEffect</code></td>
+<td><code>SetThemeEffect(UIThemeMode? mode = null)</code></td>
+<td>Puts the client into a theme and persists it as the session's — the one effect with a server side.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>RenameTabEffect</code></td>
+<td><code>RenameTabEffect(string targetComponentId, string key, params object?[]? dynamicParameters)</code></td>
+<td>Opens the inline rename field on one tab, the way a double-click does.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>RenameNodeEffect</code></td>
+<td><code>RenameNodeEffect(string targetComponentId, string key, params object?[]? dynamicParameters)</code></td>
+<td>Opens the inline rename field on one tree node, the way F2 does.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>CopyToClipboardEffect</code></td>
+<td><code>CopyToClipboardEffect.Literal(string text)</code> / <code>.ValueOf(string targetComponentId, ...)</code></td>
+<td>Copies text, or a component's current value, to the clipboard.</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="returning-effects-from-a-command">Returning effects from a command</h2>
+<p><code>UICommandResult.Ok(effects)</code> and <code>UICommandResult.Fail(error, effects)</code> both take an optional
+<code>IReadOnlyList&lt;ClientEffect&gt;?</code>:</p>
+<pre><code class="language-csharp">[UICommand]
+public UICommandResult AskBeforeDelete()
+{
+    if (!ConfirmGroup.HasBuilds)
+        return UICommandResult.Ok([new ShowNotificationEffect(&quot;Nothing left to delete.&quot;, UIColorStyle.Info)]);
+
+    ConfirmGroup.Ask();
+
+    return UICommandResult.Ok([new OpenDialogEffect(ConfirmKey)]);
+}
+
+[UICommand]
+public UICommandResult DeleteBuild()
+{
+    ConfirmGroup.Delete();
+
+    return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect(&quot;The build is gone.&quot;, UIColorStyle.Success)]);
+}
+</code></pre>
+<p><code>ConfirmKey</code> here is the <code>Key</code> of a <code>UIDialog</code> the view declared in <code>CreateDialogs()</code> (see
+<a href="views.html">views</a>, dialogs).</p>
+<h2 id="how-a-failed-command-is-reported">How a failed command is reported</h2>
+<p>The client never inspects <code>success</code>/<code>error</code> directly — both delivery channels only ever apply changes and
+effects. A failed <code>UICommandResult</code> with no effects of its own gets a <code>ShowNotificationEffect</code> attached
+automatically; returning your own effects from a failure is how a command takes over the reporting.
+<code>UIErrorHandlingOptions</code> (configured with <code>application.ConfigureErrorHandling(configure)</code>) controls it:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NotFoundRoute</code></td>
+<td>Route used when a requested route was not registered.</td>
+</tr>
+<tr>
+<td><code>ErrorRoute</code></td>
+<td>Route used when an unhandled exception occurs <em>resolving a view</em> — not a failed command, which is always reported to the user instead of navigating anywhere.</td>
+</tr>
+<tr>
+<td><code>NotifyOnCommandFailure</code></td>
+<td>Whether a failed command with no effects of its own gets the automatic notification (default <code>true</code>).</td>
+</tr>
+<tr>
+<td><code>IncludeExceptionDetail</code></td>
+<td>Whether the real exception message reaches the browser — leave off in production; an exception routinely carries a connection string or a file path.</td>
+</tr>
+<tr>
+<td><code>CommandRefusedMessage</code></td>
+<td>Shown when a command is refused by an authorization check.</td>
+</tr>
+<tr>
+<td><code>CommandFailedMessage</code></td>
+<td>Shown when a command fails for any other reason.</td>
+</tr>
+</tbody>
+</table>
+<p>The message a viewer sees has three levels: what <code>UICommandResult.Fail(error)</code> wrote is shown as it stands;
+an <code>UnauthorizedAccessException</code> gets <code>CommandRefusedMessage</code>; anything else gets <code>CommandFailedMessage</code>
+unless <code>IncludeExceptionDetail</code> is on. All three go through the translator.</p>
+<h2 id="navigating">Navigating</h2>
+<p><code>NavigateEffect</code> takes a <code>UINavigationRequest</code>:</p>
+<pre><code class="language-csharp">public sealed class UINavigationRequest
+{
+    public required string Route { get; init; }
+    public IReadOnlyDictionary&lt;string, object?&gt;? Parameters { get; init; }
+}
+</code></pre>
+<pre><code class="language-csharp">return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = &quot;/dashboard&quot; })]);
+</code></pre>
+<p><code>Parameters</code> become the route's navigation parameters — the same shape a query string produces on a direct
+request, readable from <code>OnInitializeAsync</code> (see <a href="controllers.html">controllers</a>).</p>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul>
+<li><a href="controllers.html">Controllers</a> for how a command is declared and what its return type may be.</li>
+<li><a href="views.html">Views</a> for the dialogs <code>OpenDialogEffect</code>/<code>CloseDialogEffect</code> target.</li>
+<li><a href="binding.html">Binding</a> for the properties an interaction writes.</li>
+</ul>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
