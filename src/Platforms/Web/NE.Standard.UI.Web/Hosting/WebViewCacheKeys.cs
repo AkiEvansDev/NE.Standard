@@ -9,6 +9,7 @@ internal static class WebViewCacheKeys
     {
         ArgumentNullException.ThrowIfNull(resolution);
 
-        return $"{resolution.Route.ViewKey}:{resolution.Session.Language}";
+        // The compile's fingerprint too, so a render kept from before the code changed is never served to a page of the new compile.
+        return $"{resolution.Route.ViewKey}:{resolution.Session.Language}:{resolution.View.Fingerprint}";
     }
 }

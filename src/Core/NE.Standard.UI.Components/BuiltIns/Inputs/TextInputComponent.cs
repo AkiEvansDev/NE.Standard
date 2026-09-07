@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -9,9 +12,39 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A single-line text input for entering free-form text.
 /// </summary>
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id)
+[UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
+public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IRegionContainerComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
+    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Gets the control at the end of the row — a copy, a generate, a look-up, or a split button with a menu of them.
+    /// </summary>
+    public IButtonComponent? TrailingAction => _regions.GetValueOrDefault(RegionNames.TrailingAction) as IButtonComponent;
+
+    /// <inheritdoc/>
+    public IReadOnlyDictionary<string, IVisualComponent> Regions => _regions;
+
+    /// <inheritdoc/>
+    public bool HasRegions => _regions.Count > 0;
+
+    /// <summary>
+    /// Puts a button at the end of the row; the field lays it in and dresses it as an adornment.
+    /// </summary>
+    public T SetTrailingAction(IButtonComponent action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        _regions[RegionNames.TrailingAction] = action;
+        return Self;
+    }
+
+    /// <inheritdoc/>
+    [Translatable]
+    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
+    public string? Placeholder { get; set; }
+
     /// <summary>
     /// Gets or sets the semantic input type (e.g. text, password, email).
     /// </summary>
@@ -25,34 +58,34 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public int? MaxLength { get; set; }
 
     /// <summary>
-    /// Gets or sets the text displayed before the value.
-    /// </summary>
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? PrefixText { get; set; }
-
-    /// <summary>
-    /// Gets or sets the text displayed after the value.
-    /// </summary>
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? SuffixText { get; set; }
-
-    /// <summary>
     /// Gets or sets whether leading and trailing whitespace is trimmed from the input.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? TrimInput { get; set; }
 
     /// <summary>
+    /// Gets or sets how long after the viewer stops typing the value is committed, in milliseconds; unset, it
+    /// commits on blur or Enter.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
+    public int? DebounceMilliseconds { get; set; }
+
+    /// <summary>
     /// Gets or sets whether a button to clear the current value is shown.
     /// </summary>
-    /// <remarks>
-    /// Unbindable: it decides whether the clear element is emitted at all, and no DOM operation adds or
-    /// removes whole elements. See <c>docs/PROJECT.md</c> §7.
-    /// </remarks>
-    [UIComponentProperty(DefaultValue = false, IsBindable = false, GenerateBinder = false)]
+    [UIComponentProperty(DefaultValue = false)]
     public bool? ShowClearButton { get; set; }
+
+    /// <summary>
+    /// Commits the value as the viewer types, this long after they pause.
+    /// </summary>
+    public T SetDebounceMilliseconds(int debounceMilliseconds)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(debounceMilliseconds);
+
+        DebounceMilliseconds = debounceMilliseconds;
+        return Self;
+    }
 
     /// <summary>
     /// Sets the maximum number of characters allowed.

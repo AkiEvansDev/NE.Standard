@@ -15,6 +15,10 @@ export type EventRegistration<TEvent extends Event = Event> = {
     readonly options?: AddEventListenerOptions;
     readonly preventDefault?: boolean | ((context: EventDispatchContext<TEvent>) => boolean);
     readonly stopPropagation?: boolean | ((context: EventDispatchContext<TEvent>) => boolean);
+    /** The command waits for the component's value to reach the server first, as an .OnChange command does. */
+    readonly settlesValue?: boolean;
+    /** The keys the command carries, named by the engine in place of the `data-ui-key` chain above the target; null keeps the chain. */
+    dynamicParameters?(context: EventDispatchContext<TEvent>): readonly unknown[] | null;
     createRequest?(context: EventDispatchContext<TEvent>): UICommandRequest | null;
     attach?(context: EventAttachContext): void;
 };

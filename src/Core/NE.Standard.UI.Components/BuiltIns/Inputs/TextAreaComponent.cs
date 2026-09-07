@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -9,18 +10,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A multi-line text input for entering longer free-form text.
 /// </summary>
-/// <remarks>
-/// Derives from <see cref="TextInputComponentBase{TComponent, TValue}"/> rather than from
-/// <c>TextInputComponent</c>: the single-line control's own surface — <c>Type</c>, <c>PrefixText</c>,
-/// <c>SuffixText</c>, <c>ShowClearButton</c> — has no meaning for a multi-line field, and inheriting it
-/// only advertised properties that rendered as nothing. <see cref="MaxLength"/> and <see cref="TrimInput"/>
-/// are the two that do apply to both, and are therefore restated here rather than shared through a base:
-/// putting them one level up would hand them to <c>CheckboxComponent</c> as well, which is
-/// <see cref="TextInputComponentBase{TComponent, TValue}"/>'s other descendant.
-/// </remarks>
-public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id)
+public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [Translatable]
+    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
+    public string? Placeholder { get; set; }
+
     /// <summary>
     /// Gets or sets the number of visible text rows.
     /// </summary>
@@ -44,6 +41,24 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInp
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? TrimInput { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long after the viewer stops typing the value is committed, in milliseconds; unset, it
+    /// commits on blur.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
+    public int? DebounceMilliseconds { get; set; }
+
+    /// <summary>
+    /// Commits the value as the viewer types, this long after they pause.
+    /// </summary>
+    public T SetDebounceMilliseconds(int debounceMilliseconds)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(debounceMilliseconds);
+
+        DebounceMilliseconds = debounceMilliseconds;
+        return Self;
+    }
 
     /// <summary>
     /// Sets the number of visible text rows.

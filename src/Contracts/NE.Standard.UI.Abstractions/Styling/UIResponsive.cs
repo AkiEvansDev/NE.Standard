@@ -4,18 +4,17 @@ using System.Globalization;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents a value that can vary per breakpoint: a required <see cref="Base"/> value plus optional
-/// overrides for wider breakpoints, each falling back to the next narrower one that is set (CSS
-/// mobile-first cascade: <see cref="Xxl"/> falls back to <see cref="Xl"/>, which falls back to
-/// <see cref="Md"/>, and so on down to <see cref="Base"/>).
+/// Represents a value that can vary per breakpoint: a required <see cref="Base"/> plus optional wider-breakpoint overrides.
 /// </summary>
+/// <remarks>
+/// Mobile-first cascade: an unset breakpoint falls back to the next narrower one that is set, down to <see cref="Base"/>.
+/// </remarks>
 [SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "Create/FromValue are the value type's own construction API (same role as UIGridPlacement.At/UIThemeColor.Create), not something meant to be discovered without already knowing the element type at the call site.")]
 public readonly record struct UIResponsive<T>(T Base, T? Sm, T? Md, T? Xl, T? Xxl)
     where T : struct
 {
     /// <summary>
-    /// Creates a uniform responsive value with no breakpoint overrides. Also reachable implicitly by
-    /// passing a plain <typeparamref name="T"/> wherever a <see cref="UIResponsive{T}"/> is expected.
+    /// Creates a uniform responsive value with no breakpoint overrides; reachable implicitly from a plain <typeparamref name="T"/>.
     /// </summary>
     public static UIResponsive<T> FromValue(T value)
         => new(value, null, null, null, null);

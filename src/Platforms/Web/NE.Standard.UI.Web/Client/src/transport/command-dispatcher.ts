@@ -2,9 +2,11 @@ import { UICommandExecutionResult, UICommandRequest, toSerializedIdValue } from 
 import { SignalRTransport } from "./signalr-transport";
 
 export class CommandDispatcher {
+    private readonly transport: SignalRTransport;
     private readonly pendingKeys = new Set<string>();
 
-    public constructor(private readonly transport: SignalRTransport) {
+    public constructor(transport: SignalRTransport) {
+        this.transport = transport;
     }
 
     public isPending(request: UICommandRequest): boolean {

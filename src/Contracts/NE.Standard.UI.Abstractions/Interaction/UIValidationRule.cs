@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Interaction;
 
@@ -12,7 +11,7 @@ public readonly record struct UIValidationRule
     /// <summary>
     /// Creates a validation rule that reports the given message and severity when the comparison fails.
     /// </summary>
-    public UIValidationRule(UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, UIColorStyle severity, string message)
+    public UIValidationRule(UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, UIValidationSeverity severity, string message)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
@@ -41,7 +40,7 @@ public readonly record struct UIValidationRule
     /// <summary>
     /// Gets the validation severity.
     /// </summary>
-    public UIColorStyle Severity { get; }
+    public UIValidationSeverity Severity { get; }
 
     /// <summary>
     /// Gets the validation message shown when the rule fails.

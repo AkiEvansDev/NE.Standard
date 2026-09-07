@@ -22,12 +22,7 @@ internal enum UIFormattedValueNormalization
 /// Turns what a user typed into a form the ordinary value coercion understands.
 /// </summary>
 /// <remarks>
-/// The trick this exists for: the runtime never learns the target CLR type — <c>SetRecursiveValue</c> hands
-/// the value to a generated setter that knows its own <c>T</c> and coerces there, culture-unaware. So this
-/// does not produce a typed value at all. It parses with the component's own format/culture and hands back
-/// an <em>invariant canonical string</em>, which that same coercion then turns into
-/// <see cref="DateOnly"/>/<see cref="TimeOnly"/>/<see cref="DateTimeOffset"/>/<see cref="decimal"/> without
-/// needing to know anything about cultures.
+/// Never produces a typed value: it hands back an invariant canonical string, since the runtime does not know the target CLR type.
 /// </remarks>
 internal static class UIFormattedValueNormalizer
 {
@@ -41,10 +36,7 @@ internal static class UIFormattedValueNormalizer
     /// <paramref name="format"/>/<paramref name="culture"/>.
     /// </summary>
     /// <remarks>
-    /// A rejection is a return value rather than an exception: text that does not parse is ordinary invalid
-    /// user input — "31.02.2026" in a date field — not a broken protocol update, and it belongs in the
-    /// field's validation message. Throwing made it cost a first-chance exception on a per-keystroke-commit
-    /// path and, worse, aborted the whole client change set (see <c>UIRuntimeBase.ProcessChangeSetFromUIAsync</c>).
+    /// A rejection is a return value, not an exception: invalid user input is expected here and belongs in the field's validation message.
     /// </remarks>
     public static UIFormattedValueNormalization Normalize(object? value, string? format, string? culture, out object? normalized)
     {
@@ -55,8 +47,7 @@ internal static class UIFormattedValueNormalizer
 
         CultureInfo cultureInfo = ResolveCulture(culture);
 
-        // No format and an invariant culture means there is nothing this could usefully reinterpret — the
-        // client already sends canonical strings for every input that isn't formatted text.
+        // No format and an invariant culture: the client already sends canonical strings for unformatted input.
         if (string.IsNullOrWhiteSpace(format) && ReferenceEquals(cultureInfo, CultureInfo.InvariantCulture))
             return UIFormattedValueNormalization.Untouched;
 
@@ -86,16 +77,11 @@ internal static class UIFormattedValueNormalizer
     }
 
     /// <summary>
-    /// Emits the round-trip form the coercion already accepts: "yyyy-MM-dd" for a date-only input,
-    /// "HH:mm:ss" for a time-only one, ISO-8601 otherwise. Which of the three is chosen follows from what
-    /// the format string actually carries, since the runtime cannot see the target type.
+    /// Parses text against a temporal format, emitting "yyyy-MM-dd", "HH:mm:ss", or ISO-8601 depending on what the format carries.
     /// </summary>
     /// <remarks>
-    /// The order is decided by the format string, not by trying the parsers in turn:
-    /// <see cref="TimeOnly.TryParseExact(string, string, IFormatProvider, DateTimeStyles, out TimeOnly)"/>
-    /// happily accepts a format carrying date parts and silently drops the date, so "03.04.2026" under
-    /// "dd.MM.yyyy" comes back as midnight and a date turns into a time. Ask the format what kind of value
-    /// it describes first.
+    /// The format decides date vs. time first rather than trying parsers in turn:
+    /// <see cref="TimeOnly.TryParseExact(string, string, IFormatProvider, DateTimeStyles, out TimeOnly)"/> silently drops a date part.
     /// </remarks>
     private static bool TryParseTemporal(string text, string? format, CultureInfo culture, out object? normalized)
     {
@@ -141,16 +127,10 @@ internal static class UIFormattedValueNormalizer
     }
 
     /// <summary>
-    /// The escape hatch for a value the client produced rather than a user typed. A calendar pick already
-    /// knows the exact value and sends it in the same invariant canonical form the renderer emits — which a
-    /// <c>TryParseExact</c> against the component's own <c>Format</c> rejects out of hand, since "2026-04-03"
-    /// is not "dd.MM.yyyy". Tried only after the format-exact parse has failed, so a string the format *can*
-    /// read is never reinterpreted as something else.
+    /// Parses a value the client produced in its own invariant canonical form, tried only after the format-exact parse fails.
     /// </summary>
     /// <remarks>
-    /// Exact against a closed list rather than a lenient <c>TryParse</c>: the invariant parser accepts a good
-    /// deal more than these three shapes, and this must not turn genuinely invalid input (which belongs in a
-    /// validation message) into a silently different value.
+    /// Matches an exact closed list of formats rather than a lenient <c>TryParse</c>, so invalid input never becomes a different value.
     /// </remarks>
     private static bool TryParseCanonical(string text, string format, out object? normalized)
     {
@@ -189,9 +169,7 @@ internal static class UIFormattedValueNormalizer
 
     private static string FormatTemporal(DateTime value, string? format)
     {
-        // A format naming no time part describes a date-only input, whose canonical form is the one
-        // DateOnly itself round-trips through. Without a format, midnight is the only signal available —
-        // which is why an explicit format is the better thing to author.
+        // A format naming no time part is a date-only input; without a format, midnight is the only signal available.
         var isDateOnly = format is null
             ? value.TimeOfDay == TimeSpan.Zero
             : !HasTimeParts(format);

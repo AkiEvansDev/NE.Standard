@@ -16,8 +16,7 @@ namespace NE.Standard.UI.Data;
 public abstract partial class UIItemSourceBase : RecursiveObservable
 {
     /// <summary>
-    /// The property a source keeps its realized window in. The compiler appends it to a bound source's path,
-    /// which is why the name lives here rather than being written twice.
+    /// The property a source keeps its realized window in.
     /// </summary>
     public const string WindowProperty = nameof(UIItemSourceBase<>.Items);
 
@@ -57,20 +56,10 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
 }
 
 /// <summary>
-/// Base class for a source of items too many to hold at once: the UI asks for one window at a time and the
-/// source answers, which is what makes a chat and a data grid the same feature.
+/// Base class for a source of items too many to hold at once, windowed one page at a time.
 /// </summary>
 /// <remarks>
-/// <para>
-/// A source is <em>state on the controller</em>, bound like any other property — not a service registered
-/// under a string key. That is what gives it a type, what lets one live per row of another collection, and
-/// what makes the realized window travel to the client through the ordinary collection-change path.
-/// </para>
-/// <para>
-/// It raises no events, for the reason <c>UIControllerBase</c> raises none: a subscription outlives its
-/// subscriber and leaks. Changing <see cref="Items"/> — appending a message that just arrived, dropping one
-/// that was deleted — <em>is</em> the notification, because a recursive collection reports itself.
-/// </para>
+/// Raises no events; changing <see cref="Items"/> directly is the change notification.
 /// </remarks>
 public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     where TItem : RecursiveObservable, IBindableItem
@@ -79,9 +68,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     /// Gets the realized window — the items the client currently holds, in the order they are shown.
     /// </summary>
     /// <remarks>
-    /// Mutating this from outside the source is a bug: the window is what the last request produced, and an
-    /// item put here by hand belongs to no request. The <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers
-    /// below are how a source reacts to its own data changing under it.
+    /// Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.
     /// </remarks>
     [RecursiveMember(false)]
     public RecursiveCollection<TItem> Items { get; } = [];
@@ -102,9 +89,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
             return;
         }
 
-        // Clear then add: the client is told to reset the host and take the new window, which is exactly what
-        // a collection with no overlap means. A source refilling the same items pays for it, and windows do
-        // not overlap often enough to be worth diffing.
+        // Clear then add: a non-extending read is treated as a fresh window rather than diffed against the old one.
         Items.Clear();
         Items.AddRange(window.Items);
 
@@ -115,9 +100,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     }
 
     /// <summary>
-    /// Gets the most items the window may hold before an extending read trims its far side. Four windows deep
-    /// by default: enough that scrolling back a page costs nothing, small enough that a long session does not
-    /// end up holding the whole source.
+    /// Gets the most items the window may hold before an extending read trims its far side.
     /// </summary>
     protected virtual int MaxWindowSize => 200;
 
@@ -129,8 +112,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     {
         var before = request.Anchor.Kind is UIItemAnchorKind.Before or UIItemAnchorKind.Start;
 
-        // Anything the window already holds is dropped rather than repeated: two rows under one key would
-        // address each other, and a source answering an overlapping read is a fair thing to do.
+        // Drop items the window already holds rather than repeating them: two rows under one key would collide client-side.
         List<TItem> fresh = new(window.Items.Count);
 
         for (var i = 0; i < window.Items.Count; i++)
@@ -179,8 +161,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
                 Items.RemoveAt(0);
                 HasMoreBefore = true;
 
-                // The window starts one item later than it did, and an offset left behind would place the next
-                // read wrongly.
+                // The window starts one item later; an offset left behind would misplace the next read.
                 if (Offset is int offset)
                     Offset = offset + 1;
             }
@@ -239,9 +220,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         if (TotalCount is int total)
             TotalCount = total + 1;
 
-        // The window stays bounded whichever way it grew: a long-lived conversation appends for hours, and
-        // without this the source ends up holding everything it ever received — the thing MaxWindowSize
-        // exists to prevent.
+        // Trims after growing so a long-lived source never ends up holding everything it ever received.
         TrimWindow(fromTheEnd: false);
     }
 
@@ -254,8 +233,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
         Items.Insert(0, item);
 
-        // The window now starts one item earlier than the source said it did, and an offset that disagrees
-        // with the window would place every later request wrongly.
+        // The window now starts one item earlier; an offset that disagrees with it would misplace later requests.
         if (Offset is int offset && offset > 0)
             Offset = offset - 1;
 
@@ -290,8 +268,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     }
 
     /// <summary>
-    /// Drops the realized window, which is how a source says "what you hold is no longer trustworthy" — the
-    /// client asks again from where it is standing.
+    /// Drops the realized window so the client re-requests it from where it is standing.
     /// </summary>
     protected void Invalidate()
     {

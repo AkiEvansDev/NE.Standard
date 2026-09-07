@@ -3,15 +3,8 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
-/// Represents a field input whose field is a single row, so a glyph can stand beside the text. A text area's
-/// field is a box rather than a row and is deliberately not part of it — an icon at the start of a paragraph
-/// has nowhere to be.
+/// Represents a field input whose field is a single row, so a glyph can stand beside the text.
 /// </summary>
-/// <remarks>
-/// These are icon names and nothing else: no size, no colour. The field decides both, so the pair always
-/// matches the text it stands next to. The captioned icon with a size and a colour of its own is
-/// <c>ITextBaseComponent.Icon</c>, and it belongs to the label rather than to the field.
-/// </remarks>
 public interface IAffixedInputComponent : IFieldInputComponent
 {
     /// <summary>

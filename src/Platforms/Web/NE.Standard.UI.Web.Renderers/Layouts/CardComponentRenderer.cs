@@ -1,15 +1,12 @@
 using System;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
-using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Layouts;
 
-public sealed class CardComponentRenderer : WebComponentRendererBase
+public sealed class CardComponentRenderer : SurfaceRendererBase
 {
     public override string ComponentTypeKey => CardComponent.ComponentTypeKey;
 
@@ -20,28 +17,9 @@ public sealed class CardComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, CardComponent.PaddingProperty, "--ui-padding");
+        RenderSurface(context, root);
 
-        _ = RenderProperty<UIThemeColor?>(context, root, CardComponent.BackgroundProperty, static (target, value) =>
-        {
-            if (value is UIThemeColor background && WebCssValues.ThemeColor(background) is { Length: > 0 } css)
-                _ = target.Style("background", css);
-        }, [WebDomOperation.Style("background", converter: WebDomConverters.ThemeColorCss)]);
-
-        BorderStyleRenderer.RenderBorderStyle(context, root);
-
-        _ = RenderProperty<bool?>(context, root, CardComponent.ClickableProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-card--clickable");
-        }, [WebDomOperation.ToggleClass("ui-card--clickable")]);
-
-        _ = root.Element("div", header =>
-        {
-            _ = header.Class("ui-card__header");
-
-            RenderRegion(context, header, RegionNames.Header);
-        });
+        RenderHeader(context, root);
 
         if (HasRegion(context, RegionNames.Content))
         {
@@ -62,5 +40,40 @@ public sealed class CardComponentRenderer : WebComponentRendererBase
                 RenderRegion(context, footer, RegionNames.Footer);
             });
         }
+    }
+
+    /// <summary>Draws the header band, only when a header region or a header action is present.</summary>
+    private static void RenderHeader(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        var hasHeader = HasRegion(context, RegionNames.Header);
+        var hasAction = HasRegion(context, RegionNames.HeaderAction);
+
+        if (!hasHeader && !hasAction)
+            return;
+
+        _ = root.Element("div", header =>
+        {
+            _ = header.Class("ui-card__header");
+
+            if (hasHeader)
+            {
+                _ = header.Element("div", text =>
+                {
+                    _ = text.Class("ui-card__header-content");
+
+                    RenderRegion(context, text, RegionNames.Header);
+                });
+            }
+
+            if (hasAction)
+            {
+                _ = header.Element("div", action =>
+                {
+                    _ = action.Class("ui-card__header-action");
+
+                    RenderRegion(context, action, RegionNames.HeaderAction);
+                });
+            }
+        });
     }
 }

@@ -57,8 +57,7 @@ public sealed class UICommandFilterContext
     /// Gets whether the command itself ran.
     /// </summary>
     /// <remarks>
-    /// False inside a filter that has not yet awaited <c>next</c>, and still false afterwards when an inner
-    /// filter short-circuited — which is how an outer filter tells "it ran and failed" from "it never ran".
+    /// False until <c>next</c> is awaited, and still false if an inner filter short-circuited instead of running it.
     /// </remarks>
     public bool Invoked { get; private set; }
 
@@ -66,10 +65,8 @@ public sealed class UICommandFilterContext
     /// Gets or sets the result the invocation returns.
     /// </summary>
     /// <remarks>
-    /// Unlike the view pipeline's observation-only resolution, this <em>is</em> what the caller gets: a filter
-    /// may replace it after <c>next</c> to add effects or reword a failure, or set it without calling
-    /// <c>next</c> at all to short-circuit. A pipeline that short-circuits without leaving a result is an
-    /// error, because there is nothing to return.
+    /// This is what the caller receives: a filter may replace it after <c>next</c>, or set it directly to short-circuit —
+    /// leaving it unset while short-circuiting is an error.
     /// </remarks>
     public UICommandResult? Result { get; set; }
 

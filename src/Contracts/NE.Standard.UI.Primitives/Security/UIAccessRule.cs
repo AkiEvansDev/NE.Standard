@@ -26,12 +26,14 @@ public enum UIAccessMode
 public sealed class UIAccessRule
 {
     /// <summary>
-    /// Gets the roles required by the rule.
+    /// Gets the roles required by the rule; <see langword="null"/> means no role requirement — an explicit
+    /// empty list is rejected by <see cref="Validate"/>.
     /// </summary>
     public IReadOnlyList<string>? Roles { get; init; }
 
     /// <summary>
-    /// Gets the permissions required by the rule.
+    /// Gets the permissions required by the rule; <see langword="null"/> means no permission requirement — an
+    /// explicit empty list is rejected by <see cref="Validate"/>.
     /// </summary>
     public IReadOnlyList<string>? Permissions { get; init; }
 

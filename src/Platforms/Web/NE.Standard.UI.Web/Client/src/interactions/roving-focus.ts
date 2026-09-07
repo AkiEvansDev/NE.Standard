@@ -1,9 +1,4 @@
-// "Arrow between siblings, skipping the ones that are not really there" — the rule a tab strip, a menu and a
-// context menu all need. It had been hand-written once per engine, which is how they drifted: one looped, one
-// did not, none of them handled Home/End.
-//
-// Focus, not selection: this decides *which* element a key moves to and leaves the consequence to the caller,
-// because a tab strip selects on arrow while a menu only moves the caret.
+// Arrowing between siblings, skipping the ones that are not really there; which element the key moves to, leaving the rest to the caller.
 
 export type RovingAxis = "vertical" | "horizontal" | "both";
 
@@ -33,8 +28,7 @@ export function resolveRovingTarget(request: RovingRequest): HTMLElement | null 
     if (step === 0)
         return null;
 
-    // An unknown current — focus is on the container itself, or on an item that has since gone — enters at the
-    // near end rather than doing nothing.
+    // An unknown current enters at the near end rather than doing nothing.
     const index = request.current === null ? -1 : items.indexOf(request.current);
 
     if (index === -1)
@@ -48,10 +42,7 @@ export function resolveRovingTarget(request: RovingRequest): HTMLElement | null 
     return (request.loop ?? true) ? items[(next + items.length) % items.length] : null;
 }
 
-/**
- * Leaves exactly one item in the tab order. Without this the whole strip is a tab stop each, which is what
- * makes a long menu unusable from the keyboard.
- */
+/** Leaves exactly one item in the tab order. */
 export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLElement | null): void {
     for (const item of items)
         item.tabIndex = item === active ? 0 : -1;
@@ -59,9 +50,7 @@ export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLE
 
 /** Whether an element can take the caret: rendered, and not disabled. */
 export function isRovingCandidate(item: HTMLElement): boolean {
-    // Client rects rather than offsetParent: offsetParent is also null for position:fixed, and an open context
-    // menu is exactly that. A display:none element — a hidden tab caption, an entry of a closed menu — has no
-    // rects at all.
+    // Client rects rather than offsetParent, which is also null for the position:fixed of an open context menu.
     if (item.getClientRects().length === 0)
         return false;
 

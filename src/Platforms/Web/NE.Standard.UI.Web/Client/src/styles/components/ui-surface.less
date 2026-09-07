@@ -1,0 +1,74 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/placement.less";
+@import "../mixins/responsive.less";
+@import "../mixins/surface-image.less";
+
+// One fill, one edge, one radius, shared by surface, card and expander; the three variants restate it in order so the last one wins.
+:is(.ui-surface, .ui-card, .ui-expander) {
+    --ui-surface-fill: var(--ui-surface-color, transparent);
+    border-style: solid;
+    border-width: var(--ui-border-width, 1.5px);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-card);
+    background-color: var(--ui-surface-fill);
+    .ui-surface-image();
+}
+
+// The same 24-column placement host a card's content band uses, so alignment applies inside instead of doing nothing to a block box.
+.ui-surface {
+    .ui-placement-host();
+}
+
+// A surface pays for its own padding; a card's content band and an expander's summary and content carry theirs.
+.ui-surface {
+    .ui-responsive-property(padding, --ui-padding, @ui-space-4);
+}
+
+.ui-expander {
+    .ui-responsive-property(padding, --ui-padding, 0);
+}
+
+// Deliberately no pointer-events: none on a non-clickable card: it inherits and would block clicks and selection on everything nested.
+
+// Behaviour only: the states below mix into whichever fill Surface chose, so a flat and a raised card both react without a shared look.
+.ui-surface--clickable {
+    cursor: pointer;
+    transition: background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+}
+
+    // Ghost-button wash weights (10% hover, 16% press) mixed into --ui-surface-fill, so a tinted surface reacts as its own colour.
+    .ui-surface--clickable:hover {
+        background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
+    }
+
+    .ui-surface--clickable.ui-surface--raised:hover {
+        .ui-elevation-2();
+    }
+
+// :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
+.ui-surface--clickable:active:not(:has(:is(a, button, input, select, textarea, summary, [role="button"]):active)) {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-fill));
+}
+
+    .ui-surface--clickable.ui-surface--raised:active:not(:has(:is(a, button, input, select, textarea, summary, [role="button"]):active)) {
+        .ui-elevation-1();
+    }
+
+// Names the ground, not transparent, so an element with its own [data-ui-theme] shows a background matching its text and not the page's.
+.ui-surface--background {
+    --ui-surface-fill: var(--ui-surface-color, var(--ui-color-background));
+    background-color: var(--ui-surface-fill);
+}
+
+.ui-surface--raised {
+    --ui-surface-fill: var(--ui-surface-color, var(--ui-surface-raised));
+    background-color: var(--ui-surface-fill);
+    .ui-elevation-1();
+}
+
+// 20% keeps the hue visible and the contrast intact in both themes; mixed into the surface ground so the tint follows the element's theme.
+.ui-surface--tinted {
+    --ui-surface-fill: color-mix(in srgb, var(--ui-surface-color, var(--ui-color-primary)) 20%, var(--ui-color-background));
+    background-color: var(--ui-surface-fill);
+}

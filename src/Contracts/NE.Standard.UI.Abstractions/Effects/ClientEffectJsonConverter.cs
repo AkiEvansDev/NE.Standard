@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -7,73 +9,43 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// <summary>
 /// Serializes client effects using their runtime type while keeping the public transport shape stable.
 /// </summary>
-/// <remarks>
-/// Without this, <see cref="System.Text.Json"/> writes every element of a <see cref="ClientEffect"/>[]
-/// using the declared element type — which has no members beyond <see cref="ClientEffect.Kind"/> — so the
-/// client would receive effects stripped of everything that makes them actionable.
-/// </remarks>
 public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
 {
+    private static readonly FrozenDictionary<string, Type> BuiltInTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
+    {
+        [ClientEffectKinds.Navigate] = typeof(NavigateEffect),
+        [ClientEffectKinds.Focus] = typeof(CompiledFocusEffect),
+        [ClientEffectKinds.ScrollTo] = typeof(CompiledScrollToEffect),
+        [ClientEffectKinds.Show] = typeof(CompiledShowEffect),
+        [ClientEffectKinds.Hide] = typeof(CompiledHideEffect),
+        [ClientEffectKinds.Collapse] = typeof(CompiledCollapseEffect),
+        [ClientEffectKinds.OpenDialog] = typeof(OpenDialogEffect),
+        [ClientEffectKinds.CloseDialog] = typeof(CloseDialogEffect),
+        [ClientEffectKinds.ShowNotification] = typeof(ShowNotificationEffect),
+        [ClientEffectKinds.DownloadFile] = typeof(DownloadFileEffect),
+        [ClientEffectKinds.Scroll] = typeof(CompiledScrollEffect),
+        [ClientEffectKinds.SetTheme] = typeof(SetThemeEffect),
+        [ClientEffectKinds.RenameTab] = typeof(CompiledRenameTabEffect),
+        [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect)
+    }.ToFrozenDictionary(StringComparer.Ordinal);
+
     /// <inheritdoc />
+    /// <remarks>
+    /// Only resolves the built-in kinds; a package's own effect kind is never deserialized back.
+    /// </remarks>
     public override ClientEffect? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using JsonDocument document = JsonDocument.ParseValue(ref reader);
 
-        if (!TryReadKind(document.RootElement, out ClientEffectKind kind))
+        if (!TryGetProperty(document.RootElement, "kind", out JsonElement kindElement) || kindElement.ValueKind != JsonValueKind.String)
             throw new JsonException("Client effect kind is required.");
 
-        // The discriminator exists because System.Text.Json serializes a ClientEffect[] by its *declared*
-        // element type: without it the client receives objects carrying nothing but the base members, which
-        // fails as an empty payload rather than as an exception. Write() passes value.GetType() for the same
-        // reason. ServerUIUpdate/ServerUIUpdateJsonConverter is the other instance of this pair.
-        Type effectType = kind switch
-        {
-            ClientEffectKind.Navigate => typeof(NavigateEffect),
-            ClientEffectKind.Focus => typeof(CompiledFocusEffect),
-            ClientEffectKind.ScrollTo => typeof(CompiledScrollToEffect),
-            ClientEffectKind.Show => typeof(CompiledShowEffect),
-            ClientEffectKind.Hide => typeof(CompiledHideEffect),
-            ClientEffectKind.OpenDialog => typeof(OpenDialogEffect),
-            ClientEffectKind.CloseDialog => typeof(CloseDialogEffect),
-            ClientEffectKind.ShowNotification => typeof(ShowNotificationEffect),
-            ClientEffectKind.DownloadFile => typeof(DownloadFileEffect),
-            ClientEffectKind.Scroll => typeof(CompiledScrollEffect),
-            _ => throw new JsonException($"Client effect kind '{kind}' is not supported.")
-        };
+        var kind = kindElement.GetString() ?? string.Empty;
 
-        return (ClientEffect?)document.RootElement.Deserialize(effectType, options);
-    }
-
-    private static bool TryReadKind(JsonElement element, out ClientEffectKind kind)
-    {
-        if (!TryGetProperty(element, "kind", out JsonElement kindElement))
-        {
-            kind = default;
-            return false;
-        }
-
-        if (kindElement.ValueKind == JsonValueKind.Number && kindElement.TryGetInt32(out var numericKind))
-        {
-            kind = (ClientEffectKind)numericKind;
-            return Enum.IsDefined(kind);
-        }
-
-        if (kindElement.ValueKind == JsonValueKind.String)
-        {
-            var text = kindElement.GetString();
-
-            if (Enum.TryParse(text, ignoreCase: true, out kind))
-                return Enum.IsDefined(kind);
-
-            if (int.TryParse(text, out numericKind))
-            {
-                kind = (ClientEffectKind)numericKind;
-                return Enum.IsDefined(kind);
-            }
-        }
-
-        kind = default;
-        return false;
+        // Looked up by kind because System.Text.Json would otherwise serialize by the declared element type, losing everything but Kind.
+        return BuiltInTypes.TryGetValue(kind, out Type? effectType)
+            ? (ClientEffect?)document.RootElement.Deserialize(effectType, options)
+            : throw new JsonException($"Client effect kind '{kind}' has no type to read back.");
     }
 
     private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)

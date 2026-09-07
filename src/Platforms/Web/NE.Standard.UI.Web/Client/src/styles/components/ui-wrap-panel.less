@@ -1,21 +1,28 @@
 @import "../core/tokens.less";
 @import "../mixins/responsive.less";
+@import "../mixins/surface-image.less";
 
 .ui-wrap-panel {
-    .ui-responsive-reset(--ui-wrap-panel-horizontal-gap);
-    .ui-responsive-reset(--ui-wrap-panel-vertical-gap);
+    .ui-responsive-reset(--ui-wrap-panel-spacing);
+    .ui-responsive-reset(--ui-wrap-panel-line-spacing);
 
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     align-content: flex-start;
 
-    .ui-responsive-property(row-gap, --ui-wrap-panel-vertical-gap, 0);
-    .ui-responsive-property(column-gap, --ui-wrap-panel-horizontal-gap, 0);
+    // Into custom properties, not gap directly: a child's flex-basis must subtract the same value. Line spacing falls back to spacing.
+    .ui-responsive-property(--ui-wrap-panel-gap, --ui-wrap-panel-spacing, 0px);
+    .ui-responsive-property(--ui-wrap-panel-line-gap, --ui-wrap-panel-line-spacing, var(--ui-wrap-panel-gap));
+
+    column-gap: var(--ui-wrap-panel-gap);
+    row-gap: var(--ui-wrap-panel-line-gap);
     // Declared so BorderThickness has something to draw with — see the note on .ui-stack-panel.
     border-style: solid;
     border-width: 0;
     border-color: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
 }
 
 :where(.ui-wrap-panel) > [data-ui-id] {
@@ -29,7 +36,7 @@
     flex-grow: 0;
     flex-shrink: 0;
     flex-basis: auto;
-    flex-basis: calc((100% - 23 * var(--ui-wrap-panel-horizontal-gap, 0px)) / 24 * var(--ui-wrap-panel-span) + (var(--ui-wrap-panel-span) - 1) * var(--ui-wrap-panel-horizontal-gap, 0px));
+    flex-basis: calc((100% - 23 * var(--ui-wrap-panel-gap, 0px)) / 24 * var(--ui-wrap-panel-span) + (var(--ui-wrap-panel-span) - 1) * var(--ui-wrap-panel-gap, 0px));
 }
 
 @media (min-width: @ui-breakpoint-sm) {

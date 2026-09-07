@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -10,26 +9,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>
-/// A read-only field showing the current selection with the pick button flush against it, under the same
-/// header/row/message shell as <c>TextInputComponentRenderer</c>. The native
-/// <c>&lt;input type="file"&gt;</c> is present but hidden, and is triggered by that button — the same
-/// "hidden native input, styled shell" split <c>CheckboxComponentRenderer</c> uses.
-/// <para>
-/// This replaces a bare native file input styled through <c>::file-selector-button</c>. That version could
-/// not carry any of the inherited label surface (icon, title, badge, required marker) and looked like
-/// nothing else in the library, because the browser's own button is the only part of a file input that is
-/// reachable from CSS. Owning the surface is what makes those properties meaningful here at all — the same
-/// argument that replaced the native temporal inputs.
-/// </para>
-/// <para>
-/// <c>Value</c> is the field's text and stays display-only. What the client writes back is
-/// <c>SelectionId</c>, on its own hidden input — the same split <c>SearchComponentRenderer</c> makes between
-/// what the field holds and what the component resolved to. <c>MaxFileSize</c> stays unrendered on purpose:
-/// the limit that holds is <c>UIFileOptions.MaxFileSize</c> at the endpoint, because a client can simply not
-/// honour the component's. See <c>docs/FILES.md</c>.
-/// </para>
-/// </summary>
+/// <summary>Renders a read-only selection field with a pick button over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
 public sealed class FileInputComponentRenderer : TextContentRendererBase
 {
     public override string ComponentTypeKey => FileInputComponent.ComponentTypeKey;
@@ -41,23 +21,23 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<string?>(context, root, ITextBaseComponent.TooltipProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("title", value);
-        }, [WebDomOperation.Attribute("title")]);
+        RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root);
+
+        // What the client refuses before it uploads; the endpoint's own limit holds whatever this says.
+        _ = RenderProperty<long?>(context, root, FileInputComponent.MaxFileSizeProperty, static (target, value) =>
+        {
+            if (value > 0)
+                _ = target.Attribute(WebAttributes.FileMaxSize, value.Value.ToString(CultureInfo.InvariantCulture));
+        }, [WebDomOperation.Attribute(WebAttributes.FileMaxSize)]);
+
         RenderRow(context, root);
-        RenderValidationMessage(root, $"{ClassName}__message");
+        RenderValidationMessage(context, root);
     }
 
-
-    /// <summary>
-    /// Three elements, one control: the hidden native input that owns the OS picker, the read-only field
-    /// the selection is displayed in, and the button that opens the picker.
-    /// </summary>
+    /// <summary>Renders the hidden native picker, the read-only display field and the pick button as one control.</summary>
     private void RenderRow(WebRenderContext context, IHtmlElementBuilder root)
     {
         IHtmlElementBuilder? native = null;
@@ -78,9 +58,11 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
                 _ = input.Class($"{ClassName}__native");
                 _ = input.Attribute("type", "file");
+                // See the image input: the picker's change is the engine's, the component's comes with the upload's handle.
+                _ = input.Attribute(WebAttributes.EventBoundary);
+                NativeInputRendererBase.RenderFieldName(context, input, "file");
 
-                // Hidden but still in the DOM — only a real file input can open the OS dialog. Kept out of the
-                // tab order and the accessibility tree, since the pick button is what the user interacts with.
+                // Hidden but present: only a real file input opens the OS dialog, and the pick button is what is used.
                 _ = input.Attribute("tabindex", "-1");
                 _ = input.Attribute("aria-hidden", "true");
 
@@ -102,14 +84,16 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 field = input;
 
                 _ = input.Class($"{ClassName}__field");
+                _ = input.Class("ui-field");
                 _ = input.Attribute("type", "text");
 
-                // The field displays the selection and is never typed into: a file path cannot be authored by
-                // hand. It stays display-only — what syncs back is SelectionId, on its own hidden input below.
+                // Display-only: what syncs back is SelectionId, on its own hidden input below.
                 _ = input.Attribute("readonly");
                 _ = input.Attribute("autocomplete", "off");
 
+                NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
+                NativeInputRendererBase.RenderFieldName(context, input);
 
                 _ = RenderProperty<string?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
                 {
@@ -118,17 +102,17 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Property("value")]);
             });
 
-            // The selection id gets its own element rather than sharing the field's, because the field's value
-            // is the file names. Hidden: nothing about an id is worth showing, and the client writes it.
+            // The selection id needs its own hidden element, since the field's own value is the file names.
             _ = ResolveRenderValue(context, FileInputComponent.SelectionIdProperty, out string? _, out CompiledUIBinding? selectionBinding);
 
             _ = row.Element("input", input =>
             {
                 _ = input.Class($"{ClassName}__selection");
                 _ = input.Attribute("type", "hidden");
+                NativeInputRendererBase.RenderFieldName(context, input, "selection");
 
-                // RenderProperty as well as the attribute: resolving the value alone does not register the
-                // binding in the render metadata, and the client refuses a binding id it cannot look up.
+                // RenderProperty as well as the attribute: resolving alone leaves the binding unregistered, and the
+                // client refuses a binding id it cannot look up.
                 _ = RenderProperty<string?>(context, input, FileInputComponent.SelectionIdProperty, static (target, value) =>
                 {
                     if (!string.IsNullOrEmpty(value))
@@ -136,7 +120,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Property("value")]);
 
                 if (selectionBinding is not null)
-                    _ = input.Attribute("data-ui-bind-value", selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
+                    _ = input.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
             });
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
@@ -147,15 +131,14 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
                 _ = button.Class($"{ClassName}__pick");
                 _ = button.Attribute("type", "button");
-                _ = button.Attribute("data-ui-file-pick");
+                _ = button.Attribute(WebAttributes.FilePick);
             });
         });
 
         IHtmlElementBuilder nativeInput = native!;
         IHtmlElementBuilder pickButton = pick!;
 
-        // IsReadOnly has to reach three elements — the display field, the hidden native input and the pick
-        // button — so it is applied after all three exist rather than inside any one of their builders.
+        // IsReadOnly reaches all three elements, so it is applied after every one of them exists.
         _ = RenderProperty<bool?>(context, field!, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
             if (value != true)

@@ -1,25 +1,26 @@
-// The two things a menu decides for itself and nobody else can: whether it is collapsed to icons, and which
-// of its groups is open. Both are the viewer's, not the controller's — they are how this person left this
-// menu — so they live in the browser and never cross the wire. Keyboard walking and shortcuts stay in
-// menu-engine.ts; placing a context menu stays in context-menu-engine.ts.
+// Which of a menu's groups is open — the viewer's own choice, kept in the browser, and re-resolved whenever the menu folds or unfolds.
 
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
+import { observeComponents } from "./dom-mutations";
+import { PopupDismissal } from "./popup-dismissal";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
 import { ClientStore } from "../state/client-store";
 
 const RootClass = "ui-menu";
+// A submenu's own sub-entries are a nested menu of their own, with no authored name of their own to keep state under — the
+// viewer's choice of open group is kept only for a menu the server named.
+const NestedClass = "ui-menu--nested";
 const ItemClass = "ui-menu-item";
 const SelectedModifier = "ui-menu-item--selected";
-const CollapsedModifier = "ui-menu--collapsed";
 const ItemWrapperClass = "ui-menu__item";
 const SubmenuClass = "ui-menu__submenu";
 
-const GroupAttribute = "data-ui-menu-group";
-const OpenAttribute = "data-ui-menu-open";
+const GroupAttribute = MenuGroupAttribute;
+const OpenAttribute = MenuOpenAttribute;
 const FlyoutAttribute = "data-ui-menu-flyout";
-const CollapseAttribute = "data-ui-menu-collapse";
-const KeyAttribute = "data-ui-key";
+const SelectAttribute = MenuSelectAttribute;
+const KindAttribute = "data-ui-menu-item-kind";
 
-const CollapsedSlot = "menu-collapsed";
 const OpenGroupSlot = "menu-open-group";
 
 export type MenuGroupEngineOptions = {
@@ -30,9 +31,8 @@ export class MenuGroupEngine {
     private readonly root: ParentNode;
     private readonly store = new ClientStore();
 
-    // Restoring is per menu element, not per run: the observer below fires for every items patch on the page,
-    // and re-applying a stored group would keep re-opening the one the viewer just closed.
-    private readonly restored = new WeakSet<Element>();
+    // The fold each menu was last seen in, so a mutation that folded it is told apart from one that touched something else.
+    private readonly seenCollapsed = new WeakMap<Element, boolean>();
 
     private openFlyout: HTMLElement | null = null;
 
@@ -40,51 +40,63 @@ export class MenuGroupEngine {
         this.root = options.root ?? document;
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
-        this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        this.restoreAll();
+        // The group as a whole rather than the submenu alone: a click on the group's own entry is the toggle, not a click outside.
+        new PopupDismissal({
+            root: this.root,
+            openPopups: () => this.openFlyout?.parentElement === null || this.openFlyout === null ? [] : [this.openFlyout.parentElement],
+            close: () => this.closeFlyout()
+        });
 
-        if (this.root instanceof Node) {
-            const observer = new MutationObserver(() => this.restoreAll());
+        this.reconcileEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-            observer.observe(this.root, { childList: true, subtree: true });
-        }
+        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcileEach(menus));
     }
 
-    private restoreAll(): void {
-        for (const menu of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
-            if (this.restored.has(menu))
+    private reconcileEach(menus: Iterable<HTMLElement>): void {
+        for (const menu of menus) {
+            const collapsed = isCollapsed(menu);
+            const seen = this.seenCollapsed.get(menu);
+
+            if (seen === collapsed)
                 continue;
 
-            this.restored.add(menu);
-            this.restore(menu);
+            this.seenCollapsed.set(menu, collapsed);
+
+            if (seen === undefined)
+                this.restore(menu, collapsed);
+            else
+                this.handleCollapsedChange(menu, collapsed);
         }
     }
 
     /** Puts the menu back the way this viewer left it. */
-    private restore(menu: HTMLElement): void {
-        if (menu.querySelector(`[${CollapseAttribute}]`) !== null)
-            this.applyCollapsed(menu, this.store.read(menu, CollapsedSlot) === "true");
-
-        if (!menu.classList.contains(CollapsedModifier))
+    private restore(menu: HTMLElement, collapsed: boolean): void {
+        if (collapsed)
+            this.closeGroups(menu);
+        else
             this.openResolvedGroup(menu);
     }
 
-    /**
-     * The group the current page sits in, and only failing that the one this viewer last opened. That way
-     * round because a page hidden inside a closed group is worse than forgetting a choice: the entry marked
-     * as current would not be on screen at all. The stored group is what a page belonging to no group — a
-     * home, a dashboard — comes back to.
-     */
+    /** Closes what the menu's previous fold had open, then re-resolves the group for the new one. */
+    private handleCollapsedChange(menu: HTMLElement, collapsed: boolean): void {
+        this.closeFlyout();
+        this.closeGroups(menu);
+
+        if (!collapsed)
+            this.openResolvedGroup(menu);
+    }
+
+    /** Opens the group the current page sits in, and only failing that the one this viewer last opened; a select never opens inline. */
     private openResolvedGroup(menu: HTMLElement): void {
         const selected = this.groupOf(menu.querySelector<HTMLElement>(`.${SelectedModifier}`), menu);
 
-        if (selected !== null) {
+        if (selected !== null && !selected.hasAttribute(SelectAttribute)) {
             this.openInline(selected);
             return;
         }
 
-        const storedKey = this.store.read(menu, OpenGroupSlot);
+        const storedKey = menu.classList.contains(NestedClass) ? null : this.store.read(menu, OpenGroupSlot);
         const stored = storedKey === null ? null : this.findGroup(menu, storedKey);
 
         if (stored !== null)
@@ -95,24 +107,14 @@ export class MenuGroupEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const toggle = domEvent.target.closest<HTMLElement>(`[${CollapseAttribute}]`);
-
-        if (toggle !== null) {
-            const menu = toggle.closest<HTMLElement>(`.${RootClass}`);
-
-            if (menu !== null) {
-                domEvent.preventDefault();
-                this.toggleCollapsed(menu);
-            }
-
-            return;
-        }
-
         const entry = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
 
-        // An entry inside an open flyout is an ordinary entry — let it navigate, and take the flyout with it.
+        // An entry inside an open flyout is an ordinary entry — let it navigate, and take the flyout with it. A check is the one
+        // exception: turning options on and off is done in place, so the list stays until the pointer leaves it.
         if (entry !== null && this.openFlyout !== null && this.openFlyout.contains(entry)) {
-            this.closeFlyout();
+            if (entry.getAttribute(KindAttribute) !== "check")
+                this.closeFlyout();
+
             return;
         }
 
@@ -128,8 +130,7 @@ export class MenuGroupEngine {
             return;
         }
 
-        // A group's own entry does not navigate even when it carries a URL: the click is the only gesture the
-        // group has, and letting it do both would leave the page before the sub-entries could be read.
+        // A group's own entry does not navigate even when it carries a URL: the click is the group's only gesture.
         domEvent.preventDefault();
 
         const menu = group.closest<HTMLElement>(`.${RootClass}`);
@@ -137,49 +138,31 @@ export class MenuGroupEngine {
         if (menu === null)
             return;
 
-        if (menu.classList.contains(CollapsedModifier))
+        // A select's choices fly out beside it whatever the fold: they are a list to choose from, not a section of the menu.
+        if (isCollapsed(menu) || group.hasAttribute(SelectAttribute))
             this.toggleFlyout(menu, group, entry);
         else
             this.toggleInline(menu, group);
     }
 
-    private handleKeydown(domEvent: Event): void {
-        if (domEvent instanceof KeyboardEvent && domEvent.key === "Escape")
-            this.closeFlyout();
-    }
-
-    private toggleCollapsed(menu: HTMLElement): void {
-        const collapsed = !menu.classList.contains(CollapsedModifier);
-
-        this.applyCollapsed(menu, collapsed);
-        this.store.write(menu, CollapsedSlot, collapsed ? "true" : "false");
-
-        if (!collapsed)
-            this.openResolvedGroup(menu);
-    }
-
-    private applyCollapsed(menu: HTMLElement, collapsed: boolean): void {
-        menu.classList.toggle(CollapsedModifier, collapsed);
-
-        for (const toggle of menu.querySelectorAll<HTMLElement>(`[${CollapseAttribute}]`))
-            toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-
-        // Whichever way it went, the open group belongs to the shape the menu just left: inline has no room
-        // when collapsed, and a flyout has no reason to hang beside a menu that now shows its titles.
-        this.closeFlyout();
-        this.closeGroups(menu);
-    }
-
     private toggleInline(menu: HTMLElement, group: HTMLElement): void {
+        const nested = menu.classList.contains(NestedClass);
+
         if (group.hasAttribute(OpenAttribute)) {
             group.removeAttribute(OpenAttribute);
-            this.store.write(menu, OpenGroupSlot, null);
+
+            if (!nested)
+                this.store.write(menu, OpenGroupSlot, null);
+
             return;
         }
 
         this.closeGroups(menu);
         this.openInline(group);
-        this.store.write(menu, OpenGroupSlot, group.getAttribute(KeyAttribute));
+
+        // No boot patch: the page's own section beats the stored group, and the server already renders it open.
+        if (!nested)
+            this.store.write(menu, OpenGroupSlot, group.getAttribute(ComponentKeyAttribute));
     }
 
     private openInline(group: HTMLElement): void {
@@ -187,14 +170,16 @@ export class MenuGroupEngine {
     }
 
     private closeGroups(menu: HTMLElement): void {
-        for (const group of menu.querySelectorAll<HTMLElement>(`[${GroupAttribute}][${OpenAttribute}]`))
+        for (const group of menu.querySelectorAll<HTMLElement>(`[${GroupAttribute}][${OpenAttribute}]`)) {
+            // A select's open block is the flyout's, taken down with it.
+            if (group.hasAttribute(SelectAttribute))
+                continue;
+
             group.removeAttribute(OpenAttribute);
+        }
     }
 
-    /**
-     * Collapsed, the sub-entries have nowhere to go inline, so the same block is placed beside the icon as a
-     * popup. Nothing is moved in the DOM — it is the submenu itself, fixed and positioned.
-     */
+    /** Places the submenu itself beside the icon as a popup, for a collapsed menu with no room inline. */
     private toggleFlyout(menu: HTMLElement, group: HTMLElement, anchor: HTMLElement): void {
         const submenu = this.submenuOf(group);
 
@@ -233,7 +218,7 @@ export class MenuGroupEngine {
 
     private findGroup(menu: HTMLElement, key: string): HTMLElement | null {
         for (const group of menu.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`)) {
-            if (group.getAttribute(KeyAttribute) === key)
+            if (group.getAttribute(ComponentKeyAttribute) === key)
                 return group;
         }
 
@@ -256,4 +241,8 @@ export class MenuGroupEngine {
     private submenuOf(group: HTMLElement): HTMLElement | null {
         return group.querySelector<HTMLElement>(`:scope > .${SubmenuClass}`);
     }
+}
+
+function isCollapsed(menu: HTMLElement): boolean {
+    return menu.hasAttribute(CollapsedAttribute);
 }

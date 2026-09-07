@@ -1,7 +1,7 @@
-using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -16,7 +16,7 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
     private static readonly UIThemeColor DefaultColor = UIThemeColor.FromStyle(UIColorStyle.Default);
 
     /// <summary>
-    /// Gets or sets the current progress value.
+    /// Gets or sets the current value; assigning it directly skips the Min/Max validation that SetValue applies.
     /// </summary>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     public decimal? Value { get; set; }
@@ -40,16 +40,30 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
     public UIProgressVariant? Variant { get; set; }
 
     /// <summary>
-    /// Gets or sets the progress indicator's color.
+    /// Gets or sets the progress bar's colour; unset resolves to <c>color: inherit</c>, so it follows whatever it's drawn in.
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultColor))]
     public UIThemeColor? Color { get; set; }
+
+    /// <summary>
+    /// Gets or sets the label text shown alongside the indicator.
+    /// </summary>
+    [Translatable]
+    [UIComponentProperty(DefaultValue = null)]
+    public string? Label { get; set; }
 
     /// <summary>
     /// Gets or sets whether the numeric value is displayed alongside the indicator.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? ShowValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the unit shown after the value, written exactly as it should read — "%" sits against the number, " MB" stands off it.
+    /// </summary>
+    [Translatable]
+    [UIComponentProperty(DefaultValue = null)]
+    public string? ValueUnit { get; set; }
 
     /// <summary>
     /// Initializes the progress indicator with a centered vertical alignment.
@@ -104,17 +118,8 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
         return Self;
     }
 
-    /// <summary>
-    /// Validates that <paramref name="min"/> does not exceed <paramref name="max"/> and that <paramref name="value"/> falls within that range.
-    /// </summary>
     private static void ValidateRange(decimal? min, decimal? max, decimal? value)
-    {
-        if (min.HasValue && max.HasValue && min > max)
-            throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum value cannot be greater than maximum value.");
-
-        if (min.HasValue && max.HasValue && value.HasValue && (value.Value < min || value.Value > max))
-            throw new ArgumentOutOfRangeException(nameof(value), value, "Progress value must be within the defined range.");
-    }
+        => OrderedRange.Validate(min, max, value, "progress value");
 }
 
 /// <summary>

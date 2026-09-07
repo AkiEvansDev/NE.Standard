@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -24,21 +25,33 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             predicate: static (node, _) => node is PropertyDeclarationSyntax,
             transform: static (ctx, ct) => CreatePropertyModel(ctx, ct));
 
-        IncrementalValueProvider<(Compilation Compilation, ImmutableArray<UIComponentPropertyModel> Properties)> source =
-            context.CompilationProvider.Combine(properties
-                .Where(static model => model is not null)
-                .Select(static (model, _) => model!)
-                .Collect()
-            );
+        IncrementalValuesProvider<UIComponentPropertyBlockModel?> blocks = context.SyntaxProvider.ForAttributeWithMetadataName(
+            UIComponentPropertyNames.BlockAttributeMetadataName,
+            predicate: static (node, _) => node is ClassDeclarationSyntax,
+            transform: static (ctx, ct) => CreateBlockModel(ctx, ct));
 
-        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Compilation, source.Properties));
+        IncrementalValueProvider<(Compilation Compilation, ImmutableArray<UIComponentPropertyModel> Properties, ImmutableArray<UIComponentPropertyBlockModel> Blocks)> source =
+            context.CompilationProvider
+                .Combine(properties
+                    .Where(static model => model is not null)
+                    .Select(static (model, _) => model!)
+                    .Collect()
+                )
+                .Combine(blocks
+                    .Where(static model => model is not null)
+                    .Select(static (model, _) => model!)
+                    .Collect()
+                )
+                .Select(static (pair, _) => (pair.Left.Left, pair.Left.Right, pair.Right));
+
+        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Compilation, source.Properties, source.Blocks));
     }
 
     private static UIComponentPropertyModel? CreatePropertyModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (context.TargetNode is not PropertyDeclarationSyntax propertySyntax)
+        if (context.TargetNode is not PropertyDeclarationSyntax)
             return null;
 
         if (context.TargetSymbol is not IPropertySymbol propertySymbol)
@@ -49,42 +62,50 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         if (containingType is null)
             return null;
 
-        AttributeData? attribute = null;
+        // An annotated interface member is a property block's source, not a component of its own — it is
+        // generated onto whoever carries [UIComponentPropertyBlock] for that contract.
+        if (containingType.TypeKind == TypeKind.Interface)
+            return null;
 
-        foreach (AttributeData candidate in propertySymbol.GetAttributes())
-        {
-            if (candidate.AttributeClass?.ToDisplayString() == UIComponentPropertyNames.AttributeMetadataName)
-            {
-                attribute = candidate;
-                break;
-            }
-        }
+        AttributeData? attribute = FindComponentPropertyAttribute(propertySymbol);
 
         if (attribute is null)
             return null;
 
         return new UIComponentPropertyModel(
-            PropertySyntax: propertySyntax,
             Property: propertySymbol,
             ContainingType: containingType,
             Values: UIComponentPropertyAttributeValues.From(attribute)
         );
     }
 
-    private static void Execute(SourceProductionContext context, Compilation compilation, ImmutableArray<UIComponentPropertyModel> properties)
+    private static UIComponentPropertyBlockModel? CreateBlockModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
-        if (properties.IsDefaultOrEmpty)
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (context.TargetSymbol is not INamedTypeSymbol type)
+            return null;
+
+        ImmutableArray<INamedTypeSymbol>.Builder contracts = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+
+        foreach (AttributeData attribute in context.Attributes)
+        {
+            if (attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract)
+                contracts.Add(contract);
+        }
+
+        return contracts.Count == 0 ? null : new UIComponentPropertyBlockModel(type, contracts.ToImmutable());
+    }
+
+    private static void Execute(SourceProductionContext context, Compilation compilation, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    {
+        if (properties.IsDefaultOrEmpty && blocks.IsDefaultOrEmpty)
             return;
 
         INamedTypeSymbol? responsiveTypeDefinition = compilation.GetTypeByMetadataName("NE.Standard.UI.Abstractions.Styling.UIResponsive`1");
 
-        foreach (IGrouping<ISymbol?, UIComponentPropertyModel> group in properties.GroupBy(static property => property.ContainingType, SymbolEqualityComparer.Default))
+        foreach ((INamedTypeSymbol type, ImmutableArray<UIComponentPropertyModel> groupProperties) in GroupByType(context, properties, blocks))
         {
-            if (group.Key is not INamedTypeSymbol type)
-                continue;
-
-            ImmutableArray<UIComponentPropertyModel> groupProperties = [.. group];
-
             var hasErrors = false;
 
             if (!type.IsPartial())
@@ -123,6 +144,208 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// Pairs every component type with its own annotated properties plus what its <c>[UIComponentPropertyBlock]</c> contracts contribute.
+    /// </summary>
+    private static List<(INamedTypeSymbol Type, ImmutableArray<UIComponentPropertyModel> Properties)> GroupByType(
+        SourceProductionContext context,
+        ImmutableArray<UIComponentPropertyModel> properties,
+        ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    {
+        Dictionary<ISymbol, List<UIComponentPropertyModel>> byType = new(SymbolEqualityComparer.Default);
+        List<INamedTypeSymbol> order = [];
+
+        if (!properties.IsDefaultOrEmpty)
+        {
+            foreach (UIComponentPropertyModel property in properties)
+                GetOrAddType(byType, order, property.ContainingType).Add(property);
+        }
+
+        if (!blocks.IsDefaultOrEmpty)
+        {
+            foreach (UIComponentPropertyBlockModel block in blocks)
+            {
+                List<UIComponentPropertyModel> target = GetOrAddType(byType, order, block.Type);
+
+                foreach (INamedTypeSymbol contract in block.Contracts)
+                    AppendBlockProperties(context, block.Type, contract, target);
+            }
+        }
+
+        List<(INamedTypeSymbol Type, ImmutableArray<UIComponentPropertyModel> Properties)> grouped = [];
+
+        foreach (INamedTypeSymbol type in order)
+            grouped.Add((type, [.. byType[type]]));
+
+        return grouped;
+    }
+
+    private static List<UIComponentPropertyModel> GetOrAddType(Dictionary<ISymbol, List<UIComponentPropertyModel>> byType, List<INamedTypeSymbol> order, INamedTypeSymbol type)
+    {
+        if (byType.TryGetValue(type, out List<UIComponentPropertyModel> existing))
+            return existing;
+
+        List<UIComponentPropertyModel> created = [];
+
+        byType.Add(type, created);
+        order.Add(type);
+
+        return created;
+    }
+
+    private static void AppendBlockProperties(SourceProductionContext context, INamedTypeSymbol type, INamedTypeSymbol contract, List<UIComponentPropertyModel> target)
+    {
+        if (contract.TypeKind != TypeKind.Interface)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                UIComponentPropertyDiagnostics.BlockContractNotAnInterface,
+                type.Locations.FirstOrDefault(),
+                contract.ToDisplayString(),
+                type.ToDisplayString()
+            ));
+
+            return;
+        }
+
+        var found = false;
+        HashSet<string> seen = [];
+
+        // Properties are often declared one interface further down (ITextBaseComponent over ITextBaseModel), so the whole chain is walked.
+        foreach (ISymbol member in EnumerateContractMembers(contract))
+        {
+            if (member is not IPropertySymbol property || property.IsStatic)
+                continue;
+
+            AttributeData? attribute = FindComponentPropertyAttribute(property);
+
+            if (attribute is null || !seen.Add(property.Name))
+                continue;
+
+            found = true;
+
+            if (IsDeclaredByHand(context, type, contract, property) || IsDeclaredByBase(type, property))
+                continue;
+
+            UIComponentPropertyAttributeValues values = UIComponentPropertyAttributeValues.From(attribute);
+
+            // DefaultValueOwner is the declaring interface, not the one the block names, since interface statics are not inherited.
+            target.Add(new UIComponentPropertyModel(
+                Property: property,
+                ContainingType: type,
+                Values: values.Contract is null ? values with { Contract = contract } : values,
+                DeclareProperty: true,
+                DefaultValueOwner: property.ContainingType
+            ));
+        }
+
+        if (!found)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                UIComponentPropertyDiagnostics.BlockContractHasNoProperties,
+                type.Locations.FirstOrDefault(),
+                contract.ToDisplayString(),
+                type.ToDisplayString()
+            ));
+        }
+    }
+
+    private static IEnumerable<ISymbol> EnumerateContractMembers(INamedTypeSymbol contract)
+    {
+        foreach (ISymbol member in contract.GetMembers())
+            yield return member;
+
+        foreach (INamedTypeSymbol inherited in contract.AllInterfaces)
+        {
+            foreach (ISymbol member in inherited.GetMembers())
+                yield return member;
+        }
+    }
+
+    /// <summary>
+    /// Whether the consuming type already declares the block member by hand, which wins over the generated one.
+    /// </summary>
+    private static bool IsDeclaredByHand(SourceProductionContext context, INamedTypeSymbol type, INamedTypeSymbol contract, IPropertySymbol property)
+    {
+        foreach (ISymbol member in type.GetMembers(property.Name))
+        {
+            if (member is not IPropertySymbol declared)
+                continue;
+
+            if (!SymbolEqualityComparer.Default.Equals(
+                declared.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated),
+                property.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated)))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    UIComponentPropertyDiagnostics.BlockPropertyTypeMismatch,
+                    declared.Locations.FirstOrDefault(),
+                    property.Name,
+                    type.ToDisplayString(),
+                    declared.Type.ToDisplayString(),
+                    contract.ToDisplayString(),
+                    property.Type.ToDisplayString()
+                ));
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a base type already carries this property, so a wider block only adds what the base does not already have.
+    /// </summary>
+    /// <remarks>
+    /// The base's blocks are read from its attributes rather than its members, since a generator cannot see what another pass produced.
+    /// </remarks>
+    private static bool IsDeclaredByBase(INamedTypeSymbol type, IPropertySymbol property)
+    {
+        for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)
+        {
+            foreach (ISymbol member in current.GetMembers(property.Name))
+            {
+                if (member is IPropertySymbol)
+                    return true;
+            }
+
+            foreach (AttributeData attribute in current.GetAttributes())
+            {
+                if (attribute.AttributeClass?.ToDisplayString() != UIComponentPropertyNames.BlockAttributeMetadataName)
+                    continue;
+
+                if (attribute.ConstructorArguments.Length == 1
+                    && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract
+                    && ContractDeclares(contract, property.Name))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContractDeclares(INamedTypeSymbol contract, string name)
+    {
+        foreach (ISymbol member in EnumerateContractMembers(contract))
+        {
+            if (member is IPropertySymbol candidate && !candidate.IsStatic && candidate.Name == name && FindComponentPropertyAttribute(candidate) is not null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static AttributeData? FindComponentPropertyAttribute(IPropertySymbol property)
+    {
+        foreach (AttributeData candidate in property.GetAttributes())
+        {
+            if (candidate.AttributeClass?.ToDisplayString() == UIComponentPropertyNames.AttributeMetadataName)
+                return candidate;
+        }
+
+        return null;
+    }
     private static string? GetSelfType(INamedTypeSymbol type)
     {
         foreach (ITypeParameterSymbol parameter in type.TypeParameters)
@@ -186,7 +409,8 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             hasErrors = true;
         }
 
-        if (values.GenerateSetter && model.Property.SetMethod is null)
+        // A block property is declared by the generator, so it always gets a setter even though the contract member is get-only.
+        if (!model.DeclareProperty && values.GenerateSetter && model.Property.SetMethod is null)
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 UIComponentPropertyDiagnostics.PropertyMustBeSettable,
@@ -372,14 +596,17 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     {
         var memberName = model.Values.DefaultValueMember!;
 
-        foreach (ISymbol member in model.ContainingType.GetMembers(memberName))
+        // A block property's default lives with the contract that declares it, not with the type it lands on.
+        INamedTypeSymbol owner = model.DefaultValueOwner ?? model.ContainingType;
+
+        foreach (ISymbol member in owner.GetMembers(memberName))
         {
             if (member is IFieldSymbol field)
             {
                 if (field.IsStatic)
                     return;
 
-                ReportInvalidDefaultValueMemberKind(context, model, memberName);
+                ReportInvalidDefaultValueMemberKind(context, model, owner, memberName);
                 hasErrors = true;
                 return;
             }
@@ -389,7 +616,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
                 if (property.IsStatic)
                     return;
 
-                ReportInvalidDefaultValueMemberKind(context, model, memberName);
+                ReportInvalidDefaultValueMemberKind(context, model, owner, memberName);
                 hasErrors = true;
                 return;
             }
@@ -399,7 +626,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
                 if (method.IsStatic && method.Parameters.Length == 0)
                     return;
 
-                ReportInvalidDefaultValueMemberKind(context, model, memberName);
+                ReportInvalidDefaultValueMemberKind(context, model, owner, memberName);
                 hasErrors = true;
                 return;
             }
@@ -409,19 +636,19 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             UIComponentPropertyDiagnostics.DefaultValueMemberNotFound,
             model.Property.Locations.FirstOrDefault(),
             memberName,
-            model.ContainingType.ToDisplayString()
+            owner.ToDisplayString()
         ));
 
         hasErrors = true;
     }
 
-    private static void ReportInvalidDefaultValueMemberKind(SourceProductionContext context, UIComponentPropertyModel model, string memberName)
+    private static void ReportInvalidDefaultValueMemberKind(SourceProductionContext context, UIComponentPropertyModel model, INamedTypeSymbol owner, string memberName)
     {
         context.ReportDiagnostic(Diagnostic.Create(
             UIComponentPropertyDiagnostics.InvalidDefaultValueMemberKind,
             model.Property.Locations.FirstOrDefault(),
             memberName,
-            model.ContainingType.ToDisplayString()
+            owner.ToDisplayString()
         ));
     }
 
@@ -476,10 +703,27 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
 
         var propertyName = property.Name;
         var propertyType = property.Type.ToGlobalTypeDisplayString();
-        var setterType = property.Type.ToPatternTypeDisplayString();
+        // Nullable, since null is the only spelling of "not set" a fluent setter can accept.
+        var setterType = property.Type.ToGlobalTypeDisplayString();
 
         var propertyDefinitionName = UIComponentPropertyNames.GetPropertyDefinitionName(propertyName);
         var uiPropertyName = UIComponentPropertyNames.GetUIPropertyName(propertyName);
+
+        if (model.DeclareProperty)
+        {
+            TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
+
+            _ = builder.AppendLine("    /// <inheritdoc/>");
+
+            AppendCarriedAttributes(builder, property);
+
+            _ = builder
+                .Append("    public ")
+                .Append(propertyType)
+                .Append(' ')
+                .Append(propertyName)
+                .AppendLine(" { get; set; }");
+        }
 
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
@@ -513,9 +757,16 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         }
         else if (!string.IsNullOrWhiteSpace(values.DefaultValueMember))
         {
-            _ = builder
-                .Append(", defaultValue: ")
-                .Append(values.DefaultValueMember);
+            _ = builder.Append(", defaultValue: ");
+
+            if (model.DefaultValueOwner is not null)
+            {
+                _ = builder
+                    .Append(model.DefaultValueOwner.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+                    .Append('.');
+            }
+
+            _ = builder.Append(values.DefaultValueMember);
         }
 
         _ = builder.AppendLine(");");
@@ -537,6 +788,44 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
 
         if (values.GenerateBinder && values.IsBindable)
             GenerateBinders(builder, model, selfType, ref hasContent);
+    }
+
+    /// <summary>
+    /// Re-declares every attribute the contract member carries except <c>[UIComponentProperty]</c>, onto the generated property.
+    /// </summary>
+    private static void AppendCarriedAttributes(StringBuilder builder, IPropertySymbol property)
+    {
+        foreach (AttributeData attribute in property.GetAttributes())
+        {
+            if (attribute.AttributeClass is null || attribute.AttributeClass.ToDisplayString() == UIComponentPropertyNames.AttributeMetadataName)
+                continue;
+
+            // Nullability attributes are compiler bookkeeping; re-declaring one is a compile error rather than a copy.
+            if (attribute.AttributeClass.ContainingNamespace?.ToDisplayString() == "System.Runtime.CompilerServices")
+                continue;
+
+            _ = builder
+                .Append("    [")
+                .Append(attribute.AttributeClass.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+
+            List<string> arguments = [];
+
+            foreach (TypedConstant argument in attribute.ConstructorArguments)
+                arguments.Add(TypedConstantRenderer.Render(argument));
+
+            foreach (KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
+                arguments.Add(argument.Key + " = " + TypedConstantRenderer.Render(argument.Value));
+
+            if (arguments.Count > 0)
+            {
+                _ = builder
+                    .Append('(')
+                    .Append(string.Join(", ", arguments))
+                    .Append(')');
+            }
+
+            _ = builder.AppendLine("]");
+        }
     }
 
     private static string BuildPropertyArgument(UIComponentPropertyModel model)
@@ -580,9 +869,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Detects whether a property's type is (nullable-)<c>UIResponsive&lt;T&gt;</c> and, if so, returns
-    /// its <c>T</c> element type — the signal for <see cref="GenerateResponsiveSetter"/> to additionally
-    /// emit a per-breakpoint setter overload alongside the ordinary one-value setter.
+    /// Detects whether a property's type is (nullable-)<c>UIResponsive&lt;T&gt;</c> and, if so, returns its <c>T</c> element type.
     /// </summary>
     private static bool TryGetResponsiveElementType(ITypeSymbol propertyType, INamedTypeSymbol? responsiveTypeDefinition, out ITypeSymbol elementType)
     {
@@ -603,11 +890,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Emits a convenience overload for <c>UIResponsive&lt;T&gt;</c>-typed properties so callers can
-    /// write <c>SetWidth(200, md: 400)</c> instead of constructing the struct by hand — mirrors how
-    /// value types like <c>UIGridPlacement</c>/<c>UIThemeColor</c> expose their own convenience factories,
-    /// just generated instead of hand-written since the shape is fixed (one base value, four optional
-    /// breakpoint overrides) for every <c>UIResponsive&lt;T&gt;</c> property.
+    /// Emits a convenience overload for <c>UIResponsive&lt;T&gt;</c> properties so callers can write <c>SetWidth(200, md: 400)</c>.
     /// </summary>
     private static void GenerateResponsiveSetter(StringBuilder builder, UIComponentPropertyModel model, string selfType, ITypeSymbol elementType, ref bool hasContent)
     {

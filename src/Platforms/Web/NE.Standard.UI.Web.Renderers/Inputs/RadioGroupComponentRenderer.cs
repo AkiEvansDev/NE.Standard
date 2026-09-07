@@ -15,10 +15,8 @@ using NE.Standard.UI.Web.Renderers.Items;
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
-/// Renders each option through the same templated-item machinery as <c>ItemsViewComponent</c>
-/// (<see cref="ItemsCollectionRendererBase"/>), with a hidden native radio input injected ahead of the
-/// template content per item (mirroring <c>CheckboxComponentRenderer</c>'s label-wraps-input shell) so
-/// selection gets real keyboard/click semantics for free.
+/// Renders each option through the templated-item machinery, with a hidden native radio input ahead of the
+/// template content so selection keeps real keyboard and click semantics.
 /// </summary>
 public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 {
@@ -33,10 +31,12 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        TextContentRendererBase.RenderInputTooltip(context, root);
+        RenderTooltip(context, root);
         TextContentRendererBase.RenderInputHeader(context, root);
 
         _ = root.Attribute("role", "radiogroup");
+
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, RadioGroupComponent.SpacingProperty, "--ui-radio-group-spacing");
 
         _ = RenderProperty<UIOrientation?>(context, root, RadioGroupComponent.OrientationProperty, static (target, value) =>
         {
@@ -44,76 +44,51 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
                 _ = target.Class(WebClassNames.Orientation(orientation));
         }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
 
-        // The initial `checked` option is decided once, here, by comparing the resolved Value against
-        // each option's Id (see RenderRadioInput) — a single RenderProperty call can only ever drive ONE
-        // element, and this one value has to reach N radios. Live changes therefore travel a root-level
-        // data-ui-radio-value attribute that RadioGroupSyncEngine watches and fans out.
+        // One RenderProperty drives one element, but this value has to reach N radios: the initial `checked` is
+        // decided here, and live changes fan out from a root attribute RadioGroupSyncEngine watches.
         WebRenderValueKind valueKind = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? currentValue, out CompiledUIBinding? valueBinding);
 
+        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.CheckedRadio);
         _ = RenderProperty<string?>(context, root, IInputComponent.ValueProperty, static (target, value) =>
         {
             if (!string.IsNullOrEmpty(value))
-                _ = target.Attribute("data-ui-radio-value", value);
-        }, [WebDomOperation.Attribute("data-ui-radio-value", target: "root")]);
+                _ = target.Attribute(WebAttributes.RadioValue, value);
+        }, [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")]);
 
         WebRenderValueKind isReadOnlyKind = ResolveRenderValue(context, IInputComponent.IsReadOnlyProperty, out bool? isReadOnly, out _);
+        // Only a static IsReadOnly disables the inputs here; a bound one is applied by the sync engine.
         var isReadOnlyStatic = isReadOnlyKind == WebRenderValueKind.Static && isReadOnly == true;
 
-        // Only a statically-known IsReadOnly can disable the inputs at render time; a bound one is applied by
-        // the sync engine, for the same one-value-N-targets reason as Value.
-        _ = RenderProperty<string?>(context, root, IInputComponent.FormIdProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("data-ui-form-id", value);
-        }, [WebDomOperation.Attribute("data-ui-form-id", target: "root")]);
+        NativeInputRendererBase.RenderFormId(context, root);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, "label", ItemClassName);
         RegisterItemsFilterSortMetadata(context);
 
-        if (HasRequiredValidation(context))
-            _ = root.Attribute("aria-required", "true");
+        // The one name every radio here shares, so the browser treats them as one choice; derived from the
+        // component id so two groups on a page cannot collide.
+        var groupName = NativeInputRendererBase.FieldName(context);
 
-        // Derived from the component id so two radio groups on one page cannot share a native input name — and
-        // so the client can stamp the same name onto options it clones for a bound collection.
-        var groupName = "ui-radio-" + context.Node.ComponentId.Value.ToString(CultureInfo.InvariantCulture);
-
-        _ = root.Attribute("data-ui-radio-group-name", groupName);
+        _ = root.Attribute(WebAttributes.RadioGroupName, groupName);
 
         if (valueBinding is not null)
-            _ = root.Attribute("data-ui-radio-bind-value-id", valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
+            _ = root.Attribute(WebAttributes.RadioBindValueId, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
 
         if (isReadOnlyStatic)
-            _ = root.Attribute("data-ui-radio-disabled");
+            _ = root.Attribute(WebAttributes.RadioDisabled);
 
         RenderOptions(context, root, groupName, valueKind, currentValue, valueBinding, isReadOnlyStatic);
 
-        RenderValidationMessage(root, "ui-radio-group__message");
+        RenderValidationMessage(context, root);
     }
 
     private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool isReadOnlyStatic)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        _ = root.Element("div", host =>
-        {
-            _ = host.Class("ui-radio-group__host");
-            _ = host.Attribute("data-ui-items-host");
-
-            // An inner host, not the root: the client resolves an items host with querySelector, which
-            // searches descendants only, so a bound collection would never populate without one.
-            if (isBound)
-                return;
-
-            if (items.Count == 0)
-            {
-                RenderEmptyPlaceholder(context, host);
-                return;
-            }
-
-            RenderItemList(context, host, items, ItemClassName, "label", (itemRoot, item, index) =>
-                RenderRadioInput(itemRoot, item, groupName, valueKind, currentValue, valueBinding, isReadOnlyStatic));
-        });
+        RenderItemsHost(context, root, "ui-radio-group__host", items, isBound, ItemClassName, itemElementName: "label",
+            appendItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, valueKind, currentValue, valueBinding, isReadOnlyStatic)
+        );
     }
 
     private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool isReadOnlyStatic)
@@ -135,10 +110,9 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             if (isReadOnlyStatic)
                 _ = input.Attribute("disabled");
 
-            // Each radio carries the group's single Value binding, so a click on any of them reports back
-            // through the ordinary two-way channel instead of needing its own dispatch.
+            // Each radio carries the group's single Value binding, so a click reports back through the ordinary two-way channel.
             if (valueBinding is not null)
-                _ = input.Attribute("data-ui-bind-value", valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
+                _ = input.Attribute(WebAttributes.BindValue, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
         });
 
         _ = itemRoot.Element("span", dot => dot.Class("ui-radio-group__dot"));

@@ -1,18 +1,35 @@
 @import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../mixins/tabs.less";
+@import "../mixins/text.less";
 
-// One item carries both a caption and a page, so the item is not a box: `display: contents` hands both halves
-// to the host's own flex line, where `order` puts every caption first and the one visible page on a line of
-// its own. That is what keeps a page alive across a switch — nothing is re-rendered, only shown.
+// display: contents hands caption and page to the host's flex line; order groups captions first, so a switch only shows, never re-renders.
 .ui-tabs-view {
+    .ui-selected-scope();
+
     display: flex;
+    // Positioned, so the "…" control below can stand at the strip's end without being a child of the items host.
+    position: relative;
     flex-direction: column;
     .ui-responsive-property(min-width, --ui-min-width, 0);
 }
 
-// Flex rather than grid: the captions are as many as the collection says, and a grid cannot span a row
-// across a column count nobody knows — `1 / -1` counts against the *explicit* grid, so a full-width page
-// silently took the first column and pushed every caption past it.
+// At the strip's end and no taller than a caption; the engine keeps the room for it, so no caption sits under it.
+.ui-tabs-view > .ui-tab-overflow {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+// A caption past the strip's room is hidden, not wrapped; the "…" control lists it.
+.ui-tabs-view .ui-tab-item__caption--overflowed {
+    display: none;
+}
+
+// Flex, not grid: a grid can't span a row across a column count nobody knows, since `1 / -1` counts against the explicit grid.
 .ui-tabs-view__host {
     display: flex;
     flex: 1 1 auto;
@@ -21,13 +38,13 @@
     min-height: 0;
 }
 
+// Both __item and .ui-tab-item stay contents, or either would trap the caption and page out of the host's flex line.
 .ui-tabs-view__item,
 .ui-tab-item {
     display: contents;
 }
 
-// The whole tab is the hover target, not the label inside it: a caption is one block with its close control,
-// and highlighting only the text left a strip of unlit padding beside it.
+// The whole caption block is the hover target, not just the label, since it also carries the close control.
 .ui-tab-item__caption {
     display: flex;
     position: relative;
@@ -39,38 +56,28 @@
     transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
+// The same height as .ui-tab-header; the horizontal inset is the caption's, which also holds the close control.
 .ui-tab-item__label {
     position: relative;
     border-radius: 0;
-    .ui-responsive-property(min-height, --ui-min-height, 2.5rem);
-    padding: @ui-space-2 0;
+    .ui-responsive-property(min-height, --ui-min-height, 2rem);
+    padding: @ui-space-1 0 2px;
     color: var(--ui-text-muted);
 }
 
-    // Drawn on the element rather than as a border, so it lies over the rule the page below draws instead of
-    // stacking a second line under it — the same trick, and the same offset, as .ui-tab-header.
+    // Drawn on the element, not as a border, so it overlays the page's rule instead of stacking a second line, as in .ui-tab-header.
     .ui-tab-item__caption::after {
-        content: "";
-        position: absolute;
-        right: 0;
-        bottom: -2px;
-        left: 0;
-        height: 2px;
-        background: transparent;
-        transition: background-color @ui-motion-fast @ui-motion-ease;
+        .ui-tab-caption-mark();
     }
 
-// The label wears .ui-button--ghost for its focus and disabled behaviour and gives the fill straight back:
-// the block behind a tab belongs to the whole caption, drawn below. The :not() chain is the one that rule
-// carries, because taking it back needs the same specificity — a shorter chain lost, and a hovered tab lit
-// twice, its label a paler block inside the caption's own.
-.ui-tab-item__label,
-.ui-tab-item__label:not(.ui-disabled):not(.ui-loading):not(:disabled):is(:hover, :active) {
+// The label wears .ui-button--ghost for focus and disabled, then gives the fill back: the ground belongs to the whole caption.
+.ui-tab-item__label {
     background: none;
+    .ui-reveal-hover-off();
 }
 
 .ui-tab-item__caption:hover {
-    background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+    background: var(--ui-wash-hover);
 }
 
     .ui-tab-item__caption:hover .ui-tab-item__label {
@@ -78,22 +85,30 @@
     }
 
     .ui-tab-item__caption:hover::after {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+        background: var(--ui-mark-hover);
     }
 
-.ui-tab-item--selected .ui-tab-item__label {
-    color: var(--ui-color-on-surface);
-    font-weight: 600;
+// Same selected vocabulary as .ui-tab-header: no ground, surface ink, primary line unless the author overrides it.
+.ui-tab-item--selected .ui-tab-item__caption,
+.ui-tab-item--selected .ui-tab-item__caption:hover {
+    .ui-selected-ground(transparent);
+}
+
+.ui-tab-item--selected .ui-tab-item__label,
+.ui-tab-item--selected .ui-tab-item__caption:hover .ui-tab-item__label {
+    .ui-selected-ink(var(--ui-color-on-surface); 600);
 }
 
     .ui-tab-item--selected .ui-tab-item__caption::after,
     .ui-tab-item--selected .ui-tab-item__caption:hover::after {
-        background: var(--ui-color-primary);
+        background: @ui-selected-mark-color;
     }
 
-// The close control keeps its space always — hidden, and on a tab that cannot be closed at all — so no
-// caption shifts under the pointer on hover, and a fixed tab lines up with the closable ones beside it.
+// The close control keeps its space even when hidden, so no caption shifts on hover and fixed tabs stay aligned.
+// The same drawn cross a field's clear wears.
 .ui-tab-item__close {
+    .ui-cross-glyph();
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -108,33 +123,32 @@
     transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-tab-item__close::before {
-        content: "\00d7";
-        font-size: 1rem;
-        line-height: 1;
-    }
-
     .ui-tab-item__caption:hover .ui-tab-item__close,
     .ui-tab-item--selected .ui-tab-item__close,
     .ui-tab-item__close:focus-visible {
         opacity: 1;
     }
 
+    // Ink alone: the caption is the surface that washes under the pointer.
     .ui-tab-item__close:hover {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent);
         color: var(--ui-color-on-surface);
     }
 
-    // A tab the model marks unclosable keeps the slot and loses the control: `display: none` would pull its
-    // caption tighter than its neighbours', which reads as a different kind of tab rather than a fixed one.
-    .ui-tab-item--fixed .ui-tab-item__close {
+    // A tab that cannot be removed keeps the close control's slot but loses the control, so its caption stays aligned with its
+    // neighbours' — as long as some neighbour can be closed.
+    [data-ui-unremovable] .ui-tab-item__close {
         visibility: hidden;
         pointer-events: none;
     }
 
-// Ordered after every caption and forced to a full line, so it lands under the strip whatever its own item's
-// position is. Its top border is the strip's rule — one line, drawn by whichever page is showing, which is
-// also the line a selected caption's underline overlaps.
+    // A strip that removes nothing, or whose tabs all refuse it, keeps no room for a close at all: its captions sit as a plain
+    // strip's do.
+    .ui-tabs-view[data-ui-tabs-unremovable] .ui-tab-item__close,
+    .ui-tabs-view:not(:has(.ui-tabs-view__item:not([data-ui-unremovable]) > .ui-tab-item:not([data-ui-unremovable]))) .ui-tab-item__close {
+        display: none;
+    }
+
+// Ordered after every caption and forced to a full line, so it lands under the strip regardless of its item's position.
 .ui-tab-item__page {
     display: flex;
     flex: 1 1 100%;
@@ -142,7 +156,8 @@
     order: 1;
     min-width: 100%;
     min-height: 0;
-    border-top: 1px solid var(--ui-color-border);
+    // The strip's rule width, so the caption mark lies over it exactly as in Tabs.
+    border-top: @ui-tab-rule-width solid var(--ui-color-border);
     padding-top: @ui-space-3;
 }
 
@@ -150,27 +165,10 @@
         display: none;
     }
 
-// Renaming edits the caption where it stands: the field is laid over the title it replaces, at the same
-// place, in the same type, with no border and no box of its own. Nothing moves, nothing resizes — the text
-// simply starts taking keys.
+// Renaming edits the caption in place: the field overlays the title, same position and type, no border or box.
 .ui-tab-item__rename {
-    position: absolute;
-    margin: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    padding: 0;
-    color: var(--ui-color-on-surface);
-    font: inherit;
-    letter-spacing: inherit;
+    .ui-inline-rename-field();
 }
-
-    // Including the keyboard ring the library draws everywhere else: a ring here is a box around the caption,
-    // which is the one thing this field exists not to be. The selected text is the affordance.
-    .ui-tab-item__rename,
-    .ui-tab-item__rename:focus-visible {
-        outline: none;
-    }
 
 // The tab being dragged stays in place visually as a ghost, so the gap it will leave is what moves.
 .ui-tab-item--dragging .ui-tab-item__caption {

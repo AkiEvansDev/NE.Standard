@@ -1,21 +1,34 @@
-import { BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute, cssAttributeValue } from "../addressing/dom-attributes";
+import {
+    BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute,
+    ensureElementId
+} from "../addressing/dom-attributes";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
-import { clearOptionsFilter } from "./search-input-engine";
+import { PopupDismissal } from "./popup-dismissal";
+import { ownDescendants } from "./own-descendants";
+import { restoreFocusTo } from "./popup-focus";
+import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
+import { clearOptionsFilter, refreshEmptyState } from "./search-input-engine";
 
 const SelectValueAttribute = "data-ui-select-value";
 const SelectClass = "ui-select";
 const OpenClass = "ui-select--open";
 const TriggerClass = "ui-select__trigger";
 const TriggerContentClass = "ui-select__trigger-content";
+// What the render leaves on the content it drew, naming the option it drew — read once and taken off.
+const ServerContentAttribute = "data-ui-select-content";
 const PlaceholderClass = "ui-select__placeholder";
 const PrefixIconClass = "ui-input__affix-icon--prefix";
 const PopupClass = "ui-select__popup";
 const OptionClass = "ui-select__option";
 const ValueInputClass = "ui-select__value-input";
 const ClearAttribute = "data-ui-select-clear";
-const ClearClass = "ui-select__clear";
+const TriggerModeAttribute = "data-ui-select-trigger-mode";
 const SearchInputClass = "ui-search__input";
 const TitleClass = "ui-text__title";
+// What `Enabled = false` leaves on an option, on the item template's own root rather than the option wrapper.
+const DisabledClass = "ui-disabled";
+// Which option the arrows have reached; marked outright, because `:focus` says nothing once the window is not focused.
+const ActiveAttribute = "data-ui-active";
 
 const PopupGap = 4;
 
@@ -23,14 +36,24 @@ export type SelectInteractionEngineOptions = {
     readonly root?: ParentNode;
 };
 
-const SelfWrittenAttributes = new Set(["aria-selected", "tabindex", "style"]);
+// What this engine writes onto its own DOM: reacting to these in the observer below is an infinite loop.
+const SelfWrittenAttributes = new Set(["aria-selected", "aria-disabled", ActiveAttribute, "tabindex", "style"]);
+
+function isReadOnly(select: HTMLElement | null): boolean {
+    return select?.querySelector<HTMLInputElement>(`.${SearchInputClass}`)?.readOnly === true;
+}
+
+/** This select's own options: a select rendered inside an option's template keeps its list to itself. */
+function optionsOf(select: HTMLElement): HTMLElement[] {
+    return ownDescendants(select, `.${PopupClass} .${OptionClass}`, `.${SelectClass}`);
+}
 
 function stripAddressingAttributes(element: Element): void {
     for (const node of [element, ...element.querySelectorAll("*")]) {
         node.removeAttribute(ComponentIdAttribute);
         node.removeAttribute(ComponentKeyAttribute);
         node.removeAttribute(ComponentParameterCountAttribute);
-        node.removeAttribute("data-ui-context");
+        node.removeAttribute(ComponentContextAttribute);
 
         for (const attribute of [...node.attributes]) {
             if (attribute.name.startsWith(BindingAttributePrefix))
@@ -75,7 +98,14 @@ export class SelectInteractionEngine {
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
-        document.addEventListener("click", domEvent => this.handleOutsideClick(domEvent), true);
+        // Typing is asking to search, and asking to search is asking to see the answers.
+        this.root.addEventListener("input", domEvent => this.handleSearchInput(domEvent), true);
+
+        new PopupDismissal({
+            root: this.root,
+            openPopups: () => this.openSelect === null ? [] : [this.openSelect],
+            close: () => this.close()
+        });
     }
 
     private sync(select: HTMLElement): void {
@@ -85,7 +115,7 @@ export class SelectInteractionEngine {
 
         const selectedOption = value === null
             ? null
-            : select.querySelector<HTMLElement>(`.${PopupClass} .${OptionClass}[data-ui-key="${cssAttributeValue(value)}"]`);
+            : optionsOf(select).find(option => option.getAttribute(ComponentKeyAttribute) === value) ?? null;
 
         const matched = selectedOption !== null;
         const matchedLabel = selectedOption === null
@@ -94,16 +124,14 @@ export class SelectInteractionEngine {
 
         this.renderTriggerContent(select, selectedOption);
 
-        // Search's trigger *is* its input, so the selected label has to be written into it — but never while
-        // the user is typing in it, or their query is overwritten mid-word.
+        // Search's trigger is its input, so the label is written into it — never while it is being typed in.
         const searchInput = select.querySelector<HTMLInputElement>(`.${SearchInputClass}`);
 
         if (searchInput !== null) {
             if (document.activeElement !== searchInput)
                 searchInput.value = matchedLabel ?? "";
 
-            // The query that narrowed the list is spent once a value is chosen; leaving it applied would hide
-            // every other option the next time the popup opens.
+            // The query that narrowed the list is spent once a value is chosen.
             clearOptionsFilter(select);
         }
 
@@ -112,7 +140,7 @@ export class SelectInteractionEngine {
         if (placeholder !== null)
             placeholder.style.display = matched ? "none" : "";
 
-        for (const option of select.querySelectorAll<HTMLElement>(`.${OptionClass}`))
+        for (const option of optionsOf(select))
             option.setAttribute("aria-selected", value !== null && option.dataset.uiKey === value ? "true" : "false");
 
         const valueInput = select.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
@@ -120,15 +148,11 @@ export class SelectInteractionEngine {
         if (valueInput !== null && value !== null)
             valueInput.value = value;
 
-        const clear = select.querySelector<HTMLElement>(`.${ClearClass}`);
-
-        if (clear !== null)
-            clear.style.display = value !== null ? "inline-flex" : "none";
+        // Last, because it reads the list this method has just finished putting in order.
+        refreshEmptyState(select);
     }
 
-    // The closed trigger shows the selected option through its full item template. It is cloned out of the
-    // popup on demand rather than pre-rendered as hidden candidates: a client-rendered collection could never
-    // produce copies that are not in any <template>, so the trigger would stay empty for a bound Options.
+    // The closed trigger shows the selected option through its item template, rebuilt from the popup unless the server drew this one.
     private renderTriggerContent(select: HTMLElement, option: HTMLElement | null): void {
         const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
 
@@ -142,12 +166,18 @@ export class SelectInteractionEngine {
             return;
         }
 
+        const optionKey = option.getAttribute(ComponentKeyAttribute);
+
+        if (content !== null && optionKey !== null && content.getAttribute(ServerContentAttribute) === optionKey) {
+            content.removeAttribute(ServerContentAttribute);
+            return;
+        }
+
         if (content === null) {
             content = document.createElement("span");
             content.className = TriggerContentClass;
 
-            // Before the placeholder and the chevron, which are the trigger's other children — but after the
-            // prefix icon, which is furniture at the start of the field rather than part of the value.
+            // Before the placeholder and the chevron, but after the prefix icon, which is not part of the value.
             const prefixIcon = trigger.querySelector<HTMLElement>(`:scope > .${PrefixIconClass}`);
 
             if (prefixIcon === null)
@@ -160,22 +190,42 @@ export class SelectInteractionEngine {
 
         const clone = option.cloneNode(true) as HTMLElement;
 
-        // Without this the copy is resolvable as the same component as the option it was cloned from, and a
-        // live patch would land on whichever one the DOM walk reached first.
+        // Or the copy resolves as the same component as the option it was cloned from, and patches land on either.
         stripAddressingAttributes(clone);
         content.replaceChildren(...clone.childNodes);
     }
 
-    // role/tabindex cannot ride the item template's wrapper metadata the way a class can, so a client-cloned
-    // option gets them stamped here — the same split RadioGroupComponentRenderer makes with its sync engine.
+    // role/tabindex cannot ride the item template's wrapper metadata, so a client-cloned option gets them stamped here; aria-disabled follows the live Enabled.
     private decorateOptions(select: HTMLElement): void {
-        for (const option of select.querySelectorAll<HTMLElement>(`.${PopupClass} .${OptionClass}`)) {
+        for (const option of optionsOf(select)) {
             if (!option.hasAttribute("role"))
                 option.setAttribute("role", "option");
 
-            if (!option.hasAttribute("tabindex"))
-                option.tabIndex = 0;
+            const disabled = isOptionDisabled(option);
+
+            // Re-read on every sync rather than only when missing: `Enabled` is bound and moves.
+            const flag = disabled ? "true" : "false";
+
+            // Written only when it changes, so the observer above stays honest.
+            if (option.getAttribute("aria-disabled") !== flag)
+                option.setAttribute("aria-disabled", flag);
+
+            // Out of the tab order until the roving index puts the one stop where it belongs; a disabled option never gets one.
+            if (disabled ? option.tabIndex !== -1 : !option.hasAttribute("tabindex"))
+                option.tabIndex = -1;
         }
+    }
+
+    private handleSearchInput(domEvent: Event): void {
+        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(SearchInputClass))
+            return;
+
+        const select = domEvent.target.closest<HTMLElement>(`.${SelectClass}`);
+
+        if (select === null || select === this.openSelect)
+            return;
+
+        this.toggle(select);
     }
 
     private handleClick(domEvent: Event): void {
@@ -190,7 +240,9 @@ export class SelectInteractionEngine {
             if (clearSelect !== null) {
                 domEvent.preventDefault();
                 domEvent.stopPropagation();
-                this.clearValue(clearSelect);
+
+                if (!isReadOnly(clearSelect))
+                    this.clearValue(clearSelect);
             }
 
             return;
@@ -201,9 +253,12 @@ export class SelectInteractionEngine {
         if (trigger !== null) {
             const select = trigger.closest<HTMLElement>(`.${SelectClass}`);
 
-            // Search's trigger is a real text field: once its popup is open, a click inside it is the user
-            // placing the caret, not asking to close.
-            if (trigger.dataset.uiSelectTriggerMode === "input" && domEvent.target instanceof HTMLInputElement && select === this.openSelect)
+            // A read-only search keeps its text readable and offers no list; a read-only select's trigger is disabled and never gets here.
+            if (isReadOnly(select))
+                return;
+
+            // Search's trigger is a real text field: with the popup open, a click in it places the caret.
+            if (trigger.getAttribute(TriggerModeAttribute) === "input" && domEvent.target instanceof HTMLInputElement && select === this.openSelect)
                 return;
 
             domEvent.preventDefault();
@@ -223,14 +278,8 @@ export class SelectInteractionEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented)
             return;
-
-        if (domEvent.key === "Escape" && this.openSelect !== null) {
-            domEvent.preventDefault();
-            this.close();
-            return;
-        }
 
         if ((domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && this.openSelect !== null) {
             domEvent.preventDefault();
@@ -238,7 +287,7 @@ export class SelectInteractionEngine {
             return;
         }
 
-        if (domEvent.key !== "Enter" && domEvent.key !== " ")
+        if (domEvent.isComposing || (domEvent.key !== "Enter" && domEvent.key !== " "))
             return;
 
         if (!(domEvent.target instanceof Element))
@@ -258,18 +307,6 @@ export class SelectInteractionEngine {
         this.choose(select, option);
     }
 
-    // composedPath, not contains: a handler that re-renders during the click detaches the clicked node, and
-    // contains would then answer "outside" and close a popup the user is still working in.
-    private handleOutsideClick(domEvent: Event): void {
-        if (this.openSelect === null)
-            return;
-
-        if (domEvent.composedPath().includes(this.openSelect))
-            return;
-
-        this.close();
-    }
-
     private toggle(select: HTMLElement | null): void {
         if (select === null)
             return;
@@ -282,9 +319,23 @@ export class SelectInteractionEngine {
         this.close();
         select.classList.add(OpenClass);
         this.positionPopup(select);
-        select.querySelector<HTMLElement>(`.${TriggerClass}`)?.setAttribute("aria-expanded", "true");
+        this.describeTrigger(select, true);
         this.openSelect = select;
         this.initializeFocus(select);
+    }
+
+    /** What the trigger says about the list it opens: that it is open, and which list it is. */
+    private describeTrigger(select: HTMLElement, open: boolean): void {
+        const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+        const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
+
+        if (trigger === null)
+            return;
+
+        trigger.setAttribute("aria-expanded", open ? "true" : "false");
+
+        if (popup !== null)
+            trigger.setAttribute("aria-controls", ensureElementId(popup, "ui-select-popup"));
     }
 
     private close(): void {
@@ -292,16 +343,17 @@ export class SelectInteractionEngine {
             return;
 
         const select = this.openSelect;
-        const focusWasInPopup = document.activeElement instanceof Node && select.contains(document.activeElement)
-            && document.activeElement.classList.contains(OptionClass);
+        const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
+
+        // Before the popup hides: hiding it drops focus on the body, and then there is nothing to bring back.
+        if (popup !== null)
+            restoreFocusTo(select.querySelector<HTMLElement>(`.${TriggerClass}`), popup);
 
         select.classList.remove(OpenClass);
-        select.querySelector<HTMLElement>(`.${TriggerClass}`)?.setAttribute("aria-expanded", "false");
-        releaseAnchoredPopup(select.querySelector<HTMLElement>(`.${PopupClass}`));
+        this.markActive(select, null);
+        this.describeTrigger(select, false);
+        releaseAnchoredPopup(popup);
         this.openSelect = null;
-
-        if (focusWasInPopup)
-            select.querySelector<HTMLElement>(`.${TriggerClass}`)?.focus();
     }
 
     /** Width-matched to the trigger, and flipped above it when the list has no room below. */
@@ -314,7 +366,7 @@ export class SelectInteractionEngine {
     }
 
     private initializeFocus(select: HTMLElement): void {
-        const options = [...select.querySelectorAll<HTMLElement>(`.${OptionClass}`)];
+        const options = optionsOf(select).filter(option => !isOptionDisabled(option));
 
         if (options.length === 0)
             return;
@@ -322,34 +374,72 @@ export class SelectInteractionEngine {
         const selected = options.find(option => option.getAttribute("aria-selected") === "true");
         const target = selected ?? options[0];
 
-        for (const option of options)
-            option.tabIndex = option === target ? 0 : -1;
+        applyRovingTabIndex(options, target);
+
+        this.markActive(select, target);
+
+        // Search keeps focus in its field: the roving tab stop above still lets ArrowDown step into the list.
+        const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+
+        if (trigger?.getAttribute(TriggerModeAttribute) === "input") {
+            const input = select.querySelector<HTMLInputElement>(`.${SearchInputClass}`);
+
+            if (input !== null && document.activeElement !== input)
+                input.focus();
+
+            return;
+        }
 
         target.focus();
     }
 
+    // Only what can be chosen, and without the wrap: a list has a top and a bottom.
     private moveFocus(select: HTMLElement, direction: 1 | -1): void {
-        const options = [...select.querySelectorAll<HTMLElement>(`.${OptionClass}`)];
+        const options = optionsOf(select).filter(option => !isOptionDisabled(option));
 
-        if (options.length === 0)
+        // Focus first, then the mark: Search keeps focus in its field, so only the mark knows where the list's cursor is.
+        const focused = options.find(option => option === document.activeElement);
+        const current = focused ?? options.find(option => option.hasAttribute(ActiveAttribute)) ?? null;
+
+        const next = resolveRovingTarget({
+            key: direction === 1 ? "ArrowDown" : "ArrowUp",
+            items: options,
+            current,
+            axis: "vertical",
+            loop: false
+        });
+
+        if (next === null)
             return;
 
-        const currentIndex = options.findIndex(option => option === document.activeElement);
-        const nextIndex = Math.max(0, Math.min(options.length - 1, (currentIndex === -1 ? 0 : currentIndex) + direction));
+        applyRovingTabIndex(options, next);
 
-        for (const option of options)
-            option.tabIndex = -1;
-
-        const next = options[nextIndex];
-        next.tabIndex = 0;
         next.focus();
+        this.markActive(select, next);
+    }
+
+    /** The one option the arrows are on, so the viewer can see what Enter would choose. */
+    private markActive(select: HTMLElement, active: HTMLElement | null): void {
+        for (const option of optionsOf(select)) {
+            if (option === active)
+                option.setAttribute(ActiveAttribute, "");
+            else if (option.hasAttribute(ActiveAttribute))
+                option.removeAttribute(ActiveAttribute);
+        }
     }
 
     private choose(select: HTMLElement, option: HTMLElement): void {
         const key = option.dataset.uiKey;
 
-        if (key === undefined)
+        // The one place both the click and the keyboard come through, so refusing here refuses everywhere.
+        if (key === undefined || isOptionDisabled(option))
             return;
+
+        // Choosing the value already selected is not a change.
+        if (select.getAttribute(SelectValueAttribute) === key) {
+            this.close();
+            return;
+        }
 
         select.setAttribute(SelectValueAttribute, key);
         this.sync(select);
@@ -365,6 +455,10 @@ export class SelectInteractionEngine {
     }
 
     private clearValue(select: HTMLElement): void {
+        // Nothing was selected, so there is nothing to clear.
+        if (!select.hasAttribute(SelectValueAttribute))
+            return;
+
         select.removeAttribute(SelectValueAttribute);
         this.sync(select);
 
@@ -375,4 +469,10 @@ export class SelectInteractionEngine {
             valueInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
     }
+}
+
+// Disabled sits on the item template's root, which is the option wrapper's own child.
+function isOptionDisabled(option: HTMLElement): boolean {
+    return option.classList.contains(DisabledClass)
+        || option.querySelector(`:scope > .${DisabledClass}`) !== null;
 }

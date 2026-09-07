@@ -29,8 +29,11 @@
 
 .ui-dialog__surface {
     position: relative;
-    // Sized against the viewport rather than its content: the surface holds ordinary compiled components,
-    // whose own responsive width/height would otherwise let a dialog grow past the screen.
+    // A column, so the one component inside is a flex item: an inline-flex child in a block would sit on a line box and
+    // leave the line's descender under it, and the padding would read larger below than above.
+    display: flex;
+    flex-direction: column;
+    // Sized against the viewport, not content, so an inner component's responsive size cannot grow the dialog past the screen.
     margin: @ui-space-4;
     max-width: min(560px, calc(100% - (@ui-space-4 * 2)));
     max-height: calc(100% - (@ui-space-4 * 2));
@@ -43,15 +46,61 @@
     animation: ui-dialog-surface-in @ui-motion-normal @ui-motion-ease;
 }
 
-// The other kind of dialog: not a card over a page but a screen of its own, so it takes the page's own
-// background and states its edge with a border instead of with a lift.
+// The other kinds of dialog, the card's own three: a screen of its own on the page background with a border instead of a
+// lift, and a tinted one mixed the way a tinted surface is.
 .ui-dialog__surface[data-ui-dialog-surface="background"] {
     border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
     background: var(--ui-color-background);
 }
 
+.ui-dialog__surface[data-ui-dialog-surface="tinted"] {
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+}
+
 .ui-dialog__surface:focus {
     outline: none;
+}
+
+// A sheet: the panel stands against one edge and runs the whole length of it, a drawer for a hidden menu or a
+// details pane. The width (or height) is the panel's own, capped so the page behind stays in view.
+.ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {
+    margin: 0;
+    border-radius: 0;
+    animation-name: ui-dialog-sheet-in;
+}
+
+.ui-dialog:is([data-ui-dialog-placement="left"], [data-ui-dialog-placement="right"]) > .ui-dialog__surface {
+    height: 100%;
+    max-height: 100%;
+    width: min(420px, calc(100% - (@ui-space-4 * 2)));
+    max-width: none;
+}
+
+.ui-dialog:is([data-ui-dialog-placement="top"], [data-ui-dialog-placement="bottom"]) > .ui-dialog__surface {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(60vh, calc(100% - (@ui-space-4 * 2)));
+}
+
+.ui-dialog[data-ui-dialog-placement="left"] {
+    place-items: stretch start;
+    --ui-dialog-sheet-from: translateX(-100%);
+}
+
+.ui-dialog[data-ui-dialog-placement="right"] {
+    place-items: stretch end;
+    --ui-dialog-sheet-from: translateX(100%);
+}
+
+.ui-dialog[data-ui-dialog-placement="top"] {
+    place-items: start stretch;
+    --ui-dialog-sheet-from: translateY(-100%);
+}
+
+.ui-dialog[data-ui-dialog-placement="bottom"] {
+    place-items: end stretch;
+    --ui-dialog-sheet-from: translateY(100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -68,6 +117,16 @@
 
     to {
         opacity: 1;
+    }
+}
+
+@keyframes ui-dialog-sheet-in {
+    from {
+        transform: var(--ui-dialog-sheet-from);
+    }
+
+    to {
+        transform: none;
     }
 }
 

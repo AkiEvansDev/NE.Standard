@@ -68,29 +68,8 @@ public static class UIPropertyRegister
         return definition;
     }
 
-    private static void Register(UIPropertyDefinition definition)
-    {
-        lock (Sync)
-        {
-            if (!Registrations.TryGetValue(definition.ComponentTypeKey, out Dictionary<UIProperty, UIPropertyDefinition>? definitions))
-            {
-                definitions = [];
-                Registrations.Add(definition.ComponentTypeKey, definitions);
-            }
-
-            if (definitions.ContainsKey(definition.Property))
-                throw new InvalidOperationException($"Property '{definition.Property.Name}' is already registered for component type '{definition.ComponentTypeKey}'.");
-
-            definitions.Add(definition.Property, definition);
-        }
-    }
-
     /// <summary>
-    /// Validates (and widens where necessary) a declared default value against the property's CLR type.
-    /// `decimal`/`decimal?` properties are the one case that needs widening: `decimal` is not a valid C#
-    /// attribute-argument type, so `[UIComponentProperty(DefaultValue = ...)]` on one can only ever be
-    /// written as a numeric literal of some other type (typically `double`, e.g. `DefaultValue = 0d`) —
-    /// never an actual `decimal` constant.
+    /// Validates and widens a declared default value against the property's CLR type.
     /// </summary>
     private static bool TryCoerceDefaultValue(object defaultValue, Type valueType, out object? coerced)
     {
@@ -132,6 +111,23 @@ public static class UIPropertyRegister
     /// <summary>
     /// Gets a registered property definition or throws when it is not registered.
     /// </summary>
+
+    private static void Register(UIPropertyDefinition definition)
+    {
+        lock (Sync)
+        {
+            if (!Registrations.TryGetValue(definition.ComponentTypeKey, out Dictionary<UIProperty, UIPropertyDefinition>? definitions))
+            {
+                definitions = [];
+                Registrations.Add(definition.ComponentTypeKey, definitions);
+            }
+
+            if (definitions.ContainsKey(definition.Property))
+                throw new InvalidOperationException($"Property '{definition.Property.Name}' is already registered for component type '{definition.ComponentTypeKey}'.");
+
+            definitions.Add(definition.Property, definition);
+        }
+    }
     public static UIPropertyDefinition GetRequired(string typeKey, UIProperty property)
         => TryGet(typeKey, property, out UIPropertyDefinition? definition)
             ? definition

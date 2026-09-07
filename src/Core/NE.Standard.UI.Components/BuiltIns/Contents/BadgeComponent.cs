@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -9,14 +10,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A small status/tag indicator combining an optional icon and short text.
 /// </summary>
-public abstract partial class BadgeComponent<T> : VisualComponentBase<T>
+[UIComponentPropertyBlock(typeof(ITooltipComponent))]
+public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, ITooltipComponent
     where T : BadgeComponent<T>, IUIComponentDefinition
 {
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.FromStyle(UIColorStyle.Default);
     private static readonly UITextAppearance DefaultTextType = UITextAppearance.Overline;
 
     /// <summary>
-    /// Gets or sets the badge's visual style.
+    /// Gets or sets the badge's visual style — Primary, Accent, Info, Warning, Success, Danger, or Surface; default Primary.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIBadgeType.Primary)]
     public UIBadgeType? Style { get; set; }
@@ -28,26 +30,26 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>
     public UIThemeColor? Color { get; set; }
 
     /// <summary>
-    /// Gets or sets the icon name to render.
+    /// Gets or sets the icon shown beside the badge text, by name from the registered icon font/set.
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
     public string? Icon { get; set; }
 
     /// <summary>
-    /// Gets or sets the icon's color.
+    /// Gets or sets the icon's colour; unset resolves to <c>color: inherit</c>, so it follows whatever it's drawn in.
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultIconColor))]
     public UIThemeColor? IconColor { get; set; }
 
     /// <summary>
-    /// Gets or sets the icon's size.
+    /// Gets or sets the icon's size; unset the glyph is as tall as the badge's own text.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIIconSize.Small)]
+    [UIComponentProperty(DefaultValue = null)]
     public UIIconSize? IconSize { get; set; }
 
     /// <summary>
-    /// Gets or sets the badge text.
+    /// Gets or sets the short text drawn inside the badge, beside its icon.
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
@@ -58,13 +60,6 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultTextType))]
     public UITextAppearance? TextType { get; set; }
-
-    /// <summary>
-    /// Gets or sets the tooltip shown on hover.
-    /// </summary>
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? Tooltip { get; set; }
 
     /// <summary>
     /// Initializes the badge with a centered alignment.

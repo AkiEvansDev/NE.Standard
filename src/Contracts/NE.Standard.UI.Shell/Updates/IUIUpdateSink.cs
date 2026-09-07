@@ -16,16 +16,16 @@ public interface IUIUpdateSink
     /// Sends UI changes to every client instance attached to the runtime.
     /// </summary>
     /// <remarks>
-    /// Takes the instances explicitly rather than deriving them from <paramref name="handle"/>, which names
-    /// one connection: a runtime can be shared by several (two tabs duplicated from one, a reconnect racing a
-    /// disconnect), and a change set describes controller state, which is the same for all of them. A command
-    /// result stays targeted — see <see cref="SendCommandResultAsync"/>.
+    /// Takes the instances explicitly rather than from <paramref name="handle"/>: a runtime can be shared,
+    /// and the change set is the same for all of them.
     /// </remarks>
     Task SendChangesAsync(UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sends a command execution result to the one client instance that invoked it. Effects are personal —
-    /// a focus or a scroll belongs to the connection that asked for it, not to every tab sharing the runtime.
+    /// Sends a command execution result to the one client instance that invoked it.
     /// </summary>
+    /// <remarks>
+    /// Effects are personal: a focus or a scroll belongs to the connection that asked for it, not to every tab sharing the runtime.
+    /// </remarks>
     Task SendCommandResultAsync(UIHandle handle, UICommandExecutionResult result, CancellationToken cancellationToken = default);
 }

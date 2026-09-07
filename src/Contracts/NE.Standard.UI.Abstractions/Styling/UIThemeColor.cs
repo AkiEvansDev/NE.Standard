@@ -1,12 +1,13 @@
+using System;
+using System.Globalization;
 using NE.Colors;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents a themed color: either a semantic <see cref="UIColorStyle"/> role (tracks the live
-/// theme via a CSS custom property) or an explicit <see cref="Light"/>/<see cref="Dark"/> override.
-/// When both are set, the explicit override always wins.
+/// Represents a themed color: either a semantic <see cref="UIColorStyle"/> role, or an explicit
+/// <see cref="Light"/>/<see cref="Dark"/> override, which always wins when both are set.
 /// </summary>
 public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Light, ColorVariant? Dark)
 {
@@ -148,6 +149,90 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
     /// The modal/scrim overlay color, tracked live via <see cref="FromStyle"/>.
     /// </summary>
     public static UIThemeColor Overlay => FromStyle(UIColorStyle.Overlay);
+
+    /// <summary>
+    /// Reads the canonical wire form a client sends back: <c>@Role</c> for a semantic role, <c>#RRGGBBAA</c>
+    /// for an explicit colour, or <c>Name/Adjustment/factor/opacity</c> for a palette variant.
+    /// </summary>
+    /// <remarks>
+    /// The format a two-way binding sends back, coerced by the generated setter via <c>RecursiveValueCoercion</c>.
+    /// </remarks>
+    public static bool TryParse(string? text, out UIThemeColor color)
+    {
+        color = default;
+
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var trimmed = text.Trim();
+
+        if (trimmed[0] == '@')
+        {
+            if (!Enum.TryParse(trimmed.AsSpan(1), ignoreCase: false, out UIColorStyle style))
+                return false;
+
+            color = FromStyle(style);
+            return true;
+        }
+
+        if (trimmed[0] == '#')
+        {
+            if (!ColorVariant.TryParseHex(trimmed, out ColorVariant explicitColor))
+                return false;
+
+            color = FromColorVariant(explicitColor);
+            return true;
+        }
+
+        return TryParseVariant(trimmed, out color);
+    }
+
+    private static bool TryParseVariant(string text, out UIThemeColor color)
+    {
+        color = default;
+
+        var parts = text.Split('/');
+
+        if (!Enum.TryParse(parts[0], ignoreCase: false, out ColorName name))
+            return false;
+
+        ColorAdjustment adjustment = ColorAdjustment.None;
+        var factor = 0;
+        byte opacity = 255;
+
+        if (parts.Length > 1 && !Enum.TryParse(parts[1], ignoreCase: false, out adjustment))
+            return false;
+
+        if (parts.Length > 2 && !int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out factor))
+            return false;
+
+        if (parts.Length > 3 && !byte.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out opacity))
+            return false;
+
+        if (factor is < ColorVariant.MinFactor or > ColorVariant.MaxFactor)
+            return false;
+
+        color = FromColorVariant(new ColorVariant(name, adjustment, factor, opacity));
+        return true;
+    }
+
+    /// <summary>The canonical wire form — what <see cref="TryParse"/> reads.</summary>
+    public string ToCanonical()
+    {
+        if (Style is UIColorStyle style)
+            return $"@{style}";
+
+        ColorVariant? variant = Light ?? Dark;
+
+        if (variant is null)
+            return string.Empty;
+
+        ColorVariant value = variant.Value;
+
+        return value.Rgb is not null
+            ? value.ToHex()
+            : string.Create(CultureInfo.InvariantCulture, $"{value.Name}/{value.Adjustment}/{value.Factor}/{value.Opacity}");
+    }
 
     public override string ToString()
     {

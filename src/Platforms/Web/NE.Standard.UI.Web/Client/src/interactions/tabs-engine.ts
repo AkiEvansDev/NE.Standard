@@ -1,18 +1,23 @@
-// Switching tabs is instant and local: the strip and the pages are already in the DOM, so a click only has
-// to move one attribute. The new key is then written back through the ordinary two-way path, which is what
-// lets a controller both read the current tab and drive it — the same shape a Select's value has.
+// Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
+import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
+import { observeComponents } from "./dom-mutations";
+import { isLaidOut } from "./element-visibility";
+import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
+import { writeSelectedKey } from "./selected-key";
+import { OverflowButtonClass, StripOverflowMenu, fitStrip } from "./strip-overflow";
 
 const RootClass = "ui-tabs";
 const HeaderClass = "ui-tab-header";
 const SelectedModifier = "ui-tab-header--selected";
+const OverflowedModifier = "ui-tab-header--overflowed";
+const OverflowingModifier = "ui-tabs--overflowing";
+const NoOverflowModifier = "ui-tabs--no-overflow";
+const StripClass = "ui-tabs__strip";
 
-const SelectedAttribute = "data-ui-tabs-selected";
 const TabKeyAttribute = "data-ui-tab-key";
 const PageAttribute = "data-ui-tab-page";
-/** The generic binding attribute `RenderProperty` emits for `SelectedKey`; see ValueBindingEngine. */
-const SelectedKeyBindingAttribute = "data-ui-bind-selected-key";
 
 export type TabsEngineOptions = {
     readonly root?: ParentNode;
@@ -20,30 +25,31 @@ export type TabsEngineOptions = {
 
 export class TabsEngine {
     private readonly root: ParentNode;
+    private readonly overflow: StripOverflowMenu;
+
+    // The strip is fitted again whenever its width changes; a strip is observed once, on first sight.
+    private readonly resizes = typeof ResizeObserver === "function"
+        ? new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const root = entry.target.closest<HTMLElement>(`.${RootClass}`);
+
+                if (root !== null)
+                    this.apply(root);
+            }
+        })
+        : null;
 
     public constructor(options: TabsEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.overflow = new StripOverflowMenu(this.root, (root, key) => this.select(root, key));
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        if (this.root instanceof Node) {
-            // A server patch writes the same attribute a click does, so re-applying off the mutation is all
-            // that is needed for a controller-driven switch.
-            const observer = new MutationObserver(mutations => {
-                for (const mutation of mutations) {
-                    if (mutation.type === "attributes"
-                        && mutation.attributeName === SelectedAttribute
-                        && mutation.target instanceof HTMLElement) {
-                        this.apply(mutation.target);
-                    }
-                }
-            });
-
-            observer.observe(this.root, { attributes: true, subtree: true, attributeFilter: [SelectedAttribute] });
-        }
+        // A server patch writes the same attribute a click does, as does a caption being hidden or shown.
+        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes] }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {
@@ -51,14 +57,21 @@ export class TabsEngine {
             this.apply(root);
     }
 
-    /**
-     * Marks the current caption and shows its page. Both are decided here rather than server-side, so the
-     * strip and the pages can never disagree about which tab is current.
-     */
+    /** Marks the current caption and shows its page; a selected caption that is hidden hands over to the first shown one. */
     private apply(root: HTMLElement): void {
-        const selected = root.getAttribute(SelectedAttribute) ?? "";
-
+        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
         const headers = this.ownHeaders(root);
+        const selectedHeader = headers.find(header => (header.getAttribute(TabKeyAttribute) ?? "") === selected) ?? null;
+
+        if (selectedHeader !== null && !isLaidOut(selectedHeader)) {
+            const fallback = headers.find(isLaidOut);
+
+            if (fallback !== undefined) {
+                this.select(root, fallback.getAttribute(TabKeyAttribute) ?? "");
+                return;
+            }
+        }
+
         let current: HTMLElement | null = null;
 
         for (const header of headers) {
@@ -71,15 +84,79 @@ export class TabsEngine {
                 current = header;
         }
 
-        applyRovingTabIndex(headers, current);
+        this.fitHeaders(root, headers.filter(isLaidOut), current);
+
+        // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
+        applyRovingTabIndex(headers.filter(header => !header.classList.contains(OverflowedModifier)), current);
 
         for (const page of this.ownPages(root))
             page.hidden = (page.getAttribute(PageAttribute) ?? "") !== selected;
     }
 
+    /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
+    private fitHeaders(root: HTMLElement, headers: readonly HTMLElement[], selected: HTMLElement | null): void {
+        const strip = root.querySelector<HTMLElement>(`:scope > .${StripClass}`);
+        const button = strip?.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`) ?? null;
+
+        if (strip === null || button === null)
+            return;
+
+        // A strip without the "…" list wraps its captions instead: every caption stays on the strip.
+        if (root.classList.contains(NoOverflowModifier)) {
+            for (const header of headers)
+                header.classList.remove(OverflowedModifier);
+
+            root.classList.remove(OverflowingModifier);
+            return;
+        }
+
+        this.resizes?.observe(strip);
+
+        // Shown for the measurement, so a control that was hidden has a width; taken off again when everything fits.
+        root.classList.add(OverflowingModifier);
+
+        const overflowing = fitStrip({
+            captions: headers,
+            selected,
+            width: strip.clientWidth,
+            buttonWidth: button.getBoundingClientRect().width,
+            hiddenClass: OverflowedModifier
+        });
+
+        root.classList.toggle(OverflowingModifier, overflowing);
+
+        if (!overflowing && this.overflow.isOpenFor(root))
+            this.overflow.close();
+    }
+
+    private toggleOverflow(root: HTMLElement, button: HTMLElement): void {
+        if (this.overflow.isOpenFor(root)) {
+            this.overflow.close();
+            return;
+        }
+
+        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
+        const entries = this.ownHeaders(root).filter(isLaidOut).map(header => {
+            const key = header.getAttribute(TabKeyAttribute) ?? "";
+
+            return { key, title: header.textContent?.trim() ?? key, current: key === selected };
+        });
+
+        this.overflow.open(button, root, entries);
+    }
+
     private handleClick(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
+
+        const overflowButton = domEvent.target.closest<HTMLElement>(`.${OverflowButtonClass}`);
+        const overflowRoot = overflowButton?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+
+        if (overflowButton !== null && overflowRoot !== null && overflowButton.closest(`.${RootClass}`) === overflowRoot) {
+            domEvent.preventDefault();
+            this.toggleOverflow(overflowRoot, overflowButton);
+            return;
+        }
 
         const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);
 
@@ -89,8 +166,7 @@ export class TabsEngine {
         const root = header.closest<HTMLElement>(`.${RootClass}`);
         const key = header.getAttribute(TabKeyAttribute);
 
-        // Scoped to the strip that owns it: a tabs component nested inside another's page must not switch the
-        // outer one.
+        // Scoped to the strip that owns it: a nested tabs component must not switch the outer one.
         if (root === null || key === null || header.closest(`.${RootClass}`) !== root)
             return;
 
@@ -99,7 +175,7 @@ export class TabsEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
         const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);
@@ -108,8 +184,7 @@ export class TabsEngine {
         if (header === null || root === null)
             return;
 
-        // A strip runs horizontally, so only the horizontal arrows walk it. Hidden captions are skipped
-        // rather than focused-and-invisible: a hidden page is not reachable.
+        // A strip runs horizontally, so only the horizontal arrows walk it.
         const next = resolveRovingTarget({
             key: domEvent.key,
             items: this.ownHeaders(root),
@@ -122,32 +197,20 @@ export class TabsEngine {
 
         domEvent.preventDefault();
 
-        // A strip selects as the caret moves — that is the pattern, and what makes arrows worth having here
-        // rather than tab-then-Enter.
+        // A strip selects as the caret moves, rather than needing tab-then-Enter.
         this.select(root, next.getAttribute(TabKeyAttribute) ?? "");
         next.focus();
     }
 
     private select(root: HTMLElement, key: string): void {
-        if (key.length === 0 || root.getAttribute(SelectedAttribute) === key)
-            return;
-
-        root.setAttribute(SelectedAttribute, key);
-        this.apply(root);
-
-        // The write-back travels the generic two-way path: the bound element carries the binding attribute and
-        // a "change" is what ValueBindingEngine listens for.
-        if (root.hasAttribute(SelectedKeyBindingAttribute))
-            root.dispatchEvent(new Event("change", { bubbles: true }));
+        writeSelectedKey(root, key, { attribute: TabsSelectedAttribute, bindingAttribute: BindSelectedKeyAttribute, apply: target => this.apply(target) });
     }
 
     private ownHeaders(root: HTMLElement): HTMLElement[] {
-        return [...root.querySelectorAll<HTMLElement>(`.${HeaderClass}`)]
-            .filter(header => header.closest(`.${RootClass}`) === root);
+        return ownDescendants(root, `.${HeaderClass}`, `.${RootClass}`);
     }
 
     private ownPages(root: HTMLElement): HTMLElement[] {
-        return [...root.querySelectorAll<HTMLElement>(`[${PageAttribute}]`)]
-            .filter(page => page.closest(`.${RootClass}`) === root);
+        return ownDescendants(root, `[${PageAttribute}]`, `.${RootClass}`);
     }
 }

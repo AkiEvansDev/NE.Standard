@@ -67,9 +67,7 @@ export function readNumberAttribute(element: Element, name: string): number {
     return Number.isInteger(result) ? result : 0;
 }
 
-// Keys only: every item collection is keyed (docs/PROJECT.md §5), so an element that carries no key
-// introduces no scope. A positional fallback here would send a number the binding model does not accept and
-// would address the wrong item the moment the collection shifts.
+// Keys only: every item collection is keyed, so an element with no key introduces no scope; a positional fallback would misaddress.
 function readDynamicParameter(element: Element): unknown | undefined {
     return element.getAttribute(ComponentKeyAttribute) ?? undefined;
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Services;
@@ -17,12 +18,10 @@ public sealed class UIContext
 {
     private IUIRuntimeAccess? _runtime;
 
-    // The connection the runtime last attached to, and — for the duration of one command — the connection
-    // that actually raised it. They differ only for a runtime shared by several tabs, which is what
-    // UIRuntimeLifetime.Persistent is; everywhere else the invoking handle is the connection handle.
+    // The connection that raised the current command; differs from the attached connection only under UIRuntimeLifetime.PerClient sharing.
     private readonly AsyncLocal<UIHandle?> _invokingHandle = new();
 
-    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, UIRouteDefinition route, UIHandle handle, IUIDialogService dialogs, IUIDownloadService downloads, IUIUploadService uploads)
+    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, IUIContentAddressResolver? content, UIRouteDefinition route, UIHandle handle, IUIDialogService dialogs, IUIDownloadService downloads, IUIUploadService uploads)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(services);
@@ -39,6 +38,8 @@ public sealed class UIContext
         Logger = logger;
         Services = services;
         Translator = translator;
+        if (content is not null)
+            Content = content;
 
         Route = route;
         ConnectionHandle = handle;
@@ -63,6 +64,18 @@ public sealed class UIContext
     public ITranslator Translator { get; }
 
     /// <summary>
+    /// Resolves the address a piece of registered content is served at.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// No platform has registered an <see cref="IUIContentAddressResolver"/>.
+    /// </exception>
+    public IUIContentAddressResolver Content
+    {
+        get => field ?? throw new InvalidOperationException("No platform has registered an IUIContentAddressResolver; the platform's startup registers one.");
+        private init;
+    }
+
+    /// <summary>
     /// Gets synchronized access to the attached runtime.
     /// </summary>
     public IUIRuntimeAccess Runtime
@@ -85,10 +98,12 @@ public sealed class UIContext
     public UIHandle Handle => _invokingHandle.Value ?? ConnectionHandle;
 
     /// <summary>
-    /// Marks the connection a command is running for. Ambient rather than a parameter, because it has to
-    /// reach a controller that never asked for it, and per-flow rather than per-instance, because a
-    /// background command runs beside others on the same runtime.
+    /// Marks the connection a command is running for.
     /// </summary>
+    /// <remarks>
+    /// Ambient because it must reach a controller that never asked for it; per-flow because a background command
+    /// runs beside others on the same runtime.
+    /// </remarks>
     internal IDisposable BeginInvocation(UIHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -130,65 +145,10 @@ public sealed class UIContext
     /// or has expired.
     /// </summary>
     /// <remarks>
-    /// Read from the store rather than from <see cref="UIHandle.Session"/>, which is the snapshot taken when
-    /// this connection attached and does not move until it attaches again.
+    /// Read from the store, not <see cref="UIHandle.Session"/>, a snapshot that does not move until this connection attaches again.
     /// </remarks>
     public ValueTask<UserSessionState?> GetSessionAsync(CancellationToken cancellationToken = default)
         => Sessions.TryGetAsync(Handle.Session.SessionId, cancellationToken);
-
-    /// <summary>
-    /// Marks this session authenticated and gives it its roles and permissions, which is what the route and
-    /// command access checks read.
-    /// </summary>
-    /// <remarks>
-    /// Marks the session for id rotation rather than rotating here: only the shell render can write the cookie
-    /// that carries the id, so a new one issued over this live connection would never reach the browser. The
-    /// rotation therefore happens on the next full page load, which means <b>sign-in must end in a navigation</b>
-    /// — until it does, the old id stays valid. See <c>docs/PLAN.md</c> §6.
-    /// </remarks>
-    public ValueTask SignInAsync(string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null, CancellationToken cancellationToken = default)
-        => UpdateSessionAsync(
-            session => session with
-            {
-                IsAuthenticated = true,
-                UserId = userId ?? session.UserId,
-                Roles = roles ?? session.Roles,
-                Permissions = permissions ?? session.Permissions,
-                PendingIdRotation = true
-            },
-            cancellationToken
-        );
-
-    /// <summary>
-    /// Removes the session. Every later command on this connection is refused, because the access check reads
-    /// the store rather than the snapshot it attached with.
-    /// </summary>
-    public ValueTask SignOutAsync(CancellationToken cancellationToken = default)
-        => Sessions.RemoveAsync(Handle.Session.SessionId, cancellationToken);
-
-    /// <summary>
-    /// Applies a change to the stored session — the way to set language, theme or anything else that has to
-    /// outlive this connection.
-    /// </summary>
-    /// <remarks>
-    /// A no-op when the session is already gone, so signing out twice is not an error.
-    /// </remarks>
-    public async ValueTask UpdateSessionAsync(Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(update);
-
-        IUserSessionStore store = Sessions;
-        UserSessionState? session = await store.TryGetAsync(Handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
-
-        if (session is null)
-            return;
-
-        UserSessionState updated = update(session);
-
-        ArgumentNullException.ThrowIfNull(updated);
-
-        await store.SaveAsync(updated, cancellationToken).ConfigureAwait(false);
-    }
 
     private IUserSessionStore Sessions
         => (IUserSessionStore?)Services.GetService(typeof(IUserSessionStore))
@@ -219,6 +179,55 @@ public sealed class UIContext
         Uploads = uploads;
 
         Validate();
+    }
+
+    /// <summary>
+    /// Marks this session authenticated and gives it its roles and permissions, which is what the route and command access checks read.
+    /// </summary>
+    /// <remarks>
+    /// Only marks the session for id rotation; the actual rotation happens on the next full page load, so sign-in must end in a navigation.
+    /// </remarks>
+    public ValueTask SignInAsync(string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null, CancellationToken cancellationToken = default)
+        => UpdateSessionAsync(
+            session => session with
+            {
+                IsAuthenticated = true,
+                UserId = userId ?? session.UserId,
+                Roles = roles ?? session.Roles,
+                Permissions = permissions ?? session.Permissions,
+                PendingIdRotation = true
+            },
+            cancellationToken
+        );
+
+    /// <summary>
+    /// Removes the session, so every later command on this connection is refused.
+    /// </summary>
+    public ValueTask SignOutAsync(CancellationToken cancellationToken = default)
+        => Sessions.RemoveAsync(Handle.Session.SessionId, cancellationToken);
+
+    /// <summary>
+    /// Applies a change to the stored session — the way to set language, theme or anything else that has to
+    /// outlive this connection.
+    /// </summary>
+    /// <remarks>
+    /// A no-op when the session is already gone, so signing out twice is not an error.
+    /// </remarks>
+    public async ValueTask UpdateSessionAsync(Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+
+        IUserSessionStore store = Sessions;
+        UserSessionState? session = await store.TryGetAsync(Handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
+
+        if (session is null)
+            return;
+
+        UserSessionState updated = update(session);
+
+        ArgumentNullException.ThrowIfNull(updated);
+
+        await store.SaveAsync(updated, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

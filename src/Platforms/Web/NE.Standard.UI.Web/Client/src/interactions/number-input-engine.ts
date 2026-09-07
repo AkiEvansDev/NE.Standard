@@ -14,15 +14,17 @@ const StepDirectionAttribute = "data-ui-number-step-direction";
 
 export type NumberInputEngineOptions = {
     readonly root?: ParentNode;
-    
+
     readonly propertyPatchEngine?: PropertyPatchEngine;
     readonly dom?: DomRegistry;
 };
 
 export class NumberInputEngine {
+    private readonly options: NumberInputEngineOptions;
     private readonly root: ParentNode;
 
-    public constructor(private readonly options: NumberInputEngineOptions = {}) {
+    public constructor(options: NumberInputEngineOptions = {}) {
+        this.options = options;
         this.root = options.root ?? document;
 
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
@@ -30,20 +32,17 @@ export class NumberInputEngine {
         this.root.addEventListener("blur", domEvent => this.handleBlur(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleStepClick(domEvent), true);
 
-        // Formatting has to run at attach and after every server-pushed value, not only on blur — a field
-        // rendered with 1250000 would otherwise stay unseparated until the user had focused and left it.
+        // Formatting runs at attach and after every server-pushed value, not only on blur.
         this.applyDisplayFormatting(this.root.querySelectorAll<HTMLInputElement>(`.${FieldClass}`));
 
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             const componentId = getIdValue(change.reference.componentId);
 
-            for (const component of this.options.dom?.findAllComponents(componentId, change.dynamicParameters) ?? [])
-                this.applyDisplayFormatting(component.querySelectorAll<HTMLInputElement>(`.${FieldClass}`));
+            this.applyDisplayFormatting(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${FieldClass}`) as HTMLInputElement[] ?? []);
         });
     }
 
-    // Grouping only — never the trailing-zero trim, which reports a change back and has no business firing at
-    // attach. Skips the focused field so typing is not fighting inserted separators.
+    // Grouping only, never the trailing-zero trim, which reports a change back; the focused field is skipped.
     private applyDisplayFormatting(inputs: Iterable<HTMLInputElement>): void {
         for (const input of inputs) {
             if (input === document.activeElement || input.hasAttribute(NoThousandsAttribute) || input.value.length === 0)

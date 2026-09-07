@@ -115,8 +115,7 @@ internal static class TypeDeclarationWriter
     }
 
     /// <summary>
-    /// Separates successive members inside a generated type body with a single blank line,
-    /// without leaving a blank line right after the opening brace for the first member.
+    /// Separates successive generated members with a blank line, without one after the opening brace.
     /// </summary>
     public static void AppendMemberSeparator(StringBuilder builder, ref bool hasContent)
     {

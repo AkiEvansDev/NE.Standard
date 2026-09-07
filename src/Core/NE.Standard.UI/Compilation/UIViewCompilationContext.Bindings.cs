@@ -9,6 +9,7 @@ using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Items;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -41,12 +42,10 @@ internal sealed partial class UIViewCompilationContext
 
                 CompiledPath fullPath = definition.Property.Equals(IItemsComponent.ItemsProperty)
                     ? BuildItemsBindingPath(component, sourceBinding.Value, componentContexts, rootPath)
-                    : BuildBindingPath(component, sourceBinding.Value, componentContexts, rootPath, includeSelfContext: true);
+                    : BuildBindingPath(component, sourceBinding.Value, componentContexts, rootPath);
 
-                // An items collection is one binding, not two. It used to be compiled here as an ordinary
-                // property *and* again by the collection pass, and the property copy made the runtime push the
-                // whole collection as a scalar value update — which no renderer registers a property for, so
-                // the client received a value it had no binding metadata for and warned on every attach.
+                // An items collection is one binding, not two — compiling it again as a scalar property would
+                // send a value the client has no binding metadata for.
                 CompiledUIBindingKind kind = definition.Property.Equals(IItemsComponent.ItemsProperty)
                     ? CompiledUIBindingKind.ComponentCollection
                     : CompiledUIBindingKind.ComponentProperty;
@@ -59,7 +58,8 @@ internal sealed partial class UIViewCompilationContext
                     definition.Property,
                     sourceBinding.Value.Mode,
                     fullPath,
-                    definition.ValueType
+                    definition.ValueType,
+                    definition.Getter(component) ?? definition.DefaultValue
                 );
 
                 values.Add(new CompiledUIPropertyValue
@@ -129,24 +129,24 @@ internal sealed partial class UIViewCompilationContext
         return result;
     }
 
-    private CompiledPath BuildBindingPath(IVisualComponent component, UIBinding binding, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath, bool includeSelfContext)
+    private CompiledPath BuildBindingPath(IVisualComponent component, UIBinding binding, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
-        CompiledPath basePath = GetBindingScopeBasePath(component, binding.Scope, componentContexts, rootPath, includeSelfContext);
+        CompiledPath basePath = GetBindingScopeBasePath(component, binding.Scope, componentContexts, rootPath);
         return AppendPath(basePath, binding.Source);
     }
 
-    private CompiledPath BuildBindingPath(IVisualComponent component, UIBindingPath binding, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath, bool includeSelfContext)
+    private CompiledPath BuildBindingPath(IVisualComponent component, UIBindingPath binding, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
-        CompiledPath basePath = GetBindingScopeBasePath(component, binding.Scope, componentContexts, rootPath, includeSelfContext);
+        CompiledPath basePath = GetBindingScopeBasePath(component, binding.Scope, componentContexts, rootPath);
         return AppendPath(basePath, binding.Path);
     }
 
-    private CompiledPath GetBindingScopeBasePath(IVisualComponent component, UIBindingScope scope, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath, bool includeSelfContext)
+    private CompiledPath GetBindingScopeBasePath(IVisualComponent component, UIBindingScope scope, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
         if (scope == UIBindingScope.Root)
             return rootPath;
 
-        IVisualComponent? target = includeSelfContext ? component : TryGetParentComponent(component);
+        IVisualComponent? target = component;
 
         if (scope == UIBindingScope.Parent)
             target = TryGetEnclosingContextComponent(target, componentContexts);
@@ -170,7 +170,7 @@ internal sealed partial class UIViewCompilationContext
     private static bool DefinesOwnContext(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts)
         => componentContexts.TryGetValue(component.Id, out ResolvedComponentContext context) && context.DefinesParameter;
 
-    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null)
+    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null, object? targetFallbackValue = null)
     {
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
@@ -184,7 +184,8 @@ internal sealed partial class UIViewCompilationContext
             Mode = mode,
             Parameters = fullPath.Parameters,
             DynamicParameterComponentIds = GetDynamicParameterComponentIds(fullPath.Parameters),
-            TargetValueType = targetValueType
+            TargetValueType = targetValueType,
+            TargetFallbackValue = targetFallbackValue
         };
 
         bindings.Add(binding);
@@ -193,10 +194,8 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Binds a windowed host's geometry — where its window starts, how much there is, whether either side has
-    /// more — to the source that knows. Synthesized rather than authored: the numbers live on the source, the
-    /// client needs them to draw a scrollbar over items it does not hold, and nobody should have to wire that
-    /// up by hand.
+    /// Synthesizes the binding for a windowed host's window geometry (offset, total count, has-more flags)
+    /// from its items source.
     /// </summary>
     private bool TryBuildWindowGeometryPath(IVisualComponent component, UIProperty property, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath, out CompiledPath path)
     {
@@ -210,7 +209,7 @@ internal sealed partial class UIViewCompilationContext
         if (member is null || !TryGetItemsBinding(itemsComponent, out UIBinding itemsBinding))
             return false;
 
-        CompiledPath sourcePath = BuildBindingPath(component, itemsBinding, componentContexts, rootPath, includeSelfContext: true);
+        CompiledPath sourcePath = BuildBindingPath(component, itemsBinding, componentContexts, rootPath);
 
         path = AppendPath(sourcePath, RecursivePath.Parse(member));
 
@@ -219,16 +218,16 @@ internal sealed partial class UIViewCompilationContext
 
     private static string? ResolveWindowGeometryMember(UIProperty property)
     {
-        if (property.Equals(ISourceItemsComponent.WindowOffsetProperty))
+        if (property.Equals(IItemsHostComponent.WindowOffsetProperty))
             return nameof(UIItemSourceBase.Offset);
 
-        if (property.Equals(ISourceItemsComponent.WindowTotalCountProperty))
+        if (property.Equals(IItemsHostComponent.WindowTotalCountProperty))
             return nameof(UIItemSourceBase.TotalCount);
 
-        if (property.Equals(ISourceItemsComponent.WindowHasMoreBeforeProperty))
+        if (property.Equals(IItemsHostComponent.WindowHasMoreBeforeProperty))
             return nameof(UIItemSourceBase.HasMoreBefore);
 
-        if (property.Equals(ISourceItemsComponent.WindowHasMoreAfterProperty))
+        if (property.Equals(IItemsHostComponent.WindowHasMoreAfterProperty))
             return nameof(UIItemSourceBase.HasMoreAfter);
 
         return null;
@@ -241,33 +240,8 @@ internal sealed partial class UIViewCompilationContext
             _ => value
         };
 
-    private void AddComponentContextBindings(Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, List<CompiledUIBinding> bindings, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
-    {
-        for (var i = 0; i < _componentOrder.Count; i++)
-        {
-            IVisualComponent component = _componentOrder[i];
-
-            if (component.Context is null)
-                continue;
-
-            ResolvedComponentContext baseContext = ResolveBaseComponentContextForExisting(component, componentContexts, rootPath);
-            CompiledPath fullPath = BuildContextPath(component, component.Context.Value, baseContext, componentContexts, rootPath);
-
-            _ = AddBinding(
-                bindings,
-                templatesByKey,
-                CompiledUIBindingKind.ComponentContext,
-                component.Id,
-                new UIProperty(nameof(IBindableComponent.Context)),
-                component.Context.Value.Mode,
-                fullPath
-            );
-        }
-    }
-
     /// <summary>
-    /// Checks that every item collection can be addressed. The binding itself is compiled by
-    /// <see cref="BuildState"/>, which sees the <c>Items</c> property like any other.
+    /// Checks that every item collection can be addressed.
     /// </summary>
     private void ValidateItemCollections(Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
@@ -278,8 +252,6 @@ internal sealed partial class UIViewCompilationContext
             if (component is not IItemsComponent itemsComponent)
                 continue;
 
-            EnsureVirtualizationIsLayableOut(component);
-
             if (!TryGetItemsBinding(itemsComponent, out UIBinding itemsBinding))
             {
                 EnsureWindowedHostBindsASource(component);
@@ -288,19 +260,18 @@ internal sealed partial class UIViewCompilationContext
             }
 
             EnsureWindowedHostHasNoStaticItems(component, itemsComponent);
-            EnsureWindowedSourceIsAnItemSource(component, BuildBindingPath(component, itemsBinding, componentContexts, rootPath, includeSelfContext: true));
+            EnsureWindowedSourceIsAnItemSource(component, BuildBindingPath(component, itemsBinding, componentContexts, rootPath));
             EnsureBoundItemsAreBindable(component, BuildItemsBindingPath(component, itemsBinding, componentContexts, rootPath));
         }
     }
 
     /// <summary>
-    /// The path a component's <c>Items</c> binding compiles to. A windowed host names the <em>source</em>; the
-    /// property holding its realized window is appended here, so an author never writes it and the name cannot
-    /// drift from the type that declares it.
+    /// The path a component's <c>Items</c> binding compiles to; a windowed host also appends the property that
+    /// holds its realized window.
     /// </summary>
     private CompiledPath BuildItemsBindingPath(IVisualComponent component, UIBinding binding, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
-        CompiledPath path = BuildBindingPath(component, binding, componentContexts, rootPath, includeSelfContext: true);
+        CompiledPath path = BuildBindingPath(component, binding, componentContexts, rootPath);
 
         return IsWindowedItemsHost(component)
             ? AppendPath(path, RecursivePath.Parse(UIItemSourceBase.WindowProperty))
@@ -308,7 +279,7 @@ internal sealed partial class UIViewCompilationContext
     }
 
     private static bool IsWindowedItemsHost(IVisualComponent component)
-        => component is ISourceItemsComponent { IsWindowed: true };
+        => component is IItemsHostComponent { HostMode: UIItemsHostMode.Windowed };
 
     private static bool TryGetItemsBinding(IItemsComponent component, out UIBinding binding)
     {

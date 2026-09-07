@@ -34,4 +34,13 @@ public enum UIButtonType
     /// A variant styled as an inline text link.
     /// </summary>
     Link = 5,
+
+    /// <summary>
+    /// A raised surface with no tint of its own — what a row in a list of destinations looks like, and the
+    /// variant <c>ActionComponent</c> starts on.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Ghost"/>, which draws nothing until it is touched.
+    /// </remarks>
+    Surface = 6,
 }

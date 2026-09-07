@@ -21,8 +21,7 @@ internal abstract partial class UIRuntimeBase
     private const string DefaultFormatMessage = "The value does not match the expected format.";
 
     /// <summary>
-    /// Addresses currently showing a refusal, so a value that later parses sends exactly one "clear"
-    /// instead of one on every successful edit of every field. Guarded by <c>_stateLock</c>.
+    /// Addresses currently showing a refusal, so a later valid value sends exactly one "clear". Guarded by <c>_stateLock</c>.
     /// </summary>
     private readonly HashSet<UIPropertyAddress> _rejectedValueAddresses = [];
 
@@ -65,8 +64,7 @@ internal abstract partial class UIRuntimeBase
                 staleWindows = DrainDirtyItemWindowsNoLock();
                 changes = DrainPendingUpdatesForRuntimeModeNoLock(force: false);
 
-                // Appended after the drain so a refusal always travels, whatever the runtime mode decided to
-                // ship — and so one rejected value cannot abandon the rest of the change set.
+                // Appended after the drain so a refusal always travels and one rejected value cannot abandon the rest.
                 if (validationUpdates is not null)
                     changes = AppendUpdates(changes, validationUpdates);
             }
@@ -75,13 +73,11 @@ internal abstract partial class UIRuntimeBase
                 _ = _stateLock.Release();
             }
 
-            // After the lock: a source takes a write through its own asynchronous method, and the rest of the
-            // change set has already been applied by the time it runs.
+            // After the lock: a source write runs through its own asynchronous method, once the rest of the change set has applied.
             if (sourceWrites is not null)
                 changes = AppendUpdates(changes, await ApplySourceWritesAsync(sourceWrites, cancellationToken).ConfigureAwait(false));
 
-            // The client typing in a filter box arrives here, not through a flush: a windowed host whose rules
-            // read what just changed is holding an answer to the previous question.
+            // Arrives here, not through a flush, so a windowed host's reload rules see what just changed.
             changes = await AppendItemWindowReloadsAsync(changes, staleWindows, cancellationToken).ConfigureAwait(false);
 
             return await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
@@ -139,10 +135,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// A value the component's own format cannot read is ordinary invalid input, not a broken update: it is
-    /// left out of the controller and reported back so the field can show why, and the rest of the change
-    /// set still applies. Only a genuinely malformed update — an unwritable binding, an unresolvable
-    /// address — still throws.
+    /// Applies a client value update; a value the format cannot read is rejected, not thrown, while a malformed update still throws.
     /// </summary>
     private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update)
     {
@@ -162,9 +155,7 @@ internal abstract partial class UIRuntimeBase
         if (Controller.TrySetRecursiveValue(resolution.Path, value))
             return ClearRejectionNoLock(update);
 
-        // A path that reads but refuses the value is ordinary invalid input — an emptied numeric field, a
-        // half-typed date — and travels back as a refusal like a format failure, so the rest of the change set
-        // still applies. A path that does not even read is a broken address, and that is still fatal.
+        // A path that reads but refuses the value comes back as a refusal; one that cannot even read is a broken address and still throws.
         if (!Controller.TryGetRecursiveValue(resolution.Path, out _))
             throw new InvalidOperationException($"Binding '{resolution.Binding.Id}' target path '{resolution.Path}' cannot be resolved on the controller.");
 
@@ -172,11 +163,8 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// An input that presents its value as formatted text (see <see cref="IFormattedInputComponent"/>)
-    /// sends back what the user typed, which only means something against that component's own
-    /// format/culture — "03.04.2026" is a different day in two of them. Normalizing here, before the
-    /// generated setter's culture-unaware coercion sees it, is what lets a typed value reach the
-    /// controller as the right one.
+    /// Normalizes a formatted <see cref="IFormattedInputComponent"/> value against its own format/culture
+    /// before the culture-unaware setter coercion sees it.
     /// </summary>
     private UIFormattedValueNormalization NormalizeClientValue(CompiledUIBinding binding, object? value, out object? normalized)
     {
@@ -192,9 +180,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Reads a statically-authored string property off the compiled component. A *bound* format or culture
-    /// is deliberately not followed: it would have to be resolved per update against live controller
-    /// state, and a format that changes under the value it is parsing is not a scenario worth the cost.
+    /// Reads a statically-authored string property off the compiled component; a bound format or culture is not followed.
     /// </summary>
     private string? TryGetComponentText(UIComponentId componentId, UIProperty property)
         => View.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && value is { IsBind: false }

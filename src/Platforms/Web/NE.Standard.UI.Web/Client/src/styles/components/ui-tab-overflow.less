@@ -1,0 +1,51 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/popup.less";
+@import "../mixins/text.less";
+
+// The "…" at the end of a tab strip: hidden until the strip's engine hides captions for want of room, then a square ghost control.
+.ui-tab-overflow {
+    .ui-ellipsis-glyph();
+    display: none;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    min-width: 0;
+    min-height: 0;
+    height: 2rem;
+    padding: 0;
+    color: var(--ui-text-muted);
+}
+
+.ui-tabs--overflowing > .ui-tabs__strip > .ui-tab-overflow,
+.ui-tabs-view--overflowing > .ui-tab-overflow {
+    display: inline-flex;
+}
+
+// The list behind it: every tab, the current one in the caption's weight; above the field popups, like a context menu.
+.ui-tab-overflow__menu {
+    .ui-popup-surface(40);
+    .ui-popup-scroll();
+    display: none;
+    flex-direction: column;
+    min-width: 10rem;
+    max-width: 20rem;
+    padding: @ui-space-1;
+}
+
+.ui-tab-overflow__menu--open {
+    display: flex;
+}
+
+.ui-tab-overflow__entry {
+    justify-content: flex-start;
+    min-height: @ui-list-row-height;
+    padding: @ui-space-1 @ui-space-2;
+    text-align: start;
+    .ui-text-nowrap();
+}
+
+.ui-tab-overflow__entry--current {
+    font-weight: 600;
+}

@@ -20,7 +20,7 @@ public sealed class ShowNotificationEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.ShowNotification;
+    public override string Kind => ClientEffectKinds.ShowNotification;
 
     /// <summary>
     /// Gets the notification message.

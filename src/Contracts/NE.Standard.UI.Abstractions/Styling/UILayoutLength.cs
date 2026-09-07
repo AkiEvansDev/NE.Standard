@@ -23,6 +23,12 @@ public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Val
         => new(UILayoutLengthKind.Absolute, value);
 
     /// <summary>
+    /// The whole of what the parent gives.
+    /// </summary>
+    public static UILayoutLength Fill()
+        => new(UILayoutLengthKind.Fill, -1);
+
+    /// <summary>
     /// Validates the layout length value for its kind.
     /// </summary>
     public void Validate()
@@ -35,6 +41,9 @@ public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Val
             case UILayoutLengthKind.Absolute:
                 ArgumentOutOfRangeException.ThrowIfNegative(Value);
                 break;
+            case UILayoutLengthKind.Fill:
+                ArgumentOutOfRangeException.ThrowIfNotEqual(Value, -1);
+                break;
             default:
                 throw new UnreachableException();
         }
@@ -45,6 +54,7 @@ public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Val
         {
             UILayoutLengthKind.Auto => nameof(UILayoutLengthKind.Auto),
             UILayoutLengthKind.Absolute => Value.ToString(CultureInfo.InvariantCulture),
+            UILayoutLengthKind.Fill => nameof(UILayoutLengthKind.Fill),
             _ => throw new UnreachableException()
         };
 }

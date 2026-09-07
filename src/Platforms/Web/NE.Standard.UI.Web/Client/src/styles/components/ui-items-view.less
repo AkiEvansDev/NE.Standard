@@ -1,8 +1,21 @@
+@import "../core/tokens.less";
+@import "../mixins/placement.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
 
+// Flex column: a block parent's definite height doesn't constrain a self-sizing child, so the scroller couldn't be bounded.
 .ui-items-view {
-
     .ui-responsive-reset(--ui-items-view-spacing);
+    .ui-selected-scope();
+
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-items-view > .ui-items-view__host,
+.ui-items-view > [data-ui-items-host] {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .ui-items-view > template {
@@ -34,49 +47,69 @@
 
 .ui-items-view--wrap > .ui-items-view__host,
 .ui-items-view--wrap > [data-ui-items-host] {
-    display: grid;
-    grid-template-columns: repeat(24, minmax(0, 1fr));
+    .ui-placement-host();
+    // max-content, not auto: rows must be sized after the width is known, or a wrapping row overlaps the next.
+    grid-auto-rows: max-content;
     .ui-responsive-property(gap, --ui-items-view-spacing, 0);
 }
 
+// display: contents drops the wrapper from layout so the template root takes the span; the tier reset stops items inheriting its placement.
 .ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item,
-.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item,
-.ui-items-view--wrap > .ui-items-view__host > [data-ui-id],
-.ui-items-view--wrap > [data-ui-items-host] > [data-ui-id] {
-    --ui-placement-column-span: 24;
+.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item {
+    .ui-responsive-reset-infix(--ui-placement, column-span);
 
+    display: contents;
+}
+
+@ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";
+
+:is(@{ui-wrap-items}) {
     grid-column: span var(--ui-placement-column-span, 24);
     grid-row: auto;
 }
 
-// A windowed host is the scroller, and its content is deliberately taller than the source could ever be —
-// the spacers stand for every item outside the window. Without a bound it would size to that instead of
-// scrolling inside it, which is what the author's height on the view is for.
-.ui-items-view:has(> [data-ui-windowed]),
-.ui-items-view:has(> [data-ui-virtualized]) {
-    display: flex;
-    flex-direction: column;
+@media (min-width: @ui-breakpoint-sm) {
+    :is(@{ui-wrap-items}) {
+        grid-column: span var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24));
+    }
 }
 
-.ui-items-view > [data-ui-windowed],
-.ui-items-view > [data-ui-virtualized] {
-    flex: 1 1 auto;
-    min-height: 0;
+@media (min-width: @ui-breakpoint-md) {
+    :is(@{ui-wrap-items}) {
+        grid-column: span var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24)));
+    }
 }
 
-// A row outside the view is left out of the layout, not out of the DOM: it stays addressable, and every
-// patch aimed at it still lands. See items-virtualization-engine.ts.
-.ui-items-view > [data-ui-virtualized] > [data-ui-offscreen] {
-    // Important for the same reason `.ui-hidden` is: a row's own renderer writes its display inline, and an
-    // inline style beats any selector without it.
-    display: none !important;
+@media (min-width: @ui-breakpoint-xl) {
+    :is(@{ui-wrap-items}) {
+        grid-column: span var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24))));
+    }
 }
 
-// Nothing inside a windowed host may shrink. It is a flex column whose content is deliberately far taller
-// than itself, and flex children shrink by default — which squeezed fifty rows and a spacer standing for
-// ninety-nine thousand into the height of one.
-.ui-items-view > [data-ui-windowed] > *,
-.ui-items-view > [data-ui-virtualized] > * {
+@media (min-width: @ui-breakpoint-xxl) {
+    :is(@{ui-wrap-items}) {
+        grid-column: span var(--ui-placement-xxl-column-span, var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24)))));
+    }
+}
+
+// What stands among the items but is not one spans the row: the empty state, a window's spacers, a bucket's header.
+.ui-items-view--wrap > .ui-items-view__host > [data-ui-empty-placeholder],
+.ui-items-view--wrap > [data-ui-items-host] > [data-ui-empty-placeholder],
+.ui-items-view--wrap > .ui-items-view__host > [data-ui-window-spacer],
+.ui-items-view--wrap > [data-ui-items-host] > [data-ui-window-spacer],
+.ui-items-view--wrap > .ui-items-view__host > [data-ui-group-header],
+.ui-items-view--wrap > [data-ui-items-host] > [data-ui-group-header] {
+    grid-column: 1 / -1;
+}
+
+// The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.
+.ui-items-view > [data-ui-host-mode] {
+    overflow-anchor: none;
+}
+
+// flex-shrink: 0 — the host is a scroller and its content is meant to be bigger than it, not squeezed to fit.
+.ui-items-view--stack > .ui-items-view__host > *,
+.ui-items-view--stack > [data-ui-items-host] > * {
     flex-shrink: 0;
 }
 
@@ -136,9 +169,33 @@
 .ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > .ui-items-view__item,
 .ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > .ui-items-view__item {
     width: 100%;
+    // A row's own inset, so the selected wash and the hover have something to stand in.
+    padding: @ui-space-1 @ui-space-2;
 }
 
 .ui-items-view__item > [data-ui-id] {
     .ui-responsive-property(min-width, --ui-min-width, 0);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
+}
+
+// The row wrapper wears the selected look in a stack; in a wrap it's display: contents, so the look moves to the template root.
+.ui-items-view[data-ui-selection="one"] > [data-ui-items-host] > .ui-items-view__item,
+.ui-items-view[data-ui-selection="many"] > [data-ui-items-host] > .ui-items-view__item {
+    cursor: pointer;
+}
+
+.ui-items-view--row-hover .ui-items-view__item:hover {
+    .ui-row-hover();
+}
+
+.ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected],
+.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id] {
+    .ui-selected-row();
+}
+
+.ui-row-cursor(~".ui-items-view:not(.ui-items-view--wrap)", ~".ui-items-view__item");
+
+// A wrapped item is display: contents, so the keyboard's wash lands on the component it wraps.
+.ui-items-view--wrap:focus-within:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
+    .ui-row-hover();
 }

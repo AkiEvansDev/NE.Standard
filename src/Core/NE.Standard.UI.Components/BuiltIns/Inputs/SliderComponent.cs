@@ -103,14 +103,10 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
 
     private static void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value)
     {
-        if (min.HasValue && max.HasValue && min > max)
-            throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum value cannot be greater than the maximum value.");
+        OrderedRange.Validate(min, max, value, "value");
 
         if (step.HasValue && step.Value <= 0)
             throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
-
-        if (min.HasValue && max.HasValue && value.HasValue && (value.Value < min || value.Value > max))
-            throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be within the defined range.");
     }
 }
 

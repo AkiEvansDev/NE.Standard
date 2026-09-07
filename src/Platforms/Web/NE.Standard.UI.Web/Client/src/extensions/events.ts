@@ -44,6 +44,14 @@ export class EventCatalog {
     }
 }
 
+// Capture: `toggle` does not bubble, so only a capturing listener on an ancestor sees it.
+function attachDetailsState(context: EventAttachContext, open: boolean): void {
+    context.root.addEventListener("toggle", domEvent => {
+        if (domEvent.target instanceof HTMLDetailsElement && domEvent.target.open === open)
+            context.dispatch(domEvent);
+    }, true);
+}
+
 export function registerBuiltInEvents(catalog: EventCatalog): void {
     catalog.registerNative("click");
     catalog.registerNative("change");
@@ -52,10 +60,18 @@ export function registerBuiltInEvents(catalog: EventCatalog): void {
     catalog.registerNative("mouse-enter", "mouseenter");
     catalog.registerNative("mouse-leave", "mouseleave");
     catalog.registerNative("toggle");
-    catalog.registerNative("expand");
-    catalog.registerNative("collapse");
+
+    // `<details>` has one event for both directions, so these two are that event read twice.
+    catalog.register({ name: "expand", domEventName: "toggle", attach: context => attachDetailsState(context, true) });
+    catalog.register({ name: "collapse", domEventName: "toggle", attach: context => attachDetailsState(context, false) });
     catalog.registerNative("open");
     catalog.registerNative("close");
     catalog.registerNative("search");
     catalog.registerNative("rename");
+    // A tree node unfolded before its children are in the list; raised by tree-engine.ts on the row.
+    catalog.registerNative("unfold");
+    // A tree node dropped on another; the node's drop target says where.
+    catalog.registerNative("move");
+    // The Delete key on a tree node.
+    catalog.registerNative("remove");
 }

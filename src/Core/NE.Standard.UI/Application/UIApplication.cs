@@ -17,7 +17,7 @@ namespace NE.Standard.UI.Application;
 /// </summary>
 public sealed class UIApplication
 {
-    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
+    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
     {
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentNullException.ThrowIfNull(persistence);
@@ -41,6 +41,7 @@ public sealed class UIApplication
         Security = security;
         Sessions = sessions;
         Files = files;
+        ContentOrNull = content;
         ViewFilters = viewFilters;
         CommandFilters = commandFilters;
     }
@@ -86,6 +87,18 @@ public sealed class UIApplication
     /// Gets file transfer limits and lifetimes.
     /// </summary>
     public UIFileOptions Files { get; }
+
+    /// <summary>
+    /// Resolves the address a piece of registered content is served at.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// No platform has registered an <see cref="IUIContentAddressResolver"/>.
+    /// </exception>
+    public IUIContentAddressResolver Content
+        => ContentOrNull ?? throw new InvalidOperationException("No platform has registered an IUIContentAddressResolver; the platform's startup registers one.");
+
+    /// <summary>The same resolver, unset rather than thrown, for code that hands it onward without needing it yet.</summary>
+    internal IUIContentAddressResolver? ContentOrNull { get; }
 
     /// <summary>
     /// Gets view filters that run for every route, already ordered.

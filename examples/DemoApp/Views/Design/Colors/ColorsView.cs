@@ -2,16 +2,15 @@ using System;
 using System.Drawing;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Views;
 
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// The full named palette as a full-page swatch grid: one card per <see cref="ColorName"/> with its
-/// hex/rgb values and every Shade/Tint factor as labeled chips — for picking colors.
+/// The full named palette as a swatch grid: one card per <see cref="ColorName"/> with its values and factors.
 /// </summary>
 internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
 {

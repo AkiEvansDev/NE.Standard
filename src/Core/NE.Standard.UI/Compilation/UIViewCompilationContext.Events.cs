@@ -80,26 +80,22 @@ internal sealed partial class UIViewCompilationContext
                 Kind = CompiledUIActionArgumentKind.Literal,
                 Value = argument.Value
             },
-            UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), templatesByKey, componentContexts, rootPath),
-            UIActionArgumentKind.CurrentItemKey => new CompiledUIActionArgument
-            {
-                Name = name,
-                Kind = CompiledUIActionArgumentKind.CurrentItemKey
-            },
-            UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             _ => throw new UnreachableException()
         };
     }
 
-    private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIBindingPath binding, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
+    private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIBindingPath binding, CompiledUIActionArgumentKind kind, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
-        CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath, includeSelfContext: true);
+        CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath);
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
         return new CompiledUIActionArgument
         {
             Name = name,
-            Kind = CompiledUIActionArgumentKind.Binding,
+            Kind = kind,
             SourceId = fullPath.Source.Id,
             TemplateId = template.Id,
             Parameters = fullPath.Parameters,

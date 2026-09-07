@@ -18,7 +18,7 @@ public sealed class OpenDialogEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.OpenDialog;
+    public override string Kind => ClientEffectKinds.OpenDialog;
 
     /// <summary>
     /// Gets the dialog key.

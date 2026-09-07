@@ -25,7 +25,8 @@ internal sealed class UIViewCompilationResult(
     CompiledUIBinding[] bindings,
     CompiledUIInteraction[] interactions,
     CompiledUIEvent[] events,
-    CompiledUIValidationRule[] validations)
+    CompiledUIValidationRule[] validations,
+    string[] warnings)
 {
     public CompiledRegion[] Regions { get; } = regions;
     public CompiledDialog[] Dialogs { get; } = dialogs;
@@ -38,10 +39,14 @@ internal sealed class UIViewCompilationResult(
     public CompiledUIInteraction[] Interactions { get; } = interactions;
     public CompiledUIEvent[] Events { get; } = events;
     public CompiledUIValidationRule[] Validations { get; } = validations;
+    public string[] Warnings { get; } = warnings;
 }
 
 internal sealed partial class UIViewCompilationContext(Type? controllerType = null) : IUIReferenceResolver
 {
+    // What compiled but is not what the author meant; the host logs these, it does not stop for them.
+    private readonly List<string> _warnings = [];
+
     private readonly record struct BindingTemplateKey(UIBindingSourceId SourceId, string Template);
 
     private readonly struct CompiledPath(CompiledUIBindingSource source, RecursivePathTemplate template, CompiledUIBindingParameter[] parameters)
@@ -71,8 +76,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
     private readonly List<CompiledDialog> _dialogs = [];
 
     /// <summary>
-    /// The controller the route pairs this view with, when it has one. A route owns exactly one controller
-    /// type and its compiled view is cached per route, so the pairing is stable for the life of the compile.
+    /// The controller the route pairs this view with, when it has one.
     /// </summary>
     private readonly Type? _controllerType = controllerType;
 
@@ -113,6 +117,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             Key = dialog.Key,
             RootComponentId = GetComponentId(dialog.Content.Id),
             Surface = dialog.Surface,
+            Placement = dialog.Placement,
             Modal = dialog.Modal,
             CloseOnBackdrop = dialog.CloseOnBackdrop,
             CloseOnEscape = dialog.CloseOnEscape
@@ -142,8 +147,8 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         UIComponentNode[] nodes = BuildNodes(componentContexts);
         UIComponentState[] states = BuildStates(templatesByKey, bindings, componentContexts, rootPath);
 
-        AddComponentContextBindings(templatesByKey, bindings, componentContexts, rootPath);
         ValidateItemCollections(componentContexts, rootPath);
+        ValidateSelectionBindings();
 
         CompiledUIInteraction[] interactions = BuildInteractions();
         CompiledUIEvent[] events = BuildEvents(templatesByKey, componentContexts, rootPath);
@@ -160,7 +165,8 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             [.. bindings],
             interactions,
             events,
-            validations
+            validations,
+            [.. _warnings]
         );
     }
 

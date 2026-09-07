@@ -1,21 +1,54 @@
+// Written out per rule rather than interpolated: Less appends ::-webkit-scrollbar only to the last selector of an interpolated list.
 html,
-[data-ui-scroll] {
+.ui-scroll,
+.ui-items-view__host,
+.ui-select__popup,
+.ui-flyout__content,
+.ui-context-menu,
+.ui-menu__submenu[data-ui-menu-flyout],
+.ui-color-input__popup,
+.ui-temporal-input__popup,
+.ui-dialog {
     scrollbar-color: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent) transparent;
 }
 
     html::-webkit-scrollbar,
-    [data-ui-scroll]::-webkit-scrollbar {
+    .ui-scroll::-webkit-scrollbar,
+    .ui-items-view__host::-webkit-scrollbar,
+    .ui-select__popup::-webkit-scrollbar,
+    .ui-flyout__content::-webkit-scrollbar,
+    .ui-context-menu::-webkit-scrollbar,
+    .ui-menu__submenu[data-ui-menu-flyout]::-webkit-scrollbar,
+    .ui-color-input__popup::-webkit-scrollbar,
+    .ui-temporal-input__popup::-webkit-scrollbar,
+    .ui-dialog::-webkit-scrollbar {
         width: 12px;
         height: 12px;
     }
 
     html::-webkit-scrollbar-track,
-    [data-ui-scroll]::-webkit-scrollbar-track {
+    .ui-scroll::-webkit-scrollbar-track,
+    .ui-items-view__host::-webkit-scrollbar-track,
+    .ui-select__popup::-webkit-scrollbar-track,
+    .ui-flyout__content::-webkit-scrollbar-track,
+    .ui-context-menu::-webkit-scrollbar-track,
+    .ui-menu__submenu[data-ui-menu-flyout]::-webkit-scrollbar-track,
+    .ui-color-input__popup::-webkit-scrollbar-track,
+    .ui-temporal-input__popup::-webkit-scrollbar-track,
+    .ui-dialog::-webkit-scrollbar-track {
         background: transparent;
     }
 
     html::-webkit-scrollbar-thumb,
-    [data-ui-scroll]::-webkit-scrollbar-thumb {
+    .ui-scroll::-webkit-scrollbar-thumb,
+    .ui-items-view__host::-webkit-scrollbar-thumb,
+    .ui-select__popup::-webkit-scrollbar-thumb,
+    .ui-flyout__content::-webkit-scrollbar-thumb,
+    .ui-context-menu::-webkit-scrollbar-thumb,
+    .ui-menu__submenu[data-ui-menu-flyout]::-webkit-scrollbar-thumb,
+    .ui-color-input__popup::-webkit-scrollbar-thumb,
+    .ui-temporal-input__popup::-webkit-scrollbar-thumb,
+    .ui-dialog::-webkit-scrollbar-thumb {
         background: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
         border: 4px solid transparent;
         border-radius: 999px;
@@ -23,7 +56,15 @@ html,
     }
 
         html::-webkit-scrollbar-thumb:hover,
-        [data-ui-scroll]::-webkit-scrollbar-thumb:hover {
+        .ui-scroll::-webkit-scrollbar-thumb:hover,
+        .ui-items-view__host::-webkit-scrollbar-thumb:hover,
+        .ui-select__popup::-webkit-scrollbar-thumb:hover,
+        .ui-flyout__content::-webkit-scrollbar-thumb:hover,
+        .ui-context-menu::-webkit-scrollbar-thumb:hover,
+        .ui-menu__submenu[data-ui-menu-flyout]::-webkit-scrollbar-thumb:hover,
+        .ui-color-input__popup::-webkit-scrollbar-thumb:hover,
+        .ui-temporal-input__popup::-webkit-scrollbar-thumb:hover,
+        .ui-dialog::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--ui-color-on-surface) 38%, transparent);
             border: 4px solid transparent;
             background-clip: content-box;

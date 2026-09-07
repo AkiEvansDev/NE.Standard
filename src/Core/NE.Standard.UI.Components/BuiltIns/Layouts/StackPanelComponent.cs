@@ -9,11 +9,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A layout container that stacks its children along a single axis with configurable spacing and wrapping.
 /// </summary>
-public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id)
+[UIComponentPropertyBlock(typeof(IOverflowComponent))]
+public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent
     where T : StackPanelComponent<T>, IUIComponentDefinition
 {
-    // A field, not a literal in [UIComponentProperty]: an attribute argument cannot be a UIResponsive<double>,
-    // so the generator takes it by DefaultValueMember instead.
+    // A field, not an attribute literal: an attribute argument cannot be a UIResponsive<double>.
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
 
     /// <summary>

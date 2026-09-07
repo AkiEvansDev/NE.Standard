@@ -26,7 +26,7 @@ public abstract partial class SeparatorComponent<T>(string? id = null) : VisualC
     public string? Label { get; set; }
 
     /// <summary>
-    /// Gets or sets the separator line's color.
+    /// Gets or sets the line's colour; unset leaves the stylesheet's own line colour.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIThemeColor? Color { get; set; }

@@ -9,6 +9,13 @@ namespace NE.Standard.UI.Runtime;
 internal abstract partial class UIRuntimeBase
 {
     /// <inheritdoc />
+    public bool HasPendingWork
+        => Controller.HasPendingChanges
+            || _pendingUpdates.Count > 0
+            || _dirtyItemWindows is { Count: > 0 }
+            || Interlocked.CompareExchange(ref _fullResyncRequested, 0, 0) == 1;
+
+    /// <inheritdoc />
     public Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

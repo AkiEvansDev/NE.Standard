@@ -51,6 +51,19 @@ internal sealed class UIRouteRegistry : IUIRouteRegistry
         return TryGet(uri.IsAbsoluteUri ? uri.AbsolutePath : uri.OriginalString, out route);
     }
 
+    /// <inheritdoc />
+    public bool TryGet(string uri, [NotNullWhen(true)] out UIRouteDefinition? route)
+    {
+        if (!TryGetEntry(uri, out UIRouteEntry? entry))
+        {
+            route = null;
+            return false;
+        }
+
+        route = entry.Definition;
+        return true;
+    }
+
     internal bool TryGetEntry(string uri, [NotNullWhen(true)] out UIRouteEntry? entry)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(uri);
@@ -63,18 +76,5 @@ internal sealed class UIRouteRegistry : IUIRouteRegistry
         return TryGetEntry(uri, out UIRouteEntry? entry)
             ? entry
             : throw new UIRouteNotFoundException(uri);
-    }
-
-    /// <inheritdoc />
-    public bool TryGet(string uri, [NotNullWhen(true)] out UIRouteDefinition? route)
-    {
-        if (!TryGetEntry(uri, out UIRouteEntry? entry))
-        {
-            route = null;
-            return false;
-        }
-
-        route = entry.Definition;
-        return true;
     }
 }

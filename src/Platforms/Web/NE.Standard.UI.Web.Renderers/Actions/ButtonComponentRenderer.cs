@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
@@ -18,6 +17,6 @@ public sealed class ButtonComponentRenderer : ButtonRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderButtonChrome(context, root);
-        RenderRegion(context, root, RegionNames.Content);
+        RenderButtonLabel(context, root);
     }
 }

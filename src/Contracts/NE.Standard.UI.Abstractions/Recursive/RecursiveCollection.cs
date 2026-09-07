@@ -288,8 +288,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         if (item is not IBindableItem bindableItem)
             throw new InvalidOperationException($"Item type '{typeof(T).Name}' does not support key lookup.");
 
-        // Names the item type and the way out: a missing id surfaces deep inside Add, where nothing in the
-        // message would otherwise point at the model the author forgot to give an id to.
+        // Names the type so a missing id points back to the model, not just to wherever inside Add it surfaced.
         return string.IsNullOrWhiteSpace(bindableItem.Id)
             ? throw new InvalidOperationException(
                 $"Item of type '{item.GetType().Name}' has no id. Every item in a recursive collection needs a stable " +

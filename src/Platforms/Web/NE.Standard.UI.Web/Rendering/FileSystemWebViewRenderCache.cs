@@ -31,14 +31,30 @@ internal sealed class FileSystemWebViewRenderCache : IWebViewRenderCache
             : options.Value.DirectoryPath;
     }
 
+    /// <summary>
+    /// Empties the cache directory, keeping the directory itself, to avoid the Windows race of deleting and recreating it.
+    /// </summary>
     public ValueTask ClearAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (Directory.Exists(_directoryPath))
-            Directory.Delete(_directoryPath, recursive: true);
+        DirectoryInfo directory = new(_directoryPath);
 
-        _ = Directory.CreateDirectory(_directoryPath);
+        if (!directory.Exists)
+        {
+            _ = Directory.CreateDirectory(_directoryPath);
+            return ValueTask.CompletedTask;
+        }
+
+        foreach (FileSystemInfo entry in directory.EnumerateFileSystemInfos())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (entry is DirectoryInfo subdirectory)
+                subdirectory.Delete(recursive: true);
+            else
+                entry.Delete();
+        }
 
         return ValueTask.CompletedTask;
     }
@@ -70,6 +86,9 @@ internal sealed class FileSystemWebViewRenderCache : IWebViewRenderCache
         return render;
     }
 
+    /// <summary>
+    /// Writes a render into the cache; each of the three files is written atomically, but the set as a whole is not.
+    /// </summary>
     public async ValueTask SetRenderAsync(string key, WebCachedViewRender render, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -196,8 +215,7 @@ internal sealed class FileSystemWebViewRenderCache : IWebViewRenderCache
         }
         catch
         {
-            // The write is driven by the HTTP request's own abort token, so a user navigating away mid-render
-            // would otherwise leave a half-written temp file that nothing ever sweeps.
+            // Navigating away mid-render aborts the write; without this, the half-written temp file would never be swept.
             TryDeleteTempFile(tempPath);
             throw;
         }

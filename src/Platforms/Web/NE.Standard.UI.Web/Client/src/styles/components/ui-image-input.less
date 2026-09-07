@@ -1,0 +1,359 @@
+@import "../core/tokens.less";
+@import "../mixins/field.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
+@import "../mixins/responsive.less";
+
+// A picture the viewer replaces (image-input-engine.ts): one button is the whole surface — the picture, the glyph shown without
+// one, the pencil that darkens it under the pointer — in one of three shapes the root's modifier names.
+.ui-image-input {
+    display: flex;
+    flex-direction: column;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    gap: @ui-space-1;
+    font: inherit;
+}
+
+    .ui-image-input.ui-disabled {
+        .ui-disabled-state();
+    }
+
+.ui-image-input__native {
+    .ui-visually-hidden();
+}
+
+// The surface: a field's ground and, with no picture, a dashed edge saying something may be dropped here.
+.ui-image-input__surface {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+    .ui-field-ground();
+    // Dashed in a colour that reads on the fill, not the fill's own: under the filled appearance the field's edge is its fill, and
+    // a dashed edge nobody can see says nothing.
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
+    color: var(--ui-text-muted);
+    font: inherit;
+    cursor: pointer;
+    .ui-interactive-base();
+}
+
+    // Read-only keeps the surface in the tab order and takes away the pointer's cues; the engine refuses the press itself.
+    .ui-image-input[data-ui-image-readonly] > .ui-image-input__surface {
+        cursor: default;
+    }
+
+    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:hover {
+        background: var(--ui-field-hover);
+    }
+
+    // Over the picture: the dashed edge is for an empty area, a picture has its own and the edge goes back to the fill's.
+    .ui-image-input__surface:has(> .ui-image-input__picture[src]) {
+        border-style: solid;
+        border-color: var(--ui-field-rest);
+    }
+
+    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:has(> .ui-image-input__picture[src]):hover {
+        border-color: var(--ui-field-hover);
+    }
+
+// A file dragged over the surface: the edge goes primary, whatever the surface holds.
+.ui-image-input[data-ui-image-dragging] > .ui-image-input__surface {
+    border-style: dashed;
+    border-color: var(--ui-color-primary);
+}
+
+.ui-image-input__picture {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+}
+
+    // Fit is on the picture, not on a component root: the class's own size chain would read the root's Width, so the box is restated.
+    .ui-image-input__picture.ui-image-fit--fill,
+    .ui-image-input__picture.ui-image-fit--contain,
+    .ui-image-input__picture.ui-image-fit--cover,
+    .ui-image-input__picture.ui-image-fit--none {
+        width: 100%;
+        height: 100%;
+    }
+
+    .ui-image-input__picture:not([src]) {
+        display: none;
+    }
+
+// The stand-in: the shape's own drawn glyph until an icon is named on the root, which the icon then replaces.
+.ui-image-input__placeholder {
+    display: none;
+    width: 2rem;
+    height: 2rem;
+    font-size: 2rem;
+}
+
+    .ui-image-input__surface:not(:has(> .ui-image-input__picture[src])) > .ui-image-input__placeholder {
+        display: block;
+    }
+
+    // .ui-icon draws its glyph only on a component root; the placeholder is nested, so it says so itself.
+    .ui-image-input__placeholder::before {
+        display: block;
+    }
+
+    .ui-image-input:not([data-ui-icon]) .ui-image-input__placeholder::before {
+        content: "";
+        display: block;
+        width: 100%;
+        height: 100%;
+        .ui-picture-glyph();
+    }
+
+    .ui-image-input--avatar:not([data-ui-icon]) .ui-image-input__placeholder::before {
+        .ui-person-glyph();
+    }
+
+// The pencil: a veil over the picture, shown under the pointer and to the keyboard, never over an empty surface.
+.ui-image-input__edit {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, black 45%, transparent);
+    color: white;
+    opacity: 0;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+    pointer-events: none;
+}
+
+    .ui-image-input__edit::before {
+        content: "";
+        width: 1.5rem;
+        height: 1.5rem;
+        .ui-pencil-glyph();
+    }
+
+    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:has(> .ui-image-input__picture[src]):is(:hover, :focus-visible) > .ui-image-input__edit {
+        opacity: 1;
+    }
+
+// The inline row's text and pick control exist only in that shape.
+.ui-image-input__text,
+.ui-image-input__pick {
+    display: none;
+}
+
+// A picture: as wide as its column, a drop area's height on its own, and what the root's Height leaves under the caption when one is set.
+.ui-image-input--picture > .ui-image-input__surface {
+    flex: 1 1 12rem;
+    min-height: 0;
+    .ui-responsive-property(width, --ui-width, 100%);
+    border-radius: var(--ui-radius-input);
+}
+
+// An avatar: a small circle, replaced in place.
+.ui-image-input--avatar > .ui-image-input__surface {
+    .ui-responsive-property(width, --ui-width, 4rem);
+    .ui-responsive-property(height, --ui-height, 4rem);
+    border-radius: 50%;
+    border-style: solid;
+}
+
+    .ui-image-input--avatar .ui-image-input__placeholder {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 1.75rem;
+    }
+
+    .ui-image-input--avatar .ui-image-input__edit::before {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+// An inline row: the file input's shape, with a thumbnail where its icon would be.
+.ui-image-input--inline > .ui-image-input__surface {
+    .ui-input-field();
+    justify-content: flex-start;
+    padding: 0 0 0 @ui-space-3;
+    gap: @ui-space-2;
+    overflow: hidden;
+    text-align: start;
+}
+
+    .ui-image-input--inline .ui-image-input__picture {
+        position: static;
+        flex: 0 0 auto;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 4px;
+    }
+
+    .ui-image-input--inline .ui-image-input__placeholder {
+        flex: 0 0 auto;
+        width: 1.25rem;
+        height: 1.25rem;
+        font-size: 1.25rem;
+    }
+
+    .ui-image-input--inline .ui-image-input__text {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--ui-color-on-surface);
+    }
+
+    // With no picture the row reads its placeholder, which the renderer put on the text as an attribute.
+    .ui-image-input--inline > .ui-image-input__surface:not(:has(> .ui-image-input__picture[src])) > .ui-image-input__text:empty::before {
+        content: attr(data-ui-image-placeholder);
+        color: var(--ui-text-muted);
+    }
+
+    .ui-image-input--inline .ui-image-input__edit {
+        display: none;
+    }
+
+    .ui-image-input--inline .ui-image-input__pick {
+        .ui-field-pick();
+    }
+
+    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:hover > .ui-image-input__pick {
+        color: var(--ui-color-on-surface);
+    }
+
+// Several pictures at once (Multiple, image-input-engine.ts): the surface is a shelf — a square per picture chosen and a dashed square
+// that picks more — rather than one button; a square under the pointer darkens behind the cross that takes it away.
+.ui-image-input--multiple > .ui-image-input__surface {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: @ui-space-2;
+    min-height: 0;
+    padding: @ui-space-2;
+    overflow: visible;
+    cursor: default;
+}
+
+    // The shelf itself does not lift under the pointer: its squares do.
+    .ui-image-input--multiple:not([data-ui-image-readonly]) > .ui-image-input__surface:hover {
+        background: var(--ui-field-rest);
+    }
+
+    .ui-image-input--multiple[data-ui-image-dragging] > .ui-image-input__surface {
+        border-color: var(--ui-color-primary);
+    }
+
+.ui-image-input__tiles {
+    display: contents;
+}
+
+.ui-image-input__tile,
+.ui-image-input__add {
+    position: relative;
+    flex: 0 0 auto;
+    width: 5rem;
+    height: 5rem;
+    border-radius: var(--ui-radius-input);
+    overflow: hidden;
+}
+
+    .ui-image-input__tile > img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+// The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.
+.ui-image-input__remove {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: color-mix(in srgb, black 45%, transparent);
+    color: white;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+    .ui-cross-glyph(1rem);
+}
+
+    .ui-image-input__tile:is(:hover, :focus-within) > .ui-image-input__remove {
+        opacity: 1;
+    }
+
+    .ui-image-input[data-ui-image-readonly] .ui-image-input__remove,
+    .ui-image-input.ui-disabled .ui-image-input__remove {
+        display: none;
+    }
+
+// While the picture is on its way: the veil stays down and a ring turns over the square.
+.ui-image-input__tile.ui-loading > .ui-image-input__remove {
+    display: none;
+}
+
+    .ui-image-input__tile.ui-loading::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        font-size: 1.5rem;
+        color: white;
+        .ui-loading-ring();
+    }
+
+// The square that picks more: the empty surface's dashed edge and glyph, at a square's size.
+.ui-image-input__add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: var(--ui-border-width, 1.5px) dashed color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
+    background: none;
+    color: var(--ui-text-muted);
+    font: inherit;
+    cursor: pointer;
+    .ui-interactive-base();
+    transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-image-input:not([data-ui-image-readonly]) .ui-image-input__add:hover {
+        background: var(--ui-field-hover);
+        color: var(--ui-color-on-surface);
+    }
+
+    .ui-image-input[data-ui-image-readonly] .ui-image-input__add {
+        cursor: default;
+    }
+
+    .ui-image-input__add > .ui-image-input__placeholder {
+        display: block;
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 1.75rem;
+    }
+
+// The shelf's words, beside the picking square while there is nothing on the shelf.
+.ui-image-input--multiple .ui-image-input__text {
+    display: block;
+    align-self: center;
+    color: var(--ui-text-muted);
+}
+
+    .ui-image-input--multiple .ui-image-input__text:empty::before {
+        content: attr(data-ui-image-placeholder);
+    }
+
+    .ui-image-input--multiple > .ui-image-input__surface:has(> .ui-image-input__tiles > .ui-image-input__tile) > .ui-image-input__text {
+        display: none;
+    }

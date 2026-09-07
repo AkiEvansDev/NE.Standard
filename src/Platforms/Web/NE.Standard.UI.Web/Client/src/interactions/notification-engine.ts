@@ -1,4 +1,5 @@
 import { toColorToken } from "../rendering/web-dom-converters";
+import { clientStrings } from "../runtime/client-strings";
 
 const HostClass = "ui-notification-host";
 const NotificationClass = "ui-notification";
@@ -53,7 +54,7 @@ export class NotificationEngine {
 
         close.type = "button";
         close.className = CloseClass;
-        close.setAttribute("aria-label", "Close");
+        close.setAttribute("aria-label", clientStrings.text("ui.notification.close"));
         close.textContent = "×";
         close.addEventListener("click", () => this.dismiss(element));
 
@@ -80,8 +81,7 @@ export class NotificationEngine {
         window.setTimeout(() => {
             element.remove();
 
-            // A toast has no authored component and so no compiled node to render into the shell: the host is
-            // built on demand and removed once empty, rather than sitting in the page permanently.
+            // The host is built on demand and removed once empty, rather than sitting in the page permanently.
             if (this.host !== null && this.host.childElementCount === 0) {
                 this.host.remove();
                 this.host = null;

@@ -42,7 +42,7 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
     /// Creates an unauthenticated user session context, deriving its session id from
     /// <paramref name="initData"/>.
     /// </summary>
-    protected static UserSessionContext Anonymous(UserSessionInitData initData, string language = "en", UIThemeMode themeMode = UIThemeMode.Auto)
+    protected static UserSessionContext Anonymous(UserSessionInitData initData, string language = "en", UIThemeMode? themeMode = null)
     {
         ArgumentNullException.ThrowIfNull(initData);
 
@@ -53,7 +53,7 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
     /// Creates an authenticated user session context, deriving its session id from
     /// <paramref name="initData"/>.
     /// </summary>
-    protected static UserSessionContext Authenticated(UserSessionInitData initData, string language = "en", UIThemeMode themeMode = UIThemeMode.Auto, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
+    protected static UserSessionContext Authenticated(UserSessionInitData initData, string language = "en", UIThemeMode? themeMode = null, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
     {
         ArgumentNullException.ThrowIfNull(initData);
 
@@ -64,9 +64,7 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
     /// Resolves the session id from the one the client presented, the connection id, or a generated value.
     /// </summary>
     /// <remarks>
-    /// Deliberately never derived from <c>Credential</c>. That used to be the first choice, and with the web
-    /// layer filling it with a literal it gave every visitor the same session id — which then went into the
-    /// runtime key.
+    /// Deliberately never derived from <c>Credential</c>: it doesn't vary per visitor and would collapse every session onto one id.
     /// </remarks>
     protected static string ResolveSessionId(UserSessionInitData initData)
     {

@@ -2,6 +2,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -11,32 +12,27 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A dropdown input that lets the user select a single option from a bound list.
 /// </summary>
-/// <remarks>
-/// The option collection, item template and default templates live on
-/// <see cref="OptionsInputComponentBase{TComponent, TItem}"/>; what is added here is the dropdown's own
-/// surface — a trigger that needs a placeholder when nothing is chosen, and a popup whose selection can be
-/// cleared. <c>RadioGroupComponent</c> shares the former and has neither of the latter.
-/// </remarks>
-public abstract partial class SelectComponent<T, TItem>(string? id = null) : OptionsInputComponentBase<T, TItem>(id), IAffixedInputComponent
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+public abstract partial class SelectComponent<T, TItem> : OptionsInputComponentBase<T, TItem>, IAffixedInputComponent, IPlaceholderInputComponent
     where T : SelectComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
     /// <summary>
-    /// Gets or sets whether the selection can be cleared to no value.
+    /// Gets or sets whether the button that clears the selection is shown.
     /// </summary>
-    /// <remarks>
-    /// Unbindable, same shape as <c>TextInputComponent.ShowClearButton</c>: it decides whether the clear
-    /// element is emitted at all. See <c>docs/PROJECT.md</c> §7.
-    /// </remarks>
-    [UIComponentProperty(DefaultValue = false, IsBindable = false, GenerateBinder = false)]
-    public bool? AllowEmptySelection { get; set; }
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? ShowClearButton { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the field draws the mark that says it opens a list.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = true)]
+    public bool? ShowChevron { get; set; }
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = UIInputAppearance.Filled)]
     public UIInputAppearance? Appearance { get; set; }
 
-    // Declared here rather than inherited, for the reason Appearance is: a select sits on the options branch,
-    // which has no ancestor in common with AffixedInputComponentBase below VisualComponentBase.
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IAffixedInputComponent), DefaultValue = null)]
     public string? PrefixIcon { get; set; }
@@ -45,18 +41,27 @@ public abstract partial class SelectComponent<T, TItem>(string? id = null) : Opt
     [UIComponentProperty(Contract = typeof(IAffixedInputComponent), DefaultValue = null)]
     public string? SuffixIcon { get; set; }
 
-    /// <summary>
-    /// Gets or sets the placeholder text shown when no option is selected.
-    /// </summary>
+    /// <inheritdoc/>
     [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
     public string? Placeholder { get; set; }
 
     /// <summary>
-    /// Allows the selection to be cleared to no value.
+    /// Initializes the input with the default item, empty and group templates.
     /// </summary>
-    public T SetAllowEmptySelection()
-        => SetAllowEmptySelection(true);
+    protected SelectComponent(string? id = null) : base(id)
+    {
+        // Content, not Title: an option is a list row, so its glyph stands for both lines.
+        _ = SetTemplate(new DefaultTextTemplate(binds: true).SetIconAlignment(UITextIconAlignment.Content));
+        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+    }
+
+    /// <summary>
+    /// Shows the button that clears the selection.
+    /// </summary>
+    public T SetShowClearButton()
+        => SetShowClearButton(true);
 }
 
 /// <summary>

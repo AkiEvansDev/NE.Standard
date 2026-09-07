@@ -14,11 +14,19 @@ export type UIConnectionState =
     | "Reconnecting";
 
 export class SignalRTransport {
+    private readonly windowId: string;
     private readonly connection: HubConnection;
     private started = false;
     private currentState: UIConnectionState = "Disconnected";
 
-    public constructor(private readonly tabId: string, options: SignalRTransportOptions = {}) {
+    // A hydrated page is clickable before the connection opens, so every call but the attach waits behind this.
+    private attached: Promise<void>;
+    private markAttached: () => void = () => { };
+
+    public constructor(windowId: string, options: SignalRTransportOptions = {}) {
+        this.windowId = windowId;
+        this.attached = this.createAttachGate();
+
         this.connection = new HubConnectionBuilder()
             .withUrl(options.hubUrl ?? "/_ui/hub")
             .withAutomaticReconnect([...(options.reconnectDelays ?? [0, 1000, 3000, 10000, 30000])])
@@ -38,8 +46,7 @@ export class SignalRTransport {
         this.connection.on("ui.changes", (payload: unknown) => handler(payload as ServerChangeSet));
     }
 
-    // Only server-initiated effects arrive this way (a background command, a scheduled task, a service
-    // pushing mid-command). A client-invoked command gets its effects back on the invoke itself.
+    // Only server-initiated effects arrive this way; a client-invoked command gets its effects on the invoke.
     public onCommandResult(handler: (result: UICommandExecutionResult) => void): void {
         this.connection.on("ui.commandResult", (payload: unknown) => handler(payload as UICommandExecutionResult));
     }
@@ -47,6 +54,10 @@ export class SignalRTransport {
     public onReconnecting(handler: (error?: Error) => void): void {
         this.connection.onreconnecting((error?: Error) => {
             this.currentState = "Reconnecting";
+
+            // Nothing may be sent until the runtime re-attaches: the new connection is attached to nothing.
+            this.attached = this.createAttachGate();
+
             handler(error);
         });
     }
@@ -80,7 +91,7 @@ export class SignalRTransport {
 
             logDebug("SignalR connected.", {
                 connectionId: this.connection.connectionId,
-                tabId: this.tabId
+                windowId: this.windowId
             });
         }
         catch (error) {
@@ -101,7 +112,11 @@ export class SignalRTransport {
     }
 
     public async attachAsync(request: WebUIAttachRequest): Promise<WebUIAttachResult> {
-        return await this.invokeAsync<WebUIAttachResult>("AttachAsync", request);
+        const result = await this.invokeCoreAsync<WebUIAttachResult>("AttachAsync", request);
+
+        this.markAttached();
+
+        return result;
     }
 
     public async processEventAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
@@ -112,23 +127,33 @@ export class SignalRTransport {
         return await this.invokeAsync<ServerChangeSet>("ProcessChangeSetAsync", request);
     }
 
+    /** Tells the session which theme the client is now in. */
+    public async setThemeAsync(theme: string): Promise<void> {
+        await this.invokeAsync<void>("SetThemeAsync", { theme });
+    }
+
     public async requestItemWindowAsync(request: WebUIItemWindowRequest): Promise<ServerChangeSet> {
         return await this.invokeAsync<ServerChangeSet>("RequestItemWindowAsync", request);
     }
 
     private async invokeAsync<TResult>(methodName: string, ...args: unknown[]): Promise<TResult> {
+        await this.attached;
+
+        return await this.invokeCoreAsync<TResult>(methodName, ...args);
+    }
+
+    // Rethrown without a log of its own: every caller already logs the failure in its own words, and a bare rethrow here
+    // would otherwise say the same thing about it twice.
+    private async invokeCoreAsync<TResult>(methodName: string, ...args: unknown[]): Promise<TResult> {
         await this.ensureConnectedAsync();
 
-        try {
-            return await this.connection.invoke<TResult>(methodName, ...args);
-        }
-        catch (error) {
-            logError("SignalR invocation failed.", {
-                methodName,
-                error
-            });
-            throw error;
-        }
+        return await this.connection.invoke<TResult>(methodName, ...args);
+    }
+
+    private createAttachGate(): Promise<void> {
+        return new Promise<void>(resolve => {
+            this.markAttached = resolve;
+        });
     }
 
     private async ensureConnectedAsync(): Promise<void> {

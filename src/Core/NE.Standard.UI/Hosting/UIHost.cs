@@ -1,9 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,26 +49,35 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "UI view resolution exception handler failed for route '{Route}'.")]
         public static partial void ViewResolutionExceptionHandlerFailed(ILogger logger, Exception exception, string route);
 
-        [LoggerMessage(EventId = 3, Level = LogLevel.Debug, Message = "Attaching UI runtime for route '{Route}', session '{SessionId}', tab '{ClientTabId}', instance '{InstanceId}'.")]
-        public static partial void AttachingRuntime(ILogger logger, string route, string sessionId, string clientTabId, string instanceId);
+        [LoggerMessage(EventId = 3, Level = LogLevel.Debug, Message = "Attaching UI runtime for route '{Route}', session '{SessionId}', tab '{ClientWindowId}', instance '{InstanceId}'.")]
+        public static partial void AttachingRuntime(ILogger logger, string route, string sessionId, string clientWindowId, string instanceId);
 
-        [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Created UI runtime for route '{Route}', tab '{ClientTabId}', instance '{InstanceId}', active instances '{ActiveInstances}'.")]
-        public static partial void CreatedRuntime(ILogger logger, string route, string clientTabId, string instanceId, int activeInstances);
+        [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Created UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', active instances '{ActiveInstances}'.")]
+        public static partial void CreatedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, int activeInstances);
 
-        [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Reused UI runtime for route '{Route}', tab '{ClientTabId}', instance '{InstanceId}', attached '{Attached}', active instances '{ActiveInstances}'.")]
-        public static partial void ReusedRuntime(ILogger logger, string route, string clientTabId, string instanceId, bool attached, int activeInstances);
+        [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Reused UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', attached '{Attached}', active instances '{ActiveInstances}'.")]
+        public static partial void ReusedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, bool attached, int activeInstances);
 
-        [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Detached UI instance for route '{Route}', tab '{ClientTabId}', instance '{InstanceId}', detached '{Detached}', active instances '{ActiveInstances}'.")]
-        public static partial void DetachedRuntime(ILogger logger, string route, string clientTabId, string instanceId, bool detached, int activeInstances);
+        [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Detached UI instance for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', detached '{Detached}', active instances '{ActiveInstances}'.")]
+        public static partial void DetachedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, bool detached, int activeInstances);
 
         [LoggerMessage(EventId = 7, Level = LogLevel.Debug, Message = "UI runtime detach skipped because instance '{InstanceId}' is not attached.")]
         public static partial void RuntimeDetachSkipped(ILogger logger, string instanceId);
 
-        [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Resolved UI runtime key for lifetime '{Lifetime}', route '{Route}', session '{SessionId}', tab '{ClientTabId}', instance '{InstanceId}', key tab '{KeyClientTabId}', key instance '{KeyInstanceId}'.")]
-        public static partial void RuntimeKeyResolved(ILogger logger, UIRuntimeLifetime lifetime, string route, string sessionId, string clientTabId, string instanceId, string? keyClientTabId, string? keyInstanceId);
+        [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Resolved UI runtime key for lifetime '{Lifetime}', route '{Route}', session '{SessionId}', tab '{ClientWindowId}', instance '{InstanceId}', key identity '{KeyIdentity}', key tab '{KeyWindowId}'.")]
+        public static partial void RuntimeKeyResolved(ILogger logger, UIRuntimeLifetime lifetime, string route, string sessionId, string clientWindowId, string instanceId, string? keyIdentity, string? keyWindowId);
 
-        [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Updating UI runtime connection for route '{Route}', tab '{ClientTabId}', old instance '{OldInstanceId}', new instance '{NewInstanceId}'.")]
-        public static partial void UpdatingRuntimeConnection(ILogger logger, string route, string clientTabId, string oldInstanceId, string newInstanceId);
+        [LoggerMessage(EventId = 11, Level = LogLevel.Debug, Message = "Adopted the runtime prepared for page '{PageId}' on route '{Route}', tab '{ClientWindowId}'.")]
+        public static partial void AdoptedPreparedRuntime(ILogger logger, string pageId, string route, string clientWindowId);
+
+        [LoggerMessage(EventId = 12, Level = LogLevel.Debug, Message = "Discarded the runtime prepared for page '{PageId}' on route '{Route}': tab '{ClientWindowId}' already had one.")]
+        public static partial void DiscardedPreparedRuntime(ILogger logger, string pageId, string route, string clientWindowId);
+
+        [LoggerMessage(EventId = 13, Level = LogLevel.Information, Message = "Dropped '{Count}' per-page runtime(s) tab '{ClientWindowId}' left behind by navigating to route '{Route}'.")]
+        public static partial void DroppedLeftPageRuntimes(ILogger logger, int count, string clientWindowId, string route);
+
+        [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Updating UI runtime connection for route '{Route}', tab '{ClientWindowId}', old instance '{OldInstanceId}', new instance '{NewInstanceId}'.")]
+        public static partial void UpdatingRuntimeConnection(ILogger logger, string route, string clientWindowId, string oldInstanceId, string newInstanceId);
 
         [LoggerMessage(EventId = 10, Level = LogLevel.Information, Message = "Rotated session id '{OldSessionId}' to '{NewSessionId}' after sign-in.")]
         public static partial void SessionIdRotated(ILogger logger, string oldSessionId, string newSessionId);
@@ -80,7 +92,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     private readonly ILogger<UIHost> _logger;
 
     private readonly IUserSessionResolver _sessionResolver;
-    private readonly IAuthorizationService _authorization;
+    private readonly IUIAuthorizationService _authorization;
     private readonly IResolveExceptionViewHandler _resolveViewExceptionHandler;
 
     public UIHost(UIApplication application, IServiceProvider services, ILogger<UIHost> logger)
@@ -94,7 +106,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         _logger = logger;
 
         _sessionResolver = services.GetRequiredService<IUserSessionResolver>();
-        _authorization = services.GetRequiredService<IAuthorizationService>();
+        _authorization = services.GetRequiredService<IUIAuthorizationService>();
         _resolveViewExceptionHandler = services.GetRequiredService<IResolveExceptionViewHandler>();
 
         _scheduler = new RuntimeScheduler(logger);
@@ -147,7 +159,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public async Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.RuntimeAttach, CancellationToken cancellationToken = default)
+    public async Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.Attach, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sessionInit);
@@ -191,9 +203,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
                     return Task.CompletedTask;
                 }).ConfigureAwait(false);
 
-                // A filter that redirected re-enters the loop from the top, so the new route resolves its own
-                // authorization and its own filters — the same path the exception handler's redirect takes,
-                // bounded by the same attempt count.
+                // A redirect re-enters the loop from the top, resolving its own authorization and filters, within the same attempt count.
                 if (filterContext.RedirectNavigation is UINavigationRequest redirect)
                 {
                     current = redirect;
@@ -233,9 +243,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Builds the chain — the built-in authorization check, the application's global filters, then the route's
-    /// own — and runs the view resolution inside it. Cached per route: the chain is fixed once the application
-    /// is built, and this sits on the attach path.
+    /// Builds the route's view filter chain and runs the view resolution inside it.
     /// </summary>
     private Task RunViewFilterPipelineAsync(UIViewFilterContext context, Func<Task> resolveView)
     {
@@ -280,10 +288,9 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// The route access check as the first filter rather than a special case beside the pipeline, so a custom
-    /// filter can wrap it and there is one place where "is this request allowed" is decided.
+    /// Runs the route's authorization check as the first filter in the pipeline.
     /// </summary>
-    private sealed class AuthorizationViewFilter(IAuthorizationService authorization) : IUIViewFilter
+    private sealed class AuthorizationViewFilter(IUIAuthorizationService authorization) : IUIViewFilter
     {
         public int Order => int.MinValue;
 
@@ -302,18 +309,11 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     /// Replaces the session id once the session has gained an identity, moving its state to a freshly issued id.
     /// </summary>
     /// <remarks>
-    /// Session fixation: an attacker who can plant a known session id in the victim's browser and then waits for
-    /// them to sign in would otherwise end up holding an authenticated session, because the id never changed.
-    /// <para>
-    /// Only on <see cref="UIViewRequestPhase.ShellRender"/>, because the shell render is the one half of a page
-    /// load that can write the cookie carrying the id — rotating on an attach would leave the browser holding an
-    /// id the store no longer knows. The caller compares the presented id against the resolved one and writes
-    /// the cookie when they differ, so nothing else is needed to deliver it.
-    /// </para>
+    /// Defends against session fixation; runs only on <see cref="UIViewRequestPhase.Open"/>, the one request that can hand the client its id.
     /// </remarks>
     private async ValueTask<IUserSessionContext> RotateSessionIdIfPendingAsync(IUserSessionContext session, UIViewRequestPhase phase, CancellationToken cancellationToken)
     {
-        if (phase != UIViewRequestPhase.ShellRender)
+        if (phase != UIViewRequestPhase.Open)
             return session;
 
         IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
@@ -347,17 +347,10 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         => Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
 
     /// <summary>
-    /// Writes the resolved session to the store, which is what makes the store the authority the live command
-    /// check reads.
+    /// Writes the resolved session to the store, which is the authority the live command check reads.
     /// </summary>
     /// <remarks>
-    /// Done here rather than inside the resolver so it holds for a custom <see cref="IUserSessionResolver"/>
-    /// too. Without it a host that resolves identity its own way would leave the store empty, and every
-    /// non-anonymous command would be refused for a session that is perfectly valid.
-    /// <para>
-    /// <c>CreatedAtUtc</c> is carried over from the stored entry when there is one, so it keeps meaning "when
-    /// this session began" rather than "when it was last seen".
-    /// </para>
+    /// Done here rather than in the resolver, so it also holds for a custom <see cref="IUserSessionResolver"/>.
     /// </remarks>
     private async ValueTask PersistSessionAsync(IUserSessionContext session, CancellationToken cancellationToken)
     {
@@ -375,10 +368,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
             UserId = session.UserId,
             Roles = session.Roles,
             Permissions = session.Permissions,
-            // Carried over, not recomputed: a sign-in over a live connection sets the rotation flag, and every
-            // attach until the next shell render passes through here — dropping it would silently cancel the
-            // rotation before the one request that can perform it ever runs. Set here as well, so that a
-            // resolver-driven identity change — claims mapping — rotates without having to know about the flag.
+            // Carried over rather than recomputed: dropping it would cancel a pending rotation before it runs.
             PendingIdRotation = stored?.PendingIdRotation == true || IdentityChanged(stored, session),
             CreatedAtUtc = stored?.CreatedAtUtc ?? utcNow,
             LastSeenAtUtc = utcNow
@@ -401,7 +391,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(session.Permissions);
     }
 
-    private static void EnsureAuthorized(UIRouteDefinition route, IUserSessionContext session, IAuthorizationService authorization)
+    private static void EnsureAuthorized(UIRouteDefinition route, IUserSessionContext session, IUIAuthorizationService authorization)
     {
         if (route.AllowAnonymous)
             return;
@@ -448,17 +438,17 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, string clientTabId, CancellationToken cancellationToken = default)
+    public Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, string clientWindowId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resolution);
-        ArgumentException.ThrowIfNullOrWhiteSpace(clientTabId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientWindowId);
 
         resolution.Validate();
 
         UIInstance instance = new()
         {
             Id = Guid.NewGuid().ToString("N"),
-            TabId = clientTabId,
+            WindowId = clientWindowId,
             Navigation = resolution.Navigation
         };
 
@@ -476,7 +466,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         UIHandle handle = new(instance, resolution.Session);
 
-        Log.AttachingRuntime(_logger, resolution.Route.Route, resolution.Session.SessionId, instance.TabId, instance.Id);
+        Log.AttachingRuntime(_logger, resolution.Route.Route, resolution.Session.SessionId, instance.WindowId, instance.Id);
 
         if (resolution.Route.ControllerType is null)
         {
@@ -495,9 +485,9 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         UIRuntimeKey key = CreateRuntimeKey(
             _application.Persistence,
             resolution.Route,
-            resolution.Session,
-            handle.Instance.TabId,
-            handle.Instance.Id
+            resolution.Session.SessionId,
+            resolution.Navigation,
+            handle.Instance.WindowId
         );
 
         Log.RuntimeKeyResolved(
@@ -505,11 +495,13 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
             _application.Persistence.Lifetime,
             resolution.Route.Route,
             resolution.Session.SessionId,
-            handle.Instance.TabId,
+            handle.Instance.WindowId,
             handle.Instance.Id,
-            key.ClientTabId,
-            key.InstanceId
+            key.Identity,
+            key.WindowId
         );
+
+        await AdoptPreparedRuntimeAsync(key, handle).ConfigureAwait(false);
 
         UIRuntimeEntry entry = _runtimeStore.GetOrAdd(
             key,
@@ -524,9 +516,13 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         IUIRuntime runtime = entry.Runtime;
 
+        // A real tab is presenting it now, so it stops being the render's provisional entry — see UIRuntimeEntry.IsAdopted.
+        if (!string.Equals(handle.Instance.WindowId, handle.Instance.PageId, StringComparison.Ordinal))
+            entry.MarkAdopted();
+
         if (created)
         {
-            Log.CreatedRuntime(_logger, resolution.Route.Route, handle.Instance.TabId, handle.Instance.Id, activeInstances);
+            Log.CreatedRuntime(_logger, resolution.Route.Route, handle.Instance.WindowId, handle.Instance.Id, activeInstances);
 
             try
             {
@@ -547,21 +543,20 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         }
         else
         {
-            // The entry existed, but the attach that created it may still be initializing: it publishes the
-            // runtime to the store under the lock and only then awaits InitializeAsync/StartAsync. Waiting here
-            // is what stops a second concurrent attach on the same key from using an unstarted runtime, and it
-            // rethrows the creator's failure rather than handing back a runtime that was already removed.
+            // Waits in case the creator is still initializing, so a concurrent attach cannot use an unstarted runtime.
             await entry.Initialization.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-            Log.ReusedRuntime(_logger, resolution.Route.Route, handle.Instance.TabId, handle.Instance.Id, attached, activeInstances);
+            Log.ReusedRuntime(_logger, resolution.Route.Route, handle.Instance.WindowId, handle.Instance.Id, attached, activeInstances);
 
             var oldInstanceId = runtime.Handle.Instance.Id;
 
             if (!StringComparer.Ordinal.Equals(oldInstanceId, handle.Instance.Id))
-                Log.UpdatingRuntimeConnection(_logger, resolution.Route.Route, handle.Instance.TabId, oldInstanceId, handle.Instance.Id);
+                Log.UpdatingRuntimeConnection(_logger, resolution.Route.Route, handle.Instance.WindowId, oldInstanceId, handle.Instance.Id);
 
             UpdateRuntimeConnection(runtime, handle);
         }
+
+        await DropLeftPageRuntimesAsync(key).ConfigureAwait(false);
 
         RuntimeResolution runtimeResolution = new()
         {
@@ -575,38 +570,124 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         return runtimeResolution;
     }
 
-    private static UIRuntimeKey CreateRuntimeKey(UIPersistenceOptions persistence, UIRouteDefinition route, IUserSessionContext session, string clientTabId, string instanceId)
+    /// <summary>
+    /// Hands this attach the runtime the page render prepared for it, where there is one to hand over.
+    /// </summary>
+    private async Task AdoptPreparedRuntimeAsync(UIRuntimeKey key, UIHandle handle)
     {
-        ArgumentNullException.ThrowIfNull(route);
-        ArgumentNullException.ThrowIfNull(session);
+        var pageId = handle.Instance.PageId;
 
-        return CreateRuntimeKey(
-            persistence,
-            route.Route,
-            session.SessionId,
-            clientTabId,
-            instanceId
-        );
+        if (pageId is null || key.WindowId is null)
+            return;
+
+        UIRuntimeKey preparedKey = key with { WindowId = pageId };
+
+        if (_runtimeStore.Rekey(preparedKey, key, out IUIRuntime? discarded))
+        {
+            Log.AdoptedPreparedRuntime(_logger, pageId, key.Route, key.WindowId);
+            return;
+        }
+
+        if (discarded is null)
+            return;
+
+        Log.DiscardedPreparedRuntime(_logger, pageId, key.Route, key.WindowId);
+
+        await discarded.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static UIRuntimeKey CreateRuntimeKey(UIPersistenceOptions persistence, string route, string sessionId, string clientTabId, string instanceId)
+    /// <summary>
+    /// Ends the runtimes this tab left behind on other addresses, which is what <c>PerPage</c> promises.
+    /// </summary>
+    private async Task DropLeftPageRuntimesAsync(UIRuntimeKey key)
+    {
+        if (_application.Persistence.Lifetime is not UIRuntimeLifetime.PerPage || key.WindowId is null)
+            return;
+
+        IUIRuntime[] left = _runtimeStore.RemoveWindowEntriesExcept(key.SessionId, key.WindowId, key);
+
+        if (left.Length == 0)
+            return;
+
+        Log.DroppedLeftPageRuntimes(_logger, left.Length, key.WindowId, key.Route);
+
+        for (var i = 0; i < left.Length; i++)
+            await left[i].DisposeAsync().ConfigureAwait(false);
+    }
+
+    private static UIRuntimeKey CreateRuntimeKey(UIPersistenceOptions persistence, UIRouteDefinition route, string sessionId, UINavigationRequest navigation, string clientWindowId)
     {
         ArgumentNullException.ThrowIfNull(persistence);
-        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+        ArgumentNullException.ThrowIfNull(route);
+        ArgumentNullException.ThrowIfNull(navigation);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(clientTabId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientWindowId);
+
+        var identity = CreateRouteIdentity(route, navigation);
 
         return persistence.Lifetime switch
         {
-            UIRuntimeLifetime.PerNavigation => new UIRuntimeKey(sessionId, route, clientTabId, instanceId),
-            UIRuntimeLifetime.PerTab => new UIRuntimeKey(sessionId, route, clientTabId, null),
-            // One runtime per session and route, shared by every tab of it: changes fan out to all attached
-            // instances, and a command's result goes back to the connection that raised it, which is what
-            // IUIRuntime.ProcessEventAsync's invoker handle carries.
-            UIRuntimeLifetime.Persistent => new UIRuntimeKey(sessionId, route, null, null),
+            // Per-page and per-tab share a key; DropLeftPageRuntimesAsync is what tells them apart.
+            UIRuntimeLifetime.PerPage or UIRuntimeLifetime.PerWindow => new UIRuntimeKey(sessionId, route.Route, identity, clientWindowId),
+            // No tab in the key: one runtime per address for the whole client.
+            UIRuntimeLifetime.PerClient => new UIRuntimeKey(sessionId, route.Route, identity, null),
             _ => throw new UnreachableException()
         };
+    }
+
+    /// <summary>
+    /// The part of the address past the path: the route's declared identity parameters and values, or null when it declares none.
+    /// </summary>
+    private static string? CreateRouteIdentity(UIRouteDefinition route, UINavigationRequest navigation)
+    {
+        var names = route.IdentityParameters;
+
+        if (names.Length == 0)
+            return null;
+
+        IReadOnlyDictionary<string, object?>? parameters = navigation.Parameters;
+        StringBuilder identity = new();
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (i > 0)
+                _ = identity.Append('&');
+
+            _ = identity.Append(names[i]).Append('=');
+
+            if (parameters is not null && parameters.TryGetValue(names[i], out var value))
+                AppendIdentityValue(identity, value);
+        }
+
+        return identity.ToString();
+    }
+
+    private static void AppendIdentityValue(StringBuilder identity, object? value)
+    {
+        switch (value)
+        {
+            case null:
+                break;
+            case string text:
+                _ = identity.Append(text);
+                break;
+            case IEnumerable many:
+                var first = true;
+
+                foreach (var item in many)
+                {
+                    if (!first)
+                        _ = identity.Append(',');
+
+                    AppendIdentityValue(identity, item);
+                    first = false;
+                }
+
+                break;
+            default:
+                _ = identity.Append(Convert.ToString(value, CultureInfo.InvariantCulture));
+                break;
+        }
     }
 
     private IUIRuntime CreateRuntime(UIHandle handle, UIRouteDefinition route, CompiledView view)
@@ -622,7 +703,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
             ? new UIDirectRuntime(handle, view, controller, clientServices, _application)
             : new UIBatchRuntime(handle, view, controller, _application);
 
-        UIContext context = new(_logger, _services, _application.Translator, route, handle, clientServices.Dialogs, clientServices.Downloads, clientServices.Uploads);
+        UIContext context = new(_logger, _services, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Dialogs, clientServices.Downloads, clientServices.Uploads);
 
         context.AttachRuntime(runtime);
 
@@ -674,6 +755,29 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <inheritdoc />
+    public IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution)
+    {
+        ArgumentNullException.ThrowIfNull(resolution);
+
+        if (resolution.Route.ControllerType is null)
+            return null;
+
+        var identity = CreateRouteIdentity(resolution.Route, resolution.Navigation);
+        var sessionId = resolution.Session.SessionId;
+
+        // PerClient puts no tab in the key, so the render can build the exact key the client will attach to.
+        if (_application.Persistence.Lifetime is UIRuntimeLifetime.PerClient)
+        {
+            _ = _runtimeStore.TryGet(new UIRuntimeKey(sessionId, resolution.Route.Route, identity, null), out IUIRuntime? shared);
+            return shared;
+        }
+
+        _ = _runtimeStore.TryGetSingle(sessionId, resolution.Route.Route, identity, out IUIRuntime? single);
+
+        return single;
+    }
+
+    /// <inheritdoc />
     public bool DetachRuntime(string instanceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
@@ -691,7 +795,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         UIHandle handle = runtime.Handle;
 
-        Log.DetachedRuntime(_logger, handle.Instance.Navigation.Route, handle.Instance.TabId, instanceId, detached, activeInstances);
+        Log.DetachedRuntime(_logger, handle.Instance.Navigation.Route, handle.Instance.WindowId, instanceId, detached, activeInstances);
 
         return detached;
     }
@@ -710,7 +814,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         if (runtime is IUIRuntimeConnectionUpdater updater)
             updater.DetachConnection(handle.Instance.Id);
 
-        Log.DetachedRuntime(_logger, handle.Instance.Navigation.Route, handle.Instance.TabId, handle.Instance.Id, detached, activeInstances);
+        Log.DetachedRuntime(_logger, handle.Instance.Navigation.Route, handle.Instance.WindowId, handle.Instance.Id, detached, activeInstances);
 
         return detached;
     }
@@ -721,12 +825,17 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         handle.Instance.Validate();
 
+        // Uses the definition, not the route string, so a route that has gone missing still yields the same key as at attach.
+        UIRouteDefinition route = _application.Routes.TryGetEntry(handle.Instance.Navigation.Route, out UIRouteEntry? entry)
+            ? entry.Definition
+            : new UIRouteDefinition { Route = UIRoutePath.Normalize(handle.Instance.Navigation.Route), ViewKey = handle.Instance.Navigation.Route };
+
         return CreateRuntimeKey(
             _application.Persistence,
-            handle.Instance.Navigation.Route,
+            route,
             handle.Session.SessionId,
-            handle.Instance.TabId,
-            handle.Instance.Id
+            handle.Instance.Navigation,
+            handle.Instance.WindowId
         );
     }
 

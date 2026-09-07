@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Authoring\NE.Standard.UI.Authoring.csproj" />
     <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Compiled\NE.Standard.UI.Compiled.csproj" />
     <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Shell\NE.Standard.UI.Shell.csproj" />
+    <ProjectReference Include="..\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
   </ItemGroup>
 
 </Project>

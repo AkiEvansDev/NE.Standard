@@ -43,6 +43,15 @@ public readonly record struct UICornerRadius(double TopLeft, double TopRight, do
         ArgumentOutOfRangeException.ThrowIfNegative(BottomLeft);
     }
 
+    /// <summary>The four corners in their declared order, collapsed where they repeat.</summary>
     public override string ToString()
-        => string.Create(CultureInfo.InvariantCulture, $"UICornerRadius({TopLeft}, {TopRight}, {BottomRight}, {BottomLeft})");
+    {
+        if (TopLeft == TopRight && TopRight == BottomRight && BottomRight == BottomLeft)
+            return TopLeft.ToString(CultureInfo.InvariantCulture);
+
+        if (TopLeft == BottomRight && TopRight == BottomLeft)
+            return string.Create(CultureInfo.InvariantCulture, $"{TopLeft} {TopRight}");
+
+        return string.Create(CultureInfo.InvariantCulture, $"{TopLeft} {TopRight} {BottomRight} {BottomLeft}");
+    }
 }

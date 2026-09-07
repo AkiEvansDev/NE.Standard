@@ -8,15 +8,10 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
-/// <summary>
-/// A caption strip over a set of pages. Both halves of a tab are real components in their own regions, so a
-/// caption's title, icon, badge and <c>Visible</c> all live-patch through the ordinary property path — which
-/// is why the strip is not markup this renderer invents.
-/// </summary>
+/// <summary>A caption strip over a set of pages, both halves of each tab being real components in their own regions.</summary>
 public sealed class TabsComponentRenderer : WebComponentRendererBase
 {
     private const string HeaderRegionPrefix = "tab-header:";
-    private const string SelectedAttribute = "data-ui-tabs-selected";
 
     public override string ComponentTypeKey => TabsComponent.ComponentTypeKey;
 
@@ -27,13 +22,17 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // The selected key rides on the root rather than as a class per tab: one attribute is what the client
-        // engine flips on a click and what a server patch writes, so both drive the same single fact.
+        SelectionStyleRenderer.RenderSelectionStyle(context, root);
+
+        // The selected key rides on the root rather than as a class per tab, so a click and a server patch drive one fact.
+        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabsSelected);
         _ = RenderProperty<string?>(context, root, TabsComponent.SelectedKeyProperty, static (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(SelectedAttribute, value);
-        }, [WebDomOperation.Attribute(SelectedAttribute, target: "root")]);
+                _ = target.Attribute(WebAttributes.TabsSelected, value);
+        }, [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")]);
+
+        RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, "ui-tabs--no-overflow", WebValueCondition.IsFalse);
 
         List<string> keys = ResolveTabKeys(context);
 
@@ -44,6 +43,8 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 
             foreach (var key in keys)
                 RenderRegion(context, strip, TabRegionNames.Header(key));
+
+            RenderTabOverflowButton(context, strip);
         });
 
         _ = root.Element("div", pages =>
@@ -55,7 +56,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
                 _ = pages.Element("div", page =>
                 {
                     _ = page.Class("ui-tabs__page");
-                    _ = page.Attribute("data-ui-tab-page", key);
+                    _ = page.Attribute(WebAttributes.TabPage, key);
                     _ = page.Attribute("role", "tabpanel");
 
                     RenderRegion(context, page, TabRegionNames.Page(key));
@@ -64,11 +65,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         });
     }
 
-    /// <summary>
-    /// The tab order, read off the compiled slots rather than off the authoring component — a compiled node
-    /// keeps no reference to the component it came from, and slots are recorded in the order they were added,
-    /// which is the order <c>AddTab</c> was called in.
-    /// </summary>
+    /// <summary>The tab order, read off the compiled slots, which are recorded in the order they were added.</summary>
     private static List<string> ResolveTabKeys(WebRenderContext context)
     {
         List<string> keys = [];

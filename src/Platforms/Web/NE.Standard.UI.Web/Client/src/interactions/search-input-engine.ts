@@ -57,7 +57,7 @@ export class SearchInputEngine {
     }
 }
 
-export function filterOptions(input: HTMLInputElement): void {
+function filterOptions(input: HTMLInputElement): void {
     const select = input.closest<HTMLElement>(`.${SelectClass}`);
     const popup = select?.querySelector<HTMLElement>(`.${PopupClass}`);
 
@@ -81,6 +81,20 @@ export function filterOptions(input: HTMLInputElement): void {
     toggleNoMatchPlaceholder(select, popup, filtering && visibleCount === 0);
 }
 
+/** The empty state, decided from what is in the list rather than from the query that narrowed it. */
+export function refreshEmptyState(select: HTMLElement): void {
+    const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
+
+    if (popup === null)
+        return;
+
+    const options = [...popup.querySelectorAll<HTMLElement>(`.${OptionClass}`)];
+    const visible = options.filter(option => option.style.display !== "none");
+
+    toggleNoMatchPlaceholder(select, popup, visible.length === 0);
+}
+
+/** Takes the query's filter off every option, leaving the empty state to `refreshEmptyState` alone. */
 export function clearOptionsFilter(select: HTMLElement): void {
     const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
 
@@ -89,8 +103,6 @@ export function clearOptionsFilter(select: HTMLElement): void {
 
     for (const option of popup.querySelectorAll<HTMLElement>(`.${OptionClass}`))
         option.style.display = "";
-
-    toggleNoMatchPlaceholder(select, popup, false);
 }
 
 function toggleNoMatchPlaceholder(select: HTMLElement, popup: HTMLElement, show: boolean): void {

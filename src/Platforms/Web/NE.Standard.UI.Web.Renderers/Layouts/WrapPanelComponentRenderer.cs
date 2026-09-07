@@ -19,8 +19,8 @@ public sealed class WrapPanelComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.HorizontalGapProperty, "--ui-wrap-panel-horizontal-gap");
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.VerticalGapProperty, "--ui-wrap-panel-vertical-gap");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.SpacingProperty, "--ui-wrap-panel-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.LineSpacingProperty, "--ui-wrap-panel-line-spacing");
 
         RenderChildren(context, root);
     }

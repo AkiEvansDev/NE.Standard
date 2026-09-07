@@ -14,14 +14,23 @@ namespace NE.Standard.UI.Shell.Hosting;
 public interface IUIClientEndpoint
 {
     /// <summary>
-    /// Attaches a runtime for a resolved view and client tab.
+    /// Attaches a runtime for a resolved view and client window.
     /// </summary>
-    Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, string clientTabId, CancellationToken cancellationToken = default);
+    Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, string clientWindowId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Attaches a runtime for a resolved view and client tab.
+    /// Attaches a runtime for a resolved view and client window.
     /// </summary>
     Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, UIInstance instance, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The runtime a page render may read the values it renders with out of, when the host can say which one this load belongs to.
+    /// </summary>
+    /// <remarks>
+    /// Null means "render a fresh page": a render knows the session and address, not the window, so this only answers
+    /// when the key is unambiguous without it.
+    /// </remarks>
+    IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution);
 
     /// <summary>
     /// Detaches a runtime connection by transport instance id.

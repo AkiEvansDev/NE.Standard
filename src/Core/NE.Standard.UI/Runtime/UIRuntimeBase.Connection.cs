@@ -12,8 +12,7 @@ internal abstract partial class UIRuntimeBase
     private readonly Lock _connectionsLock = new();
     private readonly HashSet<string> _attachedInstanceIds = new(StringComparer.Ordinal);
 
-    // Kept as a materialized snapshot because the flush loop reads it on every tick and would otherwise copy
-    // the set each time just to hand it to the sink.
+    // Materialized snapshot: the flush loop reads it every tick and would otherwise copy the set each time.
     private string[] _attachedInstanceIdsSnapshot = [];
 
     /// <inheritdoc />
@@ -36,8 +35,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Marks the connection a command is running for, on the controller's context. A no-op when the
-    /// controller carries no context, which the host refuses to create anyway.
+    /// Marks the connection a command is running for, on the controller's context; a no-op when the controller carries no context.
     /// </summary>
     private IDisposable BeginInvocation(UIHandle invoker)
         => Controller is IUIContextController contextController

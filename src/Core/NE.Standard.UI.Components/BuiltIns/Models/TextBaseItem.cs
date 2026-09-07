@@ -8,8 +8,29 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 /// <summary>
 /// A data model describing an item's icon and title, plus visibility/enabled state, for use in lists/collections bound to <see cref="ITextBaseModel"/>.
 /// </summary>
-public partial class TextBaseItem : BadgeItem, ITextBaseModel
+/// <remarks>Styling starts at <see langword="null"/>; <see cref="Visibility"/> and <see cref="Enabled"/> keep their defaults, being state rather than style.</remarks>
+public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesModel
 {
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? CanSelect { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? CanDrag { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? CanRemove { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? CanRename { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? CanShowContextMenu { get; set; }
+
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
@@ -17,11 +38,11 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIThemeColor? IconColor { get; set; } = UIThemeColor.FromStyle(UIColorStyle.Primary);
+    public partial UIThemeColor? IconColor { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIIconSize? IconSize { get; set; } = UIIconSize.Medium;
+    public partial UIIconSize? IconSize { get; set; }
 
     /// <inheritdoc />
     [Translatable]
@@ -30,15 +51,19 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UITextAppearance? TitleType { get; set; } = UITextAppearance.Body;
+    public partial UITextAppearance? TitleType { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIThemeColor? TitleColor { get; set; } = UIThemeColor.FromStyle(UIColorStyle.OnBackground);
+    public partial UIThemeColor? TitleColor { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UITextBadgePlacement? BadgePlacement { get; set; } = UITextBadgePlacement.Trailing;
+    public partial bool? Selectable { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial UITextBadgePlacement? BadgePlacement { get; set; }
 
     /// <inheritdoc />
     [Translatable]
@@ -47,7 +72,11 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIResponsive<bool>? Visible { get; set; } = true;
+    public partial UIPopupPlacement? TooltipPlacement { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility>? Visibility { get; set; } = UIVisibility.Visible;
 
     /// <inheritdoc />
     [RecursiveMember]

@@ -1,16 +1,22 @@
-import { BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute } from "../addressing/dom-attributes";
+import {
+    BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
+    UnrenamableAttribute, UnselectableAttribute
+} from "../addressing/dom-attributes";
+import { resolveOperationElements } from "../addressing/address-resolver";
 import { readComponentId } from "../addressing/dom-registry";
 import { ExtensionRegistry } from "../extensions/extension-registry";
-import { MetadataIndex, WebDomOperation, getIdValue } from "../metadata/metadata-index";
+import { MetadataIndex, getIdValue } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
 import { PropertyStateStore } from "../state/property-state-store";
 import { DomOperationRegistry } from "../updates/dom-operation-registry";
-import { ItemStackEntry, resolveItemPropertyKey, tryReadItemProperty, tryResolveItemTemplateValue } from "./binding-template-evaluator";
+import {
+    ItemStackEntry, ItemValueStep, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty,
+    tryResolveItemTemplateValue, tryWriteCollectionItem
+} from "./binding-template-evaluator";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 
 export class ItemsTemplateRenderer {
-    // Keyed by each rendered item's own root element, so an item's scope is discoverable by walking the DOM
-    // upwards — see getAncestorStack. A WeakMap, so removing an item from the host drops its entry.
+    // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
 
     public constructor(
@@ -36,23 +42,36 @@ export class ItemsTemplateRenderer {
         if (content === null)
             return null;
 
-        // The wrapper carries what a component's own markup puts around an item but its template cannot
-        // (Select's `ui-select__option`, for instance), so a client-cloned item matches a server-rendered one.
+        // The wrapper carries what a component's markup puts around an item but its template cannot.
         const itemsTemplate = this.metadata.getItemsTemplateMetadata(itemsViewComponentId);
         const root = itemsTemplate?.itemWrapperElementName
             ? wrapItemContent(content, itemsTemplate.itemWrapperElementName, itemsTemplate.itemWrapperClassName ?? null)
             : content;
 
-        // renderFromTemplate registered the template content, but the wrapper is what ends up as the host's
-        // child and what carries the key — so it is the element filter/sort/grouping look the item up by.
-        // Moved rather than copied: two entries on one ancestor chain would push the same item onto an
-        // ancestor stack twice and misalign every Parent-scoped binding under it.
+        // The scope moves to the wrapper rather than being copied: two entries on one chain would stack the item twice.
         if (root !== content)
             this.moveItemScope(content, root);
 
         applyItemParameterAttributes(root, key, item);
 
+        const decoratorKind = itemsTemplate?.rowDecorator ?? null;
+
+        if (decoratorKind !== null && decoratorKind.length > 0)
+            this.decorateRow(decoratorKind, root, item, key, itemsViewComponentId, ancestors);
+
         return root;
+    }
+
+    /** The component's own half of a row, after its template: the decorator its metadata names, if the client registered it. */
+    private decorateRow(kind: string, row: Element, item: unknown, key: string, componentId: number, ancestors: readonly ItemStackEntry[]): void {
+        const decorator = this.extensions.rowDecorators.get(kind);
+
+        if (decorator === undefined) {
+            logWarn("row decorator is not registered.", { kind, componentId });
+            return;
+        }
+
+        decorator({ row, item, key, componentId, ancestors, templates: this.templates, renderer: this });
     }
 
     private moveItemScope(from: Element, to: Element): void {
@@ -69,7 +88,7 @@ export class ItemsTemplateRenderer {
         return this.itemStackByRoot.get(root)?.item;
     }
 
-    /** The scope an element opens, if it is an item root at all — what identifies which item a patch belongs to. */
+    /** The scope an element opens, if it is an item root at all. */
     public getItemScope(root: Element): ItemStackEntry | undefined {
         return this.itemStackByRoot.get(root);
     }
@@ -79,38 +98,17 @@ export class ItemsTemplateRenderer {
         this.itemStackByRoot.set(root, { scopeComponentId, item });
     }
 
-    /**
-     * Keeps the cached item in step with a live patch, so filtering, sorting and grouping read the value the
-     * server just pushed rather than the one the item was rendered with. An empty path means the binding
-     * addresses the item itself, which a patch replaces whole.
-     */
-    public updateItemValue(root: Element, path: readonly string[], value: unknown): void {
+    /** Keeps the cached item in step with a live patch; an empty path means the binding addresses the item itself. */
+    public updateItemValue(root: Element, path: readonly ItemValueStep[], value: unknown): void {
         const entry = this.itemStackByRoot.get(root);
 
         if (entry === undefined)
             return;
 
-        if (path.length === 0) {
-            this.itemStackByRoot.set(root, { scopeComponentId: entry.scopeComponentId, item: value });
-            return;
-        }
+        const item = writeItemValuePath(entry.item, path, value);
 
-        let current: unknown = entry.item;
-
-        for (let i = 0; i < path.length - 1; i++) {
-            const resolution = tryReadItemProperty(current, path[i]);
-
-            if (!resolution.ok)
-                return;
-
-            current = resolution.value;
-        }
-
-        if (current === null || typeof current !== "object")
-            return;
-
-        const record = current as Record<string, unknown>;
-        record[resolveItemPropertyKey(record, path[path.length - 1])] = value;
+        if (item !== entry.item)
+            this.itemStackByRoot.set(root, { scopeComponentId: entry.scopeComponentId, item });
     }
 
     /** Clones one template and populates it; the composite renderer calls this once per content slot. */
@@ -123,8 +121,7 @@ export class ItemsTemplateRenderer {
             return null;
         }
 
-        // The scope is keyed by the *template root's* own component id, not by the owning items-view: a
-        // Dynamic binding parameter names the template root, and they are different authored components.
+        // Keyed by the template root's own component id, which is what a Dynamic binding parameter names.
         const templateRootComponentId = readComponentId(root);
         const ownEntry: ItemStackEntry = { scopeComponentId: templateRootComponentId, item };
         this.itemStackByRoot.set(root, ownEntry);
@@ -133,7 +130,12 @@ export class ItemsTemplateRenderer {
         return root;
     }
 
-    /** Enclosing item scopes, outermost first — what a Parent-scoped binding inside a nested view resolves against. */
+    /** Populates the bindings an element carries itself, for a composite root built by hand rather than cloned from a template. */
+    public populateElement(root: Element, item: unknown, scopeComponentId: number, ancestors: readonly ItemStackEntry[]): void {
+        this.populateBoundElements(root, [...ancestors, { scopeComponentId, item }]);
+    }
+
+    /** Enclosing item scopes, outermost first, which a Parent-scoped binding resolves against. */
     public getAncestorStack(host: Element): ItemStackEntry[] {
         const stack: ItemStackEntry[] = [];
         let current: Element | null = host.parentElement;
@@ -150,21 +152,34 @@ export class ItemsTemplateRenderer {
         return stack.reverse();
     }
 
+    /** The item's own key when a variant wears it, else the host's fallback key; the server picks a row's template the same way. */
     private resolveVariantKey(itemsViewComponentId: number, item: unknown): string | null {
         const itemsTemplate = this.metadata.getItemsTemplateMetadata(itemsViewComponentId);
 
         if (itemsTemplate === undefined)
             return null;
 
-        return resolveTemplateKeyValue(item, itemsTemplate.templateKeyPropertyName)
-            ?? resolveTemplateKeyValue(item, itemsTemplate.fallbackTemplateKeyPropertyName);
+        const key = resolveTemplateKeyValue(item, itemsTemplate.templateKeyPropertyName);
+
+        if (key !== null && this.templates.getVariantTemplate(itemsViewComponentId, key) !== undefined)
+            return key;
+
+        return itemsTemplate.fallbackTemplateKey ?? null;
     }
 
+    // Hot path, once per rendered row: a walker and the live attribute map, rather than two copied arrays.
     private populateBoundElements(root: Element, stack: readonly ItemStackEntry[]): void {
-        const elements: Element[] = [root, ...root.querySelectorAll<Element>("*")];
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
 
-        for (const element of elements) {
-            for (const attribute of Array.from(element.attributes)) {
+        for (let element: Node | null = root; element !== null; element = walker.nextNode()) {
+            if (!(element instanceof Element))
+                continue;
+
+            const attributes = element.attributes;
+
+            for (let index = 0; index < attributes.length; index++) {
+                const attribute = attributes[index];
+
                 if (attribute.name.startsWith(BindingAttributePrefix))
                     this.applyBoundAttribute(element, attribute.value, stack);
             }
@@ -183,8 +198,7 @@ export class ItemsTemplateRenderer {
         if (binding === undefined || definition === undefined)
             return;
 
-        // No item template means the binding is not item-scoped at all (a Root-scoped one inside an item
-        // template): it has no path to walk, so its value comes from the last one the server pushed.
+        // No item template means the binding is not item-scoped, so its value is the last one the server pushed.
         const resolution = binding.itemTemplate === null || binding.itemTemplate === undefined
             ? (this.state.has(binding, []) ? { ok: true as const, value: this.state.get(binding, []) } : { ok: false as const })
             : tryResolveItemTemplateValue(stack, binding.itemTemplate, binding.itemTemplateParameters);
@@ -193,6 +207,9 @@ export class ItemsTemplateRenderer {
             logWarn("item binding value could not be resolved.", { binding, stack });
             return;
         }
+
+        // An item that says nothing about a property falls back to what the template component was authored with.
+        const value = resolution.value ?? binding.fallbackValue;
 
         const componentId = getIdValue(binding.componentId);
         const componentRoot = element.closest<Element>(`[${ComponentIdAttribute}="${componentId}"]`);
@@ -203,12 +220,12 @@ export class ItemsTemplateRenderer {
         }
 
         for (const operation of definition.operations) {
-            const target = resolveOperationTarget(element, componentRoot, operation);
+            const target = resolveOperationElements(componentRoot, operation, () => [element])[0] ?? null;
 
             if (target === null)
                 continue;
 
-            const convertedValue = this.extensions.converters.convert(operation.converter, resolution.value);
+            const convertedValue = this.extensions.converters.convert(operation.converter, value);
 
             this.operations.apply({
                 resolved: {
@@ -220,19 +237,54 @@ export class ItemsTemplateRenderer {
                     definition,
                     address: {
                         component: { id: componentId, dynamicParameters: [] },
-                        property: { name: definition.propertyName }
+                        property: definition.propertyName
                     },
                     bindingId,
                     bindingSelector: null
                 },
                 operation,
                 target,
-                value: resolution.value,
+                value,
                 convertedValue,
                 local: false
             });
         }
     }
+}
+
+/** Writes a patched value into an item along a path, in place; an empty path is the item itself, so the new one is returned. */
+export function writeItemValuePath(item: unknown, path: readonly ItemValueStep[], value: unknown): unknown {
+    if (path.length === 0)
+        return value;
+
+    let current: unknown = item;
+
+    for (let i = 0; i < path.length - 1; i++) {
+        const step = path[i];
+        const resolution = step.kind === "property"
+            ? tryReadItemProperty(current, step.name)
+            : tryReadCollectionItem(current, step.key);
+
+        if (!resolution.ok)
+            return item;
+
+        current = resolution.value;
+    }
+
+    if (current === null || typeof current !== "object")
+        return item;
+
+    const last = path[path.length - 1];
+
+    if (last.kind === "element") {
+        tryWriteCollectionItem(current, last.key, value);
+        return item;
+    }
+
+    const record = current as Record<string, unknown>;
+    record[resolveItemPropertyKey(record, last.name)] = value;
+
+    return item;
 }
 
 function wrapItemContent(content: Element, elementName: string, className: string | null): Element {
@@ -249,9 +301,28 @@ function wrapItemContent(content: Element, elementName: string, className: strin
 export function applyItemParameterAttributes(root: Element, key: string, item: unknown): void {
     root.setAttribute(ComponentKeyAttribute, key);
     applyItemGroupAttribute(root, item);
+    applyItemAbilityAttributes(root, item);
 }
 
-/** The bucket an item belongs to, on the element the regroup reads it from — re-stamped when a patch moves it. */
+/** The item's abilities by property name and the mark each refusal becomes on the row (`IItemAbilitiesModel`). */
+export const ItemAbilityAttributes: readonly (readonly [propertyName: string, attribute: string])[] = [
+    ["CanSelect", UnselectableAttribute],
+    ["CanDrag", UndraggableAttribute],
+    ["CanRemove", UnremovableAttribute],
+    ["CanRename", UnrenamableAttribute],
+    ["CanShowContextMenu", NoContextMenuAttribute]
+];
+
+/** The same marks the server writes on its own rows: an item that refuses to be chosen, dragged, removed or renamed says so on its row. */
+export function applyItemAbilityAttributes(root: Element, item: unknown): void {
+    for (const [propertyName, attribute] of ItemAbilityAttributes) {
+        const ability = tryReadItemProperty(item, propertyName);
+
+        root.toggleAttribute(attribute, ability.ok && ability.value === false);
+    }
+}
+
+/** Stamps the bucket an item belongs to onto the element the regroup reads it from. */
 export function applyItemGroupAttribute(root: Element, item: unknown): void {
     const group = tryReadItemProperty(item, "Group");
 
@@ -261,17 +332,7 @@ export function applyItemGroupAttribute(root: Element, item: unknown): void {
         root.removeAttribute(GroupAttribute);
 }
 
-function resolveOperationTarget(boundElement: Element, componentRoot: Element, operation: WebDomOperation): Element | null {
-    if (operation.target === "root")
-        return componentRoot;
-
-    if (operation.target !== null && operation.target !== undefined && operation.target.trim().length > 0)
-        return componentRoot.querySelector<Element>(operation.target);
-
-    return boundElement;
-}
-
-function resolveTemplateKeyValue(item: unknown, propertyName: string | null | undefined): string | null {
+export function resolveTemplateKeyValue(item: unknown, propertyName: string | null | undefined): string | null {
     if (propertyName === null || propertyName === undefined || propertyName.trim().length === 0)
         return null;
 

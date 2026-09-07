@@ -15,6 +15,9 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
     {
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Scheduled UI screen flush failed for '{InstanceId}'.")]
         public static partial void ScheduledFlushFailed(ILogger logger, Exception exception, string instanceId);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Scheduled UI flush drained {RuntimeCount} runtime(s): {SentChangeSetCount} change set(s) sent, {FailedRuntimeCount} failed.")]
+        public static partial void ScheduledFlushCompleted(ILogger logger, int runtimeCount, int sentChangeSetCount, int failedRuntimeCount);
     }
 
     private readonly UIRuntimeStore _runtimeStore;
@@ -36,20 +39,12 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         _maxParallelFlushes = maxParallelFlushes;
     }
 
-    public int LastFlushedRuntimeCount { get; private set; }
-    public int LastSentChangeSetCount { get; private set; }
-    public int LastFailedRuntimeCount { get; private set; }
-
     public override async ValueTask ExecuteAsync(DateTime utcNow, CancellationToken cancellationToken)
     {
         IUIRuntime[] runtimes = _runtimeStore.GetRuntimesReadyToFlush(utcNow);
 
         var sentChangeSetCount = 0;
         var failedRuntimeCount = 0;
-
-        LastFlushedRuntimeCount = runtimes.Length;
-        LastSentChangeSetCount = 0;
-        LastFailedRuntimeCount = 0;
 
         try
         {
@@ -67,9 +62,7 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
                         .FlushAsync(itemCancellationToken)
                         .ConfigureAwait(false);
 
-                    // A disconnected runtime is still drained — that is what keeps its pending queue from
-                    // growing for the whole retention window — but there is nobody to send to, and a reattach
-                    // rebuilds the client from scratch anyway.
+                    // A disconnected runtime is still drained to keep its pending queue from growing, even with no one to notify.
                     if (changes.IsEmpty || runtime.AttachedInstanceIds.Count == 0)
                         return;
 
@@ -94,8 +87,12 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         }
         finally
         {
-            LastSentChangeSetCount = Volatile.Read(ref sentChangeSetCount);
-            LastFailedRuntimeCount = Volatile.Read(ref failedRuntimeCount);
+            // Logged rather than kept on the task since nothing holds the instance; logged only when the pass did something.
+            var sent = Volatile.Read(ref sentChangeSetCount);
+            var failed = Volatile.Read(ref failedRuntimeCount);
+
+            if (sent > 0 || failed > 0)
+                Log.ScheduledFlushCompleted(_logger, runtimes.Length, sent, failed);
         }
     }
 }

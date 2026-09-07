@@ -9,9 +9,7 @@ namespace NE.Standard.UI.Navigation;
 /// Runs a filter attribute that builds its real filter from the service provider.
 /// </summary>
 /// <remarks>
-/// Created per request rather than once at registration: a filter that asked for services and then lived for
-/// the lifetime of the application would capture the wrong scope, which is the trap
-/// <see cref="IUIViewFilterFactory"/> exists to avoid.
+/// Created per request, not once at registration, so it does not capture the wrong service scope.
 /// </remarks>
 internal sealed class UIViewFilterFactoryAdapter(IUIViewFilterFactory factory) : IUIViewFilter
 {

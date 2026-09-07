@@ -1,0 +1,213 @@
+@import "../core/tokens.less";
+@import "../mixins/interactive.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+
+// One grid for the whole table: the header row and the rows' host are subgrids of it, so a header cell and the cells under it share
+// a track whatever their content, while the host alone scrolls. The authored tracks are `--ui-table-columns` (TableComponentRenderer);
+// the viewer's resized columns sit over them in `--ui-table-sized-columns` (table-columns-engine.ts).
+.ui-table {
+    .ui-selected-scope();
+
+    display: grid;
+    grid-template-columns: var(--ui-table-sized-columns, var(--ui-table-columns, auto));
+    grid-template-rows: auto minmax(0, 1fr);
+    // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs a card and a key-value list use.
+    border-style: solid;
+    border-width: var(--ui-border-width, 1.5px);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-row);
+    background: var(--ui-surface-color, transparent);
+    // The corners clip the header's ground and the host's scrollbar; the rows carry no overhang of their own.
+    overflow: hidden;
+}
+
+.ui-table > template {
+    display: none !important;
+}
+
+// The header is a row of the same tracks, bold on its own ground; it stays put while the host under it scrolls.
+.ui-table__header {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: stretch;
+    background: color-mix(in srgb, var(--ui-color-on-surface) 6%, transparent);
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+.ui-table--no-header > .ui-table__header {
+    display: none;
+}
+
+.ui-table__header-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: @ui-button-height-sm;
+    padding: @ui-space-1 @ui-space-3;
+    font-weight: var(--ui-text-title-font-weight);
+}
+
+    .ui-table__header-cell--center {
+        justify-content: center;
+    }
+
+    .ui-table__header-cell--end {
+        justify-content: flex-end;
+    }
+
+.ui-table__caption {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// The handle at a column's end: the width of a splitter's hit area, drawn only while ResizableColumns is on and only under the pointer
+// or the keyboard; it sits over the cell's edge so the column line and the handle are one place.
+.ui-table__resizer {
+    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -0.25rem;
+    width: 0.5rem;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+    z-index: 1;
+}
+
+// Every column's but the last: its edge is the table's own, and moving it would move the table.
+.ui-table--resizable .ui-table__header-cell:not(:last-child) .ui-table__resizer {
+    display: block;
+}
+
+    .ui-table__resizer::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        transform: translateX(-50%);
+        background: transparent;
+        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-table__resizer:hover::before,
+    .ui-table__resizer:focus-visible::before,
+    .ui-table__resizer[data-ui-splitting]::before {
+        width: 3px;
+        background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+    }
+
+// The host is the second row of the root's grid and the element that scrolls: a subgrid on the columns, its own rows underneath.
+.ui-table__host {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-content: start;
+    min-width: 0;
+    min-height: 0;
+    // The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.
+    overflow-anchor: none;
+}
+
+    // What stands among the rows but is not one spans the row: the empty state, a window's spacers, a bucket's header.
+    .ui-table__host > [data-ui-empty-placeholder],
+    .ui-table__host > [data-ui-window-spacer],
+    .ui-table__host > [data-ui-group-header] {
+        grid-column: 1 / -1;
+    }
+
+    .ui-table__host > [data-ui-empty-placeholder] {
+        padding: @ui-space-2 @ui-space-3;
+    }
+
+.ui-table__host.ui-scroll-x--disabled {
+    overflow-x: hidden;
+}
+
+.ui-table__host.ui-scroll-x--auto {
+    overflow-x: auto;
+}
+
+.ui-table__host.ui-scroll-x--always {
+    overflow-x: scroll;
+}
+
+.ui-table__host.ui-scroll-y--disabled {
+    overflow-y: hidden;
+}
+
+.ui-table__host.ui-scroll-y--auto {
+    overflow-y: auto;
+}
+
+.ui-table__host.ui-scroll-y--always {
+    overflow-y: scroll;
+}
+
+// A row is as wide as the table and takes the same tracks; its cells carry the inset, so a wash and a separator run edge to edge.
+.ui-table__row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    min-height: @ui-button-height-sm;
+    border-bottom: 1px solid var(--ui-color-border);
+}
+
+    .ui-table--no-separators .ui-table__row,
+    .ui-table__row:last-child {
+        border-bottom: none;
+    }
+
+.ui-table--striped .ui-table__row:nth-child(even of .ui-table__row) {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) 3%, transparent);
+}
+
+.ui-table--row-hover .ui-table__row:hover {
+    .ui-row-hover();
+}
+
+.ui-row-cursor(~".ui-table", ~".ui-table__row");
+
+.ui-table__cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 100%;
+    padding: @ui-space-1 @ui-space-3;
+}
+
+    .ui-table__cell--center {
+        justify-content: center;
+    }
+
+    .ui-table__cell--end {
+        justify-content: flex-end;
+    }
+
+    .ui-table__cell > [data-ui-id] {
+        .ui-responsive-property(min-width, --ui-min-width, 0);
+        .ui-responsive-property(max-width, --ui-max-width, 100%);
+    }
+
+// Column lines on the cells' inner edges, header and rows alike; the last column ends at the table's own border.
+.ui-table--column-lines :is(.ui-table__cell, .ui-table__header-cell):not(:last-child) {
+    border-right: 1px solid var(--ui-color-border);
+}
+
+// Choosing a row: the wrapper wears the selected look the same way an items view's does.
+.ui-table[data-ui-selection="one"] > [data-ui-items-host] > .ui-table__row,
+.ui-table[data-ui-selection="many"] > [data-ui-items-host] > .ui-table__row {
+    cursor: pointer;
+}
+
+.ui-table > [data-ui-items-host] > .ui-table__row[data-ui-selected] {
+    .ui-selected-row();
+}

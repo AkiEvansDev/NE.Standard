@@ -7,7 +7,7 @@ using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Security;
 
-internal sealed class StandardAuthorizationService : IAuthorizationService
+internal sealed class StandardAuthorizationService : IUIAuthorizationService
 {
     /// <inheritdoc />
     public bool IsAuthorized(IUserSessionContext session, IReadOnlyList<UIAccessRule> rules)

@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -9,9 +10,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A file input that lets the user select one or more files to upload.
 /// </summary>
-public abstract partial class FileInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id)
+public abstract partial class FileInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent
     where T : FileInputComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [Translatable]
+    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
+    public string? Placeholder { get; set; }
+
     /// <summary>
     /// Gets or sets the accepted file types, expressed as a comma-separated list of extensions or MIME types.
     /// </summary>
@@ -27,12 +33,7 @@ public abstract partial class FileInputComponent<T>(string? id = null) : Affixed
     /// <summary>
     /// Gets or sets the id of the uploaded selection, written by the client once the files have been sent.
     /// </summary>
-    /// <remarks>
-    /// Separate from <c>Value</c> for the same reason <c>SearchComponent</c> separates <c>SearchText</c> from
-    /// <c>Value</c>: the field shows the file names, which is what a field is for, while this is the handle
-    /// <c>IUIUploadService.GetSelectionAsync</c> takes. Bind this to read the files; bind <c>Value</c> only to
-    /// control what the field displays.
-    /// </remarks>
+    /// <remarks>Bind this to read the files via <c>IUIUploadService.GetSelectionAsync</c>; <c>Value</c> only controls what the field displays.</remarks>
     [UIComponentProperty(
         DefaultValue = null,
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,

@@ -24,8 +24,7 @@ public static class CompiledUIActionArgumentResolver
         return argument.Kind switch
         {
             CompiledUIActionArgumentKind.Literal => new CompiledUIActionArgumentResolution(argument, null, null, argument.Value),
-            CompiledUIActionArgumentKind.Binding => ResolveBindingArgument(argument, sources, templates, dynamicParameters),
-            CompiledUIActionArgumentKind.CurrentItemKey => new CompiledUIActionArgumentResolution(argument, null, null, null),
+            CompiledUIActionArgumentKind.Binding or CompiledUIActionArgumentKind.CurrentItemKey => ResolveBindingArgument(argument, sources, templates, dynamicParameters),
             _ => throw new UnreachableException()
         };
     }

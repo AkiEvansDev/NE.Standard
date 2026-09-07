@@ -49,8 +49,7 @@ internal sealed partial class UIViewCompilationContext
         if (component is IGroupedItemsComponent groupedItems && groupedItems.HasGroupTemplate)
             AddSlot(component, groupedItems.GroupTemplate!, UIComponentSlotKind.GroupTemplate, null);
 
-        // Unlike every slot above, this one is not gated on the owner implementing a capability interface:
-        // any component may carry a context menu.
+        // Unlike every slot above, this one is not gated on a capability interface: any component may carry a context menu.
         if (component.ContextMenu is IVisualComponent contextMenu)
             AddSlot(component, contextMenu, UIComponentSlotKind.ContextMenu, null);
     }
@@ -157,6 +156,6 @@ internal sealed partial class UIViewCompilationContext
         if (parentId is null)
             return null;
 
-        return (IVisualComponent?)_components[parentId];
+        return _components[parentId];
     }
 }

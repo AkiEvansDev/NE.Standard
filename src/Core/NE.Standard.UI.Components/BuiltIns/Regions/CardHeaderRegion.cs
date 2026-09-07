@@ -20,9 +20,9 @@ public sealed class CardHeaderRegion : TextComponent<CardHeaderRegion>, IUICompo
     /// </summary>
     public CardHeaderRegion() : base()
     {
+        _ = SetIconAlignment(UITextIconAlignment.Content);
         _ = SetTitleType(UITextAppearance.Title);
         _ = SetDescriptionType(UITextAppearance.Caption);
-        _ = SetWrapMode(UITextWrapMode.NoWrap);
         _ = SetBadgePlacement(UITextBadgePlacement.Trailing);
     }
 }

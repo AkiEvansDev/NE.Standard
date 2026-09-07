@@ -77,9 +77,8 @@ internal sealed partial class UIViewCompilationContext
             return false;
         }
 
-        // The same path the owner's Items binding compiles to, window property and all — a row of a windowed
-        // host lives inside the source's window, and a context that stopped at the source would address every
-        // row one property too high.
+        // The same path the owner's Items binding compiles to, window property included — stopping at the
+        // source would address every row one property too high.
         CompiledPath itemsPath = BuildItemsBindingPath(owner, itemsBinding, componentContexts, rootPath);
         CompiledPath itemPath = AppendDynamicParameter(itemsPath, GetComponentId(component.Id));
         CompiledUIBindingTemplate compiledTemplate = GetOrAddTemplate(templatesByKey, itemPath.Source, itemPath.Template);
@@ -163,8 +162,7 @@ internal sealed partial class UIViewCompilationContext
 
         foreach (CompiledUIBindingParameter parameter in ownerContext.Path.Parameters)
         {
-            // Fixed parameters are literal indices the author wrote, not something the client supplies, so
-            // they play no part in an address.
+            // Fixed parameters are literal indices the author wrote, not something the client supplies, so they play no part in an address.
             if (parameter.Kind is CompiledUIBindingParameterKind.Dynamic or CompiledUIBindingParameterKind.Scope)
                 parameters.Add(CompiledUIBindingParameter.Scope(parameter.ComponentId!.Value));
         }
@@ -206,8 +204,7 @@ internal sealed partial class UIViewCompilationContext
 
     private CompiledPath GetParentContextPath(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
-        // Not one visual hop: a plain child only inherits its parent's context, so a single step would
-        // land back on the level Relative already uses. See docs/PROJECT.md §4.
+        // Not one visual hop: a plain child inherits its parent's context, so one step would land back on the level Relative already uses.
         IVisualComponent? parent = TryGetEnclosingContextComponent(component, componentContexts);
 
         return parent is not null && componentContexts.TryGetValue(parent.Id, out ResolvedComponentContext parentContext)
@@ -215,12 +212,4 @@ internal sealed partial class UIViewCompilationContext
             : rootPath;
     }
 
-    private ResolvedComponentContext ResolveBaseComponentContextForExisting(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
-    {
-        IVisualComponent? parent = TryGetParentComponent(component);
-
-        return parent is not null && componentContexts.TryGetValue(parent.Id, out ResolvedComponentContext parentContext)
-            ? new ResolvedComponentContext(parentContext.Context, parentContext.Path, definesParameter: false)
-            : new ResolvedComponentContext(componentContexts[component.Id].Context, rootPath, definesParameter: false);
-    }
 }

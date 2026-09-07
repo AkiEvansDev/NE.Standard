@@ -79,8 +79,16 @@ public static class EventNames
     /// Fires when a label is renamed in place.
     /// </summary>
     /// <remarks>
-    /// Its own name rather than <see cref="Change"/>: a component may commit more than one value that way —
-    /// a tab commits both its caption and its position — and a rename handler must not fire for the others.
+    /// Distinct from <see cref="Change"/> because a component may commit more than one value that way, e.g. a tab's caption and position.
     /// </remarks>
     public const string Rename = "rename";
+
+    /// <summary>A tree node unfolded before its children are in the list; not <see cref="Expand"/>, which is a details element's toggle.</summary>
+    public const string Unfold = "unfold";
+
+    /// <summary>A tree node dropped on another after a drag; the node's <c>DropTarget</c> names where.</summary>
+    public const string Move = "move";
+
+    /// <summary>A tree node the viewer asked to remove with the Delete key.</summary>
+    public const string Remove = "remove";
 }

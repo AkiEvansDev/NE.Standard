@@ -10,9 +10,8 @@ namespace NE.Standard.UI.Compiled.Models;
 /// </summary>
 public enum CompiledUIBindingKind
 {
-    ComponentContext = 0,
-    ComponentProperty = 1,
-    ComponentCollection = 2
+    ComponentProperty = 0,
+    ComponentCollection = 1
 }
 
 /// <summary>
@@ -65,9 +64,13 @@ public sealed class CompiledUIBinding
     /// binding; <see langword="null"/> for context and collection bindings, which have no scalar target.
     /// </summary>
     /// <remarks>
-    /// Resolved once here rather than looked up per update: the property register is guarded by a global lock,
-    /// which has no business on the path that ships every value change. Not serialized — the compiled view is
-    /// rebuilt per process, and the client gets <c>WebRenderBindingMetadata</c> instead.
+    /// Not serialized: the compiled view is rebuilt per process, and the client gets <c>WebRenderBindingMetadata</c> instead.
     /// </remarks>
     public Type? TargetValueType { get; init; }
+
+    /// <summary>
+    /// Gets the value used when the binding's own value is <see langword="null"/>: the component's authored value,
+    /// or its registered default.
+    /// </summary>
+    public object? TargetFallbackValue { get; init; }
 }

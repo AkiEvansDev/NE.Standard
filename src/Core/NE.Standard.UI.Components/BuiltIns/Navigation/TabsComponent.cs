@@ -10,17 +10,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <summary>
 /// A strip of captions over a set of fixed pages, each page authored from whatever controls it wants.
 /// </summary>
-/// <remarks>
-/// Pages are <em>regions</em>, not a template over a collection: this is the plain variant, where the pages
-/// are known when the view is written. The advanced one — pages from a collection, renamed in place,
-/// reordered, closable — is a different control, because that difference is the difference between a layout
-/// and an items view.
-/// <para>
-/// Each tab occupies two regions, a caption and a page, keyed from the tab's own key. Order is kept here
-/// rather than taken from the region dictionary, which has none.
-/// </para>
-/// </remarks>
-public abstract partial class TabsComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id)
+/// <remarks>Pages are regions known when the view is written; pages from a collection are <see cref="TabsViewComponent"/>.</remarks>
+[UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
+public abstract partial class TabsComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), ISelectionStyleComponent
     where T : TabsComponent<T>, IUIComponentDefinition
 {
     private readonly List<string> _keys = [];
@@ -31,8 +23,7 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
     public IReadOnlyList<string> TabKeys => _keys;
 
     /// <summary>
-    /// Gets or sets the key of the page currently shown. Two-way: the client switches on click and writes the
-    /// new key back, so a controller can both read the current tab and drive it.
+    /// Gets or sets the key of the page currently shown; two-way, so a click writes the new key back.
     /// </summary>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
@@ -41,13 +32,19 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
     public string? SelectedKey { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the captions past the strip's room go behind a "…" list; off, the strip wraps them onto the next line.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = true)]
+    public bool? ShowOverflow { get; set; }
+
+    /// <summary>
     /// Adds a tab with a plain caption.
     /// </summary>
     public T AddTab(string key, string title, IVisualComponent page)
-        => AddTab(key, new TabHeaderComponent().ConfigureDefaultContent(content => _ = content.SetTitle(title)), page);
+        => AddTab(key, new TabHeaderComponent().SetTitle(title), page);
 
     /// <summary>
-    /// Adds a tab whose caption is configured by the caller — an icon, a badge, or a bound <c>Visible</c>.
+    /// Adds a tab whose caption is configured by the caller.
     /// </summary>
     public T AddTab(string key, TabHeaderComponent header, IVisualComponent page)
     {
@@ -83,8 +80,7 @@ public sealed class TabsComponent(string? id = null) : TabsComponent<TabsCompone
 }
 
 /// <summary>
-/// The two region names a tab occupies. A type of its own rather than statics on the generic component,
-/// where they would be per-instantiation — which is what CA1000 objects to.
+/// The two region names a tab occupies.
 /// </summary>
 public static class TabRegionNames
 {

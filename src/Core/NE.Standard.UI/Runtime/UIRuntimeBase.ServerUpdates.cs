@@ -36,43 +36,10 @@ internal abstract partial class UIRuntimeBase
         if (_pendingFullResync)
             return;
 
-        AppendContextRebuildUpdatesNoLock(path);
         AppendExactValueUpdatesNoLock(path);
         AppendDescendantValueUpdatesNoLock(path);
-        AppendTemplateKeyItemReplaceUpdatesNoLock(path);
+        AppendItemReplaceUpdatesNoLock(path);
         MarkChangedItemWindowRulesNoLock(path);
-    }
-
-    private void AppendContextRebuildUpdatesNoLock(RecursivePath path)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-
-        var context = TryGetControllerValue(path);
-
-        AppendCollectionRebuildUpdatesNoLock(path, context);
-        AppendExplicitContextRebuildUpdatesNoLock(path, context);
-    }
-
-    private void AppendCollectionRebuildUpdatesNoLock(RecursivePath path, object? context)
-    {
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerCollections(path, out var materializedParameters);
-
-        for (var i = 0; i < bindings.Count; i++)
-        {
-            CompiledUIBinding binding = bindings[i];
-
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
-                continue;
-
-            AddPendingUpdateNoLock(new ServerContextRebuildUIUpdate
-            {
-                Component = new(binding.Address.Component.Id, dynamicParameters),
-                Context = context
-            });
-        }
     }
 
     private void AddPendingUpdateNoLock(ServerUIUpdate update)
@@ -88,10 +55,6 @@ internal abstract partial class UIRuntimeBase
                 AddPendingValueUpdateNoLock(ResolveServerValueUpdateNoLock(valueUpdate));
                 break;
 
-            case ServerContextRebuildUIUpdate contextRebuildUpdate:
-                AddPendingContextRebuildUpdateNoLock(contextRebuildUpdate);
-                break;
-
             case ServerCollectionChangeUIUpdate collectionUpdate:
                 AddPendingCollectionUpdateNoLock(collectionUpdate);
                 break;
@@ -99,28 +62,6 @@ internal abstract partial class UIRuntimeBase
             default:
                 _pendingUpdates.Add(update);
                 break;
-        }
-    }
-
-    private void AppendExplicitContextRebuildUpdatesNoLock(RecursivePath path, object? context)
-    {
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerContexts(path, out var materializedParameters);
-
-        for (var i = 0; i < bindings.Count; i++)
-        {
-            CompiledUIBinding binding = bindings[i];
-
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
-                continue;
-
-            AddPendingUpdateNoLock(new ServerContextRebuildUIUpdate
-            {
-                Component = new(binding.Address.Component.Id, dynamicParameters),
-                Context = context
-            });
         }
     }
 
@@ -146,7 +87,7 @@ internal abstract partial class UIRuntimeBase
             AddPendingUpdateNoLock(new ServerValueUIUpdate
             {
                 Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value, binding.TargetValueType)
+                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType)
             });
         }
     }
@@ -171,7 +112,7 @@ internal abstract partial class UIRuntimeBase
             AddPendingUpdateNoLock(new ServerValueUIUpdate
             {
                 Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value, binding.TargetValueType)
+                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType)
             });
         }
     }

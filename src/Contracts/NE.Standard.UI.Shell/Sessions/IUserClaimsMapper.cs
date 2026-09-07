@@ -18,8 +18,8 @@ public sealed record UserClaimsIdentity
     /// Gets the stable user identifier, when the principal carries one.
     /// </summary>
     /// <remarks>
-    /// What distinguishes "the same user reconnecting" from "a different user on the same browser" — the second
-    /// has to replace the session's identity rather than merge into it.
+    /// Distinguishes the same user reconnecting from a different user on the same client, which must replace
+    /// rather than merge into the session's identity.
     /// </remarks>
     public string? UserId { get; init; }
 
@@ -43,9 +43,8 @@ public sealed record UserClaimsIdentity
 /// Turns the host's <see cref="ClaimsPrincipal"/> into the roles and permissions the UI authorizes against.
 /// </summary>
 /// <remarks>
-/// The seam between whatever scheme the host authenticates with — cookie, JWT, OIDC — and this framework, which
-/// only ever consumes the resulting principal. Replace the registered implementation to map an application's own
-/// claim shapes.
+/// The seam between whatever scheme the host authenticates with and this framework; replace the registered
+/// implementation to map an application's own claim shapes.
 /// </remarks>
 public interface IUserClaimsMapper
 {

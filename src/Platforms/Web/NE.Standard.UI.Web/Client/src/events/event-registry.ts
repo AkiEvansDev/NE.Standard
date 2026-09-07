@@ -3,10 +3,13 @@ import { normalizeEventName } from "../metadata/metadata-index";
 import { EventRegistration, RegisteredEvent } from "./event-descriptor";
 
 export class EventRegistry {
+    private readonly catalog: EventCatalog;
     private readonly registrations = new Map<string, RegisteredEvent>();
     private readonly attachedEvents = new Set<string>();
 
-    public constructor(private readonly catalog: EventCatalog) { }
+    public constructor(catalog: EventCatalog) {
+        this.catalog = catalog;
+    }
 
     public add<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}): RegisteredEvent {
         const eventName = normalizeEventName(name);

@@ -14,5 +14,5 @@ public interface IUIViewHost
     /// <summary>
     /// Resolves a view for the specified navigation request and session initialization data.
     /// </summary>
-    Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.RuntimeAttach, CancellationToken cancellationToken = default);
+    Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.Attach, CancellationToken cancellationToken = default);
 }

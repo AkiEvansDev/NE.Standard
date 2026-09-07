@@ -5,8 +5,7 @@ namespace NE.Standard.UI.Abstractions.Styling.Theme;
 /// </summary>
 public sealed record UITheme
 {
-    // Required rather than defaulted: a light and a dark palette differ by definition, so there is no
-    // single sensible default for either — start from UIThemeDefaults and adjust it with `with`.
+    // Required rather than defaulted: light and dark differ by definition, so start from UIThemeDefaults and adjust with `with`.
     /// <summary>
     /// The color palette used in light mode.
     /// </summary>
@@ -26,6 +25,21 @@ public sealed record UITheme
     /// The shape tokens used by UI components.
     /// </summary>
     public UIShape Shape { get; init; } = new();
+
+    /// <summary>
+    /// Whether a keyboard focus ring is drawn on everything that takes focus. Off by default.
+    /// </summary>
+    /// <remarks>
+    /// Off by default because it can land oddly over controls that already show their own "current" state;
+    /// a keyboard-navigated application turns it on for the whole theme.
+    /// </remarks>
+    public bool FocusRing { get; init; }
+
+    /// <summary>
+    /// Whether a press on a button, an action row or a menu entry answers with a wash spreading from the pointer. Off by default;
+    /// a platform that cannot animate ignores it, and a viewer who asked for reduced motion is left alone either way.
+    /// </summary>
+    public bool PressRipple { get; init; }
 
     /// <summary>
     /// Validates all theme token groups.

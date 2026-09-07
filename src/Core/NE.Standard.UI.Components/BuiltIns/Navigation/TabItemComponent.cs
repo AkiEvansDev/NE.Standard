@@ -14,16 +14,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <summary>
 /// One tab of a <see cref="TabsViewComponent"/>: a caption and the page it opens, rendered as one item.
 /// </summary>
-/// <remarks>
-/// Both halves come from the same item, so they are one component rather than two: the caption sits in the
-/// strip and the page below it, and the layout — not the tree — is what puts them in different places. That
-/// is also what keeps a page's own state alive across a switch, since nothing is re-rendered on one.
-/// <para>
-/// Not a <see cref="Actions.ButtonComponent{T}"/>, unlike a menu entry: the caption carries a close button of
-/// its own, and a button inside a button is not markup a browser accepts.
-/// </para>
-/// </remarks>
-public abstract partial class TabItemComponent<T> : RegionContainerComponentBase<T>, ITabItemComponent
+/// <remarks>Not a <see cref="Actions.ButtonComponent{T}"/>: the caption carries a close button, and a button inside a button is invalid markup.</remarks>
+[UIComponentPropertyBlock(typeof(IItemAbilitiesComponent))]
+public abstract partial class TabItemComponent<T> : RegionContainerComponentBase<T>, ITabItemComponent, IItemAbilitiesComponent
     where T : TabItemComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -37,35 +30,18 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     public virtual IVisualComponent? Page => GetRegionOrDefault(RegionNames.Content);
 
     /// <summary>
-    /// Gets or sets whether this tab shows a close button.
+    /// Gets or sets the caption as a rename wrote it back; the caption region itself draws the title.
     /// </summary>
-    [UIComponentProperty(DefaultValue = true)]
-    public bool? Closable { get; set; }
-
-    /// <summary>
-    /// Gets or sets the caption's text as the tab itself carries it.
-    /// </summary>
-    /// <remarks>
-    /// The caption region renders the title; this is the same value in a form that can be <em>written</em> —
-    /// the span the caption draws is not a field and has no value to read, so the tab carries the text as an
-    /// attribute instead, the way the strip carries its key. Its own name rather than <c>Title</c> because a
-    /// two-way property is recognized by its binding attribute, and that list is global: <c>Title</c> is on
-    /// half the components in the library.
-    /// </remarks>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
         DefaultValue = null)]
-    public string? CaptionText { get; set; }
+    public string? RenamedTitle { get; set; }
 
     /// <summary>
     /// Gets or sets where this tab sits in the strip, ascending.
     /// </summary>
-    /// <remarks>
-    /// Two-way: a drag writes the dropped tab's new position back through the ordinary value path, which is
-    /// what makes reordering a change to the item rather than to the collection. See
-    /// <see cref="Authoring.BuiltIns.Models.ITabItemModel.Order"/> for why it is fractional.
-    /// </remarks>
+    /// <remarks>Two-way: a drag writes the dropped tab's new position back, so reordering changes the item, not the collection.</remarks>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
@@ -77,29 +53,20 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// </summary>
     protected TabItemComponent(string? id = null) : base(id)
     {
-        SetRegion(RegionNames.Header, new ButtonContentRegion());
+        SetRegion(RegionNames.Header, new TabCaptionRegion());
     }
 
     /// <summary>
-    /// Configures the built-in caption region, throwing if a different caption has been set.
+    /// Configures the built-in caption region.
     /// </summary>
-    public T ConfigureDefaultCaption(Action<ButtonContentRegion> configure)
+    public T ConfigureDefaultCaption(Action<TabCaptionRegion> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        if (Caption is not ButtonContentRegion caption)
-            throw new InvalidOperationException($"Only {nameof(ButtonContentRegion)} caption is supported.");
+        if (Caption is not TabCaptionRegion caption)
+            throw new InvalidOperationException($"Only {nameof(TabCaptionRegion)} caption is supported.");
 
         configure(caption);
-        return Self;
-    }
-
-    /// <summary>
-    /// Sets the caption region.
-    /// </summary>
-    public virtual T SetCaption(ITextComponent caption)
-    {
-        SetRegion(RegionNames.Header, caption);
         return Self;
     }
 
@@ -113,10 +80,10 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     }
 
     /// <summary>
-    /// Registers a command invoked when this tab's close button is pressed.
+    /// Registers a command invoked when this tab's close is pressed; the controller removes the tab or leaves it.
     /// </summary>
-    public T OnClose(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Close, command, arguments);
+    public T OnRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Remove, command, arguments);
 
     /// <summary>
     /// Registers a command invoked when this tab's caption is renamed in place.
@@ -127,8 +94,8 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     ITabItemComponent ITabItemComponent.SetPage(IVisualComponent page)
         => SetPage(page);
 
-    ITabItemComponent ITabItemComponent.OnClose(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnClose(command, arguments);
+    ITabItemComponent ITabItemComponent.OnRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnRemove(command, arguments);
 
     ITabItemComponent ITabItemComponent.OnRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRename(command, arguments);

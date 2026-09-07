@@ -21,6 +21,11 @@ WebStartupBuilder.Configure<DemoAppWebStartup, DemoAppStartup>(builder.Services)
 
 WebApplication app = builder.Build();
 
+// UseRouting() by hand, after the static files: the framework's catch-all route matches every path, so routing
+// added at the front of the pipeline would keep any file from being served.
+app.UseStaticFiles();
+app.UseRouting();
+
 await app.MapStandardUIWebAsync().ConfigureAwait(false);
 
 await app.RunAsync().ConfigureAwait(false);

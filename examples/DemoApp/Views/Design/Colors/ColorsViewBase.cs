@@ -4,12 +4,12 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// Shared shell for the Colors reference pages: one component route, no standard Example/Binding/Test
-/// tabs, and a custom Palette/Semantic/Components tab strip instead.
+/// Shared shell for the Colors reference pages, with a Palette/Semantic/Components strip in place of the kind tabs.
 /// </summary>
-internal abstract class ColorsViewBase : DemoExampleView
+internal abstract class ColorsViewBase : DemoView
 {
     protected override string ComponentRoute => "/design/colors";
+    protected override DemoViewKind ViewKind => DemoViewKind.Main;
     protected override DemoViewKind[] AvailableKinds => [];
     protected override string Header => "demo.design.colors.header";
     protected override string HeaderDescription => "demo.design.colors.description";

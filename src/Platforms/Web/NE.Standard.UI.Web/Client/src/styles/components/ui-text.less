@@ -1,24 +1,104 @@
+@import "../core/tokens.less";
+@import "../mixins/chevron.less";
+@import "../mixins/color.less";
 @import "../mixins/responsive.less";
+@import "../mixins/text.less";
 
+// The shared text body - icon, title, badge, description - behind Text, headers and labels; always grid, or its display transition snaps.
 .ui-text {
-
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    // Base align-items is the title-line placement (Title mode); Content overrides it below.
+    align-items: start;
+    // Gap is the glyph's own `em`, not a fixed step off the page scale — the same rule the icon size follows.
+    gap: 0.375em;
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }
 
+// data-ui-text-* hooks sit on the component root: .ui-text itself, or one part of the same component down — an input's
+// header row, a split button's main part — never past another component's root, so the gates match all three.
+@ui-text-with-icon: ~":is([data-ui-text-icon] > .ui-text, [data-ui-text-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-icon].ui-text)";
+@ui-text-with-title: ~":is([data-ui-text-title] > .ui-text, [data-ui-text-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-title].ui-text)";
+@ui-text-with-description: ~":is([data-ui-text-description] > .ui-text, [data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-description].ui-text)";
+@ui-text-with-both: ~":is([data-ui-text-title][data-ui-text-description] > .ui-text, [data-ui-text-title][data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-title][data-ui-text-description].ui-text)";
+
+// IconAlignment.Title: the icon sits on the title's own line; `1lh` matches a Match-sized icon's line-height exactly.
 .ui-text__icon {
     display: none;
     flex: 0 0 auto;
-    margin-right: 0.35em;
+    align-self: start;
+    height: 1lh;
+    line-height: inherit;
 }
 
-.ui-text[data-ui-text-icon] > .ui-text__body > .ui-text__header > .ui-text__icon {
+// IconAlignment.Content centres the glyph across title and description together, unlike Title above.
+.ui-text--icon-content {
+    align-items: center;
+}
+
+    .ui-text--icon-content > .ui-text__icon {
+        align-self: center;
+        height: 1em;
+        line-height: 0;
+    }
+
+// An unsized image icon fills the block height like an avatar, not 1em like a glyph; Title layout is excluded, its icon being the title's.
+.ui-text--icon-content > .ui-text__icon.ui-icon--image:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
+    align-self: stretch;
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    border-radius: var(--ui-radius-card);
+    overflow: hidden;
+}
+
+    // `cover`, not `contain` like a glyph-image: this is a framed, clipping photo, not a glyph's slot.
+    .ui-text--icon-content > .ui-text__icon.ui-icon--image:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)::before {
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        // The tile's own radius, not the picture's — otherwise the same corner is rounded twice.
+        border-radius: inherit;
+    }
+
+// The icon's column exists in both modes; gated on an icon actually being drawn, else the single-track layout above applies.
+@{ui-text-with-icon} {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+    @{ui-text-with-icon} > .ui-text__icon {
+        grid-row: 1;
+        grid-column: 1;
+    }
+
+    // Content spans both lines, so the body simply stands in the second column beside the glyph.
+    @{ui-text-with-icon}.ui-text--icon-content > .ui-text__body {
+        grid-row: 1;
+        grid-column: 2;
+    }
+
+    // Title mode: the description spans under the glyph via subgrid; gated on a title, since without one there is no line for the icon.
+    @{ui-text-with-icon}@{ui-text-with-title}:not(.ui-text--icon-content) > .ui-text__body {
+        grid-row: 1;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+    }
+
+        @{ui-text-with-icon}@{ui-text-with-title}:not(.ui-text--icon-content) > .ui-text__body > .ui-text__header {
+            grid-column: 2;
+        }
+
+        @{ui-text-with-icon}@{ui-text-with-title}:not(.ui-text--icon-content) > .ui-text__body > .ui-text__description {
+            grid-column: 1 / -1;
+        }
+
+@{ui-text-with-icon} > .ui-text__icon {
     display: inline-flex;
 }
 
-.ui-text[data-ui-text-icon] > .ui-text__body > .ui-text__header > .ui-text__icon::before {
-    display: block;
-}
+    @{ui-text-with-icon} > .ui-text__icon::before {
+        display: block;
+    }
 
 .ui-text__body {
     display: grid;
@@ -28,60 +108,112 @@
 }
 
 .ui-text__header {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: @ui-space-1 @ui-space-2;
     min-width: 0;
     max-width: 100%;
+}
+
+// A badge never wraps to its own line: a title's max-content width would claim the row first and only then ellipsise, wasting a second row.
+.ui-text__header:has(> .ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-text])) {
+    flex-wrap: nowrap;
 }
 
 .ui-text__title {
     display: none;
+    flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    .ui-text-nowrap();
 }
 
+@{ui-text-with-title} > .ui-text__body > .ui-text__header > .ui-text__title {
+    display: block;
+}
+
+// The badge is centred on the title's line and sized to its content, so one with an oversized icon grows instead of being cropped.
 .ui-text__badge {
     display: none;
     flex: 0 0 auto;
     align-self: center;
-    transform: scale(0.9);
-    transform-origin: top left;
-}
-
-.ui-text__badge--inline {
-    margin-left: 0.5em;
-}
-
-.ui-text__badge--trailing {
-    margin-left: auto;
-}
-
-.ui-text:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header {
-    width: 100%;
-    min-width: 0;
-}
-
-.ui-text__description {
-    display: none;
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    white-space: normal;
-}
-
-.ui-text[data-ui-text-title] > .ui-text__body > .ui-text__header > .ui-text__title {
-    display: block;
 }
 
 .ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
     display: inline-flex;
 }
 
-.ui-text[data-ui-text-description] > .ui-text__body > .ui-text__description {
+// A trailing badge reaches the far edge only in a block that fills its row; centred or end-aligned, it simply follows the title.
+.ui-text:not(.ui-text--align-center, .ui-text--align-end) .ui-text__badge--trailing {
+    margin-left: auto;
+}
+
+// A trailing badge is only at the far edge if the row it sits in fills the body.
+.ui-text:not(.ui-text--align-center, .ui-text--align-end):has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header {
+    width: 100%;
+    min-width: 0;
+}
+
+// BadgeAlignment.Content centres the trailing badge across the block via display: contents on the header, so it can span the body's grid.
+.ui-text--badge-content@{ui-text-with-description}:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) {
+    > .ui-text__body {
+        grid-template-columns: minmax(0, 1fr) auto;
+        // Rows are named explicitly: `-1` counts explicit grid lines, and left implicit it resolved back to the first row.
+        grid-template-rows: auto auto;
+        column-gap: @ui-space-2;
+
+        > .ui-text__header {
+            display: contents;
+        }
+
+        > .ui-text__header > .ui-text__title {
+            grid-row: 1;
+            grid-column: 1;
+        }
+
+        > .ui-text__header > .ui-text__badge--trailing {
+            grid-row: 1 / -1;
+            grid-column: 2;
+            align-self: center;
+            // The flex `margin-left: auto` doesn't apply in this grid; the track holds the badge at the far edge instead.
+            margin-left: 0;
+        }
+
+        > .ui-text__description {
+            grid-row: 2;
+            grid-column: 1;
+        }
+    }
+}
+
+// One line, ellipsised, by default; only ParagraphComponent may wrap, via .ui-text--wrap / --wrap-ellipsis below.
+.ui-text__description {
+    display: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    .ui-text-nowrap();
+}
+
+@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     display: block;
+}
+
+// The gap above the description comes from its line-height, not a negative margin, which would overlap selection highlights across lines.
+// The clip is let out by a quarter em, or the descenders a line-height of one leaves outside the box are cut.
+@{ui-text-with-both}:not(.ui-text--wrap, .ui-text--wrap-ellipsis) > .ui-text__body > .ui-text__description:not(:has(.ui-text__fold)) {
+    line-height: 1;
+    overflow: clip;
+    overflow-clip-margin: 0.25em;
+}
+
+// A description with a fold in it has more behind it than one line, so it wraps as a paragraph's does: a caption cut behind the
+// ellipsis could never be pressed, and the text it opens takes lines of its own.
+@{ui-text-with-description} > .ui-text__body > .ui-text__description:has(.ui-text__fold) {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
 }
 
 .ui-text--align-start {
@@ -100,6 +232,28 @@
     text-align: justify;
 }
 
+// Alignment moves the whole block (icon, title, badge, description) together via `justify-content` on the root, not each line separately.
+.ui-text--align-center {
+    justify-content: center;
+}
+
+.ui-text--align-end {
+    justify-content: end;
+}
+
+    :is(.ui-text--align-center, .ui-text--align-end) > .ui-text__body {
+        flex: 0 1 auto;
+    }
+
+// Tracks must be content-sized here too: a `1fr` column fills the element and leaves `justify-content` no free space to move into.
+:is(.ui-text--align-center, .ui-text--align-end) {
+    grid-template-columns: minmax(0, max-content);
+}
+
+@{ui-text-with-icon}:is(.ui-text--align-center, .ui-text--align-end) {
+    grid-template-columns: auto minmax(0, max-content);
+}
+
 .ui-text--align-start > .ui-text__body {
     justify-items: start;
 }
@@ -116,20 +270,11 @@
     justify-items: stretch;
 }
 
-.ui-text--nowrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
-    display: block;
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ui-text--wrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
+.ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     white-space: normal;
 }
 
-.ui-text--wrap-ellipsis[data-ui-text-description] > .ui-text__body > .ui-text__description {
+.ui-text--wrap-ellipsis@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     display: -webkit-box;
     overflow: hidden;
     white-space: normal;
@@ -138,10 +283,95 @@
     -webkit-box-orient: vertical;
 }
 
+// The [label](url) inline markup link, not .ui-link: a clickable word inheriting its surroundings but for the accent and the underline.
+.ui-text__link {
+    color: var(--ui-color-primary-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    // A link is a target even where the text around it is not selectable, so it takes its pointer events back.
+    pointer-events: auto;
+    cursor: pointer;
+    transition: filter @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-text__link:hover {
+        .ui-brighten-hover();
+    }
+
+// Inline code run, sized in em; 0.9 since monospace reads larger at the same nominal size, and the background is mixed from currentColor.
+.ui-text__code {
+    border-radius: 0.25em;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    padding: 0.1em 0.3em;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+}
+
 .ui-text--selectable {
     user-select: text;
 }
 
 .ui-text:not(.ui-text--selectable) {
     user-select: none;
+}
+
+// Inline icon mark in prose, sized by the line via .ui-icon's 1em; the baseline fix corrects inline-flex baselining on the margin edge.
+.ui-text__icon-inline {
+    vertical-align: -0.15em;
+    // Side margin in em so it scales with text size; without it the glyph reads as fused to the adjacent word.
+    margin-inline: 0.15em;
+}
+
+// The [caption]{text} fold: the caption is a word of the sentence, a step greyer and heavier, with a chevron after it; a press turns
+// the chevron up and puts the text on the line below. The button is reset to a word so it takes nothing of a control's box.
+.ui-text__fold-toggle {
+    appearance: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: none;
+    font: inherit;
+    font-weight: var(--ui-text-title-font-weight);
+    color: color-mix(in srgb, currentColor 68%, transparent);
+    // A target even where the text around it is not selectable, like the link.
+    pointer-events: auto;
+    cursor: pointer;
+    transition: color @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-text__fold-toggle:hover {
+        color: inherit;
+    }
+
+    .ui-text__fold-toggle::after {
+        .ui-chevron(0.55em);
+        .ui-chevron-right();
+        display: inline-block;
+        margin-inline-start: 0.3em;
+        vertical-align: 0.05em;
+    }
+
+    .ui-text__fold-toggle[aria-expanded="true"]::after {
+        .ui-chevron-up();
+    }
+
+.ui-text__fold-content {
+    display: none;
+}
+
+.ui-text__fold-toggle[aria-expanded="true"] + .ui-text__fold-content {
+    display: block;
+}
+
+// Where nothing can be pressed (a tooltip), the fold is written open in the line: the caption keeps its weight and loses its chevron.
+.ui-text__fold--static > .ui-text__fold-toggle {
+    cursor: inherit;
+}
+
+    .ui-text__fold--static > .ui-text__fold-toggle::after {
+        content: none;
+    }
+
+.ui-text__fold--static > .ui-text__fold-content {
+    display: inline;
 }

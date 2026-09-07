@@ -8,14 +8,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 /// Wraps a plain value as a bindable item, taking the item's identity from the value itself.
 /// </summary>
 /// <remarks>
-/// Every item collection is addressed by <see cref="IBindableItem.Id"/>, so a list of plain values —
-/// strings, enums, numbers — needs an identity before it can be bound to an items component. Wrapping is
-/// deliberately the author's call rather than something the framework does behind the collection: a value
-/// carries no identity beyond "it is this value", and only the author knows whether that holds for their
-/// list. It does not hold for a list that may contain the same value twice, and the collection refuses that
-/// case rather than silently addressing both copies as one.
-/// Use <see cref="UIOptionValue{T}"/> instead for <c>Select</c>/<c>Search</c>/<c>RadioGroup</c>, whose item
-/// contract is <c>IOptionModel</c>.
+/// The identity is the value, so a list holding the same value twice is refused; use <see cref="UIOptionValue{T}"/>
+/// for <c>Select</c>/<c>Search</c>/<c>RadioGroup</c>.
 /// </remarks>
 public partial class UIValueItem<T>(T value) : RecursiveObservable, IBindableItem
     where T : notnull
@@ -27,10 +21,7 @@ public partial class UIValueItem<T>(T value) : RecursiveObservable, IBindableIte
     /// <summary>
     /// Gets the wrapped value.
     /// </summary>
-    /// <remarks>
-    /// Read-only on purpose: the id was derived from this value, and letting the two drift apart would leave
-    /// the item addressed by something it no longer holds. Replace the item to change the value.
-    /// </remarks>
+    /// <remarks>Read-only: the id is derived from it, so replace the item to change the value.</remarks>
     [RecursiveMember(false)]
     public T Value { get; } = value;
 

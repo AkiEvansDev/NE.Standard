@@ -26,6 +26,14 @@ public sealed class UIRouteDefinition
     public Type? ControllerType { get; init; }
 
     /// <summary>
+    /// Gets the navigation parameters that are part of this route's address, in declared order.
+    /// </summary>
+    /// <remarks>
+    /// Two visits agreeing on every one of these share the same address and runtime; any other parameter is carried without splitting it.
+    /// </remarks>
+    public string[] IdentityParameters { get; init; } = [];
+
+    /// <summary>
     /// Gets whether the route can be accessed without authorization.
     /// </summary>
     public bool AllowAnonymous { get; init; }
@@ -71,6 +79,7 @@ public sealed class UIRouteDefinition
         ArgumentException.ThrowIfNullOrWhiteSpace(Route);
         ArgumentException.ThrowIfNullOrWhiteSpace(ViewKey);
         ArgumentNullException.ThrowIfNull(AccessRules);
+        ArgumentNullException.ThrowIfNull(IdentityParameters);
 
         if (ControllerType is not null && !typeof(IUIController).IsAssignableFrom(ControllerType))
             throw new ArgumentException($"Controller type '{ControllerType.Name}' must implement '{nameof(IUIController)}'.", nameof(ControllerType));
@@ -80,6 +89,9 @@ public sealed class UIRouteDefinition
 
         if (FlushIntervalMilliseconds < -1)
             throw new ArgumentOutOfRangeException(nameof(FlushIntervalMilliseconds), FlushIntervalMilliseconds, "Flush interval must be -1 or greater than zero.");
+
+        for (var i = 0; i < IdentityParameters.Length; i++)
+            ArgumentException.ThrowIfNullOrWhiteSpace(IdentityParameters[i]);
 
         for (var i = 0; i < AccessRules.Length; i++)
         {

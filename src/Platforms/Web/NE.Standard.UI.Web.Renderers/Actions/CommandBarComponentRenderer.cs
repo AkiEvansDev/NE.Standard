@@ -10,12 +10,7 @@ using NE.Standard.UI.Web.Renderers.Items;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>
-/// A flat list of buttons — each item resolves through <c>DefaultButtonTemplate</c> by default (already
-/// aliased to <c>ButtonComponentRenderer</c>, see <c>WebRendererRegistryExtensions.AddDefaultTemplateAliases</c>),
-/// so this renderer only owns the flex layout/spacing; <see cref="ItemsCollectionRendererBase.RenderItem"/>
-/// handles resolving and rendering each item's own template.
-/// </summary>
+/// <summary>Renders a command bar as a flat list of buttons, owning only the flex layout and spacing.</summary>
 public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-command-bar__item";
@@ -43,40 +38,25 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, CommandBarComponent.SpacingProperty, "--ui-command-bar-spacing");
 
+        // A modifier on the root, read by the stylesheet from the group headers inside the items host.
+        _ = RenderProperty<UIGroupSeparator?>(context, root, CommandBarComponent.GroupSeparatorProperty, static (target, value) =>
+        {
+            if (value is UIGroupSeparator separator)
+                _ = target.Class(WebClassNames.GroupSeparator(separator));
+        }, [WebDomOperation.Class(converter: WebDomConverters.GroupSeparatorClass)]);
+
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context);
+        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);
         RegisterItemsFilterSortMetadata(context);
 
         RenderItems(context, root);
     }
 
-    /// <summary>
-    /// Items live in an inner host rather than directly under the root, mirroring
-    /// <c>ItemsViewComponentRenderer</c>: the client resolves a collection's host with
-    /// <c>root.querySelector("[data-ui-items-host]")</c>, which searches descendants only, so a bound
-    /// collection whose root *is* the container has nowhere to render into and silently stays empty.
-    /// The flex layout moves to the host with it; the orientation/wrap modifier classes stay on the root,
-    /// where the renderer's own live class patches already target them.
-    /// </summary>
+    /// <summary>Renders the items into an inner host; the client's lookup searches descendants only, so the root cannot be it.</summary>
     private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        _ = root.Element("div", host =>
-        {
-            _ = host.Class("ui-command-bar__host");
-            _ = host.Attribute("data-ui-items-host");
-
-            if (isBound)
-                return;
-
-            if (items.Count == 0)
-            {
-                RenderEmptyPlaceholder(context, host);
-                return;
-            }
-
-            RenderItemList(context, host, items, ItemClassName);
-        });
+        RenderItemsHost(context, root, "ui-command-bar__host", items, isBound, ItemClassName);
     }
 }

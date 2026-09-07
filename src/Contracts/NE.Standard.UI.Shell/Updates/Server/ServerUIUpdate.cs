@@ -8,10 +8,9 @@ namespace NE.Standard.UI.Shell.Updates.Server;
 public enum ServerUIUpdateKind
 {
     Value = 0,
-    ContextRebuild = 1,
-    CollectionChange = 2,
-    FullResync = 3,
-    Validation = 4
+    CollectionChange = 1,
+    FullResync = 2,
+    Validation = 3
 }
 
 /// <summary>

@@ -11,8 +11,7 @@ public enum UIAuthorizationDefault
     Anonymous = 0,
 
     /// <summary>
-    /// A route with neither <c>[UIAuthorize]</c> nor <c>[UIAllowAnonymous]</c> requires an authenticated
-    /// session. Forgetting an attribute then closes a page rather than publishing one.
+    /// A route with neither <c>[UIAuthorize]</c> nor <c>[UIAllowAnonymous]</c> requires an authenticated session.
     /// </summary>
     Authenticated = 1
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Identity;
 
 namespace NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -6,6 +7,7 @@ namespace NE.Standard.UI.Abstractions.Binding.Addresses;
 /// <summary>
 /// Identifies a compiled component instance on the client.
 /// </summary>
+[JsonConverter(typeof(UIComponentAddressJsonConverter))]
 public readonly record struct UIComponentAddress
 {
     public UIComponentAddress(UIComponentId componentId, object?[]? dynamicParameters = null)

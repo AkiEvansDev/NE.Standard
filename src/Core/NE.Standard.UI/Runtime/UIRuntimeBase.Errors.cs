@@ -41,8 +41,9 @@ internal abstract partial class UIRuntimeBase
         {
             throw;
         }
-        catch
+        catch (Exception handlerException)
         {
+            TryLogRuntimeResolutionFailure("exception handler", operation, handlerException);
             return RuntimeExceptionResult.CommandResult(DefaultRuntimeErrorCommand);
         }
     }

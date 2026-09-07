@@ -10,8 +10,7 @@ namespace NE.Standard.UI.Scheduling;
 /// Sweeps staged upload and download content past its retention.
 /// </summary>
 /// <remarks>
-/// The store is resolved per run rather than captured, for the same reason the session sweep does it: the
-/// store is registered after this task is constructed.
+/// The store is resolved per run rather than captured, since it is registered after this task is constructed.
 /// </remarks>
 internal sealed partial class UIFileCleanupTask : RuntimeScheduledTask
 {

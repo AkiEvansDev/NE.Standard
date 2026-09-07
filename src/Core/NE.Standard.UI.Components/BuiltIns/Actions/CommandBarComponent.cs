@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -10,7 +7,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -19,7 +15,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <summary>
 /// A horizontal or vertical bar of button items, typically used for toolbars and action rows.
 /// </summary>
-public abstract partial class CommandBarComponent<T> : ItemsComponentBase<T, IButtonModel>
+/// <remarks>Items carrying a <c>Group</c> are set apart by <see cref="GroupSeparator"/>; groups keep the order of their first item.</remarks>
+public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -43,39 +40,21 @@ public abstract partial class CommandBarComponent<T> : ItemsComponentBase<T, IBu
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Gets the button template used to render each item.
+    /// Gets or sets what is drawn between two groups of items — nothing, a step of air, or a hairline.
     /// </summary>
-    public virtual IButtonComponent? ItemTemplate => Template as IButtonComponent;
+    [UIComponentProperty(DefaultValue = UIGroupSeparator.None)]
+    public UIGroupSeparator? GroupSeparator { get; set; }
 
     /// <summary>
     /// Initializes the command bar with its default button item template.
     /// </summary>
     protected CommandBarComponent(string? id = null) : base(id)
     {
-        _ = base.SetTemplate(new DefaultButtonTemplate(binds: true));
+        _ = SetTemplate(new DefaultButtonTemplate(binds: true));
+
+        // A boundary, not a heading: the stylesheet draws the separator on the header's box and shows no content.
+        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: false));
     }
-
-    /// <summary>
-    /// Sets the button template used to render each item.
-    /// </summary>
-    public virtual T SetItemTemplate(IButtonComponent visualTemplate)
-        => base.SetTemplate(visualTemplate);
-
-    /// <summary>
-    /// Sets the item template, throwing if <paramref name="visualTemplate"/> is not an <see cref="IButtonComponent"/>.
-    /// </summary>
-    public override T SetTemplate(IVisualComponent visualTemplate)
-        => visualTemplate is not IButtonComponent
-            ? throw new InvalidOperationException($"Only {nameof(IButtonComponent)} is supported.")
-            : base.SetTemplate(visualTemplate);
-
-    /// <summary>
-    /// Adds a named template variant, throwing if <paramref name="visualTemplate"/> is not an <see cref="IButtonComponent"/>.
-    /// </summary>
-    public override T AddTemplateVariant(string key, IVisualComponent visualTemplate)
-        => visualTemplate is not IButtonComponent
-            ? throw new InvalidOperationException($"Only {nameof(IButtonComponent)} is supported.")
-            : base.AddTemplateVariant(key, visualTemplate);
 
     /// <summary>
     /// Registers an item click command that passes the current item as an argument.
@@ -89,62 +68,17 @@ public abstract partial class CommandBarComponent<T> : ItemsComponentBase<T, IBu
         => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
 
     /// <summary>
-    /// Registers an item click command that passes a bound value at <paramref name="path"/> as an argument.
-    /// </summary>
-    public T OnItemClickWithBinding(string command, string argumentName, string path, UIBindingScope scope = UIBindingScope.Relative)
-        => OnItemClick(command, UIAction.ArgBinding(argumentName, path, scope));
-    /// <summary>
-    /// Registers an item click command that passes a bound value at <paramref name="path"/> as an argument.
-    /// </summary>
-    public T OnItemClickWithBinding(string command, string argumentName, RecursivePath path, UIBindingScope scope = UIBindingScope.Relative)
-        => OnItemClick(command, UIAction.ArgBinding(argumentName, path, scope));
-    /// <summary>
-    /// Registers an item click command that passes a value relative to the current item as an argument.
-    /// </summary>
-    public T OnItemClickWithRelative(string command, string argumentName, string path)
-        => OnItemClick(command, UIAction.ArgRelative(argumentName, path));
-
-    /// <summary>
-    /// Registers an item click command that passes a value from the parent scope as an argument.
-    /// </summary>
-    public T OnItemClickWithParent(string command, string argumentName, string path)
-        => OnItemClick(command, UIAction.ArgParent(argumentName, path));
-    /// <summary>
-    /// Registers an item click command that passes a value from the root scope as an argument.
-    /// </summary>
-    public T OnItemClickWithRoot(string command, string argumentName, string path)
-        => OnItemClick(command, UIAction.ArgRoot(argumentName, path));
-    /// <summary>
-    /// Registers an item click command that passes a literal value as an argument.
-    /// </summary>
-    public T OnItemClickWithLiteral(string command, string argumentName, object? value)
-        => OnItemClick(command, UIAction.Arg(argumentName, value));
-
-    /// <summary>
     /// Registers an item click command with an argument derived from the specified <paramref name="argumentKind"/>.
     /// </summary>
     public T OnItemClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(command);
-        ArgumentException.ThrowIfNullOrWhiteSpace(argumentName);
-
-        KeyValuePair<string, UIActionArgument> argument = argumentKind switch
-        {
-            UIActionArgumentKind.CurrentItem => UIAction.ArgCurrentItem(argumentName),
-            UIActionArgumentKind.CurrentItemKey => UIAction.ArgCurrentItemKey(argumentName),
-            UIActionArgumentKind.Literal or UIActionArgumentKind.Binding => throw new ArgumentOutOfRangeException(nameof(argumentKind), argumentKind, $"Only '{nameof(UIActionArgumentKind.CurrentItem)}' and '{nameof(UIActionArgumentKind.CurrentItemKey)}' are supported by this overload."),
-            _ => throw new UnreachableException()
-        };
-
-        return OnItemClick(command, argument);
-    }
+        => OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
 
     /// <summary>
     /// Registers a click command invoked when an item is clicked.
     /// </summary>
     public T OnItemClick(string command)
     {
-        _ = GetRequiredItemTemplate().OnClick(command);
+        _ = RequiredTemplate.OnClick(command);
         return Self;
     }
 
@@ -153,7 +87,7 @@ public abstract partial class CommandBarComponent<T> : ItemsComponentBase<T, IBu
     /// </summary>
     public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
     {
-        _ = GetRequiredItemTemplate().OnClick(command, arguments);
+        _ = RequiredTemplate.OnClick(command, arguments);
         return Self;
     }
 
@@ -162,17 +96,9 @@ public abstract partial class CommandBarComponent<T> : ItemsComponentBase<T, IBu
     /// </summary>
     public T OnItemClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
     {
-        _ = GetRequiredItemTemplate().OnClickLiteral(command, arguments);
+        _ = RequiredTemplate.OnClickLiteral(command, arguments);
         return Self;
     }
-
-    /// <summary>
-    /// Gets the item template as an <see cref="IButtonComponent"/>, throwing if it does not implement it.
-    /// </summary>
-    private IButtonComponent GetRequiredItemTemplate()
-        => ItemTemplate is IButtonComponent buttonTemplate
-            ? buttonTemplate
-            : throw new InvalidOperationException($"The item template of '{TypeKey}' must inherit from '{nameof(IButtonComponent)}' to configure item click actions.");
 }
 
 /// <summary>

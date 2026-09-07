@@ -22,14 +22,17 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<string?>(context, root, ImageComponent.SourceProperty, static (target, value)
-            => target.Attribute("src", value ?? string.Empty), [WebDomOperation.Attribute("src")]);
+        _ = RenderProperty<string?>(context, root, ImageComponent.SourceProperty, static (target, value) =>
+        {
+            if (WebUrlSafety.IsSafeImageSource(value))
+                _ = target.Attribute("src", value);
+        }, [WebDomOperation.Attribute("src", converter: WebDomConverters.SafeImageSource)]);
 
         _ = RenderProperty<string?>(context, root, ImageComponent.FallbackSourceProperty, static (target, value) =>
         {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("data-ui-fallback-src", value);
-        }, [WebDomOperation.Attribute("data-ui-fallback-src")]);
+            if (WebUrlSafety.IsSafeImageSource(value))
+                _ = target.Attribute(WebAttributes.FallbackSrc, value);
+        }, [WebDomOperation.Attribute(WebAttributes.FallbackSrc, converter: WebDomConverters.SafeImageSource)]);
 
         _ = RenderProperty<string?>(context, root, ImageComponent.AltTextProperty, static (target, value)
             => target.Attribute("alt", value ?? string.Empty), [WebDomOperation.Attribute("alt")]);
@@ -46,10 +49,6 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
                 _ = target.Style("border-radius", WebCssValues.Radius(radius));
         }, [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)]);
 
-        _ = RenderProperty<string?>(context, root, ImageComponent.TooltipProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("title", value);
-        }, [WebDomOperation.Attribute("title")]);
+        RenderTooltip(context, root);
     }
 }

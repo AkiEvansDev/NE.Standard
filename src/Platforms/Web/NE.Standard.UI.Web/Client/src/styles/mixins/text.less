@@ -1,15 +1,25 @@
-.ui-text-reset() {
-    margin: 0;
-    min-width: 0;
-}
-
-.ui-text-wrap() {
-    overflow-wrap: anywhere;
-    word-break: normal;
-}
-
+// One mixin, not three lines repeated: overflow: hidden, text-overflow: ellipsis and white-space: nowrap only work together.
 .ui-text-nowrap() {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+// The field a rename is typed into, laid over a title in the title's own type — a tab's caption, a tree node's title. No ring:
+// a ring would be a box around the title, which this field exists not to be.
+.ui-inline-rename-field() {
+    position: absolute;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    color: var(--ui-color-on-surface);
+    font: inherit;
+    letter-spacing: inherit;
+
+    &,
+    &:focus-visible {
+        outline: none;
+    }
 }

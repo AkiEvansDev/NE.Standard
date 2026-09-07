@@ -5,9 +5,11 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
@@ -28,9 +30,7 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(request);
         request.Validate();
 
-        // The connection that raised the command, held for its whole run: a command's effects are personal —
-        // a focus or a scroll belongs to the tab that clicked — and a runtime shared by several tabs would
-        // otherwise answer whichever one attached last.
+        // Held for the whole run: a command's effects (focus, scroll) belong to the tab that raised it, not whichever attached last.
         using IDisposable invocation = BeginInvocation(invoker);
 
         CompiledUIEvent compiledEvent;
@@ -180,7 +180,7 @@ internal abstract partial class UIRuntimeBase
             {
                 CompiledUIActionArgumentKind.Literal => resolution.LiteralValue,
                 CompiledUIActionArgumentKind.Binding => Controller.GetRecursiveValue(resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.")),
-                CompiledUIActionArgumentKind.CurrentItemKey => GetCurrentItemKey(dynamicParameters),
+                CompiledUIActionArgumentKind.CurrentItemKey => ResolveCurrentItemKey(argument, resolution),
                 _ => throw new UnreachableException()
             };
 
@@ -190,8 +190,26 @@ internal abstract partial class UIRuntimeBase
         return result.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
-    private static string? GetCurrentItemKey(object?[] dynamicParameters)
-        => dynamicParameters.Length == 0 ? null : dynamicParameters[^1] as string;
+    /// <summary>
+    /// Resolves a current-item key against the collection its compiled item scope addresses, refusing a key
+    /// the collection no longer holds.
+    /// </summary>
+    /// <remarks>
+    /// Only a controller-backed collection is checked: a compile-time static one is rendered whole and cannot
+    /// have changed since, and has no path the controller can resolve.
+    /// </remarks>
+    private string ResolveCurrentItemKey(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
+    {
+        RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
+
+        if (path.Count == 0 || path[^1].Kind != PathSegmentKind.Key)
+            throw new InvalidOperationException($"Argument '{argument.Name}' does not address a keyed item.");
+
+        if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(path, out _))
+            throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item no longer in its collection.");
+
+        return path[^1].Key;
+    }
 
     private UICommandResult ResolveCommandResult(RuntimeExceptionResult result, Exception exception)
     {
@@ -201,10 +219,7 @@ internal abstract partial class UIRuntimeBase
 
         UICommandResult command = result.Command ?? DefaultRuntimeErrorCommand;
 
-        // The exception is only allowed to shape the message when the controller did not write one itself: a
-        // result it returned carries a message meant for this user, and second-guessing it would be wrong.
-        // DefaultRuntimeErrorCommand is not such a result — it is this class's own placeholder, and letting its
-        // "Runtime error." reach the browser would be exactly the leak the three levels exist to prevent.
+        // The exception only shapes the message when the controller wrote none; DefaultRuntimeErrorCommand is a placeholder, not authored.
         var authored = result.Command is not null && !ReferenceEquals(result.Command, DefaultRuntimeErrorCommand);
 
         return WithFailureNotification(
@@ -214,12 +229,10 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Gives a failed command something the user can see. Without this the client gets a failure it ignores —
-    /// both channels only ever apply changes and effects — so the button silently does nothing.
+    /// Gives a failed command something the user can see, since a bare failure is otherwise ignored by both channels.
     /// </summary>
     /// <remarks>
-    /// Skipped when the result already carries effects: returning its own is how a command takes over the
-    /// reporting.
+    /// Skipped when the result already carries effects: returning its own is how a command takes over the reporting.
     /// </remarks>
     private UICommandResult WithFailureNotification(UICommandResult result, Exception? exception)
     {
@@ -234,9 +247,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Three levels: a message the command wrote is meant for the user, a refusal has its own wording, and any
-    /// other exception is generic — its real text can carry a connection string or a file path, so it only
-    /// reaches the browser when the application asks for detail.
+    /// Resolves a failed command's message: an authored message, a refusal's own wording, or raw exception text if opted into detail.
     /// </summary>
     private string? ResolveFailureMessage(UICommandResult result, Exception? exception)
     {

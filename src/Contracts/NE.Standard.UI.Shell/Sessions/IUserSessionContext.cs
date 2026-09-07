@@ -19,9 +19,9 @@ public interface IUserSessionContext
     string Language { get; }
 
     /// <summary>
-    /// Gets the preferred theme mode.
+    /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
-    UIThemeMode ThemeMode { get; }
+    UIThemeMode? ThemeMode { get; }
 
     /// <summary>
     /// Gets whether the session is authenticated.

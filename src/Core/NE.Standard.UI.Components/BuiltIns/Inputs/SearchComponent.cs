@@ -25,7 +25,7 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
     public UISearchSelectionDisplayMode? SelectionDisplayMode { get; set; }
 
     /// <summary>
-    /// Gets or sets the current search text.
+    /// Gets or sets what's currently typed into the search box, live as the user types.
     /// </summary>
     [UIComponentProperty(BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultValue = null, DefaultBindingMode = UIBindingMode.TwoWay)]
     public string? SearchText { get; set; }

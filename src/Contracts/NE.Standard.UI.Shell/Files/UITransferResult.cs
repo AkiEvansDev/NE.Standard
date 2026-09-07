@@ -8,8 +8,7 @@ namespace NE.Standard.UI.Shell.Files;
 public sealed class UITransferResult
 {
     /// <summary>
-    /// Creates a transfer result. Cannot be both successful and cancelled; a failed (non-cancelled)
-    /// result must provide an error message, and a successful or cancelled one must not.
+    /// Creates a transfer result; success, cancellation and the error message must be mutually consistent.
     /// </summary>
     public UITransferResult(bool success = true, bool cancelled = false, string? error = null)
     {

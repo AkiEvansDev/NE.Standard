@@ -5,7 +5,11 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 public interface IWebViewRenderer
 {
-    WebRenderResult Render(UIViewResolution resolution);
+    /// <summary>
+    /// Renders a resolved view, optionally with this session's values already in it rather than left to the
+    /// client — see <see cref="IWebRenderValues"/>.
+    /// </summary>
+    WebRenderResult Render(UIViewResolution resolution, IWebRenderValues? values = null);
 
     void RenderComponent(WebRenderContext parent, UIComponentId componentId);
 }

@@ -1,9 +1,9 @@
 @import "../core/tokens.less";
+@import "../mixins/chevron.less";
 @import "../mixins/responsive.less";
 
 .ui-breadcrumbs {
-    // Reset on the root that carries [data-ui-id], where the renderer writes the authoring value; the gap
-    // itself is on the host below, where the steps actually are. Same split as .ui-menu.
+    // Reset on the root, which carries the authored value; the gap itself is on the host, same split as .ui-menu.
     .ui-responsive-reset(--ui-breadcrumbs-spacing);
 
     display: flex;
@@ -27,39 +27,56 @@
     min-width: 0;
 }
 
-    // The mark belongs to the trail, not to the step, so it is drawn beside the step instead of inside it —
-    // inside the anchor it would sit in the link's own hover block and answer to its clicks.
-    .ui-breadcrumbs__item + .ui-breadcrumbs__item::before {
-        content: var(--ui-breadcrumbs-separator, "\203a");
+    // Drawn beside the step, not inside its anchor, or the mark would sit in the link's hover block and answer to its clicks.
+    // After the step, not before the next: a trail that wraps keeps the mark at the end of the line rather than starting the next with it.
+    .ui-breadcrumbs__item:has(~ .ui-breadcrumbs__item:not(.ui-hidden))::after {
+        .ui-chevron(0.5rem);
+        .ui-chevron-right();
         color: var(--ui-text-muted);
         user-select: none;
     }
 
-    // A hidden step takes its mark with it. Visible hides the *step*, and the mark belongs to the wrapper
-    // around it, so without this a trail with a step switched off keeps a separator leading nowhere — and,
-    // Visible being responsive, one rule per tier is what "hidden" actually means.
+    // The author's own separator is text in the glyph's place.
+    .ui-breadcrumbs--text-separator .ui-breadcrumbs__item:has(~ .ui-breadcrumbs__item:not(.ui-hidden))::after {
+        content: var(--ui-breadcrumbs-separator);
+        width: auto;
+        height: auto;
+        background: none;
+        mask: none;
+        transform: none;
+    }
+
+    // Hides the wrapper, not just the step, so its separator goes with it; only for "collapsed" — merely hidden keeps its place.
+    // The step before a collapsed tail loses its mark too, since nothing shown follows it.
     .ui-breadcrumbs-hide-step(@attribute) {
-        .ui-breadcrumbs__item:has(> [@{attribute}]) {
+        .ui-breadcrumbs__item:has(> [@{attribute}="collapsed"]) {
             display: none;
+        }
+
+        .ui-breadcrumbs__item:not(:has(~ .ui-breadcrumbs__item:not(.ui-hidden):not(:has(> [@{attribute}="collapsed"]))))::after {
+            content: none;
         }
     }
 
-    .ui-breadcrumbs-hide-step(data-ui-hidden);
-
-    @media (min-width: @ui-breakpoint-sm) {
-        .ui-breadcrumbs-hide-step(data-ui-hidden-sm);
+    // Banded like runtime.less bands the tiers: each tier's attribute means "collapsed" only inside its own width.
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-breadcrumbs-hide-step(data-ui-visibility);
     }
 
-    @media (min-width: @ui-breakpoint-md) {
-        .ui-breadcrumbs-hide-step(data-ui-hidden-md);
+    @media (min-width: @ui-breakpoint-sm) and (max-width: (@ui-breakpoint-md - 0.02px)) {
+        .ui-breadcrumbs-hide-step(data-ui-visibility-sm);
     }
 
-    @media (min-width: @ui-breakpoint-xl) {
-        .ui-breadcrumbs-hide-step(data-ui-hidden-xl);
+    @media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        .ui-breadcrumbs-hide-step(data-ui-visibility-md);
+    }
+
+    @media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        .ui-breadcrumbs-hide-step(data-ui-visibility-xl);
     }
 
     @media (min-width: @ui-breakpoint-xxl) {
-        .ui-breadcrumbs-hide-step(data-ui-hidden-xxl);
+        .ui-breadcrumbs-hide-step(data-ui-visibility-xxl);
     }
 
     // The filter's own way of taking an item out, which lands on the wrapper rather than on the step.
@@ -68,12 +85,10 @@
     }
 
 .ui-breadcrumb {
-    // Through the mixin, never flat: this element carries [data-ui-id], where runtime.less resolves the
-    // authoring value through a var() chain at the same specificity — see the note on .ui-button.
+    // Through the mixin, never flat — see the note on .ui-button.
     .ui-responsive-property(min-width, --ui-min-width, 0);
-    .ui-responsive-property(min-height, --ui-min-height, 1.75rem);
-    // The step's own padding is most of what stands between two steps, so it is part of the trail's rhythm
-    // rather than of the step: a comfortable button padding here read as a trail with room for another word.
+    .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
+    // Tight padding: the step's own padding is most of the rhythm between steps, so a roomy value reads as a wider trail.
     .ui-responsive-property(padding, --ui-padding, @ui-space-1);
     color: var(--ui-text-muted);
     text-decoration: none;
@@ -82,11 +97,16 @@
     .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover {
         background: none;
         color: var(--ui-color-on-surface);
-        text-decoration: underline;
     }
 
-// The page you are on: plain text that keeps the trail's rhythm, and no longer a link — the pointer half of
-// what breadcrumbs-engine.ts says to a reader with aria-current.
+    // Under the word only, as on .ui-link: a glyph is not text to underline.
+    .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover .ui-text__title {
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.15em;
+    }
+
+// The page you are on: plain text that keeps the trail's rhythm, no longer a link.
 .ui-breadcrumb--current {
     color: var(--ui-color-on-surface);
     font-weight: 600;

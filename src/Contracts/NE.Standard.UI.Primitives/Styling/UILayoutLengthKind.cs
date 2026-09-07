@@ -14,4 +14,9 @@ public enum UILayoutLengthKind
     /// The length is a fixed value expressed in device-independent units.
     /// </summary>
     Absolute = 1,
+
+    /// <summary>
+    /// The whole of what the parent gives: a page that fills the viewport, a pane that fills its track.
+    /// </summary>
+    Fill = 2,
 }

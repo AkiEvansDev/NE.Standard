@@ -1,7 +1,8 @@
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
-/// Defines supported UI theme modes.
+/// The two themes a surface can be forced into. <see langword="null"/> means "inherit" on a component and
+/// "follow the platform" on a session.
 /// </summary>
 public enum UIThemeMode
 {
@@ -14,9 +15,4 @@ public enum UIThemeMode
     /// Always uses the dark theme.
     /// </summary>
     Dark = 1,
-
-    /// <summary>
-    /// Follows the platform/system theme preference.
-    /// </summary>
-    Auto = 2,
 }

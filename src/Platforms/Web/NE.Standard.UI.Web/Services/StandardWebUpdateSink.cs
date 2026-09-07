@@ -16,11 +16,11 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 {
     private static partial class Log
     {
-        [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Sending server UI changes to {InstanceCount} connection(s), tab '{ClientTabId}'.")]
-        public static partial void SendingChanges(ILogger logger, int instanceCount, string clientTabId);
+        [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Sending server UI changes to {InstanceCount} connection(s), tab '{ClientWindowId}'.")]
+        public static partial void SendingChanges(ILogger logger, int instanceCount, string clientWindowId);
 
-        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Sending command result to connection '{InstanceId}', tab '{ClientTabId}'.")]
-        public static partial void SendingCommandResult(ILogger logger, string instanceId, string clientTabId);
+        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Sending command result to connection '{InstanceId}', tab '{ClientWindowId}'.")]
+        public static partial void SendingCommandResult(ILogger logger, string instanceId, string clientWindowId);
     }
 
     private readonly IHubContext<WebUIHub> _hub;
@@ -47,7 +47,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
         if (instanceIds.Count == 0)
             return;
 
-        Log.SendingChanges(_logger, instanceIds.Count, handle.Instance.TabId);
+        Log.SendingChanges(_logger, instanceIds.Count, handle.Instance.WindowId);
 
         await _hub.Clients
             .Clients([.. instanceIds])
@@ -63,7 +63,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
         handle.Instance.Validate();
         result.Validate();
 
-        Log.SendingCommandResult(_logger, handle.Instance.Id, handle.Instance.TabId);
+        Log.SendingCommandResult(_logger, handle.Instance.Id, handle.Instance.WindowId);
 
         await _hub.Clients
             .Client(handle.Instance.Id)

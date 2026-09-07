@@ -1,4 +1,8 @@
+import { ComponentSelector } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
+import { hasOpenPopups } from "./popup-dismissal";
+import { FocusableSelector } from "./popup-focus";
+import { isRovingCandidate } from "./roving-focus";
 
 const DialogAttribute = "data-ui-dialog";
 const ModalAttribute = "data-ui-dialog-modal";
@@ -6,15 +10,6 @@ const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
 const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
 const BackdropAttribute = "data-ui-dialog-backdrop";
 const SurfaceClass = "ui-dialog__surface";
-
-const FocusableSelector = [
-    "input:not([disabled])",
-    "select:not([disabled])",
-    "textarea:not([disabled])",
-    "button:not([disabled])",
-    "a[href]",
-    "[tabindex]:not([tabindex=\"-1\"])"
-].join(", ");
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
@@ -115,21 +110,25 @@ export class DialogEngine {
         const key = dialog.getAttribute(DialogAttribute);
 
         if (key !== null)
-            void this.close(key);
+            this.closeFromViewer(key);
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
+        if (domEvent.defaultPrevented || domEvent.isComposing)
+            return;
+
         const topmost = this.getTopmostOpen();
 
         if (topmost === null)
             return;
 
-        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute)) {
+        // A popup open inside the dialog — a select's list, a picker, a menu — takes the first Escape; the dialog the next.
+        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups()) {
             const key = topmost.getAttribute(DialogAttribute);
 
             if (key !== null) {
                 domEvent.preventDefault();
-                void this.close(key);
+                this.closeFromViewer(key);
             }
 
             return;
@@ -139,22 +138,34 @@ export class DialogEngine {
             this.trapTab(topmost, domEvent);
     }
 
-    // Open state lives on the DOM hidden attribute, not a parallel JS set, so document order is the stack
-    // order and a dialog opened by a server push needs no bookkeeping to join it.
-    private getTopmostOpen(): HTMLElement | null {
-        const open = [...this.root.querySelectorAll<HTMLElement>(`[${DialogAttribute}]:not([hidden])`)];
+    /**
+     * Escape and a backdrop press close the dialog and tell the server: a bubbling `close` on the content component, where
+     * `OnClose` is attached. A server-driven close (the `CloseDialog` effect, through the public `close`) raises nothing —
+     * the server already knows.
+     */
+    private closeFromViewer(key: string): void {
+        const dialog = this.find(key);
+        const wasOpen = dialog !== null && !dialog.hasAttribute("hidden");
 
-        return open.length === 0 ? null : open[open.length - 1];
+        if (!this.close(key) || !wasOpen || dialog === null)
+            return;
+
+        const content = dialog.querySelector(ComponentSelector);
+
+        content?.dispatchEvent(new Event("close", { bubbles: true }));
+    }
+
+    private getTopmostOpen(): HTMLElement | null {
+        return findTopmostOpenDialog(this.root);
     }
 
     private trapTab(dialog: HTMLElement, domEvent: KeyboardEvent): void {
         const focusable = [...dialog.querySelectorAll<HTMLElement>(FocusableSelector)].filter(
-            element => element.offsetParent !== null || element === document.activeElement
+            element => isRovingCandidate(element) || element === document.activeElement
         );
 
         if (focusable.length === 0) {
-            // Nothing to move focus to, but the key still has to be swallowed: letting it through would
-            // walk focus out of the modal and into the page behind it.
+            // Nothing to move focus to, but the key is still swallowed or focus walks out of the modal.
             domEvent.preventDefault();
             return;
         }
@@ -174,4 +185,18 @@ export class DialogEngine {
             last.focus();
         }
     }
+}
+
+/** The open dialog on top: open state lives on the DOM `hidden` attribute, not a parallel set, so document order is the stack order. */
+export function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {
+    const open = root.querySelectorAll<HTMLElement>(`[${DialogAttribute}]:not([hidden])`);
+
+    return open.length === 0 ? null : open[open.length - 1];
+}
+
+/** The open modal dialog the page stands behind, or null: nothing outside it may take a key. */
+export function findOpenModalDialog(root: ParentNode): HTMLElement | null {
+    const topmost = findTopmostOpenDialog(root);
+
+    return topmost !== null && topmost.hasAttribute(ModalAttribute) ? topmost : null;
 }

@@ -26,7 +26,6 @@ public sealed class UICompiledBindingIndex
     private readonly UICompiledBindingTemplateIndex _templates;
     private readonly FrozenDictionary<UIBindingId, CompiledUIBinding> _bindingsById;
     private readonly FrozenDictionary<UIPropertyAddress, CompiledUIBinding> _propertyBindingsByAddress;
-    private readonly FrozenDictionary<UIPropertyAddress, CompiledUIBinding> _contextBindingsByAddress;
     private readonly FrozenDictionary<UIPropertyAddress, CompiledUIBinding> _collectionBindingsByAddress;
     private readonly FrozenDictionary<UIBindingTemplateId, CompiledUIBinding[]> _bindingsByTemplateId;
     private readonly FrozenDictionary<BindingTemplateKindKey, CompiledUIBinding[]> _bindingsByTemplateIdAndKind;
@@ -48,7 +47,6 @@ public sealed class UICompiledBindingIndex
 
         Dictionary<UIBindingId, CompiledUIBinding> byId = new(bindings.Length);
         Dictionary<UIPropertyAddress, CompiledUIBinding> propertyByAddress = [];
-        Dictionary<UIPropertyAddress, CompiledUIBinding> contextByAddress = [];
         Dictionary<UIPropertyAddress, CompiledUIBinding> collectionByAddress = [];
         Dictionary<UIBindingTemplateId, List<CompiledUIBinding>> byTemplate = [];
         Dictionary<BindingTemplateKindKey, List<CompiledUIBinding>> byTemplateAndKind = [];
@@ -66,7 +64,6 @@ public sealed class UICompiledBindingIndex
             Dictionary<UIPropertyAddress, CompiledUIBinding> addressMap = binding.Kind switch
             {
                 CompiledUIBindingKind.ComponentProperty => propertyByAddress,
-                CompiledUIBindingKind.ComponentContext => contextByAddress,
                 CompiledUIBindingKind.ComponentCollection => collectionByAddress,
                 _ => throw new UnreachableException()
             };
@@ -74,18 +71,17 @@ public sealed class UICompiledBindingIndex
             if (!addressMap.TryAdd(binding.Address, binding))
                 throw new InvalidOperationException($"Binding address '{binding.Address}' is already registered for kind '{binding.Kind}'.");
 
-            AddToIndex(byTemplate, binding.TemplateId, binding);
-            AddToIndex(byTemplateAndKind, new BindingTemplateKindKey(binding.TemplateId, binding.Kind), binding);
+            GroupingIndex.Add(byTemplate, binding.TemplateId, binding);
+            GroupingIndex.Add(byTemplateAndKind, new BindingTemplateKindKey(binding.TemplateId, binding.Kind), binding);
             AddToDescendantTemplateKindIndex(descendantsByTemplateAndKind, binding, templates);
         }
 
         _bindingsById = byId.ToFrozenDictionary();
         _propertyBindingsByAddress = propertyByAddress.ToFrozenDictionary();
-        _contextBindingsByAddress = contextByAddress.ToFrozenDictionary();
         _collectionBindingsByAddress = collectionByAddress.ToFrozenDictionary();
-        _bindingsByTemplateId = Freeze(byTemplate);
-        _bindingsByTemplateIdAndKind = Freeze(byTemplateAndKind);
-        _descendantBindingsByTemplateAndKind = Freeze(descendantsByTemplateAndKind);
+        _bindingsByTemplateId = GroupingIndex.Freeze(byTemplate);
+        _bindingsByTemplateIdAndKind = GroupingIndex.Freeze(byTemplateAndKind);
+        _descendantBindingsByTemplateAndKind = GroupingIndex.Freeze(descendantsByTemplateAndKind);
     }
 
     /// <summary>
@@ -163,27 +159,6 @@ public sealed class UICompiledBindingIndex
             : throw new InvalidOperationException($"Property binding for address '{address}' was not found.");
 
     /// <summary>
-    /// Attempts to get the context binding for a component.
-    /// </summary>
-    public bool TryGetContext(UIComponentId componentId, [NotNullWhen(true)] out CompiledUIBinding? binding)
-    {
-        if (componentId.IsEmpty)
-            throw new ArgumentException("Component id must not be empty.", nameof(componentId));
-
-        UIPropertyAddress address = new(componentId, nameof(IBindableComponent.Context));
-
-        return _contextBindingsByAddress.TryGetValue(address, out binding);
-    }
-
-    /// <summary>
-    /// Gets the context binding for a component or throws when it is not registered.
-    /// </summary>
-    public CompiledUIBinding GetRequiredContext(UIComponentId componentId)
-        => TryGetContext(componentId, out CompiledUIBinding? binding)
-            ? binding
-            : throw new InvalidOperationException($"Context binding for component '{componentId}' was not found.");
-
-    /// <summary>
     /// Attempts to get the collection binding for an items component.
     /// </summary>
     public bool TryGetCollection(UIComponentId componentId, [NotNullWhen(true)] out CompiledUIBinding? binding)
@@ -195,14 +170,6 @@ public sealed class UICompiledBindingIndex
 
         return _collectionBindingsByAddress.TryGetValue(address, out binding);
     }
-
-    /// <summary>
-    /// Gets the collection binding for an items component or throws when it is not registered.
-    /// </summary>
-    public CompiledUIBinding GetRequiredCollection(UIComponentId componentId)
-        => TryGetCollection(componentId, out CompiledUIBinding? binding)
-            ? binding
-            : throw new InvalidOperationException($"Collection binding for component '{componentId}' was not found.");
 
     /// <summary>
     /// Gets controller-source bindings matching the specified path.
@@ -217,12 +184,6 @@ public sealed class UICompiledBindingIndex
         => Get(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentProperty, out parameters);
 
     /// <summary>
-    /// Gets controller-source context bindings matching the specified path.
-    /// </summary>
-    public IReadOnlyList<CompiledUIBinding> GetControllerContexts(RecursivePath path, out object[] parameters)
-        => Get(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentContext, out parameters);
-
-    /// <summary>
     /// Gets controller-source collection bindings matching the specified path.
     /// </summary>
     public IReadOnlyList<CompiledUIBinding> GetControllerCollections(RecursivePath path, out object[] parameters)
@@ -233,6 +194,12 @@ public sealed class UICompiledBindingIndex
     /// </summary>
     public IReadOnlyList<CompiledUIBinding> GetControllerDescendantProperties(RecursivePath path, out object[] parameters)
         => GetDescendants(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentProperty, out parameters);
+
+    /// <summary>
+    /// Gets controller-source collection bindings below the specified path.
+    /// </summary>
+    public IReadOnlyList<CompiledUIBinding> GetControllerDescendantCollections(RecursivePath path, out object[] parameters)
+        => GetDescendants(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentCollection, out parameters);
 
     /// <summary>
     /// Gets bindings for a source and concrete path.
@@ -381,18 +348,6 @@ public sealed class UICompiledBindingIndex
         CompiledUIBindingParameterResolver.ValidateDynamicComponentIds($"Binding '{binding.Id}'", binding.Parameters, binding.DynamicParameterComponentIds);
     }
 
-    private static void AddToIndex<TKey>(Dictionary<TKey, List<CompiledUIBinding>> index, TKey key, CompiledUIBinding binding)
-        where TKey : notnull
-    {
-        if (!index.TryGetValue(key, out List<CompiledUIBinding>? group))
-        {
-            group = [];
-            index.Add(key, group);
-        }
-
-        group.Add(binding);
-    }
-
     private static void AddToDescendantTemplateKindIndex(Dictionary<BindingTemplateStringKindKey, List<CompiledUIBinding>> index, CompiledUIBinding binding, UICompiledBindingTemplateIndex templates)
     {
         CompiledUIBindingTemplate template = templates.GetRequired(binding.TemplateId);
@@ -401,7 +356,7 @@ public sealed class UICompiledBindingIndex
         {
             BindingTemplateStringKindKey key = new(binding.SourceId, ancestorTemplate, binding.Kind);
 
-            AddToIndex(index, key, binding);
+            GroupingIndex.Add(index, key, binding);
         }
     }
 
@@ -426,14 +381,4 @@ public sealed class UICompiledBindingIndex
         }
     }
 
-    private static FrozenDictionary<TKey, CompiledUIBinding[]> Freeze<TKey>(Dictionary<TKey, List<CompiledUIBinding>> source)
-        where TKey : notnull
-    {
-        Dictionary<TKey, CompiledUIBinding[]> result = new(source.Count);
-
-        foreach (KeyValuePair<TKey, List<CompiledUIBinding>> pair in source)
-            result.Add(pair.Key, [.. pair.Value]);
-
-        return result.ToFrozenDictionary();
-    }
 }

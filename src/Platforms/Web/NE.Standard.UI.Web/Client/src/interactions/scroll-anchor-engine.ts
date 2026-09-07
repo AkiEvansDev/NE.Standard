@@ -1,27 +1,22 @@
-const ScrollAnchorAttribute = "data-ui-scroll-anchor";
-const EndAnchor = "End";
+import { VisibilityAttribute } from "../addressing/dom-attributes";
+import { observeComponents } from "./dom-mutations";
 
-// Slack rather than an exact comparison: a fractional scroll position, a zoom level and a sub-pixel row
-// height all leave a container that reads as "at the bottom" a pixel or two short of it.
+/** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
+export const ScrollAnchorAttribute = "data-ui-scroll-anchor";
+export const EndAnchor = "End";
+
+// Slack rather than an exact comparison: fractional scroll positions and sub-pixel row heights fall short of it.
 const EndThreshold = 4;
 
 export type ScrollAnchorEngineOptions = {
     readonly root?: ParentNode;
 };
 
-/**
- * Keeps an end-anchored container following its own content — a chat that stays at the newest message while
- * the viewer is at the bottom, and stops following the moment they scroll up.
- *
- * The opposite case, content inserted *above* the viewport, needs nothing: `overflow-anchor` is on by default
- * and browsers already hold the position for it.
- */
+/** Keeps an end-anchored container at its newest content while the viewer is at the bottom. */
 export class ScrollAnchorEngine {
     private readonly root: ParentNode;
 
-    // Whether each container was at its end when last observed. Anchored containers start pinned, so one that
-    // is rendered empty and filled by the first collection update lands at the newest item rather than the
-    // oldest. A WeakMap, so a removed container drops its entry.
+    // Whether each container was at its end when last observed; an unseen one counts as pinned.
     private readonly pinned = new WeakMap<Element, boolean>();
 
     public constructor(options: ScrollAnchorEngineOptions = {}) {
@@ -29,11 +24,13 @@ export class ScrollAnchorEngine {
 
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
 
-        new MutationObserver(() => this.followContent()).observe(this.root as Node, {
-            childList: true,
-            subtree: true,
-            characterData: true
-        });
+        // Visibility watched too: revealing a component inside an anchored pane is content arriving, and it touches no node or character.
+        observeComponents(
+            this.root,
+            `[${ScrollAnchorAttribute}="${EndAnchor}"]`,
+            { childList: true, characterData: true, attributeFilter: [VisibilityAttribute] },
+            containers => this.followEach(containers)
+        );
 
         this.followContent();
     }
@@ -48,7 +45,11 @@ export class ScrollAnchorEngine {
     }
 
     private followContent(): void {
-        for (const container of this.root.querySelectorAll(`[${ScrollAnchorAttribute}="${EndAnchor}"]`)) {
+        this.followEach(this.root.querySelectorAll<HTMLElement>(`[${ScrollAnchorAttribute}="${EndAnchor}"]`));
+    }
+
+    private followEach(containers: Iterable<Element>): void {
+        for (const container of containers) {
             if (this.pinned.get(container) === false)
                 continue;
 
@@ -60,10 +61,10 @@ export class ScrollAnchorEngine {
     }
 }
 
-function isEndAnchored(container: Element): boolean {
+export function isEndAnchored(container: Element): boolean {
     return container.getAttribute(ScrollAnchorAttribute) === EndAnchor;
 }
 
-function isAtEnd(container: Element): boolean {
+export function isAtEnd(container: Element): boolean {
     return container.scrollHeight - container.scrollTop - container.clientHeight <= EndThreshold;
 }

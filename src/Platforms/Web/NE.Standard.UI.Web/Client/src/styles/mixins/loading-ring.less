@@ -1,0 +1,19 @@
+// The one turning ring, used by the spinner and by loading controls in place of their icon; a border, not a glyph, so no icon pack.
+.ui-loading-ring() {
+    width: 1em;
+    height: 1em;
+    border: 0.14em solid color-mix(in srgb, currentColor 28%, transparent);
+    border-top-color: currentColor;
+    border-radius: 999px;
+    animation: ui-spin 800ms linear infinite;
+}
+
+@keyframes ui-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -33,17 +33,25 @@ Everything else in the framework arrives as a dependency of those two.
 | [`NE.Standard.UI.Compiled`](https://www.nuget.org/packages/NE.Standard.UI.Compiled) | the compiler's output: `CompiledView`, its indexes and the resolution over them. |
 | [`NE.Standard.UI.Shell`](https://www.nuget.org/packages/NE.Standard.UI.Shell) | hosting and runtime contracts: `IUIHost`, `IUIRuntime`, `IUIUpdateSink`, sessions, services. |
 | [`NE.Standard.UI`](https://www.nuget.org/packages/NE.Standard.UI) | the engine: view compilation, the two-way runtime, hosting, routing, scheduling. |
-| [`NE.Standard.UI.Components`](https://www.nuget.org/packages/NE.Standard.UI.Components) | the built-in components and their default templates. |
+| [`NE.Standard.UI.Components.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Components.Foundation) | the component bases and the template bindings a package's own component builds on — none of the built-ins. |
+| [`NE.Standard.UI.Components`](https://www.nuget.org/packages/NE.Standard.UI.Components) | the built-in components and their default templates, over the foundation. |
 | [`NE.Standard.UI.Generators`](https://www.nuget.org/packages/NE.Standard.UI.Generators) | the two Roslyn source generators the stack is built on, usable by anything defining its own components or observable models. |
 | [`NE.Standard.UI.Web`](https://www.nuget.org/packages/NE.Standard.UI.Web) | the ASP.NET Core host: shell, SignalR channel, file transfer, and the embedded TypeScript client. |
 | [`NE.Standard.UI.Web.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Web.Abstractions) | the render contracts an add-on implements to render a component of its own. |
-| [`NE.Standard.UI.Web.Renderers`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers) | the HTML renderers for the built-in components. |
+| [`NE.Standard.UI.Web.Renderers.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers.Foundation) | the renderer base and the shared style, text and input helpers an add-on's own renderer builds on. |
+| [`NE.Standard.UI.Web.Renderers`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers) | the HTML renderers for the built-in components, over the foundation. |
 | [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components. Reserved and empty in this pre-release. |
 
 **Icons ship separately**, from [`NE.Standard.UI.Icons`](https://github.com/AkiEvansDev/NE.Standard.UI.Icons)
-— `NE.Standard.UI.Icons.Lucide` and `NE.Standard.UI.Web.Icons.Lucide`, MIT, on their own version. They are
+— Lucide and Material Symbols, a name package and a web package each, MIT, on their own version. They are
 developed alongside the framework, so a set and the renderer it plugs into are never out of step. The demo
-uses them.
+uses the Material set.
+
+**Components can ship separately too.**
+[`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) is the first: a code
+editor with syntax highlighting, line numbers and find and replace, under the framework's own licence and on
+its own version. A component package is a component like the built-in ones — the same generator, the same
+binding, its own renderer against `NE.Standard.UI.Web.Abstractions`.
 
 The colour palette is [`NE.Colors`](https://www.nuget.org/packages/NE.Colors), a repository of its own because
 more than this framework needs it. It is MIT, and it arrives as a dependency of
@@ -105,10 +113,11 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component across 103 routes, with a worked
-authentication/authorization section. Each component has a live binding playground; a static example page
-where it has variants worth putting side by side, and an interaction test where there is a server-side event
-to watch.
+`examples/DemoApp` is the reference application: every built-in component has its pages, 106 routes in all.
+The demo's sign-in and authorization pages are being rebuilt and are not in it at the moment; the mechanism they
+showed is exercised by `examples/TeamRoom`, the mini application. Every component has a **Main** page — a preview beside every bindable property, each
+row stepping its value — plus, where they earn their keep, an **Examples** page for variants worth putting
+side by side and a **Scenarios** page for what needs a story rather than a property.
 
 ```
 dotnet run --project examples/DemoApp.Web    # http://localhost:5000

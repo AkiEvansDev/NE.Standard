@@ -1,0 +1,65 @@
+@import "../core/tokens.less";
+@import "../mixins/popup.less";
+
+// One element for the whole page, built and positioned by TooltipEngine in place of the browser's `title`.
+.ui-tooltip {
+    // Above everything, including an open popup. No scroll cap — the tail below is drawn outside the box.
+    .ui-popup-surface(60);
+    display: none;
+    max-width: 20rem;
+    padding: @ui-space-1 @ui-space-2;
+    color: var(--ui-color-on-surface);
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+    // Reachable with the pointer: its text is allowed to carry a link, and TooltipEngine keeps it open while the pointer is inside it.
+    overflow-wrap: anywhere;
+}
+
+.ui-tooltip--visible {
+    display: block;
+}
+
+// The tail is the tooltip's corner rotated onto its edge; --ui-popup-arrow is the anchor's centre, so a shifted tooltip still aims at it.
+.ui-tooltip::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: var(--ui-popup-arrow, 50%);
+    width: 0.45rem;
+    height: 0.45rem;
+    border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    background: var(--ui-color-surface);
+    transform: translate(-50%, 55%) rotate(45deg);
+}
+
+    // Above the control — the ordinary case, and where a tooltip with no room below ends up as well.
+    .ui-tooltip[data-ui-placement^="top"]::after {
+        top: 100%;
+        bottom: auto;
+        border-top: none;
+        border-left: none;
+        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        transform: translate(-50%, -55%) rotate(45deg);
+    }
+
+    // Beside the control: the tail moves to the leading or trailing edge, and the engine's offset is measured down the edge, not along it.
+    .ui-tooltip[data-ui-placement^="left"]::after {
+        top: var(--ui-popup-arrow, 50%);
+        bottom: auto;
+        left: 100%;
+        border-left: none;
+        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        transform: translate(-55%, -50%) rotate(45deg);
+    }
+
+    .ui-tooltip[data-ui-placement^="right"]::after {
+        top: var(--ui-popup-arrow, 50%);
+        bottom: auto;
+        left: auto;
+        right: 100%;
+        border-top: none;
+        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        transform: translate(55%, -50%) rotate(45deg);
+    }

@@ -14,23 +14,13 @@ namespace NE.Standard.UI.Files;
 /// <summary>
 /// The default store: content on disk under a configured root, metadata in memory.
 /// </summary>
-/// <remarks>
-/// Metadata in memory means a restart loses staged selections, which is the right trade for content whose
-/// whole life is one page visit — a host that needs otherwise registers its own <see cref="IUIFileStore"/>.
-/// The content those selections named outlives them on disk, so the sweep also walks the root for files no
-/// entry claims; see <see cref="SweepOrphans"/>.
-/// <para>
-/// Files are named by their issued id and never by anything the client sent: a client-supplied name reaching a
-/// path is how directory traversal happens. The original name lives in metadata only.
-/// </para>
-/// </remarks>
 internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 {
     private sealed record StoredUpload(UIUploadFile File, string SelectionId, string Path, DateTime CreatedAtUtc);
 
     private sealed record StoredDownload(string FileName, string ContentType, string Path, DateTime CreatedAtUtc);
 
-    // Keyed by (session, id) so a file id from another session simply does not resolve — see docs/FILES.md §3.
+    // Keyed by (session, id) so a file id from another session simply does not resolve.
     private readonly ConcurrentDictionary<(string SessionId, string FileId), StoredUpload> _uploads = new();
     private readonly ConcurrentDictionary<(string SessionId, string Token), StoredDownload> _downloads = new();
 
@@ -59,9 +49,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         long size;
 
-        // A copy that fails takes its own half-written file with it. Nothing has registered the path yet, so
-        // the sweep — which walks the metadata — would never have seen it again: an oversized upload is the
-        // one refusal a caller can repeat at will, and every attempt would have left its bytes behind.
+        // A failed copy leaves an unregistered file the sweep would never find, so it is deleted here instead.
         try
         {
             FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -178,8 +166,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Removed on read, so the same URL cannot be fetched twice — a download link that stays live is a
-        // download link that can be shared.
+        // Removed on read, so the same URL cannot be fetched twice.
         if (!_downloads.TryRemove((sessionId, token), out StoredDownload? stored) || !File.Exists(stored.Path))
             return Task.FromResult<UIStagedDownload?>(null);
 
@@ -244,12 +231,6 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     /// <summary>
     /// Deletes content on disk that no metadata entry claims and that is older than its own retention.
     /// </summary>
-    /// <remarks>
-    /// Metadata lives in memory, so anything that ends the process other than <see cref="Dispose"/> leaves
-    /// every staged file behind with nothing left to name it. Age is the only handle the sweep has on such a
-    /// file, and it is the same age at which a claimed one would have gone — so a second process sharing the
-    /// root loses nothing it would have kept.
-    /// </remarks>
     private int SweepOrphans(DateTime utcNow, TimeSpan uploadRetention, TimeSpan downloadRetention)
     {
         HashSet<string> claimed = new(StringComparer.OrdinalIgnoreCase);
@@ -305,8 +286,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         }
         catch (IOException)
         {
-            // A file still open by a download in flight is deleted by FileOptions.DeleteOnClose instead; a
-            // sweep failing to remove it is not worth failing the sweep.
+            // A file still open by a download in flight is deleted by FileOptions.DeleteOnClose instead.
         }
         catch (UnauthorizedAccessException)
         {

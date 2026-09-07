@@ -1,16 +1,8 @@
 @import "../core/tokens.less";
+@import "../mixins/field.less";
+@import "../mixins/loading-ring.less";
 
-// The label row every input draws above its field. One block instead of a copy per component: text input,
-// text area, number, file and the three temporal inputs all rendered the same header under their own BEM
-// prefix, and select/search/radio group had none at all. The C# side is
-// TextContentRendererBase.RenderInputHeader.
-//
-// The state hooks sit on the component root, because that is where a live patch puts them
-// (WebDomOperation.ToggleAttribute(target: "root")) — the header is only ever a direct child of it.
-
-// Hidden until it has something to show, so an input with no label does not pay for an empty row and its
-// gap. Title and icon are known from the root's own hooks; a badge and the required marker are not, which
-// is what the :has() is for.
+// The label row every input draws above its field, hidden until there is something to show; the :has() covers a badge or required marker.
 .ui-input__header {
     display: none;
     align-items: center;
@@ -18,82 +10,58 @@
     min-width: 0;
 }
 
-:is([data-ui-input-title], [data-ui-input-icon]) > .ui-input__header,
-.ui-input__header:has(> :is([data-ui-badge-icon], [data-ui-badge-text], .ui-input__required)) {
-    display: flex;
-}
-
-.ui-input__icon {
-    display: none;
+// The word at either end of a value; hidden while empty so a bound affix can appear with the data.
+.ui-input__affix {
     flex: 0 0 auto;
-}
-
-:where(.ui-input__icon) {
+    min-width: 0;
     color: var(--ui-text-muted);
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
 }
 
-[data-ui-input-icon] > .ui-input__header > .ui-input__icon {
-    display: inline-flex;
-}
-
-    [data-ui-input-icon] > .ui-input__header > .ui-input__icon::before {
-        display: block;
+    .ui-input__affix:empty {
+        display: none;
     }
 
-.ui-input__title {
-    display: none;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+// Grid, not flex: the caption is a .ui-text body whose icon column and description subgrid line up against ui-text.less's own tracks.
+:is([data-ui-text-title], [data-ui-text-icon]) > .ui-input__header,
+.ui-input__header:has(:is([data-ui-badge-icon], [data-ui-badge-text], .ui-input__required)) {
+    display: grid;
 }
 
-:where(.ui-input__title) {
+// Caption is secondary to the value it labels, so muted; :where() keeps a .ui-color--* utility able to override it.
+:where(.ui-input__header > .ui-text__icon) {
     color: var(--ui-text-muted);
 }
 
-[data-ui-input-title] > .ui-input__header > .ui-input__title {
-    display: block;
-}
-
-.ui-input__badge {
-    display: none;
-    flex: 0 0 auto;
-    min-height: 0;
-    height: var(--ui-text-caption-line-height);
-    padding: 0 @ui-space-2;
-}
-
-.ui-input__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
-    display: inline-flex;
-}
-
-.ui-input__badge--inline {
-    margin-left: 0.5em;
-}
-
-.ui-input__badge--trailing {
-    margin-left: auto;
+:where(.ui-input__header > .ui-text__body > .ui-text__header > .ui-text__title) {
+    color: var(--ui-text-muted);
 }
 
 .ui-input__required {
-    flex: 0 0 auto;
-    color: var(--ui-color-danger);
-    line-height: 1;
+    .ui-required-marker();
 }
 
-// A glyph standing beside the text inside the field, at either end. One block for every field shape, keyed
-// off the component root the way the header is — and hidden until the root says there is an icon, so an
-// input without one pays for no empty box. Size and colour come from the field, never from the author: the
-// pair exists to match the text it stands next to. The captioned icon with knobs of its own is
-// .ui-input__icon above, and it lives in the header.
+    // The title stops growing when it carries a required marker, or the marker lands at the far edge of a full-width field.
+    .ui-text__header:has(> .ui-input__required) > .ui-text__title {
+        flex-grow: 0;
+    }
+
+// A glyph beside the field text, at either end, hidden until the root says there is one; the captioned icon is .ui-text__icon above.
 .ui-input__affix-icon {
     display: none;
     flex: 0 0 auto;
-    // .ui-icon is 1em on currentColor, so the size comes from the field's own text; only the tone is set
-    // here, matching the text affix beside it.
+    // Font-based glyphs share the em box and optical size of the text beside them, so no size correction is needed.
+    font-size: 1em;
+    // The tone matches the text affix beside it.
     color: var(--ui-text-muted);
 }
+
+    // A raster image icon has no x-height to match, so it keeps a larger step than the glyphs use.
+    .ui-input__affix-icon.ui-icon--image {
+        font-size: 1.25em;
+    }
 
 [data-ui-input-prefix-icon] .ui-input__affix-icon--prefix,
 [data-ui-input-suffix-icon] .ui-input__affix-icon--suffix {
@@ -105,43 +73,139 @@
         display: block;
     }
 
-// The underline appearance: one rule under the text instead of a filled box — what an edit-in-place field
-// wants. The modifier is on the component root, so this is the only place that has to know the field shape
-// of each input; nothing else in those stylesheets changes.
-//
-// The focus ring is the one thing taken back through a variable rather than a rule. Every input draws the
-// ring itself, from a selector rooted at its own class, and its invalid variant draws it again from a longer
-// one — neither can be outranked from the root, and a box appeared around a field whose whole point is not
-// to be one. A width of zero draws nothing, and a custom property reaches the row whatever the selectors say.
+    // Same trade a button makes: the leading glyph turns into the ring; the suffix is left alone, since it holds the field's controls.
+    .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before {
+        content: "";
+        background: none;
+        mask: none;
+        -webkit-mask: none;
+        .ui-loading-ring();
+    }
+
+
+// The three inputs that open a popup, for the rule below.
+@ui-input-open: ~".ui-color-input--open, .ui-select--open, .ui-temporal-input--open";
+
+// A field that is a box rather than a row — a <textarea>, a package's editor — takes the ground by class, and with it every appearance
+// and state below. `--ui-field-fill` is what the box paints at the moment, for anything of its own that has to paint the same (a sticky
+// gutter over scrolled text): the resting fill here, and what each appearance and the hover put in its place.
+.ui-field-box {
+    --ui-field-fill: var(--ui-field-rest);
+    color: var(--ui-color-on-surface);
+    .ui-field-ground();
+}
+
+// No fill, a border all the way round, in the theme's own colour rather than the fill it replaces — the whole difference from Filled.
+.ui-input--outline > :is(@{ui-input-field}),
+.ui-input--outline > .ui-field-box {
+    --ui-field-fill: var(--ui-field-ground);
+    border-color: var(--ui-color-border);
+    background: none;
+}
+
+// A rule under the text, not a box; the ring is zeroed via a variable, since an input's own ring selector cannot be outranked from here.
 .ui-input--underline {
     --ui-input-focus-ring: 0;
 }
 
-.ui-input--underline > :is(.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-select__trigger),
-.ui-input--underline > .ui-text-area__field {
+.ui-input--underline > :is(@{ui-input-field}),
+.ui-input--underline > .ui-field-box {
+    --ui-field-fill: var(--ui-field-ground);
+    // Sides switched off by style, not width: an authored BorderThickness arrives as an inline border-width no stylesheet can outrank.
+    border-style: none none solid none;
     border-width: 0 0 var(--ui-border-width, 1.5px) 0;
+    border-color: var(--ui-color-border);
     border-radius: 0;
     background: none;
     padding-left: 0;
     padding-right: 0;
 }
 
-// A boxed field's height is the room its border needs around the text; an underlined one has no box, so the
-// same height reads as the rule drifting away from what it underlines.
-.ui-input--underline > :is(.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-select__trigger) {
-    min-height: 2rem;
+// An underlined field has no box, so it needs just enough height to keep the rule under the text rather than drifting away from it.
+.ui-input--underline > :is(@{ui-input-field}) {
+    min-height: 1.75rem;
 }
 
-    // The :not() is not decoration: it matches the specificity of each input's own hover rule, which this
-    // file has to win to make the rule under the text darker than a boxed field's border.
-    .ui-input--underline:not(.ui-disabled) > :is(.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-select__trigger):hover,
-    .ui-input--underline:not(.ui-disabled) > .ui-text-area__field:hover {
-        border-bottom-color: color-mix(in srgb, var(--ui-color-on-surface) 40%, transparent);
-    }
+// No box at all until it is touched: the text sits on whatever is behind it, a wash under the pointer says it can be edited, and
+// the ring every field takes on focus says it is. A small button's height and half the side padding, so it fits a row of a list.
+.ui-input--ghost > :is(@{ui-input-field}) {
+    border-color: transparent;
+    background: none;
+    min-height: @ui-button-height-sm;
+    padding-left: @ui-space-2;
+    padding-right: @ui-space-2;
+}
 
-    // After the hover rule and at its weight, so a field the pointer is still over keeps the accent once it
-    // takes focus. An invalid field's own rule is longer than this and keeps its colour, which is the point.
-    .ui-input--underline:not(.ui-disabled):focus-within > :is(.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-select__trigger),
-    .ui-input--underline:not(.ui-disabled) > .ui-text-area__field:focus {
+// A box keeps its own height under Ghost — it is not a row of a list — and loses the box and half the side padding as a row does.
+.ui-input--ghost > .ui-field-box {
+    --ui-field-fill: var(--ui-field-ground);
+    border-color: transparent;
+    background: none;
+    padding-left: @ui-space-2;
+    padding-right: @ui-space-2;
+}
+
+// A field's states are one ladder, later wins: the resting appearance above, hover here, then a message on the field, then a popup
+// open or focus (further down). Hover is written in :where(), so it weighs exactly what a resting rule does and every later state
+// outranks it by order alone — a hovered field that is focused wears the accent, not the hover's colour under the focus ring, and a
+// hovered invalid field stays red (a focused field under the pointer used to wear two colours).
+// Hover belongs to the appearance, not each control: Filled lifts its surface; Outline and Underline lift their border; Ghost washes.
+:where(.ui-input--filled:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
+:where(.ui-input--filled:not(.ui-disabled)) > .ui-field-box:hover {
+    --ui-field-fill: var(--ui-field-hover);
+    border-color: var(--ui-field-hover);
+    background: var(--ui-field-hover);
+}
+
+// Primary but dimmed: full colour is reserved for focus, or Underline's ringless hover would look the same as its focus.
+:where(.ui-input--outline:not(.ui-disabled), .ui-input--underline:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
+:where(.ui-input--outline:not(.ui-disabled), .ui-input--underline:not(.ui-disabled)) > .ui-field-box:hover {
+    border-color: var(--ui-field-hover-accent);
+}
+
+:where(.ui-input--ghost:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
+:where(.ui-input--ghost:not(.ui-disabled)) > .ui-field-box:hover {
+    background: var(--ui-field-hover-wash);
+}
+
+// A control with its popup open reads as active regardless of focus, since opening the popup doesn't move focus into it.
+:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    border-color: var(--ui-color-primary);
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
+}
+
+    // Underline's focus is its rule alone; invalid still outranks it.
+    .ui-input--underline:not(.ui-disabled):focus-within > :is(@{ui-input-field}),
+    .ui-input--underline:not(.ui-disabled) > .ui-field-box:focus-within {
         border-bottom-color: var(--ui-color-primary);
     }
+
+// The text-carrying part of a field, stripped of its own chrome so the surrounding box draws border, background and padding.
+.ui-field {
+    flex: 1 1 auto;
+    min-width: 3rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--ui-color-on-surface);
+    font: inherit;
+}
+
+
+// An error and a warning colour the field's edge; an info only speaks under it.
+:is(.ui-invalid, .ui-validation--warning) > :is(@{ui-input-field-state}) {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+}
+
+// Inset, not an outer ring a panel's overflow: hidden would clip unevenly; :focus-within covers a row and a directly focused field alike.
+:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+    border-color: var(--ui-color-primary);
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
+}
+
+:is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+    border-color: var(--ui-validation-color, var(--ui-color-danger));
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-validation-color, var(--ui-color-danger));
+}

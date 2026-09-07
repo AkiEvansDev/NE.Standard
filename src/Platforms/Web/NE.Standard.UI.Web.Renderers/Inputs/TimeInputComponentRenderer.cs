@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -12,22 +13,15 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
-/// A clock edited in place: one focusable segment per unit named by the display format, plus a stepper,
-/// and no popup. The canonical string always carries seconds precision regardless of <c>Step</c> — the step
-/// only decides how far one press moves a segment.
+/// A clock edited in place: one focusable segment per display-format unit plus a stepper, no popup. The
+/// canonical string always carries seconds precision regardless of <c>Step</c>.
 /// </summary>
-/// <remarks>
-/// The segments themselves are built client-side by <c>time-segment-engine.ts</c>, from the same format
-/// tokens the formatter already knows; what is rendered here is the formatted text it replaces, so the
-/// first paint is correct and the swap is invisible. Deciding the segments server-side would have made the
-/// token walk a third hand-maintained port.
-/// </remarks>
 public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeInputComponent, TimeOnly?>
 {
     internal const string CanonicalTimeFormat = "HH:mm:ss";
 
-    private const string ReadOnlyAttribute = "data-ui-temporal-readonly";
-    private const string StepDirectionAttribute = "data-ui-temporal-step-direction";
+    /// <summary>The date a time-only value is carried on — <c>TimeOnlyBaseYear</c> in <c>temporal-dom.ts</c>.</summary>
+    private static readonly DateOnly TimeOnlyBaseDate = new(2000, 1, 1);
 
     protected override string ClassName => "ui-time-input";
 
@@ -41,8 +35,10 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
         ArgumentNullException.ThrowIfNull(root);
 
         var format = ResolveDisplayFormat(context, defaultDisplayFormat);
+        var isRange = IsRange(context);
 
         IHtmlElementBuilder? segments = null;
+        IHtmlElementBuilder? endSegments = null;
 
         _ = root.Element("span", row =>
         {
@@ -53,57 +49,65 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
             _ = row.Element("span", container =>
             {
                 segments = container;
-
-                _ = container.Class($"{SharedClassName}__segments");
-                _ = container.Attribute("role", "group");
+                RenderSegments(context, container, end: false);
             });
+
+            // A period's two clocks share the row and the stepper, which drives whichever segment has focus.
+            if (isRange)
+            {
+                RenderRangeSeparator(row);
+
+                _ = row.Element("span", container =>
+                {
+                    endSegments = container;
+                    RenderSegments(context, container, end: true);
+                });
+            }
 
             _ = row.Element("span", stepper =>
             {
                 _ = stepper.Class($"{SharedClassName}__stepper");
 
-                RenderStepButton(stepper, "up");
-                RenderStepButton(stepper, "down");
+                RenderStepButton(stepper, $"{SharedClassName}__step", WebAttributes.TemporalStepDirection, "up");
+                RenderStepButton(stepper, $"{SharedClassName}__step", WebAttributes.TemporalStepDirection, "down");
             });
         });
 
-        // Read-only lands on the root as one attribute rather than on the two stepper buttons: a DOM
-        // operation patches a single target, and both buttons plus the segments have to react to it.
+        // Read-only lands on the root: a DOM operation patches one target, and both buttons and the segments react to it.
         _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
         {
             if (value == true)
-                _ = target.Attribute(ReadOnlyAttribute);
-        }, [WebDomOperation.ToggleAttribute(ReadOnlyAttribute, target: "root", condition: WebValueCondition.IsTrue)]);
+                _ = target.Attribute(WebAttributes.TemporalReadonly);
+        }, [WebDomOperation.ToggleAttribute(WebAttributes.TemporalReadonly, target: "root", condition: WebValueCondition.IsTrue)]);
 
-        // See `HtmlElementBuilder`: the tree is written out once the whole component is built, so writing
-        // onto `segments` after its own callback returned is the same deferred-mutation shape the base uses.
+        // Safe after the callback returned: the tree is written out only once the whole component is built.
         IHtmlElementBuilder display = segments!;
+        IHtmlElementBuilder? endDisplay = endSegments;
 
         RenderValueInput(context, root, culture, format, text => _ = display.Text(text));
+
+        if (isRange)
+            RenderEndValueInput(context, root, culture, format, text => _ = endDisplay!.Text(text));
     }
 
-    private static void RenderStepButton(IHtmlElementBuilder stepper, string direction)
+    private static void RenderSegments(WebRenderContext context, IHtmlElementBuilder container, bool end)
     {
-        _ = stepper.Element("button", button =>
-        {
-            _ = button.Class($"{SharedClassName}__step");
-            _ = button.Attribute("type", "button");
-            _ = button.Attribute("tabindex", "-1");
-            _ = button.Attribute("aria-hidden", "true");
-            _ = button.Attribute(StepDirectionAttribute, direction);
-        });
+        _ = container.Class($"{SharedClassName}__segments");
+        _ = container.Attribute("role", "group");
+
+        if (IsRange(context))
+            _ = container.Attribute("aria-label", context.Translate(end ? UIStrings.PickerEnd : UIStrings.PickerStart));
+
+        if (end)
+            _ = container.Attribute(WebAttributes.TemporalEnd);
     }
 
     protected override string GetDefaultDisplayFormat(UITemporalStep? step)
         => GetTimeDisplayFormat(step);
 
-    /// <summary>
-    /// Seconds are shown only when the step actually reaches them — a field stepping by 15 minutes displaying
-    /// a permanent ":00" is noise, not precision. Shared with <c>DateTimeInputComponentRenderer</c>, whose
-    /// default is this appended to a date.
-    /// </summary>
+    /// <summary>The display format for a step, showing seconds only when the step reaches them.</summary>
     internal static string GetTimeDisplayFormat(UITemporalStep? step)
-        => step?.Unit == UITemporalStepUnit.Second ? "HH:mm:ss" : "HH:mm";
+        => step?.Unit == UITemporalStepUnit.Second ? CanonicalTimeFormat : "HH:mm";
 
     protected override bool TryResolveTemporal(TimeOnly? value, out DateTime moment, out string canonical)
     {
@@ -114,9 +118,9 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
             return false;
         }
 
-        // A TimeOnly has to become a DateTime for the shared picker plumbing; the date half is a placeholder
-        // and never reaches the canonical string.
-        moment = DateOnly.MinValue.ToDateTime(time);
+        // The date half is a placeholder for the shared plumbing and must match the client's, or a format
+        // carrying a weekday or year token would paint a different date on each side.
+        moment = TimeOnlyBaseDate.ToDateTime(time);
         canonical = time.ToString(CanonicalTimeFormat, CultureInfo.InvariantCulture);
         return true;
     }

@@ -21,6 +21,16 @@ public sealed record UIShape
     public UICornerRadius InputRadius { get; init; } = UICornerRadius.Uniform(6d);
 
     /// <summary>
+    /// The corner radius applied to row-shaped controls — a key/value list, an action row.
+    /// </summary>
+    public UICornerRadius RowRadius { get; init; } = UICornerRadius.Uniform(0d);
+
+    /// <summary>
+    /// Gets the corner radius of a notification; square by default, like a row.
+    /// </summary>
+    public UICornerRadius NotificationRadius { get; init; } = UICornerRadius.Uniform(0d);
+
+    /// <summary>
     /// Validates that all shape values are non-negative.
     /// </summary>
     public void Validate()
@@ -28,5 +38,7 @@ public sealed record UIShape
         CardRadius.Validate();
         ButtonRadius.Validate();
         InputRadius.Validate();
+        RowRadius.Validate();
+        NotificationRadius.Validate();
     }
 }

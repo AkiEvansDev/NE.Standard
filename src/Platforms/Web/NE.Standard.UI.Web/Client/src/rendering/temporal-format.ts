@@ -1,6 +1,4 @@
-// Deliberately not Intl: the server derives the pack from a CultureInfo and formats the same way, and a
-// value has to render identically whether it came from the initial render or from a live patch. Only the
-// documented token subset is supported — TemporalFormatSyncTests keeps it aligned with WebTemporalFormat.
+// Deliberately not Intl: this must render identically to the server's `WebTemporalFormat`, over the same token subset.
 
 export type TemporalCulturePack = {
     readonly monthNames: readonly string[];

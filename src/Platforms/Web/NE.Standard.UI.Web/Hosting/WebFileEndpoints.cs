@@ -18,12 +18,6 @@ namespace NE.Standard.UI.Web.Hosting;
 /// <summary>
 /// The HTTP half of file transfer: a multipart upload endpoint and a single-use download endpoint.
 /// </summary>
-/// <remarks>
-/// HTTP rather than the hub, because the hub carries the interface and a large transfer sharing it stalls
-/// everything else — see <c>docs/FILES.md</c>. Both endpoints take their identity from the same session cookie
-/// the shell render writes, resolved against <see cref="IUserSessionStore"/>, so a transfer is bound to a live
-/// session the way a page request is.
-/// </remarks>
 internal static class WebFileEndpoints
 {
     public const string Prefix = "/_ne/files";
@@ -44,12 +38,14 @@ internal static class WebFileEndpoints
         HttpContext http,
         [FromServices] UIApplication application,
         [FromServices] IUIFileStore store,
-        [FromServices] IUserSessionStore sessions,
         CancellationToken cancellationToken)
     {
-        // No session, no upload: without one there is nothing to scope the stored file to, and an unscoped
-        // file is one any other client could read back.
-        var sessionId = await ResolveSessionAsync(http, application, sessions, cancellationToken).ConfigureAwait(false);
+        if (IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+        // No session, no upload: an unscoped file is one any other client could read back. And no upload from a session the
+        // application's default policy would not let act, or an anonymous client could fill the store from the sign-in page.
+        var sessionId = await ResolveSessionAsync(http, cancellationToken).ConfigureAwait(false);
 
         if (sessionId is null)
             return Results.Unauthorized();
@@ -123,46 +119,50 @@ internal static class WebFileEndpoints
     }
 
     /// <summary>
-    /// The session the request presents, or <see langword="null"/> when it presents none the store knows.
+    /// Refuses a cross-site upload while leaving same-origin requests, and requests carrying neither header, alone —
+    /// an antiforgery token would defend this the same way, but the endpoint carries none to check.
     /// </summary>
-    /// <remarks>
-    /// The cookie is a claim, not a session: taking its value on trust let any caller invent an id and store
-    /// files under it, with no session to sweep them with and no limit but the disk. An idle session counts as
-    /// absent for the same reason <c>StoredUserSessionResolver</c> treats it so — an expired identity must not
-    /// come back to life in the window between cleanup sweeps.
-    /// </remarks>
-    private static async Task<string?> ResolveSessionAsync(HttpContext http, UIApplication application, IUserSessionStore sessions, CancellationToken cancellationToken)
+    private static bool IsCrossSiteRequest(HttpContext http)
     {
-        var sessionId = WebEndpointRouteBuilderExtensions.ReadSessionCookie(http, application.Sessions);
+        var secFetchSite = http.Request.Headers["Sec-Fetch-Site"].ToString();
 
-        if (string.IsNullOrWhiteSpace(sessionId))
-            return null;
+        if (!string.IsNullOrEmpty(secFetchSite))
+            return string.Equals(secFetchSite, "cross-site", StringComparison.OrdinalIgnoreCase);
 
-        UserSessionState? stored = await sessions.TryGetAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var origin = http.Request.Headers["Origin"].ToString();
 
-        if (stored is null || stored.LastSeenAtUtc + application.Sessions.IdleTimeout <= DateTime.UtcNow)
-            return null;
+        if (string.IsNullOrEmpty(origin))
+            return false;
 
-        return sessionId;
+        return !Uri.TryCreate(origin, UriKind.Absolute, out Uri? originUri)
+            || !string.Equals(originUri.Scheme, http.Request.Scheme, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(originUri.Authority, http.Request.Host.Value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The session the request presents and the default policy admits, or <see langword="null"/>.
+    /// </summary>
+    private static async Task<string?> ResolveSessionAsync(HttpContext http, CancellationToken cancellationToken)
+    {
+        UserSessionState? session = await http.GetAuthorizedUISessionAsync(cancellationToken).ConfigureAwait(false);
+
+        return session?.SessionId;
     }
 
     private static async Task<IResult> DownloadAsync(
         HttpContext http,
         string token,
-        [FromServices] UIApplication application,
         [FromServices] IUIFileStore store,
-        [FromServices] IUserSessionStore sessions,
         CancellationToken cancellationToken)
     {
-        var sessionId = await ResolveSessionAsync(http, application, sessions, cancellationToken).ConfigureAwait(false);
+        var sessionId = await ResolveSessionAsync(http, cancellationToken).ConfigureAwait(false);
 
         if (sessionId is null)
             return Results.Unauthorized();
 
         UIStagedDownload? staged = await store.TakeDownloadAsync(sessionId, token, cancellationToken).ConfigureAwait(false);
 
-        // Not found rather than forbidden for a token belonging to someone else: telling a caller that a token
-        // exists but is not theirs is telling them it exists.
+        // Not found rather than forbidden: telling a caller a token exists but isn't theirs is telling them it exists.
         if (staged is null)
             return Results.NotFound();
 
@@ -175,8 +175,7 @@ internal static class WebFileEndpoints
     }
 
     /// <summary>
-    /// Fails the read once more than <paramref name="limit"/> bytes have gone past, which is what makes the
-    /// size limit hold without buffering the part to measure it.
+    /// Fails the read once more than <paramref name="limit"/> bytes have gone past, without buffering to measure it.
     /// </summary>
     private sealed class LimitedStream(Stream inner, long limit) : Stream
     {

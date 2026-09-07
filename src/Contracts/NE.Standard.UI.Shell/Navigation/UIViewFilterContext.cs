@@ -48,17 +48,19 @@ public sealed class UIViewFilterContext
     public IServiceProvider Services { get; }
 
     /// <summary>
-    /// Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>. A filter with a
-    /// side effect has to test this, because one page load resolves the view twice.
+    /// Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>.
     /// </summary>
+    /// <remarks>
+    /// A filter with a side effect has to test this, because one page load resolves the view twice.
+    /// </remarks>
     public UIViewRequestPhase Phase { get; }
 
     /// <summary>
     /// Gets the resolved view, available to a filter after it has awaited the rest of the pipeline.
     /// </summary>
     /// <remarks>
-    /// Observation only. The host keeps its own result, so assigning this does not change what the request
-    /// returns — to divert a request, use <see cref="Redirect"/> and do not call the next filter.
+    /// Observation only: assigning this does not change what the request returns — use <see cref="Redirect"/> to divert
+    /// it and skip the next filter.
     /// </remarks>
     public UIViewResolution? Resolution { get; set; }
 

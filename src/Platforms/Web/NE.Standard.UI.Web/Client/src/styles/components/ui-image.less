@@ -1,14 +1,11 @@
 @import "../mixins/responsive.less";
 
 .ui-image {
-
     display: block;
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }
 
-.ui-image-fit--default {
-
-}
+// An unset Fit draws no class: the default is the image's intrinsic size under .ui-image's own max-width.
 
 .ui-image-fit--fill {
     .ui-responsive-property(width, --ui-width, 100%);

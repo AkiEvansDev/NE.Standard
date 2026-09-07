@@ -1,0 +1,37 @@
+@import "../core/tokens.less";
+@import "../mixins/placement.less";
+@import "../mixins/surface-image.less";
+
+// A panel that folds to its switch (the fold is in ui-collapsible.less): a layout panel, no fill or edge unless the author asks.
+.ui-collapsible-panel {
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
+}
+
+// A container, like a card's content band — see @ui-placement-hosts in ui-container.less.
+// Always clipped, with room for a child's shadow, so the slide collapsible-engine.ts plays has an edge to close against.
+.ui-collapsible-panel__content {
+    .ui-placement-host();
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    overflow-clip-margin: @ui-space-2;
+}
+
+// Collapsed, the content is closed to nothing toward the edge the panel sits on and hidden outright, so nothing in it stays reachable.
+.ui-collapsible-panel[data-ui-collapsed] > .ui-collapsible-panel__content {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.ui-collapsible-panel[data-ui-collapsed]:is(.ui-side--left, .ui-side--right) > .ui-collapsible-panel__content {
+    inline-size: 0;
+}
+
+.ui-collapsible-panel[data-ui-collapsed]:is(.ui-side--top, .ui-side--bottom) > .ui-collapsible-panel__content {
+    block-size: 0;
+}

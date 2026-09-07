@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Primitives.Styling;
 public enum UIScrollAnchor
 {
     /// <summary>
-    /// The container keeps its scroll position, which is the browser's own behavior.
+    /// The container keeps its scroll position, which is the platform's own behavior.
     /// </summary>
     None = 0,
 

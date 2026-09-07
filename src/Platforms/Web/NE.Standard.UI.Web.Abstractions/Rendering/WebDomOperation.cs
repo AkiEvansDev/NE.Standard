@@ -4,7 +4,10 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 public sealed class WebDomOperation
 {
-    public required WebDomOperationKind Kind { get; init; }
+    /// <summary>
+    /// The operation by name: a <see cref="WebDomOperationKind"/>'s, or the name a package's client registered its own under.
+    /// </summary>
+    public required string Kind { get; init; }
 
     public string? Target { get; init; }
 
@@ -14,10 +17,30 @@ public sealed class WebDomOperation
 
     public WebValueCondition? Condition { get; init; }
 
+    /// <summary>The text a toggled attribute is written with; unset, the value itself is written.</summary>
+    public string? Value { get; init; }
+
+    /// <summary>
+    /// Gets whether the target may be absent from a given instance: a part only some instances render, such as a period's second field.
+    /// </summary>
+    /// <remarks>A property registers one operation list per component type, so a part that exists on some instances only is an optional target, not a second list.</remarks>
+    public bool Optional { get; init; }
+
     public static WebDomOperation Text(string? target = null, string? converter = null)
         => new()
         {
-            Kind = WebDomOperationKind.Text,
+            Kind = nameof(WebDomOperationKind.Text),
+            Target = target,
+            Converter = converter
+        };
+
+    /// <summary>
+    /// Replaces the target's content with inline markup (see <c>UIInlineMarkup</c>), rendered as elements rather than assigned HTML.
+    /// </summary>
+    public static WebDomOperation Markup(string? target = null, string? converter = null)
+        => new()
+        {
+            Kind = nameof(WebDomOperationKind.Markup),
             Target = target,
             Converter = converter
         };
@@ -28,7 +51,7 @@ public sealed class WebDomOperation
 
         return new()
         {
-            Kind = WebDomOperationKind.Attribute,
+            Kind = nameof(WebDomOperationKind.Attribute),
             Target = target,
             Name = name,
             Converter = converter
@@ -41,30 +64,32 @@ public sealed class WebDomOperation
 
         return new()
         {
-            Kind = WebDomOperationKind.RemoveAttribute,
+            Kind = nameof(WebDomOperationKind.RemoveAttribute),
             Target = target,
             Name = name
         };
     }
 
-    public static WebDomOperation ToggleAttribute(string name, string? target = null, WebValueCondition condition = WebValueCondition.HasValue, string? converter = null)
+    public static WebDomOperation ToggleAttribute(string name, string? target = null, WebValueCondition condition = WebValueCondition.HasValue, string? converter = null, string? value = null, bool optional = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         return new()
         {
-            Kind = WebDomOperationKind.ToggleAttribute,
+            Kind = nameof(WebDomOperationKind.ToggleAttribute),
             Target = target,
             Name = name,
             Condition = condition,
-            Converter = converter
+            Converter = converter,
+            Value = value,
+            Optional = optional
         };
     }
 
     public static WebDomOperation Class(string? target = null, string? converter = null, WebValueCondition condition = WebValueCondition.None)
         => new()
         {
-            Kind = WebDomOperationKind.Class,
+            Kind = nameof(WebDomOperationKind.Class),
             Target = target,
             Converter = converter,
             Condition = condition
@@ -76,7 +101,7 @@ public sealed class WebDomOperation
 
         return new()
         {
-            Kind = WebDomOperationKind.ToggleClass,
+            Kind = nameof(WebDomOperationKind.ToggleClass),
             Target = target,
             Name = name,
             Condition = condition,
@@ -90,7 +115,7 @@ public sealed class WebDomOperation
 
         return new()
         {
-            Kind = WebDomOperationKind.Style,
+            Kind = nameof(WebDomOperationKind.Style),
             Target = target,
             Name = name,
             Converter = converter
@@ -98,24 +123,18 @@ public sealed class WebDomOperation
     }
 
     /// <summary>
-    /// Marks a property as trackable without any DOM effect — the client's handler is a deliberate
-    /// no-op, so the property still flows through the ordinary <c>PropertyStateStore</c>/
-    /// <c>PropertyPatchEngine</c> pipeline (and is therefore usable as a <c>ReactiveSourceRegistry</c>
-    /// source) without rendering anything or requiring a visual property to piggyback on.
+    /// Marks a property as trackable without any DOM effect, so it still flows through the ordinary property pipeline.
     /// </summary>
     public static WebDomOperation Data(string? target = null)
         => new()
         {
-            Kind = WebDomOperationKind.Data,
+            Kind = nameof(WebDomOperationKind.Data),
             Target = target
         };
 
     /// <summary>
-    /// Sets a live DOM/IDL property (e.g. an <c>&lt;input&gt;</c>'s <c>value</c> or <c>checked</c>) rather
-    /// than a content attribute. Unlike <see cref="Attribute(string, string?, string?)"/>
-    /// (<c>setAttribute</c>, which for form-control IDL properties only affects the initial/default
-    /// value once the element's value has diverged from its attribute — e.g. after any user edit), this
-    /// always reflects the live value, which server-originated updates to a two-way-bound `Value` need.
+    /// Sets a live DOM/IDL property (e.g. <c>value</c> or <c>checked</c>) rather than a content attribute, unlike
+    /// <see cref="Attribute(string, string?, string?)"/>.
     /// </summary>
     public static WebDomOperation Property(string name, string? target = null, string? converter = null)
     {
@@ -123,16 +142,37 @@ public sealed class WebDomOperation
 
         return new()
         {
-            Kind = WebDomOperationKind.Property,
+            Kind = nameof(WebDomOperationKind.Property),
             Target = target,
             Name = name,
             Converter = converter
         };
     }
 
+    /// <summary>
+    /// An operation of a kind the framework does not know: one a package's client registered under <paramref name="kind"/>
+    /// through <c>registerDomOperation</c>, which gets the value and this operation's <paramref name="name"/> and
+    /// <paramref name="target"/> as any built-in one does.
+    /// </summary>
+    public static WebDomOperation Custom(string kind, string? name = null, string? target = null, string? converter = null, bool optional = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+
+        return new()
+        {
+            Kind = kind,
+            Target = target,
+            Name = name,
+            Converter = converter,
+            Optional = optional
+        };
+    }
+
     public void Validate()
     {
-        if (Kind is WebDomOperationKind.Attribute or WebDomOperationKind.RemoveAttribute or WebDomOperationKind.ToggleAttribute or WebDomOperationKind.ToggleClass or WebDomOperationKind.Style or WebDomOperationKind.Property)
+        ArgumentException.ThrowIfNullOrWhiteSpace(Kind);
+
+        if (Kind is nameof(WebDomOperationKind.Attribute) or nameof(WebDomOperationKind.RemoveAttribute) or nameof(WebDomOperationKind.ToggleAttribute) or nameof(WebDomOperationKind.ToggleClass) or nameof(WebDomOperationKind.Style) or nameof(WebDomOperationKind.Property))
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(Name);
         }

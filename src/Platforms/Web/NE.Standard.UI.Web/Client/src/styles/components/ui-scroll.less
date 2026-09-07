@@ -1,5 +1,6 @@
-.ui-scroll {
+@import "../mixins/surface-image.less";
 
+.ui-scroll {
     display: block;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
@@ -7,6 +8,8 @@
     border-style: solid;
     border-width: 0;
     border-color: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
 }
 
 .ui-scroll.ui-scroll-x--disabled {
@@ -37,4 +40,21 @@
 
 .ui-scroll.ui-scroll-y--always {
     overflow-y: scroll;
+}
+
+// `both` rather than a class per axis pair: an axis that doesn't overflow has nothing to snap to anyway.
+.ui-scroll.ui-scroll-snap--disabled {
+    scroll-snap-type: none;
+}
+
+.ui-scroll.ui-scroll-snap--proximity {
+    scroll-snap-type: both proximity;
+}
+
+.ui-scroll.ui-scroll-snap--mandatory {
+    scroll-snap-type: both mandatory;
+}
+
+.ui-scroll:not(.ui-scroll-snap--disabled) > [data-ui-id] {
+    scroll-snap-align: start;
 }

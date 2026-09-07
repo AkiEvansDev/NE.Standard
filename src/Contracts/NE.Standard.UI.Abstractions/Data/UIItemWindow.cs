@@ -16,9 +16,8 @@ public enum UIItemWindowMode
     Replace = 0,
 
     /// <summary>
-    /// The items that were read join the window on the side they were read from, and the far side is trimmed
-    /// once the window outgrows its limit — reading further up a chat, where what is already on screen has to
-    /// stay where it is.
+    /// The items that were read join the window on the side they were read from, trimming the far side once
+    /// the window outgrows its limit.
     /// </summary>
     Extend = 1
 }
@@ -91,14 +90,12 @@ public sealed class UIItemWindow<TItem>
 
     /// <summary>
     /// Gets where the window starts, or <see langword="null"/> when the source counts in cursors rather than
-    /// in positions — a chat, where a prepend would shift every offset below it.
+    /// in positions.
     /// </summary>
     public int? Offset { get; init; }
 
     /// <summary>
-    /// Gets how many items the source holds under the request's query, or <see langword="null"/> when that is
-    /// unknown. A scrollbar is proportional only when it is known; otherwise the client can say no more than
-    /// "there is more".
+    /// Gets how many items the source holds under the request's query, or <see langword="null"/> when unknown.
     /// </summary>
     public int? TotalCount { get; init; }
 
@@ -135,8 +132,7 @@ public sealed class UIItemWindow<TItem>
 
         for (var i = 0; i < Items.Count; i++)
         {
-            // The whole addressing model rests on this: a row is found by its item's id, on the server and in
-            // the DOM alike. Two items sharing one would silently patch each other.
+            // A row is found by its item's id, on the server and on the client alike; two sharing one would patch each other.
             if (!keys.Add(Items[i].Id))
                 throw new InvalidOperationException($"A window carries item id '{Items[i].Id}' more than once.");
         }

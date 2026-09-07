@@ -1,10 +1,12 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace NE.Standard.UI.Abstractions.Binding.Properties;
 
 /// <summary>
 /// Represents a UI component property key.
 /// </summary>
+[JsonConverter(typeof(UIPropertyJsonConverter))]
 public readonly record struct UIProperty
 {
     /// <summary>

@@ -13,19 +13,15 @@ namespace NE.Standard.UI.Authoring.Components;
 public interface IVisualComponent : IBindableComponent
 {
     /// <summary>
-    /// Gets whether the component's id was written by the author rather than generated for it.
+    /// Gets whether the component's id was written by the author rather than generated for it; only an
+    /// authored id can be used to find this component again later, such as across a navigation or in a test.
     /// </summary>
-    /// <remarks>
-    /// A generated id is a process-wide counter and means nothing between two runs, so anything that has to
-    /// name this component again later — client state kept across a navigation, a test reading the DOM — may
-    /// only do so when this is <see langword="true"/>.
-    /// </remarks>
     bool HasAuthoredId { get; }
 
     /// <summary>
-    /// Gets the registered property key for <see cref="Visible"/>.
+    /// Gets the registered property key for <see cref="Visibility"/>.
     /// </summary>
-    static UIProperty VisibleProperty { get; } = new(nameof(Visible));
+    static UIProperty VisibilityProperty { get; } = new(nameof(Visibility));
 
     /// <summary>
     /// Gets the registered property key for <see cref="Enabled"/>.
@@ -98,18 +94,13 @@ public interface IVisualComponent : IBindableComponent
     static UIProperty LoadingProperty { get; } = new(nameof(Loading));
 
     /// <summary>
-    /// Gets the registered property key for <see cref="LoadingPreview"/>.
+    /// Gets what the component does with the room it was given, optionally overridden per breakpoint (e.g.
+    /// collapsed from a given width up).
     /// </summary>
-    static UIProperty LoadingPreviewProperty { get; } = new(nameof(LoadingPreview));
+    UIResponsive<UIVisibility>? Visibility { get; }
 
     /// <summary>
-    /// Gets whether the component is visible, optionally overridden per breakpoint (e.g. hidden below a
-    /// given width).
-    /// </summary>
-    UIResponsive<bool>? Visible { get; }
-
-    /// <summary>
-    /// Gets whether the component is enabled.
+    /// Gets whether the component responds to input; false dims it and marks it, and its subtree, inert.
     /// </summary>
     bool? Enabled { get; }
 
@@ -120,12 +111,12 @@ public interface IVisualComponent : IBindableComponent
     UIThemeMode? Theme { get; }
 
     /// <summary>
-    /// Gets the horizontal alignment.
+    /// Gets where the component sits within its grid cell along the horizontal axis.
     /// </summary>
     UIAlignment? HorizontalAlignment { get; }
 
     /// <summary>
-    /// Gets the vertical alignment.
+    /// Gets where the component sits within its grid cell along the vertical axis.
     /// </summary>
     UIAlignment? VerticalAlignment { get; }
 
@@ -175,14 +166,9 @@ public interface IVisualComponent : IBindableComponent
     UIResponsive<UIGridPlacement>? Placement { get; }
 
     /// <summary>
-    /// Gets whether the component is in loading state.
+    /// Gets whether the component is in loading state — a live state a controller turns on and off.
     /// </summary>
     bool? Loading { get; }
-
-    /// <summary>
-    /// Gets the loading placeholder variant.
-    /// </summary>
-    UISkeletonVariant? LoadingPreview { get; }
 
     /// <summary>
     /// Gets the property bindings declared on the component.
@@ -200,23 +186,27 @@ public interface IVisualComponent : IBindableComponent
     IReadOnlyList<UIEvent> Events { get; }
 
     /// <summary>
+    /// Registers a command for one of the component's events, with UI action arguments.
+    /// </summary>
+    IVisualComponent On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments);
+
+    /// <summary>
     /// Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.
     /// </summary>
     /// <remarks>
-    /// Here rather than on a component of its own, so any component can carry one with a single setter and
-    /// nothing has to be placed in the tree. Typed as a plain component rather than as a menu because the
-    /// contract has no reason to care: it is a subtree the client shows at the pointer.
-    /// <para>
-    /// Inside an item template it compiles <em>once</em>, with the template, and is cloned per item like any
-    /// other template content — so a per-row menu costs one compile and still opens against the row that was
-    /// right-clicked.
-    /// </para>
-    /// <para>
-    /// <b>A menu introduces an item scope of its own</b>, though: its entries are a collection, so
-    /// <c>ArgCurrentItemKey</c> inside one resolves to the <em>entry</em>, not to the row. Reach the row with
-    /// a <c>Parent</c>-scoped argument (<c>UIAction.ArgParent</c>) — which is what <c>docs/PROJECT.md</c> §4
-    /// means by "the context one level up from the one this component belongs to".
-    /// </para>
+    /// Inside an item template, the menu's own entries introduce a new item scope: <c>ArgCurrentItemKey</c>
+    /// inside one resolves to the entry, not the row — reach the row with a <c>Parent</c>-scoped argument.
     /// </remarks>
     IVisualComponent? ContextMenu { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="ShowContextMenu"/>.
+    /// </summary>
+    static UIProperty ShowContextMenuProperty { get; } = new(nameof(ShowContextMenu));
+
+    /// <summary>
+    /// Gets whether a right-click opens the <see cref="ContextMenu"/>; on a host with rows, whether it opens any row's. Off, the menu
+    /// stays in the tree and nothing opens it.
+    /// </summary>
+    bool? ShowContextMenu { get; }
 }

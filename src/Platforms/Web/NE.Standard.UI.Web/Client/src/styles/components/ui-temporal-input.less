@@ -1,14 +1,20 @@
 @import "../core/tokens.less";
-@import "../mixins/elevation.less";
+@import "../mixins/field.less";
+@import "../mixins/popup.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
+
+// One clock reading, and the band that stands over the chosen one — the two have to agree to the pixel.
+@ui-temporal-cell-height: 1.75rem;
+@ui-temporal-cell-gap: 2px;
+// The chosen reading plus two either side: an odd number, since the selection band needs a middle row to sit on.
+@ui-temporal-visible-rows: 5;
 
 .ui-temporal-input {
     position: relative;
     display: flex;
     flex-direction: column;
     align-self: var(--ui-align-v, center);
-    .ui-responsive-property(width, --ui-width, 100%);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-responsive-property(height, --ui-height, fit-content);
     gap: @ui-space-1;
@@ -20,48 +26,8 @@
     }
 
 .ui-temporal-input__row {
-    position: relative;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    min-width: 0;
-    min-height: @ui-control-height;
-    padding: 0 @ui-space-3;
+    .ui-input-field();
     gap: @ui-space-2;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-surface-raised);
-    border-radius: var(--ui-radius-input);
-    background: var(--ui-surface-raised);
-    transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
-}
-
-.ui-temporal-input.ui-invalid > .ui-temporal-input__row {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
-}
-
-.ui-temporal-input:not(.ui-disabled) > .ui-temporal-input__row:hover {
-    border-color: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
-}
-
-.ui-temporal-input:not(.ui-disabled) > .ui-temporal-input__row:focus-within {
-    border-color: var(--ui-color-primary);
-    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
-}
-
-.ui-temporal-input.ui-invalid:not(.ui-disabled) > .ui-temporal-input__row:focus-within {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
-    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-validation-color, var(--ui-color-danger));
-}
-
-.ui-temporal-input__field {
-    flex: 1 1 auto;
-    min-width: 3rem;
-    margin: 0;
-    padding: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--ui-color-on-surface);
-    font: inherit;
 }
 
     .ui-temporal-input__field::placeholder {
@@ -72,28 +38,28 @@
         cursor: default;
     }
 
-.ui-temporal-input__toggle {
-    position: relative;
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--ui-text-muted);
-    cursor: pointer;
-    .ui-interactive-base();
-    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+// A period is written as one phrase: each field is as wide as its text, the dash between them, and the row's spare width stays
+// after the second field rather than pulling the two apart.
+.ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__field {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 5ch;
+    field-sizing: content;
 }
 
-    .ui-temporal-input__toggle:hover {
-        background: color-mix(in srgb, currentColor 12%, transparent);
-        color: var(--ui-color-on-surface);
-    }
+.ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__segments {
+    flex: 0 0 auto;
+}
+
+.ui-temporal-input__range-separator {
+    flex: 0 0 auto;
+    color: var(--ui-text-muted);
+    .ui-interactive-base();
+}
+
+.ui-temporal-input__toggle {
+    .ui-field-adornment();
+}
 
     .ui-temporal-input__toggle:disabled {
         cursor: default;
@@ -112,8 +78,7 @@
         border-radius: 2px;
     }
 
-    // The toggle glyph is drawn from two pseudo-elements rather than an icon, so it follows currentColor and
-    // needs no icon package to be registered.
+    // Drawn from two pseudo-elements rather than an icon, so the glyph follows currentColor and needs no icon package.
     .ui-temporal-input__toggle::after {
         content: "";
         position: absolute;
@@ -125,8 +90,7 @@
         background: currentColor;
     }
 
-// TimeInput's row: one focusable span per clock unit, plus a stepper. No field and no popup toggle — the
-// segments are the editor, and time-segment-engine.ts builds them from the display format.
+// TimeInput's row: one focusable span per clock unit, plus a stepper — no field and no popup toggle, the segments are the editor.
 .ui-temporal-input__segments {
     display: flex;
     flex: 1 1 auto;
@@ -137,14 +101,13 @@
 
 .ui-temporal-input__segment {
     padding: 0 2px;
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: default;
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 }
 
-    // The fill is this control's own focus affordance, so the shared ring is opted out of the documented way
-    // — a ring around one segment inside a bordered row reads as a second control.
+    // The fill is this control's own focus affordance; a ring around one segment inside a bordered row reads as a second control.
     .ui-temporal-input__segment:focus {
         outline: none;
         background: var(--ui-color-primary);
@@ -156,11 +119,9 @@
     color: var(--ui-text-muted);
 }
 
+// The same stepper the number input wears, from the field mixins.
 .ui-temporal-input__stepper {
-    display: flex;
-    flex: 0 0 auto;
-    flex-direction: column;
-    gap: 1px;
+    .ui-field-stepper();
 }
 
 .ui-temporal-input[data-ui-temporal-readonly] > .ui-temporal-input__row > .ui-temporal-input__stepper {
@@ -168,72 +129,35 @@
 }
 
 .ui-temporal-input__step {
-    position: relative;
-    width: 1.1rem;
-    height: 0.75rem;
-    padding: 0;
-    border: none;
-    border-radius: 3px;
-    background: transparent;
-    color: var(--ui-text-muted);
-    cursor: pointer;
-    .ui-interactive-base();
-    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+    .ui-field-step();
 }
 
-    .ui-temporal-input__step:hover {
-        background: color-mix(in srgb, currentColor 12%, transparent);
-        color: var(--ui-color-on-surface);
-    }
-
-    // Drawn from borders rather than an icon, like the picker toggle, so the arrows follow currentColor and
-    // need no icon package registered.
-    .ui-temporal-input__step::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-right: 0.25rem solid transparent;
-        border-left: 0.25rem solid transparent;
-    }
-
     .ui-temporal-input__step[data-ui-temporal-step-direction="up"]::before {
-        transform: translate(-50%, -70%);
-        border-bottom: 0.25rem solid currentColor;
+        .ui-chevron-up();
     }
 
     .ui-temporal-input__step[data-ui-temporal-step-direction="down"]::before {
-        transform: translate(-50%, -30%);
-        border-top: 0.25rem solid currentColor;
+        .ui-chevron-down();
     }
 
 .ui-temporal-input__popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 30;
+    .ui-popup-surface();
+    .ui-popup-scroll();
     display: none;
     flex-direction: column;
     gap: @ui-space-2;
     padding: @ui-space-2;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-input);
-    background: var(--ui-color-surface);
-    .ui-elevation-2();
 }
 
 .ui-temporal-input--open > .ui-temporal-input__popup {
     display: flex;
 }
 
-// A row of its own for the calendar and clock panes. The popup is position: fixed and therefore
-// shrink-to-fit, and a footer with flex-basis: 100% sitting beside the panes counted into that width —
-// the popup came out as wide as calendar + footer, with the surplus showing as dead space.
+// A row of its own for the calendar and clock panes: the popup is fixed and shrink-to-fit, so a footer beside them would inflate it.
 .ui-temporal-input__panes {
     display: flex;
-    align-items: flex-start;
+    // Stretch, not flex-start, so the clock pane can take the calendar's height and the divider between them runs the full way down.
+    align-items: stretch;
     gap: @ui-space-2;
 }
 
@@ -282,7 +206,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 1.75rem;
+    min-height: @ui-list-row-height;
     padding: 0 @ui-space-1;
     border: none;
     border-radius: 4px;
@@ -297,7 +221,7 @@
     .ui-temporal-input__month:hover:not(:disabled),
     .ui-temporal-input__time-cell:hover:not(:disabled),
     .ui-temporal-input__nav:hover:not(:disabled) {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+        background: var(--ui-wash-hover);
     }
 
     .ui-temporal-input__day:disabled,
@@ -316,15 +240,36 @@
 }
 
 .ui-temporal-input__day--selected,
-.ui-temporal-input__month--selected,
-.ui-temporal-input__time-cell--selected {
+.ui-temporal-input__month--selected {
     background: var(--ui-color-primary);
     color: var(--ui-color-on-primary);
 }
 
+// The days between a period's two ends, and the span a click would make while the end is being chosen: the same tint, paler
+// while it is only a preview, so the ends stay the strongest marks on the grid.
+.ui-temporal-input__day--within {
+    background: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+}
+
+.ui-temporal-input__day--preview:not(.ui-temporal-input__day--selected) {
+    background: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
+}
+
+    .ui-temporal-input__day--within:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--ui-color-primary) 30%, transparent);
+    }
+
+// Which end the next click on the calendar sets.
+.ui-temporal-input__period-caption {
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
     .ui-temporal-input__day--selected:hover:not(:disabled),
-    .ui-temporal-input__month--selected:hover:not(:disabled),
-    .ui-temporal-input__time-cell--selected:hover:not(:disabled) {
+    .ui-temporal-input__month--selected:hover:not(:disabled) {
         background: var(--ui-color-primary);
     }
 
@@ -337,51 +282,83 @@
 .ui-temporal-input__time {
     display: flex;
     flex-direction: column;
+    // A flex item only lets its scrolling child shrink below the content's height once its own floor is lifted.
+    min-height: 0;
     gap: @ui-space-1;
 }
 
-// A rule between the two panes when both are shown, so the calendar and the clock read as one popup with
-// two halves rather than as two boxes that happen to touch.
+// A rule between the two halves when both are shown, so the popup reads as one surface rather than two boxes that happen to touch.
 .ui-temporal-input__calendar + .ui-temporal-input__time {
     padding-left: @ui-space-2;
     border-left: 1px solid var(--ui-color-border);
 }
 
-.ui-temporal-input__time-header {
+// One column per unit, each its own scroller; the band across the middle is the selection and stays put, the readings scrolling under it.
+.ui-temporal-input__time-columns {
+    position: relative;
     display: flex;
-    align-items: center;
+    // A whole number of readings, not the calendar's height, so none is cut through the middle: the chosen one, two above and two below.
+    flex: 0 0 auto;
+    // Centred against the calendar beside it, since it doesn't fill that height.
+    margin: auto 0;
+    height: calc(@ui-temporal-visible-rows * @ui-temporal-cell-height + (@ui-temporal-visible-rows - 1) * @ui-temporal-cell-gap);
     justify-content: center;
-    gap: 2px;
-    min-height: 1.75rem;
+    min-height: 0;
+    gap: @ui-space-1;
 }
 
-:where(.ui-temporal-input__time-separator) {
-    color: var(--ui-text-muted);
+    .ui-temporal-input__time-columns::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: 0;
+        left: 0;
+        height: @ui-temporal-cell-height;
+        border-radius: 4px;
+        background: var(--ui-wash-selected);
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+// A dial rather than a list: the chosen reading is held in the middle, padded at both ends so the first and last can reach it.
+.ui-temporal-input__time-column {
+    display: flex;
+    flex-direction: column;
+    // Without the floor lifted a flex item never shrinks below its content, so every column would be sixty cells tall.
+    min-height: 0;
+    gap: @ui-temporal-cell-gap;
+    padding: 0 2px;
+    // Both axes named: overflow-y alone leaves the other at auto, drawing a horizontal scrollbar on a column with nothing to scroll.
+    overflow: hidden auto;
+    // The wheel: the outermost reading at either end fades away, so the column reads as turning rather than as a list that stops.
+    mask-image: linear-gradient(to bottom,
+        transparent 0,
+        #000 @ui-temporal-cell-height,
+        #000 calc(100% - @ui-temporal-cell-height),
+        transparent 100%);
+    // No bar of its own: the cells above and below already say the column scrolls, and a scrollbar is most of its width.
+    scrollbar-width: none;
+    scroll-snap-type: y mandatory;
+
+    &::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+    }
 }
 
-.ui-temporal-input__time-segment {
-    min-width: 2.25rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.ui-temporal-input__time-segment--selected {
-    background: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
-    color: var(--ui-color-primary);
-}
-
-// The column count is written by temporal-picker-engine.ts, which caps it at TimeGridColumns (six) — that
-// puts 24 hours in 6x4 and 60 minutes in 6x10, both without a scrollbar, and narrows the grid instead of
-// padding it when a coarse Step leaves fewer cells. The same number moves the roving focus by a whole row.
-.ui-temporal-input__time-grid {
-    display: grid;
-    gap: 2px;
-}
-
+// A fixed height, not a minimum: the band above uses the same number, and a cell growing with its font would slide out from under it.
 .ui-temporal-input__time-cell {
-    min-width: 2rem;
+    flex: 0 0 auto;
+    min-width: 2.75rem;
+    height: @ui-temporal-cell-height;
     font-variant-numeric: tabular-nums;
+    scroll-snap-align: center;
 }
+
+    // Weight, not a fill: a filled cell moving under a fixed band would read as two selections disagreeing while the column scrolls.
+    .ui-temporal-input__time-cell--selected {
+        font-weight: 600;
+    }
 
 .ui-temporal-input__popup-footer {
     display: flex;
@@ -393,17 +370,7 @@
 
     .ui-temporal-input__popup-footer > .ui-temporal-input__nav {
         padding: 0 @ui-space-2;
-        color: var(--ui-color-primary);
+        color: var(--ui-color-primary-ink);
         font-size: var(--ui-text-caption-font-size);
     }
 
-.ui-temporal-input__message {
-    display: none;
-    padding: 0 @ui-space-1;
-    font-size: var(--ui-text-caption-font-size);
-    line-height: var(--ui-text-caption-line-height);
-}
-
-.ui-temporal-input.ui-invalid > .ui-temporal-input__message {
-    display: block;
-}

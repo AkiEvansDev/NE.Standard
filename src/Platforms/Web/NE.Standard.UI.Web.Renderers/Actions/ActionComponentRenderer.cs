@@ -1,16 +1,12 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
+using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>
-/// The button chrome plus a trailing side: an optional value and the chevron that says the row leads
-/// somewhere. Wears <c>ui-button</c> next to its own <c>ui-action</c>, so one stylesheet serves both.
-/// </summary>
+/// <summary>The button chrome plus a trailing side: an optional value and the chevron that says the row leads somewhere.</summary>
 public sealed class ActionComponentRenderer : ButtonRendererBase
 {
     private const string TrailingIconAttribute = "data-ui-action-icon";
@@ -28,7 +24,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
         _ = root.Class("ui-button");
 
         RenderButtonChrome(context, root);
-        RenderRegion(context, root, RegionNames.Content);
+        RenderButtonLabel(context, root);
 
         _ = root.Element("span", trailing =>
         {
@@ -37,17 +33,21 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
             _ = trailing.Element("span", text => RenderTrailingText(context, root, text));
             _ = trailing.Element("span", icon => RenderTrailingIcon(context, root, icon));
 
-            // The chevron is drawn from borders rather than a glyph, so a row points somewhere with no icon
-            // package registered — the same trick the expander header and the temporal toggle use. CSS hides
-            // it whenever a real trailing icon is present.
-            _ = trailing.Element("span", chevron => _ = chevron.Class("ui-action__chevron"));
+            // Drawn from borders rather than a glyph, so a row points somewhere with no icon package registered.
+            _ = trailing.Element("span", chevron =>
+            {
+                _ = chevron.Class("ui-action__chevron");
+
+                _ = RenderProperty<bool?>(context, chevron, ActionComponent.ShowChevronProperty, static (target, value) =>
+                {
+                    if (value == false)
+                        _ = target.Class("ui-hidden");
+                }, [WebDomOperation.ToggleClass("ui-hidden", condition: WebValueCondition.IsFalse)]);
+            });
         });
     }
 
-    /// <summary>
-    /// Presence drives a root attribute rather than the element's own class, because an empty value has to
-    /// collapse the element and no <c>WebDomOperationKind</c> adds or removes one.
-    /// </summary>
+    /// <summary>Renders the trailing value, its presence driving a root attribute so an empty value collapses the element.</summary>
     private static void RenderTrailingText(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder text)
     {
         _ = text.Class("ui-action__trailing-text");
@@ -76,9 +76,9 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
                 return;
 
             _ = root.Attribute(TrailingIconAttribute);
-            _ = target.Class(WebIconClassName.FromIconName(value));
+            IconValueRenderer.RenderIconValue(target, value);
         }, [
-            WebDomOperation.Class(converter: WebDomConverters.IconClass),
+            .. IconValueRenderer.Operations,
             WebDomOperation.ToggleAttribute(TrailingIconAttribute, target: "root", condition: WebValueCondition.HasText)
         ]);
     }

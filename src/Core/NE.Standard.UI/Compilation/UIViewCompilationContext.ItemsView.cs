@@ -40,12 +40,6 @@ internal sealed partial class UIViewCompilationContext
     /// Checks that a rule's source names a real property, and — on a windowed host — that the server can read
     /// its value.
     /// </summary>
-    /// <remarks>
-    /// A windowed host's rules are resolved on the server, which knows a component's value only where it is
-    /// bound to the controller: an unbound search box lives entirely in the browser, and a filter reading it
-    /// would simply never activate. Refused here rather than left to fail quietly, since nothing about the
-    /// page would look wrong.
-    /// </remarks>
     private void ValidateItemsRuleSource(IVisualComponent owner, UIItemsRuleSource source, string ruleName, bool windowed)
     {
         if (source.Source is not UIPropertyReference reference)

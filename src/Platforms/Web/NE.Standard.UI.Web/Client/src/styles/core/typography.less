@@ -1,4 +1,7 @@
+// Every one of these states `text-transform` explicitly, even as `none`, so Overline's `uppercase` can't inherit into a nested type.
+
 .ui-text-type--display {
+    text-transform: none;
     font-size: var(--ui-text-display-font-size);
     line-height: var(--ui-text-display-line-height);
     font-weight: var(--ui-text-display-font-weight);
@@ -6,6 +9,7 @@
 }
 
 .ui-text-type--title {
+    text-transform: none;
     font-size: var(--ui-text-title-font-size);
     line-height: var(--ui-text-title-line-height);
     font-weight: var(--ui-text-title-font-weight);
@@ -13,6 +17,7 @@
 }
 
 .ui-text-type--subtitle {
+    text-transform: none;
     font-size: var(--ui-text-subtitle-font-size);
     line-height: var(--ui-text-subtitle-line-height);
     font-weight: var(--ui-text-subtitle-font-weight);
@@ -20,6 +25,7 @@
 }
 
 .ui-text-type--body {
+    text-transform: none;
     font-size: var(--ui-text-body-font-size);
     line-height: var(--ui-text-body-line-height);
     font-weight: var(--ui-text-body-font-weight);
@@ -27,6 +33,7 @@
 }
 
 .ui-text-type--caption {
+    text-transform: none;
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
     font-weight: var(--ui-text-caption-font-weight);

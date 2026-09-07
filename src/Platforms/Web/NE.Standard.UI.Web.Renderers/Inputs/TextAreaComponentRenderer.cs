@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
@@ -10,16 +9,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>
-/// A native <c>&lt;textarea&gt;</c> under the same header/field/message shell as
-/// <c>TextInputComponentRenderer</c>, so both controls read as one family: icon, title and badge in the
-/// header, the field itself carrying the border and the native attributes.
-/// <para>
-/// Derives from <see cref="TextContentRendererBase"/> for that header and calls
-/// <see cref="NativeInputRendererBase"/>'s two field helpers as public statics, since only one base can be
-/// inherited. Every declared property renders.
-/// </para>
-/// </summary>
+/// <summary>A native <c>&lt;textarea&gt;</c> under the same header/field/message shell as the text input.</summary>
 public sealed class TextAreaComponentRenderer : TextContentRendererBase
 {
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
@@ -31,24 +21,20 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<string?>(context, root, ITextBaseComponent.TooltipProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("title", value);
-        }, [WebDomOperation.Attribute("title")]);
+        RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root);
         RenderField(context, root);
-        RenderValidationMessage(root, $"{ClassName}__message");
+        RenderValidationMessage(context, root);
     }
-
 
     private void RenderField(WebRenderContext context, IHtmlElementBuilder root)
     {
         _ = root.Element("textarea", textarea =>
         {
             _ = textarea.Class($"{ClassName}__field");
+            _ = textarea.Class(FieldBoxClassName);
 
             BorderStyleRenderer.RenderBorderStyle(context, textarea);
 
@@ -70,15 +56,23 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
                     _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
             }, [WebDomOperation.Attribute("maxlength")]);
 
-            // Read by `readBoundElementValue` off whichever element carries it, so the same attribute
-            // gives a textarea the trimming a text input already had.
+            // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
+            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.DebounceMillisecondsProperty, static (target, value) =>
+            {
+                if (value is int milliseconds and >= 0)
+                    _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
+            }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
+
+            // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
             _ = RenderProperty<bool?>(context, textarea, TextAreaComponent.TrimInputProperty, static (target, value) =>
             {
                 if (value == true)
-                    _ = target.Attribute("data-ui-trim-input");
-            }, [WebDomOperation.ToggleAttribute("data-ui-trim-input", condition: WebValueCondition.IsTrue)]);
+                    _ = target.Attribute(WebAttributes.TrimInput);
+            }, [WebDomOperation.ToggleAttribute(WebAttributes.TrimInput, condition: WebValueCondition.IsTrue)]);
 
+            NativeInputRendererBase.RenderPlaceholder(context, textarea);
             NativeInputRendererBase.RenderFormId(context, textarea);
+            NativeInputRendererBase.RenderFieldName(context, textarea);
             NativeInputRendererBase.RenderIsReadOnly(context, textarea);
 
             _ = RenderProperty<string?>(context, textarea, IInputComponent.ValueProperty, static (target, value) =>

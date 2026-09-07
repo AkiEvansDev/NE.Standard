@@ -5,7 +5,10 @@ const TemplateAttribute = "data-ui-template";
 const DefaultTemplateKey = "default";
 
 export class ItemsTemplateRegistry {
-    public constructor(private readonly dom: DomRegistry) {
+    private readonly dom: DomRegistry;
+
+    public constructor(dom: DomRegistry) {
+        this.dom = dom;
     }
 
     public getTemplate(itemsViewComponentId: number, variantKey: string | null): HTMLTemplateElement | undefined {
@@ -18,7 +21,7 @@ export class ItemsTemplateRegistry {
         return key === DefaultTemplateKey ? undefined : this.getTemplate(itemsViewComponentId, null);
     }
 
-    /** Exact variant, with no fall back to the default — a composite slot has no meaningful substitute. */
+    /** Exact variant, with no fall back to the default: a composite slot has no meaningful substitute. */
     public getVariantTemplate(itemsViewComponentId: number, variantKey: string): HTMLTemplateElement | undefined {
         return this.findTemplate(itemsViewComponentId, variantKey);
     }

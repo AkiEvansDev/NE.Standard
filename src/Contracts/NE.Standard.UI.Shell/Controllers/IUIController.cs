@@ -38,6 +38,11 @@ public interface IUIController : IDisposable
     void SetRecursiveValue(RecursivePath path, object? value);
 
     /// <summary>
+    /// Gets whether anything is waiting to be drained — asked every scheduled flush, so it must be cheap.
+    /// </summary>
+    bool HasPendingChanges { get; }
+
+    /// <summary>
     /// Drains pending recursive changes into the destination collection.
     /// </summary>
     int DrainChanges(ICollection<RecursiveChange> destination);

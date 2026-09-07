@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Components.Foundation</PackageId>
+    <Description>The authoring foundation of the NE.Standard UI framework — the component bases a package's own component derives from and the template bindings — without the built-in components themselves.</Description>
+    <PackageTags>NE.Standard,UI,Core,Components,Foundation</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Abstractions\NE.Standard.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Authoring\NE.Standard.UI.Authoring.csproj" />
+    <ProjectReference Include="..\..\Contracts\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
+  </ItemGroup>
+
+</Project>

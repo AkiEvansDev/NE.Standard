@@ -93,6 +93,14 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     Task<ServerChangeSet> RequestItemWindowAsync(UIItemWindowClientRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets whether a flush would carry anything: a controller change, a queued update, an item window to re-read, or a requested resync.
+    /// </summary>
+    /// <remarks>
+    /// Read without the state lock: a change arriving between the question and the answer is picked up one interval later.
+    /// </remarks>
+    bool HasPendingWork { get; }
+
+    /// <summary>
     /// Flushes pending server-originated updates.
     /// </summary>
     Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default);

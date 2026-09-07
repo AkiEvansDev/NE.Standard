@@ -158,8 +158,7 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         UIClientServices clientServices = Connection.ClientServices
             ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
 
-        // The invoking handle, not the connection snapshot: a runtime shared by several tabs holds whichever
-        // one attached last, and a command's effects belong to the tab that raised it.
+        // The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.
         await clientServices.Updates
             .SendCommandResultAsync(invoker, result, cancellationToken)
             .ConfigureAwait(false);
@@ -167,10 +166,7 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         if (result.Command.Effects.Length == 0)
             return result;
 
-        // A client-invoked command receives the push above *and* the invoke's own return value, so the effects
-        // are stripped from the returned copy or they would be applied twice. Mirrors what
-        // ProcessCommandChangesAsync already does with the change set. Success/Error stay intact — neither is
-        // applied to the DOM.
+        // Effects are stripped here so the invoke's own return value does not apply them a second time.
         return new UICommandExecutionResult
         {
             Command = new UICommandResult(result.Command.Success, effects: null, result.Command.Error),
@@ -211,7 +207,18 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         {
             _ = _directSignal.Release();
         }
-        catch { }
+        catch (ObjectDisposedException) { }
+
+        // Bounded, not awaited: the sync path has no async alternative, but disposing under the pump's feet would
+        // still be worse than a short block — mirrors the wait DisposeRuntimeResourcesAsync gives it.
+        if (_directPump is not null)
+        {
+            try
+            {
+                _ = _directPump.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException aggregate) when (aggregate.InnerException is OperationCanceledException) { }
+        }
 
         _directCancellation.Dispose();
         _directSignal.Dispose();

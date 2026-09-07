@@ -1,0 +1,124 @@
+@import "../core/tokens.less";
+@import "./chevron.less";
+@import "./glyphs.less";
+@import "./interactive.less";
+
+// Mixins rather than rules on ui-input.less's shared list, which imports after each field's own file and would override its differences.
+
+// Split out from .ui-input-field() so <textarea>, which can't take the flex row, can still share the field's fill, border and colours.
+.ui-field-ground() {
+    // One step off whatever it stands on, falling back to the page background; mixed from on-surface, so it steps up dark and down light.
+    --ui-field-ground: var(--ui-surface-fill, var(--ui-color-background));
+    --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
+    // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
+    --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
+    // What Outline and Underline lift their border to, and what Ghost washes with. A control that does not lift under the pointer — a code
+    // field is not a row of a list — sets these three to its rest, and the hover rules go on writing them to no visible effect.
+    --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
+    --ui-field-hover-wash: var(--ui-wash-hover);
+    border: var(--ui-border-width, 1.5px) solid var(--ui-field-rest);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-field-rest);
+    transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-input-field() {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    min-height: @ui-control-height;
+    padding: 0 @ui-space-3;
+    gap: 0.4em;
+    .ui-field-ground();
+}
+
+// A glyph button inside a field (text input's clear, temporal input's picker toggle): round, borderless, muted. Under the pointer it
+// answers with its ink alone — the field's row is the surface that lifts, and a second wash on the glyph read as a button on a button.
+.ui-field-adornment() {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ui-text-muted);
+    cursor: pointer;
+    .ui-interactive-base();
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+
+    &:hover {
+        color: var(--ui-color-on-surface);
+    }
+}
+
+// The up/down pair at a field's end (number input, time input): one column behind a rule, two chevrons from the shared glyph.
+.ui-field-stepper() {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-self: stretch;
+    // Gives back most of the field's right padding: the stepper's ruled edge doesn't need the breathing room text does.
+    margin: @ui-space-1 -0.5em @ui-space-1 0;
+    border-left: 1px solid var(--ui-color-border);
+    padding-left: 0.4em;
+}
+
+.ui-field-step() {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ui-text-muted);
+    cursor: pointer;
+    .ui-interactive-base();
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+
+    &:hover {
+        color: var(--ui-color-on-surface);
+    }
+
+    &::before {
+        .ui-chevron(0.55em);
+    }
+}
+
+// The pick control at a file field's end (a file input's, an inline image input's): the drawn ellipsis behind the same divider a
+// stepper draws, answering the pointer with its ink alone.
+.ui-field-pick() {
+    .ui-ellipsis-glyph();
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    min-width: @ui-control-height;
+    padding: 0 @ui-space-3;
+    border-left: 1px solid var(--ui-color-border);
+    color: var(--ui-text-muted);
+}
+
+// The `*` beside a required field's caption; checkbox and switch place their caption beside the box instead and don't use this.
+.ui-required-marker() {
+    flex: 0 0 auto;
+    color: var(--ui-color-danger-ink);
+    line-height: 1;
+}
+
+// The field shapes every input wears, as a variable because the list repeats across the stylesheets that dress a field: a row missing
+// from one silently half-applies. The states list adds `.ui-field-box`: a field that is a box of its own rather than a row — the text
+// area's, a package's editor — and the one class a renderer outside this stylesheet can reach the ground and the states with.
+@ui-input-field: ~".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger";
+@ui-input-field-state: ~"@{ui-input-field}, .ui-field-box";

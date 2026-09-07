@@ -1,3 +1,5 @@
+using System;
+
 namespace NE.Standard.UI.Abstractions.Styling.Theme;
 
 /// <summary>
@@ -76,11 +78,25 @@ public sealed record UITypography
     /// </summary>
     public void Validate()
     {
+        ValidateFontFamily(FontFamily);
+
         Display.Validate();
         Title.Validate();
         Subtitle.Validate();
         Body.Validate();
         Caption.Validate();
         Overline.Validate();
+    }
+
+    /// <summary>A font family name never needs a control character or any of <c>&lt; &gt; { } ; " '</c>.</summary>
+    private static void ValidateFontFamily(string fontFamily)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fontFamily);
+
+        foreach (var c in fontFamily)
+        {
+            if (char.IsControl(c) || c is '<' or '>' or '{' or '}' or ';' or '"' or '\'')
+                throw new InvalidOperationException($"Font family '{fontFamily}' contains a disallowed character.");
+        }
     }
 }

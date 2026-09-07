@@ -4,36 +4,24 @@ using System.Collections.Generic;
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 /// <summary>
-/// Describes an item whose rendered shape is composed of several named template variants at once
-/// (<c>KeyValueActionComponent</c>'s row: a structural host element carrying the "row" variant's compiled
-/// identity, containing the "key"/"value"/"action" variants each in their own wrapper) rather than a
-/// single per-item template chosen by key — the shape
-/// <c>ItemsCollectionRendererBase.RenderNamedTemplateSlot</c>/<c>StampTemplateSlotAsHost</c> render
-/// server-side, carried to the client so a bound collection can compose the same row.
+/// Describes an item composed of several named template-variant slots at once, rather than a single per-item template chosen by key.
 /// </summary>
-/// <remarks>
-/// Distinct from <see cref="WebRenderItemsTemplateMetadata.ItemWrapperElementName"/>, which wraps the
-/// single already-rendered template root in one extra shell: here the item element is created from
-/// nothing and every visible part comes from a slot.
-/// </remarks>
 public sealed class WebRenderItemsCompositeMetadata
 {
     /// <summary>
-    /// The class applied to the created item element (<c>KeyValueActionComponentRenderer</c>'s
-    /// <c>ui-key-value-action__row</c>).
+    /// The class applied to the created item element.
     /// </summary>
     public required string ItemClassName { get; init; }
 
     /// <summary>
-    /// The template-variant key whose compiled identity (<c>data-ui-id</c>/<c>data-ui-context</c>/
-    /// <c>data-ui-pc</c>) is stamped onto the item element instead of being rendered as its own node —
-    /// the client mirror of <c>StampTemplateSlotAsHost</c>. That variant carries no visible content of its
-    /// own (see <c>DefaultRowTemplate</c>); it exists so per-item events/interactions have an addressable
-    /// scope. <see langword="null"/> when the composite item has no such host variant.
+    /// The template-variant key stamped as the item element's compiled identity instead of a node of its own; null with no host variant.
     /// </summary>
     public string? HostSlotVariantKey { get; init; }
 
     public string ItemElementName { get; init; } = "div";
+
+    /// <summary>The ARIA role the item element carries (a table's <c>row</c>); null for none.</summary>
+    public string? ItemRole { get; init; }
 
     public required IReadOnlyList<WebRenderItemsCompositeSlotMetadata> Slots { get; init; }
 

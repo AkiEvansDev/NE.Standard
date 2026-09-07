@@ -14,7 +14,13 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    private void AppendCollectionItemContextRebuildUpdatesNoLock(RecursiveChange change)
+    /// <summary>
+    /// Withdraws updates still queued for an item a <see cref="RecursiveChangeKind.Replace"/> is about to replace.
+    /// </summary>
+    /// <remarks>
+    /// The replacement itself travels as the ordinary collection <c>Replace</c> update that follows.
+    /// </remarks>
+    private void RemoveReplacedItemPendingUpdatesNoLock(RecursiveChange change)
     {
         if (_pendingFullResync)
             return;
@@ -22,11 +28,7 @@ internal abstract partial class UIRuntimeBase
         if (change.Index < 0 || change.Count <= 0)
             return;
 
-        RecursivePath collectionPath = change.Path;
-        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
-
-        if (collectionBindings.Count == 0)
-            return;
+        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(change.Path, out var materializedParameters);
 
         for (var bindingIndex = 0; bindingIndex < collectionBindings.Count; bindingIndex++)
         {
@@ -40,24 +42,10 @@ internal abstract partial class UIRuntimeBase
 
             for (var itemOffset = 0; itemOffset < change.Count; itemOffset++)
             {
-                if (change.Kind == RecursiveChangeKind.Replace)
-                {
-                    RemovePendingSubtreeUpdatesNoLock(
-                        binding.Address.Component.Id,
-                        AppendDynamicParameter(ownerDynamicParameters, GetOldCollectionItemParameter(change, itemOffset))
-                    );
-                }
-
-                var itemIndex = change.Index + itemOffset;
-                var itemParameter = GetItemKey(change, itemOffset, old: false)
-                    ?? GetCollectionItemParameter(collectionPath, itemIndex);
-                var itemContext = ResolveChangedItem(collectionPath, itemParameter, itemIndex);
-
-                AddPendingUpdateNoLock(new ServerContextRebuildUIUpdate
-                {
-                    Component = new(binding.Address.Component.Id, AppendDynamicParameter(ownerDynamicParameters, itemParameter)),
-                    Context = itemContext
-                });
+                RemovePendingSubtreeUpdatesNoLock(
+                    binding.Address.Component.Id,
+                    AppendDynamicParameter(ownerDynamicParameters, GetOldCollectionItemParameter(change, itemOffset))
+                );
             }
         }
     }
@@ -66,10 +54,7 @@ internal abstract partial class UIRuntimeBase
         => GetItemKey(change, offset, old: true) ?? throw MissingItemKeyException();
 
     /// <summary>
-    /// A bound item collection is keyed by construction — the compiler refuses a non-<see cref="IBindableItem"/>
-    /// element type and the renderer refuses a non-keyed item — so reaching here means a change carried no ids
-    /// where the binding says it must. Throwing names that, instead of quietly addressing the item by position
-    /// and acting on the wrong one after the next insert.
+    /// A bound item collection change carried no item id; throwing here names the fault instead of silently addressing by position.
     /// </summary>
     private static InvalidOperationException MissingItemKeyException()
         => new($"A bound item collection change carried no item id. Every item must implement '{nameof(IBindableItem)}'.");
@@ -83,10 +68,14 @@ internal abstract partial class UIRuntimeBase
             : null;
     }
 
-    private string GetCollectionItemParameter(RecursivePath collectionPath, int index)
-        => TryGetItemKey(TryGetControllerValue(collectionPath.AppendIndex(index))) ?? throw MissingItemKeyException();
-
-    private void AppendTemplateKeyItemReplaceUpdatesNoLock(RecursivePath path)
+    /// <summary>
+    /// Re-sends the one item whose changed property decides how the host draws it — the template key it is
+    /// rendered by, or the group it belongs to.
+    /// </summary>
+    /// <remarks>
+    /// Neither the template key nor the group is bound on the item, so only a full <c>Replace</c> update reaches the client's redraw rules.
+    /// </remarks>
+    private void AppendItemReplaceUpdatesNoLock(RecursivePath path)
     {
         if (path.Count < 3)
             return;
@@ -112,8 +101,11 @@ internal abstract partial class UIRuntimeBase
             if (binding.Mode == UIBindingMode.OneWayToSource)
                 continue;
 
-            if (!IsTemplateKeyProperty(binding.Address.Component.Id, propertySegment.Property))
+            if (!IsTemplateKeyProperty(binding.Address.Component.Id, propertySegment.Property) &&
+                !IsGroupProperty(binding.Address.Component.Id, propertySegment.Property))
+            {
                 continue;
+            }
 
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
                 continue;
@@ -126,8 +118,7 @@ internal abstract partial class UIRuntimeBase
             var itemKey = (itemSegment.Kind == PathSegmentKind.Key ? itemSegment.Key : TryGetItemKey(item))
                 ?? throw MissingItemKeyException();
 
-            // Still the item's position in the collection, which the client needs to place the replacement —
-            // the addressing above is by key, this is not.
+            // Still needed: the item's position, since the addressing above is by key, not index.
             var itemIndex = itemSegment.Kind == PathSegmentKind.Index
                 ? itemSegment.Index
                 : TryGetItemIndex(TryGetControllerValue(collectionPath), item);
@@ -136,12 +127,6 @@ internal abstract partial class UIRuntimeBase
                 binding.Address.Component.Id,
                 AppendDynamicParameter(dynamicParameters, itemKey)
             );
-
-            AddPendingUpdateNoLock(new ServerContextRebuildUIUpdate
-            {
-                Component = new(binding.Address.Component.Id, AppendDynamicParameter(dynamicParameters, itemKey)),
-                Context = item
-            });
 
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
             {
@@ -169,6 +154,16 @@ internal abstract partial class UIRuntimeBase
                value.Value is string templateKeyProperty &&
                string.Equals(templateKeyProperty, propertyName, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Whether the property is the item's group, on a host that actually draws groups.
+    /// </summary>
+    /// <remarks>
+    /// Gated on the group template; a host without one lays items out flat regardless.
+    /// </remarks>
+    private bool IsGroupProperty(UIComponentId componentId, string propertyName)
+        => string.Equals(propertyName, nameof(IBindableGroup.Group), StringComparison.Ordinal) &&
+           View.Graph.TryGetSlot(componentId, UIComponentSlotKind.GroupTemplate, out _);
 
     private static int? TryGetItemIndex(object? collection, object item)
     {
@@ -286,11 +281,7 @@ internal abstract partial class UIRuntimeBase
     /// The item a collection change carries, addressed by the key recorded when the change was raised.
     /// </summary>
     /// <remarks>
-    /// By index only when a change carried no keys at all. Changes are buffered on the controller and turned
-    /// into updates when the runtime flushes, so by then a later change in the same batch may have moved
-    /// everything past this one: an extending window that trims its far side removes fifty items from the
-    /// front after appending fifty at the back, and each appended item was then read from whatever now stood
-    /// at its old index &#8212; or from past the end, which sent an item with no values at all.
+    /// Falls back to index only when the change carried no key; by flush time a later change in the same batch may have moved items.
     /// </remarks>
     private object? ResolveChangedItem(RecursivePath collectionPath, string? key, int index)
         => TryGetControllerValue(key is null ? collectionPath.AppendIndex(index) : collectionPath.AppendKey(key));

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Regions;
 using NE.Standard.UI.Components.Foundation;
@@ -14,22 +13,27 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A collapsible bordered region with a header that toggles the visibility of its content.
 /// </summary>
-public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase<T>
+[UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
+public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase<T>, ISurfaceStyleComponent
     where T : ExpanderComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Two-way bound: a client-initiated expand/collapse (clicking the summary) syncs back through the
-    /// ordinary <c>data-ui-bind-expanded</c>/<c>ValueBindingEngine</c> path on the native
-    /// <c>&lt;details&gt;</c> <c>toggle</c> event, the same way a two-way-bound <c>Value</c> syncs on
-    /// <c>change</c>.
+    /// Whether the section is open; two-way, so clicking the summary syncs back.
     /// </summary>
     [UIComponentProperty(DefaultValue = true, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
     public bool? Expanded { get; set; }
 
     /// <summary>
-    /// Gets the header region.
+    /// Whether the trailing disclosure chevron is drawn.
     /// </summary>
-    public virtual ITextComponent? Header => GetRegionOrDefault(RegionNames.Header) as ITextComponent;
+    [UIComponentProperty(DefaultValue = true)]
+    public bool? ShowChevron { get; set; }
+
+    /// <summary>
+    /// Gets the header region — any visual component, not only the built-in text one.
+    /// </summary>
+    /// <remarks>The header renders into a native <c>summary</c>, which swallows clicks: nothing interactive works there.</remarks>
+    public virtual IVisualComponent? Header => GetRegionOrDefault(RegionNames.Header);
 
     /// <summary>
     /// Initializes a new expander with the built-in header region.
@@ -71,30 +75,7 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
         return Self;
     }
 
-    /// <summary>
-    /// Sets the header region.
-    /// </summary>
-    public virtual T SetHeader(ITextComponent component)
-    {
-        SetRegion(RegionNames.Header, component);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a command to invoke when the expander is toggled.
-    /// </summary>
-    public T OnToggle(string command)
-        => On(EventNames.Toggle, command);
-    /// <summary>
-    /// Registers a command with bound arguments to invoke when the expander is toggled.
-    /// </summary>
-    public T OnToggle(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Toggle, command, arguments);
-    /// <summary>
-    /// Registers a command with literal arguments to invoke when the expander is toggled.
-    /// </summary>
-    public T OnToggleLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnLiteral(EventNames.Toggle, command, arguments);
+    // Two events, not three: a `Toggle` beside these would dispatch two commands per gesture in no promised order.
 
     /// <summary>
     /// Registers a command to invoke when the expander is expanded.

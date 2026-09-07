@@ -20,8 +20,7 @@ public interface IUICommandMetadata
     UICommandConcurrencyMode ConcurrencyMode { get; }
 
     /// <summary>
-    /// Gets whether the command can be executed without authorization, or <see langword="null"/> when it
-    /// carries no authorization attribute of its own and follows the route it is invoked on.
+    /// Gets whether the command can run without authorization, or <see langword="null"/> to follow the route it is invoked on.
     /// </summary>
     bool? AllowAnonymous { get; }
 

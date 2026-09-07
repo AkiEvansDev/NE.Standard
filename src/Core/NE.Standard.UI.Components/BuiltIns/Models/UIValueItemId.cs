@@ -7,11 +7,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 /// <summary>
 /// Renders a plain value as the <see cref="IBindableItem.Id"/> of an item wrapping it.
 /// </summary>
-/// <remarks>
-/// Non-generic so both <see cref="UIValueItem{T}"/> and <see cref="UIOptionValue{T}"/> can share it: a public
-/// static member on a generic type is what CA1000 refuses, and duplicating the rule in two places is how the
-/// two wrappers would drift into deriving different ids from the same value.
-/// </remarks>
+/// <remarks>Non-generic so both wrappers can share it: CA1000 refuses a public static member on a generic type.</remarks>
 public static class UIValueItemId
 {
     /// <summary>

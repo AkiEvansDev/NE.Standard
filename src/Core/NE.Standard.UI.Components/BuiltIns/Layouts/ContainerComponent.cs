@@ -11,7 +11,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A grid-based layout container that positions its children using column/row definitions and per-child placement.
 /// </summary>
-public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>
+[UIComponentPropertyBlock(typeof(IOverflowComponent))]
+public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>, IOverflowComponent
     where T : ContainerComponent<T>, IUIComponentDefinition
 {
     private readonly UIGridUnit[] _columns = new UIGridUnit[UIGridPlacement.GridColumns];

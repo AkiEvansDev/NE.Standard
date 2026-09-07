@@ -8,7 +8,8 @@ namespace NE.Standard.UI.Authoring.Views;
 public sealed class UIRegion
 {
     /// <summary>
-    /// Gets the stable region key.
+    /// Gets the region's stable key; a view's five standard regions use the names in <c>RegionNames</c> —
+    /// Header, Footer, LeftSide, RightSide, Content.
     /// </summary>
     public required string Key { get; init; }
 

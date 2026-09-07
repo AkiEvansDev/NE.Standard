@@ -6,6 +6,7 @@
 @import "./styles/core/runtime.less";
 
 @import "./styles/components/ui-container.less";
+@import "./styles/components/ui-grid-splitter.less";
 @import "./styles/components/ui-stack-panel.less";
 @import "./styles/components/ui-wrap-panel.less";
 @import "./styles/components/ui-separator.less";
@@ -13,45 +14,56 @@
 @import "./styles/components/ui-image.less";
 @import "./styles/components/ui-badge.less";
 @import "./styles/components/ui-text.less";
+@import "./styles/components/ui-paragraph.less";
 @import "./styles/components/ui-link.less";
 @import "./styles/components/ui-button.less";
-@import "./styles/components/ui-button-content.less";
 // After ui-button: these refine what that file establishes and have to win the ties.
 @import "./styles/components/ui-action.less";
+@import "./styles/components/ui-split-button.less";
+@import "./styles/components/ui-button-group.less";
+// Before ui-menu.less: the fold every menu wears lives here, and the menu only adds what a collapsed list keeps.
+@import "./styles/components/ui-collapsible.less";
+@import "./styles/components/ui-collapsible-panel.less";
 @import "./styles/components/ui-menu.less";
 @import "./styles/components/ui-context-menu.less";
 @import "./styles/components/ui-tabs.less";
 @import "./styles/components/ui-breadcrumbs.less";
 @import "./styles/components/ui-tabs-view.less";
+@import "./styles/components/ui-tab-overflow.less";
 @import "./styles/components/ui-items-view.less";
 @import "./styles/components/ui-text-input.less";
 @import "./styles/components/ui-checkbox.less";
 @import "./styles/components/ui-switch.less";
+@import "./styles/components/ui-theme-switcher.less";
 @import "./styles/components/ui-radio-group.less";
 @import "./styles/components/ui-select.less";
 @import "./styles/components/ui-search.less";
 @import "./styles/components/ui-slider.less";
 @import "./styles/components/ui-temporal-input.less";
+@import "./styles/components/ui-color-input.less";
 @import "./styles/components/ui-number-input.less";
 @import "./styles/components/ui-text-area.less";
 @import "./styles/components/ui-file-input.less";
-// After every input: ui-input.less carries the shared header and the underline appearance, and the underline
-// rules take back what each input's own file set — a tie on specificity has to fall this way round.
+@import "./styles/components/ui-image-input.less";
+// After every input: ui-input.less carries the shared header/underline and must win the specificity tie against each input's own file.
 @import "./styles/components/ui-input.less";
+@import "./styles/components/ui-validation.less";
 @import "./styles/components/ui-command-bar.less";
 @import "./styles/components/ui-key-value-action.less";
+@import "./styles/components/ui-table.less";
+@import "./styles/components/ui-tree.less";
 @import "./styles/components/ui-spinner.less";
 @import "./styles/components/ui-progress.less";
 @import "./styles/components/ui-scroll.less";
+// Before ui-card.less and ui-expander.less: the shared block both build on lives here.
+@import "./styles/components/ui-surface.less";
 @import "./styles/components/ui-card.less";
 @import "./styles/components/ui-expander.less";
+@import "./styles/components/ui-accordion.less";
 @import "./styles/components/ui-flyout.less";
 @import "./styles/components/ui-dialog.less";
 @import "./styles/components/ui-notification.less";
-
-:where([data-ui-theme]) {
-    color: var(--ui-color-on-background);
-}
+@import "./styles/components/ui-tooltip.less";
 
 [data-ui-theme="light"] {
     color-scheme: light;

@@ -1,24 +1,22 @@
 namespace NE.Standard.UI.Shell.Navigation;
 
 /// <summary>
-/// Identifies which half of a page request is resolving the view.
+/// Which request is resolving the view: the one that opens it for the client, or a live connection attaching to it.
 /// </summary>
 /// <remarks>
-/// One page load resolves the view <b>twice</b>: the shell render draws the initial HTML, and the client
-/// then opens its live connection and resolves again to create the runtime. Both are real entry points and
-/// both have to be guarded — closing only the first leaves the second as an unlocked door to the same
-/// controller — but an action with a side effect (an audit record, a counter) belongs to exactly one of them.
-/// A filter that must run once tests this.
+/// A page load on the web resolves the view twice — the page request, then the client's live connection — and both
+/// must be guarded, but a side effect belongs to exactly one of them. A platform with one step passes <see cref="Open"/>.
 /// </remarks>
 public enum UIViewRequestPhase
 {
     /// <summary>
-    /// The view is being resolved to render the initial page shell.
+    /// The request that opens the view for the client and can hand it a session id: a pending id rotation is carried
+    /// out here and nowhere else.
     /// </summary>
-    ShellRender = 0,
+    Open = 0,
 
     /// <summary>
-    /// The view is being resolved to attach a live runtime to an already-rendered page.
+    /// A live connection attaching a runtime to a view already open.
     /// </summary>
-    RuntimeAttach = 1
+    Attach = 1
 }

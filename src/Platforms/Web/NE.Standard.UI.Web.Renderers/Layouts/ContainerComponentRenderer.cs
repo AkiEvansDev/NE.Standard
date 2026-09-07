@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -13,6 +14,10 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 
 public sealed class ContainerComponentRenderer : WebComponentRendererBase
 {
+    /// <summary>The authored track lists, as custom properties the stylesheet reads under a splitter's own.</summary>
+    public const string ColumnsVariable = "--ui-columns";
+    public const string RowsVariable = "--ui-rows";
+
     public override string ComponentTypeKey => ContainerComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-container";
@@ -24,22 +29,31 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
 
-        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, ContainerComponent.ColumnsProperty, static (target, value) =>
-        {
-            if (value is { Count: > 0 } columns)
-                _ = target.Style("grid-template-columns", ToCssGridTemplate(columns));
-        }, [WebDomOperation.Style("grid-template-columns", converter: WebDomConverters.GridTemplateCss)]);
-
-        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, ContainerComponent.RowsProperty, static (target, value) =>
-        {
-            if (value is { Count: > 0 } rows)
-                _ = target.Style("grid-template-rows", ToCssGridTemplate(rows));
-        }, [WebDomOperation.Style("grid-template-rows", converter: WebDomConverters.GridTemplateCss)]);
+        // A variable rather than the grid property itself, so a splitter's tiers can sit over it in the stylesheet's chain.
+        RenderTracks(context, root, ContainerComponent.ColumnsProperty, ColumnsVariable, WebAttributes.ColumnLimits);
+        RenderTracks(context, root, ContainerComponent.RowsProperty, RowsVariable, WebAttributes.RowLimits);
 
         RenderChildren(context, root);
     }
 
-    private static string ToCssGridTemplate(IReadOnlyList<UIGridUnit> units)
+    internal static void RenderTracks(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string variable, string limitsAttribute)
+    {
+        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, property, (target, value) =>
+        {
+            if (value is not { Count: > 0 } units)
+                return;
+
+            _ = target.Style(variable, ToCssGridTemplate(units));
+
+            var limits = WebCssValues.GridTrackLimits(units);
+
+            if (limits.Length > 0)
+                _ = target.Attribute(limitsAttribute, limits);
+        }, [WebDomOperation.Style(variable, converter: WebDomConverters.GridTemplateCss)]);
+    }
+
+    /// <summary>The track list as CSS, a run of equal tracks folded into <c>repeat()</c>; the table's columns, and a package's grid, take the same road.</summary>
+    public static string ToCssGridTemplate(IReadOnlyList<UIGridUnit> units)
     {
         ArgumentNullException.ThrowIfNull(units);
 

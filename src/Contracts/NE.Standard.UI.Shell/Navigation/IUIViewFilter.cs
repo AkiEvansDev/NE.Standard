@@ -6,17 +6,6 @@ namespace NE.Standard.UI.Shell.Navigation;
 /// <summary>
 /// Intercepts the resolution of a view, so a route can carry cross-cutting behaviour of its own.
 /// </summary>
-/// <remarks>
-/// Implement it on an attribute to attach it to a view or controller class — the same way
-/// <c>[UIAuthorize]</c> already attaches — or register one globally with
-/// <c>UIApplicationBuilder.AddViewFilter</c>. One method covers every shape the pipeline needs: work before
-/// the view resolves, work after it (with <see cref="UIViewFilterContext.Resolution"/> to hand), a
-/// short-circuit (do not call the next delegate), and exception handling (wrap the call).
-/// <para>
-/// An attribute cannot take constructor dependencies, so implement <see cref="IUIViewFilterFactory"/> when
-/// the filter needs services rather than trying to resolve them from a field.
-/// </para>
-/// </remarks>
 public interface IUIViewFilter
 {
     /// <summary>

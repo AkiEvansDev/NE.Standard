@@ -1,0 +1,39 @@
+@import "../core/tokens.less";
+
+.ui-accordion {
+    // Always a column: one section open at a time only means something down an axis where it can grow.
+    display: flex;
+    flex-direction: column;
+    // Declared so BorderThickness has something to draw with — see .ui-stack-panel for why all three.
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.ui-accordion > [data-ui-id] {
+    flex-shrink: 0;
+}
+
+// Not through :where(), for the same reason .ui-stack-panel's column rule doesn't either.
+.ui-accordion > [data-ui-id] {
+    align-self: var(--ui-align-h, normal);
+}
+
+// One block, not a stack of cards: sections share the edge between them, only the outermost corners are rounded.
+.ui-accordion > .ui-expander {
+    border-radius: 0;
+}
+
+.ui-accordion > .ui-expander + .ui-expander {
+    border-top-width: 0;
+}
+
+.ui-accordion > .ui-expander:first-child {
+    border-top-left-radius: var(--ui-radius-card);
+    border-top-right-radius: var(--ui-radius-card);
+}
+
+.ui-accordion > .ui-expander:last-child {
+    border-bottom-left-radius: var(--ui-radius-card);
+    border-bottom-right-radius: var(--ui-radius-card);
+}

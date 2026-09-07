@@ -4,7 +4,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
-/// Requests the UI client to hide a component.
+/// Requests the UI client to hide a component while it keeps the room it holds, unlike <see cref="CollapseEffect"/>.
 /// </summary>
 public sealed class HideEffect : ClientEffect
 {
@@ -25,7 +25,7 @@ public sealed class HideEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.Hide;
+    public override string Kind => ClientEffectKinds.Hide;
 
     /// <summary>
     /// Gets the target component reference.
@@ -39,7 +39,7 @@ public sealed class HideEffect : ClientEffect
 
 internal sealed class CompiledHideEffect(UIComponentAddress target) : ClientEffect
 {
-    public override ClientEffectKind Kind => ClientEffectKind.Hide;
+    public override string Kind => ClientEffectKinds.Hide;
 
     public UIComponentAddress Target { get; } = target;
 }

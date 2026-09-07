@@ -5,7 +5,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A toggle switch input that represents a boolean value.
 /// </summary>
-public abstract class SwitchComponent<T>(string? id = null) : CheckboxComponent<T>(id)
+public abstract partial class SwitchComponent<T>(string? id = null) : CheckboxComponent<T>(id)
     where T : SwitchComponent<T>, IUIComponentDefinition
 { }
 

@@ -1,23 +1,34 @@
+// Shows what a field has to say about its value: the client rules, the message a controller bound, and the
+// runtime's refusal of a value it could not take. The strongest of the three is what shows.
+
 import { cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
-import { readBoundElementValue } from "../extensions/value-readers";
+import { ValueReaderRegistry } from "../extensions/value-readers";
 import {
     getIdValue,
+    getValidationSeverity,
     getValidationTrigger,
     MetadataIndex,
     ServerValidationUIUpdate,
-    WebColorStyle,
-    WebRenderValidationMetadata
+    WebRenderValidationMetadata,
+    WebValidationSeverityName
 } from "../metadata/metadata-index";
-import { webDomConverters } from "../rendering/web-dom-converters";
 import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
 import { UpdateProcessor } from "../updates/update-processor";
 import { evaluateOperator } from "./interaction-evaluator";
 
-const InvalidClass = "ui-invalid";
+const ErrorClass = "ui-invalid";
+const WarningClass = "ui-validation--warning";
+const InfoClass = "ui-validation--info";
 const MessageAttribute = "data-ui-validation-message";
-const SeverityClassPrefix = "ui-color--";
 const SeverityColorProperty = "--ui-validation-color";
+const ValidationPropertyName = "Validation";
+
+/** Highest first, which is the order two messages on one field are settled in. */
+const SeverityRank: Readonly<Record<WebValidationSeverityName, number>> = { Error: 0, Warning: 1, Info: 2 };
+
+const SeverityClass: Readonly<Record<WebValidationSeverityName, string>> = { Error: ErrorClass, Warning: WarningClass, Info: InfoClass };
+const SeverityColor: Readonly<Record<WebValidationSeverityName, string>> = { Error: "danger", Warning: "warning", Info: "info" };
 
 export type ValidationEngineOptions = {
     readonly root?: ParentNode;
@@ -25,28 +36,30 @@ export type ValidationEngineOptions = {
     readonly dom: DomRegistry;
     readonly propertyPatchEngine: PropertyPatchEngine;
     readonly updateProcessor?: UpdateProcessor;
+    readonly valueReaders: ValueReaderRegistry;
 };
 
 type ValidationDisplay = {
     readonly message: string;
-    readonly severity: WebColorStyle;
+    readonly severity: WebValidationSeverityName;
 };
 
 export class ValidationEngine {
+    private readonly options: ValidationEngineOptions;
     private readonly root: ParentNode;
     private readonly failingRulesByElement = new WeakMap<Element, Set<WebRenderValidationMetadata>>();
-    private readonly serverRefusalByElement = new WeakMap<Element, ValidationDisplay>();
+    private readonly refusalByElement = new WeakMap<Element, ValidationDisplay>();
+    private readonly boundMessageByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly touchedElements = new WeakSet<Element>();
 
-    public constructor(private readonly options: ValidationEngineOptions) {
+    public constructor(options: ValidationEngineOptions) {
+        this.options = options;
         this.root = options.root ?? document;
 
-        this.options.propertyPatchEngine.addValueChangeHandler(change => this.applyChangeTrigger(change));
+        this.options.propertyPatchEngine.addValueChangeHandler(change => this.applyValueChange(change));
         this.options.updateProcessor?.addValidationHandler(update => this.applyServerRefusal(update));
 
-        // Capture phase, because focus and blur do not bubble. "input" is listened to here and nowhere else:
-        // value sync deliberately fires only on "change", while a Change-trigger rule has to evaluate as the
-        // user types.
+        // Capture, because focus and blur do not bubble; "input" is listened to only here, since a Change rule evaluates as the user types.
         this.root.addEventListener("focus", domEvent => this.markTouched(domEvent), true);
         this.root.addEventListener("blur", domEvent => this.applyBlurTrigger(domEvent), true);
         this.root.addEventListener("input", domEvent => this.applyInputTrigger(domEvent), true);
@@ -60,6 +73,31 @@ export class ValidationEngine {
 
         if (resolved !== null)
             this.touchedElements.add(resolved.element);
+    }
+
+    private applyValueChange(change: PropertyValueChange): void {
+        if (change.propertyName === ValidationPropertyName) {
+            this.applyBoundMessage(change);
+            return;
+        }
+
+        this.applyChangeTrigger(change);
+    }
+
+    /** A message the controller bound shows at once, on a field the user has not visited too. */
+    private applyBoundMessage(change: PropertyValueChange): void {
+        const componentId = getIdValue(change.reference.componentId);
+        const display = readValidationMessage(change.value);
+
+        for (const element of this.options.dom.findAllComponents(componentId, change.dynamicParameters)) {
+            if (display === undefined)
+                this.boundMessageByElement.delete(element);
+            else
+                this.boundMessageByElement.set(element, display);
+
+            this.touchedElements.add(element);
+            this.applyCurrentState(componentId, element);
+        }
     }
 
     private applyChangeTrigger(change: PropertyValueChange): void {
@@ -82,12 +120,9 @@ export class ValidationEngine {
 
         for (const element of this.options.dom.findAllComponents(componentId, dynamicParameters)) {
             if (message.length === 0) {
-                this.serverRefusalByElement.delete(element);
+                this.refusalByElement.delete(element);
             } else {
-                this.serverRefusalByElement.set(element, { message, severity: update.severity ?? "Danger" });
-
-                // A server refusal must show immediately, even on a field the user has not visited — it is a
-                // statement about the value the controller holds, not about their editing progress.
+                this.refusalByElement.set(element, { message, severity: toSeverityName(update.severity) });
                 this.touchedElements.add(element);
             }
 
@@ -95,47 +130,55 @@ export class ValidationEngine {
         }
     }
 
-    /** Asked by EventPipeline before running an .OnChange command for a value the server may have refused. */
+    /** Whether the runtime refused this component's current value. */
     public isRefused(component: Element): boolean {
-        return this.serverRefusalByElement.has(component);
+        return this.refusalByElement.has(component);
     }
 
-    /** A server refusal outranks any client rule — it is the authoritative answer about that value. */
+    /** Shows the strongest message the element has: the runtime's refusal, the controller's, or a failing rule's. */
     private applyCurrentState(componentId: number, element: Element): void {
-        const refusal = this.serverRefusalByElement.get(element);
+        applyValidationState(element, this.resolveDisplay(componentId, element));
+    }
 
-        if (refusal !== undefined) {
-            applyValidationState(element, refusal);
-            return;
-        }
+    private resolveDisplay(componentId: number, element: Element): ValidationDisplay | undefined {
+        const candidates: ValidationDisplay[] = [];
+        const refusal = this.refusalByElement.get(element);
+        const bound = this.boundMessageByElement.get(element);
+
+        if (refusal !== undefined)
+            candidates.push(refusal);
+
+        if (bound !== undefined)
+            candidates.push(bound);
 
         const failing = this.failingRulesByElement.get(element);
-        const rule = failing === undefined
-            ? undefined
-            : this.options.metadata.getValidationsForComponent(componentId).find(candidate => failing.has(candidate));
 
-        applyValidationState(element, rule === undefined ? undefined : { message: rule.message, severity: rule.severity });
+        if (failing !== undefined) {
+            for (const rule of this.options.metadata.getValidationsForComponent(componentId)) {
+                if (failing.has(rule))
+                    candidates.push({ message: rule.message, severity: toSeverityName(rule.severity) });
+            }
+        }
+
+        let strongest: ValidationDisplay | undefined;
+
+        for (const candidate of candidates) {
+            if (strongest === undefined || SeverityRank[candidate.severity] < SeverityRank[strongest.severity])
+                strongest = candidate;
+        }
+
+        return strongest;
     }
 
     private applyInputTrigger(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
-            return;
-
-        const resolved = this.options.dom.resolveNearestComponent(domEvent.target, () => true);
-
-        if (resolved === null)
-            return;
-
-        const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
-            .filter(rule => getValidationTrigger(rule.trigger) === "Change");
-
-        if (rules.length === 0)
-            return;
-
-        this.evaluateAndApply(resolved.componentId, resolved.element, rules, readBoundElementValue(domEvent.target));
+        this.applyEventTrigger(domEvent, "Change");
     }
 
     private applyBlurTrigger(domEvent: Event): void {
+        this.applyEventTrigger(domEvent, "Blur");
+    }
+
+    private applyEventTrigger(domEvent: Event, trigger: "Change" | "Blur"): void {
         if (!(domEvent.target instanceof Element))
             return;
 
@@ -145,15 +188,15 @@ export class ValidationEngine {
             return;
 
         const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
-            .filter(rule => getValidationTrigger(rule.trigger) === "Blur");
+            .filter(rule => getValidationTrigger(rule.trigger) === trigger);
 
         if (rules.length === 0)
             return;
 
-        this.evaluateAndApply(resolved.componentId, resolved.element, rules, readBoundElementValue(domEvent.target));
+        this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.options.valueReaders.readBound(domEvent.target));
     }
 
-    /** Evaluates every rule in a form up front, so submit reports all failures rather than the first. */
+    /** Evaluates every rule in a form up front, so submit reports all failures rather than the first; only an error stops it. */
     public runSubmitValidation(formId: string): boolean {
         const elements = this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`);
         let allValid = true;
@@ -164,24 +207,37 @@ export class ValidationEngine {
             if (resolved === null)
                 continue;
 
-            // A standing server refusal fails the form even when every client rule passes.
-            if (this.serverRefusalByElement.has(resolved.element))
-                allValid = false;
-
             const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
                 .filter(rule => getValidationTrigger(rule.trigger) === "Submit");
 
-            if (rules.length === 0)
-                continue;
+            if (rules.length > 0) {
+                this.touchedElements.add(resolved.element);
+                this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.options.valueReaders.readBound(element));
+            }
 
-            this.touchedElements.add(resolved.element);
-            this.evaluateAndApply(resolved.componentId, resolved.element, rules, readBoundElementValue(element));
-
-            if ((this.failingRulesByElement.get(resolved.element)?.size ?? 0) > 0)
+            if (this.hasError(resolved.componentId, resolved.element))
                 allValid = false;
         }
 
         return allValid;
+    }
+
+    // The controller's own message does not gate a submit: the controller wrote it and will judge the value again.
+    private hasError(componentId: number, element: Element): boolean {
+        if (this.refusalByElement.get(element)?.severity === "Error")
+            return true;
+
+        const failing = this.failingRulesByElement.get(element);
+
+        if (failing === undefined)
+            return false;
+
+        for (const rule of this.options.metadata.getValidationsForComponent(componentId)) {
+            if (failing.has(rule) && toSeverityName(rule.severity) === "Error")
+                return true;
+        }
+
+        return false;
     }
 
     private evaluateAndApply(componentId: number, element: Element, rules: readonly WebRenderValidationMetadata[], value: unknown): void {
@@ -206,48 +262,35 @@ export class ValidationEngine {
     }
 }
 
+function readValidationMessage(value: unknown): ValidationDisplay | undefined {
+    if (value === null || typeof value !== "object")
+        return undefined;
+
+    const record = value as { readonly severity?: unknown; readonly message?: unknown };
+    const message = typeof record.message === "string" ? record.message : "";
+
+    return message.length === 0 ? undefined : { message, severity: toSeverityName(record.severity) };
+}
+
+function toSeverityName(value: unknown): WebValidationSeverityName {
+    const name = getValidationSeverity(value as never);
+
+    return name === "Unknown" ? "Error" : name;
+}
+
 function applyValidationState(element: Element, display: ValidationDisplay | undefined): void {
-    element.classList.toggle(InvalidClass, display !== undefined);
-    setSeverityClass(element, display);
-    setSeverityColorProperty(element, display);
+    for (const className of Object.values(SeverityClass))
+        element.classList.toggle(className, display !== undefined && SeverityClass[display.severity] === className);
+
+    const htmlElement = element as HTMLElement;
+
+    if (display === undefined)
+        htmlElement.style.removeProperty(SeverityColorProperty);
+    else
+        htmlElement.style.setProperty(SeverityColorProperty, `var(--ui-color-${SeverityColor[display.severity]})`);
 
     const messageTarget = element.querySelector(`[${MessageAttribute}]`);
 
-    if (messageTarget === null)
-        return;
-
-    messageTarget.textContent = display?.message ?? "";
-    setSeverityClass(messageTarget, display);
-}
-
-function setSeverityClass(element: Element, display: ValidationDisplay | undefined): void {
-    for (const token of [...element.classList]) {
-        if (token.startsWith(SeverityClassPrefix))
-            element.classList.remove(token);
-    }
-
-    if (display === undefined)
-        return;
-
-    const severityClass = toSeverityClass(display);
-
-    if (severityClass !== undefined)
-        element.classList.add(severityClass);
-}
-
-function toSeverityClass(display: ValidationDisplay): string | undefined {
-    return webDomConverters.get("colorClass")!(display.severity);
-}
-
-function setSeverityColorProperty(element: Element, display: ValidationDisplay | undefined): void {
-    const htmlElement = element as HTMLElement;
-    const severityClass = display === undefined ? undefined : toSeverityClass(display);
-
-    if (severityClass === undefined) {
-        htmlElement.style.removeProperty(SeverityColorProperty);
-        return;
-    }
-
-    const token = severityClass.slice(SeverityClassPrefix.length);
-    htmlElement.style.setProperty(SeverityColorProperty, `var(--ui-color-${token})`);
+    if (messageTarget !== null)
+        messageTarget.textContent = display?.message ?? "";
 }

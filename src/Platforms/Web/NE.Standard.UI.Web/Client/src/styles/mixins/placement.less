@@ -1,0 +1,14 @@
+// The two grids a region is laid out with; see @ui-placement-hosts in ui-container.less for what goes inside them.
+
+// Twenty-four columns, the same grid a page uses, with no gap since the columns themselves are the spacing.
+.ui-placement-host() {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+}
+
+// Two columns (star, auto) for a band with a control of its own; the star half is itself a placement host.
+.ui-control-band() {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}

@@ -14,9 +14,9 @@ namespace NE.Standard.UI.Compiled.Indexes;
 /// </summary>
 public sealed class UIEventIndex
 {
-    private readonly FrozenDictionary<UIEventId, CompiledUIEvent> _eventsById;
     private static readonly CompiledUIEvent[] Empty = [];
 
+    private readonly FrozenDictionary<UIEventId, CompiledUIEvent> _eventsById;
     private readonly FrozenDictionary<CompiledUIEventAddress, CompiledUIEvent> _eventsByAddress;
     private readonly FrozenDictionary<UIComponentId, CompiledUIEvent[]> _eventsByComponent;
     private readonly CompiledUIEvent[] _all;
@@ -48,12 +48,12 @@ public sealed class UIEventIndex
             if (!byAddress.TryAdd(compiledEvent.Address, compiledEvent))
                 throw new InvalidOperationException($"Event '{compiledEvent.Address}' is already registered.");
 
-            Add(byComponent, compiledEvent.Address.ComponentId, compiledEvent);
+            GroupingIndex.Add(byComponent, compiledEvent.Address.ComponentId, compiledEvent);
         }
 
         _eventsById = byId.ToFrozenDictionary();
         _eventsByAddress = byAddress.ToFrozenDictionary();
-        _eventsByComponent = Freeze(byComponent);
+        _eventsByComponent = GroupingIndex.Freeze(byComponent);
     }
 
     /// <summary>
@@ -103,29 +103,6 @@ public sealed class UIEventIndex
         => TryGet(address, out CompiledUIEvent? compiledEvent)
             ? compiledEvent
             : throw new InvalidOperationException($"Event '{address}' was not found.");
-
-    private static void Add<TKey>(Dictionary<TKey, List<CompiledUIEvent>> map, TKey key, CompiledUIEvent compiledEvent)
-        where TKey : notnull
-    {
-        if (!map.TryGetValue(key, out List<CompiledUIEvent>? list))
-        {
-            list = [];
-            map.Add(key, list);
-        }
-
-        list.Add(compiledEvent);
-    }
-
-    private static FrozenDictionary<TKey, CompiledUIEvent[]> Freeze<TKey>(Dictionary<TKey, List<CompiledUIEvent>> source)
-        where TKey : notnull
-    {
-        Dictionary<TKey, CompiledUIEvent[]> result = new(source.Count);
-
-        foreach (KeyValuePair<TKey, List<CompiledUIEvent>> pair in source)
-            result.Add(pair.Key, [.. pair.Value]);
-
-        return result.ToFrozenDictionary();
-    }
 
     private static void ValidateEvent(CompiledUIEvent compiledEvent, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
     {
@@ -177,59 +154,47 @@ public sealed class UIEventIndex
 
                 break;
 
+            // A current-item key is addressed the same way as a binding argument: the resolved path's last
+            // segment is the key, verified at runtime against the collection it belongs to.
             case CompiledUIActionArgumentKind.CurrentItemKey:
-                if (argument.Value is not null)
-                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify literal value.");
-
-                if (argument.SourceId is not null)
-                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify source id.");
-
-                if (argument.TemplateId is not null)
-                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify template id.");
-
-                if (argument.Parameters.Length != 0)
-                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify parameters.");
-
-                if (argument.DynamicParameterComponentIds.Length != 0)
-                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify dynamic parameter ids.");
-
+            case CompiledUIActionArgumentKind.Binding:
+                ValidateBindingLikeArgument(compiledEvent, argument, sources, templates);
                 break;
 
-            case CompiledUIActionArgumentKind.Binding:
-                {
-                    if (argument.Value is not null)
-                        throw new InvalidOperationException($"Event '{compiledEvent.Id}' binding argument '{argument.Name}' must not specify literal value.");
-
-                    if (argument.SourceId is null || argument.SourceId.Value.IsEmpty)
-                        throw new InvalidOperationException($"Event '{compiledEvent.Id}' binding argument '{argument.Name}' must specify source id.");
-
-                    if (argument.TemplateId is null || argument.TemplateId.Value.IsEmpty)
-                        throw new InvalidOperationException($"Event '{compiledEvent.Id}' binding argument '{argument.Name}' must specify template id.");
-
-                    UIBindingSourceId sourceId = argument.SourceId.Value;
-                    UIBindingTemplateId templateId = argument.TemplateId.Value;
-
-                    _ = sources.GetRequired(sourceId);
-
-                    CompiledUIBindingTemplate template = templates.GetRequired(templateId);
-
-                    if (!template.SourceId.Equals(sourceId))
-                        throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' source '{sourceId}' does not match template '{templateId}' source '{template.SourceId}'.");
-
-                    var slotCount = CompiledUIBindingParameterResolver.CountSlots(argument.Parameters);
-
-                    if (slotCount != template.ParameterCount)
-                        throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' has {slotCount} parameters, but template '{template.Id}' expects {template.ParameterCount}.");
-
-                    CompiledUIBindingParameterResolver.ValidateDynamicComponentIds(
-                        $"Event '{compiledEvent.Id}' argument '{argument.Name}'",
-                        argument.Parameters,
-                        argument.DynamicParameterComponentIds);
-
-                    break;
-                }
             default:
                 throw new UnreachableException();
         }
+    }
+
+    private static void ValidateBindingLikeArgument(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    {
+        if (argument.Value is not null)
+            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify literal value.");
+
+        if (argument.SourceId is null || argument.SourceId.Value.IsEmpty)
+            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must specify source id.");
+
+        if (argument.TemplateId is null || argument.TemplateId.Value.IsEmpty)
+            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must specify template id.");
+
+        UIBindingSourceId sourceId = argument.SourceId.Value;
+        UIBindingTemplateId templateId = argument.TemplateId.Value;
+
+        _ = sources.GetRequired(sourceId);
+
+        CompiledUIBindingTemplate template = templates.GetRequired(templateId);
+
+        if (!template.SourceId.Equals(sourceId))
+            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' source '{sourceId}' does not match template '{templateId}' source '{template.SourceId}'.");
+
+        var slotCount = CompiledUIBindingParameterResolver.CountSlots(argument.Parameters);
+
+        if (slotCount != template.ParameterCount)
+            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' has {slotCount} parameters, but template '{template.Id}' expects {template.ParameterCount}.");
+
+        CompiledUIBindingParameterResolver.ValidateDynamicComponentIds(
+            $"Event '{compiledEvent.Id}' argument '{argument.Name}'",
+            argument.Parameters,
+            argument.DynamicParameterComponentIds);
     }
 }

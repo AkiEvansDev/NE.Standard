@@ -8,26 +8,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A layout container that scrolls its content horizontally and/or vertically.
 /// </summary>
-public abstract partial class ScrollContainerComponent<T>(string? id = null) : ContainerComponentBase<T>(id)
+/// <remarks>No <c>Overflow</c> of its own: the two scroll modes say what it clips.</remarks>
+[UIComponentPropertyBlock(typeof(IScrollableComponent))]
+public abstract partial class ScrollContainerComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IScrollableComponent
     where T : ScrollContainerComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets the horizontal scroll behavior.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollMode.Disabled)]
-    public UIScrollMode? HorizontalScroll { get; set; }
-
-    /// <summary>
-    /// Gets or sets the vertical scroll behavior.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollMode.Auto)]
-    public UIScrollMode? VerticalScroll { get; set; }
-
-    /// <summary>
-    /// Gets or sets how the container reacts when its content grows.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollAnchor.None)]
-    public UIScrollAnchor? ScrollAnchor { get; set; }
 
     /// <summary>
     /// Follows content appended at the end while the viewer is already at the end.

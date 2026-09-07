@@ -8,11 +8,6 @@ namespace NE.Standard.UI.Controllers;
 /// <summary>
 /// Runs a filter attribute that builds its real filter from the service provider.
 /// </summary>
-/// <remarks>
-/// Created per invocation rather than once at registration, for the same reason the view pipeline does it: a
-/// filter that captured services at registration would hold the wrong scope for the rest of the application's
-/// life.
-/// </remarks>
 internal sealed class UICommandFilterFactoryAdapter(IUICommandFilterFactory factory) : IUICommandFilter
 {
     public int Order => factory.Order;

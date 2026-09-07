@@ -14,6 +14,7 @@
 
   <Folder Name="/src/Core/">
     <Project Path="src/Core/NE.Standard.UI.Components/NE.Standard.UI.Components.csproj" />
+    <Project Path="src/Core/NE.Standard.UI.Components.Foundation/NE.Standard.UI.Components.Foundation.csproj" />
     <Project Path="src/Core/NE.Standard.UI/NE.Standard.UI.csproj" />
   </Folder>
 
@@ -29,6 +30,7 @@
   <Folder Name="/src/Platforms/Web/">
     <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Abstractions/NE.Standard.UI.Web.Abstractions.csproj" />
     <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Renderers/NE.Standard.UI.Web.Renderers.csproj" />
+    <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Renderers.Foundation/NE.Standard.UI.Web.Renderers.Foundation.csproj" />
     <Project Path="src/Platforms/Web/NE.Standard.UI.Web/NE.Standard.UI.Web.csproj" />
   </Folder>
   <Folder Name="/src/Platforms/Wpf/" />
@@ -36,6 +38,8 @@
   <Folder Name="/examples/">
     <Project Path="examples/DemoApp.Web/DemoApp.Web.csproj" />
     <Project Path="examples/DemoApp/DemoApp.csproj" />
+    <Project Path="examples/TeamRoom.Web/TeamRoom.Web.csproj" />
+    <Project Path="examples/TeamRoom/TeamRoom.csproj" />
   </Folder>
 
   <Folder Name="/solution/">

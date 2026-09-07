@@ -35,9 +35,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
             return ValueTask.FromResult<UINavigationRequest?>(notFoundRedirect);
         }
 
-        // A refusal is not an error page: the request is well-formed and the answer is either "sign in first" or
-        // "this is not for you". Guarded against the target route refusing its own visitors, which cannot happen
-        // while both stay anonymous but would otherwise loop until the attempt count ran out.
+        // A refusal is not an error page: guarded against the target route refusing its own visitors, which would otherwise loop.
         if (context.Exception is UnauthorizedAccessException
             && TryBuildRefusalRedirect(context, out UINavigationRequest? refusalRedirect))
         {
@@ -46,7 +44,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
 
         if (context.Exception is not UnauthorizedAccessException
             && !RouteEquals(context.Route?.Route, _application.ErrorHandling.ErrorRoute)
-            && TryBuildRedirect(_application.ErrorHandling.ErrorRoute, "message", context.Exception.Message, out UINavigationRequest? errorRedirect))
+            && TryBuildRedirect(_application.ErrorHandling.ErrorRoute, "message", ResolveErrorMessage(context), out UINavigationRequest? errorRedirect))
         {
             return ValueTask.FromResult<UINavigationRequest?>(errorRedirect);
         }
@@ -55,13 +53,20 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
     }
 
     /// <summary>
-    /// Sends a session with no identity to the sign-in page and one that simply lacks the rights to the
-    /// forbidden page, falling back to sign-in when no forbidden page is configured.
+    /// Resolves the error page's <c>message</c> parameter: the raw exception text only when opted into detail.
     /// </summary>
-    /// <remarks>
-    /// The fallback is a compromise: telling someone already signed in to sign in reads badly, but it beats a
-    /// failed render. Configure <c>ForbiddenView</c> to get the honest answer.
-    /// </remarks>
+    private string ResolveErrorMessage(ResolveExceptionViewContext context)
+    {
+        if (_application.ErrorHandling.IncludeExceptionDetail)
+            return context.Exception.Message;
+
+        var language = context.Session?.Language ?? _application.Translator.DefaultLanguage;
+        return _application.Translator.Translate(language, _application.ErrorHandling.ErrorPageMessage) ?? _application.ErrorHandling.ErrorPageMessage;
+    }
+
+    /// <summary>
+    /// Redirects to sign-in or to the forbidden page, depending on why access was refused.
+    /// </summary>
     private bool TryBuildRefusalRedirect(ResolveExceptionViewContext context, [NotNullWhen(true)] out UINavigationRequest? request)
     {
         var signInRoute = _application.Security.SignInRoute;

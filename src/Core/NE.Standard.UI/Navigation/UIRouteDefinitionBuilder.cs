@@ -39,6 +39,7 @@ public sealed class UIRouteDefinitionBuilder
 
     private bool? _allowAnonymous;
     private List<UIAccessRule>? _accessRules;
+    private string[]? _identityParameters;
 
     private UIViewCompilationMode? _viewCompilationMode;
     private UIControllerUpdateMode? _controllerUpdateMode;
@@ -118,6 +119,22 @@ public sealed class UIRouteDefinitionBuilder
     }
 
     /// <summary>
+    /// Declares which navigation parameters are part of the route's address, and therefore separate one
+    /// page of it from another.
+    /// </summary>
+    public UIRouteDefinitionBuilder Identity(params string[] parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        for (var i = 0; i < parameters.Length; i++)
+            ArgumentException.ThrowIfNullOrWhiteSpace(parameters[i]);
+
+        _identityParameters = [.. parameters];
+
+        return this;
+    }
+
+    /// <summary>
     /// Sets the view compilation mode for the route.
     /// </summary>
     public UIRouteDefinitionBuilder CompilationMode(UIViewCompilationMode mode)
@@ -176,6 +193,8 @@ public sealed class UIRouteDefinitionBuilder
             ViewKey = _viewKey,
             ControllerType = _controllerType,
 
+            IdentityParameters = _identityParameters ?? [],
+
             AllowAnonymous = _allowAnonymous ?? defaults.AllowAnonymous,
             AccessRules = _accessRules is null ? defaults.AccessRules : [.. _accessRules],
             ViewFilters = defaults.ViewFilters,
@@ -228,6 +247,18 @@ public sealed class UIRouteDefinitionBuilder
         };
     }
 
+    private static void ValidateControllerRuntimeAttribute(UIControllerRuntimeAttribute? attribute)
+    {
+        if (attribute is null)
+            return;
+
+        if (attribute.FlushIntervalMilliseconds == 0)
+            throw new InvalidOperationException("Controller flush interval must be greater than zero.");
+
+        if (attribute.FlushIntervalMilliseconds < -1)
+            throw new InvalidOperationException("Controller flush interval must be -1 or greater than zero.");
+    }
+
     /// <summary>
     /// An explicit attribute always wins; only a route carrying neither falls back to the application policy.
     /// </summary>
@@ -243,8 +274,7 @@ public sealed class UIRouteDefinitionBuilder
     }
 
     /// <summary>
-    /// Collects the view filters attached to the route, view first then controller, ordered by
-    /// <see cref="IUIViewFilter.Order"/> — a stable sort, so equal orders keep that attachment order.
+    /// Collects the view filters attached to the route, view first then controller, ordered by <see cref="IUIViewFilter.Order"/>.
     /// </summary>
     private static IUIViewFilter[] ReadViewFilters(Type viewType, Type? controllerType)
     {
@@ -270,19 +300,6 @@ public sealed class UIRouteDefinitionBuilder
                 filters.Add(new UIViewFilterFactoryAdapter(factory));
         }
     }
-
-    private static void ValidateControllerRuntimeAttribute(UIControllerRuntimeAttribute? attribute)
-    {
-        if (attribute is null)
-            return;
-
-        if (attribute.FlushIntervalMilliseconds == 0)
-            throw new InvalidOperationException("Controller flush interval must be greater than zero.");
-
-        if (attribute.FlushIntervalMilliseconds < -1)
-            throw new InvalidOperationException("Controller flush interval must be -1 or greater than zero.");
-    }
-
     private static Func<CompiledView> CreateViewGetter(UIViewCompilationMode mode, UIViewFactory factory)
     {
         return mode switch

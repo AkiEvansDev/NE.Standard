@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using NE.Standard.UI.Web.Abstractions.Html;
 
@@ -56,18 +57,35 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
 
     public string Tag { get; }
 
+    /// <summary>
+    /// Adds a class, ignoring one the element already carries, since a repeat would print the class twice.
+    /// </summary>
     public IHtmlElementBuilder Class(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        _classes.Add(value);
+        if (!_classes.Contains(value, StringComparer.Ordinal))
+            _classes.Add(value);
 
         return this;
     }
 
+    /// <summary>
+    /// Adds an attribute, replacing one of the same name — the last write wins, since a repeated attribute would be invalid HTML.
+    /// </summary>
     public IHtmlElementBuilder Attribute(string name, string? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        for (var i = 0; i < _attributes.Count; i++)
+        {
+            if (string.Equals(_attributes[i].Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                _attributes[i] = new KeyValuePair<string, string?>(name, value);
+
+                return this;
+            }
+        }
 
         _attributes.Add(new KeyValuePair<string, string?>(name, value));
 

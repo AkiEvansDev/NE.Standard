@@ -15,9 +15,7 @@ public interface IUIDownloadService
     /// Sends a stream as a downloadable file.
     /// </summary>
     /// <remarks>
-    /// No <c>IProgress</c>: the server stages the content and the browser fetches it, so the server cannot
-    /// observe the download at all. A callback here could only report bytes staged, under a name every caller
-    /// would read as bytes delivered — see <c>docs/FILES.md</c> §5.
+    /// No <c>IProgress</c>: the server stages the content and the client fetches it, so the server cannot observe the download itself.
     /// </remarks>
     Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default);
 

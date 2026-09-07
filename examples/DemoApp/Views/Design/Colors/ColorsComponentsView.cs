@@ -1,17 +1,15 @@
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Icons.Lucide;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Views;
 
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// The same set of component compositions rendered side by side in the Light and Dark theme via the
-/// per-component <c>Theme</c> override — for judging how real content reads in both palettes.
+/// The same component compositions side by side in both themes, through the per-component <c>Theme</c> override.
 /// </summary>
 internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
 {
@@ -68,7 +66,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
         => new CardComponent()
             .ConfigureDefaultHeader(h => h
                 .SetTitle("Nightly build")
-                .SetIcon(LucideIcons.Refresh)
+                .SetIcon(DemoIcons.Refresh)
                 .SetBadgeText("Running")
             )
             .SetContent(new StackPanelComponent()
@@ -102,11 +100,11 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
                 .SetSpacing(8)
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Primary)
-                    .ConfigureDefaultContent(c => c.SetTitle("Invite"))
+                    .SetTitle("Invite")
                 )
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Ghost)
-                    .ConfigureDefaultContent(c => c.SetTitle("Copy link"))
+                    .SetTitle("Copy link")
                 )
             );
 }

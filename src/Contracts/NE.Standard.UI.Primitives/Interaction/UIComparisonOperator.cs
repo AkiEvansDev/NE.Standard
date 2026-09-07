@@ -56,8 +56,7 @@ public enum UIComparisonOperator
     Regex = 9,
 
     /// <summary>
-    /// The value must contain the comparison value as a substring, ignoring case. What a search box filtering
-    /// a list wants — <see cref="Like"/> stays exact, since a validation rule may well mean it.
+    /// The value must contain the comparison value as a substring, ignoring case.
     /// </summary>
     LikeIgnoreCase = 10,
 }

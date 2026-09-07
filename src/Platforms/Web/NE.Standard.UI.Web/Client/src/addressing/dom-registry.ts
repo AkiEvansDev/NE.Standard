@@ -1,4 +1,4 @@
-import { ComponentIdAttribute, ComponentSelector } from "./dom-attributes";
+import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute } from "./dom-attributes";
 import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters";
 
 export type ComponentResolveResult = {
@@ -8,23 +8,41 @@ export type ComponentResolveResult = {
 };
 
 export class DomRegistry {
+    public readonly root: ParentNode;
+
     private readonly componentsById = new Map<number, Element[]>();
     private readonly staticComponentsById = new Map<number, Element>();
 
-    public constructor(public readonly root: ParentNode) {
+    private stale = false;
+
+    public constructor(root: ParentNode) {
+        this.root = root;
         this.rebuild();
     }
 
+    /** Marks the index as no longer matching the page; the rebuild happens on first use. */
+    public invalidate(): void {
+        this.stale = true;
+    }
+
     public rebuild(): void {
+        this.stale = false;
+
         this.componentsById.clear();
         this.staticComponentsById.clear();
 
         const elements = this.root.querySelectorAll<Element>(ComponentSelector);
 
+        // Group headers stand for a bucket, not an item, and must stay out of the index or they answer to the anchor item's patches.
+        const hasGroupHeaders = this.root.querySelector(`[${GroupHeaderAttribute}]`) !== null;
+
         for (const element of elements) {
             const componentId = readComponentId(element);
 
             if (componentId <= 0)
+                continue;
+
+            if (hasGroupHeaders && element.closest(`[${GroupHeaderAttribute}]`) !== null)
                 continue;
 
             let bucket = this.componentsById.get(componentId);
@@ -45,9 +63,26 @@ export class DomRegistry {
         return this.findAllComponents(componentId, dynamicParameters)[0] ?? null;
     }
 
+    /** The elements matching `selector` that a component addresses: itself when it matches, else the ones inside it. */
+    public findComponentParts(componentId: number, dynamicParameters: readonly unknown[], selector: string): HTMLElement[] {
+        const parts: HTMLElement[] = [];
+
+        for (const component of this.findAllComponents(componentId, dynamicParameters)) {
+            if (component instanceof HTMLElement && component.matches(selector))
+                parts.push(component);
+            else
+                parts.push(...component.querySelectorAll<HTMLElement>(selector));
+        }
+
+        return parts;
+    }
+
     public findAllComponents(componentId: number, dynamicParameters: readonly unknown[]): Element[] {
         if (componentId <= 0)
             return [];
+
+        if (this.stale)
+            this.rebuild();
 
         if (dynamicParameters.length === 0) {
             const staticElement = this.staticComponentsById.get(componentId);
@@ -59,6 +94,9 @@ export class DomRegistry {
     }
 
     public resolveNearestComponent(start: Element, predicate: (componentId: number, element: Element) => boolean): ComponentResolveResult | null {
+        if (this.stale)
+            this.rebuild();
+
         let current: Element | null = start;
 
         while (current !== null) {

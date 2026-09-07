@@ -6,9 +6,8 @@ namespace NE.Standard.UI.Primitives.Security;
 /// Thrown when an authenticated session lacks the roles or permissions a route or command requires.
 /// </summary>
 /// <remarks>
-/// Separate from a plain <see cref="UnauthorizedAccessException"/>, which here means "no identity yet". The two
-/// need different answers: the first is a dead end for this user and belongs on a forbidden page, the second is
-/// fixed by signing in. Sending the first to a sign-in page tells someone already signed in to sign in again.
+/// Distinct from a plain <see cref="UnauthorizedAccessException"/>, which means no identity yet and should route to
+/// sign-in rather than a forbidden page.
 /// </remarks>
 public sealed class UIForbiddenAccessException : UnauthorizedAccessException
 {

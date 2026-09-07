@@ -11,30 +11,66 @@
     line-height: 0;
 }
 
+// Width sizes the box, Size drives font-size; height follows via aspect-ratio so the two never drift when only one is authored.
 .ui-icon[data-ui-id] {
     .ui-responsive-property(width, --ui-width, 1em);
-    .ui-responsive-property(height, --ui-height, 1em);
+    .ui-responsive-property(height, --ui-height, auto);
+    aspect-ratio: 1;
 }
 
+    // Which of glyph, URL mask or picture draws follows the property filled, not a class; the glyph name lives in content, never the DOM.
     .ui-icon::before {
-        content: "";
+        content: var(--ui-icon-glyph, "");
         display: none;
         width: 1em;
         height: 1em;
-        background-color: currentColor;
-        mask: var(--ui-icon-url) center / contain no-repeat;
-        -webkit-mask: var(--ui-icon-url) center / contain no-repeat;
+        font-family: var(--ui-icon-font, inherit);
+        font-size: 1em;
+        font-weight: 400;
+        font-style: normal;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        // The lookup that turns the name into the drawing. Without it the letters are letters.
+        font-feature-settings: "liga";
+        // FILL is the axis between the filled and outlined drawing; opsz is left unnamed so font-optical-sizing: auto keeps choosing it.
+        font-variation-settings: "FILL" var(--ui-icon-fill, 1);
+        // A mask paints by default; the glyph form has to say it is different, since a glyph is text and takes color.
+        background-color: var(--ui-icon-paint, currentColor);
+        mask: var(--ui-icon-url, none) center / contain no-repeat;
+        -webkit-mask: var(--ui-icon-url, none) center / contain no-repeat;
     }
 
-    // .ui-icon is worn both by a component root and by a nested __icon part, so anything reading a --ui-*
-    // custom property here has to be gated on [data-ui-id] — those inherit, and runtime.less only resets them
-    // there. An ungated width chain once turned a 320px-wide Text into a 320px glyph.
+    // .ui-icon is worn by a component root and by a nested __icon, so any --ui-* read here must be gated on [data-ui-id]: those inherit.
     .ui-icon[data-ui-icon]::before {
         display: block;
     }
 
+    // Gated on the component root: stretching the nested .ui-text__icon breaks the text's rhythm; font-size follows the same width chain.
+    .ui-icon[data-ui-id]::before {
+        width: 100%;
+        height: 100%;
+        .ui-responsive-property(font-size, --ui-width, 1em);
+    }
+
+// A picture fills the same --ui-icon-url slot but is painted, not masked; contain, not cover, so a logo or flag is never cropped.
+.ui-icon--image::before {
+    content: "";
+    background-color: transparent;
+    background: var(--ui-icon-url) center / contain no-repeat;
+    mask: none;
+    -webkit-mask: none;
+    // em, so the radius stays the same fraction of any box; ui-text.less overrides it with the card's radius for the tile.
+    border-radius: 0.1875em;
+}
+
+// The three fixed sizes land on whole pixels: a fractional box puts the masked stroke on a fractional pixel and reads grey and ragged.
 .ui-icon-size--small {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .ui-icon-size--medium {
@@ -42,5 +78,5 @@
 }
 
 .ui-icon-size--large {
-    font-size: 1.45rem;
+    font-size: 1.5rem;
 }

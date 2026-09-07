@@ -1,25 +1,27 @@
 using System;
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Regions;
-using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
-/// A bordered content surface with an optional header and footer region, optionally clickable as a whole.
+/// A <see cref="SurfaceComponent{T}"/> with bands on it: an optional header — which may carry a control of
+/// its own at its far edge — and an optional footer. The fill, the edge and the click are the surface's.
 /// </summary>
-public abstract partial class CardComponent<T> : BorderedRegionComponentBase<T>
+/// <remarks>No header region until one is asked for, or the card draws an empty band above its content.</remarks>
+public abstract partial class CardComponent<T>(string? id = null) : SurfaceComponent<T>(id)
     where T : CardComponent<T>, IUIComponentDefinition
 {
     /// <summary>
     /// Gets the header region.
     /// </summary>
-    public virtual ITextComponent? Header => GetRegionOrDefault(RegionNames.Header) as ITextComponent;
+    public virtual IVisualComponent? Header => GetRegionOrDefault(RegionNames.Header);
+
+    /// <summary>
+    /// Gets the control the header carries at its far edge; with none, nothing reserves room for one.
+    /// </summary>
+    public virtual IVisualComponent? HeaderAction => GetRegionOrDefault(RegionNames.HeaderAction);
 
     /// <summary>
     /// Gets the footer region.
@@ -27,26 +29,13 @@ public abstract partial class CardComponent<T> : BorderedRegionComponentBase<T>
     public virtual IVisualComponent? Footer => GetRegionOrDefault(RegionNames.Footer);
 
     /// <summary>
-    /// Whether the whole card is an actionable surface: renders with a pointer cursor, a hover/active
-    /// affordance, and — when <see langword="false"/> — blocks the card (and any content/footer children)
-    /// from receiving pointer input at all, so <see cref="OnClick(string)"/> never fires.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Clickable { get; set; }
-
-    /// <summary>
-    /// Initializes a new card with the built-in header region.
-    /// </summary>
-    protected CardComponent(string? id = null) : base(id)
-    {
-        SetRegion(RegionNames.Header, new CardHeaderRegion());
-    }
-
-    /// <summary>
-    /// Configures the built-in default header region, throwing if a different header has been set.
+    /// Configures the built-in default header region, creating it on first use.
     /// </summary>
     public T ConfigureDefaultHeader(Action<CardHeaderRegion> configure)
     {
+        if (Header is null)
+            SetRegion(RegionNames.Header, new CardHeaderRegion());
+
         ArgumentNullException.ThrowIfNull(configure);
 
         if (Header is not CardHeaderRegion header)
@@ -57,11 +46,13 @@ public abstract partial class CardComponent<T> : BorderedRegionComponentBase<T>
     }
 
     /// <summary>
-    /// Sets the header region.
+    /// Sets the control the header carries at its far edge.
     /// </summary>
-    public virtual T SetHeader(ITextComponent header)
+    public virtual T SetHeaderAction(IVisualComponent action)
     {
-        SetRegion(RegionNames.Header, header);
+        ArgumentNullException.ThrowIfNull(action);
+
+        SetRegion(RegionNames.HeaderAction, action);
         return Self;
     }
 
@@ -73,26 +64,10 @@ public abstract partial class CardComponent<T> : BorderedRegionComponentBase<T>
         SetRegion(RegionNames.Footer, footer);
         return Self;
     }
-
-    /// <summary>
-    /// Registers a command to invoke when the card is clicked.
-    /// </summary>
-    public T OnClick(string command)
-        => On(EventNames.Click, command);
-    /// <summary>
-    /// Registers a command with bound arguments to invoke when the card is clicked.
-    /// </summary>
-    public T OnClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Click, command, arguments);
-    /// <summary>
-    /// Registers a command with literal arguments to invoke when the card is clicked.
-    /// </summary>
-    public T OnClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnLiteral(EventNames.Click, command, arguments);
 }
 
 /// <summary>
-/// A bordered content surface with an optional header and footer region, optionally clickable as a whole.
+/// A bordered surface with an optional header and footer region, optionally clickable as a whole.
 /// </summary>
 public sealed class CardComponent(string? id = null) : CardComponent<CardComponent>(id), IUIComponentDefinition
 {

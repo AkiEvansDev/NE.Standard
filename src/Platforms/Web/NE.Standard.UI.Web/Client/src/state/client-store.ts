@@ -2,23 +2,19 @@ import { ComponentNameAttribute } from "../addressing/dom-attributes";
 import { logDebug, logWarn } from "../runtime/logger";
 
 const KeyPrefix = "ne.ui";
+const BootSlot = "boot";
 
-// One line per component and slot, not per read: a store miss is a normal state for a component nobody named,
-// and a menu answers scroll, resize and every items patch.
+/** Attributes and styles the boot script writes on a component before the first paint. */
+export type ClientBootPatch = {
+    readonly selector?: string;
+    readonly attributes?: Readonly<Record<string, string | null>>;
+    readonly styles?: Readonly<Record<string, string>>;
+};
+
+// One log line per component and slot, not per read: a miss is normal for a component nobody named.
 const reported = new Set<string>();
 
-/**
- * The small preferences a component keeps in the browser rather than on the controller: whether a menu is
- * collapsed, which of its groups is open, the order a grid's columns were dragged into. None of it is
- * application data — it is how *this* viewer left *this* component, and asking the server for it would cost a
- * round trip, a property on every controller that hosts the component, and a place to persist it per user.
- *
- * Keyed by the author's own name for the component (`data-ui-name`), deliberately without the route or the
- * view: a sidebar appears in every view of an application and is one component to the person using it, so
- * folding the view into the key would reset it on the first click. A component with no authored id stores
- * nothing — a generated id is a counter and would hand this viewer's state to a different component after the
- * next edit.
- */
+/** The small preferences a component keeps in the browser, keyed by the author's own name for it and by nothing else. */
 export class ClientStore {
     /** The stored string, or null when there is nothing stored, no name to store it under, or no storage. */
     public read(component: Element, slot: string): string | null {
@@ -36,8 +32,8 @@ export class ClientStore {
         }
     }
 
-    /** Stores a value, or removes it when the value is null. */
-    public write(component: Element, slot: string, value: string | null): void {
+    /** Stores a value, or removes it when null; `boot` given sets the slot's boot patch, null clears it, omitted leaves it. */
+    public write(component: Element, slot: string, value: string | null, boot?: ClientBootPatch | null): void {
         const key = this.resolveKey(component, slot);
 
         if (key === null)
@@ -50,9 +46,37 @@ export class ClientStore {
                 window.localStorage.setItem(key, value);
         }
         catch (error) {
-            // A full or disabled store is not a fault the page can do anything about, and the component
-            // works without it — it simply forgets.
+            // A full or disabled store is not a fault the page can act on; the component simply forgets.
             logWarn("writing client state failed.", { key, error });
+        }
+
+        if (boot !== undefined || value === null)
+            this.writeBoot(component, slot, value === null ? null : boot ?? null);
+    }
+
+    /** One boot record per component, a patch per slot: the shape the boot script reads. */
+    private writeBoot(component: Element, slot: string, patch: ClientBootPatch | null): void {
+        const key = this.resolveKey(component, BootSlot);
+
+        if (key === null)
+            return;
+
+        try {
+            const stored = window.localStorage.getItem(key);
+            const patches = stored === null ? {} : JSON.parse(stored) as Record<string, ClientBootPatch>;
+
+            if (patch === null)
+                delete patches[slot];
+            else
+                patches[slot] = patch;
+
+            if (Object.keys(patches).length === 0)
+                window.localStorage.removeItem(key);
+            else
+                window.localStorage.setItem(key, JSON.stringify(patches));
+        }
+        catch (error) {
+            logWarn("writing client boot state failed.", { key, error });
         }
     }
 
@@ -66,8 +90,7 @@ export class ClientStore {
             return JSON.parse(raw) as TValue;
         }
         catch {
-            // Written by an older shape of the same component, most likely. Dropped rather than kept, so the
-            // next write starts from something readable.
+            // Unreadable: dropped, so the next write starts from something valid.
             this.write(component, slot, null);
             return null;
         }

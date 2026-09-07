@@ -1,15 +1,18 @@
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NE.Standard.UI.Generators.Infrastructure;
 
 namespace NE.Standard.UI.Generators.ComponentProperties;
 
+/// <summary>
+/// One property to generate for one component type.
+/// </summary>
 internal sealed record UIComponentPropertyModel(
-    PropertyDeclarationSyntax PropertySyntax,
     IPropertySymbol Property,
     INamedTypeSymbol ContainingType,
-    UIComponentPropertyAttributeValues Values
+    UIComponentPropertyAttributeValues Values,
+    bool DeclareProperty = false,
+    INamedTypeSymbol? DefaultValueOwner = null
 );
 
 internal sealed record UIComponentPropertyAttributeValues(

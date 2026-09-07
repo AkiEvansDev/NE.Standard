@@ -17,25 +17,13 @@ public partial class TextItem : TextBaseItem, ITextModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UITextAppearance? DescriptionType { get; set; } = UITextAppearance.Caption;
+    public partial UITextAppearance? DescriptionType { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIThemeColor? DescriptionColor { get; set; } = UIThemeColor.FromStyle(UIColorStyle.OnSurface);
+    public partial UIThemeColor? DescriptionColor { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UITextAlignment? TextAlignment { get; set; } = UITextAlignment.Start;
-
-    /// <inheritdoc />
-    [RecursiveMember]
-    public partial UITextWrapMode? WrapMode { get; set; } = UITextWrapMode.NoWrap;
-
-    /// <inheritdoc />
-    [RecursiveMember]
-    public partial int? MaxLines { get; set; }
-
-    /// <inheritdoc />
-    [RecursiveMember]
-    public partial bool? Selectable { get; set; } = false;
+    public partial UITextAlignment? TextAlignment { get; set; }
 }

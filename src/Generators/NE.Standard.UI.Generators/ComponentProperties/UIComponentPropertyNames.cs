@@ -3,6 +3,7 @@ namespace NE.Standard.UI.Generators.ComponentProperties;
 internal static class UIComponentPropertyNames
 {
     public const string AttributeMetadataName = "NE.Standard.UI.Primitives.Annotations.UIComponentPropertyAttribute";
+    public const string BlockAttributeMetadataName = "NE.Standard.UI.Primitives.Annotations.UIComponentPropertyBlockAttribute";
     public const string UIPropertyMetadataName = "NE.Standard.UI.Abstractions.Binding.Properties.UIProperty";
     public const string RecursivePathMetadataName = "NE.Standard.UI.Abstractions.Recursive.RecursivePath";
 

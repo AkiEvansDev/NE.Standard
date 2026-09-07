@@ -1,44 +1,53 @@
 @import "../core/tokens.less";
+@import "../mixins/field.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 
 .ui-key-value-action {
-
-    // A row is composed from four template variants (key, value, action, and a contentless host), so the
-    // column layout lives on the inner __host — which is also what makes the items host addressable.
+    // Column layout lives on the inner __host, one of four template variants (key, value, action, contentless host).
     display: flex;
     flex-direction: column;
-    .ui-responsive-property(width, --ui-width, 100%);
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-card);
-    padding: 0 @ui-space-3;
-}
-
-.ui-key-value-action__host {
-    display: flex;
-    flex-direction: column;
-}
-
-.ui-key-value-action--no-border {
-    border: none;
-    border-radius: 0;
+    // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs Card uses.
+    border-style: solid;
+    border-width: var(--ui-border-width, 1.5px);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-row);
+    background: var(--ui-surface-color, transparent);
+    // No padding of its own: every row carries the list's inset, so a row's wash and its separator run from border to border
+    // without a negative margin — one browser clipped a subgrid row's overhang at the content box, another did not.
     padding: 0;
 }
 
+// subgrid gives each row's own box the list's shared tracks; key and value use minmax() so neither collapses the other, the action takes its own width.
+.ui-key-value-action__host {
+    display: grid;
+    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr) auto;
+}
+
+// The row is as wide as the list and carries the inset itself (a step wider than a field's, so a row's wash leaves the key
+// some air); the separator and the wash therefore run from border to border.
 .ui-key-value-action__row {
-    display: flex;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
     align-items: center;
-    gap: @ui-space-3;
-    padding: @ui-space-2 0;
+    column-gap: @ui-space-3;
+    // Action height plus outline border, row padding and separator, spelled out so ShowActions off does not collapse the row.
+    min-height: calc(@ui-button-height-sm + 2px + (@ui-space-1 * 2) + 1px);
+    padding: @ui-space-1 @ui-space-4;
     border-bottom: 1px solid var(--ui-color-border);
 }
 
-.ui-key-value-action:not(.ui-key-value-action--no-border) .ui-key-value-action__row {
-    margin: 0 -@ui-space-3;
-    padding: @ui-space-2 @ui-space-3;
-}
-
+// Clipped to the padding box, off the separator.
 .ui-key-value-action--row-hover .ui-key-value-action__row:hover {
-    background-color: color-mix(in srgb, var(--ui-color-surface) 94%, var(--ui-color-on-surface) 6%);
+    .ui-row-hover();
+    background-clip: padding-box;
+
+    // One wash, not two: the editing cell's own focus-within wash (below) comes off under a hover the row already answers.
+    .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+        background: none;
+    }
 }
 
     .ui-key-value-action--no-separators .ui-key-value-action__row {
@@ -49,25 +58,163 @@
         border-bottom: none;
     }
 
+    // The outer rows follow the list's corners, so a themed radius is not poked through by a square wash.
+    .ui-key-value-action__row:first-child {
+        border-top-left-radius: var(--ui-radius-row);
+        border-top-right-radius: var(--ui-radius-row);
+    }
+
+    .ui-key-value-action__row:last-child {
+        border-bottom-left-radius: var(--ui-radius-row);
+        border-bottom-right-radius: var(--ui-radius-row);
+    }
+
+    // The empty placeholder stands where a row would, with a row's inset.
+    .ui-key-value-action__host > [data-ui-empty-placeholder] {
+        padding: @ui-space-2 @ui-space-4;
+    }
+
+// The floor lives on the track (minmax above), not the cell — a min-width here couldn't shrink past it either.
 .ui-key-value-action__key {
-    flex: 0 0 auto;
-    min-width: 8rem;
     color: var(--ui-text-muted);
 }
 
-.ui-key-value-action__value {
-    flex: 1 1 auto;
+:where(.ui-key-value-action__key, .ui-key-value-action__value, .ui-key-value-action__action) {
     min-width: 0;
 }
 
-    .ui-key-value-action--no-stretch .ui-key-value-action__value {
-        flex: 0 1 auto;
-    }
+// With StretchValue off, the value takes only what it needs and the action closes up behind it.
+.ui-key-value-action--no-stretch .ui-key-value-action__host {
+    grid-template-columns: minmax(8rem, max-content) minmax(0, max-content) auto;
+}
 
-.ui-key-value-action__action {
-    flex: 0 0 auto;
+// The track goes with the cell, so the row doesn't keep a column's worth of air where the action would be.
+.ui-key-value-action--no-actions .ui-key-value-action__host {
+    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+}
+
+.ui-key-value-action--no-actions.ui-key-value-action--no-stretch .ui-key-value-action__host {
+    grid-template-columns: minmax(8rem, max-content) minmax(0, max-content);
 }
 
     .ui-key-value-action--no-actions .ui-key-value-action__action {
         display: none;
+    }
+
+// An editable list (EnableEditing): five slots to a row, the input under the value and the save/cancel pair under the action,
+// each in the cell it stands in for; data-ui-row-editing on the row (its Editing flag, bound to the item's ShowInput) says which
+// half of each cell shows. Explicit columns and one row, so the two halves share a cell rather than wrapping the subgrid.
+.ui-key-value-action--editable .ui-key-value-action__key {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.ui-key-value-action--editable .ui-key-value-action__value,
+.ui-key-value-action--editable .ui-key-value-action__value-input {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.ui-key-value-action--editable .ui-key-value-action__action,
+.ui-key-value-action--editable .ui-key-value-action__edit-action {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+}
+
+.ui-key-value-action__value-input,
+.ui-key-value-action__edit-action {
+    display: none;
+    min-width: 0;
+}
+
+.ui-key-value-action__row[data-ui-row-editing] {
+    // The input's message goes under it and the row grows with it; the cells stay centred on the whole, key and buttons level with the field.
+    align-items: center;
+    // The field is the whole cell, so the row's own vertical padding goes and the cell takes the row's height.
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+    // The editor is the whole cell: a ghost field with no corners and no ring, the wash over all of it under the pointer or the caret,
+    // and a switch or a picture centred in the same cell (the cell's own display is set where the halves are shown below).
+    .ui-key-value-action__value-input > .ui-input--ghost {
+        flex: 1 1 auto;
+        align-self: stretch;
+        .ui-responsive-property(min-width, --ui-min-width, 0);
+        --ui-height: 100%;
+    }
+
+    // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--ghost) {
+        align-self: center;
+    }
+
+    .ui-key-value-action__value-input .ui-input--ghost > :is(@{ui-input-field}) {
+        flex: 1 1 auto;
+        border-radius: 0;
+    }
+
+    // No hover of its own: the cell is the row's, and a wash on the field inside it read as a second box.
+    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field}):hover,
+    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > .ui-field-box:hover {
+        background: none;
+    }
+
+    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+        border-color: transparent;
+        box-shadow: none;
+        background: var(--ui-wash-hover);
+    }
+
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value,
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__action {
+        display: none;
+    }
+
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input {
+        display: flex;
+        align-items: center;
+        align-self: stretch;
+    }
+
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__edit-action {
+        display: block;
+    }
+
+// The three words are the framework's own, drawn as glyphs and kept for the reader: the pencil that opens a row, the check that
+// saves it, the cross that lets it go.
+.ui-key-value-action--editable .ui-key-value-action__action .ui-button,
+.ui-key-value-action__edit-action .ui-button {
+    position: relative;
+    // A square the small button's height with the glyph centred in it: the glyph is the whole label.
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    .ui-responsive-property(min-width, --ui-min-width, @ui-button-height-sm);
+    .ui-responsive-property(padding, --ui-padding, 0);
+    aspect-ratio: 1;
+}
+
+    .ui-key-value-action--editable .ui-key-value-action__action .ui-button .ui-button__content,
+    .ui-key-value-action__edit-action .ui-button .ui-button__content {
+        .ui-visually-hidden();
+    }
+
+    .ui-key-value-action--editable .ui-key-value-action__action .ui-button::before {
+        content: "";
+        width: 0.875rem;
+        height: 0.875rem;
+        .ui-pencil-glyph();
+    }
+
+    .ui-key-value-action__edit-action .ui-button:first-child::before {
+        content: "";
+        width: 0.875rem;
+        height: 0.875rem;
+        .ui-check-glyph();
+    }
+
+    .ui-key-value-action__edit-action .ui-button:last-child {
+        .ui-cross-glyph();
     }

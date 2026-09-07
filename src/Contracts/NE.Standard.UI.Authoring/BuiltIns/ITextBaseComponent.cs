@@ -5,7 +5,7 @@ using NE.Standard.UI.Authoring.Components;
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
-/// Represents the shared visual contract for text-based components.
+/// A component carrying a name: a leading mark, one line of text, and a badge qualifying it.
 /// </summary>
 public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
 {
@@ -35,6 +35,11 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty TitleTypeProperty { get; } = new(nameof(TitleType));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ITextBaseModel.Selectable"/>.
+    /// </summary>
+    static UIProperty SelectableProperty { get; } = new(nameof(Selectable));
+
+    /// <summary>
     /// Gets the registered property key for <see cref="ITextBaseModel.TitleColor"/>.
     /// </summary>
     static UIProperty TitleColorProperty { get; } = new(nameof(TitleColor));
@@ -43,6 +48,11 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     /// Gets the registered property key for <see cref="IBadgeModel.BadgeStyle"/>.
     /// </summary>
     static UIProperty BadgeStyleProperty { get; } = new(nameof(BadgeStyle));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="IBadgeModel.BadgeColor"/>.
+    /// </summary>
+    static UIProperty BadgeColorProperty { get; } = new(nameof(BadgeColor));
 
     /// <summary>
     /// Gets the registered property key for <see cref="IBadgeModel.BadgeIcon"/>.
@@ -75,12 +85,12 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty BadgePlacementProperty { get; } = new(nameof(BadgePlacement));
 
     /// <summary>
-    /// Gets the registered property key for <see cref="ITextBaseModel.Tooltip"/>.
-    /// </summary>
-    static UIProperty TooltipProperty { get; } = new(nameof(Tooltip));
-
-    /// <summary>
     /// Gets the registered property key for <see cref="IBadgeModel.BadgeTooltip"/>.
     /// </summary>
     static UIProperty BadgeTooltipProperty { get; } = new(nameof(BadgeTooltip));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="IBadgeModel.BadgeTooltipPlacement"/>.
+    /// </summary>
+    static UIProperty BadgeTooltipPlacementProperty { get; } = new(nameof(BadgeTooltipPlacement));
 }

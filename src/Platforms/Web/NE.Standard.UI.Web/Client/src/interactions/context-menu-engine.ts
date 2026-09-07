@@ -1,15 +1,16 @@
-// Right-click menus. The menu is rendered inside the component that owns it (see
-// `WebComponentRendererBase.RenderContextMenu`), so this engine only decides when to show one and where —
-// the entries, their commands and their styling are the menu component's own.
-//
-// Placement is done here rather than through `anchored-popup.ts` because there is no anchor element: a
-// context menu opens at the pointer, and the only thing to keep it inside is the viewport.
+// Right-click menus: when a menu rendered inside its owner is shown, and where — at the pointer, so there is no anchor to place against.
+
+import { ComponentKeyAttribute, ItemsHostAttribute, NoContextMenuAttribute } from "../addressing/dom-attributes";
+import { clampToViewport } from "./anchored-popup";
+import { PopupDismissal } from "./popup-dismissal";
+import { FocusableSelector } from "./popup-focus";
 
 const OwnerAttribute = "data-ui-context-menu-owner";
 const MenuAttribute = "data-ui-context-menu";
 const OpenClass = "ui-context-menu--open";
 
-const ViewportMargin = 4;
+/** An entry whose click keeps the menu up: a group's own entry opens its block, a check turns in place. */
+const StayingEntrySelector = "[data-ui-menu-group] > .ui-menu-item, .ui-menu-item[data-ui-menu-item-kind=\"check\"]";
 
 export type ContextMenuEngineOptions = {
     readonly root?: ParentNode;
@@ -24,15 +25,16 @@ export class ContextMenuEngine {
 
         this.root.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
 
-        // Capture phase and composedPath, like every other popup here: a handler that re-renders during the
-        // click detaches the clicked node, and contains() would then answer "outside".
-        document.addEventListener("pointerdown", domEvent => this.handleOutside(domEvent), true);
-
-        // A click *inside* closes on the click, not on the press: closing on pointerdown would take the menu
-        // down before the entry it landed on had been activated.
+        // A click inside closes on the click, not the press, or the entry it landed on never activates.
         document.addEventListener("click", domEvent => this.handleInside(domEvent), false);
-        document.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
-        window.addEventListener("blur", () => this.close());
+
+        new PopupDismissal({
+            root: this.root,
+            openPopups: () => this.openMenu === null ? [] : [this.openMenu],
+            close: () => this.close(),
+            onPress: true,
+            onWindowBlur: true
+        });
     }
 
     private handleContextMenu(domEvent: Event): void {
@@ -44,11 +46,10 @@ export class ContextMenuEngine {
         if (owner === null)
             return;
 
-        // querySelector, not children: the menu sits inside the owner but a renderer is free to nest it.
-        // Scoped to *this* owner's own menu, so a menu inside a nested owner never opens for the outer one.
+        // This owner's own menu: a renderer may nest it, but a nested owner's menu must not open for the outer one.
         const menu = owner.querySelector<HTMLElement>(`[${MenuAttribute}]`);
 
-        if (menu === null || menu.closest(`[${OwnerAttribute}]`) !== owner)
+        if (menu === null || menu.closest(`[${OwnerAttribute}]`) !== owner || isRefused(owner))
             return;
 
         domEvent.preventDefault();
@@ -64,29 +65,20 @@ export class ContextMenuEngine {
         // Measured after the class is applied, or a display:none menu measures as zero and never flips.
         const rect = menu.getBoundingClientRect();
 
-        menu.style.left = `${clamp(x, rect.width, window.innerWidth)}px`;
-        menu.style.top = `${clamp(y, rect.height, window.innerHeight)}px`;
+        menu.style.left = `${clampToViewport(x, rect.width, window.innerWidth)}px`;
+        menu.style.top = `${clampToViewport(y, rect.height, window.innerHeight)}px`;
 
-        menu.querySelector<HTMLElement>("a, button")?.focus({ preventScroll: true });
-    }
-
-    private handleOutside(domEvent: Event): void {
-        if (this.openMenu === null || domEvent.composedPath().includes(this.openMenu))
-            return;
-
-        this.close();
+        menu.querySelector<HTMLElement>(FocusableSelector)?.focus({ preventScroll: true });
     }
 
     private handleInside(domEvent: Event): void {
-        if (this.openMenu !== null && domEvent.composedPath().includes(this.openMenu))
-            this.close();
-    }
+        if (this.openMenu === null || !domEvent.composedPath().includes(this.openMenu))
+            return;
 
-    private handleKeydown(domEvent: Event): void {
-        if (this.openMenu !== null && domEvent instanceof KeyboardEvent && domEvent.key === "Escape") {
-            domEvent.preventDefault();
-            this.close();
-        }
+        if (domEvent.target instanceof Element && domEvent.target.closest(StayingEntrySelector) !== null)
+            return;
+
+        this.close();
     }
 
     private close(): void {
@@ -98,7 +90,16 @@ export class ContextMenuEngine {
     }
 }
 
-/** Keeps the menu inside the viewport: past the far edge it flips back by its own size rather than clipping. */
-function clamp(offset: number, span: number, viewportSpan: number): number {
-    return Math.max(ViewportMargin, Math.min(offset, viewportSpan - span - ViewportMargin));
+/**
+ * The menu is refused where the owner says so, where the row the owner stands in says so, or where the host of that row says so
+ * for every row — the three places `ShowContextMenu` and `CanShowContextMenu` are written.
+ */
+function isRefused(owner: HTMLElement): boolean {
+    if (owner.hasAttribute(NoContextMenuAttribute))
+        return true;
+
+    const row = owner.closest<HTMLElement>(`[${ComponentKeyAttribute}]`);
+    const host = row?.parentElement?.hasAttribute(ItemsHostAttribute) === true ? row.parentElement : null;
+
+    return row !== null && (row.hasAttribute(NoContextMenuAttribute) || host?.parentElement?.hasAttribute(NoContextMenuAttribute) === true);
 }

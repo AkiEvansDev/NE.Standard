@@ -10,12 +10,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// One step of a <see cref="BreadcrumbsComponent"/>: the button's own content, a destination, and the mark
 /// that separates it from the step before.
 /// </summary>
-/// <remarks>
-/// A <see cref="ButtonComponent{T}"/> rendered as an anchor, for the same reason a menu entry is one — a step
-/// usually navigates, and an anchor is what gives it a real URL to middle-click or copy. Its own component
-/// rather than a reused menu entry: a step has no kind, no shortcut and no nested list, and it reads as text
-/// with a rule under it rather than as a row with a surface.
-/// </remarks>
+/// <remarks>A <see cref="ButtonComponent{T}"/> rendered as an anchor, so a step has a real URL to middle-click or copy.</remarks>
 public abstract partial class BreadcrumbItemComponent<T> : ButtonComponent<T>
     where T : BreadcrumbItemComponent<T>, IUIComponentDefinition
 {
@@ -34,7 +29,7 @@ public abstract partial class BreadcrumbItemComponent<T> : ButtonComponent<T>
     {
         Type = UIButtonType.Ghost;
 
-        _ = ConfigureDefaultContent(content => _ = content.SetTextAlignment(UITextAlignment.Start));
+        TextAlignment = UITextAlignment.Start;
     }
 }
 

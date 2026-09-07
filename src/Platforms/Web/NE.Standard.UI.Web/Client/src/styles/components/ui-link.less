@@ -1,56 +1,39 @@
 @import "../core/tokens.less";
+@import "../mixins/color.less";
 @import "../mixins/responsive.less";
 
+// An anchor around the shared text body; the body sits in __content, since on the anchor its inherit default would overwrite the link hue.
 .ui-link {
-
     display: inline-flex;
     align-items: center;
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     border-radius: var(--ui-radius-button);
     text-decoration: none;
     cursor: pointer;
-    transition: color @ui-motion-fast @ui-motion-ease;
+    transition: filter @ui-motion-fast @ui-motion-ease;
 }
 
 :where(.ui-link) {
-    color: var(--ui-color-primary);
+    color: var(--ui-color-primary-ink);
 }
 
 .ui-link:hover {
-    color: color-mix(in srgb, currentColor 82%, black);
+    .ui-brighten-hover();
 }
 
-.ui-link:hover .ui-link__text {
-    text-decoration-line: underline;
-}
-
-.ui-link__icon {
-    display: none;
-    flex: 0 0 auto;
-    margin-right: 0.35em;
-}
-
-.ui-link__text {
-    display: none;
+.ui-link__content {
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+// Underlined on hover only, and only the word: the glyph and the badge beside it are not text to underline.
+.ui-link .ui-text__title {
     text-decoration-line: none;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.15em;
     transition: text-decoration-color 120ms ease;
 }
 
-.ui-link[data-ui-link-icon] > .ui-link__icon {
-    display: inline-flex;
-}
-
-    .ui-link[data-ui-link-icon] > .ui-link__icon::before {
-        display: block;
-    }
-
-.ui-link[data-ui-link-text] > .ui-link__text {
-    display: block;
+.ui-link:hover .ui-text__title {
+    text-decoration-line: underline;
 }

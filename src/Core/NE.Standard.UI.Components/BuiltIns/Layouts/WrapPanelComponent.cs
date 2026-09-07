@@ -8,22 +8,23 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A layout container that flows its children left to right, wrapping onto additional lines as needed.
 /// </summary>
-public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id)
+[UIComponentPropertyBlock(typeof(IOverflowComponent))]
+public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent
     where T : WrapPanelComponent<T>, IUIComponentDefinition
 {
-    private static readonly UIResponsive<double> DefaultGap = 0d;
+    private static readonly UIResponsive<double> DefaultSpacing = 0d;
 
     /// <summary>
-    /// Gets or sets the horizontal gap between children, optionally overridden per breakpoint.
+    /// Gets or sets the spacing between children in a line, optionally overridden per breakpoint.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultGap))]
-    public UIResponsive<double>? HorizontalGap { get; set; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
+    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Gets or sets the vertical gap between wrapped lines, optionally overridden per breakpoint.
+    /// Gets or sets the spacing between wrapped lines, falling back to <see cref="Spacing"/> when unset.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultGap))]
-    public UIResponsive<double>? VerticalGap { get; set; }
+    [UIComponentProperty(DefaultValue = null)]
+    public UIResponsive<double>? LineSpacing { get; set; }
 }
 
 /// <summary>

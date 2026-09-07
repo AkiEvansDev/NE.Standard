@@ -15,8 +15,7 @@ public enum UIComponentSlotKind
     GroupTemplate = 5,
 
     /// <summary>
-    /// The component shown when the owner is right-clicked. Any component may declare one, so this is the
-    /// only slot kind whose owner is not a container, a region host or a templated component.
+    /// The component shown when the owner is right-clicked.
     /// </summary>
     ContextMenu = 6
 }

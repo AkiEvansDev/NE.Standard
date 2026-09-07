@@ -1,14 +1,20 @@
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Templates;
 
 /// <summary>
 /// The built-in template rendering an <see cref="ITextModel"/>'s bound icon, title, description and badge as text.
 /// </summary>
-public abstract class DefaultTextTemplate<TTemplate> : TextComponent<TTemplate>
+/// <remarks>Its row styling is only what a bound <c>null</c> falls back to; an item that says something still wins.</remarks>
+[UIComponentPropertyBlock(typeof(IItemAbilitiesComponent))]
+public abstract partial class DefaultTextTemplate<TTemplate> : TextComponent<TTemplate>, IItemAbilitiesComponent
     where TTemplate : DefaultTextTemplate<TTemplate>, IUIComponentDefinition
 {
     /// <summary>
@@ -16,44 +22,27 @@ public abstract class DefaultTextTemplate<TTemplate> : TextComponent<TTemplate>
     /// </summary>
     protected DefaultTextTemplate(string? itemPath = null, bool binds = true) : base()
     {
+        IconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
+        TitleType = UITextAppearance.Body;
+        TitleColor = UIThemeColor.FromStyle(UIColorStyle.OnBackground);
+        BadgePlacement = UITextBadgePlacement.Trailing;
+        // A row's badge stands for the row, not for its title's line.
+        BadgeAlignment = UITextBadgeAlignment.Content;
+        DescriptionType = UITextAppearance.Caption;
+        DescriptionColor = UIThemeColor.FromStyle(UIColorStyle.OnSurface);
+        // A row is pointed at, not read out of: selecting its text fights the click that chooses it.
+        Selectable = false;
+
         if (!string.IsNullOrWhiteSpace(itemPath))
             _ = BindContext(itemPath, UIBindingScope.Relative);
 
         if (binds)
         {
-            _ = Bind(IconProperty, nameof(ITextModel.Icon), UIBindingScope.Relative);
-            _ = Bind(IconColorProperty, nameof(ITextModel.IconColor), UIBindingScope.Relative);
-            _ = Bind(IconSizeProperty, nameof(ITextModel.IconSize), UIBindingScope.Relative);
+            _ = this.BindText();
 
-            _ = Bind(TitleProperty, nameof(ITextModel.Title), UIBindingScope.Relative);
-            _ = Bind(TitleTypeProperty, nameof(ITextModel.TitleType), UIBindingScope.Relative);
-            _ = Bind(TitleColorProperty, nameof(ITextModel.TitleColor), UIBindingScope.Relative);
-
-            _ = Bind(BadgeStyleProperty, nameof(ITextModel.BadgeStyle), UIBindingScope.Relative);
-            _ = Bind(BadgePlacementProperty, nameof(ITextModel.BadgePlacement), UIBindingScope.Relative);
-
-            _ = Bind(BadgeIconProperty, nameof(ITextModel.BadgeIcon), UIBindingScope.Relative);
-            _ = Bind(BadgeIconColorProperty, nameof(ITextModel.BadgeIconColor), UIBindingScope.Relative);
-            _ = Bind(BadgeIconSizeProperty, nameof(ITextModel.BadgeIconSize), UIBindingScope.Relative);
-
-            _ = Bind(BadgeTextProperty, nameof(ITextModel.BadgeText), UIBindingScope.Relative);
-            _ = Bind(BadgeTextTypeProperty, nameof(ITextModel.BadgeTextType), UIBindingScope.Relative);
-
-            _ = Bind(TooltipProperty, nameof(ITextModel.Tooltip), UIBindingScope.Relative);
-            _ = Bind(BadgeTooltipProperty, nameof(ITextModel.BadgeTooltip), UIBindingScope.Relative);
-
-            _ = Bind(DescriptionProperty, nameof(ITextModel.Description), UIBindingScope.Relative);
-            _ = Bind(DescriptionTypeProperty, nameof(ITextModel.DescriptionType), UIBindingScope.Relative);
-            _ = Bind(DescriptionColorProperty, nameof(ITextModel.DescriptionColor), UIBindingScope.Relative);
-
-            _ = Bind(TextAlignmentProperty, nameof(ITextModel.TextAlignment), UIBindingScope.Relative);
-            _ = Bind(WrapModeProperty, nameof(ITextModel.WrapMode), UIBindingScope.Relative);
-            _ = Bind(MaxLinesProperty, nameof(ITextModel.MaxLines), UIBindingScope.Relative);
-
-            _ = Bind(SelectableProperty, nameof(ITextModel.Selectable), UIBindingScope.Relative);
-
-            _ = Bind(VisibleProperty, nameof(ITextModel.Visible), UIBindingScope.Relative);
+            _ = Bind(VisibilityProperty, nameof(ITextModel.Visibility), UIBindingScope.Relative);
             _ = Bind(EnabledProperty, nameof(ITextModel.Enabled), UIBindingScope.Relative);
+            _ = this.BindItemAbilities();
         }
     }
 }

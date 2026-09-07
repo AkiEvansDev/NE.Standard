@@ -1,10 +1,10 @@
 @import "../core/tokens.less";
+@import "../mixins/popup.less";
+@import "../mixins/range.less";
 @import "../mixins/responsive.less";
 
 .ui-slider {
-
-    // Row-level layout, because the ShowValue readout is a sibling of the track inside __row rather than a
-    // direct child of the root — a rule that assumes otherwise silently never matches.
+    // Row-level layout: the ShowValue readout is a sibling of the track inside __row, not a direct child of the root.
     display: inline-flex;
     flex-direction: column;
     align-self: var(--ui-align-v, center);
@@ -20,6 +20,7 @@
     gap: @ui-space-2;
 }
 
+// A height of its own, not 100%: percent resolves against a stretching grid area and runs the control off its column. Authored Height wins.
 .ui-slider.ui-orientation--vertical {
     .ui-responsive-property(height, --ui-height, 10rem);
     .ui-responsive-property(min-width, --ui-min-width, 0);
@@ -30,73 +31,152 @@
     height: 100%;
 }
 
+// The handle's own box, and the only thing the bubble can be positioned against, since a range input paints its handle inside itself.
+.ui-slider__track {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .ui-slider__input {
     flex: 1 1 auto;
     min-width: 0;
-    height: 1.25rem;
-    background: transparent;
-    appearance: none;
-    cursor: pointer;
+    .ui-range-input();
 }
+
+    // Upright the filled end is the bottom, so the fill turns with the slider; min-height: 0 keeps the intrinsic size inside the track.
+    .ui-slider.ui-orientation--vertical .ui-slider__track {
+        height: 100%;
+        min-height: 0;
+    }
 
     .ui-slider.ui-orientation--vertical .ui-slider__input {
         writing-mode: vertical-lr;
         direction: rtl;
         width: 1.25rem;
         height: 100%;
+        min-height: 0;
+        --ui-range-fill-angle: 0deg;
     }
 
-    .ui-slider__input::-webkit-slider-runnable-track {
-        height: 0.35rem;
-        border-radius: 999px;
-        background: var(--ui-surface-raised);
+    // Upright, the track thickness becomes width; one prefix per rule, since a browser drops a rule naming a pseudo-element it lacks.
+    .ui-slider.ui-orientation--vertical .ui-slider__input::-webkit-slider-runnable-track {
+        width: 0.35rem;
+        height: 100%;
+        margin: 0 auto;
     }
 
-    .ui-slider__input::-moz-range-track {
-        height: 0.35rem;
-        border-radius: 999px;
-        background: var(--ui-surface-raised);
+    .ui-slider.ui-orientation--vertical .ui-slider__input::-moz-range-track {
+        width: 0.35rem;
+        height: 100%;
+        margin: 0 auto;
     }
 
-    .ui-slider__input::-webkit-slider-thumb {
-        appearance: none;
-        width: 1.1rem;
-        height: 1.1rem;
-        margin-top: -0.375rem;
-        border: 2px solid var(--ui-color-surface);
-        border-radius: 999px;
-        background: var(--ui-color-primary);
-        box-shadow: 0 1px 2px var(--ui-color-shadow);
-        cursor: pointer;
-        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    // And the handle is centred across the track's thickness, which is the horizontal axis now.
+    .ui-slider.ui-orientation--vertical .ui-slider__input::-webkit-slider-thumb {
+        margin-top: 0;
+        margin-left: -0.375rem;
     }
 
-    .ui-slider__input::-moz-range-thumb {
-        width: 1.1rem;
-        height: 1.1rem;
-        border: 2px solid var(--ui-color-surface);
-        border-radius: 999px;
-        background: var(--ui-color-primary);
-        box-shadow: 0 1px 2px var(--ui-color-shadow);
-        cursor: pointer;
-        transition: box-shadow @ui-motion-fast @ui-motion-ease;
-    }
-
-    .ui-slider__input:disabled {
-        cursor: default;
-    }
-
+// Sized by what it says, like the range labels: reserving room for the longest reading left an empty tail after shorter ones.
 .ui-slider__value {
     display: none;
     flex: 0 0 auto;
-    min-width: 2.5em;
-    text-align: end;
+    text-align: start;
     color: var(--ui-text-muted);
     font-variant-numeric: tabular-nums;
 }
 
-.ui-slider--show-value > .ui-slider__row > .ui-slider__value {
+// The readout sits beside the track only without range labels; with both it would print a second bare number, so it moves over the handle.
+.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > .ui-slider__value {
     display: inline-block;
+}
+
+// An anchor for the bubble, since a range input paints its own handle: --ui-slider-fraction and the thumb width track the handle's centre.
+@ui-slider-thumb: 1.1rem;
+
+.ui-slider__thumb-anchor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--ui-slider-fraction, 0) * (100% - @ui-slider-thumb));
+    width: @ui-slider-thumb;
+    pointer-events: none;
+}
+
+    .ui-slider.ui-orientation--vertical .ui-slider__thumb-anchor {
+        top: auto;
+        right: 0;
+        bottom: calc(var(--ui-slider-fraction, 0) * (100% - @ui-slider-thumb));
+        left: 0;
+        width: auto;
+        height: @ui-slider-thumb;
+    }
+
+// Fixed and placed by RangeValueEngine: the panels a control sits in are overflow: hidden and would clip a bubble tied to its own track.
+.ui-slider__bubble {
+    // No scroll cap: the tail below is drawn outside the box.
+    .ui-popup-surface();
+    padding: 0 @ui-space-1;
+    color: var(--ui-color-on-surface);
+    font-size: var(--ui-text-caption-font-size);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+    // A readout of the handle it stands over, never a target: it must not eat the drag that shows it.
+    pointer-events: none;
+    user-select: none;
+}
+
+// The bubble's own corner rotated, not a separate triangle; the edge follows data-ui-placement and the offset along it --ui-popup-arrow.
+.ui-slider__bubble::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: var(--ui-popup-arrow, 50%);
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    background: var(--ui-color-surface);
+    transform: translate(-50%, -55%) rotate(45deg);
+}
+
+    .ui-slider__bubble[data-ui-placement^="bottom"]::after {
+        top: auto;
+        bottom: 100%;
+        border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-right: none;
+        border-bottom: none;
+        transform: translate(-50%, 55%) rotate(45deg);
+    }
+
+    .ui-slider__bubble[data-ui-placement^="left"]::after {
+        top: var(--ui-popup-arrow, 50%);
+        left: 100%;
+        border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-bottom: none;
+        border-left: none;
+        transform: translate(-55%, -50%) rotate(45deg);
+    }
+
+    .ui-slider__bubble[data-ui-placement^="right"]::after {
+        top: var(--ui-popup-arrow, 50%);
+        left: 0;
+        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-top: none;
+        border-right: none;
+        transform: translate(-45%, -50%) rotate(45deg);
+    }
+
+// Held down covers the pointer, focus-visible the arrow keys; a sibling selector, not a client class, since the browser knows both states.
+.ui-slider--show-value.ui-slider--show-range .ui-slider__input:is(:active, :focus-visible) ~ .ui-slider__bubble {
+    opacity: 1;
 }
 
 .ui-slider__min,
@@ -121,13 +201,3 @@
     background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
 }
 
-.ui-slider__message {
-    display: none;
-    padding: 0 @ui-space-1;
-    font-size: var(--ui-text-caption-font-size);
-    line-height: var(--ui-text-caption-line-height);
-}
-
-.ui-slider.ui-invalid > .ui-slider__message {
-    display: block;
-}

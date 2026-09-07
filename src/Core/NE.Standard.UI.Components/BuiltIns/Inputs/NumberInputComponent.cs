@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -8,17 +9,20 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A numeric input with configurable step, sign, and decimal/formatting constraints.
 /// </summary>
-public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id)
+[UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
+public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id), IPlaceholderInputComponent, IAffixTextInputComponent
     where T : NumberInputComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [Translatable]
+    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
+    public string? Placeholder { get; set; }
+
     /// <summary>
     /// Gets or sets the increment between selectable values.
     /// </summary>
-    /// <remarks>
-    /// Unbindable: it only feeds the custom step buttons, resolved once at render. <see cref="SliderComponent"/>
-    /// declares its own <c>Step</c> and that one <em>is</em> bindable. See <c>docs/PROJECT.md</c> §7.
-    /// </remarks>
-    [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateBinder = false, GenerateSetter = false)]
+    /// <remarks>Bindable: the stepper reads it at every press, so a controller change takes effect at once.</remarks>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     public decimal? Step { get; set; }
 
     /// <summary>
@@ -44,20 +48,6 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? TrimTrailingZeros { get; set; }
-
-    /// <summary>
-    /// Gets or sets the text displayed before the value.
-    /// </summary>
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? PrefixText { get; set; }
-
-    /// <summary>
-    /// Gets or sets the text displayed after the value.
-    /// </summary>
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? SuffixText { get; set; }
 
     /// <summary>
     /// Gets or sets whether increment/decrement stepper buttons are shown.
@@ -124,8 +114,8 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
 
     private static void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value, bool? allowDecimals, bool? allowNegative)
     {
-        if (min.HasValue && max.HasValue && min.Value > max.Value)
-            throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum value cannot be greater than the maximum value.");
+        // The value itself is not held to the range here: a field is typed into, and the runtime's normalizer judges what arrives.
+        OrderedRange.Validate(min, max, value: null, "value");
 
         if (step.HasValue)
         {

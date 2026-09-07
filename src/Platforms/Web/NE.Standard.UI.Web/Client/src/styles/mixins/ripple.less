@@ -1,0 +1,43 @@
+// The press ripple: opt-in per theme (press-ripple-engine.ts only ever adds `.ui-pressing`, and only under the flag), so a
+// component that mixes this in pays nothing beyond an idle pseudo-element until the class actually lands. `--ui-press-x/y`
+// are the pointer's own offset in the element, written by the engine at `pointerdown`.
+.ui-press-ripple() {
+    // Clipped only while the ripple plays, so a rounded corner is not spilled over and an adornment's own overhang is
+    // otherwise untouched at rest.
+    &.ui-pressing {
+        overflow: hidden;
+    }
+
+    &.ui-pressing::after {
+        content: "";
+        position: absolute;
+        left: var(--ui-press-x, 50%);
+        top: var(--ui-press-y, 50%);
+        width: 250%;
+        height: 250%;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--ui-wash-active) 0%, transparent 70%);
+        transform: translate(-50%, -50%) scale(0);
+        pointer-events: none;
+        animation: ui-press-ripple 250ms ease-out;
+    }
+}
+
+@keyframes ui-press-ripple {
+    from {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+    }
+}
+
+// The scale is the whole effect, so turning it off is turning the ripple off outright rather than leaving a static disc.
+@media (prefers-reduced-motion: reduce) {
+    .ui-pressing::after {
+        display: none;
+    }
+}

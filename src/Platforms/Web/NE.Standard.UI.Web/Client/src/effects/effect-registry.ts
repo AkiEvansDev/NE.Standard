@@ -1,23 +1,28 @@
-import { HiddenAttribute } from "../addressing/dom-attributes";
+import { ValueKindAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
+import { ValueReaderRegistry, toDomString } from "../extensions/value-readers";
 import { DialogEngine } from "../interactions/dialog-engine";
+import { FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine } from "../interactions/notification-engine";
 import {
     ClientEffect,
     ClientEffectKindValue,
+    CopyToClipboardClientEffect,
     DialogClientEffect,
     DownloadFileClientEffect,
     NavigateClientEffect,
     NotificationClientEffect,
     ScrollClientEffect,
     ScrollToClientEffect,
+    SetThemeClientEffect,
     TargetedClientEffect,
     getClientEffectKind,
     getIdValue,
     getScrollAxis,
     getScrollPosition,
     getScrollToBehavior,
-    getScrollToBlock
+    getScrollToBlock,
+    getThemeMode
 } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
 
@@ -29,7 +34,16 @@ export type EffectContext = {
 export type EffectRegistryOptions = {
     readonly dialogs?: DialogEngine;
     readonly notifications?: NotificationEngine;
+    // Reads the value a copy effect names a component for; left out where nothing on the page holds one.
+    readonly valueReaders?: ValueReaderRegistry;
+    // How the chosen theme reaches the session; left out where there is no connection to report it on.
+    readonly reportTheme?: (mode: ThemeName) => void;
 };
+
+/** What the document declares, which has a third value the enum does not: no preference. */
+export type ThemeName = "light" | "dark" | "auto";
+
+const ThemeAttribute = "data-ui-theme";
 
 export type EffectHandler = (context: EffectContext) => void;
 
@@ -38,16 +52,18 @@ export type EffectRegistration = {
     readonly handler: EffectHandler;
 };
 
-const FocusableSelector = "input, select, textarea, button, a[href], [tabindex]:not([tabindex=\"-1\"])";
-
 export class EffectRegistry {
     private readonly handlers = new Map<string, EffectHandler>();
     private readonly dialogs: DialogEngine | undefined;
     private readonly notifications: NotificationEngine | undefined;
+    private readonly valueReaders: ValueReaderRegistry | undefined;
+    private readonly reportTheme: ((mode: ThemeName) => void) | undefined;
 
     public constructor(options: EffectRegistryOptions = {}) {
         this.dialogs = options.dialogs;
         this.notifications = options.notifications;
+        this.valueReaders = options.valueReaders;
+        this.reportTheme = options.reportTheme;
 
         this.registerDefaults();
     }
@@ -66,7 +82,7 @@ export class EffectRegistry {
 
     public apply(context: EffectContext): void {
         const kind = getClientEffectKind(context.effect?.kind);
-        const handler = this.handlers.get(kind);
+        const handler = kind.length === 0 ? undefined : this.handlers.get(kind);
 
         if (handler === undefined) {
             logWarn("client effect kind is not supported.", { kind: context.effect?.kind, effect: context.effect });
@@ -85,9 +101,20 @@ export class EffectRegistry {
                 return;
             }
 
-            // A full page load, not a client-side route swap: every navigation is a fresh compile plus a fresh
-            // attach, and the runtime store still assumes one route per connection id.
+            // A full page load, not a client-side route swap: the runtime store assumes one route per connection id.
             window.location.assign(url);
+        });
+
+        // On the document element: the theme is the page's, not a component's.
+        this.register("SetTheme", context => {
+            const mode = getThemeMode((context.effect as SetThemeClientEffect).mode);
+            const theme: ThemeName = mode === "Unknown" ? "auto" : mode.toLowerCase() as ThemeName;
+
+            if (document.documentElement.getAttribute(ThemeAttribute) !== theme)
+                document.documentElement.setAttribute(ThemeAttribute, theme);
+
+            // Reported whether or not the attribute moved: the session can still remember the other theme.
+            this.reportTheme?.(theme);
         });
 
         this.register("Focus", context => {
@@ -115,8 +142,7 @@ export class EffectRegistry {
             });
         });
 
-        // Scrolls a container, where ScrollTo brings a component into view: a "back to top" names the
-        // scroller and a position, and has no component to point at.
+        // Scrolls a container, where ScrollTo brings a component into view.
         this.register("Scroll", context => {
             const element = resolveTarget(context);
 
@@ -157,14 +183,27 @@ export class EffectRegistry {
             scroller.scrollTo(vertical ? { top: next, behavior } : { left: next, behavior });
         });
 
-        // Drives the same base-tier hidden attribute a bound Visible property does, rather than a class of its
-        // own, so an effect and a later binding update resolve through one mechanism instead of fighting.
+        // The three drive the same attributes a bound Visibility property does, every tier, so an effect and a later binding do not fight.
         this.register("Show", context => {
-            resolveTarget(context)?.removeAttribute(HiddenAttribute);
+            applyVisibility(resolveTarget(context), null);
         });
 
         this.register("Hide", context => {
-            resolveTarget(context)?.setAttribute(HiddenAttribute, "");
+            applyVisibility(resolveTarget(context), "hidden");
+        });
+
+        this.register("Collapse", context => {
+            applyVisibility(resolveTarget(context), "collapsed");
+        });
+
+        // Best effort: the clipboard API wants a secure context and a focused document, so a refusal falls back to the selection command.
+        this.register("CopyToClipboard", context => {
+            const text = resolveClipboardText(context, this.valueReaders);
+
+            if (text === null)
+                return;
+
+            void copyText(text).catch(error => logWarn("copy to clipboard failed.", error));
         });
 
         this.register("OpenDialog", context => {
@@ -175,8 +214,7 @@ export class EffectRegistry {
             this.applyDialogEffect(context, "CloseDialog", (dialogs, key) => dialogs.close(key));
         });
 
-        // An anchor with `download`, not a fetch: the browser then owns saving the file and showing its own
-        // progress, which is the whole reason the content travels over HTTP instead of the connection.
+        // An anchor with `download`, not a fetch: the browser then owns saving the file and its progress.
         this.register("DownloadFile", context => {
             const effect = context.effect as DownloadFileClientEffect;
 
@@ -230,12 +268,23 @@ export class EffectRegistry {
     }
 }
 
+function applyVisibility(target: Element | null, value: string | null): void {
+    if (target === null)
+        return;
+
+    for (const attribute of VisibilityTierAttributes) {
+        if (value === null)
+            target.removeAttribute(attribute);
+        else
+            target.setAttribute(attribute, value);
+    }
+}
+
 function resolveTarget(context: EffectContext): Element | null {
     const target = (context.effect as TargetedClientEffect).target;
 
     if (target === undefined || target.id === undefined) {
-        // A ClientEffect that reached the client with an empty target is a serialization failure, not a
-        // missing element — the discriminator or the converter is wrong.
+        // An empty target is a serialization failure, not a missing element.
         logWarn("targeted client effect carries no resolved component address.", context.effect);
         return null;
     }
@@ -248,11 +297,7 @@ function resolveTarget(context: EffectContext): Element | null {
     return element;
 }
 
-/**
- * The addressed component is often the scroller itself, since overflow sits on the component root — but not
- * always: an items view scrolls its host, which is a child, and naming the view scrolled the page instead
- * because the walk only ever went outwards. Inside first, then out for an author who named a wrapper.
- */
+/** The nearest scroller to the addressed element: itself first, then inside it, then outwards. */
 function resolveScroller(element: Element, vertical: boolean): Element | null {
     if (isScrollable(element, vertical))
         return element;
@@ -298,6 +343,79 @@ function focusElement(element: Element): void {
     }
 
     logWarn("focus effect target has nothing focusable.", element);
+}
+
+function resolveClipboardText(context: EffectContext, valueReaders: ValueReaderRegistry | undefined): string | null {
+    const effect = context.effect as CopyToClipboardClientEffect;
+
+    if (typeof effect.text === "string")
+        return effect.text;
+
+    const element = resolveTarget(context);
+
+    if (element === null)
+        return null;
+
+    if (valueReaders === undefined) {
+        logWarn("copy to clipboard effect names a component but no value reader is wired up.", context.effect);
+        return null;
+    }
+
+    const holder = resolveValueHolder(element);
+
+    if (holder === null) {
+        logWarn("copy to clipboard effect target holds no value.", context.effect);
+        return null;
+    }
+
+    return toDomString(valueReaders.read(holder));
+}
+
+const NativeValueSelector = "input, textarea, select";
+
+/** The element a component keeps its value on: the root when it names a kind or is a field itself, else the first field inside it. */
+function resolveValueHolder(element: Element): Element | null {
+    if (element.hasAttribute(ValueKindAttribute) || element.matches(NativeValueSelector))
+        return element;
+
+    return element.querySelector(`[${ValueKindAttribute}], ${NativeValueSelector}`);
+}
+
+async function copyText(text: string): Promise<void> {
+    if (navigator.clipboard !== undefined) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+        catch {
+            // Refused: the selection command below still works while the gesture that raised the effect is recent.
+        }
+    }
+
+    if (!copyBySelection(text))
+        throw new Error("neither the clipboard API nor the selection command took the text.");
+}
+
+function copyBySelection(text: string): boolean {
+    const holder = document.createElement("textarea");
+
+    holder.value = text;
+    holder.setAttribute("readonly", "");
+    holder.style.position = "fixed";
+    holder.style.opacity = "0";
+
+    document.body.appendChild(holder);
+    holder.select();
+
+    try {
+        return document.execCommand("copy");
+    }
+    catch {
+        return false;
+    }
+    finally {
+        holder.remove();
+    }
 }
 
 function buildNavigationUrl(effect: NavigateClientEffect): string | null {

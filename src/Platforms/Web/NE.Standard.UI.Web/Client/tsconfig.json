@@ -16,6 +16,9 @@
   },
   "include": [
     "vite.config.ts",
-    "src/**/*.ts"
+    "vite.boot.config.ts",
+    "plugin/*.d.ts",
+    "src/**/*.ts",
+    "tests/**/*.ts"
   ]
 }

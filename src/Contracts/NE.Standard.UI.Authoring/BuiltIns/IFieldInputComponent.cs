@@ -6,7 +6,6 @@ namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
 /// Represents an input that draws a field surface of its own — the family that can be filled or underlined.
-/// Toggles and sliders are inputs but draw no field, and are deliberately not part of it.
 /// </summary>
 public interface IFieldInputComponent : IInputComponent
 {

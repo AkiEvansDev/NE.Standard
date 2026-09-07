@@ -6,8 +6,7 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// Represents a component placement in a fixed-column grid.
 /// </summary>
 /// <remarks>
-/// <see cref="Column"/> and <see cref="Row"/> are 1-based, matching CSS grid line numbering
-/// (the first column/row is 1, not 0).
+/// <see cref="Column"/> and <see cref="Row"/> are 1-based.
 /// </remarks>
 public readonly record struct UIGridPlacement(int Column, int Row, int ColumnSpan = 1, int RowSpan = 1)
 {
@@ -15,30 +14,6 @@ public readonly record struct UIGridPlacement(int Column, int Row, int ColumnSpa
     /// Gets the number of columns in the standard UI grid.
     /// </summary>
     public const int GridColumns = 24;
-
-    /// <summary>
-    /// Creates a placement spanning the full grid width.
-    /// </summary>
-    public static UIGridPlacement Full(int column = 1, int row = 1, int rowSpan = 1)
-        => At(column, row, GridColumns, rowSpan);
-
-    /// <summary>
-    /// Creates a placement spanning half of the grid width.
-    /// </summary>
-    public static UIGridPlacement Half(int column = 1, int row = 1, int rowSpan = 1)
-        => At(column, row, 12, rowSpan);
-
-    /// <summary>
-    /// Creates a placement spanning a third of the grid width.
-    /// </summary>
-    public static UIGridPlacement Third(int column = 1, int row = 1, int rowSpan = 1)
-        => At(column, row, 8, rowSpan);
-
-    /// <summary>
-    /// Creates a placement spanning a quarter of the grid width.
-    /// </summary>
-    public static UIGridPlacement Quarter(int column = 1, int row = 1, int rowSpan = 1)
-        => At(column, row, 6, rowSpan);
 
     /// <summary>
     /// Creates a placement at the given column and row with the given spans.

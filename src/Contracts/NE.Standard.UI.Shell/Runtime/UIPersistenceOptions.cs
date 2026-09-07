@@ -5,24 +5,30 @@ namespace NE.Standard.UI.Shell.Runtime;
 /// <summary>
 /// Defines how long UI runtime instances are retained.
 /// </summary>
+/// <remarks>
+/// All three are keyed so a reload always finds the runtime it left; what differs is what happens when the tab leaves the address.
+/// </remarks>
 public enum UIRuntimeLifetime
 {
     /// <summary>
-    /// One runtime per connection: a reload or a second tab starts from scratch.
+    /// State belongs to the page: kept across a reload of the same address, dropped the moment the window goes
+    /// somewhere else. Coming back is a fresh page.
     /// </summary>
-    PerNavigation = 0,
+    PerPage = 0,
 
     /// <summary>
-    /// One runtime per browser tab, kept across reloads of the same route.
+    /// State belongs to the window — one top-level surface showing one address, a browser tab or a desktop window: kept
+    /// across a reload and across leaving the address, so coming back finds the page as it was. Another window of the
+    /// same client gets its own.
     /// </summary>
-    PerTab = 1,
+    PerWindow = 1,
 
     /// <summary>
-    /// One runtime per session and route, shared by every tab of it. Changes fan out to all of them; a
-    /// command still runs for the connection that raised it, which is what <see cref="UIContext.Handle"/>
-    /// answers while it does.
+    /// State belongs to the client: one runtime per address, shared by every window of it. Changes fan out to all
+    /// of them; a command still runs for the connection that raised it, which is what
+    /// <see cref="UIContext.Handle"/> answers while it does.
     /// </summary>
-    Persistent = 2
+    PerClient = 2
 }
 
 /// <summary>
@@ -33,7 +39,7 @@ public sealed class UIPersistenceOptions
     /// <summary>
     /// Gets or sets how runtime instances are retained.
     /// </summary>
-    public UIRuntimeLifetime Lifetime { get; set; } = UIRuntimeLifetime.PerTab;
+    public UIRuntimeLifetime Lifetime { get; set; } = UIRuntimeLifetime.PerWindow;
 
     /// <summary>
     /// Gets or sets how long a disconnected runtime is retained.

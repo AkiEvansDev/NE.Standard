@@ -1,0 +1,70 @@
+@import "../core/tokens.less";
+
+// Its own mixin because -webkit- and -moz- name the track differently and an unknown one drops the rule; the second stop is transparent.
+.ui-range-fill() {
+    background-image: linear-gradient(
+        var(--ui-range-fill-angle, 90deg),
+        var(--ui-color-primary) 0 calc(var(--ui-slider-fraction, 0) * 100%),
+        transparent 0
+    );
+}
+
+// Not accent-color: the UA derives the track's rest and hover colour itself, which came out flecked and near-black under the pointer.
+.ui-range-input() {
+    height: 1.25rem;
+    background: transparent;
+    appearance: none;
+    cursor: pointer;
+
+    // Colour is background-image alone, so a slider drawing its own track can replace it and keep everything else this mixin says.
+    &::-webkit-slider-runnable-track {
+        height: 0.35rem;
+        border-radius: 999px;
+        background-color: var(--ui-surface-raised);
+        .ui-range-fill();
+    }
+
+    &::-moz-range-track {
+        height: 0.35rem;
+        border-radius: 999px;
+        background-color: var(--ui-surface-raised);
+        .ui-range-fill();
+    }
+
+    &::-webkit-slider-thumb {
+        appearance: none;
+        width: 1.1rem;
+        height: 1.1rem;
+        margin-top: -0.375rem;
+        border: 2px solid var(--ui-color-surface);
+        border-radius: 999px;
+        background: var(--ui-color-primary);
+        box-shadow: 0 1px 2px var(--ui-color-shadow);
+        cursor: pointer;
+        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    }
+
+    &::-moz-range-thumb {
+        width: 1.1rem;
+        height: 1.1rem;
+        border: 2px solid var(--ui-color-surface);
+        border-radius: 999px;
+        background: var(--ui-color-primary);
+        box-shadow: 0 1px 2px var(--ui-color-shadow);
+        cursor: pointer;
+        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    }
+
+    // A ring rather than a colour change: darkening the thumb under the pointer read as disabled.
+    &:hover::-webkit-slider-thumb {
+        box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+    }
+
+    &:hover::-moz-range-thumb {
+        box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+    }
+
+    &:disabled {
+        cursor: default;
+    }
+}

@@ -1,29 +1,26 @@
-import { BindingAttributePrefix, ComponentSelector } from "../addressing/dom-attributes";
+import { BindingAttributePrefix, ComponentSelector, ValueBindingAttribute } from "../addressing/dom-attributes";
 import { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry";
-import { clearElementValue, readBoundElementValue } from "../extensions/value-readers";
-import { MetadataIndex, WebBindingMode, getBindingMode } from "../metadata/metadata-index";
+import { ValueReaderRegistry, clearElementValue } from "../extensions/value-readers";
+import { MetadataIndex, ServerChangeSet, WebBindingMode, getBindingMode } from "../metadata/metadata-index";
 import { logError, logWarn } from "../runtime/logger";
 import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
-import { UpdateProcessor } from "./update-processor";
 
-const ValueBindingAttribute = "data-ui-bind-value";
 const ClearAttribute = "data-ui-clear";
 const FormIdAttribute = "data-ui-form-id";
 
 export const ValueSyncEventNames: readonly string[] = ["change", "toggle"];
 
-/**
- * Every mode the runtime accepts a client value for. `OneWayToSource` is the write-only half of `TwoWay`:
- * the server never pushes it back, so the value the element starts with is the one it was rendered with.
- * `OnSubmit` writes back too, but the write is held until the form it belongs to is submitted.
- */
-function isWritableMode(mode: WebBindingMode): boolean {
+// The pipeline's longer list: each of these is a `toggle` read again, so a command on one waits for that sync.
+export const ValueSettleEventNames: readonly string[] = [...ValueSyncEventNames, "expand", "collapse", "open", "close"];
+
+/** Every mode the runtime accepts a client value for. */
+function isWritableMode(mode: WebBindingMode | undefined): boolean {
     const name = getBindingMode(mode);
 
     return name === "TwoWay" || name === "OneWayToSource" || name === "OnSubmit";
 }
 
-function isBufferedMode(mode: WebBindingMode): boolean {
+function isBufferedMode(mode: WebBindingMode | undefined): boolean {
     return getBindingMode(mode) === "OnSubmit";
 }
 
@@ -32,19 +29,21 @@ export type ValueBindingEngineOptions = {
     readonly metadata: MetadataIndex;
     readonly dom: DomRegistry;
     readonly dispatcher: ValueChangeDispatcher;
-    readonly updateProcessor: UpdateProcessor;
+    // The runtime's, not the update processor's: a value the server answered can move a windowed host, whose spacers are laid out after the change set.
+    readonly applyChanges: (changes: ServerChangeSet | undefined) => void;
+    readonly valueReaders: ValueReaderRegistry;
 };
 
 export class ValueBindingEngine {
+    private readonly options: ValueBindingEngineOptions;
     private readonly root: ParentNode;
     private readonly pendingSyncByComponent = new WeakMap<Element, Promise<void>>();
 
-    // An `OnSubmit` binding does not push on change: the element is remembered here and written back when
-    // the form it carries is submitted. Elements, not values — the value is read at submit time, so an edit
-    // made after the last change event still travels.
+    // Elements, not values: an `OnSubmit` value is read at submit time, so a later edit still travels.
     private readonly bufferedElements = new Set<Element>();
 
-    public constructor(private readonly options: ValueBindingEngineOptions) {
+    public constructor(options: ValueBindingEngineOptions) {
+        this.options = options;
         this.root = options.root ?? document;
 
         for (const eventName of ValueSyncEventNames) {
@@ -58,8 +57,7 @@ export class ValueBindingEngine {
         this.root.addEventListener("click", domEvent => this.handleClear(domEvent), true);
     }
 
-    // A clear affordance is a click on a separate element, not a "change" on the field, so it needs its own
-    // path to push the empty value back.
+    // A clear affordance is a click on a separate element, not a "change" on the field.
     private handleClear(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
@@ -96,11 +94,7 @@ export class ValueBindingEngine {
         await this.syncValueAsync(domEvent.target, writable.bindingId);
     }
 
-    /**
-     * Holds an `OnSubmit` value back until its form is submitted. A field with no form id can never be
-     * submitted, so it is refused at compile time rather than silently buffered forever — this warns only if
-     * one reaches the client anyway (a plugin renderer that forgot to emit the attribute).
-     */
+    /** Holds an `OnSubmit` value back until its form is submitted; a field with no form id could never be submitted. */
     private bufferValue(element: Element): void {
         if (element.getAttribute(FormIdAttribute) === null) {
             logWarn("value binding engine: an OnSubmit value has no form to be submitted with.", { element: element.tagName });
@@ -110,10 +104,7 @@ export class ValueBindingEngine {
         this.bufferedElements.add(element);
     }
 
-    /**
-     * Writes back every buffered value belonging to this form, in one pass before the submit command runs, so
-     * the controller sees the whole form rather than the field that happened to change last.
-     */
+    /** Writes back every buffered value of this form in one pass, before the submit command runs. */
     public async submitFormAsync(formId: string): Promise<void> {
         const pending: Promise<void>[] = [];
 
@@ -135,15 +126,7 @@ export class ValueBindingEngine {
         await Promise.all(pending);
     }
 
-    /**
-     * The binding this element writes back through. `Value` is an element's value wherever it has one;
-     * otherwise the element's one *writable* binding is it — one element carries one writable value, which is
-     * the rule the renderers are written to (docs/PROJECT.md §7).
-     *
-     * Read off the element rather than matched against a list of known attributes: that list had to gain an
-     * entry for every component that made a second property writable, and nothing failed when it did not —
-     * the value simply never went back.
-     */
+    /** The binding this element writes back through, read off the element: one element carries one writable value. */
     private resolveWritableBinding(element: Element): { readonly bindingId: string; readonly buffered: boolean } | null {
         const value = element.getAttribute(ValueBindingAttribute);
 
@@ -182,8 +165,7 @@ export class ValueBindingEngine {
         if (resolved === null)
             return;
 
-        // Published before it is awaited: a command raised by the same edit calls whenSettled to wait for the
-        // value's answer, and must not run for a value the controller refused.
+        // Published before it is awaited, so a command raised by the same edit can wait on it.
         const sync = this.dispatchAndApplyAsync(element, propertyName, resolved);
 
         this.pendingSyncByComponent.set(resolved.element, sync);
@@ -191,7 +173,7 @@ export class ValueBindingEngine {
         try {
             await sync;
         } finally {
-            // Only clear our own entry — a later edit may already have replaced it with a newer sync.
+            // Only our own entry: a later edit may already have replaced it with a newer sync.
             if (this.pendingSyncByComponent.get(resolved.element) === sync)
                 this.pendingSyncByComponent.delete(resolved.element);
         }
@@ -202,10 +184,30 @@ export class ValueBindingEngine {
             componentId: resolved.componentId,
             propertyName,
             dynamicParameters: resolved.dynamicParameters,
-            value: readBoundElementValue(element)
+            value: this.options.valueReaders.readBound(element)
         });
 
-        this.options.updateProcessor.applyChangeSet(changes);
+        this.options.applyChanges(changes);
+    }
+
+    /**
+     * Sends a value an interaction wrote on the client, when the property is bound to write back: the same trip a field's change
+     * makes, so state the page changed by itself (a row closing its own editor) is the server's state too.
+     */
+    public async syncPropertyAsync(componentId: number, propertyId: string, dynamicParameters: readonly unknown[], value: unknown): Promise<void> {
+        const binding = this.options.metadata.getBindingByComponentAndPropertyId(componentId, propertyId);
+
+        if (binding === undefined || !isWritableMode(binding.mode) || isBufferedMode(binding.mode))
+            return;
+
+        const propertyName = this.options.metadata.getPropertyDefinition(propertyId)?.propertyName;
+
+        if (propertyName === undefined)
+            return;
+
+        const changes = await this.options.dispatcher.dispatchAsync({ componentId, propertyName, dynamicParameters, value });
+
+        this.options.applyChanges(changes);
     }
 
     /** Resolves once this component's in-flight value sync has been applied; a no-op if there is none. */

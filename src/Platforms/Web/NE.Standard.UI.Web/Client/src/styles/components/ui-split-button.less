@@ -1,0 +1,128 @@
+@import "../core/tokens.less";
+@import "../mixins/chevron.less";
+@import "../mixins/interactive.less";
+@import "../mixins/popup.less";
+@import "../mixins/responsive.less";
+
+// One pill wearing .ui-button's fill, edge, size and states; the two parts inside are presses, not buttons of their own
+// look, so the padding the chrome resolves lands on the parts and the root keeps none.
+.ui-split-button {
+    // Zero here, and re-read on the parts through the same chain, so an authored Padding still reaches the label.
+    .ui-responsive-property(padding, --ui-padding, 0);
+    align-items: stretch;
+}
+
+// An icon-only split button is two parts wide and one row tall: the square an icon-only button keeps would stretch it to its width.
+.ui-split-button.ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+    aspect-ratio: auto;
+}
+
+    .ui-split-button__main,
+    .ui-split-button__toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        .ui-interactive-base();
+        transition: background-color @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-split-button__main {
+        flex: 1 1 auto;
+        min-width: 0;
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
+        border-radius: inherit;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .ui-split-button__toggle {
+        flex: 0 0 auto;
+        padding: 0 @ui-space-2;
+        border-radius: inherit;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        // The rule between the parts is the label's own colour at a quarter: one hue whatever the variant is filled with.
+        border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    }
+
+    .ui-split-button--small .ui-split-button__main,
+    .ui-button--small.ui-split-button .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    }
+
+    .ui-button--large.ui-split-button .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
+    }
+
+    .ui-split-button__chevron {
+        .ui-chevron(0.7em);
+        .ui-chevron-down();
+    }
+
+    .ui-split-button--open .ui-split-button__chevron {
+        .ui-chevron-up();
+    }
+
+    // One wash: the part under the pointer is the surface that reacts, so the root's own hover comes off — the ghost's, the
+    // link's and the outline's wash, and the filled variants' inset tint — or the hovered part wore two. Surface keeps its own
+    // fill instead: it has one to lose, unlike the three transparent variants, so `.ui-button--surface`'s own hover/press
+    // ground (ui-button.less) is left in force rather than turned off under it.
+    .ui-split-button:is(.ui-button--ghost, .ui-button--link) {
+        .ui-reveal-hover-off();
+    }
+
+    .ui-split-button.ui-button--outline {
+        .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
+    }
+
+    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:is(:hover, :active) {
+        box-shadow: none;
+    }
+
+    .ui-split-button:not(.ui-disabled):not(.ui-loading) > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        background-color: var(--ui-wash-hover);
+    }
+
+    .ui-split-button:not(.ui-disabled):not(.ui-loading) > :is(.ui-split-button__main, .ui-split-button__toggle):active {
+        background-color: var(--ui-wash-active);
+    }
+
+    // A menu button is one press: no rule between the parts, the chevron reads as the label's end, and the pointer anywhere
+    // over it washes both parts together rather than the one it happens to be on.
+    .ui-split-button[data-ui-split-mode="menu"] > .ui-split-button__toggle {
+        border-left: 0;
+        padding-left: 0;
+    }
+
+    .ui-split-button[data-ui-split-mode="menu"]:not(.ui-disabled):not(.ui-loading):hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
+        background-color: var(--ui-wash-hover);
+    }
+
+    .ui-split-button[data-ui-split-mode="menu"]:not(.ui-disabled):not(.ui-loading):active > :is(.ui-split-button__main, .ui-split-button__toggle) {
+        background-color: var(--ui-wash-active);
+    }
+
+    .ui-split-button[data-ui-split-mode="menu"] > .ui-split-button__main {
+        padding-right: @ui-space-2;
+    }
+
+// The list: the context menu's surface, shown while the button is open and placed by split-button-engine.ts.
+.ui-split-button__menu {
+    .ui-popup-surface(40);
+    .ui-popup-scroll();
+    display: none;
+    min-width: 10rem;
+    padding: @ui-space-1;
+    text-align: start;
+    cursor: default;
+}
+
+.ui-split-button--open > .ui-split-button__menu {
+    display: block;
+}

@@ -414,7 +414,12 @@ public sealed class UIApplicationBuilder
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.GetService<IUIDefaultErrorPagesProvider>()?.ConfigureDefaultPages(this);
+        // The pages an application gets when it registered none are ordinary views, shipped once here rather than by each platform.
+        if (!HasNotFoundView)
+            _ = NotFoundView<DefaultNotFoundView>();
+
+        if (!HasErrorView)
+            _ = ErrorView<DefaultErrorView, DefaultErrorController>();
 
         _persistence.Validate();
         _localization.Validate();
@@ -432,9 +437,38 @@ public sealed class UIApplicationBuilder
             CloneSecurityOptions(_security),
             CloneSessionOptions(_sessions),
             CloneFileOptions(_files),
+            services.GetService<IUIContentAddressResolver>(),
             [.. _viewFilters.OrderBy(static filter => filter.Order)],
             [.. _commandFilters.OrderBy(static filter => filter.Order)]
         );
+    }
+
+    private static UIPersistenceOptions ClonePersistenceOptions(UIPersistenceOptions source)
+        => new()
+        {
+            Lifetime = source.Lifetime,
+            DisconnectedRetention = source.DisconnectedRetention,
+            FlushSchedulerInterval = source.FlushSchedulerInterval,
+            CleanupInterval = source.CleanupInterval
+        };
+
+    /// <summary>
+    /// A registered <see cref="ITranslator"/> wins outright; only when none is registered is one built from the
+    /// builder's own sources and default language.
+    /// </summary>
+    private ITranslator BuildTranslator(IServiceProvider services)
+    {
+        if (services.GetService<ITranslator>() is ITranslator registered)
+            return registered;
+
+        List<ITranslationSource> sources = [];
+
+        foreach (ITranslationSource source in services.GetServices<ITranslationSource>())
+            sources.Add(source);
+
+        sources.AddRange(_translationSources);
+
+        return new UITranslationRegistry(_localization.DefaultLanguage, sources, [.. services.GetServices<IUIStringsSource>()]);
     }
 
     /// <inheritdoc cref="CloneSecurityOptions" />
@@ -450,9 +484,8 @@ public sealed class UIApplicationBuilder
         };
 
     /// <summary>
-    /// Copied field by field rather than handed over, so a caller keeping the builder cannot mutate a built
-    /// application. Every option belongs here — one left out is silently ignored at runtime, which is exactly
-    /// how <c>IdentitySource</c> first shipped broken.
+    /// Copies every option field by field, so a caller keeping the builder cannot mutate a built application —
+    /// a field left out here is silently dropped at runtime.
     /// </summary>
     private static UISecurityOptions CloneSecurityOptions(UISecurityOptions source)
         => new()
@@ -462,6 +495,15 @@ public sealed class UIApplicationBuilder
             ForbiddenRoute = source.ForbiddenRoute,
             IdentitySource = source.IdentitySource,
             PermissionClaimType = source.PermissionClaimType
+        };
+
+    private static UISessionOptions CloneSessionOptions(UISessionOptions source)
+        => new()
+        {
+            IdleTimeout = source.IdleTimeout,
+            CleanupInterval = source.CleanupInterval,
+            ClientKey = source.ClientKey,
+            ClientKeyLifetime = source.ClientKeyLifetime
         };
 
     /// <inheritdoc cref="CloneSecurityOptions" />
@@ -475,33 +517,4 @@ public sealed class UIApplicationBuilder
             CleanupInterval = source.CleanupInterval,
             StorageRoot = source.StorageRoot
         };
-
-    private static UISessionOptions CloneSessionOptions(UISessionOptions source)
-        => new()
-        {
-            IdleTimeout = source.IdleTimeout,
-            CleanupInterval = source.CleanupInterval,
-            ClientKey = source.ClientKey
-        };
-
-    private static UIPersistenceOptions ClonePersistenceOptions(UIPersistenceOptions source)
-        => new()
-        {
-            Lifetime = source.Lifetime,
-            DisconnectedRetention = source.DisconnectedRetention,
-            FlushSchedulerInterval = source.FlushSchedulerInterval,
-            CleanupInterval = source.CleanupInterval
-        };
-
-    private UITranslationRegistry BuildTranslator(IServiceProvider services)
-    {
-        List<ITranslationSource> sources = [];
-
-        foreach (ITranslationSource source in services.GetServices<ITranslationSource>())
-            sources.Add(source);
-
-        sources.AddRange(_translationSources);
-
-        return new UITranslationRegistry(_localization.DefaultLanguage, sources);
-    }
 }

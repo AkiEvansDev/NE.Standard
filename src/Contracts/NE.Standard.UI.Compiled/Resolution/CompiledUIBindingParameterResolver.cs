@@ -15,8 +15,7 @@ public static class CompiledUIBindingParameterResolver
     /// Builds concrete template parameters from fixed and dynamic parameter definitions.
     /// </summary>
     /// <remarks>
-    /// Scope parameters consume a runtime value but fill no template slot, so the result is shorter than
-    /// <paramref name="parameters"/> whenever the path sits inside an item scope belonging to another source.
+    /// Scope parameters fill no template slot, so the result can be shorter than <paramref name="parameters"/>.
     /// </remarks>
     public static object[] Build(CompiledUIBindingParameter[] parameters, object?[] dynamicParameters)
     {

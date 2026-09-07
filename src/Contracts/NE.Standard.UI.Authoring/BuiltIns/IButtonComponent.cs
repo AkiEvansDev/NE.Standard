@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
@@ -9,7 +8,7 @@ namespace NE.Standard.UI.Authoring.BuiltIns;
 /// <summary>
 /// Represents a button-like visual component that can invoke UI commands.
 /// </summary>
-public interface IButtonComponent : IVisualComponent
+public interface IButtonComponent : ITextComponent
 {
     /// <summary>
     /// Gets the registered property key for <see cref="Type"/>.
@@ -17,14 +16,19 @@ public interface IButtonComponent : IVisualComponent
     static UIProperty TypeProperty { get; } = new UIProperty(nameof(Type));
 
     /// <summary>
-    /// Gets the button visual type.
+    /// Gets the button's visual variant — Primary, Accent, Danger, Outline, Ghost, Link, or Surface.
     /// </summary>
     UIButtonType? Type { get; }
 
     /// <summary>
-    /// Gets the button content.
+    /// Gets the registered property key for <see cref="Size"/>.
     /// </summary>
-    ITextComponent? Content { get; }
+    static UIProperty SizeProperty { get; } = new UIProperty(nameof(Size));
+
+    /// <summary>
+    /// Gets how much room the button takes.
+    /// </summary>
+    UIButtonSize? Size { get; }
 
     /// <summary>
     /// Adds a click handler that invokes the specified command.

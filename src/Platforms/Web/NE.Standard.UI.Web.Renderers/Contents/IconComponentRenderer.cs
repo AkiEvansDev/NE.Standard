@@ -1,9 +1,7 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
@@ -21,30 +19,20 @@ public sealed class IconComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<string?>(context, root, IconComponent.TooltipProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("title", value);
-        }, [WebDomOperation.Attribute("title")]);
+        RenderTooltip(context, root);
 
-        _ = RenderProperty<UIIconSize?>(context, root, IconComponent.SizeProperty, static (target, value) =>
-        {
-            if (value is UIIconSize size)
-                _ = target.Class(WebClassNames.IconSize(size));
-        }, [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)]);
-
-        ThemeColorRenderer.RenderThemeColor(context, root, IconComponent.ColorProperty);
+        IconValueRenderer.RenderIconAppearance(context, root, IconComponent.SizeProperty, IconComponent.ColorProperty);
 
         _ = RenderProperty<string?>(context, root, IconComponent.IconProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {
-                _ = root.Attribute("data-ui-icon");
-                _ = target.Class(WebIconClassName.FromIconName(value));
+                _ = root.Attribute(WebAttributes.Icon);
+                IconValueRenderer.RenderIconValue(target, value);
             }
         }, [
-            WebDomOperation.Class(converter: WebDomConverters.IconClass),
-            WebDomOperation.ToggleAttribute("data-ui-icon", condition: WebValueCondition.HasText)
+            .. IconValueRenderer.Operations,
+            WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.HasText)
         ]);
     }
 }

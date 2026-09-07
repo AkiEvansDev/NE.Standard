@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
@@ -14,34 +13,17 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <summary>
 /// The trail back to where the current page sits, one step per entry of a collection.
 /// </summary>
-/// <remarks>
-/// Fed by the author rather than read off the router: a route is a path, and the framework knows nothing
-/// about a route's title, its parent, or whether an intermediate segment is a page at all — a trail derived
-/// from <c>/navigation/tabs-view/test</c> would read "navigation › tabs-view › test" and link to a segment
-/// that never was a route. The controller says what the trail is, and the titles are real and translatable.
-/// <para>
-/// The last step is the current page: it is marked and stops being a link, decided by position rather than by
-/// a flag on the item, so the trail cannot disagree with its own order.
-/// </para>
-/// </remarks>
-public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel>
+/// <remarks>Fed by the controller, not the router; the last step is the current page, marked by position rather than by a flag.</remarks>
+public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>
     where T : BreadcrumbsComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 2d;
 
-    /// <summary>The mark drawn between steps unless the author sets another.</summary>
-    public const string DefaultSeparator = "›";
-
     /// <summary>
-    /// Gets or sets the mark drawn between steps.
+    /// Gets or sets the text drawn between steps; unset, the mark is the library's own chevron.
     /// </summary>
-    /// <remarks>
-    /// Render-time only, and deliberately not bindable: it is drawn by CSS as the mark <em>before</em> every
-    /// step but the first, which is what makes it appear for a client-rendered step too — an element emitted
-    /// between steps would exist only for the ones the server drew. Patching a CSS string at runtime would
-    /// need a converter that quotes it, on both sides of the wire, for a value nobody changes.
-    /// </remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = DefaultSeparator)]
+    /// <remarks>Render-time only, not bindable: it is drawn by the platform after every step but the last.</remarks>
+    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = null)]
     public string? Separator { get; set; }
 
     /// <summary>
@@ -51,42 +33,29 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Gets the step template.
-    /// </summary>
-    public virtual IButtonComponent? ItemTemplate => Template as IButtonComponent;
-
-    /// <summary>
     /// Initializes the trail with the built-in step template.
     /// </summary>
     protected BreadcrumbsComponent(string? id = null) : base(id)
     {
-        _ = base.SetTemplate(new DefaultBreadcrumbItemTemplate(binds: true));
+        _ = SetTemplate(new DefaultBreadcrumbItemTemplate(binds: true));
 
         TemplateKeyProperty = null;
     }
-
-    /// <summary>
-    /// Sets the step template, throwing if <paramref name="visualTemplate"/> is not an <see cref="IButtonComponent"/>.
-    /// </summary>
-    public override T SetTemplate(IVisualComponent visualTemplate)
-        => visualTemplate is not IButtonComponent
-            ? throw new InvalidOperationException($"Only {nameof(IButtonComponent)} is supported.")
-            : base.SetTemplate(visualTemplate);
-
-    /// <summary>
-    /// Sets the step template.
-    /// </summary>
-    public virtual T SetItemTemplate(IButtonComponent visualTemplate)
-        => SetTemplate(visualTemplate);
 
     /// <summary>
     /// Registers a click command invoked when a step is clicked.
     /// </summary>
     public T OnItemClick(string command)
     {
-        _ = GetRequiredItemTemplate().OnClick(command);
+        _ = RequiredTemplate.OnClick(command);
         return Self;
     }
+
+    /// <summary>
+    /// Registers a click command that passes the clicked item as an argument.
+    /// </summary>
+    public T OnItemClickWithItem(string command, string argumentName = "item")
+        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
 
     /// <summary>
     /// Registers a step click command that passes the clicked step's key as an argument.
@@ -99,12 +68,19 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     /// </summary>
     public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
     {
-        _ = GetRequiredItemTemplate().OnClick(command, arguments);
+        _ = RequiredTemplate.OnClick(command, arguments);
         return Self;
     }
 
-    private IButtonComponent GetRequiredItemTemplate()
-        => ItemTemplate ?? throw new InvalidOperationException($"The item template of '{TypeKey}' must inherit from '{nameof(IButtonComponent)}' to configure step actions.");
+    /// <summary>
+    /// Registers a click command invoked when an item is clicked, with literal argument values.
+    /// </summary>
+    public T OnItemClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+    {
+        _ = RequiredTemplate.OnClickLiteral(command, arguments);
+        return Self;
+    }
+
 }
 
 /// <summary>

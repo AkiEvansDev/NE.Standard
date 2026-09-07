@@ -33,13 +33,18 @@ public sealed class ScrollContainerComponentRenderer : WebComponentRendererBase
                 _ = target.Class(WebClassNames.ScrollY(scroll));
         }, [WebDomOperation.Class(converter: WebDomConverters.ScrollYClass)]);
 
-        // The enum name, not a lowercased form: a patched value arrives as the name (see WebWireJson), and the
-        // attribute has to read the same whether the server or the client wrote it.
+        _ = RenderProperty<UIScrollSnapMode?>(context, root, ScrollContainerComponent.ScrollSnapProperty, static (target, value) =>
+        {
+            if (value is UIScrollSnapMode scrollSnap)
+                _ = target.Class(WebClassNames.ScrollSnap(scrollSnap));
+        }, [WebDomOperation.Class(converter: WebDomConverters.ScrollSnapClass)]);
+
+        // The enum name, not a lowercased form: a patched value arrives as the name and must read the same.
         _ = RenderProperty<UIScrollAnchor?>(context, root, ScrollContainerComponent.ScrollAnchorProperty, static (target, value) =>
         {
             if (value is UIScrollAnchor anchor)
-                _ = target.Attribute("data-ui-scroll-anchor", anchor.ToString());
-        }, [WebDomOperation.Attribute("data-ui-scroll-anchor")]);
+                _ = target.Attribute(WebAttributes.ScrollAnchor, anchor.ToString());
+        }, [WebDomOperation.Attribute(WebAttributes.ScrollAnchor)]);
 
         RenderChildren(context, root);
     }

@@ -52,10 +52,7 @@ public sealed class CompiledUIBindingParameter
     /// Creates a parameter that identifies an enclosing item scope without indexing this path.
     /// </summary>
     /// <remarks>
-    /// A nested items collection with a source of its own — a static <c>SetItems</c> list, or a virtual
-    /// provider — starts a path that is not an extension of the row's. Its components still live inside that
-    /// row in the DOM, so their address has to carry the row's key; carrying it as a scope parameter keeps the
-    /// address a superset of every enclosing one while leaving this path's own indexing untouched.
+    /// Used when a nested items collection has a source of its own, so this path is not an extension of the row's own path.
     /// </remarks>
     public static CompiledUIBindingParameter Scope(UIComponentId componentId)
     {

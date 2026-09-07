@@ -1,20 +1,15 @@
-// TimeInput edits its value in place, as one focusable span per clock unit, instead of opening a picker.
-// A clock has three units at most and every one of them fits in two keystrokes, so a popup was a detour —
-// and a free-text field that had to be parsed server-side against Format/Culture was a round-trip to find
-// out whether what the user typed was a time at all. Segments cannot produce an invalid value.
-//
-// The segments are built here rather than server-side on purpose: the tokenizer that decides which segments
-// exist would otherwise be a third hand-maintained port next to WebTemporalFormat/temporal-format.ts. The
-// server renders the same formatted text this replaces, so the swap is invisible.
+// TimeInput edits its value in place, as one focusable span per clock unit, which cannot produce an invalid value.
 
 import { DomRegistry } from "../addressing/dom-registry";
 import { getIdValue } from "../metadata/metadata-index";
 import { formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import {
-    clampToRange, defaultMoment, PickerAttributes, readCulturePack, readFormat, readMode, readStep, readValue,
-    RootClass, stepFor, TimeUnit, writeValue
+    clampPushedValue, clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
+    readStep, readValueOf, RootClass, stepFor, TimeUnit, writeValueOf
 } from "./temporal-dom";
+import { observeComponents } from "./dom-mutations";
+import { resolveRovingTarget } from "./roving-focus";
 
 const SegmentsClass = "ui-temporal-input__segments";
 const SegmentClass = "ui-temporal-input__segment";
@@ -47,10 +42,12 @@ export type TimeSegmentEngineOptions = {
 };
 
 export class TimeSegmentEngine {
+    private readonly options: TimeSegmentEngineOptions;
     private readonly root: ParentNode;
     private readonly edits = new WeakMap<HTMLElement, EditState>();
 
-    public constructor(private readonly options: TimeSegmentEngineOptions = {}) {
+    public constructor(options: TimeSegmentEngineOptions = {}) {
+        this.options = options;
         this.root = options.root ?? document;
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
@@ -58,28 +55,11 @@ export class TimeSegmentEngine {
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             const componentId = getIdValue(change.reference.componentId);
 
-            for (const component of this.options.dom?.findAllComponents(componentId, change.dynamicParameters) ?? []) {
-                this.applyAll(component instanceof HTMLElement && component.classList.contains(RootClass)
-                    ? [component]
-                    : component.querySelectorAll<HTMLElement>(`.${RootClass}`));
-            }
+            this.applyAll(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${RootClass}`) ?? []);
         });
 
-        if (this.root instanceof Node) {
-            // Min/Max/DisplayFormat are live-patchable; the first two only re-clamp, but a patched format
-            // changes which segments exist at all.
-            const observer = new MutationObserver(mutations => {
-                for (const mutation of mutations) {
-                    if (mutation.type !== "attributes" || !PickerAttributes.has(mutation.attributeName ?? ""))
-                        continue;
-
-                    if (mutation.target instanceof HTMLElement && mutation.target.classList.contains(RootClass))
-                        this.applyAll([mutation.target]);
-                }
-            });
-
-            observer.observe(this.root, { attributes: true, subtree: true });
-        }
+        // Min/Max only re-clamp, but a patched format changes which segments exist at all.
+        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [...PickerAttributes] }, roots => this.applyAll(roots));
 
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
         this.root.addEventListener("wheel", domEvent => this.handleWheel(domEvent), { capture: true, passive: false });
@@ -92,24 +72,26 @@ export class TimeSegmentEngine {
 
     private applyAll(roots: Iterable<HTMLElement>): void {
         for (const root of roots) {
-            if (readMode(root) === "time")
-                this.applySegments(root);
+            if (readMode(root) !== "time")
+                continue;
+
+            // Before the segments are drawn, so they never show what stepping through them could not reach.
+            clampPushedValue(root);
+            this.applySegments(root);
         }
     }
 
-    /**
-     * Rebuilds the spans only when the format they were built from changed; otherwise it rewrites their text
-     * in place, because a rebuild during typing would drop the focus the user is editing through.
-     */
+    /** Rebuilds the spans only when their format changed; otherwise rewrites their text in place, so focus survives typing. */
     private applySegments(root: HTMLElement): void {
-        const container = root.querySelector<HTMLElement>(`.${SegmentsClass}`);
+        // One clock, or a period's two: each container edits its own end.
+        for (const container of root.querySelectorAll<HTMLElement>(`.${SegmentsClass}`))
+            this.applyContainer(root, container);
+    }
 
-        if (container === null)
-            return;
-
+    private applyContainer(root: HTMLElement, container: HTMLElement): void {
         const format = readFormat(root);
         const culture = readCulturePack(root);
-        const value = readValue(root);
+        const value = readValueOf(root, isEndPart(container));
 
         if (container.getAttribute(BuiltFromAttribute) !== format) {
             container.replaceChildren(...parseParts(format).map(part => createPart(part)));
@@ -137,7 +119,7 @@ export class TimeSegmentEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented)
             return;
 
         const segment = editableSegment(domEvent.target);
@@ -147,11 +129,12 @@ export class TimeSegmentEngine {
 
         const root = segment.closest<HTMLElement>(`.${RootClass}`)!;
         const unit = segment.getAttribute(SegmentAttribute) as SegmentUnit;
+        const end = endOf(segment);
 
         if (domEvent.key === "ArrowUp" || domEvent.key === "ArrowDown") {
             domEvent.preventDefault();
             this.resetBuffer(root);
-            this.applyStep(root, unit, domEvent.key === "ArrowUp" ? 1 : -1);
+            this.applyStep(root, unit, domEvent.key === "ArrowUp" ? 1 : -1, end);
             return;
         }
 
@@ -165,7 +148,7 @@ export class TimeSegmentEngine {
         if (domEvent.key === "Backspace" || domEvent.key === "Delete") {
             domEvent.preventDefault();
             this.resetBuffer(root);
-            writeValue(root, null);
+            writeValueOf(root, null, end);
             this.applySegments(root);
             return;
         }
@@ -175,7 +158,7 @@ export class TimeSegmentEngine {
 
             if (meridiem !== null) {
                 domEvent.preventDefault();
-                this.applyMeridiem(root, meridiem);
+                this.applyMeridiem(root, meridiem, end);
             }
 
             return;
@@ -183,7 +166,7 @@ export class TimeSegmentEngine {
 
         if (domEvent.key.length === 1 && domEvent.key >= "0" && domEvent.key <= "9") {
             domEvent.preventDefault();
-            this.applyDigit(root, segment, unit, domEvent.key);
+            this.applyDigit(root, segment, unit, domEvent.key, end);
         }
     }
 
@@ -202,14 +185,10 @@ export class TimeSegmentEngine {
         const root = segment.closest<HTMLElement>(`.${RootClass}`)!;
 
         this.resetBuffer(root);
-        this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, domEvent.deltaY < 0 ? 1 : -1);
+        this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, domEvent.deltaY < 0 ? 1 : -1, endOf(segment));
     }
 
-    /**
-     * Keeps the focused segment focused while the stepper is pressed. Without it the press moved focus to the
-     * button, the click below then found no focused segment and fell back to the first one — so the arrows
-     * stepped the hour whichever unit the user had actually chosen.
-     */
+    /** Keeps the focused segment focused while the stepper is pressed, so the click below still knows which unit to step. */
     private handleStepperPress(domEvent: Event): void {
         if (domEvent.target instanceof Element && domEvent.target.closest(`[${StepDirectionAttribute}]`) !== null)
             domEvent.preventDefault();
@@ -231,8 +210,7 @@ export class TimeSegmentEngine {
 
         domEvent.preventDefault();
 
-        // The stepper drives whichever segment has focus, and adopts the first one when nothing does — so a
-        // pointer-only user still gets a working control without having to pick a segment first.
+        // The stepper drives whichever segment has focus, and adopts the first one when nothing does.
         const segment = focusedSegment(root) ?? root.querySelector<HTMLElement>(`.${SegmentClass}`);
 
         if (segment === null)
@@ -240,7 +218,7 @@ export class TimeSegmentEngine {
 
         segment.focus();
         this.resetBuffer(root);
-        this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, stepper.getAttribute(StepDirectionAttribute) === "up" ? 1 : -1);
+        this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, stepper.getAttribute(StepDirectionAttribute) === "up" ? 1 : -1, endOf(segment));
     }
 
     private handleFocusOut(domEvent: Event): void {
@@ -255,32 +233,31 @@ export class TimeSegmentEngine {
             this.resetBuffer(root);
     }
 
-    private applyStep(root: HTMLElement, unit: SegmentUnit, direction: number): void {
+    private applyStep(root: HTMLElement, unit: SegmentUnit, direction: number, end: boolean): void {
         if (unit === "meridiem") {
-            const current = readValue(root);
+            const current = readValueOf(root, end);
 
-            this.applyMeridiem(root, current !== null && current.getHours() >= 12 ? "am" : "pm");
+            this.applyMeridiem(root, current !== null && current.getHours() >= 12 ? "am" : "pm", end);
             return;
         }
 
-        const base = this.baseValue(root);
+        const base = this.baseValue(root, end);
         const clock = clockUnit(unit);
         const increment = stepFor(readStep(root), clock) * direction;
         const limit = clock === "hour" ? 24 : 60;
         const next = ((unitValue(base, clock) + increment) % limit + limit) % limit;
 
-        this.write(root, withUnit(base, clock, next));
+        this.write(root, withUnit(base, clock, next), end);
     }
 
-    private applyDigit(root: HTMLElement, segment: HTMLElement, unit: SegmentUnit, digit: string): void {
+    private applyDigit(root: HTMLElement, segment: HTMLElement, unit: SegmentUnit, digit: string, end: boolean): void {
         const state = this.editState(root);
         const max = unit === "hour" ? 23 : unit === "hour12" ? 12 : 59;
         const minimum = unit === "hour12" ? 1 : 0;
 
         let typed = (state.unit === unit ? state.buffer : "") + digit;
 
-        // A digit that cannot extend what is already there starts the segment over rather than being refused,
-        // which is how every native spinner behaves: "9" then "5" in an hour segment means hour 5.
+        // A digit that cannot extend what is there starts the segment over: "9" then "5" in an hour means hour 5.
         if (Number(typed) > max)
             typed = digit;
 
@@ -291,30 +268,32 @@ export class TimeSegmentEngine {
         state.buffer = complete ? "" : typed;
 
         if (numeric >= minimum) {
-            const base = this.baseValue(root);
+            const base = this.baseValue(root, end);
 
             this.write(root, unit === "hour12"
                 ? withUnit(base, "hour", toHour24(numeric, base.getHours() >= 12))
-                : withUnit(base, clockUnit(unit), numeric));
+                : withUnit(base, clockUnit(unit), numeric), end);
         }
 
         if (complete)
             moveFocus(root, segment, "ArrowRight");
     }
 
-    private applyMeridiem(root: HTMLElement, meridiem: "am" | "pm"): void {
-        const base = this.baseValue(root);
+    private applyMeridiem(root: HTMLElement, meridiem: "am" | "pm", end: boolean): void {
+        const base = this.baseValue(root, end);
 
-        this.write(root, withUnit(base, "hour", toHour24(base.getHours() % 12 === 0 ? 12 : base.getHours() % 12, meridiem === "pm")));
+        this.write(root, withUnit(base, "hour", toHour24(base.getHours() % 12 === 0 ? 12 : base.getHours() % 12, meridiem === "pm")), end);
     }
 
     /** The value edits start from. An empty control seeds the whole clock from now, then edits one unit. */
-    private baseValue(root: HTMLElement): Date {
-        return readValue(root) ?? defaultMoment(root);
+    private baseValue(root: HTMLElement, end: boolean): Date {
+        return readValueOf(root, end) ?? defaultMoment(root);
     }
 
-    private write(root: HTMLElement, value: Date): void {
-        writeValue(root, clampToRange(root, value));
+    private write(root: HTMLElement, value: Date, end: boolean): void {
+        writeValueOf(root, clampToRange(root, value), end);
+        // A period's ends stepped past each other swap, so the row never reads as ending before it starts.
+        orderPeriod(root);
         this.applySegments(root);
     }
 
@@ -367,8 +346,7 @@ function toPart(token: string): Part {
         case "ss": return { kind: "segment", unit: "second", width: 2 };
         case "s": return { kind: "segment", unit: "second", width: 1 };
         case "tt": return { kind: "segment", unit: "meridiem", width: 0 };
-        // A date token in a time-only format is not a segment anything here can edit, so it rides along as
-        // text the shared formatter renders.
+        // A date token is not editable here, so it rides along as text the shared formatter renders.
         default: return { kind: "literal", token, formatted: true };
     }
 }
@@ -397,8 +375,7 @@ function createPart(part: Part): HTMLElement {
     return segment;
 }
 
-// A separator is its own text. Only a date token goes through the formatter — and never a blank one, which
-// formatTemporal reads as "no format at all" and answers with a full timestamp.
+// A separator is its own text; only a date token goes through the formatter, and never a blank one.
 function renderLiteral(token: string, formatted: boolean, value: Date | null, culture: TemporalCulturePack): string {
     return formatted && value !== null ? formatTemporal(value, token, culture) : token;
 }
@@ -426,6 +403,11 @@ function writeAria(segment: HTMLElement, unit: SegmentUnit, value: Date | null):
     segment.setAttribute("aria-valuenow", String(unitValue(value, clockUnit(unit))));
 }
 
+/** Whether a segment belongs to the period's end clock rather than its start. */
+function endOf(segment: HTMLElement): boolean {
+    return isEndPart(segment.closest(`.${SegmentsClass}`));
+}
+
 function editableSegment(target: EventTarget | null): HTMLElement | null {
     const segment = target instanceof Element ? target.closest<HTMLElement>(`.${SegmentClass}`) : null;
 
@@ -445,16 +427,8 @@ function focusedSegment(root: HTMLElement): HTMLElement | null {
 
 function moveFocus(root: HTMLElement, segment: HTMLElement, key: string): void {
     const segments = [...root.querySelectorAll<HTMLElement>(`.${SegmentClass}`)];
-    const index = segments.indexOf(segment);
 
-    if (index === -1)
-        return;
-
-    const target = key === "Home" ? 0
-        : key === "End" ? segments.length - 1
-            : Math.max(0, Math.min(segments.length - 1, index + (key === "ArrowRight" ? 1 : -1)));
-
-    segments[target].focus();
+    resolveRovingTarget({ key, items: segments, current: segment, axis: "horizontal", loop: false })?.focus();
 }
 
 function matchMeridiem(key: string, culture: TemporalCulturePack): "am" | "pm" | null {

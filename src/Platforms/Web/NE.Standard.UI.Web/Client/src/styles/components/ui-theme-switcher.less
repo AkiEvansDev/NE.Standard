@@ -1,0 +1,39 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+// Both glyphs ship in the markup and CSS picks one, so caching cannot leak a reader's theme; anchored on :root, never on a themed card.
+.ui-theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+    aspect-ratio: 1;
+    line-height: 1;
+    cursor: pointer;
+}
+
+    // Measured against the control, not a label it doesn't have; :where() keeps an authored IconSize winning.
+    :where(.ui-theme-switcher .ui-theme-switcher__icon) {
+        font-size: 1.25em;
+    }
+
+.ui-theme-switcher__icon {
+    display: none;
+}
+
+:root[data-ui-theme="light"] .ui-theme-switcher__icon--dark,
+:root[data-ui-theme="dark"] .ui-theme-switcher__icon--light {
+    display: inline-flex;
+}
+
+@media (prefers-color-scheme: light) {
+    :root[data-ui-theme="auto"] .ui-theme-switcher__icon--dark {
+        display: inline-flex;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root[data-ui-theme="auto"] .ui-theme-switcher__icon--light {
+        display: inline-flex;
+    }
+}

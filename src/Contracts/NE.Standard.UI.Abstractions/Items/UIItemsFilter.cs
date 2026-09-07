@@ -12,7 +12,7 @@ public sealed class UIItemsFilter
     /// <summary>
     /// Creates a filter whose active state is controlled by a source property.
     /// </summary>
-    public UIItemsFilter(UIPropertyReference source, string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.Like, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
+    public UIItemsFilter(UIPropertyReference source, string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
 
@@ -25,7 +25,7 @@ public sealed class UIItemsFilter
     /// Creates an unconditionally active filter with no source, comparing <paramref name="itemProperty"/>
     /// against a constant <paramref name="value"/>.
     /// </summary>
-    public UIItemsFilter(string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.Like, object? value = null)
+    public UIItemsFilter(string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, object? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
 

@@ -14,19 +14,11 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
     /// Validates that the minimum, maximum, and current time values are consistent with each other.
     /// </summary>
     protected override void ValidateRange(TimeOnly? min, TimeOnly? max, TimeOnly? value)
-    {
-        if (min.HasValue && max.HasValue && min.Value > max.Value)
-            throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum time cannot be greater than the maximum time.");
+        => ValidateOrderedRange(min, max, value, "time");
 
-        if (value.HasValue)
-        {
-            if (min.HasValue && value.Value < min.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Time value cannot be less than the minimum time.");
-
-            if (max.HasValue && value.Value > max.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Time value cannot be greater than the maximum time.");
-        }
-    }
+    /// <inheritdoc/>
+    protected override void ValidatePeriod(TimeOnly? start, TimeOnly? end)
+        => ValidateOrderedPeriod(start, end, "time");
 }
 
 /// <summary>

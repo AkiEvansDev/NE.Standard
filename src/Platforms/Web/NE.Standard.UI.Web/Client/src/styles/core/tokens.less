@@ -3,7 +3,6 @@
 @ui-breakpoint-xl: 1280px;
 @ui-breakpoint-xxl: 1536px;
 
-@ui-focus-ring-width: 2px;
 @ui-focus-ring-offset: 2px;
 
 @ui-space-1: 0.25rem;  
@@ -11,11 +10,27 @@
 @ui-space-3: 0.75rem;  
 @ui-space-4: 1rem;     
 @ui-space-5: 1.5rem;   
-@ui-space-6: 2rem;     
 
-@ui-control-height: 2.5rem;  
+@ui-control-height: 2.5rem;
+// A button says its own size — see UIButtonSize. @ui-control-height stays the medium one so other controls reading it are unaffected.
+@ui-button-height-sm: 1.75rem;
+@ui-button-height-lg: 3rem;  
+
+// A line in a list that is scanned, not pressed - a menu entry, a breadcrumb step, a calendar cell: read-down height, not press-target.
+@ui-list-row-height: 1.75rem;
+
+// How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
+@ui-popup-viewport-margin: 4px;
+
+// A row is taller than a button because it holds two lines rather than a word; it steps with the same Size property.
+@ui-row-height: 3.25rem;
+@ui-row-height-sm: 2.5rem;
+@ui-row-height-lg: 4rem;
 
 @ui-motion-fast: 120ms;
 @ui-motion-normal: 200ms;
-@ui-motion-slow: 320ms;
 @ui-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+// The standard enter/exit pair. Use @ui-motion-ease where two boxes move against each other and their heights have to cancel.
+@ui-motion-enter: cubic-bezier(0, 0, 0.2, 1);
+@ui-motion-exit: cubic-bezier(0.4, 0, 1, 1);
+

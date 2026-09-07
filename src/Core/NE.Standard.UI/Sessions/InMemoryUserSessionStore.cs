@@ -11,9 +11,7 @@ namespace NE.Standard.UI.Sessions;
 /// Keeps user sessions in the process's own memory.
 /// </summary>
 /// <remarks>
-/// The default, and correct only for a single process: sessions vanish on restart and are invisible to a
-/// second instance behind a load balancer. Registered with <c>TryAddSingleton</c>, so a host swaps it by
-/// registering its own <see cref="IUserSessionStore"/> first.
+/// Correct only for a single process; a host swaps it by registering its own <see cref="IUserSessionStore"/> first.
 /// </remarks>
 internal sealed class InMemoryUserSessionStore : IUserSessionStore
 {
@@ -66,8 +64,7 @@ internal sealed class InMemoryUserSessionStore : IUserSessionStore
 
         for (var i = 0; i < expired.Count; i++)
         {
-            // Removed by (key, value) pair so a session touched between the scan and here — which replaces the
-            // stored instance — is left alone rather than dropped under the request that just used it.
+            // Removed by (key, value) pair so a session touched between the scan and here is left alone rather than dropped.
             if (_sessions.TryGetValue(expired[i], out UserSessionState? session) &&
                 session.LastSeenAtUtc + idleTimeout <= utcNow &&
                 _sessions.TryRemove(new KeyValuePair<string, UserSessionState>(expired[i], session)))

@@ -1,5 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Addresses;
-using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
@@ -7,10 +7,7 @@ namespace NE.Standard.UI.Shell.Updates.Server;
 /// Reports that the server refused a value the client sent, so the input can show why.
 /// </summary>
 /// <remarks>
-/// Deliberately not a <see cref="ServerValueUIUpdate"/> carrying an extra field: that type means "this
-/// property's value is now X" and is emitted by the ordinary diff pipeline, which has no business knowing
-/// about validation. A refusal is also the one case where the value must *not* be patched — the client is
-/// still showing what the user typed, and rolling it back would erase it.
+/// Deliberately not a <see cref="ServerValueUIUpdate"/>: a refusal must not patch the value while the client shows what the user typed.
 /// </remarks>
 public sealed class ServerValidationUIUpdate : ServerUIUpdate
 {
@@ -30,5 +27,5 @@ public sealed class ServerValidationUIUpdate : ServerUIUpdate
     /// <summary>
     /// Gets the severity the message is displayed with.
     /// </summary>
-    public UIColorStyle Severity { get; init; } = UIColorStyle.Danger;
+    public UIValidationSeverity Severity { get; init; } = UIValidationSeverity.Error;
 }

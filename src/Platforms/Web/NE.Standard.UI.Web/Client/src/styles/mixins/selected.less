@@ -1,0 +1,59 @@
+@import "./interactive.less";
+
+// Reads the --ui-selected-* properties on a control's root; they inherit, so each control fences its own with .ui-selected-scope().
+
+.ui-selected-scope() {
+    --ui-selected-background: initial;
+    --ui-selected-foreground: initial;
+    --ui-selected-mark-color: initial;
+    --ui-selected-mark: initial;
+    --ui-selected-font-weight: initial;
+}
+
+.ui-selected-ground(@default: var(--ui-wash-selected)) {
+    background: var(--ui-selected-background, @default);
+}
+
+// The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback.
+.ui-selected-ink(@default: var(--ui-color-primary-ink); @weight: inherit) {
+    color: var(--ui-selected-foreground, @default);
+    font-weight: var(--ui-selected-font-weight, @weight);
+}
+
+// The mark's colour alone, for a control that draws the mark its own way (a tab's line) rather than via box-shadow.
+@ui-selected-mark-color: ~"var(--ui-selected-mark-color, var(--ui-color-primary))";
+
+// The mark itself is a box-shadow so it takes no room and lies over the ground; these are the four edges WebCssValues.SelectionMark writes.
+@ui-selected-mark-left: ~"inset 2px 0 0 0 @{ui-selected-mark-color}";
+@ui-selected-mark-right: ~"inset -2px 0 0 0 @{ui-selected-mark-color}";
+@ui-selected-mark-top: ~"inset 0 2px 0 0 @{ui-selected-mark-color}";
+@ui-selected-mark-bottom: ~"inset 0 -2px 0 0 @{ui-selected-mark-color}";
+
+.ui-selected-mark(@default: none) {
+    box-shadow: var(--ui-selected-mark, @default);
+}
+
+// A chosen row of a host with rows — an items view's, a table's, a tree's: the three pieces together, the ink inherited.
+.ui-selected-row() {
+    .ui-selected-ground();
+    .ui-selected-ink(inherit);
+    .ui-selected-mark();
+}
+
+// A row under the pointer: --ui-wash-hover mixes into whatever is behind it, since the host may have no surface of its own. One
+// wash: a ghost button standing in the row answers with its ink, not a second wash over the row's.
+.ui-row-hover() {
+    background-color: var(--ui-wash-hover);
+
+    .ui-button--ghost {
+        .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
+    }
+}
+
+// The keyboard's row, washed like the pointer's while the host holds the focus — except where one row to choose already shows it:
+// with a single choice the chosen row is the keyboard's, and a second mark read as a stray frame.
+.ui-row-cursor(@host; @row) {
+    @{host}:focus-within:not([data-ui-selection="one"]) > [data-ui-items-host] > @{row}[data-ui-row-focus] {
+        .ui-row-hover();
+    }
+}

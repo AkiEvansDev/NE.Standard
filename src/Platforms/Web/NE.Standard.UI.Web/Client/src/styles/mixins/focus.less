@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 
+// Ring width is a runtime variable defaulting to 0, so a theme flag enables it everywhere without a second selector.
 .ui-focus-ring() {
-    outline: @ui-focus-ring-width solid var(--ui-color-focus-ring);
+    outline: var(--ui-focus-ring-width, 0) solid var(--ui-color-focus-ring);
     outline-offset: @ui-focus-ring-offset;
 }

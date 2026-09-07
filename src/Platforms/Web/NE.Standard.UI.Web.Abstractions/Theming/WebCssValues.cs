@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
@@ -13,9 +16,33 @@ public static class WebCssValues
         {
             UIThemeMode.Light => "light",
             UIThemeMode.Dark => "dark",
-            UIThemeMode.Auto => "auto",
             _ => throw new UnreachableException()
         };
+
+    /// <summary>
+    /// The theme the document itself declares; <c>auto</c> means no chosen theme, resolved via <c>prefers-color-scheme</c>.
+    /// </summary>
+    public static string RootThemeName(UIThemeMode? mode)
+        => mode is UIThemeMode value ? ThemeName(value) : "auto";
+
+    /// <summary>
+    /// Reads back what <see cref="RootThemeName"/> writes; false for <c>auto</c> and for anything unknown.
+    /// </summary>
+    public static bool TryReadThemeName(string? name, out UIThemeMode mode)
+    {
+        switch (name)
+        {
+            case "light":
+                mode = UIThemeMode.Light;
+                return true;
+            case "dark":
+                mode = UIThemeMode.Dark;
+                return true;
+            default:
+                mode = default;
+                return false;
+        }
+    }
 
     public static string Alignment(UIAlignment value)
         => value switch
@@ -27,10 +54,22 @@ public static class WebCssValues
             _ => throw new UnreachableException()
         };
 
+    // `clip`, not `hidden`: `hidden` also makes the element a scroll container, reachable by script-driven scrolling.
+    /// <summary>The <c>background-size</c> a fit stands for.</summary>
+    public static string ImageFitSize(UIImageFit value)
+        => value switch
+        {
+            UIImageFit.Fill => "100% 100%",
+            UIImageFit.Contain => "contain",
+            UIImageFit.Cover => "cover",
+            UIImageFit.None => "auto",
+            _ => throw new UnreachableException()
+        };
+
     public static string Overflow(UIOverflow value)
         => value switch
         {
-            UIOverflow.Hidden => "hidden",
+            UIOverflow.Hidden => "clip",
             UIOverflow.Show => "visible",
             _ => throw new UnreachableException()
         };
@@ -40,8 +79,15 @@ public static class WebCssValues
         {
             UILayoutLengthKind.Auto => "auto",
             UILayoutLengthKind.Absolute => Pixels(value.Value),
+            UILayoutLengthKind.Fill => "100%",
             _ => throw new UnreachableException()
         };
+
+    /// <summary>
+    /// The same length as a responsive custom property's value, empty for <c>Auto</c> so the component's own default still applies.
+    /// </summary>
+    public static string ResponsiveLayoutLength(UILayoutLength value)
+        => value.Kind == UILayoutLengthKind.Auto ? string.Empty : LayoutLength(value);
 
     public static string Thickness(UIThickness value)
         => string.Create(
@@ -67,21 +113,110 @@ public static class WebCssValues
         );
     }
 
+    /// <summary>
+    /// The track as the layout can hold it: a star's floor and a content track's floor or ceiling reach the
+    /// stylesheet; a fixed track's bounds and a star's ceiling are a splitter's clamp, carried on the container.
+    /// </summary>
     public static string GridUnit(UIGridUnit unit)
         => unit.Unit switch
         {
-            UIGridUnitType.Star => GridUnit(unit.Value),
+            UIGridUnitType.Star => GridUnit(unit.Value, unit.MinValue),
             UIGridUnitType.Absolute => string.Create(CultureInfo.InvariantCulture, $"{unit.Value}px"),
-            UIGridUnitType.Auto => unit.MinValue is double min
-                ? string.Create(CultureInfo.InvariantCulture, $"minmax({min}px, auto)")
-                : "auto",
+            UIGridUnitType.Auto => unit switch
+            {
+                { MinValue: double min } => string.Create(CultureInfo.InvariantCulture, $"minmax({min}px, auto)"),
+                // A ceiling alone is fit-content(); with a floor it cannot be written, and the splitter's clamp holds it.
+                { MaxValue: double max } => string.Create(CultureInfo.InvariantCulture, $"fit-content({max}px)"),
+                _ => "auto"
+            },
             _ => throw new UnreachableException()
         };
 
-    public static string GridUnit(double value)
-        => value <= 0
-            ? "minmax(0, 1fr)"
-            : string.Create(CultureInfo.InvariantCulture, $"minmax(0, {value}fr)");
+    public static string GridUnit(double value, double? min = null)
+    {
+        var floor = min is double pixels && pixels > 0 ? string.Create(CultureInfo.InvariantCulture, $"{pixels}px") : "0";
+
+        return value <= 0
+            ? $"minmax({floor}, 1fr)"
+            : string.Create(CultureInfo.InvariantCulture, $"minmax({floor}, {value}fr)");
+    }
+
+    /// <summary>
+    /// A track list's bounds for a splitter's clamp — <c>index:min:max</c> per bounded track, 1-based, blanks for
+    /// what is unset — or an empty string when no track carries one.
+    /// </summary>
+    public static string GridTrackLimits(IReadOnlyList<UIGridUnit> units)
+    {
+        ArgumentNullException.ThrowIfNull(units);
+
+        StringBuilder? builder = null;
+
+        for (var i = 0; i < units.Count; i++)
+        {
+            UIGridUnit unit = units[i];
+
+            if (!unit.HasBounds)
+                continue;
+
+            builder ??= new StringBuilder();
+
+            if (builder.Length > 0)
+                _ = builder.Append(' ');
+
+            _ = builder.Append(CultureInfo.InvariantCulture, $"{i + 1}:{unit.MinValue?.ToString(CultureInfo.InvariantCulture)}:{unit.MaxValue?.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        return builder?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>The attribute value an items host carries for its selection mode — the client engine reads it.</summary>
+    public static string SelectionMode(UISelectionMode value)
+        => value switch
+        {
+            UISelectionMode.None => "none",
+            UISelectionMode.One => "one",
+            UISelectionMode.Many => "many",
+            _ => throw new UnreachableException()
+        };
+
+    /// <summary>
+    /// The mark a chosen item draws, as the <c>box-shadow</c> the stylesheet reads from <c>--ui-selected-mark</c>.
+    /// </summary>
+    public static string SelectionMark(UISelectionMark value)
+        => value switch
+        {
+            UISelectionMark.None => "none",
+            UISelectionMark.Left => "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
+            UISelectionMark.Right => "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
+            UISelectionMark.Top => "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
+            UISelectionMark.Bottom => "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
+            _ => throw new UnreachableException()
+        };
+
+    /// <summary>The weight a chosen entry's text takes: semibold, or the control's regular weight.</summary>
+    public static string SelectionFontWeight(bool bold)
+        => bold ? "600" : "400";
+
+    /// <summary>
+    /// A font family name as a quoted CSS string, escaped so nothing in it can end the declaration early —
+    /// belt and braces alongside <c>UITypography.Validate</c>, which already refuses the characters that could.
+    /// </summary>
+    public static string FontFamily(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+
+        StringBuilder builder = new("\"");
+
+        foreach (var c in value)
+        {
+            if (c is '"' or '\\')
+                _ = builder.Append('\\');
+
+            _ = builder.Append(c);
+        }
+
+        return builder.Append('"').ToString();
+    }
 
     public static string Pixels(double value)
         => string.Create(CultureInfo.InvariantCulture, $"{value}px");
@@ -110,11 +245,14 @@ public static class WebCssValues
     }
 
     /// <summary>
-    /// CSS custom property backing a semantic <see cref="UIColorStyle"/> role, for contexts (background,
-    /// border-color) that can't use the <c>ui-color--*</c> classes — those only ever set <c>color</c>.
-    /// <see cref="UIColorStyle.Default"/>/<see cref="UIColorStyle.Muted"/> have no such property (they
-    /// resolve to <c>inherit</c>/<c>color-mix(currentColor)</c>, meaningless for a background/border) and
-    /// return <see langword="null"/>.
+    /// The text colour that reads on a colour of the given lightness, themed even when the colour itself isn't.
+    /// </summary>
+    public static string OnColorToken(bool isLight)
+        => isLight ? "var(--ui-color-on-light)" : "var(--ui-color-on-dark)";
+
+    /// <summary>
+    /// CSS custom property backing a semantic <see cref="UIColorStyle"/> role; null for <see cref="UIColorStyle.Default"/>/
+    /// <see cref="UIColorStyle.Muted"/>, which have none.
     /// </summary>
     private static string? StyleVar(UIColorStyle style)
         => style switch

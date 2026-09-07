@@ -1,6 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compiled.Models;
 
@@ -32,7 +31,7 @@ public sealed class CompiledUIValidationRule
     /// <summary>
     /// Gets the validation severity.
     /// </summary>
-    public required UIColorStyle Severity { get; init; }
+    public required UIValidationSeverity Severity { get; init; }
 
     /// <summary>
     /// Gets the validation message shown when the rule fails.

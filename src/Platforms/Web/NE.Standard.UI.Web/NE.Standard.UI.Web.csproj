@@ -24,14 +24,17 @@
   <ItemGroup>
     <None Remove="Client\dist\ui.css" />
     <None Remove="Client\dist\ui.js" />
+    <None Remove="Client\dist\ui-boot.js" />
     <Content Remove="Client\dist\ui.css" />
     <Content Remove="Client\dist\ui.js" />
+    <Content Remove="Client\dist\ui-boot.js" />
   </ItemGroup>
 
   <PropertyGroup>
     <WebClientDist>$(MSBuildProjectDirectory)\Client\dist</WebClientDist>
     <WebClientCss>$(WebClientDist)\ui.css</WebClientCss>
     <WebClientJs>$(WebClientDist)\ui.js</WebClientJs>
+    <WebClientBoot>$(WebClientDist)\ui-boot.js</WebClientBoot>
   </PropertyGroup>
 
   <Target Name="BuildWebClientAssets" BeforeTargets="PrepareResources" Condition="'$(SkipWebClientBuild)' != 'true'">
@@ -46,11 +49,20 @@
 
     <Error Condition="!Exists('$(WebClientCss)')" Text="Web client CSS was not generated: $(WebClientCss)" />
     <Error Condition="!Exists('$(WebClientJs)')" Text="Web client JavaScript was not generated: $(WebClientJs)" />
+    <Error Condition="!Exists('$(WebClientBoot)')" Text="Web client boot script was not generated: $(WebClientBoot)" />
   </Target>
+
+  <!-- OFL 1.1 asks that the licence travel with the font, so it does. -->
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
+    <None Include="Client\fonts\LICENSE.txt" Pack="true" PackagePath="\LICENSE-inter.txt" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="$(WebClientCss)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.css" />
     <EmbeddedResource Include="$(WebClientJs)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.js" />
+    <EmbeddedResource Include="$(WebClientBoot)" LogicalName="NE.Standard.UI.Web.Client.dist.ui-boot.js" />
+    <EmbeddedResource Include="Client\fonts\InterVariable.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.InterVariable.woff2" />
   </ItemGroup>
 
 </Project>

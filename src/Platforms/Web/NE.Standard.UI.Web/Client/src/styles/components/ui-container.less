@@ -1,14 +1,28 @@
 @import "../core/tokens.less";
+@import "../mixins/placement.less";
 @import "../mixins/responsive.less";
+@import "../mixins/surface-image.less";
+
+// The elements a child is *placed* in: a container plus the framework's regions (card bands, expander content), all on the same 24 columns.
+@ui-placement-hosts: ~".ui-container, .ui-surface, .ui-card__content, .ui-card__footer, .ui-card__header-content, .ui-expander__content, .ui-expander__header-text, .ui-collapsible-panel__content";
 
 .ui-container {
-
     display: grid;
     gap: 0;
     border-style: solid;
     border-width: 0;
     border-color: transparent;
-    background: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
+
+    // The authored tracks are `--ui-columns`/`--ui-rows` (ContainerComponentRenderer); a splitter's division sits over them,
+    // one tier at a time (grid-splitter-engine.ts). Reset here, or a nested container would lay out on its parent's tracks.
+    --ui-columns: initial;
+    --ui-rows: initial;
+    .ui-responsive-reset(--ui-split-columns);
+    .ui-responsive-reset(--ui-split-rows);
+    .ui-responsive-property(grid-template-columns, --ui-split-columns, ~"var(--ui-columns, repeat(24, minmax(0, 1fr)))");
+    .ui-responsive-property(grid-template-rows, --ui-split-rows, ~"var(--ui-rows, minmax(0, 1fr))");
 }
 
 .ui-responsive-grid-line-base(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
@@ -35,8 +49,7 @@
         / span var(~"@{prefix}-xxl-@{span-suffix}", var(~"@{prefix}-xl-@{span-suffix}", var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default)))));
 }
 
-.ui-container > [data-ui-id] {
-
+:is(@{ui-placement-hosts}) > [data-ui-id] {
     .ui-responsive-reset-infix(--ui-placement, column);
     .ui-responsive-reset-infix(--ui-placement, row);
     .ui-responsive-reset-infix(--ui-placement, column-span);
@@ -52,28 +65,28 @@
 }
 
 @media (min-width: @ui-breakpoint-sm) {
-    .ui-container > [data-ui-id] {
+    :is(@{ui-placement-hosts}) > [data-ui-id] {
         .ui-responsive-grid-line-sm(grid-column, --ui-placement, column, column-span, 24);
         .ui-responsive-grid-line-sm(grid-row, --ui-placement, row, row-span, 1);
     }
 }
 
 @media (min-width: @ui-breakpoint-md) {
-    .ui-container > [data-ui-id] {
+    :is(@{ui-placement-hosts}) > [data-ui-id] {
         .ui-responsive-grid-line-md(grid-column, --ui-placement, column, column-span, 24);
         .ui-responsive-grid-line-md(grid-row, --ui-placement, row, row-span, 1);
     }
 }
 
 @media (min-width: @ui-breakpoint-xl) {
-    .ui-container > [data-ui-id] {
+    :is(@{ui-placement-hosts}) > [data-ui-id] {
         .ui-responsive-grid-line-xl(grid-column, --ui-placement, column, column-span, 24);
         .ui-responsive-grid-line-xl(grid-row, --ui-placement, row, row-span, 1);
     }
 }
 
 @media (min-width: @ui-breakpoint-xxl) {
-    .ui-container > [data-ui-id] {
+    :is(@{ui-placement-hosts}) > [data-ui-id] {
         .ui-responsive-grid-line-xxl(grid-column, --ui-placement, column, column-span, 24);
         .ui-responsive-grid-line-xxl(grid-row, --ui-placement, row, row-span, 1);
     }

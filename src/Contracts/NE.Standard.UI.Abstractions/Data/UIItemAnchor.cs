@@ -37,12 +37,6 @@ public enum UIItemAnchorKind
 /// Positions a requested window of items, either at an absolute offset or against an item the client already
 /// holds.
 /// </summary>
-/// <remarks>
-/// Both forms exist because neither covers the other. A data grid needs the offset: its scrollbar is
-/// proportional and it jumps into the middle of a million rows. A chat cannot use one at all — its items have
-/// no stable position, since a message prepended at the top shifts every index below it — and asks for
-/// "the thirty before this one" instead.
-/// </remarks>
 public readonly record struct UIItemAnchor
 {
     private UIItemAnchor(UIItemAnchorKind kind, int offset, string? key)

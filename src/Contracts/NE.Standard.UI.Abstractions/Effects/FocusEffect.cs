@@ -25,7 +25,10 @@ public sealed class FocusEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.Focus;
+    public override string Kind => ClientEffectKinds.Focus;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     /// <summary>
     /// Gets the target component reference.
@@ -39,7 +42,10 @@ public sealed class FocusEffect : ClientEffect
 
 internal sealed class CompiledFocusEffect(UIComponentAddress target) : ClientEffect
 {
-    public override ClientEffectKind Kind => ClientEffectKind.Focus;
+    public override string Kind => ClientEffectKinds.Focus;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     public UIComponentAddress Target { get; } = target;
 }

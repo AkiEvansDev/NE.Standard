@@ -18,6 +18,7 @@ public sealed class WebRenderMetadata
     private readonly HashSet<string> _validationKeys = [];
     private readonly HashSet<string> _usedPropertyDefinitionIds = [];
     private readonly Dictionary<string, string> _propertyDefinitionIds = [];
+    private readonly Dictionary<string, WebRenderPropertyDefinitionMetadata> _propertyDefinitionsById = [];
     private readonly Dictionary<UIPropertyAddress, string> _renderedPropertyIds = [];
     private readonly Dictionary<CompiledUIInteraction, WebRenderInteractionMetadata> _interactionMetadata = [];
     private readonly List<(CompiledUIItemsFilter Compiled, WebRenderItemsFilterMetadata Metadata)> _pendingItemsFilters = [];
@@ -66,7 +67,7 @@ public sealed class WebRenderMetadata
 
         if (_propertyDefinitionIds.TryGetValue(key, out var propertyId))
         {
-            WebRenderPropertyDefinitionMetadata existing = _propertyDefinitions.Single(definition => definition.PropertyId == propertyId);
+            WebRenderPropertyDefinitionMetadata existing = _propertyDefinitionsById[propertyId];
 
             if (!OperationsEqual(existing.Operations, operations))
                 throw new InvalidOperationException($"Property '{propertyOwnerTypeKey}.{property.Name}' was registered with different DOM operations.");
@@ -87,6 +88,7 @@ public sealed class WebRenderMetadata
         metadata.Validate();
 
         _propertyDefinitionIds.Add(key, propertyId);
+        _propertyDefinitionsById.Add(propertyId, metadata);
         _propertyDefinitions.Add(metadata);
 
         return propertyId;
@@ -120,7 +122,9 @@ public sealed class WebRenderMetadata
             Mode = binding.Mode,
             DynamicParameterComponentIds = binding.DynamicParameterComponentIds,
             ItemTemplate = itemTemplate,
-            ItemTemplateParameters = itemTemplateParameters
+            ItemTemplateParameters = itemTemplateParameters,
+            // Only set for a binding read out of an item — every other value already reaches the client substituted.
+            FallbackValue = itemTemplate is null ? null : binding.TargetFallbackValue
         };
 
         metadata.Validate();
@@ -133,7 +137,7 @@ public sealed class WebRenderMetadata
         _bindings.Add(metadata);
     }
 
-    public void RegisterItemsTemplate(UIComponentId componentId, string? templateKeyPropertyName, string? fallbackTemplateKeyPropertyName, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null)
+    public void RegisterItemsTemplate(UIComponentId componentId, string? templateKeyPropertyName, string? fallbackTemplateKey, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null, string? rowDecorator = null)
     {
         if (componentId.IsEmpty)
             throw new ArgumentException("Component id must not be empty.", nameof(componentId));
@@ -142,10 +146,11 @@ public sealed class WebRenderMetadata
         {
             ComponentId = componentId,
             TemplateKeyPropertyName = templateKeyPropertyName,
-            FallbackTemplateKeyPropertyName = fallbackTemplateKeyPropertyName,
+            FallbackTemplateKey = fallbackTemplateKey,
             ItemWrapperElementName = itemWrapperElementName,
             ItemWrapperClassName = itemWrapperClassName,
-            Composite = composite
+            Composite = composite,
+            RowDecorator = rowDecorator
         };
 
         metadata.Validate();
@@ -490,7 +495,9 @@ public sealed class WebRenderMetadata
            string.Equals(left.Target, right.Target, StringComparison.Ordinal) &&
            string.Equals(left.Name, right.Name, StringComparison.Ordinal) &&
            string.Equals(left.Converter, right.Converter, StringComparison.Ordinal) &&
-           left.Condition == right.Condition;
+           string.Equals(left.Value, right.Value, StringComparison.Ordinal) &&
+           left.Condition == right.Condition &&
+           left.Optional == right.Optional;
 
     private static UIComponentId[] GetDynamicParameterComponentIds(IReadOnlyList<CompiledUIActionArgument> arguments)
         => [.. arguments

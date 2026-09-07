@@ -82,21 +82,19 @@ public static class WebClassNames
             _ => throw new UnreachableException()
         };
 
-    public static string ButtonContentBadgePlacement(UITextBadgePlacement value)
+    public static string TextIconAlignment(UITextIconAlignment value)
         => value switch
         {
-            UITextBadgePlacement.Inline => "ui-button-content__badge--inline",
-            UITextBadgePlacement.Trailing => "ui-button-content__badge--trailing",
+            UITextIconAlignment.Title => "ui-text--icon-title",
+            UITextIconAlignment.Content => "ui-text--icon-content",
             _ => throw new UnreachableException()
         };
 
-    public static string ButtonContentTextAlignment(UITextAlignment value)
+    public static string TextBadgeAlignment(UITextBadgeAlignment value)
         => value switch
         {
-            UITextAlignment.Start => "ui-button-content--align-start",
-            UITextAlignment.Center => "ui-button-content--align-center",
-            UITextAlignment.End => "ui-button-content--align-end",
-            UITextAlignment.Justify => "ui-button-content--align-justify",
+            UITextBadgeAlignment.Title => "ui-text--badge-title",
+            UITextBadgeAlignment.Content => "ui-text--badge-content",
             _ => throw new UnreachableException()
         };
 
@@ -110,6 +108,34 @@ public static class WebClassNames
             UIBadgeType.Success => "ui-badge-style--success",
             UIBadgeType.Danger => "ui-badge-style--danger",
             UIBadgeType.Surface => "ui-badge-style--surface",
+            _ => throw new UnreachableException()
+        };
+
+    public static string Side(UISide value)
+        => value switch
+        {
+            UISide.Left => "ui-side--left",
+            UISide.Right => "ui-side--right",
+            UISide.Top => "ui-side--top",
+            UISide.Bottom => "ui-side--bottom",
+            _ => throw new UnreachableException()
+        };
+
+    public static string GroupSeparator(UIGroupSeparator value)
+        => value switch
+        {
+            UIGroupSeparator.None => "ui-command-bar--separator-none",
+            UIGroupSeparator.Gap => "ui-command-bar--separator-gap",
+            UIGroupSeparator.Rule => "ui-command-bar--separator-rule",
+            _ => throw new UnreachableException()
+        };
+
+    public static string SurfaceStyle(UISurfaceStyle value)
+        => value switch
+        {
+            UISurfaceStyle.Background => "ui-surface--background",
+            UISurfaceStyle.Raised => "ui-surface--raised",
+            UISurfaceStyle.Tinted => "ui-surface--tinted",
             _ => throw new UnreachableException()
         };
 
@@ -156,12 +182,22 @@ public static class WebClassNames
             _ => throw new UnreachableException()
         };
 
-    public static string SkeletonVariant(UISkeletonVariant value)
+    public static string ButtonSize(UIButtonSize value)
         => value switch
         {
-            UISkeletonVariant.Text => "ui-preview-text",
-            UISkeletonVariant.Card => "ui-preview-card",
-            UISkeletonVariant.Circle => "ui-preview-circle",
+            UIButtonSize.Small => "ui-button--small",
+            UIButtonSize.Medium => "ui-button--medium",
+            UIButtonSize.Large => "ui-button--large",
+            _ => throw new UnreachableException()
+        };
+
+    /// <summary>A button group's size, on the group rather than on its segments, which inherit it through the stylesheet.</summary>
+    public static string ButtonGroupSize(UIButtonSize value)
+        => value switch
+        {
+            UIButtonSize.Small => "ui-button-group--small",
+            UIButtonSize.Medium => "ui-button-group--medium",
+            UIButtonSize.Large => "ui-button-group--large",
             _ => throw new UnreachableException()
         };
 
@@ -169,15 +205,9 @@ public static class WebClassNames
         => value switch
         {
             UIInputAppearance.Filled => "ui-input--filled",
+            UIInputAppearance.Outline => "ui-input--outline",
             UIInputAppearance.Underline => "ui-input--underline",
-            _ => throw new UnreachableException()
-        };
-
-    public static string InputBadgePlacement(UITextBadgePlacement value)
-        => value switch
-        {
-            UITextBadgePlacement.Inline => "ui-input__badge--inline",
-            UITextBadgePlacement.Trailing => "ui-input__badge--trailing",
+            UIInputAppearance.Ghost => "ui-input--ghost",
             _ => throw new UnreachableException()
         };
 
@@ -202,13 +232,23 @@ public static class WebClassNames
             UIButtonType.Outline => "ui-button--outline",
             UIButtonType.Ghost => "ui-button--ghost",
             UIButtonType.Link => "ui-button--link",
+            UIButtonType.Surface => "ui-button--surface",
+            _ => throw new UnreachableException()
+        };
+
+    /// <summary>The three shapes an image input takes, on its root.</summary>
+    public static string ImageInputShape(UIImageInputShape value)
+        => value switch
+        {
+            UIImageInputShape.Picture => "ui-image-input--picture",
+            UIImageInputShape.Avatar => "ui-image-input--avatar",
+            UIImageInputShape.Inline => "ui-image-input--inline",
             _ => throw new UnreachableException()
         };
 
     public static string ImageFit(UIImageFit value)
         => value switch
         {
-            UIImageFit.Default => "ui-image-fit--default",
             UIImageFit.Fill => "ui-image-fit--fill",
             UIImageFit.Contain => "ui-image-fit--contain",
             UIImageFit.Cover => "ui-image-fit--cover",
@@ -232,21 +272,39 @@ public static class WebClassNames
             _ => throw new UnreachableException()
         };
 
-    public static string FlyoutPlacement(UIFlyoutPlacement value)
+    /// <summary>
+    /// The token a visibility is written as; <c>Visible</c> writes nothing, since the attribute's absence already means visible.
+    /// </summary>
+    public static string Visibility(UIVisibility value)
         => value switch
         {
-            UIFlyoutPlacement.BottomStart => "ui-flyout--bottom-start",
-            UIFlyoutPlacement.Bottom => "ui-flyout--bottom",
-            UIFlyoutPlacement.BottomEnd => "ui-flyout--bottom-end",
-            UIFlyoutPlacement.TopStart => "ui-flyout--top-start",
-            UIFlyoutPlacement.Top => "ui-flyout--top",
-            UIFlyoutPlacement.TopEnd => "ui-flyout--top-end",
-            UIFlyoutPlacement.LeftStart => "ui-flyout--left-start",
-            UIFlyoutPlacement.Left => "ui-flyout--left",
-            UIFlyoutPlacement.LeftEnd => "ui-flyout--left-end",
-            UIFlyoutPlacement.RightStart => "ui-flyout--right-start",
-            UIFlyoutPlacement.Right => "ui-flyout--right",
-            UIFlyoutPlacement.RightEnd => "ui-flyout--right-end",
+            UIVisibility.Visible => "visible",
+            UIVisibility.Hidden => "hidden",
+            UIVisibility.Collapsed => "collapsed",
             _ => throw new UnreachableException()
         };
+
+    /// <summary>
+    /// The token a placement is written as, and the one <c>anchored-popup.ts</c> reads.
+    /// </summary>
+    public static string PopupPlacement(UIPopupPlacement value)
+        => value switch
+        {
+            UIPopupPlacement.BottomStart => "bottom-start",
+            UIPopupPlacement.Bottom => "bottom",
+            UIPopupPlacement.BottomEnd => "bottom-end",
+            UIPopupPlacement.TopStart => "top-start",
+            UIPopupPlacement.Top => "top",
+            UIPopupPlacement.TopEnd => "top-end",
+            UIPopupPlacement.LeftStart => "left-start",
+            UIPopupPlacement.Left => "left",
+            UIPopupPlacement.LeftEnd => "left-end",
+            UIPopupPlacement.RightStart => "right-start",
+            UIPopupPlacement.Right => "right",
+            UIPopupPlacement.RightEnd => "right-end",
+            _ => throw new UnreachableException()
+        };
+
+    public static string FlyoutPlacement(UIPopupPlacement value)
+        => "ui-flyout--" + PopupPlacement(value);
 }

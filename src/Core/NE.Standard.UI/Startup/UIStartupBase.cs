@@ -4,12 +4,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Files;
 using NE.Standard.UI.Hosting;
-using NE.Standard.UI.Localization;
 using NE.Standard.UI.Security;
 using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Hosting;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Sessions;
@@ -31,10 +29,8 @@ public abstract class UIStartupBase
 
         Configure(services, application);
 
-        using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
-        UIApplication app = application.Build(provider);
-
-        _ = services.AddSingleton(app);
+        // Built in the host's own container, on first resolve: a provider built here would construct every singleton the build touches a second time.
+        _ = services.AddSingleton(application.Build);
         _ = services.AddSingleton<IUIHost, UIHost>();
     }
 
@@ -67,11 +63,12 @@ public abstract class UIStartupBase
 
         services.TryAddSingleton<IUserSessionStore, InMemoryUserSessionStore>();
         services.TryAddSingleton<IUIFileStore, FileSystemUIFileStore>();
+        services.TryAddSingleton<IUIUploadService, StandardUploadService>();
+        services.TryAddSingleton<IUIDownloadService, StandardDownloadService>();
         services.TryAddSingleton<IUserSessionResolver, StoredUserSessionResolver>();
         services.TryAddSingleton<IUserClaimsMapper, StandardUserClaimsMapper>();
-        services.TryAddSingleton<IAuthorizationService, StandardAuthorizationService>();
+        services.TryAddSingleton<IUIAuthorizationService, StandardAuthorizationService>();
         services.TryAddSingleton<IResolveExceptionViewHandler, StandardResolveExceptionViewHandler>();
-        services.TryAddSingleton<ITranslator>(static provider => new UITranslationRegistry(sources: [.. provider.GetServices<ITranslationSource>()]));
     }
 
     private static void ValidateRequiredServices(IServiceCollection services)
@@ -83,12 +80,11 @@ public abstract class UIStartupBase
             .Required<IUIFileStore>()
             .Required<IUserSessionResolver>()
             .Required<IUserClaimsMapper>()
-            .Required<IAuthorizationService>()
+            .Required<IUIAuthorizationService>()
             .Required<IResolveExceptionViewHandler>()
             .Required<IUIUpdateSink>()
             .Required<IUIDialogService>()
             .Required<IUIDownloadService>()
-            .Required<IUIUploadService>()
-            .Required<ITranslator>();
+            .Required<IUIUploadService>();
     }
 }

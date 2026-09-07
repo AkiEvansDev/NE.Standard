@@ -1,9 +1,9 @@
 using System;
-using System.Diagnostics;
-using System.Globalization;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -33,8 +33,11 @@ public static class WebShellRenderer
     private static void RenderDocument(IHtmlElementBuilder document, WebShellContext context)
     {
         _ = document.Attribute("lang", context.Language);
-        _ = document.Attribute("data-ui-theme", WebCssValues.ThemeName(context.ThemeMode));
+        _ = document.Attribute(WebAttributes.Theme, WebCssValues.RootThemeName(context.ThemeMode));
         _ = document.Attribute("data-ui-notifications", context.NotificationPlacement.ToString().ToLowerInvariant());
+
+        if (context.Theme.PressRipple)
+            _ = document.Attribute(WebAttributes.PressRipple);
 
         _ = document.Element("head", head => RenderHead(head, context));
         _ = document.Element("body", body => RenderBody(body, context));
@@ -59,6 +62,10 @@ public static class WebShellRenderer
                 _ = link.Attribute("href", ResolvePublicPath(asset));
             });
         }
+
+        // Classic, blocking, and in the head: the boot script must run before the body paints; a module would arrive too late.
+        foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.HeadScript))
+            _ = head.Element("script", script => script.Attribute("src", ResolvePublicPath(asset)));
     }
 
     private static IOrderedEnumerable<WebAssetDescriptor> EnumerateAssets(WebShellContext context, UIWebAssetKind kind)
@@ -68,54 +75,7 @@ public static class WebShellRenderer
             .ThenBy(static asset => asset.Key, StringComparer.Ordinal);
 
     private static string ResolvePublicPath(WebAssetDescriptor asset)
-    {
-        asset.Validate();
-
-        var path = !string.IsNullOrWhiteSpace(asset.PublicPath)
-            ? asset.PublicPath
-            : asset.Source;
-
-        var version = ResolveAssetVersion(asset);
-
-        return path.Contains('?', StringComparison.Ordinal)
-            ? string.Create(CultureInfo.InvariantCulture, $"{path}&v={version}")
-            : string.Create(CultureInfo.InvariantCulture, $"{path}?v={version}");
-    }
-
-    private static string ResolveAssetVersion(WebAssetDescriptor asset)
-    {
-        if (!string.IsNullOrWhiteSpace(asset.Version))
-            return asset.Version;
-
-        return asset.SourceKind switch
-        {
-            UIWebAssetSourceKind.File => ResolveFileAssetVersion(asset),
-            UIWebAssetSourceKind.EmbeddedResource => ResolveEmbeddedAssetVersion(asset),
-            UIWebAssetSourceKind.Url => "external",
-            _ => throw new UnreachableException()
-        };
-    }
-
-    private static string ResolveFileAssetVersion(WebAssetDescriptor asset)
-    {
-        var filePath = asset.ResolveFilePath();
-
-        return File.Exists(filePath)
-            ? File.GetLastWriteTimeUtc(filePath).Ticks.ToString(CultureInfo.InvariantCulture)
-            : asset.Source.GetHashCode(StringComparison.Ordinal).ToString(CultureInfo.InvariantCulture);
-    }
-
-    private static string ResolveEmbeddedAssetVersion(WebAssetDescriptor asset)
-    {
-        var assemblyName = asset.ResourceAssemblyName ?? string.Empty;
-
-        return HashCode.Combine(
-            asset.Source,
-            assemblyName,
-            asset.Key,
-            asset.Kind
-        ).ToString(CultureInfo.InvariantCulture);
-    }
+        => asset.ResolveVersionedPublicPath();
 
     private static void RenderBody(IHtmlElementBuilder body, WebShellContext context)
     {
@@ -123,10 +83,16 @@ public static class WebShellRenderer
         {
             _ = root.Attribute("id", context.RootElementId);
             _ = root.Attribute("data-ui-root");
+
+            if (context.ScrollContentOnly)
+                _ = root.Attribute("data-ui-scroll-content");
+
             _ = root.Raw(context.Content);
         });
 
         RenderMetadata(body, context);
+        RenderStrings(body, context);
+        RenderHydration(body, context);
 
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.JavaScript))
         {
@@ -158,6 +124,52 @@ public static class WebShellRenderer
         });
     }
 
+    private static void RenderStrings(IHtmlElementBuilder body, WebShellContext context)
+    {
+        if (context.Strings is null || context.Strings.Count == 0)
+            return;
+
+        _ = body.Element("script", script =>
+        {
+            _ = script.Attribute("type", "application/json");
+            _ = script.Attribute("data-ui-strings");
+            _ = script.Raw(JsonSerializer.Serialize(context.Strings, MetadataJsonOptions));
+        });
+    }
+
+    /// <summary>
+    /// Before the scripts, so the runtime finds it as soon as it starts — and after the content, so what it
+    /// patches is already in the document.
+    /// </summary>
+    private static void RenderHydration(IHtmlElementBuilder body, WebShellContext context)
+    {
+        if (string.IsNullOrWhiteSpace(context.HydrationJson))
+            return;
+
+        _ = body.Element("script", script =>
+        {
+            _ = script.Attribute("type", "application/json");
+            _ = script.Attribute("data-ui-hydration");
+            _ = script.Raw(context.HydrationJson);
+        });
+    }
+
+    /// <summary>
+    /// A wire object carrying only the fields that have something in them; used for the framework's own shapes, never an author's items.
+    /// </summary>
+    private static Dictionary<string, object?> Written(params ReadOnlySpan<(string Name, object? Value)> fields)
+    {
+        Dictionary<string, object?> written = new(fields.Length, StringComparer.Ordinal);
+
+        foreach ((var name, var value) in fields)
+        {
+            if (value is not null)
+                written[name] = value;
+        }
+
+        return written;
+    }
+
     public static string SerializeMetadata(WebRenderMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(metadata);
@@ -171,51 +183,54 @@ public static class WebShellRenderer
                 propertyId = property.PropertyId,
                 componentTypeKey = property.ComponentTypeKey,
                 propertyName = property.PropertyName,
-                operations = property.Operations.Select(static operation => new
-                {
-                    kind = operation.Kind.ToString(),
-                    target = operation.Target,
-                    name = operation.Name,
-                    converter = operation.Converter,
-                    condition = operation.Condition?.ToString()
-                })
+                operations = property.Operations.Select(static operation => Written(
+                    ("kind", operation.Kind),
+                    ("target", operation.Target),
+                    ("name", operation.Name),
+                    ("converter", operation.Converter),
+                    ("condition", operation.Condition?.ToString()),
+                    ("value", operation.Value),
+                    ("optional", operation.Optional ? true : null)
+                ))
             }),
-            bindings = metadata.Bindings.Select(static binding => new
-            {
-                bindingId = binding.BindingId.Value,
-                kind = binding.Kind.ToString(),
-                mode = binding.Mode.ToString(),
-                componentId = binding.ComponentId.Value,
-                propertyId = binding.PropertyId,
-                dynamicParameterComponentIds = binding.DynamicParameterComponentIds.Select(static id => id.Value),
-                itemTemplate = binding.ItemTemplate,
-                itemTemplateParameters = binding.ItemTemplateParameters?.Select(static parameter => new
-                {
-                    kind = parameter.Kind.ToString(),
-                    componentId = parameter.ComponentId?.Value,
-                    value = parameter.Value
-                })
-            }),
-            items = metadata.ItemsTemplates.Select(static itemsTemplate => new
-            {
-                componentId = itemsTemplate.ComponentId.Value,
-                templateKeyPropertyName = itemsTemplate.TemplateKeyPropertyName,
-                fallbackTemplateKeyPropertyName = itemsTemplate.FallbackTemplateKeyPropertyName,
-                itemWrapperElementName = itemsTemplate.ItemWrapperElementName,
-                itemWrapperClassName = itemsTemplate.ItemWrapperClassName,
-                composite = itemsTemplate.Composite is null ? null : new
-                {
-                    itemElementName = itemsTemplate.Composite.ItemElementName,
-                    itemClassName = itemsTemplate.Composite.ItemClassName,
-                    hostSlotVariantKey = itemsTemplate.Composite.HostSlotVariantKey,
-                    slots = itemsTemplate.Composite.Slots.Select(static slot => new
-                    {
-                        variantKey = slot.VariantKey,
-                        wrapperElementName = slot.WrapperElementName,
-                        wrapperClassName = slot.WrapperClassName
-                    })
-                }
-            }),
+            // No `kind`: nothing on the client reads it. `mode` only when it is not the default.
+            bindings = metadata.Bindings.Select(static binding => Written(
+                ("bindingId", binding.BindingId.Value),
+                ("componentId", binding.ComponentId.Value),
+                ("propertyId", binding.PropertyId),
+                ("mode", binding.Mode == UIBindingMode.OneWay ? null : binding.Mode.ToString()),
+                ("dynamicParameterComponentIds", binding.DynamicParameterComponentIds.Count == 0
+                    ? null
+                    : binding.DynamicParameterComponentIds.Select(static id => id.Value)),
+                ("itemTemplate", binding.ItemTemplate),
+                ("itemTemplateParameters", binding.ItemTemplateParameters?.Select(static parameter => Written(
+                    ("kind", parameter.Kind.ToString()),
+                    ("componentId", parameter.ComponentId?.Value),
+                    ("value", parameter.Value)
+                ))),
+                ("fallbackValue", binding.FallbackValue)
+            )),
+            items = metadata.ItemsTemplates.Select(static itemsTemplate => Written(
+                ("componentId", itemsTemplate.ComponentId.Value),
+                ("templateKeyPropertyName", itemsTemplate.TemplateKeyPropertyName),
+                ("fallbackTemplateKey", itemsTemplate.FallbackTemplateKey),
+                ("itemWrapperElementName", itemsTemplate.ItemWrapperElementName),
+                ("itemWrapperClassName", itemsTemplate.ItemWrapperClassName),
+                ("rowDecorator", itemsTemplate.RowDecorator),
+                ("composite", itemsTemplate.Composite is null ? null : Written(
+                    ("itemElementName", itemsTemplate.Composite.ItemElementName),
+                    ("itemClassName", itemsTemplate.Composite.ItemClassName),
+                    ("itemRole", itemsTemplate.Composite.ItemRole),
+                    ("hostSlotVariantKey", itemsTemplate.Composite.HostSlotVariantKey),
+                    ("slots", itemsTemplate.Composite.Slots.Select(static slot => Written(
+                        ("variantKey", slot.VariantKey),
+                        ("wrapperElementName", slot.WrapperElementName),
+                        ("wrapperClassName", slot.WrapperClassName),
+                        ("wrapperRole", slot.WrapperRole),
+                        ("variantKeyPropertyName", slot.VariantKeyPropertyName)
+                    )))
+                ))
+            )),
             events = metadata.Events.Select(static compiledEvent => new
             {
                 eventId = compiledEvent.EventId.Value,

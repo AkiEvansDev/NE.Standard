@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 public interface IOptionModel : ITextModel, IBindableGroup
 {
     /// <summary>
-    /// Gets whether the option is selected.
+    /// Gets whether this option's key is currently among the chosen ones.
     /// </summary>
     bool? Selected { get; }
 }

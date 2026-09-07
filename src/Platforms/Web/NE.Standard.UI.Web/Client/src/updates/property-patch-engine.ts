@@ -1,7 +1,9 @@
 import { AddressResolver } from "../addressing/address-resolver";
+import { ValueBindingAttribute } from "../addressing/dom-attributes";
+import { clearElementValue } from "../extensions/value-readers";
 import { ExtensionRegistry } from "../extensions/extension-registry";
-import { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
-import { logWarn } from "../runtime/logger";
+import { WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
+import { logDebug, logWarn } from "../runtime/logger";
 import { PropertyStateStore } from "../state/property-state-store";
 import { DomOperationRegistry } from "./dom-operation-registry";
 
@@ -11,7 +13,7 @@ export type PropertyValueChange = {
     readonly dynamicParameters: readonly unknown[];
     readonly value: unknown;
     readonly local: boolean;
-    /** The elements the patch landed on — empty when the component only exists inside an item template. */
+    /** The elements the patch landed on; empty when the component only exists inside an item template. */
     readonly components: readonly Element[];
 };
 
@@ -38,43 +40,47 @@ export class PropertyPatchEngine {
         const resolvedAddresses = this.addressResolver.resolveProperties(reference, dynamicParameters);
 
         if (resolvedAddresses.length === 0) {
-            // A component that exists only inside an item template has no element until an item is cloned, and
-            // the value below is exactly what that clone reads — so this is the designed path, not a failure.
-            // Only a component that *is* on the page but whose instance did not match is worth reporting.
+            // Only worth reporting for a component that is on the page: one inside an item template has no element yet. And an
+            // item-scoped patch names every template variant that reads the property, while the row is drawn by one of them —
+            // the variants that do not draw this row have nothing to patch, which is not a fault.
             if (this.addressResolver.hasRenderedComponent(reference)) {
-                logWarn("property address could not be resolved.", {
-                    reference,
-                    dynamicParameters,
-                    value,
-                    local
-                });
+                const details = { reference, dynamicParameters, value, local };
+
+                if (dynamicParameters.length > 0 && typeof (reference as WebRenderBindingMetadata).itemTemplate === "string")
+                    logDebug("item-scoped property address names a template variant that does not draw this row.", details);
+                else
+                    logWarn("property address could not be resolved.", details);
             }
         }
         else {
-            // Converted once per operation rather than once per address: every resolved instance of the
-            // same component shares one property definition, so the result is identical for all of them.
+            // Converted once per operation, not per address: every instance shares one property definition.
             for (const operation of resolvedAddresses[0].definition.operations) {
                 const convertedValue = this.extensions.converters.convert(operation.converter, value);
 
                 for (const resolved of resolvedAddresses) {
-                    const target = this.addressResolver.resolveOperationTarget(resolved, operation);
+                    const targets = this.addressResolver.resolveOperationTargets(resolved, operation);
 
-                    if (target === null) {
-                        logWarn("property operation target was not found.", {
-                            reference,
-                            operation
-                        });
+                    if (targets.length === 0) {
+                        if (operation.optional !== true) {
+                            logWarn("property operation target was not found.", {
+                                reference,
+                                operation
+                            });
+                        }
+
                         continue;
                     }
 
-                    this.operations.apply({
-                        resolved,
-                        operation,
-                        target,
-                        value,
-                        convertedValue,
-                        local
-                    });
+                    for (const target of targets) {
+                        this.operations.apply({
+                            resolved,
+                            operation,
+                            target,
+                            value,
+                            convertedValue,
+                            local
+                        });
+                    }
                 }
             }
         }
@@ -90,6 +96,24 @@ export class PropertyPatchEngine {
             local,
             components: resolvedAddresses.map(resolved => resolved.component)
         });
+    }
+
+    /**
+     * Puts an element's bound value back to what the server last pushed — the way home for a draft the reader let go of; a
+     * value the server never pushed is cleared instead, since what the element shows was the reader's alone.
+     */
+    public restoreBoundValue(element: Element, dynamicParameters: readonly unknown[]): void {
+        const binding = this.addressResolver.getBindingById(Number(element.getAttribute(ValueBindingAttribute)));
+
+        if (binding === undefined)
+            return;
+
+        const reference: WebRenderPropertyReferenceMetadata = { componentId: binding.componentId, propertyId: binding.propertyId };
+
+        if (this.state.has(reference, dynamicParameters))
+            this.applyPropertyValue(reference, dynamicParameters, this.state.get(reference, dynamicParameters), false);
+        else
+            clearElementValue(element);
     }
 
     private notifyValueChanged(change: PropertyValueChange): void {

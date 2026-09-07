@@ -1,8 +1,12 @@
 using System;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using NE.Standard.UI.Application;
+using Microsoft.Extensions.Options;
+using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Startup;
@@ -22,9 +26,9 @@ public abstract class WebStartupBase<TStartup>
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        _ = services.AddOptions<WebAssetOptions>();
         _ = services.AddOptions<WebViewRenderCacheOptions>();
         _ = services.AddOptions<WebEndpointOptions>();
+        _ = services.AddOptions<WebResponseCompressionOptions>();
 
         ConfigureServices(services);
         ConfigureDefaults(services);
@@ -38,6 +42,17 @@ public abstract class WebStartupBase<TStartup>
     private static void ConfigureDefaults(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        // Registered whether or not it is switched on: an unused registration costs nothing.
+        _ = services.AddResponseCompression();
+        _ = services.AddOptions<BrotliCompressionProviderOptions>()
+            .Configure<IOptions<WebResponseCompressionOptions>>(static (options, ui) => options.Level = ui.Value.Level);
+        _ = services.AddOptions<GzipCompressionProviderOptions>()
+            .Configure<IOptions<WebResponseCompressionOptions>>(static (options, ui) => options.Level = ui.Value.Level);
+        _ = services.AddOptions<ResponseCompressionOptions>()
+            .Configure<IOptions<WebResponseCompressionOptions>>(
+                static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
+            );
 
         _ = services.AddSignalR().AddJsonProtocol(options =>
         {
@@ -54,9 +69,7 @@ public abstract class WebStartupBase<TStartup>
 
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
         services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();
-        services.TryAddSingleton<IUIDownloadService, StandardWebDownloadService>();
-        services.TryAddSingleton<IUIUploadService, StandardWebUploadService>();
-
-        services.TryAddSingleton<IUIDefaultErrorPagesProvider, WebUIDefaultErrorPagesProvider>();
+        services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
+        services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
     }
 }

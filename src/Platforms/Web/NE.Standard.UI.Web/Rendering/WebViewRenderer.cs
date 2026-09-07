@@ -26,7 +26,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         _translator = application.Translator;
     }
 
-    public WebRenderResult Render(UIViewResolution resolution)
+    public WebRenderResult Render(UIViewResolution resolution, IWebRenderValues? values = null)
     {
         ArgumentNullException.ThrowIfNull(resolution);
 
@@ -35,8 +35,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         HtmlContentBuilder html = new();
         WebRenderMetadata metadata = new();
 
-        RenderRegions(resolution, html, metadata);
-        RenderDialogs(resolution, html, metadata);
+        RenderRegions(resolution, html, metadata, values);
+        RenderDialogs(resolution, html, metadata, values);
 
         WebRenderResult result = new()
         {
@@ -49,7 +49,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         return result;
     }
 
-    private void RenderRegions(UIViewResolution viewResolution, HtmlContentBuilder html, WebRenderMetadata metadata)
+    private void RenderRegions(UIViewResolution viewResolution, HtmlContentBuilder html, WebRenderMetadata metadata, IWebRenderValues? values)
     {
         ArgumentNullException.ThrowIfNull(viewResolution);
         ArgumentNullException.ThrowIfNull(html);
@@ -65,8 +65,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             {
                 _ = section.Attribute("data-ui-region", region.Key);
 
-                // On the region rather than on the root: sticking is a property of this band of the page, and
-                // the shell has no idea which regions the view even declared.
+                // On the region rather than on the root: sticking is a property of this band of the page.
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
                     _ = section.Attribute("data-ui-sticky");
 
@@ -80,7 +79,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     Html = section,
                     Renderer = this,
                     Metadata = metadata,
-                    Translator = _translator
+                    Translator = _translator,
+                    Values = values
                 };
 
                 context.Validate();
@@ -93,12 +93,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     }
 
     /// <summary>
-    /// Renders every declared dialog into the shell up front, closed. A dialog's content is ordinary
-    /// compiled components, so its bindings, events and live updates travel the same channels the rest of
-    /// the view does — opening it is purely a client-side visibility flip (see <c>DialogEngine</c>), not a
-    /// render. That is what lets a bound value inside a dialog already be correct the moment it opens.
+    /// Renders every declared dialog into the shell up front, closed; opening it is purely a client-side visibility flip.
     /// </summary>
-    private void RenderDialogs(UIViewResolution viewResolution, HtmlContentBuilder html, WebRenderMetadata metadata)
+    private void RenderDialogs(UIViewResolution viewResolution, HtmlContentBuilder html, WebRenderMetadata metadata, IWebRenderValues? values)
     {
         ArgumentNullException.ThrowIfNull(viewResolution);
         ArgumentNullException.ThrowIfNull(html);
@@ -114,21 +111,25 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             {
                 _ = layer
                     .Class("ui-dialog")
-                    .Attribute("data-ui-dialog", dialog.Key)
+                    .Attribute(WebAttributes.Dialog, dialog.Key)
                     .Attribute("hidden");
 
                 if (dialog.Modal)
-                    _ = layer.Attribute("data-ui-dialog-modal");
+                    _ = layer.Attribute(WebAttributes.DialogModal);
 
                 if (dialog.CloseOnBackdrop)
-                    _ = layer.Attribute("data-ui-dialog-close-backdrop");
+                    _ = layer.Attribute(WebAttributes.DialogCloseBackdrop);
 
                 if (dialog.CloseOnEscape)
-                    _ = layer.Attribute("data-ui-dialog-close-escape");
+                    _ = layer.Attribute(WebAttributes.DialogCloseEscape);
+
+                // Render-time only, like the surface: the stylesheet lays the panel against the edge named.
+                if (dialog.Placement != UIDialogPlacement.Center)
+                    _ = layer.Attribute("data-ui-dialog-placement", dialog.Placement.ToString().ToLowerInvariant());
 
                 _ = layer.Element("div", backdrop => _ = backdrop
                     .Class("ui-dialog__backdrop")
-                    .Attribute("data-ui-dialog-backdrop")
+                    .Attribute(WebAttributes.DialogBackdrop)
                 );
 
                 _ = layer.Element("div", surface =>
@@ -138,13 +139,11 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         .Attribute("role", "dialog")
                         .Attribute("tabindex", "-1");
 
-                    // Render-time only: what a dialog is made of is decided when it is declared, and a live
-                    // patch has nothing to address — a dialog is not a component.
-                    if (dialog.Surface != UIDialogSurface.Card)
+                    // Render-time only: a dialog is not a component, so a live patch has nothing to address.
+                    if (dialog.Surface != UISurfaceStyle.Raised)
                         _ = surface.Attribute("data-ui-dialog-surface", dialog.Surface.ToString().ToLowerInvariant());
 
-                    // aria-modal only when the dialog genuinely traps interaction — announcing it on a
-                    // non-modal dialog tells a screen reader the rest of the page is inert when it is not.
+                    // aria-modal only when the dialog truly traps interaction, or a reader is told the page is inert when it's not.
                     if (dialog.Modal)
                         _ = surface.Attribute("aria-modal", "true");
 
@@ -158,7 +157,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         Html = surface,
                         Renderer = this,
                         Metadata = metadata,
-                        Translator = _translator
+                        Translator = _translator,
+                        Values = values
                     };
 
                     context.Validate();

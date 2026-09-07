@@ -103,6 +103,33 @@ internal static class UIComponentPropertyDiagnostics
         isEnabledByDefault: true
     );
 
+    public static readonly DiagnosticDescriptor BlockContractNotAnInterface = new(
+        id: "NEUI013",
+        title: "Property block contract must be an interface",
+        messageFormat: "Property block contract '{0}' on '{1}' must be an interface carrying [UIComponentProperty] members",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor BlockContractHasNoProperties = new(
+        id: "NEUI014",
+        title: "Property block contract declares no properties",
+        messageFormat: "Property block contract '{0}' on '{1}' declares no [UIComponentProperty] members",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor BlockPropertyTypeMismatch = new(
+        id: "NEUI015",
+        title: "Manual property does not match the block it overrides",
+        messageFormat: "Property '{0}' on '{1}' is typed '{2}' but the '{3}' block declares it as '{4}'",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
     public static readonly DiagnosticDescriptor PropertyCannotBeIndexer = new(
         id: "NEUI012",
         title: "Component property cannot be indexer",

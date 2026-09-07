@@ -8,10 +8,7 @@ namespace NE.Standard.UI.Shell.Sessions;
 /// Stores user sessions between requests.
 /// </summary>
 /// <remarks>
-/// Platform-neutral on purpose: how a client carries its session id is the platform's business (a cookie on
-/// the web), while what a session <em>is</em> and how long it lives is not. The shipped implementation keeps
-/// sessions in memory, which is correct for a single process and wrong the moment there are two — swap it for
-/// a shared store then.
+/// The shipped implementation keeps sessions in memory, which is wrong once there is more than one process.
 /// </remarks>
 public interface IUserSessionStore
 {

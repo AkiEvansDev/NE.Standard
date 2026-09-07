@@ -4,7 +4,7 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
-/// Represents a text component with description, alignment, wrapping, and selection options.
+/// A component carrying text content — a title and a description, each on one line.
 /// </summary>
 public interface ITextComponent : ITextBaseComponent, ITextModel
 {
@@ -27,19 +27,4 @@ public interface ITextComponent : ITextBaseComponent, ITextModel
     /// Gets the registered property key for <see cref="ITextModel.TextAlignment"/>.
     /// </summary>
     static UIProperty TextAlignmentProperty { get; } = new(nameof(TextAlignment));
-
-    /// <summary>
-    /// Gets the registered property key for <see cref="ITextModel.WrapMode"/>.
-    /// </summary>
-    static UIProperty WrapModeProperty { get; } = new(nameof(WrapMode));
-
-    /// <summary>
-    /// Gets the registered property key for <see cref="ITextModel.MaxLines"/>.
-    /// </summary>
-    static UIProperty MaxLinesProperty { get; } = new(nameof(MaxLines));
-
-    /// <summary>
-    /// Gets the registered property key for <see cref="ITextModel.Selectable"/>.
-    /// </summary>
-    static UIProperty SelectableProperty { get; } = new(nameof(Selectable));
 }

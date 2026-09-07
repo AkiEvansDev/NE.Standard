@@ -1,6 +1,9 @@
-import { GroupAttribute, GroupHeaderAttribute, WindowedAttribute } from "../addressing/dom-attributes";
-import { getActiveSorts, sortElements } from "./items-filter-sort";
-import { findEmptyPlaceholder, getRealItemElements, HiddenClass } from "./items-empty-renderer";
+import { GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
+import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort";
+import { HiddenClass, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
+import { resolveHostMode } from "./items-host-mode";
+import { placeInOrder } from "./items-dom-order";
+import { getSourceOrder } from "./items-source-order";
 import { ItemsTemplateRenderer } from "./items-template-renderer";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 import { MetadataIndex } from "../metadata/metadata-index";
@@ -8,35 +11,45 @@ import { PropertyStateStore } from "../state/property-state-store";
 
 const bucketOrderByHost = new WeakMap<Element, string[]>();
 
+function removeGroupHeaders(host: Element): void {
+    for (const header of host.querySelectorAll(`[${GroupHeaderAttribute}]`))
+        header.remove();
+}
+
 export function regroupHost(host: Element, componentId: number, templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, metadata: MetadataIndex, state: PropertyStateStore): void {
-    const items = getRealItemElements(host);
+    // A windowed host neither groups nor sorts here: its boundaries live outside the window, and the spacers must stay.
+    const windowed = resolveHostMode(host) === "windowed";
+    // Source order, not the children's: a sort that has just come off has to find the order it displaced.
+    const present = getRealItemElements(host);
+    const items = windowed ? present : getSourceOrder(host, present);
     const groupTemplate = templates.getGroupTemplate(componentId);
-    const isGrouped = !host.hasAttribute(WindowedAttribute) && groupTemplate !== undefined && items.some(item => item.hasAttribute(GroupAttribute));
+    // Whether this host draws headers at all, apart from whether it has any right now: only ours are ours to remove.
+    const canGroup = !windowed && groupTemplate !== undefined;
+    const isGrouped = canGroup && items.some(item => item.hasAttribute(GroupAttribute));
+    const filterSortConfig = windowed ? undefined : metadata.getItemsFilterSortMetadata(componentId);
+    const activeSorts = windowed ? [] : getActiveSorts(filterSortConfig, state, readItemsQuery(host));
 
-    // Nothing to reorder on a windowed host: the source ordered every item there is, and replaceChildren
-    // below would take its spacers with it. syncItemsHost stops before here, and this is the second lock.
-    const filterSortConfig = host.hasAttribute(WindowedAttribute) ? undefined : metadata.getItemsFilterSortMetadata(componentId);
-    const activeSorts = filterSortConfig === undefined ? [] : getActiveSorts(filterSortConfig, state);
-
-    if (!isGrouped && activeSorts.length === 0)
-        return;
+    // A header the last pass drew is stale the moment the list stops carrying groups, emptying included.
+    if (canGroup && !isGrouped)
+        removeGroupHeaders(host);
 
     if (items.length === 0) {
         bucketOrderByHost.set(host, []);
         return;
     }
 
-    // replaceChildren rewrites the host wholesale, so the empty-state placeholder the sync just decided to
-    // show has to be carried across or a fully-filtered host ends up blank again.
+    if (windowed && !isGrouped && activeSorts.length === 0)
+        return;
+
+    // replaceChildren rewrites the host wholesale, so the empty-state placeholder has to be carried across.
     const placeholder = findEmptyPlaceholder(host);
 
     if (!isGrouped) {
-        replaceHostChildren(host, [...sortElements(items, activeSorts, renderer), ...toNodes(placeholder)]);
+        placeInOrder(host, [...sortElements(items, activeSorts, renderer), ...toNodes(placeholder)]);
         return;
     }
 
-    for (const header of host.querySelectorAll(`[${GroupHeaderAttribute}]`))
-        header.remove();
+    removeGroupHeaders(host);
 
     const buckets = new Map<string, Element[]>();
 
@@ -73,7 +86,8 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         if (activeSorts.length > 0)
             bucketItems = sortElements(bucketItems, activeSorts, renderer);
 
-        if (bucketItems.some(item => !item.classList.contains(HiddenClass))) {
+        // The items without a group are a bucket with no header, as on the server.
+        if (key !== "" && bucketItems.some(item => !item.classList.contains(HiddenClass))) {
             const header = createHeader(groupTemplate!, renderer, bucketItems[0]);
 
             if (header !== null)
@@ -83,25 +97,7 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         orderedNodes.push(...bucketItems);
     }
 
-    replaceHostChildren(host, [...orderedNodes, ...toNodes(placeholder)]);
-}
-
-/**
- * Only when the order actually differs. Re-inserting a node that is already in place still detaches it, which
- * blurs whatever was focused inside it and wakes every observer watching the host — so a sort that changes
- * nothing has to change nothing.
- */
-function replaceHostChildren(host: Element, nodes: readonly Element[]): void {
-    const current = host.children;
-
-    if (current.length === nodes.length && nodes.every((node, index) => current[index] === node))
-        return;
-
-    host.replaceChildren(...nodes);
-}
-
-function toNodes(element: Element | null): Element[] {
-    return element === null ? [] : [element];
+    placeInOrder(host, [...orderedNodes, ...toNodes(placeholder)]);
 }
 
 function createHeader(template: HTMLTemplateElement, renderer: ItemsTemplateRenderer, anchor: Element): Element | null {

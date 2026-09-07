@@ -2,9 +2,7 @@
 @import "../mixins/responsive.less";
 
 .ui-command-bar {
-
-    // Items live in an inner __host, not in the root: the client resolves an items host with
-    // querySelector, which searches descendants only, so a bound Items would never populate without it.
+    // Items live in an inner __host, not the root: the client resolves an items host via descendant querySelector.
     .ui-responsive-reset(--ui-command-bar-spacing);
 
     display: flex;
@@ -24,4 +22,43 @@
 
 .ui-command-bar--wrap .ui-command-bar__host {
     flex-wrap: wrap;
+}
+
+// The group header is the separator itself, so the bar's own orientation decides the line; the first group's header separates nothing.
+.ui-command-bar__host > [data-ui-group-header] {
+    display: none;
+    flex: 0 0 auto;
+    align-self: stretch;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+}
+
+    .ui-command-bar__host > [data-ui-group-header] > * {
+        display: none;
+    }
+
+.ui-command-bar--separator-gap .ui-command-bar__host > [data-ui-group-header]:not(:first-child),
+.ui-command-bar--separator-rule .ui-command-bar__host > [data-ui-group-header]:not(:first-child) {
+    display: block;
+}
+
+.ui-command-bar--separator-gap .ui-command-bar__host > [data-ui-group-header] {
+    .ui-responsive-property(width, --ui-width, @ui-space-3);
+}
+
+.ui-command-bar--separator-rule .ui-command-bar__host > [data-ui-group-header] {
+    .ui-responsive-property(width, --ui-width, 1px);
+    .ui-responsive-property(margin, --ui-margin, 0 @ui-space-1);
+    background: var(--ui-color-border);
+}
+
+.ui-command-bar--separator-gap.ui-orientation--vertical .ui-command-bar__host > [data-ui-group-header] {
+    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(height, --ui-height, @ui-space-3);
+}
+
+.ui-command-bar--separator-rule.ui-orientation--vertical .ui-command-bar__host > [data-ui-group-header] {
+    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(height, --ui-height, 1px);
+    .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
 }

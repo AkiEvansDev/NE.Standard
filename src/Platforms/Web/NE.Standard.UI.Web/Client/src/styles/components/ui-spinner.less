@@ -1,7 +1,7 @@
 @import "../core/tokens.less";
+@import "../mixins/loading-ring.less";
 
 .ui-spinner {
-
     display: inline-flex;
     align-items: center;
     gap: @ui-space-2;
@@ -10,12 +10,7 @@
 .ui-spinner__ring {
     display: inline-block;
     flex: 0 0 auto;
-    width: 1em;
-    height: 1em;
-    border: 0.14em solid color-mix(in srgb, currentColor 28%, transparent);
-    border-top-color: currentColor;
-    border-radius: 999px;
-    animation: ui-spin 800ms linear infinite;
+    .ui-loading-ring();
 }
 
 .ui-spinner__label {
@@ -25,14 +20,4 @@
 
 .ui-spinner[data-ui-spinner-label] > .ui-spinner__label {
     display: block;
-}
-
-@keyframes ui-spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
 }

@@ -21,7 +21,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     {
         IncrementalValuesProvider<RecursiveMemberModel?> members = context.SyntaxProvider.ForAttributeWithMetadataName(
             RecursiveMemberNames.AttributeMetadataName,
-            predicate: static (node, _) => node is PropertyDeclarationSyntax,
+            predicate: static (node, _) => node is PropertyDeclarationSyntax or IndexerDeclarationSyntax,
             transform: static (ctx, ct) => CreateMemberModel(ctx, ct));
 
         IncrementalValueProvider<(Compilation Compilation, ImmutableArray<RecursiveMemberModel> Members)> source =
@@ -38,7 +38,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (context.TargetNode is not PropertyDeclarationSyntax propertySyntax)
+        if (context.TargetNode is not BasePropertyDeclarationSyntax propertySyntax)
             return null;
 
         if (context.TargetSymbol is not IPropertySymbol propertySymbol)
@@ -270,9 +270,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         if (HasPrimaryConstructor(type))
             return;
 
-        // public even on an internal type: the constructor is unreachable outside the assembly either way,
-        // and ActivatorUtilities (which builds every controller) only ever looks at public constructors —
-        // an internal one made DI fail at runtime with "a suitable constructor could not be located".
+        // Public even on an internal type: ActivatorUtilities only looks at public constructors, so an internal one fails DI at runtime.
         var accessibility = type.IsAbstract ? "protected" : "public";
 
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
@@ -311,7 +309,6 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
 
         return false;
     }
-
 
     private static void GenerateSegmentField(StringBuilder builder, RecursiveMemberModel model, ref bool hasContent)
     {
@@ -442,16 +439,11 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Whether a member's declared type can hold a <c>RecursiveObservable</c> at runtime, and therefore
-    /// needs the generated <c>is RecursiveObservable</c> descent for nested path get/set and notifier
-    /// propagation. An <b>interface-typed</b> member is the case this exists for (e.g.
-    /// <c>KeyValueActionItem.Value</c>, declared as <c>ITextModel</c> but always holding a
-    /// <c>TextItem</c>): the declared type does not inherit <c>RecursiveObservable</c>, so without this a
-    /// nested path like <c>Value.Title</c> silently fails to resolve — and since the change notification
-    /// itself still fires with that path, the runtime answers a real change by pushing <see langword="null"/>
-    /// to the client. Deliberately not "any reference type": emitting the pattern against an unrelated
-    /// class makes the generated code fail to compile (CS8121).
+    /// Whether a declared type can hold a <c>RecursiveObservable</c> at runtime and needs generated descent for nested path get/set.
     /// </summary>
+    /// <remarks>
+    /// Not "any reference type": emitting the pattern against an unrelated class fails to compile (CS8121).
+    /// </remarks>
     private static bool CanHoldRecursiveObservable(ITypeSymbol type, INamedTypeSymbol recursiveObservableType)
         => type.InheritsFromOrEquals(recursiveObservableType) ||
            type.TypeKind == TypeKind.Interface ||

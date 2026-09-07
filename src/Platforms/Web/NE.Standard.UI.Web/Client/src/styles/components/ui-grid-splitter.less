@@ -1,0 +1,72 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+@import "../mixins/interactive.less";
+
+// A bar the viewer drags between two runs of tracks (grid-splitter-engine.ts moves them): the border between two panes
+// at rest, drawn like a separator, which thickens and lightens under the pointer, while it is held, and when it has the
+// keyboard — a border that brightens, not a control that lights up.
+.ui-grid-splitter {
+    position: relative;
+    display: block;
+    .ui-interactive-base();
+    touch-action: none;
+    outline: none;
+}
+
+// The line is drawn in currentColor, so a Color property recolours it the way a separator's does.
+:where(.ui-grid-splitter) {
+    color: var(--ui-color-border);
+}
+
+    .ui-grid-splitter::before {
+        content: "";
+        position: absolute;
+        background: currentColor;
+        border-radius: 999px;
+        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease, height @ui-motion-fast @ui-motion-ease;
+    }
+
+// The hit area is the track it sizes: wide enough to catch, and the line sits in the middle of it.
+.ui-grid-splitter.ui-orientation--vertical {
+    cursor: col-resize;
+    .ui-responsive-property(width, --ui-width, 0.5rem);
+}
+
+    .ui-grid-splitter.ui-orientation--vertical::before {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        transform: translateX(-50%);
+    }
+
+.ui-grid-splitter.ui-orientation--horizontal {
+    cursor: row-resize;
+    .ui-responsive-property(height, --ui-height, 0.5rem);
+}
+
+    .ui-grid-splitter.ui-orientation--horizontal::before {
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 1px;
+        transform: translateY(-50%);
+    }
+
+.ui-grid-splitter:hover::before,
+.ui-grid-splitter:focus-visible::before,
+.ui-grid-splitter[data-ui-splitting]::before {
+    background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+}
+
+.ui-grid-splitter.ui-orientation--vertical:hover::before,
+.ui-grid-splitter.ui-orientation--vertical:focus-visible::before,
+.ui-grid-splitter.ui-orientation--vertical[data-ui-splitting]::before {
+    width: 3px;
+}
+
+.ui-grid-splitter.ui-orientation--horizontal:hover::before,
+.ui-grid-splitter.ui-orientation--horizontal:focus-visible::before,
+.ui-grid-splitter.ui-orientation--horizontal[data-ui-splitting]::before {
+    height: 3px;
+}

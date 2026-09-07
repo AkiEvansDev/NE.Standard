@@ -20,7 +20,6 @@ public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
         Type updateType = kind switch
         {
             ServerUIUpdateKind.Value => typeof(ServerValueUIUpdate),
-            ServerUIUpdateKind.ContextRebuild => typeof(ServerContextRebuildUIUpdate),
             ServerUIUpdateKind.CollectionChange => typeof(ServerCollectionChangeUIUpdate),
             ServerUIUpdateKind.FullResync => typeof(ServerFullResyncUIUpdate),
             ServerUIUpdateKind.Validation => typeof(ServerValidationUIUpdate),

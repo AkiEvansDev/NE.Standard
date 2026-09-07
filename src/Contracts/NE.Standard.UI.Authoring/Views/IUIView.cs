@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Authoring.Views;
 public interface IUIView
 {
     /// <summary>
-    /// Gets the view title.
+    /// Gets the view's title; <c>UIViewBase</c> defaults it to the type name unless overridden.
     /// </summary>
     string Title { get; }
 

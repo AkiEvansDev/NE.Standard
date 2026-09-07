@@ -1,17 +1,18 @@
 @import "../mixins/responsive.less";
+@import "../mixins/surface-image.less";
 
 .ui-stack-panel {
-
     .ui-responsive-reset(--ui-stack-panel-spacing);
 
     display: flex;
     .ui-responsive-property(gap, --ui-stack-panel-spacing, 0);
-    // border-style/-width/-color are declared so BorderThickness has something to draw with:
-    // BorderStyleRenderer writes width, colour and radius but never the style, and the initial style is
-    // `none`. Same three lines as .ui-container.
+    // Declared so BorderThickness has something to draw with: BorderStyleRenderer never writes border-style itself.
     border-style: solid;
     border-width: 0;
     border-color: transparent;
+    // Read here, or Background on a panel wrote a custom property nothing painted.
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
 }
 
 .ui-stack-panel > [data-ui-id] {
@@ -30,10 +31,12 @@
     flex-wrap: wrap;
 }
 
+// The row rule uses :where() so a control's own align-self default wins; the column rule does not, so HorizontalAlignment takes effect.
 :where(.ui-stack-panel.ui-orientation--horizontal) > [data-ui-id] {
     align-self: var(--ui-align-v, normal);
 }
 
-:where(.ui-stack-panel.ui-orientation--vertical) > [data-ui-id] {
+// A stack packs rather than distributes, so HorizontalAlignment has nothing to align against; flex-grow would override an authored Width.
+.ui-stack-panel.ui-orientation--vertical > [data-ui-id] {
     align-self: var(--ui-align-h, normal);
 }

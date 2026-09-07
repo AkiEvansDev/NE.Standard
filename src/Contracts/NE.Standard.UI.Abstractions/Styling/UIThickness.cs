@@ -37,6 +37,15 @@ public readonly record struct UIThickness(double Left, double Top, double Right,
         ArgumentOutOfRangeException.ThrowIfNegative(Bottom);
     }
 
+    /// <summary>The four sides — top, right, bottom, left — collapsed where they repeat.</summary>
     public override string ToString()
-        => string.Create(CultureInfo.InvariantCulture, $"UIThickness({Left}, {Top}, {Right}, {Bottom})");
+    {
+        if (Left == Top && Top == Right && Right == Bottom)
+            return Top.ToString(CultureInfo.InvariantCulture);
+
+        if (Left == Right && Top == Bottom)
+            return string.Create(CultureInfo.InvariantCulture, $"{Top} {Right}");
+
+        return string.Create(CultureInfo.InvariantCulture, $"{Top} {Right} {Bottom} {Left}");
+    }
 }

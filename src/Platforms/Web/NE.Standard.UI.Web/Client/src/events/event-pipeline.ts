@@ -1,4 +1,4 @@
-import { SubmitFormIdAttribute } from "../addressing/dom-attributes";
+import { EventBoundaryAttribute, eventSuppressAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { EffectRegistry } from "../effects/effect-registry";
@@ -7,7 +7,7 @@ import { InteractionEngine } from "../interactions/interaction-engine";
 import { ValidationEngine } from "../interactions/validation-engine";
 import { MetadataIndex } from "../metadata/metadata-index";
 import { ServerChangeSet } from "../metadata/metadata-index";
-import { ValueBindingEngine, ValueSyncEventNames } from "../updates/value-binding-engine";
+import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
 import { EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
 import { EventRegistry } from "./event-registry";
 import { EventRequestFactory } from "./event-request-factory";
@@ -19,12 +19,7 @@ export type EventPipelineOptions = {
     readonly dom: DomRegistry;
     readonly dispatcher: CommandDispatcher;
 
-    /**
-     * How a command's answer reaches the page. Deliberately the host's own entry point rather than the update
-     * processor: a change set that moved a windowed or virtualized collection also has to move the spacers
-     * standing for the rows nobody sent, and calling the processor straight from here skipped that for every
-     * command a button fires.
-     */
+    /** How a command's answer reaches the page; the host's own entry point, not the update processor. */
     readonly applyChanges: (changes: ServerChangeSet | undefined) => void;
 
     /** Run once the command's effects have been applied, for whatever has to look at the DOM they moved. */
@@ -34,18 +29,20 @@ export type EventPipelineOptions = {
     readonly eventCatalog: EventCatalog;
     readonly effects: EffectRegistry;
     readonly events?: Iterable<EventRegistration>;
-    
+
     readonly validationEngine?: ValidationEngine;
-    
+
     readonly valueBinding?: ValueBindingEngine;
 };
 
 export class EventPipeline {
+    private readonly options: EventPipelineOptions;
     private readonly root: ParentNode;
     private readonly registry: EventRegistry;
     private readonly requestFactory = new EventRequestFactory();
 
-    public constructor(private readonly options: EventPipelineOptions) {
+    public constructor(options: EventPipelineOptions) {
+        this.options = options;
         this.root = options.root ?? document;
         this.registry = new EventRegistry(options.eventCatalog);
 
@@ -98,20 +95,34 @@ export class EventPipeline {
 
         const resolved = this.options.dom.resolveNearestComponent(
             domEvent.target,
-            componentId => this.shouldHandleComponent(eventName, componentId)
+            (componentId, element) => this.shouldHandleComponent(eventName, componentId, element)
         );
 
         if (resolved === null)
             return;
 
+        if (isInnerBoundaryCrossing(domEvent, resolved.element))
+            return;
+
+        // A boundary between the target and the component keeps the event on its own side: a menu's entry, a split button's
+        // end, never hands its click to the component holding them.
+        const boundary = domEvent.target.closest(`[${EventBoundaryAttribute}]`);
+
+        if (boundary !== null && boundary !== resolved.element && resolved.element.contains(boundary))
+            return;
+
         const serverEvent = this.options.metadata.getEvent(resolved.componentId, eventName);
-        const context: EventDispatchContext = {
+        const resolvedContext: EventDispatchContext = {
             domEvent,
             metadata: serverEvent,
             component: resolved.element,
             componentId: resolved.componentId,
             dynamicParameters: resolved.dynamicParameters
         };
+        // An engine that draws its own elements names the keys itself, in place of the `data-ui-key` chain above the target.
+        const context: EventDispatchContext = registration.dynamicParameters === undefined
+            ? resolvedContext
+            : { ...resolvedContext, dynamicParameters: registration.dynamicParameters(resolvedContext) ?? resolvedContext.dynamicParameters };
 
         this.applyDomPolicy(registration, context);
 
@@ -140,16 +151,14 @@ export class EventPipeline {
                 return;
             }
 
-            // After validation and before the command: an OnSubmit field holds its value back until here, and
-            // the command has to run against the form the user is looking at.
+            // After validation and before the command: an OnSubmit field holds its value back until here.
             await this.options.valueBinding?.submitFormAsync(submitFormId);
         }
 
-        if (await this.isRefusedValueEventAsync(eventName, resolved.element))
+        if (await this.isRefusedValueEventAsync(registration, resolved.element))
             return;
 
-        // Checked after the awaits above, not before them: the identical request may have been dispatched
-        // while this one was waiting on validation or on the value sync.
+        // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
         if (this.options.dispatcher.isPending(request))
             return;
 
@@ -164,8 +173,7 @@ export class EventPipeline {
 
         this.options.applyChanges(result.changes);
 
-        // After the change set: an effect that focuses or scrolls to a component needs the DOM those changes
-        // just produced.
+        // After the change set: an effect that focuses or scrolls needs the DOM those changes produced.
         this.options.effects.applyAll(result.command?.effects, this.options.dom);
         this.options.afterEffects?.();
 
@@ -177,10 +185,10 @@ export class EventPipeline {
         });
     }
 
-    // An .OnChange command must not run for a value the controller never took, so it waits for that value's
-    // own round-trip and stands down if the server answered with a validation refusal.
-    private async isRefusedValueEventAsync(eventName: string, component: Element): Promise<boolean> {
-        if (!ValueSyncEventNames.includes(eventName))
+    // An .OnChange command must not run for a value the controller never took, so it waits for that value's round-trip; a package's
+    // event says so itself with `settlesValue`.
+    private async isRefusedValueEventAsync(registration: RegisteredEvent, component: Element): Promise<boolean> {
+        if (!ValueSettleEventNames.includes(registration.name) && registration.settlesValue !== true)
             return false;
 
         await this.options.valueBinding?.whenSettled(component);
@@ -188,7 +196,11 @@ export class EventPipeline {
         return this.options.validationEngine?.isRefused(component) === true;
     }
 
-    private shouldHandleComponent(eventName: string, componentId: number): boolean {
+    private shouldHandleComponent(eventName: string, componentId: number, element: Element): boolean {
+        // Not a handler rather than a handler that does nothing, so the walk carries on outwards.
+        if (element.hasAttribute(eventSuppressAttribute(eventName)))
+            return false;
+
         return this.options.metadata.hasServerEventForComponent(eventName, componentId) ||
             this.options.interactionEngine.hasEventForComponent(eventName, componentId) ||
             this.options.interactionEngine.hasEventForComponent(`before-${eventName}`, componentId) ||
@@ -212,4 +224,14 @@ function shouldApplyPolicy(
         return false;
 
     return typeof policy === "function" ? policy(context) : policy;
+}
+
+/** Whether a captured mouseenter/mouseleave is a move between descendants rather than a crossing of the component's own edge. */
+function isInnerBoundaryCrossing(domEvent: Event, component: Element): boolean {
+    if (domEvent.type !== "mouseenter" && domEvent.type !== "mouseleave")
+        return false;
+
+    const related = (domEvent as MouseEvent).relatedTarget;
+
+    return related instanceof Node && component.contains(related);
 }

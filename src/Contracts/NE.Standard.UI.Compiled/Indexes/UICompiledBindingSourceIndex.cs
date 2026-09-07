@@ -109,30 +109,6 @@ public sealed class UICompiledBindingSourceIndex
             ? source
             : throw new InvalidOperationException($"Component items binding source for component '{componentId}' was not found.");
 
-    /// <summary>
-    /// Gets a component-scoped binding source of the specified kind.
-    /// </summary>
-    public CompiledUIBindingSource GetRequiredByComponentId(UIComponentId componentId, CompiledUIBindingSourceKind kind)
-        => TryGetByComponentId(componentId, kind, out CompiledUIBindingSource? source)
-            ? source
-            : throw new InvalidOperationException($"Binding source '{kind}' for component '{componentId}' was not found.");
-
-    /// <summary>
-    /// Attempts to get a component-scoped binding source of the specified kind.
-    /// </summary>
-    public bool TryGetByComponentId(UIComponentId componentId, CompiledUIBindingSourceKind kind, [NotNullWhen(true)] out CompiledUIBindingSource? source)
-    {
-        if (componentId.IsEmpty)
-            throw new ArgumentException("Component id must not be empty.", nameof(componentId));
-
-        return kind switch
-        {
-            CompiledUIBindingSourceKind.ComponentItems => _componentItemsSourcesByComponentId.TryGetValue(componentId, out source),
-            CompiledUIBindingSourceKind.Controller => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Controller source is not component-scoped."),
-            _ => throw new UnreachableException()
-        };
-    }
-
     private static void ValidateSource(CompiledUIBindingSource source)
     {
         ArgumentNullException.ThrowIfNull(source);

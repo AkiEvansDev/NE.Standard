@@ -10,12 +10,8 @@ namespace NE.Standard.UI.Shell.Files;
 /// Holds file content between the transfer and the code that reads it.
 /// </summary>
 /// <remarks>
-/// <b>Every operation is scoped to a session, and that is the security boundary.</b> A file id on its own must
-/// never be enough to read a file: without the session in the key, one client replaying or guessing another's
-/// id reads their upload. An implementation that ignores <c>sessionId</c> is broken, however convenient.
-/// <para>
-/// Ids are issued here, never taken from the client. See <c>docs/FILES.md</c>.
-/// </para>
+/// Every operation is scoped to a session, and a file id alone must never be enough to read a file — an implementation
+/// that ignores <c>sessionId</c> is broken.
 /// </remarks>
 public interface IUIFileStore
 {
@@ -40,7 +36,7 @@ public interface IUIFileStore
     Task<Stream?> OpenUploadAsync(string sessionId, string fileId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stages content for the browser to fetch and issues the one-time token that identifies it.
+    /// Stages content for the client to fetch and issues the one-time token that identifies it.
     /// </summary>
     Task<string> StageDownloadAsync(string sessionId, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default);
 
@@ -62,12 +58,12 @@ public interface IUIFileStore
 }
 
 /// <summary>
-/// Content staged for the browser to download, and the stream it is read from.
+/// Content staged for the client to download, and the stream it is read from.
 /// </summary>
 public sealed class UIStagedDownload : IAsyncDisposable, IDisposable
 {
     /// <summary>
-    /// Gets the file name offered to the browser.
+    /// Gets the file name offered to the client.
     /// </summary>
     public required string FileName { get; init; }
 

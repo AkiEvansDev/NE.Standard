@@ -1,0 +1,191 @@
+@import "../core/tokens.less";
+@import "../mixins/chevron.less";
+@import "../mixins/loading-ring.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../mixins/text.less";
+
+// A tree on the file list's model: thin rows, each stepped in by its level, a chevron where there is something to unfold, the
+// chosen row washed across the whole width. The rows are a flat list; tree-engine.ts writes each row's `--ui-tree-depth` and
+// folds the rows under a folded node with a class.
+.ui-tree {
+    .ui-selected-scope();
+
+    display: flex;
+    flex-direction: column;
+    border-style: solid;
+    border-width: var(--ui-border-width, 0);
+    border-color: var(--ui-color-border);
+    border-radius: var(--ui-radius-row);
+    background: var(--ui-surface-color, transparent);
+    outline: none;
+}
+
+.ui-tree > template {
+    display: none !important;
+}
+
+.ui-tree__host {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+    .ui-tree__host > [data-ui-empty-placeholder] {
+        padding: @ui-space-1 @ui-space-2;
+    }
+
+.ui-tree__host.ui-scroll-x--disabled {
+    overflow-x: hidden;
+}
+
+.ui-tree__host.ui-scroll-x--auto {
+    overflow-x: auto;
+}
+
+.ui-tree__host.ui-scroll-x--always {
+    overflow-x: scroll;
+}
+
+.ui-tree__host.ui-scroll-y--disabled {
+    overflow-y: hidden;
+}
+
+.ui-tree__host.ui-scroll-y--auto {
+    overflow-y: auto;
+}
+
+.ui-tree__host.ui-scroll-y--always {
+    overflow-y: scroll;
+}
+
+// The row steps in by its level times the tree's indent, both unitless; the wash and the selected ground run the row's full width.
+.ui-tree__row {
+    display: flex;
+    align-items: center;
+    min-height: @ui-button-height-sm;
+    padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1);
+    padding-inline-end: @ui-space-2;
+}
+
+.ui-tree__row--folded,
+.ui-tree__loading.ui-tree__row--folded {
+    display: none;
+}
+
+// The row of waiting under a node that asked for its children: in the children's place, at their depth, muted.
+.ui-tree__loading {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+    min-height: @ui-button-height-sm;
+    padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1 + 1.25rem + @ui-space-1);
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+}
+
+    .ui-tree__loading-ring {
+        .ui-loading-ring();
+        flex: 0 0 auto;
+    }
+
+// A dragged row fades; the row it may be dropped on is washed like a chosen one, and the tree's ground like a hovered row — a
+// wash, not an outline.
+.ui-tree__row--dragging {
+    opacity: 0.45;
+}
+
+.ui-tree__row[data-ui-tree-drop] {
+    background-color: var(--ui-wash-selected);
+}
+
+.ui-tree__host[data-ui-tree-drop] {
+    background-color: var(--ui-wash-hover);
+}
+
+.ui-tree--row-hover .ui-tree__row:hover {
+    .ui-row-hover();
+}
+
+.ui-row-cursor(~".ui-tree", ~".ui-tree__row");
+
+.ui-tree[data-ui-selection="one"] > [data-ui-items-host] > .ui-tree__row,
+.ui-tree[data-ui-selection="many"] > [data-ui-items-host] > .ui-tree__row {
+    cursor: pointer;
+}
+
+.ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-selected] {
+    .ui-selected-row();
+}
+
+.ui-tree__node {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// The node's face: the chevron's square, then the text body; positioned, so the rename field can lie over the title.
+.ui-tree-node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: @ui-space-1;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+.ui-tree-node__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// The chevron keeps its square on a leaf too, so titles line up within a level; it shows where the row says it can unfold.
+.ui-tree-node__toggle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    appearance: none;
+    border: 0;
+    border-radius: var(--ui-radius-sm, 0.25rem);
+    background: none;
+    padding: 0;
+    color: var(--ui-text-muted);
+    cursor: pointer;
+    visibility: hidden;
+}
+
+    .ui-tree__row[aria-expanded] .ui-tree-node__toggle {
+        visibility: visible;
+    }
+
+    // A tree drawing no chevron keeps no square for one either; the rows fold from the keyboard or from a click on a heading.
+    .ui-tree--no-chevron .ui-tree-node__toggle {
+        display: none;
+    }
+
+    // Ink alone: the row is the surface that washes under the pointer.
+    .ui-tree-node__toggle:hover {
+        color: inherit;
+    }
+
+    // Ten whole pixels, the menu's size: at 0.6em the mark read too faint beside the title.
+    .ui-tree-node__toggle::before {
+        .ui-chevron(0.625rem);
+        .ui-chevron-right();
+    }
+
+    .ui-tree__row[aria-expanded="true"] .ui-tree-node__toggle::before {
+        .ui-chevron-down();
+    }
+
+    // Waiting for children: the chevron fades until they arrive.
+    .ui-tree__row[data-ui-tree-loading] .ui-tree-node__toggle::before {
+        opacity: 0.35;
+    }
+
+.ui-tree-node__rename {
+    .ui-inline-rename-field();
+    z-index: 1;
+}

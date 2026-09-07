@@ -16,20 +16,28 @@ internal sealed partial class UIViewCompilationContext
         "Select/Search/RadioGroup) so the value itself becomes the key.";
 
     /// <summary>
-    /// Rejects a statically-authored item collection whose elements cannot be addressed.
+    /// Rejects a statically-authored item collection whose elements cannot be addressed, or two of which share an address.
     /// </summary>
-    /// <remarks>
-    /// The instances are right here at compile time, so this is exact rather than best-effort — unlike the
-    /// bound case below, which can only reach a verdict when the path resolves against the controller's types.
-    /// </remarks>
     private static void EnsureStaticItemsAreBindable(IVisualComponent component, IItemsComponent itemsComponent)
     {
         IReadOnlyList<object?> items = itemsComponent.Items;
+        HashSet<string> ids = new(StringComparer.Ordinal);
 
         for (var i = 0; i < items.Count; i++)
         {
-            if (items[i] is null or IBindableItem)
+            if (items[i] is null)
                 continue;
+
+            if (items[i] is IBindableItem bindable)
+            {
+                if (string.IsNullOrWhiteSpace(bindable.Id))
+                    throw new InvalidOperationException($"Component '{component.Id}' has a static item #{i} with no id. {BindableItemGuidance}");
+
+                if (!ids.Add(bindable.Id))
+                    throw new InvalidOperationException($"Component '{component.Id}' has two static items with the id '{bindable.Id}'; a key addresses one item.");
+
+                continue;
+            }
 
             throw new InvalidOperationException(
                 $"Component '{component.Id}' has a static item #{i} of type '{items[i]!.GetType().Name}', which does not " +
@@ -40,11 +48,6 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>
     /// Rejects a bound item collection whose element type cannot be addressed.
     /// </summary>
-    /// <remarks>
-    /// Stays silent on anything it cannot positively resolve — a view with no controller type, a non-controller
-    /// source, a path the walk loses. The renderer refuses those at render time instead; this exists to turn the
-    /// common case into a build error rather than a page that throws.
-    /// </remarks>
     private void EnsureBoundItemsAreBindable(IVisualComponent component, CompiledPath collectionPath)
     {
         if (_controllerType is null || collectionPath.Source.Kind != CompiledUIBindingSourceKind.Controller)
@@ -66,13 +69,8 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Rejects a windowed host whose bound path is not a source at all — the usual slip being a path that names
-    /// the window instead of the source that holds it, which would then address one property too deep.
+    /// Rejects a windowed host whose bound path names the window instead of the source that holds it.
     /// </summary>
-    /// <remarks>
-    /// Takes the path *before* the window property is appended, and stays silent on anything it cannot
-    /// positively resolve, like every other check here.
-    /// </remarks>
     private void EnsureWindowedSourceIsAnItemSource(IVisualComponent component, CompiledPath sourcePath)
     {
         if (!IsWindowedItemsHost(component) || _controllerType is null || sourcePath.Source.Kind != CompiledUIBindingSourceKind.Controller)
@@ -89,8 +87,7 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Rejects static items on a windowed host: where the items come from is one decision, and a host that
-    /// answers it twice would show the authored ones until the first window arrived and lose them after.
+    /// Rejects static items on a windowed host, which takes its items from the source alone.
     /// </summary>
     private static void EnsureWindowedHostHasNoStaticItems(IVisualComponent component, IItemsComponent itemsComponent)
     {
@@ -103,24 +100,7 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Rejects virtualizing a windowed host, which is already showing nothing but a window and would be
-    /// virtualizing a virtualization.
-    /// </summary>
-    /// <remarks>
-    /// Grouping is <em>not</em> refused here, though a virtualized host cannot lay it out either: whether a
-    /// collection groups is a fact about its items, not about the view — every items view carries a default
-    /// group template and none of them means anything until an item names a group. The client stands down on
-    /// a host that turns out to have group headers.
-    /// </remarks>
-    private static void EnsureVirtualizationIsLayableOut(IVisualComponent component)
-    {
-        if (component is IVirtualizedItemsComponent { Virtualize: true } && IsWindowedItemsHost(component))
-            throw new InvalidOperationException($"Component '{component.Id}' binds a source and is virtualized. A windowed host already lays out only what it holds.");
-    }
-
-    /// <summary>
-    /// Rejects a host marked windowed with nothing bound — only reachable by clearing the binding after
-    /// <c>BindSource</c>, which would otherwise render an empty host that never asks anyone for anything.
+    /// Rejects a host marked windowed with nothing bound.
     /// </summary>
     private static void EnsureWindowedHostBindsASource(IVisualComponent component)
     {
@@ -129,9 +109,8 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Walks a binding template against the controller's CLR types, returning what it lands on. Returns
-    /// <see langword="null"/> as soon as a segment cannot be resolved — the checks this backs must stay silent
-    /// on anything they do not positively understand rather than reject a legal view.
+    /// Walks a binding template against the controller's CLR types, returning what it lands on, or
+    /// <see langword="null"/> as soon as a segment cannot be resolved.
     /// </summary>
     private Type? TryResolveControllerPathType(string template)
     {
@@ -148,8 +127,7 @@ internal sealed partial class UIViewCompilationContext
 
             if (template[index] == '[')
             {
-                // Both a parameter and a fixed index or key render as "[]" — either way the walk steps into
-                // the collection's element type.
+                // Both a parameter and a fixed index or key render as "[]" — either way the walk steps into the collection's element type.
                 index += 2;
                 current = TryResolveElementType(current);
                 continue;

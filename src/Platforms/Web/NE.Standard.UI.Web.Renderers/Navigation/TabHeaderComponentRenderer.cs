@@ -1,23 +1,20 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Actions;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
-/// <summary>
-/// One caption in the strip: the button chrome plus the key of the page it selects. Which caption is current
-/// is not rendered here — it is one attribute on the tabs root, so a switch is a single write.
-/// </summary>
+/// <summary>One caption in the strip: the button chrome plus the key of the page it selects.</summary>
 public sealed class TabHeaderComponentRenderer : ButtonRendererBase
 {
-    private const string TabKeyAttribute = "data-ui-tab-key";
-
     public override string ComponentTypeKey => TabHeaderComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-tab-header";
+
+    // The underline is drawn outside the caption's box; an inline clip would cut it off before any stylesheet rule could say otherwise.
+    protected override bool RendersOverflow => false;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -33,8 +30,8 @@ public sealed class TabHeaderComponentRenderer : ButtonRendererBase
         _ = ResolveRenderValue(context, TabHeaderComponent.TabKeyProperty, out string? tabKey, out _);
 
         if (!string.IsNullOrWhiteSpace(tabKey))
-            _ = root.Attribute(TabKeyAttribute, tabKey);
+            _ = root.Attribute(WebAttributes.TabKey, tabKey);
 
-        RenderRegion(context, root, RegionNames.Content);
+        RenderButtonLabel(context, root);
     }
 }

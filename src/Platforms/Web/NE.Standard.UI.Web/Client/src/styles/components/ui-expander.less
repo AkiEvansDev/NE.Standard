@@ -1,27 +1,54 @@
 @import "../core/tokens.less";
+@import "../mixins/chevron.less";
+@import "../mixins/placement.less";
 
+// Border, radius, fill and padding come from the shared surface block; what is left here is what a `details` is and a surface is not.
 .ui-expander {
-
     display: block;
-    border-style: solid;
-    border-width: var(--ui-border-width, 1.5px);
-    border-color: var(--ui-color-border);
-    border-radius: var(--ui-radius-card);
-    background: transparent;
 }
 
+// ::details-content transitions height 0 -> auto (needs interpolate-size); allow-discrete keeps content-visibility measurable meanwhile.
+.ui-expander::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+        block-size @ui-motion-normal @ui-motion-exit,
+        content-visibility @ui-motion-normal allow-discrete;
+}
+
+.ui-expander[open]::details-content {
+    block-size: auto;
+    transition:
+        block-size @ui-motion-normal @ui-motion-enter,
+        content-visibility @ui-motion-normal allow-discrete;
+}
+
+// One shared linear curve, so an opening and a closing section in an accordion cancel frame by frame instead of swelling everything below.
+:where(.ui-accordion) > .ui-expander::details-content,
+:where(.ui-accordion) > .ui-expander[open]::details-content {
+    transition-timing-function: @ui-motion-ease, linear;
+}
+
+// Collapsed, there is no height to stretch into, so vertical stretch falls back to start alignment.
 .ui-expander:not([open]) {
     align-self: var(--ui-align-v-stretch-fallback, var(--ui-align-v, normal));
 }
 
+// Except down a stack panel, which already decides its children's alignment axis: a vertical stack aligns on the horizontal one.
+:where(.ui-stack-panel.ui-orientation--vertical, .ui-accordion) > .ui-expander:not([open]) {
+    align-self: var(--ui-align-h, normal);
+}
+
+// Two columns, star and auto, like a card's header — see the note in ui-container.less. The chevron is the control half here.
 .ui-expander__header {
-    display: flex;
-    align-items: center;
-    gap: @ui-space-2;
+    .ui-control-band();
     padding: @ui-space-3 @ui-space-4;
+    // Always present and transparent until open, so the border doesn't add a pixel to the box's height when it appears.
+    border-bottom: 1px solid transparent;
     list-style: none;
     cursor: pointer;
     user-select: none;
+    transition: border-color @ui-motion-normal @ui-motion-ease;
 }
 
     .ui-expander__header::-webkit-details-marker {
@@ -29,109 +56,35 @@
     }
 
 .ui-expander[open] > .ui-expander__header {
-    border-bottom: 1px solid var(--ui-color-border);
+    border-bottom-color: var(--ui-color-border);
 }
 
+// A container, like a card's two bands — see the note in ui-container.less.
 .ui-expander__content {
+    .ui-placement-host();
     margin-top: @ui-space-3;
     padding: 0 @ui-space-4 @ui-space-4;
 }
 
-.ui-expander-header {
-    display: flex;
-    align-items: center;
-    flex: 1 1 auto;
-    gap: @ui-space-2;
-    min-width: 0;
-    max-width: 100%;
+.ui-expander__header-text {
+    .ui-placement-host();
+    grid-column: 1;
 }
 
-.ui-expander-header__body {
-    display: grid;
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
+.ui-expander__chevron {
+    .ui-chevron(0.75em);
+    .ui-chevron-right();
+    grid-column: 2;
+    margin-left: @ui-space-2;
+    // In step with the content opening under it rather than at the fast tempo the other chevrons turn at.
+    transition-duration: @ui-motion-normal;
 }
 
-.ui-expander-header__title-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: @ui-space-1 @ui-space-2;
-    min-width: 0;
-    max-width: 100%;
-}
-
-.ui-expander-header__chevron {
-    flex: 0 0 auto;
-    width: 0.6em;
-    height: 0.6em;
-    margin-left: auto;
-    border-right: 2px solid currentColor;
-    border-bottom: 2px solid currentColor;
-    transform: rotate(-45deg);
-    transition: transform @ui-motion-fast @ui-motion-ease;
-}
-
-// Secondary to the title rather than sharing its colour: the chevron is an affordance, not content.
-// :where() so a .ui-color--* utility on the chevron itself still wins, as on .ui-temporal-input__icon.
-:where(.ui-expander-header__chevron) {
+// :where() so a .ui-color--* utility on the chevron itself still wins.
+:where(.ui-expander__chevron) {
     color: var(--ui-text-muted);
 }
 
-.ui-expander[open] > .ui-expander__header .ui-expander-header__chevron {
-    transform: rotate(45deg);
-}
-
-.ui-expander-header__icon {
-    display: none;
-    flex: 0 0 auto;
-}
-
-    .ui-expander-header__icon::before {
-        display: block;
-    }
-
-.ui-expander-header__title {
-    display: none;
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ui-expander-header__badge {
-    display: none;
-    flex: 0 0 auto;
-    align-self: center;
-}
-
-.ui-expander-header__badge--trailing {
-    margin-left: auto;
-}
-
-.ui-expander-header__description {
-    display: none;
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    white-space: normal;
-}
-
-.ui-expander-header[data-ui-expander-header-icon] > .ui-expander-header__icon {
-    display: inline-flex;
-}
-
-.ui-expander-header[data-ui-expander-header-title] > .ui-expander-header__body > .ui-expander-header__title-row > .ui-expander-header__title {
-    display: block;
-}
-
-.ui-expander-header__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
-    display: inline-flex;
-}
-
-.ui-expander-header[data-ui-expander-header-description] > .ui-expander-header__body > .ui-expander-header__description {
-    display: block;
+.ui-expander[open] > .ui-expander__header .ui-expander__chevron {
+    .ui-chevron-down();
 }

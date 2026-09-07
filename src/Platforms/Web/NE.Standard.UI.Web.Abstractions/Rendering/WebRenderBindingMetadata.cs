@@ -21,7 +21,7 @@ public sealed class WebRenderBindingMetadata
     public IReadOnlyList<UIComponentId> DynamicParameterComponentIds { get; init; } = [];
 
     /// <summary>
-    /// Gets the recursive path template used to read a value off the current item, when the binding's source is a component-items collection.
+    /// Gets the recursive path template that reads a value off the current item, when the binding's source is a component-items collection.
     /// </summary>
     public string? ItemTemplate { get; init; }
 
@@ -29,6 +29,12 @@ public sealed class WebRenderBindingMetadata
     /// Gets the parameters used to materialize <see cref="ItemTemplate"/>, when the binding's source is a component-items collection.
     /// </summary>
     public IReadOnlyList<WebRenderBindingParameterMetadata>? ItemTemplateParameters { get; init; }
+
+    /// <summary>
+    /// Gets what the property falls back to when the binding resolves to <see langword="null"/> — the authored value, or the
+    /// property's registered default.
+    /// </summary>
+    public object? FallbackValue { get; init; }
 
     public void Validate()
     {

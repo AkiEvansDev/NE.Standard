@@ -1,8 +1,4 @@
-// Parsing and matching an authored shortcut string such as "Ctrl+Shift+P", "Alt+F4" or "Delete".
-//
-// Matching is by *physical key* (KeyboardEvent.code), not by the character the layout produces: on a Cyrillic
-// layout Ctrl+S arrives as "ы", and a shortcut that stops working when the user switches layout is not a
-// shortcut. The label still reads "Ctrl+S", because that is what is printed on the key cap.
+// Parsing and matching an authored shortcut string ("Ctrl+Shift+P"), by physical key rather than by the character the layout produces.
 
 export type KeyboardShortcut = {
     readonly code: string;
@@ -58,13 +54,39 @@ export function parseShortcut(value: string | null | undefined): KeyboardShortcu
     return code === null ? null : { code, ctrl, shift, alt, meta };
 }
 
-/** Whether a key event is this shortcut. Modifiers must match exactly — Ctrl+S is not Ctrl+Shift+S. */
-export function matchesShortcut(shortcut: KeyboardShortcut, domEvent: KeyboardEvent): boolean {
-    return domEvent.code === shortcut.code
-        && domEvent.ctrlKey === shortcut.ctrl
-        && domEvent.shiftKey === shortcut.shift
-        && domEvent.altKey === shortcut.alt
-        && domEvent.metaKey === shortcut.meta;
+/**
+ * Whether a key event is this shortcut. Modifiers must match exactly — Ctrl+S is not Ctrl+Shift+S — except that an authored
+ * Ctrl also answers to Cmd on a Mac keyboard, where Ctrl is not the platform's own modifier; an authored Meta keeps meaning
+ * only Meta. `isMac` defaults to the platform detected once for the page, and is a parameter so the rule stays testable
+ * without touching `navigator`.
+ */
+export function matchesShortcut(shortcut: KeyboardShortcut, domEvent: KeyboardEvent, isMac: boolean = isMacPlatform()): boolean {
+    if (domEvent.code !== shortcut.code || domEvent.shiftKey !== shortcut.shift || domEvent.altKey !== shortcut.alt)
+        return false;
+
+    if (shortcut.ctrl && !shortcut.meta && isMac)
+        return domEvent.ctrlKey !== domEvent.metaKey;
+
+    return domEvent.ctrlKey === shortcut.ctrl && domEvent.metaKey === shortcut.meta;
+}
+
+let macPlatform: boolean | null = null;
+
+/** Detected once per page from `userAgentData` where it exists, else `navigator.platform`. */
+function isMacPlatform(): boolean {
+    if (macPlatform === null)
+        macPlatform = detectMacPlatform();
+
+    return macPlatform;
+}
+
+function detectMacPlatform(): boolean {
+    if (typeof navigator === "undefined")
+        return false;
+
+    const uaDataPlatform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform;
+
+    return /mac/i.test(uaDataPlatform ?? navigator.platform ?? "");
 }
 
 /** The canonical form two authored strings are compared by, so "ctrl+s" and "Ctrl+S" collide. */

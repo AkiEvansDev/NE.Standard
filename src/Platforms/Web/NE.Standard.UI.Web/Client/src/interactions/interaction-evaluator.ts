@@ -1,12 +1,14 @@
-import { getInteractionOperator, WebInteractionOperator, WebRenderInteractionMetadata } from "../metadata/metadata-index";
-import { logWarn } from "../runtime/logger";
+// `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
+import type { WebInteractionOperator, WebRenderInteractionMetadata } from "../metadata/metadata-index.ts";
+import { getInteractionOperator } from "../metadata/metadata-index.ts";
+import { logWarn } from "../runtime/logger.ts";
 
 export class InteractionEvaluator {
     public evaluate(interaction: WebRenderInteractionMetadata, value: unknown): unknown {
         return this.matches(interaction, value) ? interaction.trueValue : interaction.falseValue;
     }
 
-    /** Whether the interaction's condition holds — what an effect interaction needs, having nothing to assign. */
+    /** Whether the interaction's condition holds. */
     public matches(interaction: WebRenderInteractionMetadata, value: unknown): boolean {
         return evaluateOperator(value, interaction.operator, interaction.value);
     }

@@ -3,9 +3,7 @@ using System;
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 /// <summary>
-/// One named template-variant slot of a composite item (see <see cref="WebRenderItemsCompositeMetadata"/>) —
-/// the client clones the variant named <see cref="VariantKey"/> and appends it to the item element inside
-/// a wrapper of this shape, mirroring <c>ItemsCollectionRendererBase.RenderNamedTemplateSlot</c>.
+/// One named template-variant slot of a composite item — see <see cref="WebRenderItemsCompositeMetadata"/>.
 /// </summary>
 public sealed class WebRenderItemsCompositeSlotMetadata
 {
@@ -14,6 +12,15 @@ public sealed class WebRenderItemsCompositeSlotMetadata
     public required string WrapperClassName { get; init; }
 
     public string WrapperElementName { get; init; } = "div";
+
+    /// <summary>The ARIA role the slot wrapper carries (a table's <c>cell</c>); null for none.</summary>
+    public string? WrapperRole { get; init; }
+
+    /// <summary>
+    /// Gets the item property whose value names a typed variant of this slot (<c>{VariantKey}:{value}</c>); the slot's own
+    /// variant when the item names none or names one the list does not have.
+    /// </summary>
+    public string? VariantKeyPropertyName { get; init; }
 
     public void Validate()
     {

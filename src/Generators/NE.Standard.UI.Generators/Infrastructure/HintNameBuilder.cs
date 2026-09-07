@@ -14,9 +14,7 @@ internal static class HintNameBuilder
 
         if (!string.IsNullOrWhiteSpace(fileName))
         {
-            // The arity has to stay in the name even when the file is named after the type: a file declaring
-            // both `Foo` and `Foo<T>` — the pair every generic base in this repository is written as — would
-            // otherwise ask for one hint name twice, and the generator fails outright.
+            // The arity must stay in the name even when the file matches the type name, or `Foo` and `Foo<T>` collide on one hint name.
             return string.Equals(fileName, type.Name, StringComparison.Ordinal) && type.TypeParameters.Length == 0
                 ? fileName + "." + suffix + ".g.cs"
                 : fileName + "." + typeSuffix + "." + suffix + ".g.cs";

@@ -18,7 +18,7 @@ public sealed class NavigateEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.Navigate;
+    public override string Kind => ClientEffectKinds.Navigate;
 
     /// <summary>
     /// Gets the navigation request.

@@ -19,7 +19,7 @@ public interface ITemplatedComponent : IVisualComponent
     static UIProperty FallbackTemplateKeyProperty { get; } = new(nameof(FallbackTemplateKey));
 
     /// <summary>
-    /// Gets the default item template.
+    /// Gets the template applied to an item when no named variant is chosen for it.
     /// </summary>
     IVisualComponent? Template { get; }
 
@@ -29,7 +29,8 @@ public interface ITemplatedComponent : IVisualComponent
     bool HasTemplate { get; }
 
     /// <summary>
-    /// Gets named item templates.
+    /// Gets the named template variants, each selected when an item's <see cref="TemplateKeyProperty"/> matches
+    /// the key it was registered under.
     /// </summary>
     IReadOnlyDictionary<string, IVisualComponent> Templates { get; }
 

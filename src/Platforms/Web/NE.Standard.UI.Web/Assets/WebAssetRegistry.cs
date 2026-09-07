@@ -17,7 +17,10 @@ internal sealed class WebAssetRegistry : IWebAssetRegistry
 
         Dictionary<string, WebAssetDescriptor> builder = new(StringComparer.Ordinal);
 
+        Add(builder, StandardWebAssetDescriptors.FontCss);
+        Add(builder, StandardWebAssetDescriptors.Font);
         Add(builder, StandardWebAssetDescriptors.Css);
+        Add(builder, StandardWebAssetDescriptors.Boot);
         Add(builder, StandardWebAssetDescriptors.JavaScript);
 
         foreach (WebAssetDescriptor asset in assets)

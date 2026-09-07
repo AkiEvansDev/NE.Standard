@@ -11,9 +11,7 @@ public sealed class UserSessionInitData
     /// Gets the session id the client presented, when it has one.
     /// </summary>
     /// <remarks>
-    /// Carried by the platform — a cookie on the web — and looked up in <see cref="IUserSessionStore"/>. Null
-    /// or unknown means a new session is issued, which is also what makes the id unguessable rather than
-    /// derived from anything the client controls.
+    /// Null or unknown means a new session is issued, keeping the id unguessable rather than derived from anything the client controls.
     /// </remarks>
     public string? SessionId { get; init; }
 
@@ -23,16 +21,16 @@ public sealed class UserSessionInitData
     public string? ConnectionId { get; init; }
 
     /// <summary>
-    /// Gets the client tab id.
+    /// Gets the client's id for the window the request came from, when the platform knows it.
     /// </summary>
-    public string? ClientTabId { get; init; }
+    public string? ClientWindowId { get; init; }
 
     /// <summary>
     /// Gets the authentication credential supplied by the client.
     /// </summary>
     /// <remarks>
-    /// An opaque host-supplied token, never an identity and never the source of the session id. Prefer
-    /// <see cref="Principal"/>, which the shipped resolver actually maps.
+    /// An opaque host-supplied token, never an identity or the source of the session id; prefer
+    /// <see cref="Principal"/>, which the shipped resolver maps.
     /// </remarks>
     public string? Credential { get; init; }
 
@@ -40,9 +38,7 @@ public sealed class UserSessionInitData
     /// Gets the principal the host authenticated, when it authenticates at all.
     /// </summary>
     /// <remarks>
-    /// <see cref="ClaimsPrincipal"/> rather than anything ASP.NET-shaped, so the platform layer hands over the
-    /// result of its authentication without this framework knowing the scheme. Only read when
-    /// <c>UISecurityOptions.IdentitySource</c> is <c>Claims</c>.
+    /// Only read when <c>UISecurityOptions.IdentitySource</c> is <c>Claims</c>.
     /// </remarks>
     public ClaimsPrincipal? Principal { get; init; }
 }

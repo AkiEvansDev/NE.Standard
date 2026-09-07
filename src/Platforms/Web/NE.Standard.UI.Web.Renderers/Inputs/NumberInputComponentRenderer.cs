@@ -1,7 +1,5 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Abstractions.Binding.Properties;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -11,19 +9,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
-/// Renders as <c>&lt;input type="text" inputmode="decimal"&gt;</c> rather than a native
-/// <c>&lt;input type="number"&gt;</c> — a native number input hard-rejects any non-numeric character
-/// typed into it (including a grouping comma), so <c>AllowThousandsSeparator</c> is structurally
-/// impossible to support on top of one. <c>NumberInputEngine</c> (client) does everything the native
-/// type gave for free: keystroke-level filtering for <c>AllowDecimals</c>/<c>AllowNegative</c>,
-/// display-time thousands-separator grouping (stripped back to a clean digit string on focus, so typing
-/// is never fighting inserted commas), and trailing-zero trimming on blur. The tradeoff is losing the
-/// native spin buttons and native <c>:invalid</c> range styling — <c>ShowStepper</c> is preserved via a
-/// pair of custom step buttons instead (<c>data-ui-number-step</c>/<c>data-ui-number-min</c>/
-/// <c>data-ui-number-max</c> carry the values <c>NumberInputEngine</c> needs for them), and Min/Max/Step
-/// enforcement remains exactly as unenforced by the authoring setter as it already was — this renderer
-/// doesn't newly regress that, and the native type never enforced it either beyond weak <c>:invalid</c>
-/// styling nothing here relied on. The live value is clamped instead, on both paths.
+/// Renders a number field as <c>&lt;input type="text" inputmode="decimal"&gt;</c>, since a native number
+/// input rejects a grouping comma and could not support <c>AllowThousandsSeparator</c>.
 /// </summary>
 public sealed class NumberInputComponentRenderer : TextContentRendererBase
 {
@@ -36,11 +23,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<string?>(context, root, ITextBaseComponent.TooltipProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute("title", value);
-        }, [WebDomOperation.Attribute("title")]);
+        RenderTooltip(context, root);
 
         _ = RenderProperty<bool?>(context, root, NumberInputComponent.ShowStepperProperty, static (target, value) =>
         {
@@ -53,17 +36,18 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
         _ = root.Element("span", row =>
         {
-            _ = row.Class("ui-number-input__row");
+            _ = row.Class($"{ClassName}__row");
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            _ = row.Element("span", prefix => RenderAffix(context, prefix, NumberInputComponent.PrefixTextProperty, "prefix"));
+            _ = row.Element("span", prefix => RenderInputAffixText(context, prefix, suffix: false));
 
             _ = row.Element("input", input =>
             {
-                _ = input.Class("ui-number-input__field");
+                _ = input.Class($"{ClassName}__field");
+                _ = input.Class("ui-field");
                 _ = input.Attribute("type", "text");
                 _ = input.Attribute("inputmode", "decimal");
                 _ = input.Attribute("autocomplete", "off");
@@ -71,49 +55,48 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowDecimalsProperty, static (target, value) =>
                 {
                     if (value == false)
-                        _ = target.Attribute("data-ui-number-no-decimals");
-                }, [WebDomOperation.ToggleAttribute("data-ui-number-no-decimals", condition: WebValueCondition.IsFalse)]);
+                        _ = target.Attribute(WebAttributes.NumberNoDecimals);
+                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoDecimals, condition: WebValueCondition.IsFalse)]);
 
                 _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowNegativeProperty, static (target, value) =>
                 {
                     if (value == false)
-                        _ = target.Attribute("data-ui-number-no-negative");
-                }, [WebDomOperation.ToggleAttribute("data-ui-number-no-negative", condition: WebValueCondition.IsFalse)]);
+                        _ = target.Attribute(WebAttributes.NumberNoNegative);
+                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoNegative, condition: WebValueCondition.IsFalse)]);
 
                 _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowThousandsSeparatorProperty, static (target, value) =>
                 {
                     if (value == false)
-                        _ = target.Attribute("data-ui-number-no-thousands");
-                }, [WebDomOperation.ToggleAttribute("data-ui-number-no-thousands", condition: WebValueCondition.IsFalse)]);
+                        _ = target.Attribute(WebAttributes.NumberNoThousands);
+                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoThousands, condition: WebValueCondition.IsFalse)]);
 
                 _ = RenderProperty<bool?>(context, input, NumberInputComponent.TrimTrailingZerosProperty, static (target, value) =>
                 {
                     if (value == true)
-                        _ = target.Attribute("data-ui-number-trim-zeros");
-                }, [WebDomOperation.ToggleAttribute("data-ui-number-trim-zeros", condition: WebValueCondition.IsTrue)]);
+                        _ = target.Attribute(WebAttributes.NumberTrimZeros);
+                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberTrimZeros, condition: WebValueCondition.IsTrue)]);
 
-                // Step is resolved once — it is declared unbindable, matching the temporal inputs' own Step,
-                // since a running app does not flip a field's granularity.
-                _ = ResolveRenderValue(context, NumberInputComponent.StepProperty, out decimal? step, out _);
-                _ = input.Attribute("data-ui-number-step", (step ?? 1m).ToString(CultureInfo.InvariantCulture));
+                // Live like Min and Max: NumberInputEngine reads the attribute on every step press.
+                _ = RenderProperty<decimal?>(context, input, NumberInputComponent.StepProperty, static (target, value) =>
+                    _ = target.Attribute(WebAttributes.NumberStep, (value ?? 1m).ToString(CultureInfo.InvariantCulture)),
+                [WebDomOperation.Attribute(WebAttributes.NumberStep)]);
 
-                // Min/Max stay live-patchable. They are declared on the shared MinMaxInputComponentBase, where
-                // the temporal inputs bind them, so resolving them statically here would have let a bound one
-                // compile and silently do nothing. NumberInputEngine re-reads both attributes on every step
-                // click, so a patched bound is in force immediately.
+                // Min/Max stay live-patchable: resolving them statically would let a bound one compile and do nothing.
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.MinProperty, static (target, value) =>
                 {
                     if (value is decimal min)
-                        _ = target.Attribute("data-ui-number-min", min.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute("data-ui-number-min")]);
+                        _ = target.Attribute(WebAttributes.NumberMin, min.ToString(CultureInfo.InvariantCulture));
+                }, [WebDomOperation.Attribute(WebAttributes.NumberMin)]);
 
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.MaxProperty, static (target, value) =>
                 {
                     if (value is decimal max)
-                        _ = target.Attribute("data-ui-number-max", max.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute("data-ui-number-max")]);
+                        _ = target.Attribute(WebAttributes.NumberMax, max.ToString(CultureInfo.InvariantCulture));
+                }, [WebDomOperation.Attribute(WebAttributes.NumberMax)]);
 
+                NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
+                NativeInputRendererBase.RenderFieldName(context, input);
                 NativeInputRendererBase.RenderIsReadOnly(context, input);
 
                 _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
@@ -123,44 +106,19 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Property("value")]);
             });
 
-            _ = row.Element("span", suffix => RenderAffix(context, suffix, NumberInputComponent.SuffixTextProperty, "suffix"));
+            _ = row.Element("span", suffix => RenderInputAffixText(context, suffix, suffix: true));
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
-            // Custom step buttons rather than the native spinner: a text input has none, and the native
-            // number input's own could not be themed.
+            // Custom step buttons: a text input has no spinner, and the native one could not be themed.
             _ = row.Element("span", stepper =>
             {
-                _ = stepper.Class("ui-number-input__stepper");
-                RenderStepButton(stepper, "ui-number-input__step-up", "up");
-                RenderStepButton(stepper, "ui-number-input__step-down", "down");
+                _ = stepper.Class($"{ClassName}__stepper");
+                RenderStepButton(stepper, $"{ClassName}__step-up", WebAttributes.NumberStepDirection, "up");
+                RenderStepButton(stepper, $"{ClassName}__step-down", WebAttributes.NumberStepDirection, "down");
             });
         });
 
-        RenderValidationMessage(root, "ui-number-input__message");
-    }
-
-
-    private static void RenderStepButton(IHtmlElementBuilder row, string className, string direction)
-    {
-        _ = row.Element("button", step =>
-        {
-            _ = step.Class(className);
-            _ = step.Attribute("type", "button");
-            _ = step.Attribute("tabindex", "-1");
-            _ = step.Attribute("data-ui-number-step-direction", direction);
-        });
-    }
-
-    private static void RenderAffix(WebRenderContext context, IHtmlElementBuilder affix, UIProperty property, string modifier)
-    {
-        _ = affix.Class("ui-number-input__affix");
-        _ = affix.Class($"ui-number-input__affix--{modifier}");
-
-        _ = RenderProperty<string?>(context, affix, property, (target, value) =>
-        {
-            if (!string.IsNullOrEmpty(value))
-                _ = target.Text(value);
-        }, [WebDomOperation.Text()]);
+        RenderValidationMessage(context, root);
     }
 }

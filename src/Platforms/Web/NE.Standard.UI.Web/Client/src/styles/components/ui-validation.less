@@ -1,0 +1,16 @@
+@import "../core/tokens.less";
+
+// The message line under a field, shared by every input; its colour is the severity's, set by the engine or the render.
+.ui-validation-message {
+    display: none;
+    padding: 0 @ui-space-1;
+    color: var(--ui-validation-color, var(--ui-color-danger));
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-invalid > .ui-validation-message,
+.ui-validation--warning > .ui-validation-message,
+.ui-validation--info > .ui-validation-message {
+    display: block;
+}

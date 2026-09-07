@@ -1,0 +1,81 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+@import "../mixins/interactive.less";
+
+// What every folding control shares: the switch, the folding edge and data-ui-collapsed; what collapsing hides is each control's answer.
+.ui-collapsible {
+    display: flex;
+    flex-direction: column;
+    gap: @ui-space-2;
+}
+
+// Drawn here, not taken from an icon pack, so a host may install none; the same glyph either way, a changing one reading as two buttons.
+.ui-collapsible__toggle {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 0;
+    border-radius: var(--ui-radius-button);
+    background: none;
+    color: var(--ui-text-muted);
+    cursor: pointer;
+    .ui-reveal-hover();
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-collapsible__toggle:hover {
+        color: var(--ui-color-on-surface);
+    }
+
+    .ui-collapsible__toggle::before {
+        content: "";
+        width: 1rem;
+        height: 2px;
+        border-radius: 1px;
+        background: currentColor;
+        box-shadow: 0 -0.3125rem 0 currentColor, 0 0.3125rem 0 currentColor;
+    }
+
+// The switch sits on the inner edge — facing away from the edge the panel is attached to — so it stays reachable after the fold.
+.ui-side--left > .ui-collapsible__toggle {
+    align-self: flex-end;
+}
+
+.ui-side--right > .ui-collapsible__toggle {
+    align-self: flex-start;
+}
+
+.ui-side--top > .ui-collapsible__toggle {
+    order: 1;
+    align-self: flex-start;
+}
+
+.ui-side--bottom > .ui-collapsible__toggle {
+    align-self: flex-start;
+}
+
+// While collapsible-engine.ts slides the fold, the open layout stays and the edge clips it; the collapsed rules below wait for the end.
+// The authored minimum is let go for the slide, or it would hold the edge where it was.
+.ui-collapsible[data-ui-folding] {
+    overflow: clip;
+    min-width: 0;
+    min-height: 0;
+}
+
+// Collapsed, the panel is a rail the width of its switch; this outranks the responsive size chain, which returns when the attribute goes.
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) {
+    min-width: 0;
+    width: fit-content;
+}
+
+    .ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) > .ui-collapsible__toggle {
+        align-self: center;
+    }
+
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--top, .ui-side--bottom) {
+    min-height: 0;
+    height: fit-content;
+}

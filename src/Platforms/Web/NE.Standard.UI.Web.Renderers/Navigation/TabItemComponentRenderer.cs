@@ -1,26 +1,19 @@
 using System;
+using System.Globalization;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
-/// <summary>
-/// One tab: a caption and the page it opens, side by side in the markup and pulled apart by the grid the
-/// strip lays out.
-/// </summary>
-/// <remarks>
-/// The caption is a button and the close control is a second button beside it rather than inside it — nesting
-/// them is invalid markup, and the close target has to be its own hit area anyway.
-/// </remarks>
+/// <summary>One tab: a caption and the page it opens, with the close control a sibling button rather than a nested one.</summary>
 public sealed class TabItemComponentRenderer : WebComponentRendererBase
 {
     private const string CloseClass = "ui-tab-item__close";
     private const string LabelClass = "ui-tab-item__label";
-    private const string OrderAttribute = "data-ui-tab-order";
-    private const string CaptionAttribute = "data-ui-tab-caption";
 
     public override string ComponentTypeKey => TabItemComponent.ComponentTypeKey;
 
@@ -31,19 +24,16 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // The order rides on the root as an attribute rather than in a hidden field: the drag writes it there
-        // and lets the ordinary two-way path carry it, exactly as the strip does with its selected key.
+        // The order rides on the root as an attribute, so a drag writes it there and the ordinary two-way path carries it.
+        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabOrder);
         _ = RenderProperty<double?>(context, root, TabItemComponent.OrderProperty, static (target, value) =>
         {
             if (value is double order)
-                _ = target.Attribute(OrderAttribute, order.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(OrderAttribute, target: "root")]);
+                _ = target.Attribute(WebAttributes.TabOrder, order.ToString(CultureInfo.InvariantCulture));
+        }, [WebDomOperation.Attribute(WebAttributes.TabOrder, target: "root")]);
 
-        _ = RenderProperty<bool?>(context, root, TabItemComponent.ClosableProperty, static (target, value) =>
-        {
-            if (value == false)
-                _ = target.Class("ui-tab-item--fixed");
-        }, [WebDomOperation.ToggleClass("ui-tab-item--fixed", condition: WebValueCondition.IsFalse)]);
+        // The tab is its own row: the marks the strip reads — no close for an unremovable tab, no drag for an undraggable one — are its.
+        ItemAbilitiesRenderer.RenderItemAbilities(context, root);
 
         _ = root.Element("div", caption =>
         {
@@ -55,15 +45,13 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
                 _ = label.Attribute("type", "button");
                 _ = label.Attribute("role", "tab");
 
-                // The caption's own title binding paints the span; this one exists to be *written* back, so it
-                // rides as an attribute a rename can set. On the label rather than on the root because a
-                // written value is read from its element without being told which property asked — one
-                // element, one writable value, and the root's is already the order.
-                _ = RenderProperty<string?>(context, label, TabItemComponent.CaptionTextProperty, static (target, value) =>
+                // On the label, not the root: one element carries one writable value, and the root's is already the order.
+                _ = label.Attribute(WebAttributes.ValueKind, WebValueKinds.TabCaption);
+                _ = RenderProperty<string?>(context, label, TabItemComponent.RenamedTitleProperty, static (target, value) =>
                 {
                     if (!string.IsNullOrWhiteSpace(value))
-                        _ = target.Attribute(CaptionAttribute, value);
-                }, [WebDomOperation.Attribute(CaptionAttribute, target: "." + LabelClass)]);
+                        _ = target.Attribute(WebAttributes.TabCaption, value);
+                }, [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass)]);
 
                 RenderRegion(context, label, RegionNames.Header);
             });
@@ -72,7 +60,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
             {
                 _ = close.Class(CloseClass);
                 _ = close.Attribute("type", "button");
-                _ = close.Attribute("aria-label", "Close");
+                _ = close.Attribute("aria-label", context.Translate(UIStrings.TabClose));
                 _ = close.Attribute("tabindex", "-1");
             });
         });

@@ -51,8 +51,7 @@ internal abstract partial class UIRuntimeBase
 
         dynamicParameters = [];
 
-        // A binding under a nested items source carries the enclosing row's key, and that key appears nowhere
-        // in a materialized path — such a binding is simply not addressable from a controller change.
+        // A binding under a nested items source is unaddressable from a controller change: its scope key has no materialized path.
         if (CompiledUIBindingParameterResolver.CountScope(binding.Parameters) > 0)
             return false;
 

@@ -1,7 +1,7 @@
-// Everything about a menu that the server cannot decide: walking it from the keyboard, and firing an entry
-// from its shortcut. Opening and placing a *context* menu stays in context-menu-engine.ts — this engine knows
-// nothing about how a menu came to be on screen.
+// Walking a menu from the keyboard, and firing an entry from its shortcut.
 
+import { findOpenModalDialog } from "./dialog-engine";
+import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { KeyboardShortcut, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut";
 import { logWarn } from "../runtime/logger";
@@ -36,15 +36,16 @@ export class MenuEngine {
     public constructor(options: MenuEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
+        // The arrows are a menu's own, taken before anything else sees them; a shortcut waits for the bubble, so a field or a
+        // popup that takes the chord itself (a code field's Ctrl+S) has already prevented it.
+        this.root.addEventListener("keydown", domEvent => this.handleNavigationKeydown(domEvent), true);
+        this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
 
         this.applyTabStops();
 
         if (this.root instanceof Node) {
-            // Entries arrive and leave with every items patch, so the registry is invalidated rather than
-            // rebuilt here — the rebuild costs a query and only the next shortcut press pays for it. The tab
-            // stops cannot wait for a press, so those are redone right after the batch settles.
+            // The shortcut registry is only invalidated, so the next press pays for the rebuild; tab stops cannot wait for a press.
             const observer = new MutationObserver(() => {
                 this.shortcutsStale = true;
                 this.scheduleTabStops();
@@ -60,19 +61,14 @@ export class MenuEngine {
 
         this.tabStopsScheduled = true;
 
-        // A timer, not requestAnimationFrame: a hidden tab gets no frames, and a menu rendered while the tab
-        // is in the background would then never become reachable from the keyboard.
+        // A timer, not requestAnimationFrame: a background tab gets no frames.
         setTimeout(() => {
             this.tabStopsScheduled = false;
             this.applyTabStops();
         }, 0);
     }
 
-    /**
-     * Gives every menu exactly one tab stop, up front. An entry with a command and no <c>Url</c> is an anchor
-     * without an href — not focusable at all — so without this a menu could not be entered from the keyboard,
-     * and the arrows below would have nothing to move from.
-     */
+    /** Gives every menu exactly one tab stop, so it can be entered from the keyboard. */
     private applyTabStops(): void {
         for (const menu of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
             const items = this.ownItems(menu);
@@ -89,26 +85,16 @@ export class MenuEngine {
         }
     }
 
-    private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented)
+    /** Arrow/Home/End inside a menu. */
+    private handleNavigationKeydown(domEvent: Event): void {
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing || !(domEvent.target instanceof Element))
             return;
-
-        if (this.handleNavigation(domEvent))
-            return;
-
-        this.handleShortcut(domEvent);
-    }
-
-    /** Arrow/Home/End inside a menu. Returns whether the key belonged to a menu at all. */
-    private handleNavigation(domEvent: KeyboardEvent): boolean {
-        if (!(domEvent.target instanceof Element))
-            return false;
 
         const item = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
         const menu = item?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
         if (item === null || menu === null)
-            return false;
+            return;
 
         const items = this.ownItems(menu);
 
@@ -116,25 +102,20 @@ export class MenuEngine {
             key: domEvent.key,
             items,
             current: item,
-            // A horizontal menu is walked left-right, a vertical one up-down. Not "both": in a horizontal menu
-            // the vertical arrows belong to whatever the menu sits in, most often the page.
+            // One axis only: the other arrows belong to whatever the menu sits in.
             axis: menu.classList.contains(HorizontalClass) ? "horizontal" : "vertical"
         });
 
         if (next === null)
-            return false;
+            return;
 
         domEvent.preventDefault();
 
         applyRovingTabIndex(items, next);
         next.focus();
-
-        return true;
     }
 
-    /**
-     * Keeps the menu a single tab stop: whichever entry the user last reached is the one Tab returns to.
-     */
+    /** Keeps the menu a single tab stop: whichever entry the user last reached is the one Tab returns to. */
     private handleFocusIn(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
@@ -146,19 +127,29 @@ export class MenuEngine {
             applyRovingTabIndex(this.ownItems(menu), item);
     }
 
-    private handleShortcut(domEvent: KeyboardEvent): void {
+    /**
+     * A shortcut is an accelerator: it fires from anywhere on the page, a field included, unless the field took the chord itself. Two
+     * things stop it — an unmodified key belongs to the text under the caret, and an open modal dialog keeps every entry outside it out
+     * of reach, as it does the pointer.
+     */
+    private handleShortcutKeydown(domEvent: Event): void {
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
+            return;
+
         if (this.shortcutsStale)
             this.rebuildShortcuts();
 
         if (this.shortcuts.size === 0 || isTypingTarget(domEvent))
             return;
 
+        const modal = findOpenModalDialog(this.root);
+
         for (const entry of this.shortcuts.values()) {
             // A null entry is a claimed-twice combination: it fires nothing, on purpose.
             if (entry === null || !matchesShortcut(entry.shortcut, domEvent))
                 continue;
 
-            if (entry.element.getClientRects().length === 0 || entry.element.matches(":disabled, .ui-disabled"))
+            if (!isRovingCandidate(entry.element) || (modal !== null && !modal.contains(entry.element)))
                 return;
 
             domEvent.preventDefault();
@@ -168,17 +159,13 @@ export class MenuEngine {
         }
     }
 
-    /**
-     * A combination claimed by two entries fires neither: with the menu holding both, there is no principled
-     * way to pick one, and picking the first would depend on collection order.
-     */
+    /** Rebuilds the shortcut registry; a combination claimed by two entries fires neither. */
     private rebuildShortcuts(): void {
         this.shortcuts.clear();
         this.shortcutsStale = false;
 
         for (const element of this.root.querySelectorAll<HTMLElement>(`[${ShortcutAttribute}]`)) {
-            // A context menu lives in a row template, so every row would claim the same combination and the
-            // rule below would void it. Its shortcut text is a label for a key bound elsewhere.
+            // A context menu lives in a row template, so its shortcut text only labels a key bound elsewhere.
             if (element.closest(`.${ContextMenuClass}`) !== null)
                 continue;
 
@@ -209,20 +196,13 @@ export class MenuEngine {
         }
     }
 
-    /**
-     * The entries of this menu, excluding those of a menu nested inside it and the two kinds that are not
-     * controls: a caption names the entries under it and a rule is a line, so neither takes the caret.
-     */
+    /** This menu's own entries, excluding a nested menu's and the kinds that are not controls. */
     private ownItems(menu: HTMLElement): HTMLElement[] {
-        return [...menu.querySelectorAll<HTMLElement>(`.${ItemClass}:not(${NonInteractiveSelector})`)]
-            .filter(item => item.closest(`.${RootClass}`) === menu);
+        return ownDescendants(menu, `.${ItemClass}:not(${NonInteractiveSelector})`, `.${RootClass}`);
     }
 }
 
-/**
- * Whether the press belongs to text the user is editing. A bare "Delete" or "F2" must not fire a menu entry
- * mid-word; a modified one — Ctrl+S — is exactly the case that should still work while typing.
- */
+/** Whether an unmodified press belongs to text the user is editing. */
 function isTypingTarget(domEvent: KeyboardEvent): boolean {
     if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
         return false;

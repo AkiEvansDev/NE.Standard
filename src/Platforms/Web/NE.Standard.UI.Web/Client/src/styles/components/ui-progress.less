@@ -11,17 +11,27 @@
     gap: @ui-space-2;
 }
 
+.ui-progress__label,
 .ui-progress__value {
-    display: none;
     flex: 0 0 auto;
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
 }
 
-.ui-progress[data-ui-progress-value] > .ui-progress__value {
+// `:empty` rather than an attribute: a text operation that writes nothing just leaves the span empty.
+.ui-progress__label:empty {
+    display: none;
+}
+
+.ui-progress__value {
+    display: none;
+}
+
+.ui-progress[data-ui-progress-value] .ui-progress__value {
     display: block;
 }
 
+// Exception to runtime.less's "no component fills by itself": a bar has no content to size to, so left to auto it collapses.
 .ui-progress--linear {
     .ui-responsive-property(width, --ui-width, 100%);
 }
@@ -43,28 +53,59 @@
     transition: width @ui-motion-normal @ui-motion-ease;
 }
 
+// The authored size belongs to the ring, not the root: the --ui-width/--ui-height chain is re-declared on the ring's box.
 .ui-progress--circular {
+    width: auto;
+    height: auto;
+}
+
+.ui-progress--circular > .ui-progress__dial {
     position: relative;
-    justify-content: center;
+    flex: 0 0 auto;
     .ui-responsive-property(width, --ui-width, 2.75rem);
     .ui-responsive-property(height, --ui-height, 2.75rem);
 }
 
-.ui-progress--circular > .ui-progress__track {
-    display: block;
-    height: 100%;
-    aspect-ratio: 1 / 1;
-    background: conic-gradient(currentColor calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100% - 0.25%), color-mix(in srgb, currentColor 18%, transparent) calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100% + 0.25%));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 0.3rem - 0.5px), #000 calc(100% - 0.3rem + 0.5px), #000 calc(100% - 0.5px), transparent 100%);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.3rem - 0.5px), #000 calc(100% - 0.3rem + 0.5px), #000 calc(100% - 0.5px), transparent 100%);
-    transition: background @ui-motion-normal @ui-motion-ease;
+// Nothing of its own to be: the ring is hidden, and the reading is the last thing in the row.
+.ui-progress--linear > .ui-progress__dial {
+    display: contents;
 }
 
-.ui-progress--circular > .ui-progress__track > .ui-progress__fill {
+.ui-progress--circular > .ui-progress__track {
     display: none;
 }
 
-.ui-progress--circular > .ui-progress__value {
+// Two stroked circles rather than a masked conic gradient; the stroke is in viewBox units, so proportions hold at every size.
+// The turn to twelve o'clock is on the circle inside, so the SVG is painted in place and never resampled as a transformed layer.
+.ui-progress__ring {
+    display: none;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+.ui-progress--circular .ui-progress__ring {
+    display: block;
+}
+
+.ui-progress__ring > circle {
+    fill: none;
+    stroke-width: 4;
+}
+
+.ui-progress__ring-track {
+    stroke: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.ui-progress__ring-fill {
+    stroke: currentColor;
+    stroke-linecap: round;
+    // pathLength is 100, so the dash units are hundredths of the way round and the offset is what is left.
+    stroke-dasharray: 100;
+    stroke-dashoffset: calc(100 - (var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100);
+    transition: stroke-dashoffset @ui-motion-normal @ui-motion-ease;
+}
+
+.ui-progress--circular .ui-progress__value {
     position: absolute;
     inset: 0;
     display: none;
@@ -72,6 +113,6 @@
     justify-content: center;
 }
 
-.ui-progress--circular[data-ui-progress-value] > .ui-progress__value {
+.ui-progress--circular[data-ui-progress-value] .ui-progress__value {
     display: flex;
 }

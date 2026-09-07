@@ -24,4 +24,16 @@ public partial class KeyValueActionItem : RecursiveObservable, IKeyValueActionMo
     /// <inheritdoc />
     [RecursiveMember]
     public partial IButtonModel Action { get; set; } = new ButtonItem();
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? ShowInput { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial object? EditValue { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial string? InputTemplate { get; set; }
 }

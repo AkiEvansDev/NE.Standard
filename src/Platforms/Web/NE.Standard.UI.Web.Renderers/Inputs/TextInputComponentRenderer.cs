@@ -1,9 +1,10 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -13,6 +14,9 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 public sealed class TextInputComponentRenderer : TextContentRendererBase
 {
+    // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
+    private const string ClearShownAttribute = "data-ui-clear-shown";
+
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
 
     protected override string ElementName => "label";
@@ -23,12 +27,23 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        RenderInputTooltip(context, root);
+        RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root);
 
-        _ = root.Element("span", row =>
+        // Whether the clear button shows, on the root: the button itself is always rendered.
+        _ = RenderProperty<bool?>(context, root, TextInputComponent.ShowClearButtonProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(ClearShownAttribute);
+        }, [WebDomOperation.ToggleAttribute(ClearShownAttribute, condition: WebValueCondition.IsTrue)]);
+
+        // A password field the browser finds outside a form gets a console warning on every page; the row is the form then,
+        // and Enter in it is the field-keys engine's, never a native submit.
+        _ = ResolveRenderValue(context, TextInputComponent.TypeProperty, out UITextInputType? type, out _);
+
+        _ = root.Element(type == UITextInputType.Password ? "form" : "span", row =>
         {
             _ = row.Class($"{ClassName}__row");
 
@@ -36,11 +51,12 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            _ = row.Element("span", prefix => RenderAffix(context, prefix, TextInputComponent.PrefixTextProperty, "prefix"));
+            _ = row.Element("span", prefix => RenderInputAffixText(context, prefix, suffix: false));
 
             _ = row.Element("input", input =>
             {
                 _ = input.Class($"{ClassName}__field");
+                _ = input.Class("ui-field");
 
                 _ = RenderProperty<UITextInputType?>(context, input, TextInputComponent.TypeProperty, static (target, value)
                     => _ = target.Attribute("type", WebClassNames.TextInputType(value ?? UITextInputType.Text))
@@ -52,23 +68,24 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute("maxlength")]);
 
-                _ = RenderProperty<bool?>(context, input, IInputComponent.IsReadOnlyProperty, static (target, value) =>
-                {
-                    if (value == true)
-                        _ = target.Attribute("readonly");
-                }, [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue)]);
+                NativeInputRendererBase.RenderPlaceholder(context, input);
+                NativeInputRendererBase.RenderIsReadOnly(context, input);
 
                 _ = RenderProperty<bool?>(context, input, TextInputComponent.TrimInputProperty, static (target, value) =>
                 {
                     if (value == true)
-                        _ = target.Attribute("data-ui-trim-input");
-                }, [WebDomOperation.ToggleAttribute("data-ui-trim-input", condition: WebValueCondition.IsTrue)]);
+                        _ = target.Attribute(WebAttributes.TrimInput);
+                }, [WebDomOperation.ToggleAttribute(WebAttributes.TrimInput, condition: WebValueCondition.IsTrue)]);
 
-                _ = RenderProperty<string?>(context, input, IInputComponent.FormIdProperty, static (target, value) =>
+                // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
+                _ = RenderProperty<int?>(context, input, TextInputComponent.DebounceMillisecondsProperty, static (target, value) =>
                 {
-                    if (!string.IsNullOrWhiteSpace(value))
-                        _ = target.Attribute("data-ui-form-id", value);
-                }, [WebDomOperation.Attribute("data-ui-form-id")]);
+                    if (value is int milliseconds)
+                        _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
+                }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
+
+                NativeInputRendererBase.RenderFormId(context, input);
+                NativeInputRendererBase.RenderFieldName(context, input);
 
                 _ = RenderProperty<string?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
                 {
@@ -77,59 +94,31 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Property("value")]);
             });
 
-            _ = row.Element("span", suffix => RenderAffix(context, suffix, TextInputComponent.SuffixTextProperty, "suffix"));
+            _ = row.Element("span", suffix => RenderInputAffixText(context, suffix, suffix: true));
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
-            if (ShouldRenderClearButton(context))
+            // Always rendered, shown by the root's own attribute.
+            _ = row.Element("button", clear =>
             {
-                _ = row.Element("button", clear =>
+                _ = clear.Class($"{ClassName}__clear");
+                _ = clear.Attribute("type", "button");
+                _ = clear.Attribute("aria-label", context.Translate(UIStrings.InputClear));
+                _ = clear.Attribute(WebAttributes.Clear);
+            });
+
+            // After the clear: what the field can do with its value stands past what takes the value away.
+            if (HasRegion(context, RegionNames.TrailingAction))
+            {
+                _ = row.Element("span", action =>
                 {
-                    _ = clear.Class($"{ClassName}__clear");
-                    _ = clear.Attribute("type", "button");
-                    _ = clear.Attribute("data-ui-clear");
+                    _ = action.Class($"{ClassName}__action");
+
+                    RenderRegion(context, action, RegionNames.TrailingAction);
                 });
             }
         });
 
-        _ = root.Element("span", message =>
-        {
-            _ = message.Class($"{ClassName}__message");
-            _ = message.Attribute("data-ui-validation-message");
-        });
-    }
-
-    /// <summary>
-    /// Renders a static prefix/suffix text span. Not a live-bindable DOM target beyond its own text —
-    /// mirrors <c>RenderIcon</c>/<c>RenderTitle</c>'s "one text-bearing element, one
-    /// <c>RenderProperty</c> call" shape.
-    /// </summary>
-    private static void RenderAffix(WebRenderContext context, IHtmlElementBuilder affix, UIProperty property, string modifier)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(affix);
-        ArgumentException.ThrowIfNullOrWhiteSpace(modifier);
-
-        _ = affix.Class("ui-text-input__affix");
-        _ = affix.Class($"ui-text-input__affix--{modifier}");
-
-        _ = RenderProperty<string?>(context, affix, property, (target, value) =>
-        {
-            if (!string.IsNullOrEmpty(value))
-                _ = target.Text(value);
-        }, [WebDomOperation.Text()]);
-    }
-
-    /// <summary>
-    /// <c>TextInputComponent.ShowClearButton</c> decides whether the clear button element exists
-    /// at all — it isn't a live DOM-patchable toggle (no <c>WebDomOperationKind</c> adds/removes whole
-    /// elements), so it's resolved statically at render time.
-    /// </summary>
-    private static bool ShouldRenderClearButton(WebRenderContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        WebRenderValueKind kind = ResolveRenderValue(context, TextInputComponent.ShowClearButtonProperty, out bool? value, out _);
-        return kind == WebRenderValueKind.Static && value == true;
+        RenderValidationMessage(context, root);
     }
 }

@@ -25,7 +25,7 @@ public sealed class ShowEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.Show;
+    public override string Kind => ClientEffectKinds.Show;
 
     /// <summary>
     /// Gets the target component reference.
@@ -39,7 +39,7 @@ public sealed class ShowEffect : ClientEffect
 
 internal sealed class CompiledShowEffect(UIComponentAddress target) : ClientEffect
 {
-    public override ClientEffectKind Kind => ClientEffectKind.Show;
+    public override string Kind => ClientEffectKinds.Show;
 
     public UIComponentAddress Target { get; } = target;
 }

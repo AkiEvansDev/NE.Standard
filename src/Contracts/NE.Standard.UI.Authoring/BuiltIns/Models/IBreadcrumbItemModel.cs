@@ -5,11 +5,6 @@ namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 /// <summary>
 /// Represents one step of a breadcrumb trail: where it leads and how it reads.
 /// </summary>
-/// <remarks>
-/// Extends <see cref="ITextBaseModel"/> for the icon, title and badge a step can carry, and adds only a
-/// destination. There is deliberately no "current" flag: the trail's <em>last</em> step is where you are, and
-/// a flag would let the data disagree with its own order.
-/// </remarks>
 public interface IBreadcrumbItemModel : ITextBaseModel
 {
     /// <summary>

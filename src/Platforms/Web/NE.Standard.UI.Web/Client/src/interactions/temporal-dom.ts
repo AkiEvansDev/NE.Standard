@@ -1,19 +1,23 @@
-// What every temporal control reads off its own root element, shared by the two engines that drive them:
-// the calendar popup (DateInput, DateTimeInput) and the segmented clock (TimeInput). Neither owns these —
-// they are the wire contract the C# renderers write, so a name changed here changes there too.
+// What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
 import { TemporalCulturePack } from "../rendering/temporal-format";
 
 export const RootClass = "ui-temporal-input";
 export const ValueInputClass = "ui-temporal-input__value-input";
+/** The period's end, beside the start's hidden input; the two are told apart by the end attribute below. */
+export const EndValueInputClass = "ui-temporal-input__end-value-input";
 
-export const ModeAttribute = "data-ui-temporal-mode";
+/** On a root editing a period; on the part — a field, a clock, a hidden input — that holds the period's end. */
+export const RangeAttribute = "data-ui-temporal-range";
+export const EndAttribute = "data-ui-temporal-end";
+
+const ModeAttribute = "data-ui-temporal-mode";
 export const FormatAttribute = "data-ui-temporal-format";
-export const DefaultFormatAttribute = "data-ui-temporal-default-format";
+const DefaultFormatAttribute = "data-ui-temporal-default-format";
 export const MinAttribute = "data-ui-temporal-min";
 export const MaxAttribute = "data-ui-temporal-max";
-export const StepAttribute = "data-ui-temporal-step";
-export const StepUnitAttribute = "data-ui-temporal-step-unit";
+const StepAttribute = "data-ui-temporal-step";
+const StepUnitAttribute = "data-ui-temporal-step-unit";
 
 /** The attributes a live patch can change, and that therefore have to re-render whatever is showing. */
 export const PickerAttributes = new Set([FormatAttribute, MinAttribute, MaxAttribute]);
@@ -22,8 +26,7 @@ export type TemporalMode = "date" | "time" | "date-time";
 export type TimeUnit = "hour" | "minute" | "second";
 export type TimeStep = { unit: TimeUnit | "day"; hour: number; minute: number; second: number };
 
-// A time-only value still needs a Date to travel through the shared plumbing; the date half is a
-// placeholder and never reaches the canonical string.
+// A time-only value still needs a Date; the date half is a placeholder and never reaches the canonical string.
 const TimeOnlyBaseYear = 2000;
 
 export function readMode(root: HTMLElement): TemporalMode {
@@ -73,28 +76,91 @@ function readList(root: HTMLElement, attribute: string): readonly string[] {
     return (root.getAttribute(attribute) ?? "").split("|");
 }
 
+export function isRange(root: HTMLElement): boolean {
+    return root.hasAttribute(RangeAttribute);
+}
+
+/** Whether a part of a temporal control — a field, a clock, a hidden input — is the period's end. */
+export function isEndPart(part: Element | null): boolean {
+    return part !== null && part.hasAttribute(EndAttribute);
+}
+
 export function readValue(root: HTMLElement): Date | null {
-    const valueInput = root.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
+    return readValueOf(root, false);
+}
+
+/** The start, or the end when `end` is set and the control edits a period. */
+export function readValueOf(root: HTMLElement, end: boolean): Date | null {
+    const valueInput = valueInputOf(root, end);
 
     return valueInput === null ? null : parseCanonical(valueInput.value, readMode(root));
+}
+
+function valueInputOf(root: HTMLElement, end: boolean): HTMLInputElement | null {
+    return root.querySelector<HTMLInputElement>(`.${end ? EndValueInputClass : ValueInputClass}`);
 }
 
 export function readBound(root: HTMLElement, attribute: string): Date | null {
     return parseCanonical(root.getAttribute(attribute) ?? "", readMode(root));
 }
 
-/**
- * Writes through the hidden input and a synthetic "change", so a value picked in the UI travels the exact
- * same two-way path a typed one does instead of needing its own dispatch.
- */
+/** Writes through the hidden input and a synthetic "change", the same two-way path a typed value takes. */
 export function writeValue(root: HTMLElement, value: Date | null): void {
-    const valueInput = root.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
+    writeValueOf(root, value, false);
+}
+
+/** Writes the start, or the end when `end` is set; nothing is written where the value already stands. */
+export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean): void {
+    const valueInput = valueInputOf(root, end);
 
     if (valueInput === null)
         return;
 
-    valueInput.value = value === null ? "" : toCanonical(value, readMode(root));
+    const canonical = value === null ? "" : toCanonical(value, readMode(root));
+
+    if (valueInput.value === canonical)
+        return;
+
+    valueInput.value = canonical;
     valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Puts a period's ends in order after one of them was written: an end typed or stepped before the start swaps with
+ * it, which is what the person meant, rather than a refusal they have to read.
+ */
+export function orderPeriod(root: HTMLElement): void {
+    if (!isRange(root))
+        return;
+
+    const start = readValueOf(root, false);
+    const end = readValueOf(root, true);
+
+    if (start === null || end === null || end.getTime() >= start.getTime())
+        return;
+
+    writeValueOf(root, end, false);
+    writeValueOf(root, start, true);
+}
+
+/** Pulls a value the controller pushed back inside Min/Max, and reports the clamp back through `writeValue`. */
+export function clampPushedValue(root: HTMLElement): void {
+    clampPushedValueOf(root, false);
+
+    if (isRange(root))
+        clampPushedValueOf(root, true);
+}
+
+function clampPushedValueOf(root: HTMLElement, end: boolean): void {
+    const value = readValueOf(root, end);
+
+    if (value === null)
+        return;
+
+    const clamped = clampToRange(root, value);
+
+    if (clamped.getTime() !== value.getTime())
+        writeValueOf(root, clamped, end);
 }
 
 export function defaultMoment(root: HTMLElement): Date {
@@ -166,6 +232,6 @@ export function toCanonical(value: Date, mode: TemporalMode): string {
     return mode === "date" ? date : `${date}T${time}`;
 }
 
-export function pad(value: number): string {
+function pad(value: number): string {
     return String(value).padStart(2, "0");
 }

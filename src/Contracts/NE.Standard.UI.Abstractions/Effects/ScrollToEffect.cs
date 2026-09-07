@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Abstractions.Effects;
 public enum ScrollToBehavior
 {
     /// <summary>
-    /// Uses the browser's default scrolling behavior.
+    /// Uses the platform's default scrolling behavior.
     /// </summary>
     Auto = 0,
 
@@ -78,7 +78,10 @@ public sealed class ScrollToEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.ScrollTo;
+    public override string Kind => ClientEffectKinds.ScrollTo;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     /// <summary>
     /// Gets the target component reference.
@@ -102,7 +105,10 @@ public sealed class ScrollToEffect : ClientEffect
 
 internal sealed class CompiledScrollToEffect(UIComponentAddress target, ScrollToBehavior behavior, ScrollToBlock block) : ClientEffect
 {
-    public override ClientEffectKind Kind => ClientEffectKind.ScrollTo;
+    public override string Kind => ClientEffectKinds.ScrollTo;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     public UIComponentAddress Target { get; } = target;
     public ScrollToBehavior Behavior { get; } = behavior;

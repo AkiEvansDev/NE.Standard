@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -16,6 +17,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Hosting;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Web.Abstractions.Assets;
@@ -30,6 +32,9 @@ public static partial class WebEndpointRouteBuilderExtensions
     {
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Rendering web UI route '{Route}'.")]
         public static partial void Rendering(ILogger logger, string route);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Response compression is switched on but this host does not accept middleware here; call UseResponseCompression() yourself.")]
+        public static partial void CompressionNotInstalled(ILogger logger);
     }
 
     public static Task<IEndpointRouteBuilder> MapStandardUIWebAsync(this IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
@@ -38,33 +43,49 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        MapAssets(endpoints);
+        // The framework's own page, asset, file and content responses all sit behind this filter; the hub is a
+        // different kind of endpoint and carries no body a browser could sniff.
+        RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
 
-        WebFileEndpoints.Map(endpoints);
+        MapAssets(group);
+
+        WebFileEndpoints.Map(group);
+        WebContentEndpoint.Map(group);
+
+        UseResponseCompression(endpoints);
 
         WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
         RequireAuthorization(endpoints.MapHub<WebUIHub>("/_ui/hub"), options);
-        RequireAuthorization(endpoints.MapGet("/{**route}", RenderAsync), options);
+        RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
 
         return Task.FromResult(endpoints);
     }
 
     /// <summary>
-    /// The outer gate, opt-in: the framework's own rules decide per route and per command, and they are the
-    /// ones that know an anonymous page when they see one — so this is off unless an application is entirely
-    /// behind a login. Assets and the file endpoints are left alone: the first are static, the second carry
-    /// their own session check.
+    /// A framework response never leaves sniffing to the browser: the content type it declares is the one it means.
     /// </summary>
-    private static void RequireAuthorization(IEndpointConventionBuilder endpoint, WebEndpointOptions options)
+    private static async ValueTask<object?> AddNoSniffHeaderAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        if (!options.RequireAuthorization)
+        context.HttpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return await next(context).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Installs the compression middleware in front of everything this call maps — see <see cref="WebResponseCompressionOptions"/>.
+    /// </summary>
+    private static void UseResponseCompression(IEndpointRouteBuilder endpoints)
+    {
+        if (!endpoints.ServiceProvider.GetRequiredService<IOptions<WebResponseCompressionOptions>>().Value.Enabled)
             return;
 
-        if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
-            _ = endpoint.RequireAuthorization();
+        ILogger logger = endpoints.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(typeof(WebEndpointRouteBuilderExtensions));
+
+        if (endpoints is IApplicationBuilder application)
+            _ = application.UseResponseCompression();
         else
-            _ = endpoint.RequireAuthorization(options.AuthorizationPolicy);
+            Log.CompressionNotInstalled(logger);
     }
 
     private static void MapAssets(IEndpointRouteBuilder endpoints)
@@ -79,17 +100,41 @@ public static partial class WebEndpointRouteBuilderExtensions
             if (string.IsNullOrWhiteSpace(asset.PublicPath))
                 continue;
 
-            _ = endpoints.MapGet(asset.PublicPath, () =>
-            {
-                Stream stream = asset.Open();
-
-                return Results.File(
-                    stream,
-                    ResolveContentType(asset.Kind),
-                    enableRangeProcessing: false
-                );
-            });
+            _ = endpoints.MapGet(asset.PublicPath, (HttpContext http) => ServeAsset(http, asset));
         }
+    }
+
+    /// <summary>
+    /// The outer gate, opt-in per <see cref="WebEndpointOptions.RequireAuthorization"/>; assets and file endpoints are left alone.
+    /// </summary>
+    private static void RequireAuthorization(IEndpointConventionBuilder endpoint, WebEndpointOptions options)
+    {
+        if (!options.RequireAuthorization)
+            return;
+
+        if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
+            _ = endpoint.RequireAuthorization();
+        else
+            _ = endpoint.RequireAuthorization(options.AuthorizationPolicy);
+    }
+    /// <summary>
+    /// A request naming the current version is cached for good; one naming none, or an old one, revalidates by
+    /// ETag every time — the font a stylesheet reaches is the case, and a 304 is what keeps its glyphs from
+    /// blinking on every navigation.
+    /// </summary>
+    private static IResult ServeAsset(HttpContext http, WebAssetDescriptor asset)
+    {
+        var version = asset.ResolveVersion();
+        var etag = string.Create(CultureInfo.InvariantCulture, $"\"{version}\"");
+        var versioned = string.Equals(http.Request.Query["v"].ToString(), version, StringComparison.Ordinal);
+
+        http.Response.Headers.ETag = etag;
+        http.Response.Headers.CacheControl = versioned ? "public, max-age=31536000, immutable" : "public, no-cache";
+
+        if (!versioned && http.Request.Headers.IfNoneMatch.Count > 0 && http.Request.Headers.IfNoneMatch.ToString().Contains(etag, StringComparison.Ordinal))
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+
+        return Results.File(asset.Open(), ResolveContentType(asset.Kind), enableRangeProcessing: false);
     }
 
     private static string ResolveContentType(UIWebAssetKind kind)
@@ -97,8 +142,10 @@ public static partial class WebEndpointRouteBuilderExtensions
         {
             UIWebAssetKind.Css => "text/css",
             UIWebAssetKind.JavaScript => "application/javascript",
+            UIWebAssetKind.HeadScript => "application/javascript",
             UIWebAssetKind.TypeScript => "application/javascript",
             UIWebAssetKind.Less => "text/css",
+            UIWebAssetKind.Font => "font/woff2",
             _ => "application/octet-stream"
         };
 
@@ -110,6 +157,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         [FromServices] IWebAssetRegistry assets,
         [FromServices] IWebViewRenderer renderer,
         [FromServices] IWebViewRenderCache renderCache,
+        [FromServices] IEnumerable<IUIStringsSource> packageStrings,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -128,25 +176,34 @@ public static partial class WebEndpointRouteBuilderExtensions
             Parameters = CreateParameters(http.Request.Query)
         };
 
-        UserSessionInitData session = CreateSession(http, application.Sessions, clientTabId: null);
+        UserSessionInitData session = CreateSession(http, application.Sessions, clientWindowId: null);
 
         UIViewResolution resolution = await host.ResolveViewAsync(
             navigation,
             session,
-            UIViewRequestPhase.ShellRender,
+            UIViewRequestPhase.Open,
             cancellationToken
         ).ConfigureAwait(false);
 
-        // The shell render is the only half of a page load that can write a header, so this is where a new
-        // session id reaches the browser — the hub then reads the same cookie off its own negotiate request.
+        // The shell render is the only half of a page load that can write a header, so a new session id is set here.
         AppendSessionCookie(http, application.Sessions, session.SessionId, resolution.Session.SessionId);
 
-        WebCachedViewRender render = await GetOrRenderViewAsync(
+        WebCachedViewRender shape = await GetOrRenderViewAsync(
             resolution,
             renderer,
             renderCache,
             cancellationToken
         ).ConfigureAwait(false);
+
+        WebHydration hydration = await WebHydration
+            .PrepareAsync(host, resolution, shape, http.RequestAborted)
+            .ConfigureAwait(false);
+
+        // The shared shape carries no bound value; a page with a controller is rendered again with this session's own so the
+        // browser gets the finished page, not an empty frame.
+        WebCachedViewRender page = hydration.Values is null
+            ? shape
+            : RenderView(resolution, renderer, hydration.Values);
 
         WebShellContext shell = new()
         {
@@ -154,9 +211,12 @@ public static partial class WebEndpointRouteBuilderExtensions
             Theme = application.Theme,
             Assets = assets.Assets,
             Language = resolution.Session.Language,
-            Content = render.Html,
+            Content = page.Html,
             NotificationPlacement = resolution.View.Options.NotificationPlacement,
-            MetadataJson = render.MetadataJson
+            ScrollContentOnly = resolution.View.Options.ScrollContentOnly,
+            MetadataJson = page.MetadataJson,
+            Strings = UIStrings.Resolve(application.Translator, resolution.Session.Language, packageStrings),
+            HydrationJson = hydration.Json
         };
 
         return Results.Content(WebShellRenderer.Render(shell), "text/html");
@@ -165,6 +225,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     private static bool IsSystemRoute(string route)
         => route.StartsWith("/.well-known/", StringComparison.Ordinal)
         || route.StartsWith($"{WebFileEndpoints.Prefix}/", StringComparison.Ordinal)
+        || route.StartsWith($"{WebContentEndpoint.Prefix}/", StringComparison.Ordinal)
         || route.Equals("/favicon.ico", StringComparison.Ordinal);
 
     private static Dictionary<string, object?>? CreateParameters(IQueryCollection query)
@@ -187,12 +248,12 @@ public static partial class WebEndpointRouteBuilderExtensions
         return parameters;
     }
 
-    private static UserSessionInitData CreateSession(HttpContext http, UISessionOptions options, string? clientTabId)
+    private static UserSessionInitData CreateSession(HttpContext http, UISessionOptions options, string? clientWindowId)
         => new()
         {
             SessionId = ReadSessionCookie(http, options),
             ConnectionId = http.Connection.Id,
-            ClientTabId = clientTabId,
+            ClientWindowId = clientWindowId,
             Credential = http.User.Identity?.IsAuthenticated == true ? http.User.Identity.Name : null,
             Principal = http.User
         };
@@ -204,7 +265,8 @@ public static partial class WebEndpointRouteBuilderExtensions
 
     private static void AppendSessionCookie(HttpContext http, UISessionOptions options, string? presentedSessionId, string resolvedSessionId)
     {
-        if (string.Equals(presentedSessionId, resolvedSessionId, StringComparison.Ordinal))
+        // A lifetime counts from the last page load, so the cookie is written again on every one; without a lifetime, only a new id is.
+        if (options.ClientKeyLifetime is null && string.Equals(presentedSessionId, resolvedSessionId, StringComparison.Ordinal))
             return;
 
         http.Response.Cookies.Append(options.ClientKey, resolvedSessionId, new CookieOptions
@@ -213,11 +275,12 @@ public static partial class WebEndpointRouteBuilderExtensions
             IsEssential = true,
             SameSite = SameSiteMode.Lax,
             Secure = http.Request.IsHttps,
-            Path = "/"
+            Path = "/",
+            MaxAge = options.ClientKeyLifetime
         });
     }
 
-    private static async ValueTask<WebCachedViewRender> GetOrRenderViewAsync(UIViewResolution resolution, IWebViewRenderer renderer, IWebViewRenderCache renderCache, CancellationToken cancellationToken)
+    internal static async ValueTask<WebCachedViewRender> GetOrRenderViewAsync(UIViewResolution resolution, IWebViewRenderer renderer, IWebViewRenderCache renderCache, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resolution);
         ArgumentNullException.ThrowIfNull(renderer);
@@ -237,9 +300,9 @@ public static partial class WebEndpointRouteBuilderExtensions
         return render;
     }
 
-    private static WebCachedViewRender RenderView(UIViewResolution resolution, IWebViewRenderer renderer)
+    private static WebCachedViewRender RenderView(UIViewResolution resolution, IWebViewRenderer renderer, IWebRenderValues? values = null)
     {
-        WebRenderResult render = renderer.Render(resolution);
+        WebRenderResult render = renderer.Render(resolution, values);
 
         int[] initBindingIds = [.. render.Metadata.InitBindingIds.Select(static bindingId => bindingId.Value)];
 

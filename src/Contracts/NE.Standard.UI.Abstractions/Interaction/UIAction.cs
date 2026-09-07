@@ -5,6 +5,7 @@ using System.Linq;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Abstractions.Interaction;
 
@@ -60,7 +61,19 @@ public sealed class UIAction
     }
 
     /// <summary>
-    /// Creates an action argument entry resolved from the current item key.
+    /// Creates an action argument entry for the current item or its key, chosen by <paramref name="kind"/>.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgCurrent(UIActionArgumentKind kind, string name)
+        => kind switch
+        {
+            UIActionArgumentKind.CurrentItem => ArgCurrentItem(name),
+            UIActionArgumentKind.CurrentItemKey => ArgCurrentItemKey(name),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, $"Only '{nameof(UIActionArgumentKind.CurrentItem)}' and '{nameof(UIActionArgumentKind.CurrentItemKey)}' can be named without a path.")
+        };
+
+    /// <summary>
+    /// Creates an action argument entry resolved from the current item key, verified at runtime against the
+    /// collection it addresses.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgCurrentItemKey(string name)
     {

@@ -2,7 +2,10 @@ import { ServerChangeSet, WebUIValueChangeRequest } from "../metadata/metadata-i
 import { SignalRTransport } from "./signalr-transport";
 
 export class ValueChangeDispatcher {
-    public constructor(private readonly transport: SignalRTransport) {
+    private readonly transport: SignalRTransport;
+
+    public constructor(transport: SignalRTransport) {
+        this.transport = transport;
     }
 
     public async dispatchAsync(update: WebUIValueChangeRequest): Promise<ServerChangeSet> {

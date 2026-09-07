@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
@@ -20,6 +21,7 @@ public sealed class ServerChangeSet
     /// <summary>
     /// Gets whether the change set contains no updates.
     /// </summary>
+    [JsonIgnore]
     public bool IsEmpty => Updates.Length == 0;
 
     /// <summary>

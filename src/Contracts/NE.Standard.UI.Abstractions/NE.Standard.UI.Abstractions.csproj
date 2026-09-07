@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NE.Colors" Version="1.0.2" />
+    <PackageReference Include="NE.Colors" Version="1.2.0" />
   </ItemGroup>
 
   <ItemGroup>

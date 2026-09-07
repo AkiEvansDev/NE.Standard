@@ -162,11 +162,9 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
         _ = builder.AppendLine("Bindings:");
 
         CompiledUIBinding[] propertyBindings = GetBindingsByKind(view, CompiledUIBindingKind.ComponentProperty);
-        CompiledUIBinding[] contextBindings = GetBindingsByKind(view, CompiledUIBindingKind.ComponentContext);
         CompiledUIBinding[] collectionBindings = GetBindingsByKind(view, CompiledUIBindingKind.ComponentCollection);
 
         AppendBindingGroup(builder, view, nameof(CompiledUIBindingKind.ComponentProperty), propertyBindings);
-        AppendBindingGroup(builder, view, nameof(CompiledUIBindingKind.ComponentContext), contextBindings);
         AppendBindingGroup(builder, view, nameof(CompiledUIBindingKind.ComponentCollection), collectionBindings);
     }
 
@@ -403,8 +401,7 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 _ = builder.Append(boolValue ? "true" : "false");
                 break;
 
-            // Otherwise a bound column list reads as "UIGridUnit[]", which is the one thing about it nobody
-            // needs to be told.
+            // Otherwise a bound column list would print as "UIGridUnit[]" instead of its items.
             case IEnumerable items:
                 AppendItems(builder, items);
                 break;
@@ -489,7 +486,8 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 break;
 
             case CompiledUIActionArgumentKind.CurrentItemKey:
-                _ = builder.Append("currentItemKey");
+                _ = builder.Append("currentItemKey ");
+                AppendEventBindingArgument(builder, view, argument);
                 break;
 
             case CompiledUIActionArgumentKind.Binding:
@@ -654,10 +652,7 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
     }
 
     /// <summary>
-    /// The other half of a component's compiled state: what the author set outright rather than bound. A
-    /// property that renders wrongly is as often a literal the compiler kept as a binding it resolved, and
-    /// this section is where the difference is visible. <c>(translatable)</c> marks a value that goes through
-    /// the translator before it is rendered.
+    /// Appends the static (unbound) property values section, marking translatable values.
     /// </summary>
     private void AppendStaticValues(StringBuilder builder, CompiledView view)
     {
@@ -675,8 +670,7 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 if (value.IsBind)
                     continue;
 
-                // Compiled state carries every property of every component, set or not, so the unset ones are
-                // the bulk of it — and a page of "<null>" buries the handful of values the reader came for.
+                // Unset properties are most of the compiled state and would bury the ones that matter.
                 if (value.Value is null && !_options.IncludeUnsetStaticValues)
                     continue;
 

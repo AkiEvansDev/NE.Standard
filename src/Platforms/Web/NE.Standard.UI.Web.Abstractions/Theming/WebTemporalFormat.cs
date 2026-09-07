@@ -9,10 +9,7 @@ namespace NE.Standard.UI.Web.Abstractions.Theming;
 /// The locale-dependent text a formatted temporal value needs, resolved once from a
 /// <see cref="CultureInfo"/> and handed to the client alongside the value.
 /// </summary>
-/// <remarks>
-/// Only *text* lives here. It is what keeps the duplicated formatter from having to know anything about
-/// locales: .NET stays the single source for month and day names, the client only assembles them.
-/// </remarks>
+/// <remarks>Text only: .NET stays the single source for month and day names, the client only assembles them.</remarks>
 public sealed record WebTemporalCulturePack(
     IReadOnlyList<string> MonthNames,
     IReadOnlyList<string> MonthGenitiveNames,
@@ -23,15 +20,10 @@ public sealed record WebTemporalCulturePack(
     string PmDesignator)
 {
     /// <summary>
-    /// Builds the pack for <paramref name="culture"/>. Month arrays are trimmed to twelve — .NET returns
-    /// thirteen for calendars with a leap month, and the client indexes by month number.
+    /// Builds the pack for <paramref name="culture"/>; month arrays are trimmed to twelve, since .NET returns
+    /// thirteen for a leap-month calendar and the client indexes by month number.
     /// </summary>
-    /// <remarks>
-    /// Both month forms are carried because inflected languages need them: "апрель" standing alone, but
-    /// "3 апреля" next to a day number. .NET picks between them from the pattern, and
-    /// <see cref="WebTemporalFormat"/> reproduces that rule on both sides rather than shipping one form and
-    /// rendering half the formats ungrammatically.
-    /// </remarks>
+    /// <remarks>Both month forms are carried because an inflected language needs each in a different pattern.</remarks>
     public static WebTemporalCulturePack FromCulture(CultureInfo culture)
     {
         ArgumentNullException.ThrowIfNull(culture);
@@ -54,27 +46,18 @@ public sealed record WebTemporalCulturePack(
 /// (<c>temporal-format.ts</c>); <c>TemporalFormatSyncTests</c> keeps the two token tables in step.
 /// </summary>
 /// <remarks>
-/// Deliberately does <em>not</em> delegate to <c>DateTime.ToString(format, culture)</c>. The client cannot
-/// reproduce .NET's full format semantics, and a <c>DisplayFormat</c> that renders one way server-side and
-/// another way after the first client update is the precise failure duplicating a formatter invites. Both
-/// sides are therefore held to the same small set, and anything outside it is emitted literally rather
-/// than interpreted differently by each.
+/// Deliberately not <c>DateTime.ToString(format, culture)</c>: the client cannot reproduce .NET's full
+/// semantics, so anything outside the shared subset is emitted literally on both sides.
 /// </remarks>
 public static class WebTemporalFormat
 {
-    /// <summary>
-    /// The supported tokens, longest first — the order matters, since matching is greedy and "MMMM" must
-    /// win over "MMM". Kept as data so the drift guard can compare it against the client's own table.
-    /// </summary>
+    /// <summary>The supported tokens, longest first: matching is greedy, so "MMMM" must be listed before "MMM".</summary>
     public static readonly string[] Tokens =
     [
         "MMMM", "dddd", "yyyy", "MMM", "ddd", "dd", "MM", "yy", "HH", "hh", "mm", "ss", "tt", "d", "M", "H", "h", "m", "s"
     ];
 
-    /// <summary>
-    /// Formats <paramref name="value"/> against <paramref name="format"/>. A null or empty format returns
-    /// the invariant round-trip form, which is what the field shows when no <c>DisplayFormat</c> is set.
-    /// </summary>
+    /// <summary>Formats <paramref name="value"/>; a null or empty format returns the invariant round-trip form.</summary>
     public static string Format(DateTime value, string? format, WebTemporalCulturePack culture)
     {
         ArgumentNullException.ThrowIfNull(culture);
@@ -104,10 +87,8 @@ public static class WebTemporalFormat
     }
 
     /// <summary>
-    /// Whether the format names a day <em>number</em> ("d"/"dd", not the weekday names "ddd"/"dddd") — which
-    /// is what decides between the two month forms in an inflected language, the same way .NET's own pattern
-    /// handling does. Tokenized rather than scanned for a bare 'd' so a literal, or a "dddd" weekday, cannot
-    /// be mistaken for one.
+    /// Whether the format names a day number ("d"/"dd", not "ddd"/"dddd"), which chooses between the two
+    /// month forms; tokenized rather than scanned so a literal 'd' cannot be mistaken for one.
     /// </summary>
     private static bool HasDayNumberToken(string format)
     {

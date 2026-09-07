@@ -11,9 +11,8 @@ public sealed class UIFileOptions
     /// Gets or sets the largest single file accepted, in bytes.
     /// </summary>
     /// <remarks>
-    /// Enforced at the endpoint while the part is still streaming, not after buffering it — and not to be
-    /// confused with <c>FileInputComponent.MaxFileSize</c>, which is picker chrome a client can simply not
-    /// honour.
+    /// Enforced at the endpoint while the part streams, not after buffering it; distinct from <c>FileInputComponent.MaxFileSize</c>,
+    /// which is picker chrome a client can ignore.
     /// </remarks>
     public long MaxFileSize { get; set; } = 32 * 1024 * 1024;
 
@@ -31,8 +30,7 @@ public sealed class UIFileOptions
     /// Gets or sets how long a staged download waits to be fetched.
     /// </summary>
     /// <remarks>
-    /// Short on purpose: the browser is told to fetch it immediately, so anything still sitting here minutes
-    /// later was never collected.
+    /// Short on purpose: the client fetches it immediately, so anything left here was never collected.
     /// </remarks>
     public TimeSpan DownloadRetention { get; set; } = TimeSpan.FromMinutes(5);
 

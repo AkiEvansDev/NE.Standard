@@ -25,17 +25,15 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
                 _ = target.Class(WebClassNames.Orientation(orientation));
         }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
 
-        // The rule is drawn on an inner __line rather than as a border on the root, so a label can sit inside
-        // it and interrupt the line instead of floating over it.
+        // The rule is an inner __line, not a border on the root, so a label can interrupt it rather than float over it.
         _ = root.Element("span", line =>
         {
             _ = line.Class("ui-separator__line");
 
             ThemeColorRenderer.RenderThemeColor(context, line, SeparatorComponent.ColorProperty);
 
-            // The label element is always emitted, empty or not, and a presence attribute on the line decides
-            // whether the rule is interrupted for it. A live Label patch is then a text write plus an
-            // attribute toggle — no DOM operation adds or removes whole elements.
+            // Always emitted, empty or not: a live Label patch is then a text write and an attribute toggle,
+            // never an element add or remove.
             IHtmlElementBuilder? label = null;
 
             _ = line.Element("span", span =>

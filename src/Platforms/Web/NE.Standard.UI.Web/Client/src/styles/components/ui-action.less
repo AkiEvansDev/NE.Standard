@@ -1,27 +1,32 @@
 @import "../core/tokens.less";
+@import "../mixins/chevron.less";
 @import "../mixins/responsive.less";
+@import "../mixins/text.less";
 
-// A row, not a button: the content takes the space and the trailing side is pushed against the far edge.
-// Everything else — hover, active, disabled, the type variants — comes from .ui-button, which this wears
-// alongside its own class.
+// A row, not a button: content fills the space, the trailing side sits at the far edge; states and variants come from .ui-button.
 .ui-action {
     justify-content: flex-start;
+    // A button's corners, not a row's: a row of a list is square, an action is a control of its own.
+    border-radius: var(--ui-radius-button);
     gap: @ui-space-3;
-    // Re-called with this control's own defaults rather than written flat: runtime.less resolves these
-    // through a var() chain at the same specificity, and a literal would swallow the authoring property.
-    // See the note on .ui-button.
-    .ui-responsive-property(min-height, --ui-min-height, 3.25rem);
+    // Re-called with this control's own defaults rather than written flat, or runtime.less's var() chain is silently swallowed.
+    .ui-responsive-property(min-height, --ui-min-height, @ui-row-height);
     .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-3);
     text-align: start;
 }
 
-// The raised surface only for the untinted variant — an action explicitly given a primary or danger type
-// keeps that type's own colour, which a flat rule on .ui-action would have overridden.
-.ui-button--ghost.ui-action {
-    background: var(--ui-surface-raised);
+// Requires both `.ui-action` and `.ui-button--small`: a single shared class ties in specificity, leaving Size unable to move the height.
+.ui-action.ui-button--small {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-row-height-sm);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
-.ui-action > .ui-button-content {
+.ui-action.ui-button--large {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-row-height-lg);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-4);
+}
+
+.ui-action > .ui-button__content {
     flex: 1 1 auto;
     justify-content: flex-start;
     min-width: 0;
@@ -42,9 +47,7 @@
 .ui-action__trailing-text {
     display: none;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    .ui-text-nowrap();
     font-size: var(--ui-text-caption-font-size);
 }
 
@@ -64,15 +67,10 @@
         display: block;
     }
 
-// Drawn from two borders rotated 45°, exactly like the expander's chevron, so the default trailing glyph
-// needs no icon package. Hidden as soon as the author names a real icon.
+// The library's own chevron, so the default trailing glyph needs no icon package; hidden once a real icon is named.
 .ui-action__chevron {
-    flex: 0 0 auto;
-    width: 0.45em;
-    height: 0.45em;
-    border-top: 2px solid currentColor;
-    border-right: 2px solid currentColor;
-    transform: rotate(45deg);
+    .ui-chevron(0.6em);
+    .ui-chevron-right();
 }
 
 .ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__chevron {

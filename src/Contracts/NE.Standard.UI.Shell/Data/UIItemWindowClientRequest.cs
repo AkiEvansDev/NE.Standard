@@ -8,14 +8,13 @@ namespace NE.Standard.UI.Shell.Data;
 /// Represents a client asking a windowed items host for the part of its source it can show.
 /// </summary>
 /// <remarks>
-/// Its own request rather than a client update: reading a window runs the author's code and awaits it, and
-/// the change-set path applies its updates under a lock it cannot release.
+/// Its own request rather than a client update: reading a window awaits the author's code, and the change-set path
+/// applies updates under a lock it cannot release.
 /// </remarks>
 public sealed class UIItemWindowClientRequest
 {
     /// <summary>
-    /// The largest window a client may ask for at once, however it was reached — a viewport measurement gone
-    /// wrong should cost one refusal, not a source reading a million rows.
+    /// The largest window a client may request at once.
     /// </summary>
     public const int MaxCount = 1000;
 

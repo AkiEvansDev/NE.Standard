@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Web.Renderers.Foundation</PackageId>
+    <Description>The renderer foundation of the NE.Standard UI web platform — the renderer base and the shared style, text and input helpers a package's own web renderer builds on — without the built-in renderers themselves.</Description>
+    <PackageTags>NE.Standard,UI,Platform,Web,Renderers,Foundation</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Authoring\NE.Standard.UI.Authoring.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\NE.Standard.UI.Compiled\NE.Standard.UI.Compiled.csproj" />
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components.Foundation\NE.Standard.UI.Components.Foundation.csproj" />
+  </ItemGroup>
+
+</Project>

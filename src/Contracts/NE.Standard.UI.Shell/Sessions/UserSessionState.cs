@@ -9,10 +9,8 @@ namespace NE.Standard.UI.Shell.Sessions;
 /// A user session as it is stored between requests.
 /// </summary>
 /// <remarks>
-/// The persisted counterpart of <see cref="IUserSessionContext"/>, which is the read-only view handed to
-/// routing, authorization and the runtime. Immutable so that a store handing the same instance to two
-/// concurrent requests cannot be mutated under either of them — sign a session in by saving a modified copy
-/// (<c>session with { IsAuthenticated = true }</c>), not by writing to the one you were given.
+/// Immutable: sign a session in by saving a modified copy (<c>session with { IsAuthenticated = true }</c>), not by
+/// writing to the one you were given.
 /// </remarks>
 public sealed record UserSessionState
 {
@@ -27,9 +25,9 @@ public sealed record UserSessionState
     public required string Language { get; init; }
 
     /// <summary>
-    /// Gets the preferred theme mode.
+    /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
-    public UIThemeMode ThemeMode { get; init; } = UIThemeMode.Auto;
+    public UIThemeMode? ThemeMode { get; init; }
 
     /// <summary>
     /// Gets whether the session is authenticated.
@@ -55,9 +53,7 @@ public sealed record UserSessionState
     /// Gets whether the session id must be replaced at the next shell render.
     /// </summary>
     /// <remarks>
-    /// Set when the session gains an identity, and acted on by the shell render because that is the only half
-    /// of a page load that can write the cookie carrying the id — a new id issued over a live connection would
-    /// never reach the browser. See <c>docs/PLAN.md</c> §6 for why rotating at all matters.
+    /// Acted on in the <c>UIViewRequestPhase.Open</c> phase, the one request that can hand the client its id.
     /// </remarks>
     public bool PendingIdRotation { get; init; }
 

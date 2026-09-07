@@ -1,0 +1,74 @@
+@import "../core/tokens.less";
+
+// The library's own glyphs, drawn in CSS so a host may install no icon pack: the chevron lives in chevron.less, the two below here.
+
+// Two bars of a cross, on a positioned, centring box: every clear and close control is the same cross at the same weight.
+.ui-cross-glyph(@size: 0.6rem) {
+    &::before,
+    &::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: @size;
+        height: 0.125rem;
+        background: currentColor;
+        border-radius: 999px;
+    }
+
+    &::before {
+        transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    &::after {
+        transform: translate(-50%, -50%) rotate(-45deg);
+    }
+}
+
+// Three dots, for a control that stands for "more": drawn, not typed, so it matches the cross and the chevron in weight.
+// Across by default; `vertical` stands them up for a row's own menu control.
+.ui-ellipsis-glyph(@direction: horizontal; @dot: 3px; @gap: 5px) {
+    &::before {
+        content: "";
+        flex: 0 0 auto;
+        width: @dot;
+        height: @dot;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    & when (@direction = horizontal) {
+        &::before {
+            box-shadow: -@gap 0 0 currentColor, @gap 0 0 currentColor;
+        }
+    }
+
+    & when (@direction = vertical) {
+        &::before {
+            box-shadow: 0 -@gap 0 currentColor, 0 @gap 0 currentColor;
+        }
+    }
+}
+
+// A glyph masked out of currentColor from an SVG path on a 24-unit box: the pencil an image input shows over its picture,
+// and the two stand-ins it draws with no picture and no icon named.
+.ui-path-glyph(@path) {
+    background-color: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='@{path}'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.ui-pencil-glyph() {
+    .ui-path-glyph("M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z");
+}
+
+.ui-person-glyph() {
+    .ui-path-glyph("M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.33 0-8 1.67-8 4v2h16v-2c0-2.33-4.67-4-8-4z");
+}
+
+.ui-picture-glyph() {
+    .ui-path-glyph("M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z");
+}
+
+.ui-check-glyph() {
+    .ui-path-glyph("M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z");
+}

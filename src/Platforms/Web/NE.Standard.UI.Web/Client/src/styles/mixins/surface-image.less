@@ -1,0 +1,12 @@
+// The picture a surface wears over its colour (SurfaceStyleRenderer.RenderBackgroundImage): centred, shown once, sized by the fit.
+// Mixed into a root after its `background-color`, never a `background` shorthand, which would reset the image to none.
+// The custom properties are reset on the root first: they inherit, and a bubble inside a feed with a background wore the feed's
+// picture; an authored value on this root is inline and outranks the reset.
+.ui-surface-image() {
+    --ui-surface-image: none;
+    --ui-surface-image-size: cover;
+    background-image: var(--ui-surface-image);
+    background-size: var(--ui-surface-image-size);
+    background-position: center;
+    background-repeat: no-repeat;
+}

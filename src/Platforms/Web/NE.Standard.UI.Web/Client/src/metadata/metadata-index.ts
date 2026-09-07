@@ -26,10 +26,12 @@ export type WebRenderPropertyReferenceMetadata = {
 
 export type WebRenderBindingMetadata = WebRenderPropertyReferenceMetadata & {
     readonly bindingId: IdValue;
-    readonly kind: WebBindingKind;
-    readonly mode: WebBindingMode;
+    // Absent means OneWay, which is what all but a handful of a page's bindings are.
+    readonly mode?: WebBindingMode;
     readonly itemTemplate?: string | null;
     readonly itemTemplateParameters?: readonly WebRenderBindingParameterMetadata[] | null;
+    // What the property falls back to when the item says nothing about it; only a row the client builds needs it.
+    readonly fallbackValue?: unknown;
 };
 
 export type WebRenderBindingParameterKindName = "Dynamic" | "Fixed" | "Scope";
@@ -44,15 +46,18 @@ export type WebRenderBindingParameterMetadata = {
 export type WebRenderItemsTemplateMetadata = {
     readonly componentId: IdValue;
     readonly templateKeyPropertyName?: string | null;
-    readonly fallbackTemplateKeyPropertyName?: string | null;
+    readonly fallbackTemplateKey?: string | null;
     readonly itemWrapperElementName?: string | null;
     readonly itemWrapperClassName?: string | null;
     readonly composite?: WebRenderItemsCompositeMetadata | null;
+    // The decorator a row the client builds goes through after its template, by kind (`row-decorators.ts`).
+    readonly rowDecorator?: string | null;
 };
 
 export type WebRenderItemsCompositeMetadata = {
     readonly itemElementName: string;
     readonly itemClassName: string;
+    readonly itemRole?: string | null;
     readonly hostSlotVariantKey?: string | null;
     readonly slots: readonly WebRenderItemsCompositeSlotMetadata[];
 };
@@ -61,6 +66,9 @@ export type WebRenderItemsCompositeSlotMetadata = {
     readonly variantKey: string;
     readonly wrapperElementName: string;
     readonly wrapperClassName: string;
+    readonly wrapperRole?: string | null;
+    // The item property naming a typed variant of the slot (`{variantKey}:{value}`); the slot's own variant when it names none.
+    readonly variantKeyPropertyName?: string | null;
 };
 
 export type WebItemsSortDirectionName = "Ascending" | "Descending";
@@ -90,7 +98,7 @@ export type WebRenderItemsFilterSortMetadata = {
     readonly sorts: readonly WebRenderItemsSortMetadata[];
 };
 
-/** The values behind a server-rendered items host — the client never rendered them and holds no copy. */
+/** The values behind a server-rendered items host, which the client holds no copy of. */
 export type WebRenderItemValuesMetadata = {
     readonly componentId: IdValue;
     readonly items: readonly WebRenderItemValue[];
@@ -100,12 +108,6 @@ export type WebRenderItemValue = {
     readonly key: string;
     readonly item: unknown;
 };
-
-export type WebBindingKindName =
-    | "ComponentContext"
-    | "ComponentProperty"
-    | "ComponentCollection";
-export type WebBindingKind = WebBindingKindName | number;
 
 export type WebBindingModeName =
     | "OneWay"
@@ -154,9 +156,9 @@ export type WebInteractionOperatorName =
     | "Less"
     | "LessOrEqual"
     | "Like"
-    | "LikeIgnoreCase"
     | "In"
-    | "Regex";
+    | "Regex"
+    | "LikeIgnoreCase";
 export type WebInteractionOperator = WebInteractionOperatorName | number;
 
 export type WebRenderValidationTargetMetadata = {
@@ -176,12 +178,15 @@ export type WebColorStyleName =
     | "Selected" | "FocusRing" | "Border" | "Shadow" | "Overlay";
 export type WebColorStyle = WebColorStyleName | number;
 
+export type WebValidationSeverityName = "Error" | "Warning" | "Info";
+export type WebValidationSeverity = WebValidationSeverityName | number;
+
 export type WebRenderValidationMetadata = {
     readonly target: WebRenderValidationTargetMetadata;
     readonly trigger: WebValidationTrigger;
     readonly operator: WebInteractionOperator;
     readonly value?: unknown;
-    readonly severity: WebColorStyle;
+    readonly severity: WebValidationSeverity;
     readonly message: string;
 };
 
@@ -191,6 +196,10 @@ export type WebDomOperation = {
     readonly name?: string | null;
     readonly converter?: string | null;
     readonly condition?: WebValueCondition | null;
+    // What a toggled attribute is written with; absent, the value itself.
+    readonly value?: string | null;
+    // The target is a part only some instances render; an instance without it is not worth a warning.
+    readonly optional?: boolean | null;
 };
 
 export type WebDomOperationKindName =
@@ -202,8 +211,10 @@ export type WebDomOperationKindName =
     | "ToggleClass"
     | "Style"
     | "Data"
-    | "Property";
-export type WebDomOperationKind = WebDomOperationKindName | number;
+    | "Property"
+    | "Markup";
+/** A built-in kind by name or number, or the name a package registered its own under. */
+export type WebDomOperationKind = WebDomOperationKindName | number | (string & {});
 
 export type WebValueConditionName =
     | "None"
@@ -220,9 +231,8 @@ export type UIComponentAddress = {
 
 export type UIPropertyAddress = {
     readonly component: UIComponentAddress;
-    readonly property: {
-        readonly name: string;
-    };
+    // A bare name; the object form is what an older server wrote.
+    readonly property: string | { readonly name: string };
 };
 
 export type ServerChangeSet = {
@@ -231,7 +241,6 @@ export type ServerChangeSet = {
 
 export type UIUpdateKindName =
     | "Value"
-    | "ContextRebuild"
     | "CollectionChange"
     | "FullResync"
     | "Validation";
@@ -244,7 +253,6 @@ export type SerializedIdValue = {
 
 export type ServerUIUpdate =
     | ServerValueUIUpdate
-    | ServerContextRebuildUIUpdate
     | ServerCollectionChangeUIUpdate
     | ServerFullResyncUIUpdate
     | ServerValidationUIUpdate
@@ -260,13 +268,7 @@ export type ServerValidationUIUpdate = {
     readonly kind: UIUpdateKindValue;
     readonly address: UIPropertyAddress;
     readonly message?: string | null;
-    readonly severity?: WebColorStyle;
-};
-
-export type ServerContextRebuildUIUpdate = {
-    readonly kind: UIUpdateKindValue;
-    readonly component: UIComponentAddress;
-    readonly context?: unknown;
+    readonly severity?: WebValidationSeverity;
 };
 
 export type CollectionUpdateActionName =
@@ -334,9 +336,32 @@ export type ClientEffectKindName =
     | "CloseDialog"
     | "ShowNotification"
     | "DownloadFile"
-    | "Scroll";
+    | "Scroll"
+    | "SetTheme"
+    | "RenameTab"
+    | "RenameNode"
+    | "CopyToClipboard";
 
-export type ClientEffectKindValue = ClientEffectKindName | number;
+// Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
+export type ClientEffectKindValue = ClientEffectKindName | (string & {});
+
+/** The built-in kinds by name, so a caller raising one does not spell it a second time. */
+export const ClientEffectKinds = {
+    Navigate: "Navigate",
+    Focus: "Focus",
+    ScrollTo: "ScrollTo",
+    Show: "Show",
+    Hide: "Hide",
+    OpenDialog: "OpenDialog",
+    CloseDialog: "CloseDialog",
+    ShowNotification: "ShowNotification",
+    DownloadFile: "DownloadFile",
+    Scroll: "Scroll",
+    SetTheme: "SetTheme",
+    RenameTab: "RenameTab",
+    RenameNode: "RenameNode",
+    CopyToClipboard: "CopyToClipboard"
+} as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
 
@@ -367,6 +392,21 @@ export type NavigateClientEffect = ClientEffect & {
     };
 };
 
+/** Opens the inline rename field on one tab of a tabs view, named by its key. */
+export type RenameTabClientEffect = TargetedClientEffect & {
+    readonly key?: string;
+};
+
+/** Opens the inline rename field on one node of a tree. */
+export type RenameNodeClientEffect = TargetedClientEffect & {
+    readonly key?: string;
+};
+
+/** Copies a literal, or the value the addressed component holds when the effect runs. */
+export type CopyToClipboardClientEffect = TargetedClientEffect & {
+    readonly text?: string | null;
+};
+
 export type ScrollToClientEffect = TargetedClientEffect & {
     readonly behavior?: ScrollToBehaviorName | number;
     readonly block?: ScrollToBlockName | number;
@@ -388,6 +428,13 @@ export type DialogClientEffect = ClientEffect & {
     readonly dialogKey?: string;
 };
 
+export type ThemeModeName = "Light" | "Dark";
+
+export type SetThemeClientEffect = ClientEffect & {
+    // Absent is the third answer and not a member of the enum: no preference means follow the platform.
+    readonly mode?: ThemeModeName | number | null;
+};
+
 export type NotificationClientEffect = ClientEffect & {
     readonly message?: string;
     readonly severity?: string | number;
@@ -406,13 +453,19 @@ export type WebUIItemWindowRequest = {
 export type ItemAnchorName = "Start" | "End" | "Offset" | "Before" | "After";
 
 export type WebUIAttachRequest = {
-    readonly clientTabId: string;
+    readonly clientWindowId: string;
     readonly route: string;
+    /** The runtime the shell render prepared for this page, when it prepared one. */
+    readonly pageId: string | null;
+    /** The compile the page was rendered from, for the server to refuse a page of another. */
+    readonly view: string | null;
     readonly parameters: Record<string, unknown> | null;
 };
 
 export type WebUIAttachResult = {
     readonly initialChanges?: ServerChangeSet;
+    /** The page was rendered from another compile of its view: reload rather than apply. */
+    readonly reload?: boolean;
 };
 
 export type WebUIValueChangeRequest = {
@@ -439,7 +492,12 @@ export class MetadataIndex {
     private readonly itemValuesByComponentId = new Map<number, WebRenderItemValuesMetadata>();
     private readonly validationsByComponentId = new Map<number, WebRenderValidationMetadata[]>();
 
-    public constructor(public readonly metadata: WebUIMetadata) {
+    // A plain field rather than a parameter property: node's type stripping refuses one, and the tests import this module.
+    public readonly metadata: WebUIMetadata;
+
+    public constructor(metadata: WebUIMetadata) {
+        this.metadata = metadata;
+
         for (const property of metadata.propertyDefinitions)
             this.addPropertyDefinition(property);
 
@@ -617,6 +675,10 @@ export function getBindingParameterKind(value: WebRenderBindingParameterKind | n
 }
 
 export function getBindingMode(value: WebBindingMode | null | undefined): WebBindingModeName | "Unknown" {
+    // A binding that says nothing is OneWay: the server leaves the default off the wire.
+    if (value === null || value === undefined)
+        return "OneWay";
+
     return resolveEnumName(value, ["OneWay", "TwoWay", "OneWayToSource", "OnSubmit"] as const);
 }
 
@@ -625,7 +687,7 @@ export function getInteractionSourceKind(value: WebInteractionSourceKind | null 
 }
 
 export function getInteractionActionKind(value: WebInteractionActionKind | null | undefined): WebInteractionActionKindName | "Unknown" {
-    // An interaction that names no action at all is the property assignment every interaction used to be.
+    // An interaction that names no action is a property assignment.
     return value === null || value === undefined
         ? "SetProperty"
         : resolveEnumName(value, ["SetProperty", "Effect"] as const);
@@ -643,8 +705,16 @@ export function getValidationTrigger(value: WebValidationTrigger | null | undefi
     return resolveEnumName(value, ["Change", "Blur", "Submit"] as const);
 }
 
-export function getDomOperationKind(value: WebDomOperationKind | null | undefined): WebDomOperationKindName | "Unknown" {
-    return resolveEnumName(value, ["Text", "Attribute", "RemoveAttribute", "ToggleAttribute", "Class", "ToggleClass", "Style", "Data", "Property"] as const);
+export function getValidationSeverity(value: WebValidationSeverity | null | undefined): WebValidationSeverityName | "Unknown" {
+    return resolveEnumName(value, ["Error", "Warning", "Info"] as const);
+}
+
+/** The kind's name: a built-in one from its number, or a string as it came — a package's kind is only ever its name. */
+export function getDomOperationKind(value: WebDomOperationKind | null | undefined): string {
+    if (typeof value === "string")
+        return value;
+
+    return resolveEnumName(value, ["Text", "Attribute", "RemoveAttribute", "ToggleAttribute", "Class", "ToggleClass", "Style", "Data", "Property", "Markup"] as const);
 }
 
 export function getValueCondition(value: WebValueCondition | null | undefined): WebValueConditionName | "Unknown" {
@@ -662,12 +732,21 @@ export function getIdValue(value: IdValue | null | undefined): number {
     return value?.value ?? 0;
 }
 
-export function getUpdateKind(update: ServerUIUpdate): UIUpdateKindName | "Unknown" {
-    return resolveEnumName(update.kind, ["Value", "ContextRebuild", "CollectionChange", "FullResync", "Validation"] as const);
+/** The name behind a property key, however the server wrote it. */
+export function getPropertyKeyName(value: UIPropertyAddress["property"] | null | undefined): string {
+    if (typeof value === "string")
+        return value;
+
+    return value?.name ?? "";
 }
 
-export function getClientEffectKind(value: ClientEffectKindValue | null | undefined): ClientEffectKindName | "Unknown" {
-    return resolveEnumName(value, ["Navigate", "Focus", "ScrollTo", "Show", "Hide", "OpenDialog", "CloseDialog", "ShowNotification", "DownloadFile", "Scroll"] as const);
+export function getUpdateKind(update: ServerUIUpdate): UIUpdateKindName | "Unknown" {
+    return resolveEnumName(update.kind, ["Value", "CollectionChange", "FullResync", "Validation"] as const);
+}
+
+/** The key a handler is registered and looked up under, as written: folding unknown kinds together would collide them. */
+export function getClientEffectKind(value: ClientEffectKindValue | null | undefined): string {
+    return typeof value === "string" ? value.trim() : "";
 }
 
 export function getScrollToBehavior(value: ScrollToBehaviorName | number | null | undefined): ScrollToBehaviorName | "Unknown" {
@@ -680,6 +759,10 @@ export function getScrollToBlock(value: ScrollToBlockName | number | null | unde
 
 export function getScrollPosition(value: ScrollPositionName | number | null | undefined): ScrollPositionName | "Unknown" {
     return resolveEnumName(value, ["Start", "End", "Offset", "PageBack", "PageForward"] as const);
+}
+
+export function getThemeMode(value: ThemeModeName | number | null | undefined): ThemeModeName | "Unknown" {
+    return resolveEnumName(value, ["Light", "Dark"] as const);
 }
 
 export function getScrollAxis(value: ScrollAxisName | number | null | undefined): ScrollAxisName | "Unknown" {

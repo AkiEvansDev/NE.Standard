@@ -24,21 +24,29 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, StackPanelComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, WrapPanelComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ScrollContainerComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SurfaceComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CardComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CardHeaderRegionRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, AccordionComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ExpanderComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ExpanderHeaderRegionRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, FlyoutComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CollapsiblePanelComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, GridSplitterComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, BadgeComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TextComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ParagraphComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SeparatorComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, LinkComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, IconComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ImageComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ButtonComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SplitButtonComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ThemeSwitcherComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ActionComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ButtonGroupComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, BreadcrumbsComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, BreadcrumbItemComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, MenuComponentRenderer>());
@@ -47,7 +55,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabHeaderComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabsViewComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabItemComponentRenderer>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ButtonContentRegionRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabCaptionRegionRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SpinnerComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ProgressComponentRenderer>());
@@ -55,6 +63,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ItemsViewComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TextInputComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ColorInputComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CheckboxComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SwitchComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, RadioGroupComponentRenderer>());
@@ -67,22 +76,23 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, NumberInputComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TextAreaComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, FileInputComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ImageInputComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CommandBarComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, KeyValueActionComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TableComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TreeComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TreeNodeComponentRenderer>());
 
         AddDefaultTemplateAliases(services);
 
         return services;
     }
 
-    // A default template is a distinct component type with no renderer of its own — it is an alias onto an
-    // existing one. Registering through TryAddEnumerable is also the extension point a plugin package uses to
-    // contribute its own renderer without touching this list.
+    // A default template is a distinct component type with no renderer of its own, only an alias onto an existing one.
     private static void AddDefaultTemplateAliases(IServiceCollection services)
     {
-        _ = services.AddSingleton<IWebComponentRenderer>(
-            _ => new WebComponentRendererAlias(DefaultTextTemplate.ComponentTypeKey, new TextComponentRenderer()));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DefaultTextTemplateRenderer>());
 
         _ = services.AddSingleton<IWebComponentRenderer>(
             _ => new WebComponentRendererAlias(DefaultEmptyTemplate.ComponentTypeKey, new TextComponentRenderer()));
@@ -111,9 +121,8 @@ public static class WebRendererRegistryExtensions
         _ = services.AddSingleton<IWebComponentRenderer>(
             _ => new WebComponentRendererAlias(DefaultBreadcrumbItemTemplate.ComponentTypeKey, new BreadcrumbItemComponentRenderer()));
 
-        // The row template is a node that is never actually rendered: KeyValueAction composes its row from the
-        // key/value/action variants instead. The alias exists so the compiler still resolves the slot.
-        _ = services.AddSingleton<IWebComponentRenderer>(
-            _ => new WebComponentRendererAlias(DefaultRowTemplate.ComponentTypeKey, new ContainerComponentRenderer()));
+        // The row template is stamped onto each row rather than rendered there; its own renderer runs inside the list's
+        // <template>, where the row's editing flag has to leave its binding for the client's rows to copy.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DefaultRowTemplateRenderer>());
     }
 }

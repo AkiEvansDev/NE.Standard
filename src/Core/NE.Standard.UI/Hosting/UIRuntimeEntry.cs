@@ -24,9 +24,7 @@ internal sealed class UIRuntimeEntry
     public UIFlushOptions Flush { get; }
 
     /// <summary>
-    /// Completes once the creating attach has initialized and started the runtime. Created with the entry,
-    /// inside the store's lock, so a concurrent attach that finds the entry already present has something to
-    /// await instead of using a runtime that has not been started yet.
+    /// Completes once the creating attach has initialized and started the runtime.
     /// </summary>
     public Task Initialization => _initialization.Task;
 
@@ -43,6 +41,14 @@ internal sealed class UIRuntimeEntry
     public DateTime? DisconnectedAtUtc { get; private set; }
 
     public bool IsConnected => _connectionIds.Count > 0;
+
+    /// <summary>
+    /// Whether a real tab has ever presented this runtime, as opposed to the render that built it.
+    /// </summary>
+    public bool IsAdopted { get; private set; }
+
+    public void MarkAdopted()
+        => IsAdopted = true;
 
     public bool HasInstance(string connectionId)
     {
@@ -87,8 +93,7 @@ internal sealed class UIRuntimeEntry
         return true;
     }
 
-    // Deliberately not gated on IsConnected: a disconnected runtime whose controller keeps working still has
-    // to have its pending updates drained, or they accumulate untouched until the retention window expires.
+    // Deliberately not gated on IsConnected: a disconnected runtime's pending updates still need draining.
     public bool ShouldFlush(DateTime utcNow)
         => Flush.IsScheduled && LastFlushedAtUtc + Flush.Interval <= utcNow;
 

@@ -1,15 +1,20 @@
+// A file input: the pick control opens the native dialog, a file dropped on the row is taken the same way, and either sends the
+// files beside the hub and writes the handle back as the selection id.
+
+import { clientStrings } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
+import { attachFileDrop } from "./file-drop";
+import { filterWithinFileSizeLimit, publishSelection, uploadFilesAsync } from "./file-upload";
 
 const RootClass = "ui-file-input";
+const RowClass = "ui-file-input__row";
 const NativeClass = "ui-file-input__native";
 const FieldClass = "ui-file-input__field";
 const SelectionClass = "ui-file-input__selection";
 const PickAttribute = "data-ui-file-pick";
-const UploadPath = "/_ne/files/upload";
 
-type UploadedSelection = {
-    readonly selectionId: string;
-};
+/** Client-only: on the root while a file is dragged over its row. */
+const DraggingAttribute = "data-ui-file-dragging";
 
 export type FileInputEngineOptions = {
     readonly root?: ParentNode;
@@ -23,9 +28,25 @@ export class FileInputEngine {
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
 
-        // Capture phase: the native input is hidden and its "change" is not the component's bound value —
-        // what syncs back is the selection id, written to a separate element once the upload finishes.
+        // Capture: the hidden native input's "change" is not the bound value; the selection id is.
         this.root.addEventListener("change", domEvent => void this.handleSelectionAsync(domEvent), true);
+
+        // A drop on the row is a pick: the native input says what is accepted and whether more than one is taken, and a
+        // read-only or disabled input has that native input disabled.
+        attachFileDrop({
+            root: this.root,
+            draggingAttribute: DraggingAttribute,
+            resolveTarget: target => {
+                const root = target.closest<HTMLElement>(`.${RowClass}`)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const native = root?.querySelector<HTMLInputElement>(`.${NativeClass}`) ?? null;
+
+                if (root === null || native === null || native.disabled || root.matches(".ui-disabled"))
+                    return null;
+
+                return { host: root, accept: native.getAttribute("accept") ?? "", multiple: native.multiple };
+            },
+            onFiles: (root, files) => void this.takeFilesAsync(root, files)
+        });
     }
 
     private handlePickClick(domEvent: Event): void {
@@ -49,98 +70,53 @@ export class FileInputEngine {
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(NativeClass))
             return;
 
-        const native = domEvent.target;
-        const root = native.closest(`.${RootClass}`);
-        const field = root?.querySelector<HTMLInputElement>(`.${FieldClass}`);
+        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
 
-        if (root === null || root === undefined || field === null || field === undefined)
+        if (root !== null)
+            await this.takeFilesAsync(root, [...domEvent.target.files ?? []]);
+    }
+
+    /** Sends the files and hands the controller the handle; none clears it, a failure leaves it empty and says so. */
+    private async takeFilesAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
+        const field = root.querySelector<HTMLInputElement>(`.${FieldClass}`);
+
+        if (field === null)
             return;
 
-        const files = native.files;
-
-        if (files === null || files.length === 0) {
+        if (files.length === 0) {
             field.value = "";
             this.publishSelection(root, "");
             return;
         }
 
+        const accepted = filterWithinFileSizeLimit(root, files);
+
+        // Every file refused for size is not an empty pick: the existing selection stands rather than being cleared.
+        if (accepted.length === 0)
+            return;
+
         try {
-            const selection = await uploadAsync(files, percent => {
-                field.value = `Uploading... ${percent}%`;
+            const selection = await uploadFilesAsync(accepted, percent => {
+                field.value = clientStrings.format("ui.file.uploading", { percent });
             });
 
-            field.value = describeSelection(files);
+            field.value = describeSelection(accepted);
             this.publishSelection(root, selection.selectionId);
         }
         catch (error) {
-            // The picked files stay picked and the id stays empty: a controller reading the selection gets
-            // nothing rather than an id pointing at a half-written upload.
-            field.value = "Upload failed.";
+            // The id stays empty rather than pointing at a half-written upload.
+            field.value = clientStrings.text("ui.file.failed");
             this.publishSelection(root, "");
 
             logWarn("file upload failed.", error);
         }
     }
 
-    /// Writing the value is not enough — the value binding engine syncs on "change", and a value set from
-    /// script raises none.
     private publishSelection(root: Element, selectionId: string): void {
-        const selection = root.querySelector<HTMLInputElement>(`.${SelectionClass}`);
-
-        if (selection === null || selection.value === selectionId)
-            return;
-
-        selection.value = selectionId;
-        selection.dispatchEvent(new Event("change", { bubbles: true }));
+        publishSelection(root.querySelector<HTMLInputElement>(`.${SelectionClass}`), selectionId);
     }
 }
 
-/// XMLHttpRequest rather than fetch: only it reports upload progress, which is the whole reason the transfer
-/// goes over HTTP instead of the connection (docs/FILES.md §1).
-function uploadAsync(files: FileList, onProgress: (percent: number) => void): Promise<UploadedSelection> {
-    return new Promise<UploadedSelection>((resolve, reject) => {
-        const body = new FormData();
-
-        for (let index = 0; index < files.length; index++)
-            body.append("files", files[index], files[index].name);
-
-        const request = new XMLHttpRequest();
-
-        request.open("POST", UploadPath);
-        request.responseType = "json";
-        request.withCredentials = true;
-
-        request.upload.addEventListener("progress", event => {
-            if (event.lengthComputable && event.total > 0)
-                onProgress(Math.round((event.loaded / event.total) * 100));
-        });
-
-        request.addEventListener("load", () => {
-            if (request.status < 200 || request.status >= 300) {
-                reject(new Error(`Upload failed with status ${request.status}.`));
-                return;
-            }
-
-            const selectionId = (request.response as UploadedSelection | null)?.selectionId;
-
-            if (selectionId === undefined || selectionId.length === 0) {
-                reject(new Error("Upload response carried no selection id."));
-                return;
-            }
-
-            resolve({ selectionId });
-        });
-
-        request.addEventListener("error", () => reject(new Error("Upload failed.")));
-        request.addEventListener("abort", () => reject(new Error("Upload was aborted.")));
-
-        request.send(body);
-    });
-}
-
-function describeSelection(files: FileList | null): string {
-    if (files === null || files.length === 0)
-        return "";
-
-    return files.length === 1 ? files[0].name : `${files.length} files`;
+function describeSelection(files: readonly File[]): string {
+    return files.length === 1 ? files[0].name : clientStrings.format("ui.file.count", { count: files.length });
 }

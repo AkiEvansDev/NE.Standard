@@ -21,9 +21,7 @@ internal sealed partial class UIViewCompilationContext
         if (!mode.IsSupportedBy(definition.BindingCapabilities))
             throw new InvalidOperationException($"Binding mode '{mode}' is not supported for property '{property.Name}' on component type '{typeKey}'.");
 
-        // An OnSubmit value is held on the client until the form it belongs to is submitted, and a form is a
-        // FormId shared with a submit button. Without one the value would be buffered and never sent, which
-        // reads exactly like a broken binding.
+        // An OnSubmit value is buffered on the client until a shared FormId submits it; without one it would never be sent.
         if (mode == UIBindingMode.OnSubmit
             && component is IInputComponent input
             && string.IsNullOrWhiteSpace(input.FormId)

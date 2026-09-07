@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NE.Colors;
 
 namespace NE.Standard.UI.Abstractions.Styling.Theme;
@@ -7,6 +8,24 @@ namespace NE.Standard.UI.Abstractions.Styling.Theme;
 /// </summary>
 public sealed record UIColorPalette
 {
+    // Eight, far apart on the wheel and none the status colours, so a series is never read as a warning.
+    private static readonly ColorVariant[] DefaultSeries =
+    [
+        new(ColorName.QuantumBlue),
+        new(ColorName.SolarAmber),
+        new(ColorName.AuroraGreen),
+        new(ColorName.NebulaRose),
+        new(ColorName.NovaPurple),
+        new(ColorName.NebulaCyan),
+        new(ColorName.BronzeDusk),
+        new(ColorName.LunarFern)
+    ];
+
+    /// <summary>
+    /// The categorical run a chart's series take in turn — <c>--ui-color-series-{n}</c> on the page, cycled by the count.
+    /// </summary>
+    public IReadOnlyList<ColorVariant> Series { get; init; } = DefaultSeries;
+
     /// <summary>
     /// The theme's primary brand color.
     /// </summary>
@@ -88,6 +107,40 @@ public sealed record UIColorPalette
     public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
 
     /// <summary>
+    /// <see cref="Primary"/> as ink — the colour a word wears when it is that brand colour.
+    /// </summary>
+    /// <remarks>
+    /// Read against the page rather than against <see cref="OnPrimary"/>: a text, icon, or badge-text role
+    /// resolves to the ink, while a background or a fill resolves to <see cref="Primary"/> itself.
+    /// </remarks>
+    public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 3);
+
+    /// <summary>
+    /// <see cref="Accent"/> as ink — see <see cref="PrimaryInk"/>.
+    /// </summary>
+    public ColorVariant AccentInk { get; init; } = new(ColorName.NovaPurple, ColorAdjustment.Tint, 3);
+
+    /// <summary>
+    /// <see cref="Info"/> as ink — see <see cref="PrimaryInk"/>.
+    /// </summary>
+    public ColorVariant InfoInk { get; init; } = new(ColorName.QuantumBlue, ColorAdjustment.Tint, 3);
+
+    /// <summary>
+    /// <see cref="Warning"/> as ink — see <see cref="PrimaryInk"/>.
+    /// </summary>
+    public ColorVariant WarningInk { get; init; } = new(ColorName.NebulaGold);
+
+    /// <summary>
+    /// <see cref="Success"/> as ink — see <see cref="PrimaryInk"/>.
+    /// </summary>
+    public ColorVariant SuccessInk { get; init; } = new(ColorName.AuroraGreen, ColorAdjustment.Tint, 2);
+
+    /// <summary>
+    /// <see cref="Danger"/> as ink — see <see cref="PrimaryInk"/>.
+    /// </summary>
+    public ColorVariant DangerInk { get; init; } = new(ColorName.StellarRed, ColorAdjustment.Tint, 3);
+
+    /// <summary>
     /// The color used to indicate a selected item or state.
     /// </summary>
     public ColorVariant Selected { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 5, 48);
@@ -142,11 +195,21 @@ public sealed record UIColorPalette
         OnSuccess.Validate();
         OnDanger.Validate();
 
+        PrimaryInk.Validate();
+        AccentInk.Validate();
+        InfoInk.Validate();
+        WarningInk.Validate();
+        SuccessInk.Validate();
+        DangerInk.Validate();
+
         Selected.Validate();
         FocusRing.Validate();
 
         Border.Validate();
         Shadow.Validate();
         Overlay.Validate();
+
+        foreach (ColorVariant color in Series)
+            color.Validate();
     }
 }

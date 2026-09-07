@@ -5,12 +5,12 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents a text's typography: either a semantic <see cref="UITextType"/> role (tracks the live
-/// theme's font size/weight/line-height/letter-spacing) or an explicit <see cref="Size"/> override.
-/// When <see cref="Size"/> is set, it always wins over <see cref="Role"/> — mirrors how
-/// <see cref="UIThemeColor"/> lets an explicit <see cref="UIThemeColor.Light"/>/<see cref="UIThemeColor.Dark"/>
-/// override always win over its semantic <see cref="UIThemeColor.Style"/>.
+/// Represents a text's typography: either a semantic <see cref="UITextType"/> role, or an explicit <see cref="Size"/> override.
 /// </summary>
+/// <remarks>
+/// When <see cref="Size"/> is set, it always wins over <see cref="Role"/> — mirroring how <see cref="UIThemeColor"/>'s
+/// explicit override wins over its semantic style.
+/// </remarks>
 public readonly record struct UITextAppearance(UITextType? Role, double? Size, int? Weight, double? LineHeight, double? LetterSpacing)
 {
     /// <summary>
@@ -20,9 +20,7 @@ public readonly record struct UITextAppearance(UITextType? Role, double? Size, i
         => new(role, null, null, null, null);
 
     /// <summary>
-    /// Creates a text appearance from an explicit font size, optionally overriding weight/line-height/
-    /// letter-spacing as well. Any of the optional values left unset simply inherits normally, the same
-    /// as leaving any other optional style property unset.
+    /// Creates a text appearance from an explicit font size, optionally overriding weight, line-height, and letter-spacing.
     /// </summary>
     public static UITextAppearance Custom(double size, int? weight = null, double? lineHeight = null, double? letterSpacing = null)
         => new(null, size, weight, lineHeight, letterSpacing);

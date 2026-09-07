@@ -1,0 +1,46 @@
+@import "../core/tokens.less";
+
+// Paragraph lifts only the *description* out of .ui-text's one-line rule; pre-line so an author-written newline still breaks the line.
+.ui-paragraph.ui-text--wrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    overflow: visible;
+    white-space: pre-line;
+    text-overflow: clip;
+}
+
+.ui-paragraph.ui-text--wrap-ellipsis[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: pre-line;
+    text-overflow: clip;
+    line-clamp: var(--ui-text-max-lines, 2);
+    -webkit-line-clamp: var(--ui-text-max-lines, 2);
+    -webkit-box-orient: vertical;
+}
+
+// Centred by text-align, not by ui-text.less's content-sized tracks: a wrapping description would blow out an intrinsic track it spans.
+.ui-paragraph:is(.ui-text--align-center, .ui-text--align-end) {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.ui-paragraph[data-ui-text-icon]:is(.ui-text--align-center, .ui-text--align-end) {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+// MaxLines clamps a wrapping paragraph too, with WrapEllipsis's ellipsis; without it, Wrap runs on.
+.ui-paragraph.ui-text--wrap.ui-text--max-lines[data-ui-text-description] > .ui-text__body > .ui-text__description {
+    display: -webkit-box;
+    overflow: hidden;
+    line-clamp: var(--ui-text-max-lines);
+    -webkit-line-clamp: var(--ui-text-max-lines);
+    -webkit-box-orient: vertical;
+}
+
+// The quote line stands beside the whole block, icon included, the block's full height. Unset, its colour is the text's at a
+// quarter, like a progress track. Painted under a transparent border rather than as a border with padding, since a padding here
+// would shadow the root's responsive Padding chain.
+@ui-quote-color: ~"var(--ui-quote-color, color-mix(in srgb, currentColor 25%, transparent))";
+
+.ui-paragraph--quote {
+    border-left: calc(2px + @ui-space-2) solid transparent;
+    background: linear-gradient(@ui-quote-color, @ui-quote-color) 0 0 / 2px 100% no-repeat border-box;
+}

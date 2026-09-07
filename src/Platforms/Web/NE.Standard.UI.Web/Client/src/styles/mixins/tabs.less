@@ -1,0 +1,31 @@
+@import "../core/tokens.less";
+
+// The selected mark is drawn on the element, not as a border, so it lies over the strip's rule rather than stacking a second line.
+
+@ui-tab-rule-width: 2px;
+
+.ui-tab-strip() {
+    display: flex;
+    align-items: stretch;
+    border-bottom: @ui-tab-rule-width solid var(--ui-color-border);
+}
+
+// Captions are spaced by their own padding rather than a strip gap, so the mark and the rule stay visually attached to the caption.
+.ui-tab-caption() {
+    position: relative;
+    padding: @ui-space-1 @ui-space-3 2px;
+    // No bottom border of the button's: the mark is placed from the padding edge, and a border under it lifted the mark a pixel
+    // above the strip's own rule.
+    border-bottom-width: 0;
+}
+
+.ui-tab-caption-mark() {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -@ui-tab-rule-width;
+    left: 0;
+    height: @ui-tab-rule-width;
+    background: transparent;
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+}

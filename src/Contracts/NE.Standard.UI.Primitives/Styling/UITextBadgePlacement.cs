@@ -1,7 +1,7 @@
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
-/// Defines where badge in text content is placed.
+/// Defines where a badge in text content is placed.
 /// </summary>
 public enum UITextBadgePlacement
 {

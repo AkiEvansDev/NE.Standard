@@ -39,7 +39,7 @@ public sealed class UICommandAttribute : Attribute
     }
 
     /// <summary>
-    /// Gets the external command name.
+    /// Gets the command's name as the client calls it; unset, the method's own name is used instead.
     /// </summary>
     public string? Name { get; }
 

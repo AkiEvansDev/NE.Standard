@@ -9,8 +9,8 @@ on:
     branches:
       - '**'
   pull_request:
-  # nuget.org indexes a new version a few minutes after it is pushed, and the sync lands sooner than that.
-  # A run that failed to restore the packages the demo pins can be started again from here.
+  # How this runs after a release: the `builds` job of Release starts it once nuget.org carries everything
+  # the tree pins, and it is where the owner starts a run by hand.
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,10 @@ permissions:
 
 jobs:
   build:
+    # Not on a sync commit. What this tree pins reaches the feed minutes after the sync lands, and a version
+    # a neighbouring slice publishes may not be out at all yet - so Release starts the run instead, once
+    # nuget.org carries all of it. An ordinary push, were one ever made by hand, still builds.
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Sync ') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -38,8 +42,10 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      # `EnforceCodeStyleInBuild` and `TreatWarningsAsErrors` are set for every project in the repository's
+      # Directory.Build.props, so IDE0055 - formatting, down to trailing whitespace and the final newline -
+      # fails this step. A separate `dotnet format --verify-no-changes` reloads the whole solution through
+      # Roslyn and re-analyses it from scratch: about three times the cost of the build, to find the same
+      # things a second time.
       - name: Build
         run: dotnet build --no-restore --configuration Release
-
-      - name: Verify formatting
-        run: dotnet format --verify-no-changes

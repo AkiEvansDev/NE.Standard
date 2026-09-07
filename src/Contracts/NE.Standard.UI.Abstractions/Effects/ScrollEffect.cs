@@ -59,7 +59,10 @@ public sealed class ScrollEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.Scroll;
+    public override string Kind => ClientEffectKinds.Scroll;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     /// <summary>
     /// Gets the target container reference.
@@ -97,7 +100,10 @@ public sealed class ScrollEffect : ClientEffect
 
 internal sealed class CompiledScrollEffect(UIComponentAddress target, ScrollPosition position, UIOrientation axis, double offset, ScrollToBehavior behavior) : ClientEffect
 {
-    public override ClientEffectKind Kind => ClientEffectKind.Scroll;
+    public override string Kind => ClientEffectKinds.Scroll;
+
+    /// <inheritdoc />
+    public override bool CanRunInInteraction => true;
 
     public UIComponentAddress Target { get; } = target;
     public ScrollPosition Position { get; } = position;

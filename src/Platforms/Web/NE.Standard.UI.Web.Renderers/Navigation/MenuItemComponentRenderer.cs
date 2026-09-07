@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -8,15 +7,12 @@ using NE.Standard.UI.Web.Renderers.Actions;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
-/// <summary>
-/// A menu entry: the button chrome on an anchor rather than a button, so an entry that navigates has a real
-/// URL to middle-click or copy. Wears <c>ui-button</c> next to its own <c>ui-menu-item</c>.
-/// </summary>
+/// <summary>Renders a menu entry as button chrome on an anchor, so an entry that navigates has a real URL.</summary>
 public sealed class MenuItemComponentRenderer : ButtonRendererBase
 {
-    private const string KindAttribute = "data-ui-menu-item-kind";
-    private const string ShortcutAttribute = "data-ui-menu-shortcut";
     private const string ShortcutClass = "ui-menu-item__shortcut";
+    private const string ValueClass = "ui-menu-item__value";
+    private const string CheckedClass = "ui-menu-item--checked";
 
     public override string ComponentTypeKey => MenuItemComponent.ComponentTypeKey;
 
@@ -35,17 +31,15 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
         RenderButtonChrome(context, root);
 
-        // Render-time only, so it needs no DOM operation and no enum converter: see MenuItemComponent.Kind.
-        // An attribute rather than a class because it gates the *content* too — a separator still renders its
-        // own content region, and only CSS can take that back out of the flow.
+        // Render-time only, and an attribute rather than a class because it also gates the content a separator still renders.
         _ = ResolveRenderValue(context, MenuItemComponent.KindProperty, out UIMenuItemKind? kind, out _);
-        _ = root.Attribute(KindAttribute, (kind ?? UIMenuItemKind.Item).ToString().ToLowerInvariant());
+        _ = root.Attribute(WebAttributes.MenuItemKind, (kind ?? UIMenuItemKind.Item).ToString().ToLowerInvariant());
 
         _ = RenderProperty<string?>(context, root, MenuItemComponent.UrlProperty, static (target, value) =>
         {
-            if (!string.IsNullOrWhiteSpace(value))
+            if (WebUrlSafety.IsSafeLink(value))
                 _ = target.Attribute("href", value);
-        }, [WebDomOperation.Attribute("href")]);
+        }, [WebDomOperation.Attribute("href", converter: WebDomConverters.SafeUrl)]);
 
         // aria-current is the accessible half of the same state the modifier class paints.
         _ = RenderProperty<bool?>(context, root, MenuItemComponent.SelectedProperty, static (target, value) =>
@@ -57,21 +51,52 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             }
         }, [
             WebDomOperation.ToggleClass("ui-menu-item--selected", condition: WebValueCondition.IsTrue),
-            WebDomOperation.ToggleAttribute("aria-current", condition: WebValueCondition.IsTrue)
+            WebDomOperation.ToggleAttribute("aria-current", condition: WebValueCondition.IsTrue, value: "page")
         ]);
 
-        RenderRegion(context, root, RegionNames.Content);
+        RenderButtonLabel(context, root);
         RenderShortcut(context, root);
+        RenderValue(context, root);
+        RenderChecked(context, root, kind);
     }
 
-    /// <summary>
-    /// The combination, muted on the trailing edge. The same value rides on the root as an attribute, which
-    /// is what <c>menu-engine.ts</c> builds its registry from — the text alone would tie the match to markup.
-    /// </summary>
+    /// <summary>A select's current value at the row's end; the span is always there, a DOM operation only patches text.</summary>
+    private static void RenderValue(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        IHtmlElementBuilder? value = null;
+
+        _ = root.Element("span", span =>
+        {
+            _ = span.Class(ValueClass);
+            value = span;
+        });
+
+        _ = RenderProperty<string?>(context, root, MenuItemComponent.ValueProperty, (target, text) => _ = value!.Text(text ?? string.Empty),
+            [WebDomOperation.Text(target: "." + ValueClass)]);
+    }
+
+    /// <summary>A check's state: the class paints the mark, aria-checked says it; a check entry is a menuitemcheckbox to the reader.</summary>
+    private static void RenderChecked(WebRenderContext context, IHtmlElementBuilder root, UIMenuItemKind? kind)
+    {
+        if (kind == UIMenuItemKind.Check)
+            _ = root.Attribute("role", "menuitemcheckbox");
+
+        _ = RenderProperty<bool?>(context, root, MenuItemComponent.CheckedProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Class(CheckedClass);
+
+            _ = target.Attribute("aria-checked", value == true ? "true" : "false");
+        }, [
+            WebDomOperation.ToggleClass(CheckedClass, condition: WebValueCondition.IsTrue),
+            WebDomOperation.Attribute("aria-checked")
+        ]);
+    }
+
+    /// <summary>Renders the shortcut combination, both as text and as the attribute <c>menu-engine.ts</c> matches on.</summary>
     private static void RenderShortcut(WebRenderContext context, IHtmlElementBuilder root)
     {
-        // The span is emitted whether or not there is a combination — a bound Shortcut has no value at render
-        // time, and a DOM operation patches text, never adds an element. Empty, CSS takes it back out.
+        // The span is emitted even when empty: a DOM operation patches text, never adds an element.
         IHtmlElementBuilder? shortcut = null;
 
         _ = root.Element("span", span =>
@@ -80,16 +105,15 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             shortcut = span;
         });
 
-        // One registration carrying both operations, not two: a property may be registered once, and the two
-        // halves are the same value anyway — the attribute the engine matches on, and the text the user reads.
+        // One registration carrying both operations: a property may be registered only once.
         _ = RenderProperty<string?>(context, root, MenuItemComponent.ShortcutProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(ShortcutAttribute, value);
+                _ = target.Attribute(WebAttributes.MenuShortcut, value);
 
             _ = shortcut!.Text(value ?? string.Empty);
         }, [
-            WebDomOperation.Attribute(ShortcutAttribute, target: "root"),
+            WebDomOperation.Attribute(WebAttributes.MenuShortcut, target: "root"),
             WebDomOperation.Text(target: "." + ShortcutClass)
         ]);
     }

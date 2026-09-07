@@ -50,8 +50,9 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
         {
             return resolvable.Resolve(this);
         }
-        catch
+        catch (Exception exception)
         {
+            TryLogRuntimeResolutionFailure("value", nameof(ResolveRuntimeValue), exception);
             return value;
         }
     }
@@ -88,8 +89,9 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
         {
             return effect.Resolve(this);
         }
-        catch
+        catch (Exception exception)
         {
+            TryLogRuntimeResolutionFailure("effect", nameof(ResolveRuntimeEffect), exception);
             return effect;
         }
     }

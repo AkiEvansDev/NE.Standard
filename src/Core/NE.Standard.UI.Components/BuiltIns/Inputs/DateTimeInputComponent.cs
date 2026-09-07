@@ -14,19 +14,11 @@ public abstract class DateTimeInputComponent<T>(string? id = null) : TemporalInp
     /// Validates that the minimum, maximum, and current date-time values are consistent with each other.
     /// </summary>
     protected override void ValidateRange(DateTimeOffset? min, DateTimeOffset? max, DateTimeOffset? value)
-    {
-        if (min.HasValue && max.HasValue && min.Value > max.Value)
-            throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum date-time cannot be greater than the maximum date-time.");
+        => ValidateOrderedRange(min, max, value, "date-time");
 
-        if (value.HasValue)
-        {
-            if (min.HasValue && value.Value < min.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Date-time value cannot be less than the minimum date-time.");
-
-            if (max.HasValue && value.Value > max.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Date-time value cannot be greater than the maximum date-time.");
-        }
-    }
+    /// <inheritdoc/>
+    protected override void ValidatePeriod(DateTimeOffset? start, DateTimeOffset? end)
+        => ValidateOrderedPeriod(start, end, "date-time");
 }
 
 /// <summary>

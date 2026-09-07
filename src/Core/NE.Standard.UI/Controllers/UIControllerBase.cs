@@ -94,6 +94,16 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         => Task.CompletedTask;
 
     /// <inheritdoc />
+    public bool HasPendingChanges
+    {
+        get
+        {
+            lock (_changesLock)
+                return _changes.Count > 0;
+        }
+    }
+
+    /// <inheritdoc />
     public int DrainChanges(ICollection<RecursiveChange> destination)
     {
         ThrowIfDisposed();
@@ -159,8 +169,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
         IUICommandFilter[] globalFilters = Context.Services.GetRequiredService<UIApplication>().CommandFilters;
 
-        // The pipeline is only built when there is something in it. Authorization is the same call either way,
-        // so there is one implementation of "is this allowed" and the fast path is what it always was.
+        // Fast path when there are no filters at all; authorization still runs through the same check either way.
         if (globalFilters.Length == 0 && descriptor.Filters.Length == 0)
         {
             await EnsureCommandAuthorizedAsync(descriptor, cancellationToken).ConfigureAwait(false);
@@ -172,15 +181,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Runs the command inside its filter chain: the built-in authorization check, then the application's
-    /// global filters, then the ones attached to the controller and the command.
+    /// Runs the command through its filter chain: authorization, then global filters, then the controller's and command's own filters.
     /// </summary>
     /// <remarks>
-    /// The authorization filter is pinned outermost (<see cref="int.MinValue"/>) rather than merely first in
-    /// the list, and that is a security property, not tidiness: an application filter running before it could
-    /// short-circuit with a successful result and never reach the check. The cost is that a filter cannot wrap
-    /// the refusal either — translating one into something friendlier belongs in the failure notification, not
-    /// here.
+    /// The authorization filter is pinned outermost (<see cref="int.MinValue"/>) so no other filter can bypass it.
     /// </remarks>
     private async Task<UICommandResult> ExecuteFilteredCommandAsync(UICommandDescriptor descriptor, IUICommandFilter[] globalFilters, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken)
     {
@@ -220,8 +224,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// The command access check as the first filter rather than a special case beside the pipeline, so there is
-    /// one place where "is this command allowed" is decided.
+    /// Runs the command authorization check as the first filter in the pipeline.
     /// </summary>
     private sealed class AuthorizationCommandFilter(UIControllerBase controller) : IUICommandFilter
     {
@@ -265,11 +268,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
                     ? method.Name
                     : attribute.Name;
 
-                // The walk runs most-derived first, so a name already taken by a type further down is an
-                // override or a `new` shadow of the same command — C# resolves that call to the derived member
-                // and so does this. Reading the attribute with inherit:true means an override sees the base's
-                // attribute too, which is why this has to be tolerated rather than reported. Only two
-                // declarations on one type are a genuine collision.
+                // Most-derived first: a base-type name is an override/shadow, not a collision; only two declarations on one type collide.
                 if (declaringTypes.TryGetValue(commandName, out Type? owner))
                 {
                     if (!ReferenceEquals(owner, current))
@@ -296,14 +295,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// An explicit attribute on the command or its controller always wins; a command carrying neither returns
-    /// <see langword="null"/> and takes the answer from the route it runs on.
+    /// An explicit attribute on the command or its controller wins; otherwise returns <see langword="null"/> to defer to the route.
     /// </summary>
-    /// <remarks>
-    /// Mirrors <c>UIRouteDefinitionBuilder.ResolveAllowAnonymous</c>. Deferred rather than decided here because
-    /// the command cache is static per controller type, while the answer belongs to the route — the same
-    /// controller can sit behind routes whose views are annotated differently.
-    /// </remarks>
     private static bool? ResolveAllowAnonymous(Type controllerType, MethodInfo method)
     {
         if (controllerType.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true) || method.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
@@ -316,8 +309,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Collects the filters attached to the command, controller first then method, ordered by
-    /// <see cref="IUICommandFilter.Order"/> — a stable sort, so equal orders keep that attachment order.
+    /// Collects the filters attached to the command, controller first then method, ordered by <see cref="IUICommandFilter.Order"/>.
     /// </summary>
     private static IUICommandFilter[] ReadCommandFilters(Type controllerType, MethodInfo method)
     {
@@ -349,19 +341,14 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         );
 
     /// <summary>
-    /// Checks a command against the session as it is <em>now</em>, not as it was when this connection attached.
+    /// Checks a command against the current session, not the snapshot taken when the connection attached.
     /// </summary>
     /// <remarks>
-    /// The handle's session is a snapshot refreshed only on attach, so a sign-out or a revoked role would keep
-    /// working on an already-open tab until the page reloaded — the direction of that mistake grants access
-    /// rather than denying it. The store is therefore the authority here, and a session it no longer holds is
-    /// refused. An anonymous command never reads it, so the common path costs nothing.
+    /// A revoked or signed-out session must be refused immediately, not once an already-open tab reloads.
     /// </remarks>
     private async ValueTask EnsureCommandAuthorizedAsync(UICommandDescriptor command, CancellationToken cancellationToken)
     {
-        // A command with no attribute of its own inherits the route's answer, which has already folded in the
-        // view, the controller and the application's DefaultPolicy — so one setting governs pages and the
-        // commands on them, instead of commands silently defaulting to closed on an open application.
+        // No attribute of its own: inherit the route's resolved answer (view + controller + DefaultPolicy) instead of defaulting closed.
         if (command.AllowAnonymous ?? Context.Route.AllowAnonymous)
             return;
 
@@ -375,7 +362,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         if (command.AccessRules.Length == 0)
             return;
 
-        IAuthorizationService authorization = Context.Services.GetRequiredService<IAuthorizationService>();
+        IUIAuthorizationService authorization = Context.Services.GetRequiredService<IUIAuthorizationService>();
 
         if (!authorization.IsAuthorized(new UserSessionContext(session.SessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions), command.AccessRules))
             throw new UIForbiddenAccessException($"Command '{command.Name}' is not authorized.");
@@ -422,9 +409,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         {
             TryLogChangeNotifierFailure(exception);
 
-            // Buffered unconditionally: the notifier is still installed after it throws, so a "re-buffer only
-            // if nobody is listening" guard would drop the change outright and leave the client silently out
-            // of sync. The next drain ships it instead.
+            // Buffered unconditionally: the notifier is still installed after throwing, so skipping the buffer here would drop the change.
             lock (_changesLock)
                 _changes.Add(change);
         }

@@ -1,13 +1,19 @@
-.ui-color--default {
+// Text colour only, declared before every modifier below so an explicit colour still wins the tie on the same element.
+[data-ui-theme] {
+    color: var(--ui-color-on-background);
+}
+
+// Excluded on a themed root: there, inheriting would reach past the theme to the page outside it.
+.ui-color--default:not([data-ui-theme]) {
     color: inherit;
 }
 
 .ui-color--primary {
-    color: var(--ui-color-primary);
+    color: var(--ui-color-primary-ink);
 }
 
 .ui-color--accent {
-    color: var(--ui-color-accent);
+    color: var(--ui-color-accent-ink);
 }
 
 .ui-color--background {
@@ -35,19 +41,19 @@
 }
 
 .ui-color--info {
-    color: var(--ui-color-info);
+    color: var(--ui-color-info-ink);
 }
 
 .ui-color--warning {
-    color: var(--ui-color-warning);
+    color: var(--ui-color-warning-ink);
 }
 
 .ui-color--success {
-    color: var(--ui-color-success);
+    color: var(--ui-color-success-ink);
 }
 
 .ui-color--danger {
-    color: var(--ui-color-danger);
+    color: var(--ui-color-danger-ink);
 }
 
 .ui-color--on-info {
@@ -66,8 +72,14 @@
     color: var(--ui-color-on-danger);
 }
 
+// The one relative colour: a fainter version of whatever the element is already on, at the same weight as `--ui-text-muted`.
 .ui-color--muted {
-    color: color-mix(in srgb, currentColor 62%, transparent);
+    color: color-mix(in srgb, currentColor 68%, transparent);
+}
+
+// currentColor in a color declaration is the inherited value, not this cascade's own, so the themed element must name its base explicitly.
+[data-ui-theme].ui-color--muted {
+    color: color-mix(in srgb, var(--ui-color-on-background) 68%, transparent);
 }
 
 .ui-color--selected {

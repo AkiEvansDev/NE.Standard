@@ -10,8 +10,7 @@ public sealed class UIApplicationThemeBuilder
 {
     private UITheme _theme = UIThemeDefaults.Default;
 
-    // The token types are sealed records with init-only members, so handing out or storing an instance
-    // cannot leak mutability — no defensive copying is needed anywhere in this builder.
+    // Token types are sealed records with init-only members, so no defensive copying is needed here.
     internal UITheme Build()
     {
         _theme.Validate();

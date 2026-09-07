@@ -1,11 +1,12 @@
 using System;
+using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compilation;
 using NE.Standard.UI.Compiled.Views;
 
 namespace NE.Standard.UI.Views;
 
-internal sealed class UIViewFactory
+internal sealed partial class UIViewFactory
 {
     private readonly IServiceProvider _services;
     private readonly Type _viewType;
@@ -28,7 +29,25 @@ internal sealed class UIViewFactory
     }
 
     public CompiledView Compile()
-        => UIViewCompiler.Compile(CreateView(), _controllerType);
+    {
+        CompiledView view = UIViewCompiler.Compile(CreateView(), _controllerType);
+
+        if (view.Warnings.Count > 0 && _services.GetService(typeof(ILoggerFactory)) is ILoggerFactory loggerFactory)
+        {
+            ILogger logger = loggerFactory.CreateLogger(_viewType.FullName ?? _viewType.Name);
+
+            foreach (var warning in view.Warnings)
+                Log.CompilationWarning(logger, warning);
+        }
+
+        return view;
+    }
+
+    private static partial class Log
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "{Warning}")]
+        public static partial void CompilationWarning(ILogger logger, string warning);
+    }
 
     private IUIView CreateView()
     {

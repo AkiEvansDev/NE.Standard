@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -72,4 +73,13 @@ public sealed class CompiledView
     /// Gets compiled validation rules.
     /// </summary>
     public required UIValidationIndex Validations { get; init; }
+
+    /// <summary>What compiled but is not what the author meant, for the host to log.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
+    /// <summary>
+    /// One short hash over what a page's client holds of this compile — components, bindings, events and interactions by id — so a
+    /// page rendered from another compile of the same view is told apart from this one.
+    /// </summary>
+    public required string Fingerprint { get; init; }
 }

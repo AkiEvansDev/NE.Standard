@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 
@@ -12,6 +13,8 @@ public readonly record struct UIItemFilterTerm
     /// <summary>
     /// Creates a filter term.
     /// </summary>
+    // Named for the serializer: a struct has a parameterless constructor too, and the wire's query is rebuilt through this one.
+    [JsonConstructor]
     public UIItemFilterTerm(string itemProperty, UIComparisonOperator @operator, object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
@@ -45,6 +48,7 @@ public readonly record struct UIItemSortTerm
     /// <summary>
     /// Creates a sort term.
     /// </summary>
+    [JsonConstructor]
     public UIItemSortTerm(string itemProperty, UIItemsSortDirection direction)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
@@ -67,12 +71,6 @@ public readonly record struct UIItemSortTerm
 /// <summary>
 /// The filtering and ordering a window request carries, resolved down to plain terms.
 /// </summary>
-/// <remarks>
-/// A source-backed items host cannot filter or sort on the client: it holds one window and would be deciding
-/// on a fraction of the data. So the host's <c>ItemsView</c> is resolved here — a rule bound to a search box
-/// arrives as its current value — and answering it is the source's job, which is the only place that can see
-/// every item.
-/// </remarks>
 public sealed class UIItemsQuery
 {
     /// <summary>

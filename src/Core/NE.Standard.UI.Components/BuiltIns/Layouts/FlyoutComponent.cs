@@ -17,10 +17,7 @@ public abstract partial class FlyoutComponent<T>(string? id = null) : RegionCont
     where T : FlyoutComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Two-way bound: a client-initiated open/close (anchor click, outside click, Escape) syncs back
-    /// through the ordinary <c>data-ui-bind-is-open</c>/<c>ValueBindingEngine</c> path on the synthetic
-    /// <c>toggle</c> event <c>FlyoutInteractionEngine</c> (client) dispatches, the same way a
-    /// two-way-bound <c>Value</c> syncs on <c>change</c>.
+    /// Whether the flyout is open; two-way, so an anchor click, an outside click or Escape syncs back.
     /// </summary>
     [UIComponentProperty(DefaultValue = false, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
     public bool? IsOpen { get; set; }
@@ -28,8 +25,8 @@ public abstract partial class FlyoutComponent<T>(string? id = null) : RegionCont
     /// <summary>
     /// Gets or sets the preferred placement of the flyout relative to its anchor.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIFlyoutPlacement.BottomStart)]
-    public UIFlyoutPlacement? FlyoutPlacement { get; set; }
+    [UIComponentProperty(DefaultValue = UIPopupPlacement.BottomStart)]
+    public UIPopupPlacement? FlyoutPlacement { get; set; }
 
     /// <summary>
     /// Gets or sets whether clicking outside the flyout closes it.
@@ -91,21 +88,7 @@ public abstract partial class FlyoutComponent<T>(string? id = null) : RegionCont
         return Self;
     }
 
-    /// <summary>
-    /// Registers a command to invoke when the flyout is toggled.
-    /// </summary>
-    public T OnToggle(string command)
-        => On(EventNames.Toggle, command);
-    /// <summary>
-    /// Registers a command with bound arguments to invoke when the flyout is toggled.
-    /// </summary>
-    public T OnToggle(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Toggle, command, arguments);
-    /// <summary>
-    /// Registers a command with literal arguments to invoke when the flyout is toggled.
-    /// </summary>
-    public T OnToggleLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnLiteral(EventNames.Toggle, command, arguments);
+    // Two events, not three: a `Toggle` beside these would dispatch two commands per gesture in no promised order.
 
     /// <summary>
     /// Registers a command to invoke when the flyout is opened.

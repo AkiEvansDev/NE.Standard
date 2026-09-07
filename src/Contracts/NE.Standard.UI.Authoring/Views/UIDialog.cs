@@ -1,4 +1,8 @@
+using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.Views;
@@ -9,24 +13,25 @@ namespace NE.Standard.UI.Authoring.Views;
 public sealed class UIDialog
 {
     /// <summary>
-    /// Gets the stable dialog key.
+    /// Gets the dialog's stable key — the same key <see cref="OpenDialogEffect"/>,
+    /// <see cref="CloseDialogEffect"/>, and the dialog service address it by.
     /// </summary>
     public required string Key { get; init; }
 
     /// <summary>
-    /// Gets the root dialog content component.
+    /// Gets the component tree the dialog renders inside its panel.
     /// </summary>
     public required IVisualComponent Content { get; init; }
 
     /// <summary>
     /// Gets what the dialog's panel is made of.
     /// </summary>
-    /// <remarks>
-    /// A card is the right answer for a question asked over a page. A dialog that fills most of the screen and
-    /// holds a whole task is not a card floating over anything — it is a screen, and the page background
-    /// inside a border is what says so.
-    /// </remarks>
-    public UIDialogSurface Surface { get; init; } = UIDialogSurface.Card;
+    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Raised;
+
+    /// <summary>
+    /// Gets where the panel stands: centred, or as a sheet against one edge of the viewport.
+    /// </summary>
+    public UIDialogPlacement Placement { get; init; } = UIDialogPlacement.Center;
 
     /// <summary>
     /// Gets whether the dialog blocks interaction with the underlying view.
@@ -42,4 +47,15 @@ public sealed class UIDialog
     /// Gets whether pressing Escape closes the dialog.
     /// </summary>
     public bool CloseOnEscape { get; init; } = true;
+
+    /// <summary>
+    /// Registers a command invoked when the viewer dismisses the dialog — Escape or a click on the backdrop; a close the server
+    /// asked for raises nothing.
+    /// </summary>
+    /// <remarks>The event is registered on the dialog's content component, which is what the client raises it on.</remarks>
+    public UIDialog OnClose(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+    {
+        _ = Content.On(EventNames.Close, command, arguments);
+        return this;
+    }
 }

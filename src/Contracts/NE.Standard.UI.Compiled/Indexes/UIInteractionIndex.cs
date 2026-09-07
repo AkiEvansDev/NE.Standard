@@ -45,11 +45,11 @@ public sealed class UIInteractionIndex
             switch (interaction.SourceKind)
             {
                 case UIInteractionSourceKind.Property:
-                    Add(byPropertySource, interaction.Source!.Value, interaction);
+                    GroupingIndex.Add(byPropertySource, interaction.Source!.Value, interaction);
                     break;
 
                 case UIInteractionSourceKind.Event:
-                    Add(byEventSource, interaction.SourceEvent!.Value, interaction);
+                    GroupingIndex.Add(byEventSource, interaction.SourceEvent!.Value, interaction);
                     break;
 
                 default:
@@ -57,19 +57,19 @@ public sealed class UIInteractionIndex
             }
 
             if (interaction.Target is UIPropertyAddress target)
-                Add(byTarget, target, interaction);
+                GroupingIndex.Add(byTarget, target, interaction);
 
             if (interaction.Source is UIPropertyAddress source)
-                Add(byComponent, source.Component.Id, interaction);
+                GroupingIndex.Add(byComponent, source.Component.Id, interaction);
 
             if (interaction.SourceEvent is CompiledUIEventAddress sourceEvent)
-                Add(byComponent, sourceEvent.ComponentId, interaction);
+                GroupingIndex.Add(byComponent, sourceEvent.ComponentId, interaction);
         }
 
-        _byPropertySource = Freeze(byPropertySource);
-        _byEventSource = Freeze(byEventSource);
-        _byTarget = Freeze(byTarget);
-        _byComponent = Freeze(byComponent);
+        _byPropertySource = GroupingIndex.Freeze(byPropertySource);
+        _byEventSource = GroupingIndex.Freeze(byEventSource);
+        _byTarget = GroupingIndex.Freeze(byTarget);
+        _byComponent = GroupingIndex.Freeze(byComponent);
     }
 
     /// <summary>
@@ -114,27 +114,4 @@ public sealed class UIInteractionIndex
             : Empty;
     }
 
-    private static void Add<TKey>(Dictionary<TKey, List<CompiledUIInteraction>> map, TKey key, CompiledUIInteraction interaction)
-        where TKey : notnull
-    {
-        if (!map.TryGetValue(key, out List<CompiledUIInteraction>? list))
-        {
-            list = [];
-            map.Add(key, list);
-        }
-
-        if (!list.Contains(interaction))
-            list.Add(interaction);
-    }
-
-    private static FrozenDictionary<TKey, CompiledUIInteraction[]> Freeze<TKey>(Dictionary<TKey, List<CompiledUIInteraction>> source)
-        where TKey : notnull
-    {
-        Dictionary<TKey, CompiledUIInteraction[]> result = new(source.Count);
-
-        foreach (KeyValuePair<TKey, List<CompiledUIInteraction>> pair in source)
-            result.Add(pair.Key, [.. pair.Value]);
-
-        return result.ToFrozenDictionary();
-    }
 }

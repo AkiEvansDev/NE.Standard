@@ -2,19 +2,16 @@ using System;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Views;
 
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// Every semantic <see cref="UIColorPalette"/> role, grouped by what it is for. A role that has a
-/// matching <c>On*</c> partner is shown as one card per pair, with the <c>On*</c> colour rendered as
-/// actual text on top of its base colour in both themes — the pair's whole purpose is the contrast
-/// between the two, which a pair of separate swatches can't show. The remaining chrome roles have no
-/// partner and stay plain Light/Dark swatches.
+/// Every semantic <see cref="UIColorPalette"/> role: a role with an <c>On*</c> partner as one card per pair,
+/// the rest as plain Light/Dark swatches.
 /// </summary>
 internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 {
@@ -38,6 +35,17 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
         new("Danger", "OnDanger", static p => p.Danger, static p => p.OnDanger)
     ];
 
+    // Words rather than swatches: an ink has to be shown on the ground it will be read against.
+    private static readonly SingleRole[] InkRoles =
+    [
+        new("PrimaryInk", static p => p.PrimaryInk),
+        new("AccentInk", static p => p.AccentInk),
+        new("InfoInk", static p => p.InfoInk),
+        new("WarningInk", static p => p.WarningInk),
+        new("SuccessInk", static p => p.SuccessInk),
+        new("DangerInk", static p => p.DangerInk)
+    ];
+
     private static readonly SingleRole[] ChromeRoles =
     [
         new("Selected", static p => p.Selected),
@@ -57,6 +65,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             .AddChild(CreatePairGroup("Brand", BrandRoles, contentMinHeight: 300))
             .AddChild(CreatePairGroup("Surfaces", SurfaceRoles, contentMinHeight: 300))
             .AddChild(CreatePairGroup("Status", StatusRoles, contentMinHeight: 620))
+            .AddChild(CreateInkGroup())
             .AddChild(CreateChromeGroup());
     }
 
@@ -66,8 +75,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             content =>
             {
                 WrapPanelComponent grid = new WrapPanelComponent()
-                    .SetHorizontalGap(12)
-                    .SetVerticalGap(12)
+                    .SetSpacing(12)
                     .SetPlacement(1, 1, 24, 1);
 
                 foreach (RolePair role in roles)
@@ -75,7 +83,6 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
                 _ = content.AddChild(grid);
             },
-            static _ => { },
             contentMinHeight: contentMinHeight
         );
     }
@@ -130,14 +137,73 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                 ));
     }
 
+    /// <summary>
+    /// The colour each semantic wears as a word, read against the page rather than against its own <c>On*</c>.
+    /// </summary>
+    private static ContainerComponent CreateInkGroup()
+    {
+        return DemoUI.CreateGroup(null, "Ink — the same colours as words",
+            content =>
+            {
+                WrapPanelComponent grid = new WrapPanelComponent()
+                    .SetSpacing(12)
+                    .SetPlacement(1, 1, 24, 1);
+
+                foreach (SingleRole role in InkRoles)
+                    _ = grid.AddChild(CreateInkCard(role));
+
+                _ = content.AddChild(grid);
+            },
+            contentMinHeight: 300
+        );
+    }
+
+    private static StackPanelComponent CreateInkCard(SingleRole role)
+    {
+        return new StackPanelComponent()
+            .SetOrientation(UIOrientation.Vertical)
+            .SetSpacing(6)
+            .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
+            .AddChild(new TextComponent()
+                .SetTitle(role.Name)
+                .SetTitleType(UITextAppearance.Body)
+            )
+            .AddChild(new StackPanelComponent()
+                .SetOrientation(UIOrientation.Horizontal)
+                .SetSpacing(12)
+                .AddChild(CreateInkSample("Light", UIThemeDefaults.LightPalette, role))
+                .AddChild(CreateInkSample("Dark", UIThemeDefaults.DarkPalette, role))
+            );
+    }
+
+    private static ContainerComponent CreateInkSample(string label, UIColorPalette palette, SingleRole role)
+    {
+        ColorVariant ink = role.Select(palette);
+
+        return new ContainerComponent()
+            .SetBackground(UIThemeColor.FromColorVariant(palette.Background))
+            .SetBorderColor(UIThemeColor.Border)
+            .SetBorderThickness(UIThickness.Uniform(1))
+            .SetBorderRadius(UICornerRadius.Uniform(6))
+            .SetPadding(UIThickness.All(10, 8, 10, 8))
+            .SetWidth(UILayoutLength.Absolute(150))
+            .AddChild(new TextComponent()
+                .SetTitle(label)
+                .SetTitleColor(UIThemeColor.FromColorVariant(ink))
+                .SetDescription(ink.ToHex())
+                .SetDescriptionType(UITextAppearance.Caption)
+                .SetDescriptionColor(UIThemeColor.FromColorVariant(ink))
+                .SetPlacement(1, 1, 24, 1)
+            );
+    }
+
     private static ContainerComponent CreateChromeGroup()
     {
         return DemoUI.CreateGroup(null, "Interaction & chrome (no On* partner)",
             content =>
             {
                 WrapPanelComponent grid = new WrapPanelComponent()
-                    .SetHorizontalGap(12)
-                    .SetVerticalGap(12)
+                    .SetSpacing(12)
                     .SetPlacement(1, 1, 24, 1);
 
                 foreach (SingleRole role in ChromeRoles)
@@ -145,7 +211,6 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
                 _ = content.AddChild(grid);
             },
-            static _ => { },
             contentMinHeight: 300
         );
     }

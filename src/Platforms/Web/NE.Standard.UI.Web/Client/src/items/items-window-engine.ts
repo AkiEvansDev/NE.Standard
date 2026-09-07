@@ -1,30 +1,19 @@
-import { ComponentKeyAttribute, ItemsHostAttribute, WindowedAttribute } from "../addressing/dom-attributes";
+import {
+    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowSizeAttribute, WindowTotalAttribute
+} from "../addressing/dom-attributes";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
+import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { findOwningComponentId } from "../addressing/dom-registry";
 import { ItemAnchorName, ServerChangeSet, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
 
-const WindowSizeAttribute = "data-ui-window-size";
-const OffsetAttribute = "data-ui-window-offset";
-const TotalAttribute = "data-ui-window-total";
-const MoreBeforeAttribute = "data-ui-window-more-before";
-const MoreAfterAttribute = "data-ui-window-more-after";
-
 const DefaultWindowSize = 50;
 
-// A row is assumed this tall until one has been rendered and measured. Only the first paint depends on it.
-const DefaultItemSize = 32;
-
-// How close to an edge the viewer has to come before the next window is asked for, as a fraction of the
-// visible height.
+// How close to an edge the viewer has to come before the next window is asked for, as a fraction of the visible height.
 const EdgeThreshold = 1;
 
-// ...and never less than this fraction of the window itself. The screen-relative figure alone was the whole
-// of it, and at half a screen it was no lead at all: a list showing seven rows started reading four rows from
-// the edge, which one turn of a wheel covers twice over. The viewer then spent every scroll looking at the
-// space the spacers stand for and concluded nothing loads. Measured against the window, the lead grows with
-// the amount the source hands over at a time, which is what the round trip actually costs.
+// ...and never less than this fraction of the window itself, so the lead grows with what the source hands over at a time.
 const WindowLeadFraction = 0.5;
 
 // Milliseconds between two decisions about the same host.
@@ -38,38 +27,35 @@ export type ItemsWindowEngineOptions = {
 
 type WindowState = {
     pending: boolean;
-    // A scroll that arrived while a read was in flight. Dropping it is what let a fast drag outrun the
-    // window: every decision taken during the read was lost, and the next one only arrived on the next
-    // scroll event — which never comes if the viewer stopped dragging in the meantime.
+    // A scroll that arrived while a read was in flight; dropping it lets a fast drag outrun the window.
     restless: boolean;
     itemSize: number;
-    // Per host, not per engine: one timer for the whole page meant a scroll in the second list was dropped
-    // while the first list's decision was pending, and the pending one was about the first list anyway — so
-    // the second only moved again on its next scroll event, which never comes once the viewer lets go.
+    // Per host, not per engine: one timer for the page drops a scroll in a second list while the first is pending.
     scheduled: number;
 };
 
-/**
- * Drives a windowed items host: asks for the part of the source the viewer is looking at, and keeps the
- * scrollbar honest about the part they are not.
- *
- * The two spacers are what make a window of fifty rows behave like a list of a hundred thousand — the one
- * above stands for every item before the window, the one below for every item after, both sized from the
- * geometry the source reports. It also means a prepend needs no scroll correction: the top spacer shrinks by
- * exactly what the arriving rows add, so what the viewer is reading does not move.
- */
+/** Drives a windowed items host: asks for the part of the source the viewer is looking at, and spaces out the part they are not. */
 export class ItemsWindowEngine {
+    private readonly options: ItemsWindowEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<Element, WindowState>();
+    // A reconnect or a controller-asked rebuild calls start() again; only the very first call may snap the viewport to
+    // the window read on the server — after that, the viewer's own scroll position is realigned to, not overridden.
+    private started = false;
 
-    public constructor(private readonly options: ItemsWindowEngineOptions) {
+    public constructor(options: ItemsWindowEngineOptions) {
+        this.options = options;
         this.root = options.root ?? document;
 
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
     }
 
-    /** Fills every host that has no window yet, and shows the one the server already read. */
+    /** Fills every host that has no window yet; the first attach shows the window the server already read, a re-attach only realigns. */
     public start(): void {
+        const firstStart = !this.started;
+
+        this.started = true;
+
         for (const host of this.hosts()) {
             this.layout(host);
 
@@ -78,66 +64,79 @@ export class ItemsWindowEngine {
                 continue;
             }
 
-            this.revealWindow(host);
+            if (firstStart)
+                this.revealWindow(host);
+            else
+                this.realign(host);
         }
     }
 
-    /**
-     * Puts the viewport where the realized window is. A window read on the server can start anywhere — a
-     * conversation opens at its newest message — and a viewport left at zero would show nothing but the
-     * spacer standing in for everything before it.
-     */
+    /** Puts the viewport where the realized window is, since a window read on the server can start anywhere. */
     private revealWindow(host: Element): void {
-        const offset = readOptionalNumber(host, OffsetAttribute);
+        const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
-        if (offset === null || offset <= 0)
+        if (offset === null)
             return;
 
-        // At the end of the source there is nothing below to scroll into, so the newest row goes to the
-        // bottom edge rather than the top — which is where a chat is meant to open.
-        host.scrollTop = isTrue(host.getAttribute(MoreAfterAttribute))
+        // At the end of the source there is nothing below to scroll into, so the last row goes to the bottom edge.
+        host.scrollTop = isTrue(host.getAttribute(WindowMoreAfterAttribute))
             ? offset * this.getState(host).itemSize
             : host.scrollHeight;
     }
 
-    /** Re-places the spacers after a change set moved a window. */
+    /** Re-places the spacers after a change set moved a window, and follows a window that moved. */
     public sync(): void {
-        for (const host of this.hosts())
+        for (const host of this.hosts()) {
             this.layout(host);
+            this.realign(host);
+        }
     }
 
     /**
-     * Decides again for every host, after something other than the viewer moved a viewport. A scroll effect
-     * puts the viewport somewhere the window does not reach, and the engine would otherwise only hear about
-     * it through a scroll event — which a programmatic scroll is not guaranteed to produce at all: the event
-     * is dispatched with the rendering, and a hidden tab renders nothing.
+     * Puts the viewport back on the window when the server moved it out from under the viewer: a rule that
+     * changed re-anchors the window at the start, and the scroll position it was read at then stands over a
+     * spacer with nothing in it. A viewer who is looking at rows is looking at the window, so this does nothing.
      */
+    private realign(host: Element): void {
+        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+        const items = itemElements(host);
+
+        if (offset === null || items.length === 0)
+            return;
+
+        const state = this.getState(host);
+        const firstVisible = Math.floor(host.scrollTop / state.itemSize);
+        const lastVisible = Math.ceil((host.scrollTop + host.clientHeight) / state.itemSize);
+
+        if (lastVisible >= offset && firstVisible <= offset + items.length)
+            return;
+
+        this.revealWindow(host);
+    }
+
+    /** Decides again for every host, after something other than the viewer moved a viewport with no scroll event to hear. */
     public reconsider(): void {
         for (const host of this.hosts())
             this.considerRequest(host);
     }
 
     private hosts(): Element[] {
-        return [...this.root.querySelectorAll(`[${ItemsHostAttribute}][${WindowedAttribute}]`)];
+        return [...this.root.querySelectorAll(`[${ItemsHostAttribute}][${HostModeAttribute}="windowed"]`)];
     }
 
     private handleScroll(domEvent: Event): void {
         const host = domEvent.target;
 
-        if (!(host instanceof Element) || !host.hasAttribute(WindowedAttribute))
+        if (!(host instanceof Element) || resolveHostMode(host) !== "windowed")
             return;
 
-        // One decision per interval: a scroll fires far more often than a window can be read. A timer rather
-        // than an animation frame, because a frame never arrives while the tab is in the background — and a
-        // decision that is only a network read has no reason to wait for one.
+        // One decision per interval, on a timer rather than a frame, because a background tab gets no frames.
         const state = this.getState(host);
 
         if (state.scheduled !== 0)
             return;
 
-        // Leading edge: the first scroll of a gesture is decided now and the timer only suppresses the ones
-        // behind it. Deciding on the trailing edge instead added the interval to every read, and the read is
-        // what the viewer is waiting for.
+        // Leading edge: the first scroll of a gesture is decided now, so the interval is not added to every read.
         this.considerRequest(host);
 
         state.scheduled = window.setTimeout(() => {
@@ -161,13 +160,11 @@ export class ItemsWindowEngine {
             return;
         }
 
-        const offset = readOptionalNumber(host, OffsetAttribute);
-        const hasMoreBefore = isTrue(host.getAttribute(MoreBeforeAttribute));
-        const hasMoreAfter = isTrue(host.getAttribute(MoreAfterAttribute));
+        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+        const hasMoreBefore = isTrue(host.getAttribute(WindowMoreBeforeAttribute));
+        const hasMoreAfter = isTrue(host.getAttribute(WindowMoreAfterAttribute));
 
-        // With spacers there is no such thing as "near the bottom of the content" — the bottom spacer stands
-        // for every item that was never sent, so the decision is about *indices*: which rows the viewport is
-        // over, against the range the window actually holds.
+        // With spacers there is no "near the bottom of the content", so the decision is about indices, not pixels.
         if (offset !== null) {
             const windowSize = this.windowSize(host);
             const margin = Math.max(
@@ -178,10 +175,7 @@ export class ItemsWindowEngine {
             const firstVisible = Math.floor(host.scrollTop / state.itemSize);
             const lastVisible = Math.ceil((host.scrollTop + host.clientHeight) / state.itemSize);
 
-            // The viewport shows nothing the window holds — a drag of the scrollbar, or a fast one that the
-            // reads could not keep up with. Extending would crawl towards it one window at a time and leave
-            // blank space the whole way, so the window is replaced where the viewer actually is. Anything
-            // that still overlaps is read as a continuation, and what they are looking at stays put.
+            // The viewport shows nothing the window holds, so the window is replaced rather than extended towards it.
             if (lastVisible < offset || firstVisible > offset + items.length) {
                 void this.requestAsync(host, "Offset", this.landingOffset(host, firstVisible, windowSize), null, false);
                 return;
@@ -213,14 +207,10 @@ export class ItemsWindowEngine {
             void this.requestAsync(host, "After", 0, keyOf(items[items.length - 1]), true);
     }
 
-    /**
-     * Where a window dropped somewhere else should start: a little above the first row the viewport is over,
-     * and never so far down that a full window no longer fits. Without the second half, jumping to the end of
-     * a source read whatever few rows were left past the landing point and left the viewer looking at three.
-     */
+    /** Where a window dropped elsewhere starts: a little above the first visible row, and never so far down that a full window will not fit. */
     private landingOffset(host: Element, firstVisible: number, windowSize: number): number {
         const start = Math.max(0, firstVisible - Math.floor(windowSize / 4));
-        const total = readOptionalNumber(host, TotalAttribute);
+        const total = readOptionalNumber(host, WindowTotalAttribute);
 
         return total === null ? start : Math.min(start, Math.max(0, total - windowSize));
     }
@@ -260,8 +250,7 @@ export class ItemsWindowEngine {
             state.pending = false;
             this.layout(host);
 
-            // The viewer kept scrolling while this read was in flight, so decide again from where they are
-            // now rather than from where they were when it started.
+            // The viewer kept scrolling during the read, so decide again from where they are now.
             if (state.restless) {
                 state.restless = false;
                 this.considerRequest(host);
@@ -269,35 +258,21 @@ export class ItemsWindowEngine {
         }
     }
 
-    /**
-     * Sizes the two spacers from the geometry the source reported. Without a total there is nothing to stand
-     * in for — a cursor source (a chat) knows only whether there is more, so the list is exactly as long as
-     * what it holds and the edges do the asking.
-     */
+    /** Sizes the two spacers from the geometry the source reported; a source with no total gets none. */
     private layout(host: Element): void {
         const state = this.getState(host);
         const items = itemElements(host);
 
-        // Averaged over the whole window, not sampled from the first row: rows of genuinely different heights
-        // made a scrollbar that lied in proportion to how much they differed, because everything outside the
-        // window was measured in units of whatever the top row happened to be.
-        //
-        // A measurement of zero is kept out: a host inside a hidden tab or a closed dialog lays nothing out,
-        // and taking that reading would put a row at one pixel — spacers standing for a hundred thousand rows
-        // then collapse, and the first decision after the host is shown reads a viewport position in units of
-        // one pixel and jumps somewhere absurd. The previous estimate is wrong by less.
+        // The window's whole span over the items it stands as tall as, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {
-            let measured = 0;
-
-            for (const item of items)
-                measured += item.getBoundingClientRect().height;
+            const measured = boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
 
             if (measured > 0)
-                state.itemSize = Math.max(1, Math.round(measured / items.length));
+                state.itemSize = Math.max(1, Math.round(measured / rowSpan(items)));
         }
 
-        const total = readOptionalNumber(host, TotalAttribute);
-        const offset = readOptionalNumber(host, OffsetAttribute);
+        const total = readOptionalNumber(host, WindowTotalAttribute);
+        const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
         const before = total === null || offset === null ? 0 : offset * state.itemSize;
         const after = total === null || offset === null ? 0 : Math.max(0, total - offset - items.length) * state.itemSize;
@@ -328,6 +303,32 @@ function isTrue(value: string | null): boolean {
     return value !== null && value.toLowerCase() === "true";
 }
 
+/**
+ * How many items tall a window stands: its rows times the items one row holds. A stack answers its own count;
+ * a wrapping host would otherwise average a row's height over every tile in it and read each item as a fraction
+ * of its real size, which the spacers and the index arithmetic are both drawn from.
+ */
+function rowSpan(items: Element[]): number {
+    const top = boxOf(items[0]).top;
+    let perRow = 1;
+
+    while (perRow < items.length && boxOf(items[perRow]).top === top)
+        perRow++;
+
+    // Rounded up: a wrapping window's last row is usually a partial one, and it is still a whole row tall.
+    return Math.ceil(items.length / perRow) * perRow;
+}
+
+/**
+ * The box an item occupies. A wrapping host drops the row wrapper out of layout with `display: contents` so
+ * the template's own root takes the grid cell, and a wrapper laid out that way measures as nothing.
+ */
+function boxOf(item: Element): DOMRect {
+    const box = item.getBoundingClientRect();
+
+    return box.height > 0 || item.firstElementChild === null ? box : item.firstElementChild.getBoundingClientRect();
+}
+
 function itemElements(host: Element): Element[] {
     return [...host.children].filter(child => child.hasAttribute(ComponentKeyAttribute));
 }
@@ -341,7 +342,7 @@ function keyOf(item: Element): string | null {
 }
 
 function readDynamicParameters(host: Element): unknown[] {
-    const owner = host.closest("[data-ui-id]");
+    const owner = host.closest(ComponentSelector);
 
     return owner === null ? [] : collectDynamicParameters(owner, readParameterCount(owner));
 }

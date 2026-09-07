@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
@@ -15,6 +17,25 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnectionUpdater
 {
+    private static partial class Log
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Resolving a runtime {Kind} during '{Operation}' failed; the unresolved value is kept.")]
+        public static partial void RuntimeResolutionFailed(ILogger logger, Exception exception, string kind, string operation);
+    }
+
+    /// <summary>
+    /// Logs a resolution failure the caller already recovered from, swallowing a logging failure of its own.
+    /// </summary>
+    private void TryLogRuntimeResolutionFailure(string kind, string operation, Exception exception)
+    {
+        try
+        {
+            if (Controller is IUIContextController contextController)
+                Log.RuntimeResolutionFailed(contextController.Context.Logger, exception, kind, operation);
+        }
+        catch { }
+    }
+
     private static readonly UICommandResult DefaultRuntimeErrorCommand = UICommandResult.Fail("Runtime error.");
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
@@ -98,11 +119,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     }
 
     /// <summary>
-    /// Best-effort teardown, and deliberately so: it skips the <c>Stop</c> step <see cref="DisposeAsync"/>
-    /// runs, because the only way to run it here would be to block on the pump task — a synchronous wait on
-    /// work that takes the same locks, which is a deadlock waiting for the right timing. The pump handles
-    /// <see cref="ObjectDisposedException"/> cleanly, so a runtime disposed this way stops on its next turn.
-    /// <b>Prefer <see cref="DisposeAsync"/>.</b>
+    /// Best-effort synchronous teardown; skips the <c>Stop</c> step to avoid deadlocking the pump task. Prefer <see cref="DisposeAsync"/>.
     /// </summary>
     public void Dispose()
     {

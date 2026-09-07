@@ -22,13 +22,13 @@ public abstract partial class SpinnerComponent<T> : VisualComponentBase<T>
     public string? Label { get; set; }
 
     /// <summary>
-    /// Gets or sets the spinner's size.
+    /// Gets or sets the spinner's size — Small, Medium, or Large; default Medium.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIIconSize.Medium)]
     public UIIconSize? Size { get; set; }
 
     /// <summary>
-    /// Gets or sets the spinner's color.
+    /// Gets or sets the spinner's colour; unset resolves to <c>color: inherit</c>, so it follows whatever it's drawn in.
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultColor))]
     public UIThemeColor? Color { get; set; }

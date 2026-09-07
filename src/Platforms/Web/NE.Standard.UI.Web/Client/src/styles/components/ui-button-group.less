@@ -1,0 +1,88 @@
+@import "../core/tokens.less";
+@import "../mixins/field.less";
+@import "../mixins/interactive.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+
+// A field's strip cut into segments (button-group-engine.ts chooses among them): the ground and the edge are the field's,
+// a hairline stands between the segments, and the current one is filled primary unless SelectionStyle says otherwise.
+.ui-button-group {
+    display: inline-flex;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-field-ground();
+    background-color: var(--ui-surface-color, var(--ui-field-rest));
+    .ui-surface-image();
+    // Reset on the root carrying [data-ui-id]; the size rules below re-read the chain with their own defaults.
+    .ui-selected-scope();
+    overflow: clip;
+}
+
+    .ui-button-group.ui-disabled {
+        .ui-disabled-state();
+    }
+
+.ui-button-group--small {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
+}
+
+.ui-button-group--large {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-lg);
+}
+
+.ui-button-group__host {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-width: 0;
+}
+
+.ui-button-group__item {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+}
+
+    .ui-button-group__item + .ui-button-group__item {
+        border-left: 1px solid var(--ui-color-border);
+    }
+
+    // The segment is the button template, stripped of a button's own box: the strip's edge and corners are the only ones.
+    .ui-button-group__item > .ui-button {
+        align-self: stretch;
+        .ui-responsive-property(min-height, --ui-min-height, 0);
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-3);
+        border: 0;
+        border-radius: 0;
+    }
+
+    .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+        aspect-ratio: auto;
+    }
+
+    .ui-button-group--small .ui-button-group__item > .ui-button {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    }
+
+    .ui-button-group--small .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-button-group--large .ui-button-group__item > .ui-button {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
+    }
+
+    // The current segment: the primary fill and its ink by default, the selected vocabulary when the author sets one.
+    .ui-button-group__item[data-ui-selected] > .ui-button {
+        .ui-selected-ground(var(--ui-color-primary));
+        .ui-selected-ink(var(--ui-color-on-primary));
+    }
+
+    // A chosen segment does not brighten under the pointer: the fill already says what it is.
+    .ui-button-group__item[data-ui-selected] > .ui-button {
+        .ui-reveal-hover-off({
+            .ui-selected-ground(var(--ui-color-primary));
+        });
+    }

@@ -1,20 +1,12 @@
+@import "../mixins/color.less";
 @import "../mixins/interactive.less";
+@import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
-
-@keyframes ui-button-loading-spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
+@import "../mixins/ripple.less";
+@import "../mixins/text.less";
 
 .ui-button {
-    // min-height/max-width/padding go through .ui-responsive-property, never a flat literal: runtime.less
-    // resolves those through a var() chain at the same specificity, and a literal here would silently swallow
-    // the authoring property. ResponsivePropertyCollisionTests enforces it.
+    // min-height/max-width/padding go through .ui-responsive-property, never a flat literal, or runtime.less's var() chain is swallowed.
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -24,35 +16,72 @@
     .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
     border: 1px solid transparent;
     border-radius: var(--ui-radius-button);
-    background: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    .ui-surface-image();
     color: inherit;
     font: inherit;
     text-align: center;
     text-decoration: none;
     vertical-align: middle;
-    overflow: hidden;
     cursor: pointer;
     user-select: none;
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+    // `.ui-action` and `.ui-menu-item` wear this class too, so the theme flag's ripple reaches every pressable one from here.
+    .ui-press-ripple();
 }
 
-    // An icon with no title is a round icon button. Detected from the content element's own attributes
-    // rather than a modifier class, so the shape follows what was actually authored.
-    .ui-button:has(> .ui-button-content[data-ui-button-content-icon]:not([data-ui-button-content-title])) {
-        // Re-called with this variant's own default rather than written flat — see the note on .ui-button.
-        .ui-responsive-property(width, --ui-width, @ui-control-height);
-        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
-        border-radius: 999px;
+// Small/large re-declare min-height/padding through .ui-responsive-property with their own default, so an authored value still wins.
+.ui-button--small {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
+    // 8px, not 12: kept in proportion to the height dropping two steps instead of one.
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+}
+
+.ui-button--large {
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-lg);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
+}
+
+    // Matches only a label still at the default Body role; an author who sets an explicit TitleType is left alone.
+    .ui-button--small .ui-button__content.ui-text-type--body {
+        font-size: var(--ui-text-caption-font-size);
+        line-height: var(--ui-text-caption-line-height);
+        font-weight: var(--ui-text-caption-font-weight);
     }
 
-    // Alignment lives on the button, not only on its content: .ui-button sets its own text-align: center,
-    // which otherwise cascades into every alignment and makes Justify look centred.
-    .ui-button:has(> .ui-button-content--align-start) {
+    .ui-button--large .ui-button__content.ui-text-type--body {
+        font-size: var(--ui-text-subtitle-font-size);
+        line-height: var(--ui-text-subtitle-line-height);
+        font-weight: var(--ui-text-subtitle-font-weight);
+    }
+
+    // An icon with no title is a square: equal padding and aspect-ratio 1 keep the button's own radius and height, not a circle.
+    .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+        aspect-ratio: 1;
+    }
+
+    .ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+        // :where() keeps an authored IconSize winning.
+        :where(.ui-button[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+            font-size: 1.25em;
+        }
+
+    // Alignment lives on the button, not only its content: .ui-button's own text-align: center otherwise makes Justify look centred.
+    .ui-button:has(.ui-text--align-start) {
         justify-content: flex-start;
     }
 
-    .ui-button:has(> .ui-button-content--align-end) {
+    .ui-button:has(.ui-text--align-end) {
         justify-content: flex-end;
+    }
+
+    // An icon with no title has nothing to align, so it stays centred regardless of TextAlignment.
+    .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        justify-content: center;
     }
 
     .ui-button.ui-disabled,
@@ -60,89 +89,158 @@
         .ui-disabled-state();
     }
 
+    // No dimming: that is what disabled looks like; the ring below signals busy, and `inert` stops the press.
     .ui-button.ui-loading {
-        opacity: var(--ui-disabled-opacity);
         cursor: progress;
     }
 
-        .ui-button.ui-loading .ui-button-content[data-ui-button-content-icon] > .ui-button-content__icon::before {
+        // Replaces the glyph ligature with the loading ring, keeping width and label; a button with no icon takes the veil in runtime.less.
+        .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before {
+            content: "";
             display: block;
-            width: 1em;
-            height: 1em;
-            border: 0.14em solid color-mix(in srgb, currentColor 28%, transparent);
-            border-top-color: currentColor;
-            border-radius: 999px;
             background: none;
             mask: none;
             -webkit-mask: none;
-            animation: ui-button-loading-spin 800ms linear infinite;
+            .ui-loading-ring();
         }
 
-// No elevation on the filled variants: the shadow is only visible in the notches of the rounded corners,
-// where it darkens the surface underneath down to roughly the page background and reads as four torn-out
-// corner patches rather than as depth. A control sitting on a surface does not cast a shadow here; cards,
-// dialogs and popups still do.
+// No elevation on filled variants: a control sitting on a surface does not cast a shadow here; cards, dialogs and popups still do.
 .ui-button--primary {
-    background: var(--ui-color-primary);
+    background-color: var(--ui-surface-color, var(--ui-color-primary));
     color: var(--ui-color-on-primary);
 }
 
 .ui-button--accent {
-    background: var(--ui-color-accent);
+    background-color: var(--ui-surface-color, var(--ui-color-accent));
     color: var(--ui-color-on-accent);
 }
 
 .ui-button--danger {
-    background: var(--ui-color-danger);
+    background-color: var(--ui-surface-color, var(--ui-color-danger));
     color: var(--ui-color-on-danger);
 }
 
 .ui-button--outline {
     border-color: color-mix(in srgb, currentColor 34%, transparent);
-    background: transparent;
+    background-color: var(--ui-surface-color, transparent);
     color: var(--ui-color-on-surface);
 }
 
 .ui-button--ghost {
-    background: transparent;
+    background-color: var(--ui-surface-color, transparent);
+    color: var(--ui-color-on-surface);
+}
+
+// The only variant that paints without tinting; the ground a row of destinations stands on.
+.ui-button--surface {
+    background-color: var(--ui-surface-color, var(--ui-surface-raised));
     color: var(--ui-color-on-surface);
 }
 
 .ui-button--link {
     border-color: transparent;
-    background: transparent;
-    color: var(--ui-color-primary);
+    background-color: var(--ui-surface-color, transparent);
+    color: var(--ui-color-primary-ink);
+    // Its own hue, not the shared neutral wash: a link is a word in the brand colour, not a surface, and a neutral film reads as a ghost.
+    --ui-wash-hover: color-mix(in srgb, var(--ui-color-primary-ink) 10%, transparent);
+    --ui-wash-active: color-mix(in srgb, var(--ui-color-primary-ink) 18%, transparent);
 }
 
 // An inset tint rather than a raised shadow, for the same reason the resting state carries no elevation.
-.ui-button--primary:not(.ui-disabled):not(.ui-loading):not(:disabled):hover,
-.ui-button--accent:not(.ui-disabled):not(.ui-loading):not(:disabled):hover,
-.ui-button--danger:not(.ui-disabled):not(.ui-loading):not(:disabled):hover {
+.ui-button--primary@{ui-button-live}:hover,
+.ui-button--accent@{ui-button-live}:hover,
+.ui-button--danger@{ui-button-live}:hover {
     box-shadow: inset 0 0 0 999px color-mix(in srgb, black 10%, transparent);
 }
 
-.ui-button:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
-    box-shadow: inset 0 0 0 999px color-mix(in srgb, black 6%, transparent);
+// 16%, the --ui-wash-hover -> --ui-wash-active step; only the three filled variants, since the rest already answer a press with the wash.
+.ui-button--primary@{ui-button-live}:active,
+.ui-button--accent@{ui-button-live}:active,
+.ui-button--danger@{ui-button-live}:active {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, black 16%, transparent);
 }
 
-.ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled) {
+.ui-button--outline@{ui-button-live} {
     .ui-reveal-hover();
 }
 
-    .ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled):hover {
-        border-color: color-mix(in srgb, currentColor 62%, transparent);
+    // 48%, not near-solid: only firms up the hairline edge, since the wash above already says "pointed at".
+    .ui-button--outline@{ui-button-live}:hover {
+        border-color: color-mix(in srgb, currentColor 48%, transparent);
     }
 
-    .ui-button--outline:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
-        background-color: color-mix(in srgb, currentColor 10%, transparent);
+    // currentColor, not the shared wash, so a recoloured outline button presses in its own hue, at the active 16% so it beats hover.
+    .ui-button--outline@{ui-button-live}:active {
+        background-color: color-mix(in srgb, currentColor 16%, transparent);
     }
 
-.ui-button--ghost:not(.ui-disabled):not(.ui-loading):not(:disabled),
-.ui-button--link:not(.ui-disabled):not(.ui-loading):not(:disabled) {
+.ui-button--ghost@{ui-button-live},
+.ui-button--link@{ui-button-live} {
     .ui-reveal-hover();
 }
 
-    .ui-button--ghost:not(.ui-disabled):not(.ui-loading):not(:disabled):active,
-    .ui-button--link:not(.ui-disabled):not(.ui-loading):not(:disabled):active {
-        background-color: color-mix(in srgb, currentColor 10%, transparent);
+// A surface button owns an opaque ground, so the wash is mixed into it rather than laid over the page: laid over, the translucent
+// wash replaced the raised fill, and a hovered row came out darker than a resting one with its press lighter than its hover.
+.ui-button--surface@{ui-button-live} {
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+
+    &:hover {
+        background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-color, var(--ui-surface-raised)));
     }
+
+    &:active {
+        background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-color, var(--ui-surface-raised)));
+    }
+}
+
+    // Link is the one variant whose label is the brand colour, so hover brightens the text too, via the Link component's mixin.
+    .ui-button--link@{ui-button-live}:hover {
+        .ui-brighten-hover();
+    }
+
+    .ui-button--ghost@{ui-button-live}:active,
+    .ui-button--link@{ui-button-live}:active {
+        background-color: var(--ui-wash-active);
+    }
+
+// No display of its own: the shared body is a grid, and overriding it here collapses a picture icon's width to zero.
+.ui-button__content {
+    justify-content: center;
+}
+
+.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content {
+    gap: 0;
+}
+
+// The title/description gap lives in ui-text.less; a button here only needs its description kept to one line.
+.ui-button__content > .ui-text__body > .ui-text__description {
+    .ui-text-nowrap();
+}
+
+// A trailing badge sits at the far edge: a two-column grid so the title keeps the leftover space rather than the badge taking it.
+.ui-button__content:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) {
+    width: 100%;
+    justify-content: stretch;
+}
+
+    .ui-button__content:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body {
+        width: 100%;
+    }
+
+        .ui-button__content:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            column-gap: 0.5em;
+            width: 100%;
+            min-width: 0;
+        }
+
+            .ui-button__content:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header > .ui-text__badge {
+                justify-self: end;
+                margin-left: 0;
+            }
+
+.ui-button:has(.ui-text--align-justify) > .ui-button__content {
+    width: 100%;
+    justify-content: stretch;
+}

@@ -1,8 +1,8 @@
 using System;
 using System.Collections;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
-
 using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Items;
@@ -11,21 +11,9 @@ namespace NE.Standard.UI.Items;
 /// Applies a <see cref="UIComparisonOperator"/> to a pair of values.
 /// </summary>
 /// <remarks>
-/// <para>
-/// A third hand-maintained port, and it says so: <c>interaction-evaluator.ts</c>'s <c>evaluateOperator</c> is
-/// the original and stays the one the client runs for interactions and validation. This copy exists because a
-/// windowed items host resolves its filter and sort rules <em>on the server</em> — the client holds one window
-/// and cannot judge the rest — so the server has to answer the same question the client answers for every
-/// other host. It is public because an in-memory <c>IUIItemSource</c> applying a <c>UIItemsQuery</c> by hand
-/// would otherwise have to re-decide what <c>Like</c> or <c>Required</c> mean, and disagree with the client.
-/// <c>UIComparisonEvaluatorSyncTests</c> pins the two against each other.
-/// </para>
-/// <para>
-/// The comparisons are deliberately JavaScript's, not .NET's, because that is what the rules already mean
-/// everywhere else: values are compared as text unless the operator is numeric, and <see langword="null"/>
-/// reads as an empty string. The one place they cannot agree is <see cref="UIComparisonOperator.Regex"/>,
-/// whose two engines are different languages.
-/// </para>
+/// Comparisons are the framework's rule, which every platform's client-side rules follow — JavaScript's rather than .NET's,
+/// because that is what the rules already meant on the web: text unless the operator is numeric,
+/// <see langword="null"/> as an empty string.
 /// </remarks>
 public static class UIComparisonEvaluator
 {
@@ -57,8 +45,7 @@ public static class UIComparisonEvaluator
     }
 
     /// <summary>
-    /// The value as the text the comparisons work on — <see langword="null"/> is the empty string, as it is on
-    /// the client, and a number or a boolean is rendered invariantly so that a server and a browser agree.
+    /// The value as text, matching what <c>String(value)</c> answers on the client.
     /// </summary>
     private static string AsText(object? value)
         => value switch
@@ -66,21 +53,87 @@ public static class UIComparisonEvaluator
             null => string.Empty,
             string text => text,
             bool flag => flag ? "true" : "false",
+            double number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
+            float number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
+            decimal number => FormatNumber(number.ToString(CultureInfo.InvariantCulture)),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            IEnumerable elements => JoinElements(elements),
             _ => value.ToString() ?? string.Empty
         };
 
     /// <summary>
-    /// The value as the number the numeric operators work on — <see cref="double.NaN"/> when it is not one,
-    /// which makes every comparison against it false exactly as JavaScript's <c>Number(x)</c> does.
+    /// Formats a number the way JavaScript's <c>String(n)</c> would, so text comparisons agree with the client.
+    /// </summary>
+    private static string FormatNumber(string roundTrip)
+    {
+        var negative = roundTrip.StartsWith('-');
+        var text = negative ? roundTrip[1..] : roundTrip;
+
+        if (text is "NaN" or "Infinity" or "∞")
+            return negative && text != "NaN" ? "-Infinity" : text == "NaN" ? "NaN" : "Infinity";
+
+        var exponentIndex = text.IndexOfAny(['E', 'e']);
+        var mantissa = exponentIndex < 0 ? text : text[..exponentIndex];
+        var exponent = exponentIndex < 0 ? 0 : int.Parse(text[(exponentIndex + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+        var pointIndex = mantissa.IndexOf('.', StringComparison.Ordinal);
+        var digits = pointIndex < 0 ? mantissa : mantissa.Remove(pointIndex, 1);
+        var integerDigits = pointIndex < 0 ? mantissa.Length : pointIndex;
+
+        var leadingZeros = 0;
+
+        while (leadingZeros < digits.Length - 1 && digits[leadingZeros] == '0')
+            leadingZeros++;
+
+        digits = digits[leadingZeros..].TrimEnd('0');
+        integerDigits -= leadingZeros;
+
+        if (digits.Length == 0)
+            return "0";
+
+        // ECMAScript Number::toString: n is where the point sits relative to the digits, k how many there are.
+        var n = integerDigits + exponent;
+        var k = digits.Length;
+
+        var result = n switch
+        {
+            <= 21 when k <= n => digits + new string('0', n - k),
+            > 0 and <= 21 => digits[..n] + "." + digits[n..],
+            > -6 and <= 0 => "0." + new string('0', -n) + digits,
+            _ => (k == 1 ? digits : digits[..1] + "." + digits[1..]) + "e" + (n < 1 ? "-" : "+") + Math.Abs(n - 1).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return negative ? "-" + result : result;
+    }
+
+    /// <summary>
+    /// Joins elements the way JavaScript's <c>String(array)</c> would — comma-separated, empty for an empty array.
+    /// </summary>
+    private static string JoinElements(IEnumerable elements)
+    {
+        StringBuilder builder = new();
+        var first = true;
+
+        foreach (var element in elements)
+        {
+            if (!first)
+                _ = builder.Append(',');
+
+            _ = builder.Append(AsText(element));
+            first = false;
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// The value as a number, matching what JavaScript's <c>Number(x)</c> would answer, or <see cref="double.NaN"/> when it is not one.
     /// </summary>
     private static double AsNumber(object? value)
     {
         switch (value)
         {
             case null:
-                // Number(null) is 0, and the rules lean on it: an unset numeric source reads as zero rather
-                // than as a value no comparison can touch.
+                // Number(null) is 0, so an unset numeric source reads as zero rather than as incomparable.
                 return 0;
             case bool flag:
                 return flag ? 1 : 0;

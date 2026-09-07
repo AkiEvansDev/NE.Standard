@@ -11,16 +11,8 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Web.Services;
 
 /// <summary>
-/// Opens and closes dialogs by pushing the corresponding <see cref="ClientEffect"/> straight to the
-/// connection.
+/// Opens and closes dialogs by pushing a <see cref="ClientEffect"/> straight to the connection, bypassing the command result.
 /// </summary>
-/// <remarks>
-/// This deliberately does not go through the command result a controller returns: the service is called
-/// *during* a command, while that result is only assembled afterwards, and it must also work with no
-/// client request in flight at all (a background command, a scheduled task). Pushing through
-/// <see cref="IUIUpdateSink.SendCommandResultAsync"/> covers both, and reuses the one channel the client's
-/// effect dispatcher already listens on rather than inventing a dialog-specific message.
-/// </remarks>
 public sealed class StandardWebDialogService : IUIDialogService
 {
     private readonly IUIUpdateSink _updates;
@@ -57,9 +49,7 @@ public sealed class StandardWebDialogService : IUIDialogService
             .SendCommandResultAsync(handle, result, cancellationToken)
             .ConfigureAwait(false);
 
-        // "Handled", not "the dialog is now on screen" — delivery is one-way, so there is nothing to
-        // await for confirmation. A caller that needs to know a dialog closed should model that as a
-        // command raised from the dialog itself.
+        // "Handled", not "the dialog is now on screen": delivery is one-way, with nothing to await for confirmation.
         return true;
     }
 }

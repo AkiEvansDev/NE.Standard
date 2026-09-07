@@ -27,9 +27,7 @@ internal abstract partial class UIRuntimeBase
     private const int DefaultRuleWindowSize = 50;
 
     /// <summary>
-    /// One client write that a source has to approve, held aside while the change set is applied under the
-    /// state lock — reading and writing a source is the author's code, and awaiting it there would hold the
-    /// lock across it.
+    /// One client write that a source has to approve, held aside so applying it need not await author code under the state lock.
     /// </summary>
     private readonly record struct PendingSourceWrite(
         UIItemSourceBase Source,
@@ -46,8 +44,7 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     private sealed record WindowedRuleHost(UIComponentId ComponentId, int WindowSize, RecursivePath[] RulePaths);
 
-    // Resolved once: the compiled view is immutable, so which hosts have rules and what those rules read
-    // cannot change under a running runtime.
+    // Resolved once: the compiled view is immutable, so which hosts have rules cannot change under a running runtime.
     private List<WindowedRuleHost>? _windowedRuleHosts;
 
     private HashSet<UIComponentId>? _dirtyItemWindows;
@@ -77,8 +74,7 @@ internal abstract partial class UIRuntimeBase
                 _ = _stateLock.Release();
             }
 
-            // Outside the lock on purpose: this reads the author's data and takes as long as that takes. What
-            // it changes — the window collection, the counts — travels out as the ordinary changes they are.
+            // Outside the lock on purpose: this reads the author's data and takes as long as that takes.
             await source
                 .LoadWindowAsync(new UIItemWindowRequest(request.Anchor, request.Count, request.Mode, query), cancellationToken)
                 .ConfigureAwait(false);
@@ -105,8 +101,7 @@ internal abstract partial class UIRuntimeBase
 
     private UIItemSourceBase ResolveItemSourceNoLock(UIComponentId componentId, object?[] dynamicParameters)
     {
-        // The collection index, not the property one: an items binding is compiled as a ComponentCollection and
-        // deliberately has no property twin — see BuildState.
+        // The collection index, not the property one: an items binding compiles as a ComponentCollection with no property twin.
         if (!View.Bindings.TryGetCollection(componentId, out CompiledUIBinding? binding))
             throw new InvalidOperationException($"Component '{componentId}' does not bind an item collection.");
 
@@ -127,57 +122,67 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Resolves the host's <c>ItemsView</c> rules into the query the source is asked to answer.
+    /// Resolves the viewer's <c>Query</c> and the host's <c>ItemsView</c> rules into the query the source is asked to answer.
     /// </summary>
     /// <remarks>
-    /// Every other items host applies its rules in the browser, on items it holds whole. A windowed one holds
-    /// fifty rows of a hundred thousand, so filtering there would hide four rows and call it a filtered list.
-    /// The rules are therefore resolved here — a filter bound to a search box arrives as that box's current
-    /// value — and answering them is the source's job, since it is the only thing that can see every item.
-    /// A rule whose source reads as inactive contributes no term, which is what makes an empty search box mean
-    /// "everything" rather than "matches the empty string".
+    /// Resolved here, not on the client: a windowed host holds only part of the data, so only the source can answer filtering and sorting.
     /// </remarks>
     private UIItemsQuery BuildItemsQueryNoLock(UIComponentId componentId)
     {
-        if (!View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
-            || propertyValue is not { IsBind: false, Value: CompiledUIItemsView itemsView }
-            || itemsView.IsEmpty)
-        {
-            return UIItemsQuery.Empty;
-        }
-
         List<UIItemFilterTerm> filters = [];
+        List<UIItemSortTerm> sorts = [];
 
-        for (var i = 0; i < itemsView.Filters.Length; i++)
+        // The viewer's terms first: a sort chosen by a header outranks the authored one.
+        if (ReadItemsQueryNoLock(componentId) is { IsEmpty: false } query)
         {
-            CompiledUIItemsFilter filter = itemsView.Filters[i];
-
-            if (!TryResolveRuleNoLock(filter.Source, out var sourceValue))
-                continue;
-
-            filters.Add(new UIItemFilterTerm(filter.ItemProperty, filter.Operator, filter.Source.Source is null ? filter.Value : sourceValue));
+            filters.AddRange(query.Filters);
+            sorts.AddRange(query.Sorts);
         }
 
-        List<CompiledUIItemsSort> active = [];
-
-        for (var i = 0; i < itemsView.Sorts.Length; i++)
+        if (View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
+            && propertyValue is { IsBind: false, Value: CompiledUIItemsView itemsView }
+            && !itemsView.IsEmpty)
         {
-            if (TryResolveRuleNoLock(itemsView.Sorts[i].Source, out _))
-                active.Add(itemsView.Sorts[i]);
+            for (var i = 0; i < itemsView.Filters.Length; i++)
+            {
+                CompiledUIItemsFilter filter = itemsView.Filters[i];
+
+                if (!TryResolveRuleNoLock(filter.Source, out var sourceValue))
+                    continue;
+
+                filters.Add(new UIItemFilterTerm(filter.ItemProperty, filter.Operator, filter.Source.Source is null ? filter.Value : sourceValue));
+            }
+
+            List<CompiledUIItemsSort> active = [];
+
+            for (var i = 0; i < itemsView.Sorts.Length; i++)
+            {
+                if (TryResolveRuleNoLock(itemsView.Sorts[i].Source, out _))
+                    active.Add(itemsView.Sorts[i]);
+            }
+
+            // OrderBy rather than List.Sort: only OrderBy is stable, matching the client's Array.sort for equal-priority rules.
+            foreach (CompiledUIItemsSort sort in active.OrderBy(static rule => rule.Priority))
+                sorts.Add(new UIItemSortTerm(sort.ItemProperty, sort.Direction));
         }
 
-        // Lower priority first, and declaration order within one priority. OrderBy rather than List.Sort
-        // because only OrderBy is stable, and the client's Array.sort is — two rules of equal priority must
-        // not come out in one order here and the other there.
-        UIItemSortTerm[] sorts = new UIItemSortTerm[active.Count];
-        var index = 0;
-
-        foreach (CompiledUIItemsSort sort in active.OrderBy(static rule => rule.Priority))
-            sorts[index++] = new UIItemSortTerm(sort.ItemProperty, sort.Direction);
-
-        return filters.Count == 0 && sorts.Length == 0
+        return filters.Count == 0 && sorts.Count == 0
             ? UIItemsQuery.Empty
-            : new UIItemsQuery([.. filters], sorts);
+            : new UIItemsQuery([.. filters], [.. sorts]);
+    }
+
+    /// <summary>
+    /// The terms the viewer set on the host: read through its binding when bound, else the authored value — an unbound query changed on
+    /// the client never reaches here, so a windowed host binds it.
+    /// </summary>
+    private UIItemsQuery? ReadItemsQueryNoLock(UIComponentId componentId)
+    {
+        if (!View.State.TryGetValue(componentId, IItemsComponent.QueryProperty, out CompiledUIPropertyValue? propertyValue))
+            return null;
+
+        return propertyValue.IsBind
+            ? TryGetRuleSourceValueNoLock(new UIPropertyAddress(componentId, IItemsComponent.QueryProperty)) as UIItemsQuery
+            : propertyValue.Value as UIItemsQuery;
     }
 
     /// <summary>
@@ -199,9 +204,7 @@ internal abstract partial class UIRuntimeBase
     /// The controller value behind a rule's source component property.
     /// </summary>
     /// <remarks>
-    /// Only a bound source can be read — an unbound one lives entirely in the browser — which is why the
-    /// compiler refuses one on a windowed host. A binding that needs runtime parameters is refused here
-    /// instead: it addresses one row's copy of a component, and a host's rules belong to the host.
+    /// Only a bound source can be read; a binding needing runtime parameters is refused since a host's rules belong to the host, not a row.
     /// </remarks>
     private object? TryGetRuleSourceValueNoLock(UIPropertyAddress address)
         => TryGetRuleSourcePathNoLock(address, out RecursivePath? path) ? TryGetControllerValue(path) : null;
@@ -226,13 +229,10 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Notes every windowed host whose rules read the path that just changed: what it is holding was read
-    /// under the old rules and answers a question nobody is asking any more.
+    /// Notes every windowed host whose rules read the path that just changed, since what it holds was read under rules no longer valid.
     /// </summary>
     /// <remarks>
-    /// Server-side on purpose. The client can see that a search box changed, but not what the rules make of
-    /// it, and a page that filters from a command — a preset button, a saved view — changes nothing the
-    /// browser could have noticed at all.
+    /// Server-side on purpose: a rule can change from a command the client never observes, not only from a visible search box.
     /// </remarks>
     private void MarkChangedItemWindowRulesNoLock(RecursivePath path)
     {
@@ -292,20 +292,22 @@ internal abstract partial class UIRuntimeBase
 
     private RecursivePath[]? TryGetRulePathsNoLock(UIComponentId componentId)
     {
-        if (!View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
-            || propertyValue is not { IsBind: false, Value: CompiledUIItemsView itemsView }
-            || itemsView.IsEmpty)
-        {
-            return null;
-        }
-
         List<RecursivePath> paths = [];
 
-        for (var i = 0; i < itemsView.Filters.Length; i++)
-            AppendRulePathNoLock(paths, itemsView.Filters[i].Source);
+        // The viewer's terms, when bound: a window read under the old ones is stale the moment they change.
+        if (TryGetRuleSourcePathNoLock(new UIPropertyAddress(componentId, IItemsComponent.QueryProperty), out RecursivePath? queryPath))
+            paths.Add(queryPath);
 
-        for (var i = 0; i < itemsView.Sorts.Length; i++)
-            AppendRulePathNoLock(paths, itemsView.Sorts[i].Source);
+        if (View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
+            && propertyValue is { IsBind: false, Value: CompiledUIItemsView itemsView }
+            && !itemsView.IsEmpty)
+        {
+            for (var i = 0; i < itemsView.Filters.Length; i++)
+                AppendRulePathNoLock(paths, itemsView.Filters[i].Source);
+
+            for (var i = 0; i < itemsView.Sorts.Length; i++)
+                AppendRulePathNoLock(paths, itemsView.Sorts[i].Source);
+        }
 
         return paths.Count == 0 ? null : [.. paths];
     }
@@ -317,7 +319,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     private int ReadWindowSizeNoLock(UIComponentId componentId)
-        => View.State.TryGetValue(componentId, ISourceItemsComponent.WindowSizeProperty, out CompiledUIPropertyValue? value) && value.Value is int size && size > 0
+        => View.State.TryGetValue(componentId, IItemsHostComponent.WindowSizeProperty, out CompiledUIPropertyValue? value) && value.Value is int size && size > 0
             ? size
             : DefaultRuleWindowSize;
 
@@ -355,9 +357,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Appends what re-reading the invalidated windows produced to a change set about to travel. Every path
-    /// that turns controller changes into updates calls this, because a rule can change on any of them: a
-    /// client edit, a command, a background push.
+    /// Appends what re-reading the invalidated windows produced to a change set about to travel.
     /// </summary>
     private async Task<ServerChangeSet> AppendItemWindowReloadsAsync(ServerChangeSet changes, List<UIComponentId>? staleWindows, CancellationToken cancellationToken)
         => staleWindows is null
@@ -365,8 +365,7 @@ internal abstract partial class UIRuntimeBase
             : AppendUpdates(changes, await ReloadItemWindowsAsync(staleWindows, cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Reads each invalidated window again, from the start: a filter that changed makes the offset the window
-    /// was holding meaningless — it counted rows that no longer qualify.
+    /// Reads each invalidated window again from the start, since a changed filter makes the previous offset meaningless.
     /// </summary>
     private async Task<ServerChangeSet> ReloadItemWindowsAsync(List<UIComponentId> components, CancellationToken cancellationToken)
     {
@@ -386,8 +385,7 @@ internal abstract partial class UIRuntimeBase
             }
             catch (InvalidOperationException)
             {
-                // The host no longer resolves to a source — nothing to re-read, and a rule change is not the
-                // place to report it.
+                // The host no longer resolves to a source; a rule change is not the place to report that.
                 continue;
             }
             finally
@@ -431,8 +429,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Recognizes a client write that lands inside a source's realized window, which the source has to take
-    /// rather than the runtime writing straight into the item it happens to hold.
+    /// Recognizes a client write that lands inside a source's realized window, which the source must apply rather than the runtime.
     /// </summary>
     private bool TryResolveSourceWriteNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, [NotNullWhen(true)] out PendingSourceWrite? pending)
     {
@@ -440,8 +437,7 @@ internal abstract partial class UIRuntimeBase
 
         RecursivePath path = resolution.Path;
 
-        // "<source>.Items["key"].Property" — the shortest shape that can carry a write, and the source itself
-        // is whatever the path holds three segments from the end.
+        // "<source>.Items["key"].Property" is the shortest shape that can carry a write.
         if (path.Count < 3)
             return false;
 
@@ -473,9 +469,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Hands each held-aside write to its source and answers a refusal by pushing the value the item actually
-    /// holds — nothing changed, so nothing would otherwise travel and the field would keep showing the value
-    /// that was turned down.
+    /// Hands each held-aside write to its source, pushing back the item's actual value when the source refuses it.
     /// </summary>
     private async Task<ServerChangeSet> ApplySourceWritesAsync(List<PendingSourceWrite> writes, CancellationToken cancellationToken)
     {

@@ -19,9 +19,14 @@ public static class WebThemeCssBuilder
 
         AppendTheme(builder, ":root", palette: null, theme.Typography, theme.Shape, includeSemantic: true);
 
-        // The semantic tokens are re-emitted for every [data-ui-theme] element, not only :root, because they
-        // are derived from the palette: a subtree that overrides the theme has to re-resolve them against its
-        // own light/dark palette rather than inheriting the page's already-resolved values.
+        // Only on :root: the variable's fallback is 0, so whether it exists is the whole switch; a differing subtree sets it itself.
+        if (theme.FocusRing)
+            _ = builder.AppendLine(":root { --ui-focus-ring-width: 2px; }");
+
+        // The two text colours a *colour* is judged against, not the page; emitted once at root, independent of the live theme.
+        AppendOnColorVariables(builder, theme);
+
+        // Re-emitted for every [data-ui-theme] element, not only :root: an overriding subtree must re-resolve them against its own palette.
         AppendTheme(builder, "[data-ui-theme]", palette: null, typography: null, shape: null, includeSemantic: true);
 
         AppendTheme(builder, "[data-ui-theme=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false);
@@ -48,6 +53,16 @@ public static class WebThemeCssBuilder
 
         if (includeSemantic)
             AppendSemanticVariables(builder);
+
+        _ = builder.AppendLine("}");
+    }
+
+    private static void AppendOnColorVariables(StringBuilder builder, UITheme theme)
+    {
+        _ = builder.AppendLine(":root {");
+
+        Append(builder, "color-on-light", theme.Light.OnSurface);
+        Append(builder, "color-on-dark", theme.Dark.OnSurface);
 
         _ = builder.AppendLine("}");
     }
@@ -81,6 +96,14 @@ public static class WebThemeCssBuilder
         Append(builder, "color-on-success", palette.OnSuccess);
         Append(builder, "color-on-danger", palette.OnDanger);
 
+        // The same six colours as words; a text/icon/badge property takes the ink, a fill takes the base.
+        Append(builder, "color-primary-ink", palette.PrimaryInk);
+        Append(builder, "color-accent-ink", palette.AccentInk);
+        Append(builder, "color-info-ink", palette.InfoInk);
+        Append(builder, "color-warning-ink", palette.WarningInk);
+        Append(builder, "color-success-ink", palette.SuccessInk);
+        Append(builder, "color-danger-ink", palette.DangerInk);
+
         Append(builder, "color-selected", palette.Selected);
         Append(builder, "color-focus-ring", palette.FocusRing);
 
@@ -88,12 +111,18 @@ public static class WebThemeCssBuilder
         Append(builder, "color-shadow", palette.Shadow);
         Append(builder, "color-overlay", palette.Overlay);
 
+        // The series run, one variable per position, and the count a package cycles by.
+        for (var i = 0; i < palette.Series.Count; i++)
+            Append(builder, $"color-series-{i + 1}", palette.Series[i]);
+
+        Append(builder, "color-series-count", palette.Series.Count.ToString(CultureInfo.InvariantCulture));
+
         Append(builder, "disabled-opacity", WebCssValues.Opacity(palette.DisabledOpacity));
     }
 
     private static void AppendTypographyVariables(StringBuilder builder, UITypography typography)
     {
-        Append(builder, "font-family", typography.FontFamily);
+        Append(builder, "font-family", WebCssValues.FontFamily(typography.FontFamily));
 
         AppendTextStyle(builder, "display", typography.Display);
         AppendTextStyle(builder, "title", typography.Title);
@@ -120,13 +149,20 @@ public static class WebThemeCssBuilder
         Append(builder, "radius-card", shape.CardRadius);
         Append(builder, "radius-button", shape.ButtonRadius);
         Append(builder, "radius-input", shape.InputRadius);
+        Append(builder, "radius-row", shape.RowRadius);
+        Append(builder, "radius-notification", shape.NotificationRadius);
     }
 
     private static void AppendSemanticVariables(StringBuilder builder)
     {
+        // The one absolute level: what a panel lifted off the page is made of.
         Append(builder, "surface-raised", "color-mix(in srgb, var(--ui-color-surface) 92%, var(--ui-color-on-surface) 8%)");
-        Append(builder, "surface-hover", "color-mix(in srgb, var(--ui-color-surface) 86%, var(--ui-color-on-surface) 14%)");
-        Append(builder, "surface-active", "color-mix(in srgb, var(--ui-color-surface) 78%, var(--ui-color-on-surface) 22%)");
+        // The wash a control with no fill shows when pointed at, pressed, or chosen; translucent since it may sit on the page or a surface.
+        Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");
+        Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) 16%, transparent)");
+        Append(builder, "wash-selected", "color-mix(in srgb, var(--ui-color-primary) 16%, transparent)");
+        // The other half of a selectable strip: the mark under a tab; stronger than a wash since a thin line needs more than 10% to read.
+        Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
         Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
         Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 68%, transparent)");
         Append(builder, "border-width", "1.5px");

@@ -76,9 +76,7 @@ internal sealed class UICommandInvoker
         ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
         ParameterExpression cancellationTokenParameter = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
 
-        // Null for a static command, which is a command that only returns effects. Refusing one would put the
-        // runtime at odds with the analyzers this repository builds under: a method that touches no instance
-        // state raises CA1822, and taking that advice must not silently unregister the command.
+        // Null for a static command: refusing IsStatic would conflict with the CA1822 advice this repo enforces.
         UnaryExpression? instance = method.IsStatic ? null : Expression.Convert(controllerParameter, controllerType);
         Expression[] callArguments = new Expression[parameters.Length];
 
@@ -223,9 +221,14 @@ internal sealed class UICommandInvoker
         {
             if (conversionType.IsEnum)
             {
-                return value is string stringValue
+                var converted = value is string stringValue
                     ? Enum.Parse(conversionType, stringValue, ignoreCase: false)
                     : Enum.ToObject(conversionType, value);
+
+                if (!IsDefinedEnumValue(conversionType, converted))
+                    throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{valueType.FullName}' to '{targetType.FullName}'.");
+
+                return converted;
             }
 
             if (conversionType == typeof(Guid))
@@ -256,5 +259,22 @@ internal sealed class UICommandInvoker
         }
 
         throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{valueType.FullName}' to '{targetType.FullName}'.");
+    }
+
+    /// <summary>Whether an enum value is one of its named members, or, for a <c>[Flags]</c> enum, a union of them.</summary>
+    private static bool IsDefinedEnumValue(Type enumType, object value)
+    {
+        if (Enum.IsDefined(enumType, value))
+            return true;
+
+        if (enumType.GetCustomAttribute<FlagsAttribute>() is null)
+            return false;
+
+        var mask = 0UL;
+
+        foreach (var defined in Enum.GetValues(enumType))
+            mask |= Convert.ToUInt64(defined, CultureInfo.InvariantCulture);
+
+        return (Convert.ToUInt64(value, CultureInfo.InvariantCulture) & ~mask) == 0;
     }
 }

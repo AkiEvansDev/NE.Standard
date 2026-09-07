@@ -6,10 +6,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>
-/// A calendar-only picker. <see cref="DateOnly"/>'s round-trip "yyyy-MM-dd" form is already the canonical
-/// string the hidden value input carries, so no conversion is needed either direction.
-/// </summary>
+/// <summary>A calendar-only picker, whose <see cref="DateOnly"/> round-trip form is already the canonical string.</summary>
 public sealed class DateInputComponentRenderer : TemporalInputRendererBase<DateInputComponent, DateOnly?>
 {
     internal const string CanonicalDateFormat = "yyyy-MM-dd";

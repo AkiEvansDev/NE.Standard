@@ -73,12 +73,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Builds a synthetic insert changeset for every bound items collection in the view, so bound
-    /// items-view components can render their initial items client-side from the same code path used
-    /// for later live collection changes, instead of relying on server-rendered item HTML. A collection
-    /// nested inside another bound item template (e.g. a group's sub-items) needs a dynamic scope to
-    /// resolve, so its owning collection is enumerated to produce one insert changeset per concrete
-    /// parent instance, addressed by the same dynamic parameters the live/reactive update path uses.
+    /// Builds a synthetic insert changeset for every bound items collection, so items render through the same path as later live updates.
     /// </summary>
     public async Task<IReadOnlyList<ServerCollectionChangeUIUpdate>> BuildInitialCollectionChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -112,8 +107,7 @@ internal abstract partial class UIRuntimeBase
     {
         CompiledUIBindingSource source = View.Sources.GetRequired(binding.SourceId);
 
-        // A statically-iterated (ComponentItems) source is already rendered as full server HTML, so it needs
-        // no initial synthetic sync here.
+        // A statically-iterated (ComponentItems) source is already rendered whole by the platform from the compiled view, so it needs no initial synthetic sync.
         if (source.Kind != CompiledUIBindingSourceKind.Controller)
             return;
 
@@ -124,11 +118,10 @@ internal abstract partial class UIRuntimeBase
         {
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
-            // Reset first, and unconditionally. This change set is "everything, from scratch", and it is
-            // replayed verbatim by a reattach after a dropped connection — where the host is still holding the
-            // items from the previous attach. Inserting into it would duplicate every one of them, and an
-            // emptied collection would keep showing the old ones. On a first attach the host is empty and this
-            // is a no-op.
+            if (!IsStampedFor(component))
+                continue;
+
+            // Reset first and unconditionally: a reattach replays this verbatim while the host still holds the previous items.
             updates.Add(new ServerCollectionChangeUIUpdate
             {
                 Action = CollectionUpdateAction.Reset,
@@ -175,10 +168,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Enumerates every concrete (path, dynamicParameters) instance a collection template can resolve
-    /// to, recursing into each item of an owning collection whenever a Dynamic parameter segment is
-    /// reached. For a template with no Dynamic parameters, this yields exactly one instance, matching
-    /// the fully materialized path.
+    /// Enumerates every (path, dynamicParameters) instance a collection template resolves to, recursing at each Dynamic parameter segment.
     /// </summary>
     private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(IReadOnlyList<TemplateElement> elements)
         => EnumerateMaterializedCollectionPaths(elements, 0, RecursivePath.Empty, []);
@@ -414,11 +404,7 @@ internal abstract partial class UIRuntimeBase
         if (source.ComponentId is null)
             throw new InvalidOperationException($"Component items source '{source.Id}' must specify component id.");
 
-        // A ComponentItems source is only ever created for a statically-iterated items component (one
-        // whose Items are not bound to a controller collection — see
-        // UIViewCompilationContext.TryResolveComponentItemsTemplateRootContext), so there is never a
-        // matching ComponentCollection binding to look up here. Its item-scoped bindings are already
-        // fully materialized in the initial server-rendered HTML, so no post-connect push is needed.
+        // A ComponentItems source has no matching ComponentCollection binding; its bindings are already resolved in the platform's render.
         if (!View.Bindings.TryGetCollection(source.ComponentId.Value, out CompiledUIBinding? collectionBinding))
             return null;
 

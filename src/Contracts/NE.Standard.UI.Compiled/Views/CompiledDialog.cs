@@ -21,7 +21,12 @@ public sealed class CompiledDialog
     /// <summary>
     /// Gets what the dialog's panel is made of.
     /// </summary>
-    public UIDialogSurface Surface { get; init; }
+    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Raised;
+
+    /// <summary>
+    /// Gets where the panel stands.
+    /// </summary>
+    public UIDialogPlacement Placement { get; init; } = UIDialogPlacement.Center;
 
     /// <summary>
     /// Gets whether the dialog blocks interaction with the underlying view.

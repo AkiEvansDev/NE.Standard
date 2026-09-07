@@ -1,18 +1,28 @@
 using System;
+using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>
-/// A non-virtualized items view that lays out its bound items, supporting grouping, scrolling and configurable orientation/spacing.
+/// An items view that lays out a collection, held whole, virtualized or windowed from a source, with grouping, scrolling and
+/// configurable orientation/spacing.
 /// </summary>
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object>, ISourceItemsComponent, IVirtualizedItemsComponent
+/// <remarks>Row choice is two-way through <c>SelectionMode</c>; <c>SelectionStyle</c> says what a chosen row looks like.</remarks>
+[UIComponentPropertyBlock(typeof(IScrollableComponent))]
+[UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
+[UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
+[UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     private const int DefaultWindowSize = 50;
@@ -20,63 +30,108 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public bool IsWindowed { get; private set; }
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = UIItemsHostMode.Plain, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
+    public UIItemsHostMode HostMode { get; private set; }
 
     /// <summary>
-    /// Gets or sets how many items one window holds. Not bindable: the client reads it once, when it works out
-    /// what to ask for.
+    /// Gets or sets how many items one window holds; not bindable, the client reads it once.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = DefaultWindowSize, GenerateBinder = false, IsBindable = false)]
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = DefaultWindowSize, GenerateBinder = false, IsBindable = false)]
     public int WindowSize { get; set; } = DefaultWindowSize;
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false)]
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
     public int? WindowOffset { get; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false)]
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
     public int? WindowTotalCount { get; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false)]
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
     public bool WindowHasMoreBefore { get; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISourceItemsComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false)]
+    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
     public bool WindowHasMoreAfter { get; }
 
     /// <summary>
-    /// Gets or sets whether only the rows in view are laid out. For a collection the client already holds
-    /// whole — a windowed source needs no flag, it is windowed by construction.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IVirtualizedItemsComponent), DefaultValue = false)]
-    public bool? Virtualize { get; set; }
-
-    /// <summary>
-    /// Lays out only the rows in view.
+    /// Keeps only the rows in view in the document, for a collection the client holds whole.
     /// </summary>
     public T Virtualized()
     {
-        Virtualize = true;
+        if (HostMode == UIItemsHostMode.Windowed)
+            throw new InvalidOperationException("A windowed host already keeps only its window; it cannot be virtualized as well.");
+
+        HostMode = UIItemsHostMode.Virtualized;
         return Self;
     }
 
     /// <summary>
-    /// Binds the view's items to a windowed source on the controller, which is what makes a collection too
-    /// large to send whole renderable — a chat, a long log, a grid over a million rows.
+    /// Binds the view's items to a windowed source on the controller.
     /// </summary>
-    /// <remarks>
-    /// The path names the <em>source</em>; the compiler appends the property holding its realized window, so
-    /// an author never writes it and the two cannot drift apart.
-    /// </remarks>
+    /// <remarks>The path names the source; the compiler appends the property holding its realized window.</remarks>
     public T BindSource(string path, UIBindingScope scope = UIBindingScope.Root)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        IsWindowed = true;
+        if (HostMode == UIItemsHostMode.Virtualized)
+            throw new InvalidOperationException("A virtualized host holds its collection whole; a source hands over one window at a time instead.");
+
+        HostMode = UIItemsHostMode.Windowed;
 
         return BindItems(path, scope);
+    }
+
+    /// <summary>
+    /// Registers a click command invoked when an item is clicked, passing the item's key.
+    /// </summary>
+    public T OnItemClickWithItemKey(string command, string argumentName = "id")
+        => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Registers a click command invoked when an item is clicked, passing the item.
+    /// </summary>
+    public T OnItemClickWithItem(string command, string argumentName = "item")
+        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
+
+    /// <summary>
+    /// Registers a click command invoked when an item is clicked, with UI action arguments.
+    /// </summary>
+    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+    {
+        _ = RequiredTemplate.On(EventNames.Click, command, arguments);
+        return Self;
+    }
+
+    /// <summary>
+    /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click — with the item's key.
+    /// </summary>
+    public T OnItemOpenWithItemKey(string command, string argumentName = "id")
+        => OnItemOpen(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click.
+    /// </summary>
+    public T OnItemOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+    {
+        _ = RequiredTemplate.On(EventNames.Open, command, arguments);
+        return Self;
+    }
+
+    /// <summary>
+    /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with the item's key.
+    /// </summary>
+    public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
+        => OnItemRemove(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Registers a command invoked when the Delete key is pressed on an item that may be removed; the controller removes it or leaves it.
+    /// </summary>
+    public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+    {
+        _ = RequiredTemplate.On(EventNames.Remove, command, arguments);
+        return Self;
     }
 
     /// <summary>
@@ -98,35 +153,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Gets or sets the horizontal scroll behavior.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollMode.Disabled)]
-    public UIScrollMode? HorizontalScroll { get; set; }
-
-    /// <summary>
-    /// Gets or sets the vertical scroll behavior.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollMode.Auto)]
-    public UIScrollMode? VerticalScroll { get; set; }
-
-    /// <summary>
-    /// Gets or sets the scroll snap behavior.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIScrollSnapMode.Disabled)]
-    public UIScrollSnapMode? ScrollSnap { get; set; }
-
-    /// <summary>
-    /// Gets or sets how the items host reacts when its content grows.
-    /// </summary>
-    /// <remarks>
-    /// The items host is the element that scrolls, so a chat pinned to its newest message says so here rather
-    /// than through a <c>ScrollContainerComponent</c> wrapped around it — which cannot work for a windowed
-    /// host, since the scrolling element is the host itself.
-    /// </remarks>
-    [UIComponentProperty(DefaultValue = UIScrollAnchor.None)]
-    public UIScrollAnchor? ScrollAnchor { get; set; }
-
-    /// <summary>
     /// Follows content appended at the end while the viewer is already at the end.
     /// </summary>
     public T AnchorToEnd()
@@ -134,11 +160,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
         ScrollAnchor = UIScrollAnchor.End;
         return Self;
     }
-
-    /// <summary>
-    /// Gets the template used to render each item.
-    /// </summary>
-    public virtual IVisualComponent? ItemTemplate => Template;
 
     /// <summary>
     /// Initializes a new items view with the built-in text, empty and group templates.
@@ -193,12 +214,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     }
 
     /// <summary>
-    /// Sets the template used to render each item.
-    /// </summary>
-    public virtual T SetItemTemplate(IVisualComponent visualTemplate)
-        => SetTemplate(visualTemplate);
-
-    /// <summary>
     /// Disables both horizontal and vertical scrolling.
     /// </summary>
     public T DisableScroll()
@@ -234,7 +249,7 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
 }
 
 /// <summary>
-/// A non-virtualized items view that lays out its bound items, supporting grouping, scrolling and configurable orientation/spacing.
+/// An items view that lays out a collection, held whole, virtualized or windowed from a source.
 /// </summary>
 public sealed class ItemsViewComponent(string? id = null) : ItemsViewComponent<ItemsViewComponent>(id), IUIComponentDefinition
 {

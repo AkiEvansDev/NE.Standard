@@ -1,0 +1,20 @@
+@import "../core/tokens.less";
+@import "./elevation.less";
+
+// Shared look for every floating panel; fixed, because layout panels are overflow: hidden and would clip anything inside them.
+.ui-popup-surface(@z-index: 30) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: @z-index;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-color-surface);
+    .ui-elevation-2();
+}
+
+// Caps a list-shaped popup to the viewport height; skip it where a tail is drawn outside the box, since overflow would clip it.
+.ui-popup-scroll() {
+    max-height: calc(100vh - 2 * @ui-popup-viewport-margin);
+    overflow: auto;
+}

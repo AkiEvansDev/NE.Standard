@@ -1,0 +1,17 @@
+@import "../core/tokens.less";
+
+// The row shape shared by checkbox, switch and radio: centred on the whole label, not its first line, so it does not hang off the top.
+.ui-toggle-row() {
+    align-items: center;
+    gap: @ui-space-1 @ui-space-2;
+    min-width: 0;
+}
+
+.ui-toggle-box(@height) {
+    position: relative;
+    flex: 0 0 auto;
+    height: @height;
+    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    background: var(--ui-surface-raised);
+    transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+}

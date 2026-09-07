@@ -13,13 +13,7 @@ public abstract class DefaultEmptyTemplate<TTemplate> : DefaultTextTemplate<TTem
     /// <summary>
     /// The text shown when an items view has nothing to render.
     /// </summary>
-    /// <remarks>
-    /// A plain literal rather than a translation key, matching <c>DefaultNotFoundView</c> and
-    /// <c>DefaultErrorView</c>: an untranslated key would surface to the user as the key itself, since
-    /// <c>UITranslationRegistry.Translate</c> falls back to what it was given. <c>Title</c> is
-    /// <c>[Translatable]</c>, so a host that wants another wording adds a translation for this string — or
-    /// replaces the template with <c>SetEmptyTemplate</c>.
-    /// </remarks>
+    /// <remarks>A plain literal, not a translation key: an untranslated key would surface to the user as the key itself.</remarks>
     public const string DefaultText = "Nothing to show.";
 
     /// <summary>
@@ -27,8 +21,7 @@ public abstract class DefaultEmptyTemplate<TTemplate> : DefaultTextTemplate<TTem
     /// </summary>
     protected DefaultEmptyTemplate(string? itemPath = null, bool binds = false) : base(itemPath, binds)
     {
-        // A bound template takes its text from the item, and the empty state has no item — so the default
-        // only applies to the unbound form, which is the one every built-in items component installs.
+        // The empty state has no item, so the default text only applies to the unbound form.
         if (binds)
             return;
 

@@ -14,7 +14,7 @@ public class UserSessionContext : IUserSessionContext
     /// <summary>
     /// Creates a user session context from its identity, locale, and authorization data.
     /// </summary>
-    public UserSessionContext(string sessionId, string language, UIThemeMode themeMode, bool isAuthenticated, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
+    public UserSessionContext(string sessionId, string language, UIThemeMode? themeMode, bool isAuthenticated, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
@@ -39,7 +39,7 @@ public class UserSessionContext : IUserSessionContext
     public string Language { get; }
 
     /// <inheritdoc />
-    public UIThemeMode ThemeMode { get; }
+    public UIThemeMode? ThemeMode { get; }
 
     /// <inheritdoc />
     public bool IsAuthenticated { get; }
@@ -56,12 +56,12 @@ public class UserSessionContext : IUserSessionContext
     /// <summary>
     /// Creates an unauthenticated user session context.
     /// </summary>
-    public static UserSessionContext Anonymous(string sessionId, string language = "en", UIThemeMode themeMode = UIThemeMode.Auto)
+    public static UserSessionContext Anonymous(string sessionId, string language = "en", UIThemeMode? themeMode = null)
         => new(sessionId, language, themeMode, isAuthenticated: false);
 
     /// <summary>
     /// Creates an authenticated user session context with the given roles and permissions.
     /// </summary>
-    public static UserSessionContext Authenticated(string sessionId, string language = "en", UIThemeMode themeMode = UIThemeMode.Auto, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
+    public static UserSessionContext Authenticated(string sessionId, string language = "en", UIThemeMode? themeMode = null, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
         => new(sessionId, language, themeMode, isAuthenticated: true, userId, roles, permissions);
 }

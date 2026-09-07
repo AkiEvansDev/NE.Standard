@@ -1,16 +1,17 @@
 @import "../core/tokens.less";
 @import "../mixins/responsive.less";
+@import "../mixins/text.less";
 
+// Badge proportions and gap are in `em` of its own text, not the page's — an Overline badge stays a small label, a Body one a chip.
 .ui-badge {
-
-    // .ui-badge is worn both by a component root and by a nested __badge part. Anything reading a --ui-*
-    // custom property here must be gated on [data-ui-id]: those inherit, and runtime.less resets them there.
+    // .ui-badge is worn by both a component root and a nested __badge part; a --ui-* custom property must be gated on [data-ui-id].
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.25em;
     max-width: 100%;
-    min-height: 1.75em;
-    padding: @ui-space-1 @ui-space-2;
+    min-height: 1.5em;
+    padding: 0.125em 0.5em;
     border-radius: 999px;
     overflow: hidden;
     vertical-align: middle;
@@ -19,7 +20,7 @@
 
 .ui-badge[data-ui-id] {
     .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(min-height, --ui-min-height, 1.75em);
+    .ui-responsive-property(min-height, --ui-min-height, 1.5em);
 }
 
 .ui-badge__icon,
@@ -31,11 +32,16 @@
     display: none;
 }
 
+// Icon matches the text size, floored at ~14px: below that a masked line drawing reads grey and ragged. An explicit BadgeIconSize wins.
+.ui-badge__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
+    font-size: max(1em, 0.875rem);
+}
+
 .ui-badge__text {
     display: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    // line-height: 1 keeps the text tight to its glyphs so the badge's flex centring splits the leading evenly around it.
+    line-height: 1;
+    .ui-text-nowrap();
 }
 
 .ui-badge[data-ui-badge-icon] > .ui-badge__icon {
@@ -50,18 +56,21 @@
     display: block;
 }
 
-.ui-badge[data-ui-badge-icon][data-ui-badge-text] > .ui-badge__icon {
-    margin-right: 0.1em;
+// A leading glyph needs less start padding than a word — its own box already carries air the letterforms don't.
+.ui-badge[data-ui-badge-icon][data-ui-badge-text] {
+    padding-inline-start: 0.375em;
 }
 
-    .ui-badge[data-ui-badge-icon][data-ui-badge-text] > .ui-badge__icon.ui-icon-size--small {
-        margin-right: 0.2em;
-    }
-
 .ui-badge[data-ui-badge-icon]:not([data-ui-badge-text]) {
-    padding: 0.5em;
+    padding: 0.375em;
     aspect-ratio: 1;
-    border-radius: 999px;
+}
+
+// A count-only or empty badge is round, not a pill: padding comes off and aspect-ratio: 1 tracks its height, yielding to min-width: auto.
+.ui-badge:not([data-ui-badge-icon], [data-ui-badge-text]),
+.ui-badge[data-ui-badge-text="compact"]:not([data-ui-badge-icon]) {
+    padding-inline: 0;
+    aspect-ratio: 1;
 }
 
 .ui-badge-style--primary {
@@ -94,9 +103,11 @@
     color: var(--ui-color-on-danger);
 }
 
+// The one style that can sit on a surface ground, so it needs its own edge, drawn from currentColor to follow whatever it is painted in.
 .ui-badge-style--surface {
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
 }
 
 .ui-badge--tinted {

@@ -1,18 +1,26 @@
 @import "../core/tokens.less";
-@import "../mixins/elevation.less";
+@import "../mixins/chevron.less";
+@import "../mixins/popup.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../core/typography.less";
 
+// Collapsed, and not mid-slide: while collapsible-engine.ts folds the menu the open layout stays, clipped, so nothing jumps ahead of the edge.
+@ui-menu-collapsed: ~".ui-menu[data-ui-collapsed]:not([data-ui-folding])";
+
+// The column, switch and fold come from ui-collapsible.less; what is here is the list, and what a collapsed list keeps.
 .ui-menu {
-    // Reset on the root that carries [data-ui-id], where the renderer writes the authoring value; the gap
-    // itself is on the host below, where the entries actually are. Same split as .ui-command-bar.
+    // Reset on the root carrying [data-ui-id]; the gap sits on the host below, where the entries are. Same split as .ui-command-bar.
     .ui-responsive-reset(--ui-menu-spacing);
+    .ui-selected-scope();
 
-    display: flex;
-    flex-direction: column;
-    // Through the mixin, never a flat literal: runtime.less resolves these on any [data-ui-id] through a
-    // var() chain at the same specificity, so a literal here would swallow the authoring property.
-    // ResponsivePropertyCollisionTests enforces it.
+    // Through the mixin, never a flat literal, or runtime.less's var() chain on [data-ui-id] is silently swallowed.
     .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+// Collapsed, the list is a column of squares and the authored MinWidth — sized for the captions — would hold the page's column open.
+@{ui-menu-collapsed} {
+    min-width: 0;
 }
 
 .ui-menu__host {
@@ -26,102 +34,84 @@
     flex-direction: column;
 }
 
+// No gap along a bar: the entries' hover grounds would show a sliver of the bar between them.
 .ui-menu.ui-orientation--horizontal > .ui-menu__host {
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
+    .ui-responsive-property(gap, --ui-menu-spacing, 0);
 }
 
-// The wrapper the items host puts around each entry is a plain block, so an entry's own Stretch alignment —
-// which the runtime maps to align-self — had nothing to act on and every entry shrank to its own text, taking
-// the hover, the current mark and the shortcut's trailing edge with it.
+// The items host's wrapper is a plain block, so an entry's Stretch alignment (mapped to align-self) needs a flex context to act on.
 .ui-menu__item {
-    // Column, so the wrapper's cross axis is the horizontal one and the entry's own align-self: stretch is
-    // what fills the row. A row here would stretch its height instead and change nothing.
+    // Column, so the cross axis is horizontal and align-self: stretch fills the row; a row would stretch height and change nothing.
     display: flex;
     flex-direction: column;
     min-width: 0;
 }
 
-// An entry wears .ui-button, so hover, active, disabled and the type variants all come from there. What is
-// left here is the row shape and the states a button has no idea about: current, caption, rule.
+// An entry wears .ui-button for hover, active, disabled and the variants; what is left is the row shape and current/caption/rule.
+// A button's corners on every entry but the current one, which is a slice of the rail and stays square.
 .ui-menu-item {
     justify-content: flex-start;
+    border-radius: var(--ui-radius-button);
     gap: @ui-space-2;
-    // Re-called with this control's own defaults rather than written flat — see the note on .ui-button.
-    .ui-responsive-property(min-height, --ui-min-height, 2rem);
+    // Re-called with this control's own default; 1.75rem, not 2, keeps rows close enough to read as one list rather than loose items.
+    .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
     text-align: start;
 }
 
+// Along a bar the entries are square, as a tab strip's captions are: a row of rounded pills reads as buttons, not as a bar.
+.ui-menu.ui-orientation--horizontal .ui-menu-item {
+    border-radius: 0;
+}
+
 .ui-menu-item--selected {
-    background: color-mix(in srgb, var(--ui-color-primary) 16%, transparent);
-    color: var(--ui-color-primary);
+    .ui-selected-ground();
+    .ui-selected-ink();
 }
 
-    // Beats .ui-button--ghost's own reveal-hover, which would otherwise wash the current entry back out.
+    // Beats .ui-button--ghost's reveal-hover, which would wash the current entry out; restates the selected wash rather than deepening it.
     .ui-menu-item--selected:hover {
-        background: color-mix(in srgb, var(--ui-color-primary) 24%, transparent);
+        .ui-selected-ground();
     }
 
-// The switch for the collapsed state. Library chrome rather than an entry, so it is drawn here and not taken
-// from an icon pack: a host is free to install none. Two borders of a square, turned — a chevron with no
-// glyph behind it.
-.ui-menu__collapse {
-    display: flex;
-    flex: 0 0 auto;
-    align-self: flex-end;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin-bottom: @ui-space-2;
-    border: 0;
-    border-radius: var(--ui-radius-button);
-    background: none;
-    color: var(--ui-text-muted);
-    cursor: pointer;
-    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+// The current entry is square all round, its mark a straight line on the edge the sidebar hangs off, unless the author moved
+// it or took it away.
+.ui-menu-item--selected {
+    border-radius: 0;
 }
 
-    .ui-menu__collapse:hover {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
-        color: var(--ui-color-on-surface);
-    }
-
-    .ui-menu__collapse::before {
-        content: "";
-        width: 0.45rem;
-        height: 0.45rem;
-        border-top: 2px solid currentColor;
-        border-left: 2px solid currentColor;
-        // Pointing at the edge the menu will travel to, so the control reads as "put this away".
-        transform: rotate(-45deg) translate(1px, 1px);
-        transition: transform @ui-motion-fast @ui-motion-ease;
-    }
-
-// Collapsed the rail is as wide as an icon and no wider: the authored width belongs to the menu with its
-// titles on, and holding it would leave the icons floating in an empty column. After .ui-menu, so it wins the
-// tie against the responsive min-width declared there.
-.ui-menu--collapsed {
-    min-width: 0;
-    width: fit-content;
+.ui-menu.ui-side--left .ui-menu-item--selected {
+    .ui-selected-mark(@ui-selected-mark-left);
 }
 
-    .ui-menu--collapsed .ui-menu-item {
-        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
-    }
-
-.ui-menu--collapsed > .ui-menu__collapse {
-    align-self: center;
+.ui-menu.ui-side--right .ui-menu-item--selected {
+    .ui-selected-mark(@ui-selected-mark-right);
 }
 
-    .ui-menu--collapsed > .ui-menu__collapse::before {
-        transform: rotate(135deg) translate(1px, 1px);
-    }
+.ui-menu.ui-side--top .ui-menu-item--selected {
+    .ui-selected-mark(@ui-selected-mark-top);
+}
 
-// Sub-entries: the same entries, one step in. The indent is on the wrapper rather than on the entry's own
-// padding, which is a responsive authoring property and would swallow the value on the next render.
+.ui-menu.ui-side--bottom .ui-menu-item--selected {
+    .ui-selected-mark(@ui-selected-mark-bottom);
+}
+
+// A bar's current entry is marked along its bottom edge whatever Side says: a line on one side of a row reads as a box.
+.ui-menu.ui-orientation--horizontal .ui-menu-item--selected {
+    .ui-selected-mark(@ui-selected-mark-bottom);
+}
+
+// Collapsed, an entry keeps its horizontal padding and loses its title, so the glyph stays exactly where it stood beside the title:
+// a square the row's height moved it two pixels in, off the page title's edge. Not inside the flyout, whose
+// entries keep their titles and their row shape.
+@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *) {
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+}
+
+// The indent is on the wrapper, not the entry's own padding, a responsive authoring property that would swallow it on the next render.
 .ui-menu__submenu {
     display: none;
     flex-direction: column;
@@ -134,39 +124,26 @@
     display: flex;
 }
 
-// The mark that says an entry has more under it, and which way it currently points.
+// The mark that an entry has more under it; lighter than a control's chevron, being a note on a row rather than its control.
+// 0.625rem, a whole pixel count (ten): on a partial pixel the unrotated (down) mask read as cut off, and at 0.5rem it read too faint.
 [data-ui-menu-group] > .ui-menu-item::after {
-    content: "";
-    flex: 0 0 auto;
-    width: 0.35rem;
-    height: 0.35rem;
+    .ui-chevron(0.625rem);
+    .ui-chevron-right();
     margin-left: auto;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
     opacity: 0.6;
-    transform: rotate(-45deg);
-    transition: transform @ui-motion-fast @ui-motion-ease;
 }
 
 [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item::after {
-    transform: rotate(45deg);
+    .ui-chevron-down();
 }
 
-// Collapsed, a group has nowhere to put its sub-entries inline, so the same block is placed beside the icon.
-// Everything here is the popup shape only — the entries inside are unchanged, which is the point of leaving
-// them where they are in the DOM.
+// Collapsed, a group has nowhere for sub-entries inline, so the block sits beside the icon; the entries stay where they are in the DOM.
 .ui-menu__submenu[data-ui-menu-flyout] {
+    .ui-popup-surface(40);
+    .ui-popup-scroll();
     display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 40;
     min-width: 10rem;
     padding: @ui-space-1;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-input);
-    background: var(--ui-color-surface);
-    .ui-elevation-3();
 }
 
 // A caption is not a control: it neither reacts nor takes focus, it just names the entries under it.
@@ -175,42 +152,36 @@
     padding-bottom: 0;
     background: none;
     color: var(--ui-text-muted);
-    font-size: var(--ui-text-overline-font-size);
-    font-weight: var(--ui-text-overline-font-weight);
-    letter-spacing: var(--ui-text-overline-letter-spacing);
-    text-transform: uppercase;
+    .ui-text-type--overline();
     pointer-events: none;
 }
 
-.ui-menu__host > *:first-child > .ui-menu-item[data-ui-menu-item-kind="header"],
-.ui-menu__host > .ui-menu-item[data-ui-menu-item-kind="header"]:first-child {
+.ui-menu__host > *:first-child > .ui-menu-item[data-ui-menu-item-kind="header"] {
     margin-top: 0;
 }
 
-// A rule carries no content of its own — the content region is still rendered, so it is taken out of the
-// flow rather than left to occupy a line.
+// A rule carries no content, but the content region is still rendered, so it is taken out of the flow rather than left to occupy a line.
 .ui-menu-item[data-ui-menu-item-kind="separator"] {
     .ui-responsive-property(min-height, --ui-min-height, 0);
-    .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
+    .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
     .ui-responsive-property(padding, --ui-padding, 0);
     border-top: 1px solid var(--ui-color-border);
     background: none;
     pointer-events: none;
 }
 
-    .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button-content {
+    .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button__content {
         display: none;
     }
 
 .ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] {
     align-self: stretch;
     .ui-responsive-property(width, --ui-width, 0);
-    .ui-responsive-property(margin, --ui-margin, 0 @ui-space-2);
+    .ui-responsive-property(margin, --ui-margin, 0 @ui-space-1);
     border-top: none;
     border-left: 1px solid var(--ui-color-border);
 }
 
-// The combination sits against the trailing edge, quiet enough to read as a label rather than as content.
 // :empty rather than a render-time decision, so a bound Shortcut can appear and disappear with the data.
 .ui-menu-item__shortcut {
     margin-left: auto;
@@ -227,25 +198,34 @@
 // A caption and a rule take no key, and a collapsed menu has no room for the text.
 .ui-menu-item[data-ui-menu-item-kind="header"] > .ui-menu-item__shortcut,
 .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-menu-item__shortcut,
-.ui-menu--collapsed .ui-menu-item__shortcut {
+@{ui-menu-collapsed} .ui-menu-item__shortcut {
     display: none;
 }
 
-// Collapsed: the title goes, the icon stays and centres. The title is still in the DOM as the tooltip the
-// content region already renders, so nothing is lost to a pointer.
-.ui-menu--collapsed .ui-menu-item {
+// Collapsed: the title goes, the icon centres; the title stays in the DOM as the tooltip the content region renders, so nothing is lost.
+@{ui-menu-collapsed} .ui-menu-item {
     justify-content: center;
 }
 
-    .ui-menu--collapsed .ui-menu-item > .ui-button-content > .ui-button-content__body {
+    @{ui-menu-collapsed} .ui-menu-item > .ui-button__content > .ui-text__body {
         display: none;
     }
 
-    .ui-menu--collapsed .ui-menu-item > .ui-button-content > .ui-button-content__icon {
+    @{ui-menu-collapsed} .ui-menu-item > .ui-button__content > .ui-text__icon {
         margin-right: 0;
     }
 
-.ui-menu--collapsed .ui-menu-item[data-ui-menu-item-kind="header"] {
+    // One track and no gap: the hidden body's track and the gap before it would push the glyph off centre. An entry with a
+    // trailing badge is stretched full width by ui-button.less to keep the badge at the edge; collapsed, the badge is hidden
+    // with the body, and the stretch alone left the glyph at the start rather than the middle.
+    @{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *) > .ui-text {
+        grid-template-columns: auto;
+        gap: 0;
+        .ui-responsive-property(width, --ui-width, auto);
+        justify-content: center;
+    }
+
+@{ui-menu-collapsed} .ui-menu-item[data-ui-menu-item-kind="header"] {
     // A caption with no text would be an empty gap, so it becomes the rule it visually stands in for.
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
@@ -253,30 +233,109 @@
     border-top: 1px solid var(--ui-color-border);
 }
 
-// Collapsed, the indent and the chevron both go: there is no title for them to relate to, and the group's
-// sub-entries are in a popup that carries its own padding. The mark inside that popup stays.
-.ui-menu--collapsed .ui-menu__submenu:not([data-ui-menu-flyout]) {
+// Collapsed, the indent and the chevron both go: there is no title for them to relate to; the mark inside the flyout popup stays.
+@{ui-menu-collapsed} .ui-menu__submenu:not([data-ui-menu-flyout]) {
     display: none;
 }
 
-.ui-menu--collapsed [data-ui-menu-group] > .ui-menu-item::after {
+@{ui-menu-collapsed} [data-ui-menu-group] > .ui-menu-item::after {
     display: none;
 }
 
-.ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] {
+// A group whose sub-entries are out of sight says so on its own entry, since the current mark inside would otherwise be nowhere on screen.
+.ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected),
+@{ui-menu-collapsed} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
+    background: color-mix(in srgb, var(--ui-color-primary) 8%, transparent);
+    color: var(--ui-color-primary-ink);
+}
+
+@{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] {
     padding-left: @ui-space-1;
 }
 
-// Inside the flyout the entries are not collapsed: the popup exists precisely to give them back the titles
-// the icon rail has no room for. Every collapsed rule above is taken back here, and only here.
-.ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item {
+// Inside the flyout entries are not collapsed: the popup gives back the titles the rail has no room for; every collapsed rule is undone.
+@{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item {
     justify-content: flex-start;
 }
 
-    .ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item > .ui-button-content > .ui-button-content__body {
+    @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item > .ui-button__content > .ui-text__body {
         display: grid;
     }
 
-    .ui-menu--collapsed .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item__shortcut {
+    @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item__shortcut {
         display: block;
     }
+
+// A check entry: a mark at the row's end says the option is on; its square is kept either way, so a list of checks lines up.
+.ui-menu-item[data-ui-menu-item-kind="check"]::after {
+    content: "";
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    margin-left: auto;
+    opacity: 0;
+    .ui-check-glyph();
+}
+
+.ui-menu-item[data-ui-menu-item-kind="check"].ui-menu-item--checked::after {
+    opacity: 1;
+}
+
+// A select entry: its value at the row's end, muted like a shortcut, then the group's chevron a step after it. The chevron keeps
+// pointing right while the choices are open, since they fly out beside the entry rather than unfold under it.
+.ui-menu-item__value {
+    margin-left: auto;
+    padding-left: @ui-space-4;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+    white-space: nowrap;
+}
+
+    .ui-menu-item__value:empty {
+        display: none;
+    }
+
+[data-ui-menu-select] > .ui-menu-item::after {
+    margin-left: @ui-space-2;
+}
+
+[data-ui-menu-select][data-ui-menu-open] > .ui-menu-item::after {
+    .ui-chevron-right();
+}
+
+// The choices are a popup beside the entry in an unfolded menu too; a collapsed menu's flyout rules above already say the rest.
+[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout] {
+    padding-left: @ui-space-1;
+}
+
+// The sub-entries are a nested menu of their own inside the submenu block: a column like the outer's, taking the block's width and
+// nothing of the outer's chrome.
+.ui-menu--nested {
+    display: flex;
+    flex-direction: column;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+    .ui-menu--nested > .ui-menu__host {
+        flex-direction: column;
+    }
+
+// The menu's Surface names the fill of the popup it opens in — the context menu it is, the split button's list it sits in, the flyout
+// its sub-entries open in — so a menu may sit on the page's ground or a raised surface instead of the surface every popup wears.
+.ui-context-menu:has(> .ui-menu.ui-surface--background),
+.ui-split-button__menu:has(> .ui-menu.ui-surface--background),
+.ui-menu.ui-surface--background .ui-menu__submenu[data-ui-menu-flyout] {
+    background: var(--ui-color-background);
+}
+
+.ui-context-menu:has(> .ui-menu.ui-surface--raised),
+.ui-split-button__menu:has(> .ui-menu.ui-surface--raised),
+.ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout] {
+    background: var(--ui-surface-raised);
+}
+
+.ui-context-menu:has(> .ui-menu.ui-surface--tinted),
+.ui-split-button__menu:has(> .ui-menu.ui-surface--tinted),
+.ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {
+    background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+}

@@ -1,5 +1,7 @@
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -9,13 +11,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A group of radio buttons that lets the user select a single option from a list.
 /// </summary>
-/// <remarks>
-/// Derives from <see cref="OptionsInputComponentBase{TComponent, TItem}"/> rather than from
-/// <c>SelectComponent</c>: it shares the option collection and item template, but a radio group has no
-/// trigger to place a <c>Placeholder</c> in and no popup selection to clear, and its renderer draws
-/// neither — inheriting them only advertised two properties that did nothing.
-/// </remarks>
-public abstract partial class RadioGroupComponent<T>(string? id = null) : OptionsInputComponentBase<T, OptionItem>(id)
+public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -23,6 +19,23 @@ public abstract partial class RadioGroupComponent<T>(string? id = null) : Option
     /// </summary>
     [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
     public UIOrientation? Orientation { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gap between options; unset, the stylesheet's own gap for the orientation applies.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIResponsive<double>? Spacing { get; set; }
+
+    /// <summary>
+    /// Initializes the input with the default item, empty and group templates.
+    /// </summary>
+    protected RadioGroupComponent(string? id = null) : base(id)
+    {
+        // Content, not Title: an option is a list row, so its glyph stands for both lines.
+        _ = SetTemplate(new DefaultTextTemplate(binds: true).SetIconAlignment(UITextIconAlignment.Content));
+        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+    }
 }
 
 /// <summary>

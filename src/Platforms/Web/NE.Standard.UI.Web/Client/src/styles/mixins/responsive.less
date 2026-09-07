@@ -1,16 +1,37 @@
-// One authoring property resolves through a five-tier var() chain, widest matching tier first, so a
-// component only has to declare its default once. Every rule that touches a responsive property must go
-// through this mixin — a flat literal on the same element wins the cascade and swallows the property.
+// Resolves one authoring property through a five-tier var() chain, widest first; a flat literal on the same element would win the cascade.
 .ui-responsive-property(@property, @variable, @default) {
     @{property}: var(~"@{variable}-xxl", var(~"@{variable}-xl", var(~"@{variable}-md", var(~"@{variable}-sm", var(~"@{variable}", @default)))));
 }
 
+// Resets a property's five tiers where a component root re-declares them, and fences each tier into its band there:
+// the reset is written once per variable per root, which is exactly where the fence belongs.
 .ui-responsive-reset(@variable) {
     @{variable}: initial;
     @{variable}-sm: initial;
     @{variable}-md: initial;
     @{variable}-xl: initial;
     @{variable}-xxl: initial;
+    .ui-responsive-fence(@variable);
+}
+
+// Fences a tier's inline value into its own width band: below a tier's breakpoint its variable is taken back, and only
+// `!important` outranks an inline custom property from a stylesheet. Without it the widest tier written wins at every width.
+.ui-responsive-fence(@variable) {
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        @{variable}-sm: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        @{variable}-md: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        @{variable}-xl: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        @{variable}-xxl: initial !important;
+    }
 }
 
 .ui-responsive-reset-infix(@prefix, @suffix) {

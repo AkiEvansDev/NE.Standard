@@ -13,22 +13,18 @@
     align-items: flex-end;
     gap: @ui-space-2;
     padding: @ui-space-4;
-    // The host spans the viewport corner but must not swallow clicks meant for the page behind it; each
-    // toast re-enables pointer events for itself.
+    // Must not swallow clicks meant for the page behind it; each toast re-enables pointer events for itself.
     pointer-events: none;
 }
 
-// Placed off the document element, which is where the shell writes the view's choice — the host is built on
-// demand under <body> and belongs to no region, so there is nothing nearer to hang it on.
+// Placed off the document element: the host is built on demand under <body> and belongs to no region.
 [data-ui-notifications="top"] .ui-notification-host {
     top: 0;
     bottom: auto;
     flex-direction: column-reverse;
 }
 
-// A bordered surface with an accent down its leading edge, like every other panel here. Filled edge to edge
-// with a saturated severity colour, a toast was the one block on the page belonging to no other surface, and
-// a red one read as a browser error rather than as part of the application.
+// A bordered surface with an accent down its leading edge, not filled edge to edge with a saturated severity colour.
 .ui-notification {
     position: relative;
     display: flex;
@@ -38,7 +34,7 @@
     padding: @ui-space-3 @ui-space-4;
     padding-left: calc(@ui-space-4 + 3px);
     border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-card);
+    border-radius: var(--ui-radius-notification);
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
     pointer-events: auto;
@@ -54,7 +50,7 @@
         bottom: 0;
         left: 0;
         width: 3px;
-        border-radius: var(--ui-radius-card) 0 0 var(--ui-radius-card);
+        border-radius: var(--ui-radius-notification) 0 0 var(--ui-radius-notification);
         background: var(--ui-notification-accent, var(--ui-color-border));
     }
 
@@ -84,8 +80,7 @@
     opacity: 1;
 }
 
-// Severity sets the bar, not the surface, so a toast reads as one of this application's panels rather than
-// as a browser error pasted over it.
+// Severity sets the bar, not the surface, so a toast reads as one of this application's panels.
 .ui-notification--info {
     --ui-notification-accent: var(--ui-color-info);
 }

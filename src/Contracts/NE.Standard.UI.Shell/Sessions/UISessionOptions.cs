@@ -23,6 +23,14 @@ public sealed class UISessionOptions
     public string ClientKey { get; set; } = "ne.ui.session";
 
     /// <summary>
+    /// Gets or sets how long the client keeps the session id, counted from its last page load; <see langword="null"/>
+    /// keeps it only for the client's own lifetime, so a signed-in person is signed out once that ends. An
+    /// application that keeps sessions across its own restarts sets this to what it is willing to have a stored
+    /// session survive.
+    /// </summary>
+    public TimeSpan? ClientKeyLifetime { get; set; }
+
+    /// <summary>
     /// Validates session options.
     /// </summary>
     public void Validate()
@@ -34,5 +42,8 @@ public sealed class UISessionOptions
             throw new ArgumentOutOfRangeException(nameof(CleanupInterval), CleanupInterval, "Session cleanup interval must be greater than zero.");
 
         ArgumentException.ThrowIfNullOrWhiteSpace(ClientKey);
+
+        if (ClientKeyLifetime is { } lifetime && lifetime <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(ClientKeyLifetime), lifetime, "Client key lifetime must be greater than zero.");
     }
 }

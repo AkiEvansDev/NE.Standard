@@ -17,7 +17,7 @@ public sealed class CloseDialogEffect : ClientEffect
     }
 
     /// <inheritdoc />
-    public override ClientEffectKind Kind => ClientEffectKind.CloseDialog;
+    public override string Kind => ClientEffectKinds.CloseDialog;
 
     /// <summary>
     /// Gets the dialog key.

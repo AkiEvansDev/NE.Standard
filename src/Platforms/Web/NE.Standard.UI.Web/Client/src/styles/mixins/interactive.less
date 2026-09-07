@@ -5,20 +5,46 @@
     touch-action: manipulation;
 }
 
+// Hides the native control visually while keeping it in the tab order and accessibility tree, which display: none would not.
+.ui-visually-hidden() {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .ui-disabled-state() {
     opacity: var(--ui-disabled-opacity);
     cursor: default;
     pointer-events: none;
 }
 
-.ui-reveal-hover(@tint: currentColor) {
+// Mixed from the theme's contrast colour, not currentColor, so the wash is the surface reacting rather than the label's colour.
+.ui-reveal-hover() {
     transition: background-color @ui-motion-fast @ui-motion-ease;
 
     &:hover {
-        background-color: color-mix(in srgb, @tint 10%, transparent);
+        background-color: var(--ui-wash-hover);
     }
 
     &:active {
-        background-color: color-mix(in srgb, @tint 16%, transparent);
+        background-color: var(--ui-wash-active);
+    }
+}
+
+// A button that answers the pointer: neither disabled, nor loading, nor natively disabled. Every state rule of a button, and every
+// rule taking one back, spells the guard through this, so the two tie at one specificity.
+@ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled)";
+
+// Takes .ui-reveal-hover() off an element reacting another way; the selector chain must match the ghost button's for equal specificity.
+.ui-reveal-hover-off(@rules: {}) {
+    &@{ui-button-live}:is(:hover, :active) {
+        background: none;
+        @rules();
     }
 }

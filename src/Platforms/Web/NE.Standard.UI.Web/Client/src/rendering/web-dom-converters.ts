@@ -1,9 +1,11 @@
-// Mirrors the C# WebCssValues/WebClassNames helpers value-for-value: a property rendered server-side and the
-// same property live-patched here must produce identical output. WebDomConvertersSyncTests pins the names.
-//
-// Every model below is read by its camel-cased member only. This file used to read `model.foo ?? model.Foo`
-// throughout, against a PascalCase payload that neither channel ever sends; WebWireJson now sets the naming
-// policy on both rather than inheriting it from two separate defaults, and WebWireJsonTests pins it.
+// Mirrors the C# WebCssValues/WebClassNames helpers value-for-value, over models read by their camel-cased members, as the wire sends them.
+
+// `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
+import { toKebabCase } from "../addressing/dom-attributes.ts";
+import type { ResponsiveTier } from "./responsive-tier.ts";
+import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
+import { iconImageClassName, readIconSource, toCssUrl, toIconGlyphClassName, toIconSourceCss } from "./icon-value.ts";
+import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
 
 export type WebDomConverter = (value: unknown) => string | undefined;
 
@@ -64,6 +66,7 @@ const enumNames = new Map<string, string>([
     ["Vertical", "vertical"],
     ["Text", "text"],
     ["Card", "card"],
+    ["Raised", "raised"],
     ["Circle", "circle"],
     ["KeepSearchInput", "keep"],
     ["ReplaceWithSelectedItem", "replace"],
@@ -144,23 +147,31 @@ const styleVarNames = new Map<string, string>([
 ]);
 
 const badgePlacementTokens = ["inline", "trailing"];
-const inputAppearanceTokens = ["filled", "underline"];
-const buttonTokens = ["primary", "accent", "danger", "outline", "ghost", "link"];
+const inputAppearanceTokens = ["filled", "outline", "underline", "ghost"];
+const buttonSizeTokens = ["small", "medium", "large"];
+const buttonTokens = ["primary", "accent", "danger", "outline", "ghost", "link", "surface"];
 const badgeTypeTokens = ["primary", "accent", "info", "warning", "success", "danger", "surface"];
-const themeTokens = ["light", "dark", "auto"];
+const themeTokens = ["light", "dark"];
 const alignmentTokens = ["start", "center", "end", "stretch"];
-const overflowTokens = ["hidden", "visible"];
+const overflowTokens = ["clip", "visible"];
+const visibilityTokens = ["visible", "hidden", "collapsed"];
+const surfaceStyleTokens = ["background", "raised", "tinted"];
 const orientationTokens = ["horizontal", "vertical"];
+const groupSeparatorTokens = ["none", "gap", "rule"];
+const selectionModeTokens = ["none", "one", "many"];
+const selectionMarkTokens = ["none", "left", "right", "top", "bottom"];
 const itemsViewLayoutTokens = ["stack", "wrap"];
 const scrollTokens = ["disabled", "auto", "always"];
 const scrollSnapTokens = ["disabled", "proximity", "mandatory"];
-const skeletonVariantTokens = ["text", "card", "circle"];
 const textInputTypeTokens = ["text", "email", "password", "search", "tel", "url"];
-const imageFitTokens = ["default", "fill", "contain", "cover", "none"];
+const colorTextFormatTokens = ["hex", "rgb"];
+const colorInputVariantTokens = ["field", "swatch"];
+const imageFitTokens = ["fill", "contain", "cover", "none"];
+const imageFitSizeTokens = ["100% 100%", "contain", "cover", "auto"];
 const progressVariantTokens = ["linear", "circular"];
 const searchSelectionModeTokens = ["keep", "replace"];
 const textAreaResizeTokens = ["none", "vertical", "horizontal", "both"];
-const flyoutPlacementTokens = [
+const popupPlacementTokens = [
     "bottom-start", "bottom", "bottom-end",
     "top-start", "top", "top-end",
     "left-start", "left", "left-end",
@@ -173,25 +184,37 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["colorClass", value => `ui-color--${toToken(value, colorTokens)}`],
     ["themeColorClass", value => toThemeColorClass(value)],
     ["iconClass", value => toIconClassName(value)],
+    ["iconUrlCss", value => toIconSourceCss(value)],
+    ["safeUrl", value => toSafeLink(value)],
+    ["safeImageSource", value => toSafeImageSource(value)],
     ["iconSizeClass", value => `ui-icon-size--${toToken(value, iconSizeTokens)}`],
     ["textTypeClass", value => `ui-text-type--${toToken(value, textTypeTokens)}`],
     ["textAppearanceClass", value => toTextAppearanceClass(value)],
     ["textAlignmentClass", value => `ui-text--align-${toToken(value, textAlignmentTokens)}`],
     ["textWrapClass", value => `ui-text--${toToken(value, textWrapTokens)}`],
     ["textBadgePlacementClass", value => `ui-text__badge--${toToken(value, badgePlacementTokens)}`],
-    ["buttonContentBadgePlacementClass", value => `ui-button-content__badge--${toToken(value, badgePlacementTokens)}`],
-    ["buttonContentTextAlignmentClass", value => `ui-button-content--align-${toToken(value, textAlignmentTokens)}`],
     ["badgeStyleClass", value => `ui-badge-style--${toToken(value, badgeTypeTokens)}`],
+    ["badgeTextFit", value => toBadgeTextFit(value)],
     ["buttonClass", value => `ui-button--${toToken(value, buttonTokens)}`],
+    ["surfaceStyleClass", value => `ui-surface--${toToken(value, surfaceStyleTokens)}`],
     ["orientationClass", value => `ui-orientation--${toToken(value, orientationTokens)}`],
+    ["groupSeparatorClass", value => `ui-command-bar--separator-${toToken(value, groupSeparatorTokens)}`],
+    ["selectionModeAttribute", value => toToken(value, selectionModeTokens)],
+    ["selectionBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "background"))],
+    ["selectionForegroundCss", value => toThemeColor(toSelectionStylePart(value, "foreground"))],
+    ["selectionMarkColorCss", value => toThemeColor(toSelectionStylePart(value, "markColor"))],
+    ["selectionMarkCss", value => toSelectionMark(toSelectionStylePart(value, "mark"))],
+    ["selectionFontWeightCss", value => toSelectionFontWeight(toSelectionStylePart(value, "bold"))],
     ["itemsViewLayoutClass", value => `ui-items-view--${toToken(value, itemsViewLayoutTokens)}`],
     ["scrollXClass", value => `ui-scroll-x--${toToken(value, scrollTokens)}`],
     ["scrollYClass", value => `ui-scroll-y--${toToken(value, scrollTokens)}`],
     ["scrollSnapClass", value => `ui-scroll-snap--${toToken(value, scrollSnapTokens)}`],
-    ["skeletonVariantClass", value => `ui-preview-${toToken(value, skeletonVariantTokens)}`],
     ["inputAppearanceClass", value => `ui-input--${toToken(value, inputAppearanceTokens)}`],
-    ["inputBadgePlacementClass", value => `ui-input__badge--${toToken(value, badgePlacementTokens)}`],
+    ["buttonSizeClass", value => `ui-button--${toToken(value, buttonSizeTokens)}`],
+    ["buttonGroupSizeClass", value => `ui-button-group--${toToken(value, buttonSizeTokens)}`],
     ["textInputTypeAttribute", value => toToken(value, textInputTypeTokens)],
+    ["colorTextFormatAttribute", value => toToken(value, colorTextFormatTokens)],
+    ["colorInputVariantAttribute", value => toToken(value, colorInputVariantTokens)],
     ["themeNameCss", value => toToken(value, themeTokens)],
     ["alignmentCss", value => toToken(value, alignmentTokens)],
     ["alignmentStretchFallbackCss", value => toToken(value, alignmentTokens) === "stretch" ? "start" : ""],
@@ -204,6 +227,9 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["gridTemplateCss", value => toGridTemplate(value)],
     ["colorVariantCss", value => toColorVariant(value)],
     ["themeColorCss", value => toThemeColor(value)],
+    // Mirrors ThemeColorRenderer: a style colour is a class (an ink), so it writes no inline colour that would override the class.
+    ["themeColorInlineCss", value => isStyleOnlyThemeColor(value) ? "" : toThemeColor(value)],
+    ["themeColorCanonical", value => toThemeColorCanonical(value)],
     ["textAppearanceFontSizeCss", value => toTextAppearanceField(value, "size")],
     ["textAppearanceFontWeightCss", value => toTextAppearanceField(value, "weight")],
     ["textAppearanceLineHeightCss", value => toTextAppearanceField(value, "lineHeight")],
@@ -223,11 +249,11 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["responsivePixelsMdCss", value => toOptionalPixels(toResponsiveTier(value, "md"))],
     ["responsivePixelsXlCss", value => toOptionalPixels(toResponsiveTier(value, "xl"))],
     ["responsivePixelsXxlCss", value => toOptionalPixels(toResponsiveTier(value, "xxl"))],
-    ["visibleHiddenBaseAttribute", value => toHiddenAttribute(value, "base")],
-    ["visibleHiddenSmAttribute", value => toHiddenAttribute(value, "sm")],
-    ["visibleHiddenMdAttribute", value => toHiddenAttribute(value, "md")],
-    ["visibleHiddenXlAttribute", value => toHiddenAttribute(value, "xl")],
-    ["visibleHiddenXxlAttribute", value => toHiddenAttribute(value, "xxl")],
+    ["visibilityBaseAttribute", value => toVisibilityAttribute(value, "base")],
+    ["visibilitySmAttribute", value => toVisibilityAttribute(value, "sm")],
+    ["visibilityMdAttribute", value => toVisibilityAttribute(value, "md")],
+    ["visibilityXlAttribute", value => toVisibilityAttribute(value, "xl")],
+    ["visibilityXxlAttribute", value => toVisibilityAttribute(value, "xxl")],
     ["gridPlacementBaseColumnCss", value => toResponsiveGridPlacementPart(value, "base", "column")],
     ["gridPlacementBaseRowCss", value => toResponsiveGridPlacementPart(value, "base", "row")],
     ["gridPlacementBaseColumnSpanCss", value => toResponsiveGridPlacementPart(value, "base", "columnSpan")],
@@ -249,15 +275,24 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["gridPlacementXxlColumnSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "columnSpan")],
     ["gridPlacementXxlRowSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "rowSpan")],
     ["imageFitClass", value => `ui-image-fit--${toToken(value, imageFitTokens)}`],
+    ["backgroundImageCss", value => toBackgroundImageCss(value)],
+    ["imageFitSizeCss", value => toToken(value, imageFitSizeTokens)],
     ["progressVariantClass", value => `ui-progress--${toToken(value, progressVariantTokens)}`],
-    ["progressPercentText", value => `${toProgressPercent(value)}%`],
+    ["progressValueText", value => toProgressValue(value)],
     ["searchSelectionModeClass", value => `ui-search-mode--${toToken(value, searchSelectionModeTokens)}`],
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],
-    ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, flyoutPlacementTokens)}`]
+    ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, popupPlacementTokens)}`],
+    ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)]
 ]);
 
-// Mirrors the NE.Colors package — ColorName (declared value) and ColorVariant's RGB table — in one place, so
-// the by-name and by-value lookups below cannot drift apart. ColorPaletteSyncTests pins it against it.
+/** A surface's picture: the address quoted the way an icon's is, or nothing when none is set. */
+function toBackgroundImageCss(value: unknown): string {
+    const source = String(value ?? "").trim();
+
+    return source.length === 0 ? "" : toCssUrl(source);
+}
+
+// Mirrors the NE.Colors palette in one place, so the by-name and by-value lookups below cannot drift apart.
 const colorPalette: readonly (readonly [number, string, number, number, number])[] = [
     [0, "IronFog", 120, 120, 120],
     [1, "SilverNight", 100, 120, 140],
@@ -299,9 +334,16 @@ const colorVariantNamesByValue = new Map<number, string>(
     colorPalette.map(([value, name]) => [value, name])
 );
 
+// Where a member name means something else in one table than in another: `Hidden` is `hidden` for UIVisibility, `clip` for UIOverflow.
+const tokenNameOverrides = new Map<readonly string[], ReadonlyMap<string, string>>([
+    [overflowTokens, new Map([["Hidden", "clip"]])]
+]);
+
 function toToken(value: unknown, numericTokens?: readonly string[]): string {
     if (typeof value === "string") {
-        return enumNames.get(value) ?? toKebabCase(value);
+        return (numericTokens === undefined ? undefined : tokenNameOverrides.get(numericTokens)?.get(value))
+            ?? enumNames.get(value)
+            ?? toKebabCase(value);
     }
 
     if (typeof value === "number" && numericTokens !== undefined) {
@@ -328,12 +370,17 @@ function toLayoutLength(value: unknown): string {
     const kind = model.kind;
     const lengthValue = model.value ?? 0;
 
+    // Nothing, not "auto": a responsive custom property carrying `auto` wins the var() chain and drops the default.
     if (kind === "Auto" || kind === 0) {
-        return "auto";
+        return "";
     }
 
     if (kind === "Absolute" || kind === 1) {
         return toPixels(lengthValue);
+    }
+
+    if (kind === "Fill" || kind === 2) {
+        return "100%";
     }
 
     return "";
@@ -407,21 +454,30 @@ function toGridUnit(value: unknown): string {
     const model = value as {
         unit?: string | number;
         value?: number;
-        minValue?: number | null };
+        minValue?: number | null;
+        maxValue?: number | null };
     const unit = model.unit;
     const unitValue = model.value ?? 1;
     const minValue = model.minValue;
+    const maxValue = model.maxValue;
 
+    // Mirrors WebCssValues.GridUnit: a fixed track's bounds and a star's ceiling are the splitter's clamp, not the layout's.
     if (unit === "Absolute" || unit === 1) {
         return toPixels(unitValue);
     }
 
     if (unit === "Star" || unit === 0) {
-        return toGridUnit(unitValue);
+        const floor = minValue !== null && minValue !== undefined && minValue > 0 ? `${minValue}px` : "0";
+
+        return unitValue <= 0 ? `minmax(${floor}, 1fr)` : `minmax(${floor}, ${unitValue}fr)`;
     }
 
     if (unit === "Auto" || unit === 2) {
-        return minValue !== null && minValue !== undefined ? `minmax(${minValue}px, auto)` : "auto";
+        if (minValue !== null && minValue !== undefined) {
+            return `minmax(${minValue}px, auto)`;
+        }
+
+        return maxValue !== null && maxValue !== undefined ? `fit-content(${maxValue}px)` : "auto";
     }
 
     return "";
@@ -487,6 +543,40 @@ function toGridPlacementPart(value: unknown, part: "column" | "row" | "columnSpa
     }
 }
 
+function toSelectionStylePart(value: unknown, part: "background" | "foreground" | "mark" | "markColor" | "bold"): unknown {
+    if (value === null || value === undefined || typeof value !== "object")
+        return null;
+
+    return (value as Record<string, unknown>)[part] ?? null;
+}
+
+// The same weights `WebCssValues.SelectionFontWeight` writes; unset leaves the control its own.
+function toSelectionFontWeight(value: unknown): string {
+    if (value === null || value === undefined)
+        return "";
+
+    return value === true ? "600" : "400";
+}
+
+// The same `box-shadow` `WebCssValues.SelectionMark` writes: an inset line two pixels wide on one edge.
+function toSelectionMark(value: unknown): string {
+    if (value === null || value === undefined)
+        return "";
+
+    switch (toToken(value, selectionMarkTokens)) {
+        case "left":
+            return "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+        case "right":
+            return "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+        case "top":
+            return "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+        case "bottom":
+            return "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+        default:
+            return "none";
+    }
+}
+
 function toThemeColor(value: unknown): string {
     if (value === null || value === undefined) {
         return "";
@@ -516,8 +606,7 @@ function toThemeColor(value: unknown): string {
             : `light-dark(${effectiveLight}, ${effectiveDark})`;
     }
 
-    // An explicit light/dark pair wins; a style token is the fallback, resolved to its theme variable so it
-    // follows the active theme instead of being frozen at patch time.
+    // An explicit light/dark pair wins; a style token resolves to its theme variable so it follows the theme.
     const style = model.style;
     if (style === null || style === undefined) {
         return "";
@@ -525,6 +614,15 @@ function toThemeColor(value: unknown): string {
 
     const varName = styleVarNames.get(toToken(style, colorTokens));
     return varName ? `var(${varName})` : "";
+}
+
+function isStyleOnlyThemeColor(value: unknown): boolean {
+    if (value === null || value === undefined || typeof value !== "object" || isColorVariantModel(value))
+        return false;
+
+    const model = value as { style?: unknown; light?: unknown; dark?: unknown };
+
+    return model.light == null && model.dark == null && model.style != null;
 }
 
 function toThemeColorClass(value: unknown): string {
@@ -540,6 +638,12 @@ function toThemeColorClass(value: unknown): string {
 
     const style = model.style;
     return style == null ? "" : `ui-color--${toToken(style, colorTokens)}`;
+}
+
+// Mirrors `BadgeComponentRenderer.BadgeTextFit`: the attribute that says a badge has text also says how much room it wants.
+function toBadgeTextFit(value: unknown): string {
+    const text = value === null || value === undefined ? "" : String(value).trim();
+    return text.length > 0 && text.length <= 2 ? "compact" : "";
 }
 
 function toTextAppearanceClass(value: unknown): string {
@@ -592,13 +696,62 @@ function toTextAppearanceField(value: unknown, field: "size" | "weight" | "lineH
     }
 }
 
+/** The canonical text a colour input writes back, in the form `UIThemeColor.TryParse` reads. */
+function toThemeColorCanonical(value: unknown): string {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    if (typeof value === "string") {
+        return value.trim();
+    }
+
+    if (typeof value !== "object") {
+        return "";
+    }
+
+    const model = value as { style?: string | number; light?: unknown; dark?: unknown };
+
+    const style = toColorStyleName(model.style);
+
+    if (style !== null) {
+        return `@${style}`;
+    }
+
+    const variant = (model.light ?? model.dark) as {
+        name?: string | number;
+        adjustment?: string | number;
+        factor?: number;
+        opacity?: number;
+        rgb?: number | null } | undefined;
+
+    if (variant === undefined || variant === null) {
+        return "";
+    }
+
+    if (typeof variant.rgb === "number") {
+        const opacity = variant.opacity ?? 255;
+        const hex = `#${toHexByte((variant.rgb >> 16) & 0xFF)}${toHexByte((variant.rgb >> 8) & 0xFF)}${toHexByte(variant.rgb & 0xFF)}`;
+
+        return opacity === 255 ? hex : `${hex}${toHexByte(opacity)}`;
+    }
+
+    const name = toColorVariantName(variant.name);
+
+    if (name === null) {
+        return "";
+    }
+
+    return `${name}/${toColorAdjustmentName(variant.adjustment) ?? "None"}/${variant.factor ?? 0}/${variant.opacity ?? 255}`;
+}
+
 function isColorVariantModel(value: unknown): boolean {
     if (value === null || typeof value !== "object") {
         return false;
     }
 
-    const model = value as { name?: unknown };
-    return model.name !== undefined;
+    const model = value as { name?: unknown; rgb?: unknown };
+    return model.name !== undefined || model.rgb !== undefined;
 }
 
 function toColorVariant(value: unknown): string {
@@ -618,10 +771,16 @@ function toColorVariant(value: unknown): string {
         name?: string | number;
         adjustment?: string | number;
         factor?: number;
-        opacity?: number };
+        opacity?: number;
+        rgb?: number | null };
+
+    // An explicit colour stands in place of the name and is adjusted exactly like a named one.
+    const explicit = typeof model.rgb === "number"
+        ? [(model.rgb >> 16) & 0xFF, (model.rgb >> 8) & 0xFF, model.rgb & 0xFF] as [number, number, number]
+        : undefined;
 
     const name = toColorVariantName(model.name);
-    const color = name === null ? undefined : colorVariants.get(name);
+    const color = explicit ?? (name === null ? undefined : colorVariants.get(name));
 
     if (!color) {
         return "";
@@ -644,6 +803,24 @@ function toColorVariant(value: unknown): string {
     }
 
     return `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}${toHexByte(opacity)}`;
+}
+
+/** A role by the name `UIThemeColor.TryParse` reads, from the number it travels as. */
+function toColorStyleName(value: string | number | undefined): string | null {
+    if (typeof value === "string") {
+        const name = value.trim();
+        return name.length === 0 ? null : name;
+    }
+
+    if (typeof value !== "number") {
+        return null;
+    }
+
+    const token = colorTokens[value];
+
+    return token === undefined
+        ? null
+        : token.split("-").map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("");
 }
 
 function toColorVariantName(value: string | number | undefined): string | null {
@@ -673,42 +850,23 @@ function toColorAdjustmentName(value: string | number | undefined): string {
 }
 
 function toIconClassName(value: unknown): string {
-    const icon = String(value ?? "").trim();
+    const image = readIconSource(value);
 
-    if (icon.length === 0) {
+    if (image !== null) {
+        return image.tinted ? "" : iconImageClassName;
+    }
+
+    return toIconGlyphClassName(value);
+}
+
+// The reading is the value, never a percentage: a converter is handed one property and cannot see Min and Max.
+function toProgressValue(value: unknown): string {
+    if (value === null || value === undefined || value === "")
         return "";
-    }
 
-    let result = "ui-icon-glyph--";
+    const numberValue = typeof value === "number" ? value : Number(value);
 
-    for (const character of icon) {
-        if (isAsciiLetterOrDigit(character)) {
-            result += character.toLowerCase();
-            continue;
-        }
-
-        if (character === "-" || character === "_" || character === "." || character === " ") {
-            if (!result.endsWith("-")) {
-                result += "-";
-            }
-        }
-    }
-
-    return result.length === "ui-icon-glyph--".length ? "" : result;
-}
-
-function isAsciiLetterOrDigit(value: string): boolean {
-    const code = value.charCodeAt(0);
-
-    return (code >= 48 && code <= 57)
-        || (code >= 65 && code <= 90)
-        || (code >= 97 && code <= 122);
-}
-
-function toProgressPercent(value: unknown): number {
-    const numberValue = typeof value === "number" ? value : Number(value ?? 0);
-
-    return Math.round(Math.min(100, Math.max(0, numberValue)));
+    return Number.isFinite(numberValue) ? String(numberValue) : "";
 }
 
 function toPixels(value: unknown): string {
@@ -723,24 +881,17 @@ function toOptionalPixels(value: unknown): string {
     return value === null || value === undefined ? "" : toPixels(value);
 }
 
-function toResponsiveTier(value: unknown, tier: "base" | "sm" | "md" | "xl" | "xxl"): unknown {
-    if (value === null || value === undefined) {
+// Mirrors `WebComponentRendererBase.RenderVisibilityTier`: a tier resolves to its own value or the nearest narrower one set.
+function toVisibilityAttribute(value: unknown, tier: ResponsiveTier): string | undefined {
+    const resolved = resolveResponsiveTier(value, tier);
+
+    if (resolved === null || resolved === undefined) {
         return undefined;
     }
 
-    const model = typeof value === "object" ? value as Record<string, unknown> : undefined;
+    const token = toToken(resolved, visibilityTokens);
 
-    if (model === undefined || !("base" in model || "Base" in model)) {
-        return tier === "base" ? value : undefined;
-    }
-
-    const pascalTier = tier.charAt(0).toUpperCase() + tier.slice(1);
-
-    return model[tier] ?? model[pascalTier];
-}
-
-function toHiddenAttribute(value: unknown, tier: "base" | "sm" | "md" | "xl" | "xxl"): string | undefined {
-    return toResponsiveTier(value, tier) === false ? "" : undefined;
+    return token === "visible" ? undefined : token;
 }
 
 function clampByte(value: number): number {
@@ -751,9 +902,3 @@ function toHexByte(value: number): string {
     return clampByte(value).toString(16).padStart(2, "0").toUpperCase();
 }
 
-function toKebabCase(value: string): string {
-    return value
-        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-        .replace(/_/g, "-")
-        .toLowerCase();
-}

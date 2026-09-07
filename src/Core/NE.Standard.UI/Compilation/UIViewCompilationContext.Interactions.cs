@@ -90,18 +90,15 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Resolves an interaction's effect the way a command's effect is resolved, only at compile time: the
-    /// authored component id becomes a compiled address the client can find in the DOM.
+    /// Resolves an interaction's effect, turning its authored component id into a compiled address.
     /// </summary>
     private ClientEffect? ResolveInteractionEffect(UIInteraction interaction)
     {
         if (interaction.Effect is not ClientEffect effect)
             return null;
 
-        // Narrow on purpose. These three are pure client gestures with nothing behind them on the server; the
-        // rest of the vocabulary (navigate, dialogs, notifications, downloads) reaches something a round trip
-        // set up, and letting an interaction fire one would be a command in all but name.
-        if (effect.Kind is not (ClientEffectKind.Focus or ClientEffectKind.ScrollTo or ClientEffectKind.Scroll))
+        // Only effects that can run without a round trip are allowed here; see ClientEffect.CanRunInInteraction.
+        if (!effect.CanRunInInteraction)
             throw new InvalidOperationException($"Client effect kind '{effect.Kind}' cannot be run by an interaction.");
 
         return effect.Resolve(this);

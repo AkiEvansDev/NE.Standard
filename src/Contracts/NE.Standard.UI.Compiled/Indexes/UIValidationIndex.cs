@@ -36,12 +36,12 @@ public sealed class UIValidationIndex
 
             ValidateRule(rule);
 
-            Add(builder, rule.Target, rule);
-            Add(byComponent, rule.Target.Component.Id, rule);
+            GroupingIndex.Add(builder, rule.Target, rule);
+            GroupingIndex.Add(byComponent, rule.Target.Component.Id, rule);
         }
 
-        _byTarget = Freeze(builder);
-        _byComponent = Freeze(byComponent);
+        _byTarget = GroupingIndex.Freeze(builder);
+        _byComponent = GroupingIndex.Freeze(byComponent);
     }
 
     /// <summary>
@@ -64,29 +64,6 @@ public sealed class UIValidationIndex
             throw new ArgumentException("Component id must not be empty.", nameof(componentId));
 
         return _byComponent.TryGetValue(componentId, out CompiledUIValidationRule[]? rules) ? rules : Empty;
-    }
-
-    private static void Add<TKey>(Dictionary<TKey, List<CompiledUIValidationRule>> map, TKey key, CompiledUIValidationRule rule)
-        where TKey : notnull
-    {
-        if (!map.TryGetValue(key, out List<CompiledUIValidationRule>? list))
-        {
-            list = [];
-            map.Add(key, list);
-        }
-
-        list.Add(rule);
-    }
-
-    private static FrozenDictionary<TKey, CompiledUIValidationRule[]> Freeze<TKey>(Dictionary<TKey, List<CompiledUIValidationRule>> source)
-        where TKey : notnull
-    {
-        Dictionary<TKey, CompiledUIValidationRule[]> result = new(source.Count);
-
-        foreach (KeyValuePair<TKey, List<CompiledUIValidationRule>> pair in source)
-            result.Add(pair.Key, [.. pair.Value]);
-
-        return result.ToFrozenDictionary();
     }
 
     private static void ValidateRule(CompiledUIValidationRule rule)

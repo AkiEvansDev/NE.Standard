@@ -1,5 +1,19 @@
 @import "./tokens.less";
+@import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
+
+// The page's own accent: a soft corner wash fixed to the window, so anything painted over the page can repeat it exactly.
+.ui-root-wash() {
+    background:
+        radial-gradient(ellipse 80rem 40rem at -14rem -14rem,
+            color-mix(in srgb, var(--ui-color-primary) 12%, transparent) 20%,
+            color-mix(in srgb, var(--ui-color-primary) 8%, transparent) 20%,
+            color-mix(in srgb, var(--ui-color-primary) 4%, transparent) 60%,
+            color-mix(in srgb, var(--ui-color-primary) 1%, transparent) 80%,
+            transparent 100%
+        ) fixed,
+        var(--ui-color-background);
+}
 
 [data-ui-root] {
     position: relative;
@@ -13,13 +27,31 @@
     color: var(--ui-color-on-background);
     z-index: 1;
 }
+    // Fixed to the window, not the page, so the sticky header's own wash stays lined up with this one at every scroll position.
     [data-ui-root]::before {
         content: "";
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: radial-gradient(ellipse 80rem 40rem at -14rem -14rem, color-mix(in srgb, var(--ui-color-primary) 12%, transparent) 20%, color-mix(in srgb, var(--ui-color-primary) 8%, transparent) 20%, color-mix(in srgb, var(--ui-color-primary) 4%, transparent) 60%, color-mix(in srgb, var(--ui-color-primary) 1%, transparent) 80%, transparent 100% ), var(--ui-color-background);
+        .ui-root-wash();
         z-index: -1;
+    }
+
+// The page is the viewport: the header and the sides stand, and each scrolling band scrolls by itself.
+[data-ui-root][data-ui-scroll-content] {
+    height: 100vh;
+    overflow: hidden;
+}
+
+    // The gutter is reserved, or a sidebar whose section unfolds past the fold shifts sideways as its scrollbar comes and goes.
+    [data-ui-root][data-ui-scroll-content] > :is([data-ui-region="content"], [data-ui-region="left-side"], [data-ui-region="right-side"]) {
+        overflow: auto;
+        scrollbar-gutter: stable;
+    }
+
+    // The region is a flex column and its child would shrink to it and clip; kept at its own height, it is what the region scrolls.
+    [data-ui-root][data-ui-scroll-content] > [data-ui-region] > [data-ui-id] {
+        flex-shrink: 0;
     }
 
 [data-ui-region] {
@@ -37,13 +69,12 @@
     grid-row: 1;
 }
 
-// The page scrolls in the document, not inside a pane, so a sticky header is a sticky *grid row* — it needs
-// its own background, because what slides under it is the page and the region is transparent.
+// A sticky header is a sticky grid row, so it needs its own background — the region itself is transparent and the page slides under it.
 [data-ui-region="header"][data-ui-sticky] {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: var(--ui-color-background);
+    .ui-root-wash();
 }
 
 [data-ui-region="left-side"] {
@@ -71,6 +102,9 @@
     --ui-align-v: initial;
     --ui-align-v-stretch-fallback: initial;
 
+    // Custom properties inherit; without this reset a tinted card would hand its colour to every surface inside it.
+    --ui-surface-color: initial;
+
     .ui-responsive-reset(--ui-width);
     .ui-responsive-reset(--ui-min-width);
     .ui-responsive-reset(--ui-max-width);
@@ -80,6 +114,7 @@
     .ui-responsive-reset(--ui-margin);
     .ui-responsive-reset(--ui-padding);
 
+    // Auto, not 100%: an element as wide as its track has nowhere for HorizontalAlignment to move it to.
     .ui-responsive-property(width, --ui-width, auto);
     .ui-responsive-property(min-width, --ui-min-width, 0);
     .ui-responsive-property(max-width, --ui-max-width, none);
@@ -98,48 +133,47 @@
     color: inherit;
 }
 
+// The client's own way of taking something out of a list, distinct from the author-facing Visibility property.
 .ui-hidden {
     display: none !important;
     opacity: 0;
     pointer-events: none;
 }
 
-[data-ui-hidden] {
-    display: none !important;
-    opacity: 0;
-    pointer-events: none;
-}
-
-@media (min-width: @ui-breakpoint-sm) {
-    [data-ui-hidden-sm] {
+// What Visibility writes, one attribute per tier; each tier's rules live in its own band, since no CSS rule undoes display: none.
+.ui-visibility-rules(@attribute) {
+    [@{attribute}="collapsed"] {
         display: none !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    // The room is kept and nothing around it moves, for a row revealed on hover where collapsing would resize the thing the pointer is on.
+    [@{attribute}="hidden"] {
+        visibility: hidden;
         opacity: 0;
         pointer-events: none;
     }
 }
 
-@media (min-width: @ui-breakpoint-md) {
-    [data-ui-hidden-md] {
-        display: none !important;
-        opacity: 0;
-        pointer-events: none;
-    }
+@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+    .ui-visibility-rules(data-ui-visibility);
 }
 
-@media (min-width: @ui-breakpoint-xl) {
-    [data-ui-hidden-xl] {
-        display: none !important;
-        opacity: 0;
-        pointer-events: none;
-    }
+@media (min-width: @ui-breakpoint-sm) and (max-width: (@ui-breakpoint-md - 0.02px)) {
+    .ui-visibility-rules(data-ui-visibility-sm);
+}
+
+@media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
+    .ui-visibility-rules(data-ui-visibility-md);
+}
+
+@media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+    .ui-visibility-rules(data-ui-visibility-xl);
 }
 
 @media (min-width: @ui-breakpoint-xxl) {
-    [data-ui-hidden-xxl] {
-        display: none !important;
-        opacity: 0;
-        pointer-events: none;
-    }
+    .ui-visibility-rules(data-ui-visibility-xxl);
 }
 
 .ui-disabled {
@@ -151,44 +185,33 @@
     cursor: progress;
 }
 
-@keyframes ui-preview-pulse {
-    from {
-        background-position: 200% 0;
-    }
+// What waiting looks like with no better way to say it: the ground fades and the ring turns. Components with an icon opt out.
+@ui-loading-veiled: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon)";
 
-    to {
-        background-position: -200% 0;
-    }
-}
-
-.ui-preview-text,
-.ui-preview-card,
-.ui-preview-circle {
+@{ui-loading-veiled} {
     position: relative;
 }
 
-.ui-preview-text::after,
-.ui-preview-card::after,
-.ui-preview-circle::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 10%, transparent), transparent);
-    background-size: 200% 100%;
-    animation: ui-preview-pulse 1.2s ease-in-out infinite;
-}
+    @{ui-loading-veiled}::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        background: color-mix(in srgb, var(--ui-color-background) 65%, transparent);
+        pointer-events: none;
+    }
 
-.ui-preview-text::after {
-    min-height: 1em;
-}
+    @{ui-loading-veiled}::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 2;
+        // Its own font size, so the ring keeps its size whatever the component's text does; the margins are in em and stay centred.
+        margin: -0.5em 0 0 -0.5em;
+        font-size: 1.5rem;
+        pointer-events: none;
+        .ui-loading-ring();
+    }
 
-.ui-preview-card::after {
-    border-radius: var(--ui-radius-md, 8px);
-}
-
-.ui-preview-circle::after {
-    border-radius: 999px;
-}

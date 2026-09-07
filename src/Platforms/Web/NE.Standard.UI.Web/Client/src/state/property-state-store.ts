@@ -1,4 +1,5 @@
 import { getIdValue, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
+import { areValuesEqual } from "./value-equality";
 
 export class PropertyStateStore {
     private readonly values = new Map<string, unknown>();
@@ -15,7 +16,7 @@ export class PropertyStateStore {
         const key = this.createKey(reference, dynamicParameters);
         const previousValue = this.values.get(key);
 
-        if (this.values.has(key) && areEqual(previousValue, value))
+        if (this.values.has(key) && areValuesEqual(previousValue, value))
             return false;
 
         this.values.set(key, value);
@@ -55,14 +56,4 @@ function serializeDynamicParameters(dynamicParameters: readonly unknown[]): stri
     catch {
         return String(dynamicParameters);
     }
-}
-
-function areEqual(left: unknown, right: unknown): boolean {
-    if (Object.is(left, right))
-        return true;
-
-    if (left instanceof Date && right instanceof Date)
-        return left.getTime() === right.getTime();
-
-    return false;
 }

@@ -23,6 +23,8 @@ export type InteractionEventContext = {
 export type InteractionEngineOptions = {
     readonly effects: EffectRegistry;
     readonly dom: DomRegistry;
+    /** Where a value an event interaction wrote goes next: to the server, when the property is bound to write back. */
+    readonly writeBack?: (target: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown) => void;
 };
 
 export class InteractionEngine {
@@ -97,12 +99,13 @@ export class InteractionEngine {
         finally {
             this.applyDepth--;
         }
+
+        // Only what an event wrote: a property-sourced interaction answering a server change must not echo it back.
+        if (local)
+            this.options.writeBack?.(target, dynamicParameters, nextValue);
     }
 
-    /**
-     * An effect interaction has nothing to assign: it runs the same client effect a command would have
-     * returned, through the same registry, only without the round trip.
-     */
+    /** Runs the client effect a command would have returned, without the round trip. */
     private applyEffectInteraction(
         interaction: WebRenderInteractionMetadata,
         dynamicParameters: readonly unknown[],
@@ -115,17 +118,13 @@ export class InteractionEngine {
             return;
         }
 
-        // A property-driven effect interaction fires only while its condition holds; falseValue has no
-        // meaning here, so the miss simply does nothing.
+        // Fires only while the condition holds; falseValue has no meaning for an effect.
         if (this.evaluator.matches(interaction, sourceValue))
             this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters), dom: this.options.dom });
     }
 }
 
-/**
- * An effect authored inside an item template names its target component but cannot name the row: the author
- * has no key to write at compile time. The scope the interaction fired in supplies it.
- */
+/** Supplies the row an effect authored in an item template could not name at compile time. */
 function withScopeParameters(effect: ClientEffect, dynamicParameters: readonly unknown[]): ClientEffect {
     if (dynamicParameters.length === 0)
         return effect;
