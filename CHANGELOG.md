@@ -8,6 +8,17 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.0.0-rc.1
+
+The release candidate. The framework, the icon sets and the code input go out on one number from here, so
+what a project installs is one decision rather than three.
+
+- **The client's tests run from the project file, not from `npm run build`.** Nine of them read the parity
+  corpora shared with the .NET tests, and those live under `eng/`, which is not part of a published tree — so
+  `dotnet build` on a clone of this repository failed on nine missing files before it reached the bundle. The
+  tests now run the way the .NET tests do, where the sources sit next to them; `npm run build` type-checks
+  and bundles, and a clone builds.
+
 ## 1.0.0-preview.2
 
 The second preview. Twelve more built-in components, one vocabulary across every host that shows rows, the

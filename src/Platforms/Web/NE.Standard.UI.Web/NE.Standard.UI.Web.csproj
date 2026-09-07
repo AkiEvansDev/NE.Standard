@@ -43,6 +43,13 @@
       Command="npm install"
       Condition="!Exists('$(MSBuildProjectDirectory)\Client\node_modules')" />
 
+    <!-- The client's tests read the parity corpora under eng/, which is never mirrored, so they run here and
+         not from `npm run build` - the same rule the .NET tests follow: a mirror builds, it does not test. -->
+    <Exec
+      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
+      Command="npm test"
+      Condition="'$(InMonorepo)' == 'true'" />
+
     <Exec
       WorkingDirectory="$(MSBuildProjectDirectory)\Client"
       Command="npm run build" />
