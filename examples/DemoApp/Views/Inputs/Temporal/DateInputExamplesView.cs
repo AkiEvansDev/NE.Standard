@@ -1,11 +1,8 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -29,7 +26,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateBoundsGroup(), CreateStateGroup()],
+            [CreateUsesGroup(), CreateBoundsGroup()],
             [CreateFormatGroup(), CreateCalendarGroup()]
         ));
     }
@@ -56,8 +53,13 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetBadgeText("frozen")
                     .SetBadgeStyle(UIBadgeType.Warning)
                 )
-            ),
-            contentMinHeight: 300
+                .AddChild(new DateInputComponent()
+                    .SetTitle("Artefacts are kept until")
+                    .SetIcon(DemoIcons.History)
+                    .SetValue(QuarterEnd)
+                    .SetMin(Release)
+                )
+            )
         );
     }
 
@@ -82,13 +84,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDisplayFormat("dd MMM yyyy")
                     .SetValue(Release)
                 )
-                .AddChild(new DateInputComponent()
-                    .SetTitle("dddd, d MMMM")
-                    .SetDisplayFormat("dddd, d MMMM")
-                    .SetValue(Release)
-                )
-            ),
-            contentMinHeight: 340
+            )
         );
     }
 
@@ -114,8 +110,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Release)
                     .SetMax(Release)
                 )
-            ),
-            contentMinHeight: 280
+            )
         );
     }
 
@@ -142,46 +137,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Release)
                 )
             ),
-            contentMinHeight: 280
-        );
-    }
-
-    /// <summary>The field's own surface, its affixes, and the states.</summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new DateInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue(Release)
-                )
-                .AddChild(new DateInputComponent()
-                    .SetTitle("With an affix glyph")
-                    .SetPrefixIcon(DemoIcons.History)
-                    .SetValue(Release)
-                )
-                .AddChild(new DateInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(Release)
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new DateInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue(Release)
-                    .SetEnabled(false)
-                )
-                .AddChild(new DateInputComponent()
-                    .SetTitle("Required, nothing chosen yet")
-                    .Required("A date is required.")
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The picker opens aligned to **the toggle button** rather than to the left edge of the field: one anchor cannot both clear the row vertically *and* line up with a button centred inside it.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-            ),
-            contentMinHeight: 440
+            note: "The picker opens aligned to **the toggle button** rather than to the left edge of the field: one anchor cannot both clear the row vertically *and* line up with a button centred inside it."
         );
     }
 }

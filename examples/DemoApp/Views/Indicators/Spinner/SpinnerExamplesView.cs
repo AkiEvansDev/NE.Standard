@@ -26,7 +26,7 @@ internal sealed class SpinnerExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateInlineGroup(), CreateAgainstLoadingGroup()],
+            [CreateAgainstLoadingGroup(), CreateInlineGroup()],
             [CreateRegionGroup(), CreateAgainstProgressGroup()]
         ));
     }

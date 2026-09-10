@@ -1,8 +1,8 @@
 // The items variant of a tabs strip: captions and pages come from one collection, so a tab's key is the item's own key.
 
 import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, TabCaptionAttribute, TabOrderAttribute, TabsSelectedAttribute, UndraggableAttribute,
-    TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
+    BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, TabCaptionAttribute, TabOrderAttribute, TabPinnedAttribute, TabsSelectedAttribute,
+    UndraggableAttribute, TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
 } from "../addressing/dom-attributes";
 import { EffectRegistry } from "../effects/effect-registry";
 import { getIdValue, RenameTabClientEffect } from "../metadata/metadata-index";
@@ -31,6 +31,9 @@ const PageClass = "ui-tab-item__page";
 const SelectedModifier = "ui-tab-item--selected";
 
 const RenamableAttribute = "data-ui-tabs-renamable";
+
+/** Written on the host: what the caption strip took of it, so the page below can fill the rest. */
+const StripHeightVariable = "--ui-tabs-view-strip";
 
 export type TabsViewEngineOptions = {
     readonly root?: ParentNode;
@@ -91,11 +94,17 @@ export class TabsViewEngine {
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // Tabs arrive with the collection, so childList counts as much as the selected attribute.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes] }, views => {
-            for (const view of views)
-                this.apply(view);
-        });
+        // Tabs arrive with the collection, so childList counts as much as the selected attribute; a strip whose Draggable is switched
+        // live rewrites every caption's draggable flag, so that attribute is watched too.
+        observeComponents(
+            this.root,
+            `.${RootClass}`,
+            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, ...VisibilityTierAttributes] },
+            views => {
+                for (const view of views)
+                    this.apply(view);
+            }
+        );
     }
 
     private applyAll(): void {
@@ -121,6 +130,7 @@ export class TabsViewEngine {
         const reorderable = root.hasAttribute(TabsDraggableAttribute);
         const captions: HTMLElement[] = [];
         let currentCaption: HTMLElement | null = null;
+        let currentPage: HTMLElement | null = null;
 
         for (const item of items) {
             const own = tabKey(item) === selected;
@@ -144,9 +154,13 @@ export class TabsViewEngine {
 
             for (const page of item.querySelectorAll<HTMLElement>(`.${PageClass}`))
                 page.hidden = !own;
+
+            if (own)
+                currentPage = item.querySelector<HTMLElement>(`.${PageClass}`);
         }
 
         this.fitCaptions(root, captions, currentCaption);
+        this.writeStripHeight(root, currentPage);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
         const labels: HTMLElement[] = [];
@@ -168,12 +182,35 @@ export class TabsViewEngine {
     }
 
     /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
+    /**
+     * How much of the host the strip took, written on the host as a variable the stylesheet reads. The strip and the page are lines
+     * of one wrapping flex, and a line's height is its own content's, so the page has no way of its own to fill what is left; with
+     * this it can, and a page that asks for its whole height gets one that is not its content's.
+     */
+    private writeStripHeight(root: HTMLElement, page: HTMLElement | null): void {
+        const host = this.hostOf(root);
+
+        if (host === null || page === null || !isLaidOut(page))
+            return;
+
+        const strip = Math.max(0, Math.round(page.getBoundingClientRect().top - host.getBoundingClientRect().top));
+
+        host.style.setProperty(StripHeightVariable, `${strip}px`);
+    }
+
+    private hostOf(root: HTMLElement): HTMLElement | null {
+        return root.querySelector<HTMLElement>(`:scope > [${ItemsHostAttribute}]`);
+    }
+
     private fitCaptions(root: HTMLElement, captions: readonly HTMLElement[], selected: HTMLElement | null): void {
-        const host = root.querySelector<HTMLElement>(`:scope > [${ItemsHostAttribute}]`);
+        const host = this.hostOf(root);
         const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
 
         if (host === null || button === null)
             return;
+
+        // Watched whatever the strip does with its captions: a host that changed size has a strip of another height under it.
+        this.resizes?.observe(host);
 
         // A strip without the "…" list wraps its captions instead: every caption stays on the strip.
         if (root.classList.contains(NoOverflowModifier)) {
@@ -183,8 +220,6 @@ export class TabsViewEngine {
             root.classList.remove(OverflowingModifier);
             return;
         }
-
-        this.resizes?.observe(host);
 
         // Shown for the measurement, so a control that was hidden has a width; taken off again when everything fits.
         root.classList.add(OverflowingModifier);
@@ -359,9 +394,9 @@ export class TabsViewEngine {
         if (item === null)
             return;
 
-        // A tab whose item refuses to be dragged (a pinned one) stays where it is; only a tab's own drag is refused here —
+        // A tab whose item refuses to be dragged, and a pinned one, stay where they are; only a tab's own drag is refused here —
         // this listener sees every drag on the page.
-        if (rowOf(item).hasAttribute(UndraggableAttribute)) {
+        if (rowOf(item).hasAttribute(UndraggableAttribute) || item.hasAttribute(TabPinnedAttribute)) {
             domEvent.preventDefault();
             return;
         }

@@ -195,20 +195,40 @@ internal abstract partial class UIRuntimeBase
     /// the collection no longer holds.
     /// </summary>
     /// <remarks>
-    /// Only a controller-backed collection is checked: a compile-time static one is rendered whole and cannot
-    /// have changed since, and has no path the controller can resolve.
+    /// The item is the innermost keyed segment: a click site inside a row's own slot — the action button of a key-value row, whose
+    /// scope is the row's <c>Action</c> — addresses that property under the row, and the key it means is the row's. Only a
+    /// controller-backed collection is checked: a compile-time static one is rendered whole and cannot have changed since, and
+    /// has no path the controller can resolve.
     /// </remarks>
     private string ResolveCurrentItemKey(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
     {
         RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
+        var keyIndex = path.Count - 1;
 
-        if (path.Count == 0 || path[^1].Kind != PathSegmentKind.Key)
+        while (keyIndex >= 0 && path[keyIndex].Kind != PathSegmentKind.Key)
+            keyIndex--;
+
+        if (keyIndex < 0)
             throw new InvalidOperationException($"Argument '{argument.Name}' does not address a keyed item.");
 
-        if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(path, out _))
+        if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(ItemPath(path, keyIndex), out _))
             throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item no longer in its collection.");
 
-        return path[^1].Key;
+        return path[keyIndex].Key;
+    }
+
+    /// <summary>The path up to and including the keyed segment at <paramref name="keyIndex"/>; the path itself when that is its last.</summary>
+    private static RecursivePath ItemPath(RecursivePath path, int keyIndex)
+    {
+        if (keyIndex == path.Count - 1)
+            return path;
+
+        PathSegment[] segments = new PathSegment[keyIndex + 1];
+
+        for (var i = 0; i <= keyIndex; i++)
+            segments[i] = path[i];
+
+        return new RecursivePath(segments, ownsArray: true);
     }
 
     private UICommandResult ResolveCommandResult(RuntimeExceptionResult result, Exception exception)

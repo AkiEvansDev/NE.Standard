@@ -136,35 +136,43 @@
     padding-bottom: 0;
 }
 
-    // The editor is the whole cell: a ghost field with no corners and no ring, the wash over all of it under the pointer or the caret,
-    // and a switch or a picture centred in the same cell (the cell's own display is set where the halves are shown below).
-    .ui-key-value-action__value-input > .ui-input--ghost {
+    // The editor fills the cell's width and sits in the middle of its height, a small control tall: a filled box (the default) set back
+    // by its own padding so its text starts where the value's did; a ghost or an underlined field the same, with no box to set back.
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         flex: 1 1 auto;
-        align-self: stretch;
-        .ui-responsive-property(min-width, --ui-min-width, 0);
-        --ui-height: 100%;
-    }
-
-    // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.
-    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--ghost) {
         align-self: center;
+        .ui-responsive-property(min-width, --ui-min-width, 0);
     }
 
-    .ui-key-value-action__value-input .ui-input--ghost > :is(@{ui-input-field}) {
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline) {
+        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0 @ui-space-1 calc(-1 * (@ui-space-3 + var(--ui-border-width, 1.5px))));
+    }
+
+    .ui-key-value-action__value-input > :is(.ui-input--ghost, .ui-input--underline) {
+        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
+    }
+
+    // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline, with
+    // the row's own inset back, since the row gave its padding to the field.
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+        align-self: center;
+        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
+    }
+
+    .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
         flex: 1 1 auto;
+        min-height: @ui-button-height-sm;
+    }
+
+    .ui-key-value-action__value-input :is(.ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
         border-radius: 0;
     }
 
-    // No hover of its own: the cell is the row's, and a wash on the field inside it read as a second box.
-    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field}):hover,
-    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > .ui-field-box:hover {
-        background: none;
-    }
-
+    // No box and no wash under the caret either: the row is the box, and a field with no edge of its own does not react — the rule
+    // every input follows.
     .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
         border-color: transparent;
         box-shadow: none;
-        background: var(--ui-wash-hover);
     }
 
     .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value,

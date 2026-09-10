@@ -27,9 +27,11 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePlainGroup(), CreateTemplateGroup()],
-            [CreateRichGroup(), CreateFieldGroup()]
+            [CreatePlainGroup()],
+            [CreateRichGroup()]
         ));
+
+        _ = container.AddChild(CreateTemplateGroup());
     }
 
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>
@@ -49,8 +51,7 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPlaceholder("Pick a region")
                     .SetOptions(RegionOptions())
                 )
-            ),
-            contentMinHeight: 240
+            )
         );
     }
 
@@ -73,8 +74,7 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-            ),
-            contentMinHeight: 260
+            )
         );
     }
 
@@ -85,9 +85,17 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateTemplateGroup()
     {
         return DemoUI.CreateGroup(null, "A template of your own",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new SelectComponent()
+            content => content.AddChild(DemoUI.CreateRow(32)
+                .AddChild(DemoUI.CreateCaptionedItem("The default row, over the same options", new SelectComponent()
                     .SetTitle("On call")
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    .SetPlaceholder("Pick an engineer")
+                    .SetOptions(Engineers())
+                    .SetValue("robin")
+                ))
+                .AddChild(DemoUI.CreateCaptionedItem("A template of your own", new SelectComponent()
+                    .SetTitle("On call")
+                    .SetWidth(UILayoutLength.Absolute(320))
                     .SetPlaceholder("Pick an engineer")
                     .SetTemplate(new TextComponent()
                         .BindText()
@@ -100,42 +108,11 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .SetOptions(Engineers())
                     .SetValue("robin")
-                )
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 220
-        );
-    }
-
-    /// <summary>The trigger's own surface: the two appearances, an affix icon, and a read-only dropdown.</summary>
-    private static ContainerComponent CreateFieldGroup()
-    {
-        return DemoUI.CreateGroup(null, "The field it sits in",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new SelectComponent()
-                    .SetTitle("Filled")
-                    .SetOptions(RegionOptions())
-                    .SetValue("us-east-1")
-                )
-                .AddChild(new SelectComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetOptions(RegionOptions())
-                    .SetValue("us-east-1")
-                )
-                .AddChild(new SelectComponent()
-                    .SetTitle("With an affix icon")
-                    .SetPrefixIcon(DemoIcons.Navigation)
-                    .SetOptions(RegionOptions())
-                    .SetValue("ap-south-1")
-                )
-                .AddChild(new SelectComponent()
-                    .SetTitle("Read-only")
-                    .SetOptions(RegionOptions())
-                    .SetValue("eu-west-1")
-                    .SetIsReadOnly(true)
-                )
-            ),
-            contentMinHeight: 320
+            columns: 24,
+            note: "Side by side, because the template only reads as a choice against the row it replaces — a larger glyph, the second line quietened, the badge moved to the far end."
         );
     }
 

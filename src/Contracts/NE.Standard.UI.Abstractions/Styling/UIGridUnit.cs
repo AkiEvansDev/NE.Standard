@@ -12,6 +12,10 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// The platform holds what its layout can hold — a star track's floor, a content track's floor or ceiling — and a
 /// <c>GridSplitter</c> clamps to the rest; a fixed track's bounds only say how far it may be dragged.
 /// </remarks>
+/// <param name="Unit">How the track is sized: a fixed length, a share of the free space, or its content.</param>
+/// <param name="Value">The size in the unit's own terms.</param>
+/// <param name="MinValue">The floor a splitter may drag the track down to.</param>
+/// <param name="MaxValue">The ceiling a splitter may drag the track up to.</param>
 public readonly record struct UIGridUnit(UIGridUnitType Unit, double Value, double? MinValue = null, double? MaxValue = null)
 {
     /// <summary>

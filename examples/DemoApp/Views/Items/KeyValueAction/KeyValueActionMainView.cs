@@ -1,11 +1,11 @@
 using DemoApp.Controllers.Base;
-using DemoApp.Controllers.Contents.KeyValueAction;
+using DemoApp.Controllers.Items.KeyValueAction;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 
-namespace DemoApp.Views.Contents.KeyValueAction;
+namespace DemoApp.Views.Items.KeyValueAction;
 
 /// <summary>
 /// One list, and every property that can be bound to it; the rows come from a bound collection.
@@ -17,12 +17,12 @@ internal sealed class KeyValueActionMainView : DemoMainView, IUIViewDefinition
     private const string ItemsGroup = nameof(KeyValueActionMainController.ItemsGroup);
     private const string BorderGroup = nameof(KeyValueActionMainController.BorderGroup);
 
-    public static string ViewKey => "demo.contents.key-value-action.main";
+    public static string ViewKey => "demo.items.key-value-action.main";
 
-    protected override string ComponentRoute => "/contents/key-value-action";
+    protected override string ComponentRoute => "/items/key-value-action";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Main, DemoViewKind.Examples, DemoViewKind.Scenarios];
-    protected override string Header => "demo.contents.key-value-action.header";
-    protected override string HeaderDescription => "demo.contents.key-value-action.description";
+    protected override string Header => "demo.items.key-value-action.header";
+    protected override string HeaderDescription => "demo.items.key-value-action.description";
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new KeyValueActionComponent()

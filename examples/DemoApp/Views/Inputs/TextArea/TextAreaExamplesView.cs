@@ -1,9 +1,9 @@
-using System;
 using DemoApp.Views.Base;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.TextArea;
@@ -25,9 +25,11 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFormGroup(), CreateResizeGroup()],
-            [CreateRowsGroup(), CreateStateGroup()]
+            [CreateFormGroup()],
+            [CreateCommentGroup()]
         ));
+
+        _ = container.AddChild(CreateHeightGroup());
     }
 
     /// <summary>The ordinary case: a labelled box of prose, and the same box with nothing in it yet.</summary>
@@ -46,98 +48,66 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPlaceholder("One per line — owner, then what they are doing about it.")
                     .SetRows(3)
                 )
-            ),
-            contentMinHeight: 320
+            )
         );
     }
 
     /// <summary>
-    /// <c>Rows</c> is the height the field is drawn at with nothing in it, not where it stays.
+    /// The other place it lives: a box that is sent rather than saved, kept small so the thread stays readable.
     /// </summary>
-    private static ContainerComponent CreateRowsGroup()
+    private static ContainerComponent CreateCommentGroup()
     {
-        return DemoUI.CreateGroup(null, "Rows",
-            content =>
-            {
-                StackPanelComponent stack = DemoUI.CreateStack();
-
-                foreach (var rows in (int[])[2, 4, 6])
-                {
-                    _ = stack.AddChild(new TextAreaComponent()
-                        .SetTitle($"Rows = {rows}")
-                        .SetValue(Incident)
-                        .SetRows(rows)
-                    );
-                }
-
-                _ = content.AddChild(stack);
-            },
-            contentMinHeight: 420
-        );
-    }
-
-    /// <summary>
-    /// Whether the box may be dragged bigger, and along which axis; only <c>Vertical</c> keeps it in its column.
-    /// </summary>
-    private static ContainerComponent CreateResizeGroup()
-    {
-        return DemoUI.CreateGroup(null, "Resize",
-            content =>
-            {
-                StackPanelComponent stack = DemoUI.CreateStack();
-
-                foreach (UITextAreaResizeMode mode in Enum.GetValues<UITextAreaResizeMode>())
-                {
-                    _ = stack.AddChild(new TextAreaComponent()
-                        .SetTitle(mode.ToString())
-                        .SetValue("Drag the corner.")
-                        .SetResize(mode)
-                        .SetRows(2)
-                    );
-                }
-
-                _ = content.AddChild(stack);
-            },
-            contentMinHeight: 460
-        );
-    }
-
-    /// <summary>
-    /// The field's own surface and states; <c>Underline</c> runs its rule under the whole box.
-    /// </summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new TextAreaComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue("An edit-in-place note.")
-                    .SetRows(2)
+        return DemoUI.CreateGroup(null, "A box that is sent",
+            content => content.AddChild(new CardComponent()
+                .ConfigureDefaultHeader(header => header
+                    .SetIcon(DemoIcons.MessageSquare)
+                    .SetTitle("Add a comment")
+                    .SetDescription("Everyone watching the incident is notified")
                 )
-                .AddChild(new TextAreaComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(Incident)
-                    .SetIsReadOnly(true)
+                .SetContent(new TextAreaComponent()
+                    .SetPlaceholder("What did you find?")
                     .SetRows(3)
+                    .SetMaxLength(280)
                 )
-                .AddChild(new TextAreaComponent()
-                    .SetTitle("Disabled")
-                    .SetValue("Locked while the incident is open.")
-                    .SetEnabled(false)
-                    .SetRows(2)
+                .SetFooter(DemoUI.CreateRow(8)
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Primary)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Send))
+                        .SetTitle("Comment")
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetTitle("Discard")
+                    )
                 )
-                .AddChild(new TextAreaComponent()
-                    .SetTitle("Required, and limited to 60 characters")
-                    .SetBadgeText("60 max")
-                    .SetBadgeStyle(UIBadgeType.Info)
-                    .SetPlaceholder("One sentence.")
-                    .SetMaxLength(60)
-                    .SetRows(2)
-                    .Required("A summary is required.")
-                )
-            ),
-            contentMinHeight: 460
+                .SetPlacement(1, 1, 24, 1)
+            )
         );
     }
+
+    /// <summary>
+    /// The two decisions the author makes once: how tall the box starts, and whether the reader may change that.
+    /// </summary>
+    /// <remarks>Side by side, because the pair is a choice — stacked, three boxes of prose read as one long form.</remarks>
+    private static ContainerComponent CreateHeightGroup()
+    {
+        return DemoUI.CreateGroup(null, "How tall it starts, and who may change it",
+            content => content.AddChild(DemoUI.CreateRow(24)
+                .AddChild(CreateSized("Two rows, fixed — a line in a dense form", 2, UITextAreaResizeMode.None, "A note nobody should turn into an essay."))
+                .AddChild(CreateSized("Four rows, the reader may pull it taller", 4, UITextAreaResizeMode.Vertical, Incident))
+                .AddChild(CreateSized("Six rows — the writing is the page", 6, UITextAreaResizeMode.Vertical, Incident))
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            columns: 24,
+            note: "`Rows` is the height the box is drawn at, not where it stays; `Vertical` is the only resize a column survives, since the other two let the box push its neighbours out."
+        );
+    }
+
+    private static StackPanelComponent CreateSized(string caption, int rows, UITextAreaResizeMode resize, string value)
+        => DemoUI.CreateCaptionedItem(caption, new TextAreaComponent()
+            .SetWidth(UILayoutLength.Absolute(340))
+            .SetValue(value)
+            .SetRows(rows)
+            .SetResize(resize)
+        );
 }

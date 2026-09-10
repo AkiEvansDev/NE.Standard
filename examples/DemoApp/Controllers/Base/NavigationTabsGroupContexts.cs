@@ -1,3 +1,4 @@
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
@@ -88,9 +89,9 @@ internal sealed partial class DemoDocumentItem : TabItem
     [RecursiveMember(false)]
     public string Extension { get; init; } = string.Empty;
 
-    /// <summary>A document the strip refuses to close; the controller says so, the tab still offers it.</summary>
+    /// <summary>The tab's own menu, one per document: the pin entry says what pressing it does, so its word follows <c>Pinned</c>.</summary>
     [RecursiveMember(false)]
-    public bool Pinned { get; set; }
+    public RecursiveCollection<MenuItem> Actions { get; } = [];
 }
 
 /// <summary>
@@ -160,12 +161,17 @@ internal sealed partial class TabsViewItemGroupContext : DemoGroupContext
         _document = document;
 
         AddOption(nameof(TabItem.CanRemove), ToggleCanRemove, () => _document.CanRemove);
+        AddOption(nameof(TabItem.Pinned), TogglePinned, () => _document.Pinned);
         AddOption(nameof(TabItem.Order), CycleOrder, () => _document.Order);
         AddOption(nameof(TabItem.Visibility), ToggleVisible, () => _document.Visibility?.Base);
     }
 
     public void ToggleCanRemove()
         => SetLastChange(nameof(TabItem.CanRemove), _document.CanRemove = _document.CanRemove == false);
+
+    // The pin is drawn, the close goes and a drag leaves the tab where it is; whether a close from elsewhere is refused is the controller's.
+    public void TogglePinned()
+        => SetLastChange(nameof(TabItem.Pinned), _document.Pinned = _document.Pinned != true);
 
     // The strip is sorted on the number, so the tab moves and nothing else is renumbered.
     public void CycleOrder()

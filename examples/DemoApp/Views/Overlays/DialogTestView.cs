@@ -9,7 +9,6 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 

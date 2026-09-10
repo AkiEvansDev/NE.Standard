@@ -70,6 +70,9 @@ public sealed record MessageDeleted(string ConversationId, long MessageId, objec
 /// <summary>A conversation was created or gained a member; conversation lists re-read.</summary>
 public sealed record ConversationsChanged(string? AccountId) : AppEvent;
 
+/// <summary>The account read a conversation up to its newest message; its other pages' unread count is stale until they count again.</summary>
+public sealed record MessagesRead(string AccountId) : AppEvent;
+
 /// <summary>The folder tree changed shape or a file's text was saved.</summary>
 public sealed record DocumentsChanged(string? NodeId) : AppEvent;
 

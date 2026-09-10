@@ -1,10 +1,11 @@
 @import "../core/tokens.less";
 
-// The message line under a field, shared by every input; its colour is the severity's, set by the engine or the render.
+// The message line under a field, shared by every input. It is text, so it wears the severity's ink, not the fill the field's edge
+// wears (`--ui-validation-color`): the warning fill measures 1.1:1 on the light page, its ink 5.9:1.
 .ui-validation-message {
     display: none;
     padding: 0 @ui-space-1;
-    color: var(--ui-validation-color, var(--ui-color-danger));
+    color: var(--ui-color-danger-ink);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
 }
@@ -13,4 +14,53 @@
 .ui-validation--warning > .ui-validation-message,
 .ui-validation--info > .ui-validation-message {
     display: block;
+}
+
+.ui-validation--warning > .ui-validation-message {
+    color: var(--ui-color-warning-ink);
+}
+
+.ui-validation--info > .ui-validation-message {
+    color: var(--ui-color-info-ink);
+}
+
+// Where the field stands in a cell of a grid — a table's, a key-value row's — a line under it would grow the whole row, so the message
+// is a mark at the field's top right corner and speaks in a tooltip (the validation engine reads this variable and writes the
+// tooltip). `Marker` asks for it anywhere, `Message` refuses it anywhere; both outrank the cell.
+.ui-table__cell [data-ui-validation-message],
+.ui-key-value-action__value-input [data-ui-validation-message],
+.ui-validation--marker > .ui-validation-message {
+    --ui-validation-presentation: marker;
+}
+
+.ui-validation--message > .ui-validation-message {
+    --ui-validation-presentation: message;
+}
+
+:is(.ui-invalid, .ui-validation--warning, .ui-validation--info):has(> .ui-validation-message--marker) {
+    position: relative;
+}
+
+.ui-validation-message--marker {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    background: currentColor;
+    color: var(--ui-color-danger-ink);
+    font-size: 0;
+    line-height: 0;
+    pointer-events: auto;
+}
+
+.ui-validation--warning > .ui-validation-message--marker {
+    color: var(--ui-color-warning-ink);
+}
+
+.ui-validation--info > .ui-validation-message--marker {
+    color: var(--ui-color-info-ink);
 }

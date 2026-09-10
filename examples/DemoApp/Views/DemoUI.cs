@@ -44,7 +44,6 @@ internal static class DemoUI
             ("/contents/image", "demo.nav.contents.image"),
             ("/contents/badge", "demo.nav.contents.badge"),
             ("/contents/separator", "demo.nav.contents.separator"),
-            ("/contents/key-value-action", "demo.nav.contents.key-value-action"),
         ]),
         ("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Navigation),
         [
@@ -85,6 +84,7 @@ internal static class DemoUI
             ("/items/items-view", "demo.nav.items.items-view"),
             ("/items/table", "demo.nav.items.table"),
             ("/items/tree", "demo.nav.items.tree"),
+            ("/items/key-value-action", "demo.nav.items.key-value-action"),
         ]),
         ("demo.nav.section.indicators", DemoIcons.Outline(DemoIcons.Clock),
         [
@@ -117,7 +117,7 @@ internal static class DemoUI
         ["/indicators/spinner"] = DemoViewKind.Main,
         ["/contents/text"] = DemoViewKind.Main,
         ["/contents/paragraph"] = DemoViewKind.Main,
-        ["/contents/key-value-action"] = DemoViewKind.Main,
+        ["/items/key-value-action"] = DemoViewKind.Main,
         ["/layouts/container"] = DemoViewKind.Main,
         ["/layouts/surface"] = DemoViewKind.Main,
         ["/layouts/card"] = DemoViewKind.Main,
@@ -304,18 +304,30 @@ internal static class DemoUI
     }
 
     /// <summary>
-    /// The two columns a gallery page is read in — the shape, so no page has to build it again.
+    /// The two columns a gallery page is read in — the shape, so no page has to build it again: the groups go into the page's wrap
+    /// in pairs, so the two groups of a row start level, and each takes its own height.
     /// </summary>
-    /// <remarks>Two independent stacks rather than a wrap, whose rows would lock to the tallest group in them.</remarks>
+    /// <remarks>
+    /// Two independent stacks were tried first and read as crooked — every row past the first started at a different height on
+    /// each side (the owner's call, 2026-09-07). A pair leaves room under its shorter group instead, which reads as a row.
+    /// </remarks>
     public static IVisualComponent[] CreateColumns(IEnumerable<ContainerComponent> left, IEnumerable<ContainerComponent> right)
-        => [CreateColumn(left), CreateColumn(right)];
+    {
+        ContainerComponent[] lefts = [.. left];
+        ContainerComponent[] rights = [.. right];
+        List<IVisualComponent> groups = [];
 
-    private static StackPanelComponent CreateColumn(IEnumerable<ContainerComponent> groups)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(16)
-            .AddChildren(groups)
-            .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, 12, 1));
+        for (var i = 0; i < Math.Max(lefts.Length, rights.Length); i++)
+        {
+            if (i < lefts.Length)
+                groups.Add(lefts[i]);
+
+            if (i < rights.Length)
+                groups.Add(rights[i]);
+        }
+
+        return [.. groups];
+    }
 
     /// <summary>The vertical stack an Examples group lays its samples in, the width of the group.</summary>
     public static StackPanelComponent CreateStack(double spacing = 12)

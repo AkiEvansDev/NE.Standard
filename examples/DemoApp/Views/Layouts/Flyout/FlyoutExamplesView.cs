@@ -29,8 +29,8 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFilterGroup(), CreateAgainstBuiltInGroup()],
-            [CreateDetailGroup(), CreateDismissGroup()]
+            [CreateFilterGroup(), CreateDetailGroup()],
+            [CreateDismissGroup(), CreateAgainstBuiltInGroup()]
         ));
     }
 

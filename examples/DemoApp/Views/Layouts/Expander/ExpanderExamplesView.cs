@@ -26,8 +26,8 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFaqGroup(), CreateAccordionGroup()],
-            [CreateAdvancedGroup(), CreateListGroup()]
+            [CreateFaqGroup(), CreateListGroup()],
+            [CreateAccordionGroup(), CreateAdvancedGroup()]
         ));
     }
 

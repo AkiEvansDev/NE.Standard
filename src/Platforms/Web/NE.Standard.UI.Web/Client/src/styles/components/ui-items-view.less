@@ -45,15 +45,20 @@
     flex-direction: column;
 }
 
+// The wrap panel's flow, not a grid: an item with no span of its own takes its content's width and the line wraps where the room
+// ends; a span, where the template names one, is the same share of twenty-four columns a wrap panel's child takes (a grid put an
+// unplaced item across the whole row, which read as a stack).
 .ui-items-view--wrap > .ui-items-view__host,
 .ui-items-view--wrap > [data-ui-items-host] {
-    .ui-placement-host();
-    // max-content, not auto: rows must be sized after the width is known, or a wrapping row overlaps the next.
-    grid-auto-rows: max-content;
-    .ui-responsive-property(gap, --ui-items-view-spacing, 0);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    .ui-responsive-property(--ui-items-view-gap, --ui-items-view-spacing, 0px);
+    gap: var(--ui-items-view-gap);
 }
 
-// display: contents drops the wrapper from layout so the template root takes the span; the tier reset stops items inheriting its placement.
+// display: contents drops the wrapper from layout so the template root is the line's item; the tier reset stops items inheriting its placement.
 .ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item,
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item {
     .ui-responsive-reset-infix(--ui-placement, column-span);
@@ -63,32 +68,37 @@
 
 @ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";
 
+// With no span the calc is invalid and the basis falls back to auto — the content's width; the gap is subtracted the way the wrap panel does.
 :is(@{ui-wrap-items}) {
-    grid-column: span var(--ui-placement-column-span, 24);
-    grid-row: auto;
+    --ui-items-view-span: var(--ui-placement-column-span);
+
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: auto;
+    flex-basis: calc((100% - 23 * var(--ui-items-view-gap, 0px)) / 24 * var(--ui-items-view-span) + (var(--ui-items-view-span) - 1) * var(--ui-items-view-gap, 0px));
 }
 
 @media (min-width: @ui-breakpoint-sm) {
     :is(@{ui-wrap-items}) {
-        grid-column: span var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24));
+        --ui-items-view-span: var(--ui-placement-sm-column-span, var(--ui-placement-column-span));
     }
 }
 
 @media (min-width: @ui-breakpoint-md) {
     :is(@{ui-wrap-items}) {
-        grid-column: span var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24)));
+        --ui-items-view-span: var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)));
     }
 }
 
 @media (min-width: @ui-breakpoint-xl) {
     :is(@{ui-wrap-items}) {
-        grid-column: span var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24))));
+        --ui-items-view-span: var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span))));
     }
 }
 
 @media (min-width: @ui-breakpoint-xxl) {
     :is(@{ui-wrap-items}) {
-        grid-column: span var(--ui-placement-xxl-column-span, var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span, 24)))));
+        --ui-items-view-span: var(--ui-placement-xxl-column-span, var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)))));
     }
 }
 
@@ -99,7 +109,7 @@
 .ui-items-view--wrap > [data-ui-items-host] > [data-ui-window-spacer],
 .ui-items-view--wrap > .ui-items-view__host > [data-ui-group-header],
 .ui-items-view--wrap > [data-ui-items-host] > [data-ui-group-header] {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
 }
 
 // The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.
@@ -196,6 +206,6 @@
 .ui-row-cursor(~".ui-items-view:not(.ui-items-view--wrap)", ~".ui-items-view__item");
 
 // A wrapped item is display: contents, so the keyboard's wash lands on the component it wraps.
-.ui-items-view--wrap:focus-within:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
+.ui-items-view--wrap:focus:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
     .ui-row-hover();
 }

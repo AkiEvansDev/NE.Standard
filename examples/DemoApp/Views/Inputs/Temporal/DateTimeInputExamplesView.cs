@@ -5,7 +5,6 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -29,8 +28,8 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateBoundsGroup(), CreateAgainstNarrowerGroup()],
-            [CreateFormatGroup(), CreateStateGroup()]
+            [CreateUsesGroup(), CreateBoundsGroup()],
+            [CreateFormatGroup(), CreateAgainstNarrowerGroup()]
         ));
     }
 
@@ -57,8 +56,14 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetBadgeText("UTC")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
-            ),
-            contentMinHeight: 300
+                .AddChild(new DateTimeInputComponent()
+                    .SetTitle("Snapshot taken at")
+                    .SetPrefixIcon(DemoIcons.History)
+                    .SetDisplayFormat("yyyy-MM-dd HH:mm")
+                    .SetValue(Cutover)
+                    .SetIsReadOnly(true)
+                )
+            )
         );
     }
 
@@ -88,8 +93,7 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetDisplayFormat("ddd d MMM, h:mm tt")
                     .SetValue(Cutover)
                 )
-            ),
-            contentMinHeight: 340
+            )
         );
     }
 
@@ -117,42 +121,7 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetFirstDayOfWeek(UIDayOfWeek.Sunday)
                     .SetValue(Cutover)
                 )
-            ),
-            contentMinHeight: 280
-        );
-    }
-
-    /// <summary>The field's own surface, its affixes, and the states.</summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new DateTimeInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue(Cutover)
-                )
-                .AddChild(new DateTimeInputComponent()
-                    .SetTitle("With an affix glyph")
-                    .SetPrefixIcon(DemoIcons.Clock)
-                    .SetValue(Cutover)
-                )
-                .AddChild(new DateTimeInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(Cutover)
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new DateTimeInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue(Cutover)
-                    .SetEnabled(false)
-                )
-                .AddChild(new DateTimeInputComponent()
-                    .SetTitle("Required, nothing chosen yet")
-                    .Required("A moment is required.")
-                )
-            ),
-            contentMinHeight: 400
+            )
         );
     }
 
@@ -185,8 +154,7 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-            ),
-            contentMinHeight: 360
+            )
         );
     }
 }

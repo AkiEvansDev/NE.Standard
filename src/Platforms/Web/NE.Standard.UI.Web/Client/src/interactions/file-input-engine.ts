@@ -49,13 +49,18 @@ export class FileInputEngine {
         });
     }
 
+    /** The whole row opens the picker, as the image field's surface does: the name it shows is not a field to type in. */
     private handlePickClick(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const trigger = domEvent.target.closest(`[${PickAttribute}]`);
+        const trigger = domEvent.target.closest<HTMLElement>(`[${PickAttribute}], .${RowClass}`);
 
         if (trigger === null || trigger.hasAttribute("disabled"))
+            return;
+
+        // A control of the row's own that is not the pick — a clear, an affix button — keeps its press.
+        if (!trigger.hasAttribute(PickAttribute) && domEvent.target.closest("button, a") !== null)
             return;
 
         const native = trigger.closest(`.${RootClass}`)?.querySelector<HTMLInputElement>(`.${NativeClass}`);

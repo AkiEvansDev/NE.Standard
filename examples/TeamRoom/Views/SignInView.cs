@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 
@@ -35,15 +36,18 @@ public sealed class SignInView : UIViewBase, IUIViewDefinition
                 .SetContent(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
+                    // The pair a password manager reads: without these two words it remembers a password with no name against it.
                     .AddChild(new TextInputComponent()
                         .SetTitle("Login")
                         .SetFormId(FormId)
+                        .SetAutocomplete(UIAutocomplete.Username)
                         .BindValue(nameof(SignInController.Login))
                     )
                     .AddChild(new TextInputComponent()
                         .SetTitle("Password")
                         .SetType(UITextInputType.Password)
                         .SetFormId(FormId)
+                        .SetAutocomplete(UIAutocomplete.CurrentPassword)
                         .BindValue(nameof(SignInController.Password))
                         .BindValidation(nameof(SignInController.Notice))
                     )

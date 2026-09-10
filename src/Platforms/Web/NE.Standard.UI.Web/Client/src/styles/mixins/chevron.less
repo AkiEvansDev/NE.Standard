@@ -1,13 +1,14 @@
 @import "../core/tokens.less";
 
-// One glyph masked out of currentColor, as smooth as the text beside it; the box is square and the stroke scales with it.
+// One glyph masked out of currentColor, as smooth as the text beside it; the box is square. A filled wedge rather than a stroked
+// line: a stroke a pixel and a half wide lands across pixel boundaries at row sizes and reads soft, an edge does not.
 .ui-chevron(@size: 0.6em) {
     content: "";
     flex: 0 0 auto;
     width: @size;
     height: @size;
     background-color: currentColor;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.25 4.5 6 8.25l3.75-3.75' fill='none' stroke='%23000' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.3 5.2 8 9.9l4.7-4.7 1.5 1.5L8 12.9 1.8 6.7z'/%3E%3C/svg%3E") center / contain no-repeat;
     transition: transform @ui-motion-fast @ui-motion-ease;
 }
 

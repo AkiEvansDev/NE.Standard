@@ -9,6 +9,9 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// Represents a themed color: either a semantic <see cref="UIColorStyle"/> role, or an explicit
 /// <see cref="Light"/>/<see cref="Dark"/> override, which always wins when both are set.
 /// </summary>
+/// <param name="Style">The semantic role the palette resolves the colour from.</param>
+/// <param name="Light">An explicit colour for the light theme, which wins over the style.</param>
+/// <param name="Dark">An explicit colour for the dark theme, which wins over the style.</param>
 public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Light, ColorVariant? Dark)
 {
     /// <summary>

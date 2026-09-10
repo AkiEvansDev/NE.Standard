@@ -48,8 +48,14 @@ export class TabsEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // A server patch writes the same attribute a click does, as does a caption being hidden or shown.
-        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes] }, roots => this.applyAll(roots));
+        // A server patch writes the same attribute a click does, as does a caption being hidden or shown; a tabs view that arrives
+        // whole in a row the client built had its attribute written before it joined the document, so it is applied on arrival.
+        observeComponents(
+            this.root,
+            `.${RootClass}`,
+            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes] },
+            roots => this.applyAll(roots)
+        );
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {

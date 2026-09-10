@@ -1,6 +1,9 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
 import { ServerChangeSet, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
-import { logDebug, logError } from "../runtime/logger";
+import { logDebug, logError, logWarn } from "../runtime/logger";
+
+// A call waiting behind the attach longer than this is said in the console.
+const AttachStallWarningMilliseconds = 500;
 
 export type SignalRTransportOptions = {
     readonly hubUrl?: string;
@@ -137,7 +140,15 @@ export class SignalRTransport {
     }
 
     private async invokeAsync<TResult>(methodName: string, ...args: unknown[]): Promise<TResult> {
-        await this.attached;
+        // A call made before the attach is answered waits in silence; past this long the wait is said, so a click that seems to go
+        // nowhere can be told from one that was never made.
+        const stalled = window.setTimeout(() => logWarn("call waiting behind the attach.", { methodName }), AttachStallWarningMilliseconds);
+
+        try {
+            await this.attached;
+        } finally {
+            window.clearTimeout(stalled);
+        }
 
         return await this.invokeCoreAsync<TResult>(methodName, ...args);
     }

@@ -9,6 +9,11 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// <remarks>
 /// Mobile-first cascade: an unset breakpoint falls back to the next narrower one that is set, down to <see cref="Base"/>.
 /// </remarks>
+/// <param name="Base">The value every breakpoint falls back to.</param>
+/// <param name="Sm">The value from the small breakpoint up.</param>
+/// <param name="Md">The value from the medium breakpoint up.</param>
+/// <param name="Xl">The value from the extra-large breakpoint up.</param>
+/// <param name="Xxl">The value from the widest breakpoint up.</param>
 [SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "Create/FromValue are the value type's own construction API (same role as UIGridPlacement.At/UIThemeColor.Create), not something meant to be discovered without already knowing the element type at the call site.")]
 public readonly record struct UIResponsive<T>(T Base, T? Sm, T? Md, T? Xl, T? Xxl)
     where T : struct

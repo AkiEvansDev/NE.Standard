@@ -1,10 +1,9 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.FileInput;
@@ -27,9 +26,11 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateLimitGroup()],
-            [CreateAcceptGroup(), CreateStateGroup()]
+            [CreateUsesGroup()],
+            [CreateFormGroup()]
         ));
+
+        _ = container.AddChild(CreateContractGroup());
     }
 
     /// <summary>
@@ -60,102 +61,84 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetBadgeText("several at once")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
-            ),
-            contentMinHeight: 300
+            )
         );
     }
 
     /// <summary>
-    /// <c>Accept</c> filters the browser's file dialog and nothing else; a file dragged past it is still refused server-side.
+    /// The field among the others it is submitted with: one row of a form rather than a page of its own.
     /// </summary>
-    private static ContainerComponent CreateAcceptGroup()
+    private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateGroup(null, "What it will accept",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Anything")
-                    .SetPlaceholder("No filter at all")
+        return DemoUI.CreateGroup(null, "In a form",
+            content => content.AddChild(new CardComponent()
+                .ConfigureDefaultHeader(header => header
+                    .SetIcon(DemoIcons.FileText)
+                    .SetTitle("Attach to the review")
+                    .SetDescription("Everything here is submitted together")
                 )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("By extension")
-                    .SetAccept(".csv,.tsv")
-                    .SetPlaceholder(".csv or .tsv")
+                .SetContent(DemoUI.CreateStack()
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("What it is")
+                        .SetValue("Rollback plan")
+                    )
+                    .AddChild(new FileInputComponent()
+                        .SetTitle("The file")
+                        .SetIcon(DemoIcons.File)
+                        .SetAccept(".md,.pdf")
+                        .SetPlaceholder("Markdown or PDF, up to 2 MB")
+                        .SetMaxFileSize(2 * Megabyte)
+                        .Required("A file is required.")
+                    )
                 )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("By type")
-                    .SetAccept("application/pdf")
-                    .SetPlaceholder("PDF")
+                .SetFooter(DemoUI.CreateRow(8)
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Primary)
+                        .SetTitle("Attach")
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetTitle("Cancel")
+                    )
                 )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("By family")
+                .SetPlacement(1, 1, 24, 1)
+            )
+        );
+    }
+
+    /// <summary>
+    /// With nothing chosen the placeholder is the whole contract, so it is written rather than left to the filter.
+    /// </summary>
+    /// <remarks>Side by side, because the three contracts only read as a set of choices when they can be compared.</remarks>
+    private static ContainerComponent CreateContractGroup()
+    {
+        return DemoUI.CreateGroup(null, "What the empty field promises",
+            content => content.AddChild(DemoUI.CreateRow(24)
+                .AddChild(CreateContract("One kind of file", new FileInputComponent()
+                    .SetTitle("Deploy manifest")
+                    .SetAccept(".yaml,.yml")
+                    .SetPlaceholder("A single .yaml, up to 256 KB")
+                    .SetMaxFileSize(256 * 1024)
+                ))
+                .AddChild(CreateContract("A whole family of them", new FileInputComponent()
+                    .SetTitle("Screenshot")
                     .SetAccept("image/*")
-                    .SetPlaceholder("Any image")
-                )
-            ),
-            contentMinHeight: 340
-        );
-    }
-
-    /// <summary>
-    /// <c>MaxFileSize</c> is checked per file rather than over the whole set.
-    /// </summary>
-    private static ContainerComponent CreateLimitGroup()
-    {
-        return DemoUI.CreateGroup(null, "How much of it",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new FileInputComponent()
-                    .SetTitle("One file, at most 512 KB")
-                    .SetMaxFileSize(512 * 1024)
-                    .SetPlaceholder("A small one")
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Several files, each at most 5 MB")
+                    .SetPlaceholder("Any image, up to 5 MB")
+                    .SetMaxFileSize(5 * Megabyte)
+                ))
+                .AddChild(CreateContract("Several, each within the limit", new FileInputComponent()
+                    .SetTitle("Attachments")
                     .SetMultiple(true)
                     .SetMaxFileSize(5 * Megabyte)
-                    .SetPlaceholder("Each of them, not all of them")
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The limit is a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://example.com/docs/files).")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                    .SetPlaceholder("Each of them at most 5 MB, not all of them together")
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 280
+            columns: 24,
+            note: "The filter and the limit are a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://example.com/docs/files)."
         );
     }
 
-    /// <summary>The field's own surface, its affixes, and the states.</summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetPlaceholder("An edit-in-place attachment")
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("With an affix glyph")
-                    .SetPrefixIcon(DemoIcons.File)
-                    .SetPlaceholder("The glyph belongs to the field, the label has its own")
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Read-only")
-                    .SetPlaceholder("Nothing can be picked")
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Disabled")
-                    .SetPlaceholder("Locked while the release is in flight")
-                    .SetEnabled(false)
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("Required")
-                    .SetPlaceholder("A manifest has to be attached")
-                    .Required("A manifest is required.")
-                )
-            ),
-            contentMinHeight: 400
-        );
-    }
+    private static StackPanelComponent CreateContract(string caption, FileInputComponent field)
+        => DemoUI.CreateCaptionedItem(caption, field.SetWidth(UILayoutLength.Absolute(320)));
 }

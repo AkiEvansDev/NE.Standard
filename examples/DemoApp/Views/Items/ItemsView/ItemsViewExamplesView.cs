@@ -38,9 +38,11 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
 
     protected override void DrawContent(WrapPanelComponent container)
     {
+        _ = container.AddChild(CreateStripGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFilterGroup(), CreateSortGroup(), CreateGroupedGroup(), CreateEmptyGroup()],
-            [CreateStripGroup(), CreateTilesGroup(), CreateFeedGroup()]
+            [CreateFilterGroup(), CreateGroupedGroup(), CreateTilesGroup()],
+            [CreateFeedGroup(), CreateSortGroup(), CreateEmptyGroup()]
         ));
     }
 
@@ -134,8 +136,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDescription("Everything that paged in the last seven days has been resolved.")
                 )
                 .SetPlacement(1, 1, 24, 1)
-            ),
-            contentMinHeight: 96
+            )
         );
     }
 
@@ -153,7 +154,9 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                 .SetSpacing(12)
                 .SetTemplate(CreateReleaseCard())
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            columns: 24,
+            note: "A strip runs across the page rather than down a column: the cards scroll sideways, and a narrow box would hide most of them."
         );
     }
 
@@ -222,8 +225,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
             {
                 ["Post a note"] = nameof(ItemsViewExamplesController.PostNote),
                 ["Flip the newest"] = nameof(ItemsViewExamplesController.FlipNewest)
-            }),
-            contentMinHeight: 300
+            })
         );
     }
 

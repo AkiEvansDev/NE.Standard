@@ -11,7 +11,8 @@ public enum UIItemsLayoutType
     Stack = 0,
 
     /// <summary>
-    /// Lays out items along an axis, wrapping onto new lines when space runs out.
+    /// Flows items left to right, wrapping onto new lines when space runs out. An item takes its content's width; a template root
+    /// with a placement takes that span of the 24-column grid instead (a span of 6 is four items to a line).
     /// </summary>
     Wrap = 1,
 }

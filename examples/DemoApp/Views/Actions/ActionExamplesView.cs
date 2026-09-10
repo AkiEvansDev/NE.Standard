@@ -23,9 +23,11 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
+        _ = container.AddChild(CreateSettingsGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSettingsGroup()],
-            [CreateMenuGroup(), CreateAgainstButtonGroup()]
+            [CreateMenuGroup()],
+            [CreateAgainstButtonGroup()]
         ));
     }
 
@@ -34,11 +36,9 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSettingsGroup()
     {
+        // The sections run across rather than down: three columns of rows is a settings screen, one column is a list.
         return DemoUI.CreateGroup(null, "A settings screen",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(16)
-                .SetWidth(UILayoutLength.Absolute(440))
+            content => content.AddChild(DemoUI.CreateRow(32)
                 .AddChild(CreateSection("Account",
                     new ActionComponent()
                         // The same Icon property carrying a picture instead of a glyph name.
@@ -82,7 +82,8 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetDescription("Cannot be undone")
                 ))
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            columns: 24
         );
     }
 
@@ -90,6 +91,8 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
     {
         StackPanelComponent section = new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetWidth(UILayoutLength.Absolute(380))
             .SetSpacing(4)
             .AddChild(new TextComponent()
                 .SetTitle(caption)

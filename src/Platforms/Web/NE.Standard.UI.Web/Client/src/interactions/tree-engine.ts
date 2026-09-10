@@ -1,12 +1,11 @@
 // A tree's rows are a flat list in walking order; this derives each row's depth and fold from the node above it, keeps the
 // viewer's fold in the browser, walks the rows with the keyboard, opens a node, asks for children it does not have yet, lays
-// the rename field over a title, and reports a drag from one node onto another.
+// the rename field over a title, and reports a drag from one node onto another — or of every chosen node at once.
 
 import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, SelectedKeyAttribute, SelectionAttribute,
-    TreeChildrenAttribute, TreeDraggableAttribute, TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute,
-    TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute, TreeTitleAttribute, TreeUnremovableAttribute, UndraggableAttribute, UnremovableAttribute, UnrenamableAttribute,
-    UnselectableAttribute
+    ComponentKeyAttribute, ItemsHostAttribute, SelectedAttribute, SelectionAttribute, TreeChildrenAttribute, TreeDraggableAttribute, TreeDropTargetAttribute,
+    TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute, TreeTitleAttribute,
+    TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute, UnselectableAttribute
 } from "../addressing/dom-attributes";
 import { EffectRegistry } from "../effects/effect-registry";
 import { getIdValue, RenameNodeClientEffect } from "../metadata/metadata-index";
@@ -14,11 +13,13 @@ import { clientStrings } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
 import { ClientStore } from "../state/client-store";
 import { observeComponents } from "./dom-mutations";
-import { markDragStart } from "./drag-marks";
+import { clearDragMarks, markDragStart } from "./drag-marks";
 import { openInlineRename } from "./inline-rename";
+import { removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { focusedRow, isRowDisabled, resolveRowTarget, setRowFocus } from "./row-cursor";
-import { writeSelectedKey } from "./selected-key";
+import type { SelectionGesture } from "./row-selection";
+import { chooseRow, ensureAnchor, gestureOf, PlainGesture, selectedRows } from "./row-selection";
 
 const RootClass = "ui-tree";
 const RowClass = "ui-tree__row";
@@ -34,6 +35,8 @@ const TitleSelector = ".ui-text__title";
 const DropAttribute = "data-ui-tree-drop";
 const DepthVariable = "--ui-tree-depth";
 const ExpandedSlot = "expanded";
+// A folder a drag hovers over for this long opens, so a node can be dropped deeper without letting go.
+const SpringOpenMilliseconds = 600;
 
 /** The viewer's fold by node key: true unfolded, false folded; a node not in it keeps its authored start. */
 type StoredFold = Record<string, boolean>;
@@ -60,6 +63,10 @@ export class TreeEngine {
 
     // A node asked for its children once per unfold; folding it again lets the next unfold ask again.
     private readonly requested = new WeakSet<Element>();
+
+    // The folder a drag is waiting over, and the wait.
+    private springTarget: HTMLElement | null = null;
+    private springTimer = 0;
 
     public constructor(options: TreeEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -202,7 +209,7 @@ export class TreeEngine {
             return;
 
         domEvent.preventDefault();
-        this.setFocus(tree, row, false);
+        this.setFocus(tree, row, null);
         this.toggle(tree, row);
     }
 
@@ -259,7 +266,7 @@ export class TreeEngine {
 
         if (next !== null) {
             domEvent.preventDefault();
-            this.setFocus(tree, next, true);
+            this.setFocus(tree, next, gestureOf(domEvent));
             return;
         }
 
@@ -267,21 +274,31 @@ export class TreeEngine {
             return;
 
         switch (domEvent.key) {
+            case " ":
+                // Space toggles the node under the cursor and leaves the rest as they are.
+                if (!chooseRow(tree, rows, current, { shift: false, ctrl: true }))
+                    return;
+                break;
             case "ArrowRight":
                 // A folded node unfolds; an unfolded one hands the focus to its first child.
                 if (current.getAttribute("aria-expanded") === "false")
                     this.toggle(tree, current);
                 else if (current.getAttribute("aria-expanded") === "true")
-                    this.setFocus(tree, resolveRowTarget("ArrowDown", rows, current, "vertical"), true);
+                    this.setFocus(tree, resolveRowTarget("ArrowDown", rows, current, "vertical"), PlainGesture);
                 break;
             case "ArrowLeft":
                 // An unfolded node folds; any other hands the focus to the node above it.
                 if (current.getAttribute("aria-expanded") === "true")
                     this.toggle(tree, current);
                 else
-                    this.setFocus(tree, this.parentOf(tree, current), true);
+                    this.setFocus(tree, this.parentOf(tree, current), PlainGesture);
                 break;
             case "Enter":
+                // Enter is the keyboard's click: it chooses the node as a click does, and opens it as a double click does. A cursor
+                // already inside a chosen group leaves the group standing, since Delete reads that same group.
+                if (!selectedRows(rows).includes(current))
+                    chooseRow(tree, rows, current, PlainGesture);
+
                 current.dispatchEvent(new Event("open", { bubbles: true }));
                 break;
             case "F2":
@@ -290,13 +307,22 @@ export class TreeEngine {
 
                 this.startRename(current);
                 break;
-            case "Delete":
-                // A node that cannot be removed raises nothing, nor does a tree that removes nothing; whether one that can is removed is the controller's answer.
-                if (current.hasAttribute(UnremovableAttribute) || tree.hasAttribute(TreeUnremovableAttribute))
+            case "Delete": {
+                // The chosen nodes go together when the cursor is on one of them. A node that cannot be removed raises nothing, nor
+                // does a tree that removes nothing; whether one that can is removed is the controller's answer.
+                if (tree.hasAttribute(TreeUnremovableAttribute))
                     return;
 
-                current.dispatchEvent(new Event("remove", { bubbles: true }));
+                const removable = removableRows(rows, current);
+
+                if (removable.length === 0)
+                    return;
+
+                for (const row of removable)
+                    row.dispatchEvent(new Event("remove", { bubbles: true }));
+
                 break;
+            }
             default:
                 return;
         }
@@ -316,7 +342,18 @@ export class TreeEngine {
         if (row === null || tree === null || !tree.hasAttribute(TreeDraggableAttribute))
             return;
 
-        markDragStart(domEvent, tree, row, DraggingClass, keyOf(row));
+        // A chosen node dragged takes the other chosen nodes with it; one that is not chosen goes alone. A node folded away is not
+        // among them: the viewer cannot see it, so moving it would be a move they never asked for.
+        const companions = row.hasAttribute(SelectedAttribute)
+            ? selectedRows(this.rowsOf(tree)).filter(other => other !== row && other.draggable && other.getClientRects().length > 0)
+            : [];
+
+        markDragStart(domEvent, tree, row, DraggingClass, keyOf(row), companions);
+    }
+
+    /** The rows in the air, in walking order. */
+    private draggingRows(tree: HTMLElement): HTMLElement[] {
+        return this.rowsOf(tree).filter(row => row.classList.contains(DraggingClass));
     }
 
     /** Over a row that is not the dragged one or under it, or over the tree's own ground: the drop is taken and the place marked. */
@@ -325,16 +362,16 @@ export class TreeEngine {
             return;
 
         const tree = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
-        const dragging = tree?.querySelector<HTMLElement>(`.${DraggingClass}`) ?? null;
+        const dragging = tree === null ? [] : this.draggingRows(tree);
         const host = tree === null ? null : this.hostOf(tree);
 
-        if (tree === null || dragging === null || host === null)
+        if (tree === null || dragging.length === 0 || host === null)
             return;
 
         const over = domEvent.target.closest<HTMLElement>(`.${RowClass}`);
         const target = over !== null && over.closest(`.${RootClass}`) === tree ? over : host;
 
-        if (target === dragging || (target !== host && this.isUnder(tree, target, dragging)))
+        if (target !== host && dragging.some(row => row === target || this.isUnder(tree, target, row)))
             return;
 
         domEvent.preventDefault();
@@ -343,6 +380,21 @@ export class TreeEngine {
             domEvent.dataTransfer.dropEffect = "move";
 
         this.markDrop(tree, target);
+        this.springOpen(tree, target === host ? null : target);
+    }
+
+    /** Starts the wait over a folded folder, or ends it when the drag moved on. */
+    private springOpen(tree: HTMLElement, target: HTMLElement | null): void {
+        const folder = target !== null && target.getAttribute("aria-expanded") === "false" ? target : null;
+
+        if (folder === this.springTarget)
+            return;
+
+        window.clearTimeout(this.springTimer);
+        this.springTarget = folder;
+
+        if (folder !== null)
+            this.springTimer = window.setTimeout(() => this.expand(tree, folder), SpringOpenMilliseconds);
     }
 
     /** Leaving the tree altogether clears the mark; a move between its rows is followed by a dragover that marks the next place. */
@@ -352,47 +404,61 @@ export class TreeEngine {
 
         const tree = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
 
-        if (tree !== null && !(domEvent.relatedTarget instanceof Node && tree.contains(domEvent.relatedTarget)))
+        if (tree !== null && !(domEvent.relatedTarget instanceof Node && tree.contains(domEvent.relatedTarget))) {
             this.markDrop(tree, null);
+            this.springOpen(tree, null);
+        }
     }
 
-    /** The drop writes where the node landed on its own text and raises `move` on its row; the controller does the moving. */
+    /**
+     * The drop writes where each node landed on its own text and raises `move` on its row, one node at a time; the controller does
+     * the moving. A node whose parent is in the air stays with it. The folder dropped on opens, so the moved nodes are in view.
+     */
     private handleDrop(domEvent: Event): void {
         if (!(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
         const tree = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
-        const dragging = tree?.querySelector<HTMLElement>(`.${DraggingClass}`) ?? null;
+        const dragging = tree === null ? [] : this.draggingRows(tree);
         const marked = tree?.querySelector<HTMLElement>(`[${DropAttribute}]`) ?? null;
 
-        if (tree === null || dragging === null || marked === null)
+        if (tree === null || dragging.length === 0 || marked === null)
             return;
 
         domEvent.preventDefault();
 
         const targetKey = marked.classList.contains(RowClass) ? keyOf(marked) : "";
-        const text = nodeOf(dragging)?.querySelector<HTMLElement>(`.${TextClass}`) ?? null;
+        const moved = dragging.filter(row => !dragging.some(other => other !== row && this.isUnder(tree, row, other)));
 
         this.markDrop(tree, null);
-        dragging.classList.remove(DraggingClass);
+        this.springOpen(tree, null);
+        clearDragMarks(tree, DraggingClass);
 
-        if (text === null)
-            return;
+        if (marked.classList.contains(RowClass))
+            this.expand(tree, marked);
 
-        text.setAttribute(TreeDropTargetAttribute, targetKey);
-        // Two events: `change` carries the target back through the node's two-way binding, `move` is what a command hangs on.
-        text.dispatchEvent(new Event("change", { bubbles: true }));
-        dragging.dispatchEvent(new Event("move", { bubbles: true }));
+        for (const row of moved) {
+            const text = nodeOf(row)?.querySelector<HTMLElement>(`.${TextClass}`) ?? null;
+
+            if (text === null)
+                continue;
+
+            text.setAttribute(TreeDropTargetAttribute, targetKey);
+            // Two events: `change` carries the target back through the node's two-way binding, `move` is what a command hangs on.
+            text.dispatchEvent(new Event("change", { bubbles: true }));
+            row.dispatchEvent(new Event("move", { bubbles: true }));
+        }
     }
 
     private handleDragEnd(domEvent: Event): void {
-        const row = draggedRow(domEvent);
-        const tree = row?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const tree = draggedRow(domEvent)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        row?.classList.remove(DraggingClass);
+        if (tree === null)
+            return;
 
-        if (tree !== null)
-            this.markDrop(tree, null);
+        clearDragMarks(tree, DraggingClass);
+        this.markDrop(tree, null);
+        this.springOpen(tree, null);
     }
 
     private markDrop(tree: HTMLElement, target: HTMLElement | null): void {
@@ -418,6 +484,16 @@ export class TreeEngine {
 
     /** Folds or unfolds a node, remembers the viewer's choice and lays the tree out again from it. */
     private toggle(tree: HTMLElement, row: HTMLElement): void {
+        this.fold(tree, row, row.getAttribute("aria-expanded") !== "true");
+    }
+
+    /** Unfolds a folded node; one already open, or with nothing under it, is left alone. */
+    private expand(tree: HTMLElement, row: HTMLElement): void {
+        if (row.getAttribute("aria-expanded") === "false")
+            this.fold(tree, row, true);
+    }
+
+    private fold(tree: HTMLElement, row: HTMLElement, expanded: boolean): void {
         const key = keyOf(row);
 
         if (key.length === 0 || !row.hasAttribute("aria-expanded"))
@@ -425,7 +501,7 @@ export class TreeEngine {
 
         const stored = this.foldOf(tree);
 
-        stored[key] = row.getAttribute("aria-expanded") !== "true";
+        stored[key] = expanded;
 
         this.store.writeJson(tree, ExpandedSlot, stored);
         this.layout(tree);
@@ -442,15 +518,27 @@ export class TreeEngine {
         return fold;
     }
 
-    /** Moves the keyboard's row; with one row to choose, the move chooses it too, as a file list does. */
-    private setFocus(tree: HTMLElement, row: HTMLElement | null, select: boolean): void {
+    /**
+     * Moves the keyboard's row; with one row to choose, the move chooses it too, as a file list does, and with many, a move under
+     * Shift extends the range. Given no gesture the move only moves.
+     */
+    private setFocus(tree: HTMLElement, row: HTMLElement | null, gesture: SelectionGesture | null): void {
         if (row === null)
             return;
 
-        setRowFocus(tree, this.rowsOf(tree), row);
+        const rows = this.rowsOf(tree);
+        const from = focusedRow(rows);
 
-        if (select && tree.getAttribute(SelectionAttribute) === "one" && !row.hasAttribute(UnselectableAttribute))
-            writeSelectedKey(tree, keyOf(row), { attribute: SelectedKeyAttribute, bindingAttribute: BindSelectedKeyAttribute, apply: () => { } });
+        setRowFocus(tree, rows, row);
+
+        if (gesture === null || !(tree.getAttribute(SelectionAttribute) === "one" || gesture.shift))
+            return;
+
+        // A range measured from where the cursor stood, which is the anchor when no click has set one.
+        if (gesture.shift)
+            ensureAnchor(tree, from);
+
+        chooseRow(tree, rows, row, gesture);
     }
 
     private parentOf(tree: HTMLElement, row: HTMLElement): HTMLElement | null {
@@ -469,7 +557,7 @@ export class TreeEngine {
         if (tree === null || node === null || title === null || row.hasAttribute(UnrenamableAttribute))
             return;
 
-        this.setFocus(tree, row, false);
+        this.setFocus(tree, row, null);
 
         openInlineRename({
             container: node,

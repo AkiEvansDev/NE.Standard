@@ -34,8 +34,10 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateFilesGroup()],
-            [CreateLazyGroup(), CreateSettingsGroup()]
+            [CreateSettingsGroup()]
         ));
+
+        _ = container.AddChild(CreateLazyGroup());
     }
 
     /// <summary>
@@ -47,7 +49,8 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(FilesGroup, "A project's files",
             content => content.AddChild(new TreeComponent(TreeExamplesController.FilesTreeId)
                 .BindItems($"{FilesGroup}.{nameof(TreeFilesGroupContext.Items)}")
-                .SetSelectionMode(UISelectionMode.One)
+                // Many, so several nodes go together: Shift takes a range, Ctrl adds one, and a drag or Delete on a chosen node takes them all.
+                .SetSelectionMode(UISelectionMode.Many)
                 .SetRenamable(true)
                 .SetRenameOnDoubleClick(true)
                 .SetDraggable(true)
@@ -71,7 +74,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
                 .OnNodeRemoveWithItemKey(nameof(TreeExamplesController.DeleteNode))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Right-click a folder or a file for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there, or onto the empty ground below to move it to the root. README.md is pinned: it is neither dragged nor removed."
+            note: "Right-click a folder or a file for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. README.md is pinned: it is neither dragged nor removed."
         );
     }
 
@@ -93,6 +96,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
                 .OnNodeUnfoldWithItemKey(nameof(TreeExamplesController.LoadChildren))
                 .SetPlacement(1, 1, 24, 1)
             ),
+            columns: 24,
             note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same."
         );
     }

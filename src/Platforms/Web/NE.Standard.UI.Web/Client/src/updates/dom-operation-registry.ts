@@ -128,10 +128,12 @@ export class DomOperationRegistry {
         this.register("Property", context => {
             const name = requireOperationName(context.operation);
             const target = context.target as unknown as Record<string, unknown>;
+            // A field's `value` stringifies what it is given, and an absent fallback reaches here as undefined — the literal word.
+            const value = isNullishValue(context.convertedValue) ? "" : context.convertedValue;
 
             // Replaying an unchanged value moves the caret to the end on a field the viewer is typing in.
-            if (target[name] !== context.convertedValue)
-                target[name] = context.convertedValue;
+            if (target[name] !== value)
+                target[name] = value;
         });
     }
 }

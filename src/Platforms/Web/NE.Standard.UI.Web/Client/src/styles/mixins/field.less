@@ -12,10 +12,9 @@
     --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
     // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
     --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
-    // What Outline and Underline lift their border to, and what Ghost washes with. A control that does not lift under the pointer — a code
-    // field is not a row of a list — sets these three to its rest, and the hover rules go on writing them to no visible effect.
+    // What Outline and Underline lift their border to. A control that does not lift under the pointer — a code field is not a row of a
+    // list — sets these to its rest, and the hover rules go on writing them to no visible effect.
     --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
-    --ui-field-hover-wash: var(--ui-wash-hover);
     border: var(--ui-border-width, 1.5px) solid var(--ui-field-rest);
     border-radius: var(--ui-radius-input);
     background: var(--ui-field-rest);

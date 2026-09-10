@@ -190,7 +190,8 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         return command.ExecuteScalar() as string;
     }
 
-    public void SaveContent(string id, string content, string authorId)
+    /// <summary>Writes the file's text; <see langword="false"/> when there is no such file any more, so a save is never claimed for one.</summary>
+    public bool SaveContent(string id, string content, string authorId)
     {
         using SqliteConnection connection = database.Open();
         using SqliteCommand command = connection.CreateCommand();
@@ -200,8 +201,12 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         _ = command.Parameters.AddWithValue("$author", authorId);
         _ = command.Parameters.AddWithValue("$id", id);
         _ = command.Parameters.AddWithValue("$file", NodeKinds.File);
-        _ = command.ExecuteNonQuery();
+
+        if (command.ExecuteNonQuery() == 0)
+            return false;
 
         events.Publish(new DocumentsChanged(id));
+
+        return true;
     }
 }

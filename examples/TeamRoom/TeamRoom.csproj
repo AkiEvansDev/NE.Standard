@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\src\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
     <ProjectReference Include="..\..\src\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
     <ProjectReference Include="..\..\addons\Icons\src\NE.Standard.UI.Icons.Material\NE.Standard.UI.Icons.Material.csproj" />
+    <ProjectReference Include="..\..\addons\CodeInput\src\NE.Standard.UI.CodeInput\NE.Standard.UI.CodeInput.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(InMonorepo)' != 'true'">
@@ -21,6 +22,7 @@
     <PackageReference Include="NE.Standard.UI" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Components" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Icons.Material" Version="$(IconsVersion)" />
+    <PackageReference Include="NE.Standard.UI.CodeInput" Version="$(CodeInputVersion)" />
   </ItemGroup>
 
 </Project>

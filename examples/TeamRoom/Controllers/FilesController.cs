@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.CodeInput;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Recursive;
@@ -15,11 +16,14 @@ using TeamRoom.Services;
 
 namespace TeamRoom.Controllers;
 
-/// <summary>A file open in the editor: its text as the tab holds it, and whether that differs from what is saved.</summary>
+/// <summary>A file open in the editor: its text as the tab holds it, what it is highlighted as, and whether the text differs from what is saved.</summary>
 public sealed partial class DocumentTab : TabItem
 {
     [RecursiveMember]
     public partial string? Body { get; set; }
+
+    [RecursiveMember]
+    public partial string? Language { get; set; }
 
     [RecursiveMember]
     public partial bool Dirty { get; set; }
@@ -97,9 +101,22 @@ public sealed partial class FilesController : TeamRoomController
             TreeNode? node = FindNode(document.Id);
 
             if (node is null)
-                _ = Documents.Remove(document);
+            {
+                // A file deleted under an open tab takes the tab with it, unless the text in it was never saved: closing that
+                // silently would throw away work nobody else can give back, so the tab stays until its author closes it.
+                if (!document.Dirty)
+                {
+                    _ = Documents.Remove(document);
+                    continue;
+                }
+
+                document.Status = "This file is gone; copy your text before closing the tab.";
+            }
             else
+            {
                 document.Title = node.Title;
+                document.Language = LanguageOf(node.Title ?? string.Empty);
+            }
         }
     }
 
@@ -113,6 +130,22 @@ public sealed partial class FilesController : TeamRoomController
 
         return null;
     }
+
+    /// <summary>The language a file is highlighted as, by its extension; anything else is plain text.</summary>
+    private static string LanguageOf(string fileName)
+        => System.IO.Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".cs" => UICodeLanguages.CSharp,
+            ".json" => UICodeLanguages.Json,
+            ".css" => UICodeLanguages.Css,
+            ".less" => UICodeLanguages.Less,
+            ".js" or ".mjs" => UICodeLanguages.JavaScript,
+            ".ts" => UICodeLanguages.TypeScript,
+            ".html" or ".htm" => UICodeLanguages.Html,
+            ".sh" or ".bash" => UICodeLanguages.Bash,
+            ".py" => UICodeLanguages.Python,
+            _ => UICodeLanguages.PlainText
+        };
 
     protected override void OnAppEvent(AppEvent appEvent)
     {
@@ -192,6 +225,7 @@ public sealed partial class FilesController : TeamRoomController
                 Order = order,
                 Body = content,
                 SavedBody = content,
+                Language = LanguageOf(node.Title ?? string.Empty),
                 CanRename = false
             });
         }
@@ -225,7 +259,11 @@ public sealed partial class FilesController : TeamRoomController
         }
 
         if (FindDocument(id) is { } document)
+        {
             document.Title = node.Title;
+            // The extension is where the editor's language comes from, so a rename that changes it changes the highlighting too.
+            document.Language = LanguageOf(node.Title ?? string.Empty);
+        }
 
         return UICommandResult.Ok();
     }
@@ -371,7 +409,13 @@ public sealed partial class FilesController : TeamRoomController
 
         var body = document.Body ?? string.Empty;
 
-        DocumentStore.SaveContent(id, body, AccountId);
+        // A file another administrator deleted while this one was typing updates nothing: saying "saved" there loses the text silently.
+        if (!DocumentStore.SaveContent(id, body, AccountId))
+        {
+            document.Status = "This file is gone; copy your text before closing the tab.";
+            return Refuse("The file was deleted while it was open.");
+        }
+
         document.SavedBody = body;
         document.Dirty = false;
         document.Status = $"Saved at {DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture)}";

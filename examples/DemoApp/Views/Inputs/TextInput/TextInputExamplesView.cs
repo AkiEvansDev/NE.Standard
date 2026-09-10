@@ -1,10 +1,10 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -27,8 +27,8 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateServiceGroup(), CreateAppearanceGroup(), CreateStateGroup()],
-            [CreateCredentialsGroup(), CreateClipboardGroup()]
+            [CreateServiceGroup(), CreateClipboardGroup()],
+            [CreateCredentialsGroup(), CreateGhostGroup()]
         ));
     }
 
@@ -61,47 +61,40 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue("deploy")
                     .SetShowClearButton()
                 )
-            ),
-            contentMinHeight: 320
+            )
         );
     }
 
     /// <summary>
-    /// <c>Appearance</c> decides whether the field is a filled box or a single rule under the text.
+    /// The one place a field is asked to stop looking like one: a name edited where it is read.
     /// </summary>
-    private static ContainerComponent CreateAppearanceGroup()
+    /// <remarks>Ghost, not a label with a pencil beside it — the box appears under the pointer, so nothing has to be found first.</remarks>
+    private static ContainerComponent CreateGhostGroup()
     {
-        return DemoUI.CreateGroup(null, "Appearance",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Filled")
-                    .SetValue("Payments API")
+        return DemoUI.CreateGroup(null, "Edited where it is read",
+            content => content.AddChild(new SurfaceComponent()
+                .SetContent(DemoUI.CreateStack(8)
+                    .AddChild(DemoUI.CreateCaption("The release's name"))
+                    .AddChild(new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Ghost)
+                        .SetValue("Release 2.4")
+                    )
+                    .AddChild(DemoUI.CreateCaption("A line the reviewer reads")
+                        .SetMargin(UIThickness.All(0, 8, 0, 0))
+                    )
+                    .AddChild(new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Ghost)
+                        .SetValue("Rolling, five per cent a minute")
+                        .SetPlaceholder("Add a note")
+                    )
+                    .AddChild(new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Ghost)
+                        .SetPlaceholder("Nothing written down yet")
+                    )
                 )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue("Payments API")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Underline with a labelled icon")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetIcon(DemoIcons.Search)
-                    .SetValue("deploy")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Underline with a field icon")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetPrefixIcon(DemoIcons.Search)
-                    .SetValue("deploy")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Ghost")
-                    .SetAppearance(UIInputAppearance.Ghost)
-                    .SetValue("Payments API")
-                    .SetPlaceholder("No box until the pointer or the focus finds it")
-                )
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 320
+            note: "The box appears under the pointer and on focus; empty, the placeholder is the only thing that says the line can be typed into."
         );
     }
 
@@ -132,36 +125,7 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetIcon(DemoIcons.ExternalLink)
                     .SetValue("https://example.com/docs")
                 )
-            ),
-            contentMinHeight: 260
-        );
-    }
-
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "States",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue("eu-west-1")
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue("locked")
-                    .SetEnabled(false)
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Required")
-                    .Required("A service name is required.")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Limited to 8 characters")
-                    .SetValue("Payments")
-                    .SetMaxLength(8)
-                )
-            ),
-            contentMinHeight: 260
+            )
         );
     }
 

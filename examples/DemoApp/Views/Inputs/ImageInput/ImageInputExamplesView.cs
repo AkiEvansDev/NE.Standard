@@ -23,10 +23,14 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
 
     protected override void DrawContent(WrapPanelComponent container)
     {
+        _ = container.AddChild(CreateCoverGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateProfileGroup(), CreateInlineGroup(), CreateShelfGroup()],
-            [CreateCoverGroup(), CreateStateGroup()]
+            [CreateProfileGroup()],
+            [CreateInlineGroup()]
         ));
+
+        _ = container.AddChild(CreateShelfGroup());
     }
 
     /// <summary>
@@ -35,27 +39,38 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     private static ContainerComponent CreateProfileGroup()
     {
         return DemoUI.CreateGroup(null, "A profile card",
-            content => content.AddChild(DemoUI.CreateRow(16)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .AddChild(new ImageInputComponent()
-                    .SetShape(UIImageInputShape.Avatar)
-                    .SetValue(DemoImages.Avatar)
-                    .SetTooltip("Change the photo")
+            content => content.AddChild(new SurfaceComponent()
+                .SetContent(DemoUI.CreateStack(16)
+                    .AddChild(CreatePerson(DemoImages.Avatar, "Aki Evans", "Platform team · owner"))
+                    .AddChild(DemoUI.CreateCaption("The rest of the team, the same control at the same size"))
+                    .AddChild(CreatePerson(null, "Robin Hale", "Platform · no photo yet"))
                 )
-                .AddChild(DemoUI.CreateStack(2)
-                    .AddChild(new ParagraphComponent()
-                        .SetDescription("Aki Evans")
-                        .SetDescriptionType(UITextAppearance.Subtitle)
-                    )
-                    .AddChild(new ParagraphComponent()
-                        .SetDescription("Platform team · owner")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
-                )
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 160
+            note: "Avatar is the shape for a picture replaced where it is read: no drop area, no filename — the pencil appears over the photo itself."
         );
+    }
+
+    private static StackPanelComponent CreatePerson(string? photo, string name, string role)
+    {
+        ImageInputComponent picture = new ImageInputComponent()
+            .SetShape(UIImageInputShape.Avatar)
+            .SetTooltip("Change the photo");
+
+        return DemoUI.CreateRow(16)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .AddChild(photo is null ? picture : picture.SetValue(photo))
+            .AddChild(DemoUI.CreateStack(2)
+                .AddChild(new ParagraphComponent()
+                    .SetDescription(name)
+                    .SetDescriptionType(UITextAppearance.Subtitle)
+                )
+                .AddChild(new ParagraphComponent()
+                    .SetDescription(role)
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetDescriptionColor(UIThemeColor.Muted)
+                )
+            );
     }
 
     /// <summary>
@@ -64,20 +79,26 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     private static ContainerComponent CreateCoverGroup()
     {
         return DemoUI.CreateGroup(null, "A cover picture",
-            content => content.AddChild(DemoUI.CreateStack(16)
+            content => content.AddChild(DemoUI.CreateRow(24)
                 .AddChild(new ImageInputComponent()
-                    .SetTitle("Cover")
+                    .SetTitle("Chosen")
+                    .SetWidth(UILayoutLength.Absolute(520))
+                    .SetHeight(UILayoutLength.Absolute(180))
                     .SetValue(DemoImages.HarbourSky)
                     .SetFit(UIImageFit.Cover)
                 )
                 .AddChild(new ImageInputComponent()
                     .SetTitle("Nothing chosen yet")
+                    .SetWidth(UILayoutLength.Absolute(520))
+                    .SetHeight(UILayoutLength.Absolute(180))
                     .SetPlaceholder("Drop a picture here")
                     .SetBadgeText("optional")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 500
+            columns: 24,
+            note: "The same control either way: empty it is the drop area, filled it is the picture — nothing appears or disappears when a file is chosen."
         );
     }
 
@@ -104,8 +125,7 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetValue(DemoImages.NightStreet)
                     .SetPlaceholder("The thumbnail is the value")
                 )
-            ),
-            contentMinHeight: 280
+            )
         );
     }
 
@@ -120,48 +140,10 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                 .SetMultiple(true)
                 .SetTitle("Gallery")
                 .SetPlaceholder("Drop pictures here, or pick them")
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 200,
+            columns: 24,
             note: "SetMultiple(true) turns the picture shape into a shelf; bind SelectionIds to read the pictures back, and clear it to empty the shelf."
-        );
-    }
-
-    /// <summary>The stand-in glyphs and the states: read-only keeps the picture and takes away the pencil, disabled greys it.</summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Placeholders and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(DemoUI.CreateRow(16)
-                    .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
-                        .SetTitle("Own glyph")
-                    )
-                    .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
-                        .SetTitle("Named icon")
-                        .SetPlaceholderIcon(DemoIcons.Outline(DemoIcons.Groups))
-                    )
-                    .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
-                        .SetTitle("Read-only")
-                        .SetValue(DemoImages.Avatar)
-                        .SetIsReadOnly(true)
-                    )
-                    .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
-                        .SetTitle("Disabled")
-                        .SetValue(DemoImages.Avatar)
-                        .SetEnabled(false)
-                    )
-                )
-                .AddChild(new ImageInputComponent()
-                    .SetTitle("Contained rather than covered")
-                    .SetValue(DemoImages.NightStreet)
-                    .SetFit(UIImageFit.Contain)
-                    .SetHeight(UILayoutLength.Absolute(200))
-                )
-            ),
-            contentMinHeight: 400
         );
     }
 }

@@ -15,7 +15,8 @@ public interface IFieldInputComponent : IInputComponent
     static UIProperty AppearanceProperty { get; } = new(nameof(Appearance));
 
     /// <summary>
-    /// Gets how the field surface is drawn.
+    /// Gets or sets how the field surface is drawn; settable so a host that puts a field in a row of its own can choose the shape
+    /// it takes there, as the key-value list makes an unset editor a filled box.
     /// </summary>
-    UIInputAppearance? Appearance { get; }
+    UIInputAppearance? Appearance { get; set; }
 }

@@ -30,8 +30,8 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateBrowserGroup(), CreateRecordGroup()],
-            [CreatePageHeaderGroup(), CreateAgainstLinksGroup()]
+            [CreateBrowserGroup(), CreatePageHeaderGroup()],
+            [CreateAgainstLinksGroup(), CreateRecordGroup()]
         ));
     }
 
@@ -62,8 +62,7 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
                     )
                 )
                 .SetPlacement(1, 1, 24, 1)
-            ),
-            contentMinHeight: 240
+            )
         );
     }
 

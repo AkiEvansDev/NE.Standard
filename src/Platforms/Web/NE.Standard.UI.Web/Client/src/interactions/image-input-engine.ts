@@ -46,6 +46,13 @@ export class ImageInputEngine {
     /** A shelf's squares, in the order they were chosen. */
     private readonly shelves = new WeakMap<HTMLElement, Tile[]>();
 
+    // What each shelf has sent and not yet seen come back: the controller's echo of a list is not the controller dropping a square.
+    private readonly published = new WeakMap<HTMLElement, string[]>();
+
+    // The root's list as last read, per shelf: the observer wakes for the shelf's own squares and hidden input too, and pruning by
+    // an unchanged list — an empty one on a shelf nothing is bound to — took every square off as it landed.
+    private readonly seenKeys = new WeakMap<HTMLElement, string | null>();
+
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
 
@@ -117,8 +124,24 @@ export class ImageInputEngine {
         const tiles = this.shelves.get(root);
         const text = root.getAttribute(SelectedKeysAttribute);
 
+        if (this.seenKeys.get(root) === text)
+            return;
+
+        this.seenKeys.set(root, text);
+
         if (tiles === undefined || text === null)
             return;
+
+        // A list the shelf itself sent, back from the server: two squares landing close together send two lists, and the first one's
+        // echo arrives after the second square is on the shelf — pruning by it would take that square off. The lists sent before it
+        // are older still and are forgotten with it.
+        const sent = this.published.get(root) ?? [];
+        const echo = sent.indexOf(text);
+
+        if (echo >= 0) {
+            sent.splice(0, echo + 1);
+            return;
+        }
 
         let kept: unknown;
 
@@ -295,6 +318,10 @@ export class ImageInputEngine {
         if (selections === null || selections.getAttribute(SelectedKeysAttribute) === json)
             return;
 
+        const sent = this.published.get(root) ?? [];
+
+        sent.push(json);
+        this.published.set(root, sent);
         selections.setAttribute(SelectedKeysAttribute, json);
         selections.dispatchEvent(new Event("change", { bubbles: true }));
     }

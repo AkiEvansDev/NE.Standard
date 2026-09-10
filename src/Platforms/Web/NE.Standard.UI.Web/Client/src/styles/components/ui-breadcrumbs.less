@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/chevron.less";
+@import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 
 .ui-breadcrumbs {
@@ -94,9 +95,9 @@
     text-decoration: none;
 }
 
-    .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover {
-        background: none;
-        color: var(--ui-color-on-surface);
+    // A step is a link, not a button: no wash under the pointer or the press, only the word's colour and its underline.
+    .ui-breadcrumb:not(.ui-breadcrumb--current) {
+        .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
 
     // Under the word only, as on .ui-link: a glyph is not text to underline.

@@ -10,7 +10,6 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
@@ -209,14 +208,39 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                         .SetWidth(UILayoutLength.Absolute(120))
                         .SetHeight(UILayoutLength.Absolute(120))
                     )
-                    .SetPlacement(1, 1, 4, 1)
                 )
-                .AddTemplateVariant(AttachmentItem.FileKind, new LinkComponent()
-                    .SetIcon(AppIcons.Outline(AppIcons.Download))
-                    .BindTitle(nameof(AttachmentItem.Name), UIBindingScope.Relative)
-                    .BindTooltip(nameof(AttachmentItem.SizeText), UIBindingScope.Relative)
-                    .BindUrl(nameof(AttachmentItem.Address), UIBindingScope.Relative)
-                    .SetPlacement(1, 1, 12, 1)
+                // A square of the picture's own size: the name across the top and a file's glyph where the picture would be, the whole
+                // square pressed to fetch it.
+                .AddTemplateVariant(AttachmentItem.FileKind, new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetClickable(true)
+                    .SetPadding(UIThickness.Uniform(8))
+                    .SetBorderThickness(UIThickness.Uniform(0))
+                    .SetBorderRadius(UICornerRadius.Uniform(8))
+                    .SetOverflow(UIOverflow.Hidden)
+                    .SetWidth(UILayoutLength.Absolute(120))
+                    .SetHeight(UILayoutLength.Absolute(120))
+                    .OnClick(nameof(ChatController.DownloadAttachment), UIAction.ArgCurrentItemKey("id"))
+                    .SetContent(new ContainerComponent()
+                        .SetRow(1, UIGridUnit.Auto())
+                        .AddRow(UIGridUnit.Star())
+                        .SetHeight(UILayoutLength.Fill())
+                        // Two lines at most: a name longer than the square is cut rather than pushing the glyph out of it.
+                        .AddChild(new ParagraphComponent()
+                            .BindTitle(nameof(AttachmentItem.Name), UIBindingScope.Relative)
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetMaxLines(2)
+                            .SetPlacement(1, 1, 24, 1)
+                        )
+                        .AddChild(new IconComponent()
+                            .SetIcon(AppIcons.Outline(AppIcons.File))
+                            .SetSize(UIIconSize.Large)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                            .SetHorizontalAlignment(UIAlignment.Center)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 2, 24, 1)
+                        )
+                    )
                 )
             );
 
@@ -244,20 +268,26 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
         return row.AddChild(bubble);
     }
 
-    /// <summary>The name and the time on one line.</summary>
-    private static StackPanelComponent CreateMessageHeader(bool mine)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(8)
+    /// <summary>
+    /// The name and the time on one line, the time at the far edge: both take their own width (the first and last columns), and the
+    /// star columns between them hold whatever room the bubble's text leaves, so a short message still shows the whole name.
+    /// </summary>
+    private static ContainerComponent CreateMessageHeader(bool mine)
+        => new ContainerComponent()
+            .SetColumn(1, UIGridUnit.Auto())
+            .SetColumn(UIGridPlacement.GridColumns, UIGridUnit.Auto())
             .AddChild(new TextComponent()
                 .BindTitle(nameof(MessageItem.Author), UIBindingScope.Relative)
                 .SetTitleType(UITextAppearance.Caption)
                 .SetTitleColor(UIThemeColor.FromStyle(mine ? UIColorStyle.OnPrimary : UIColorStyle.Primary))
+                .SetPlacement(1, 1, 1, 1)
             )
             .AddChild(new TextComponent()
                 .BindTitle(nameof(MessageItem.Time), UIBindingScope.Relative)
                 .SetTitleType(UITextAppearance.Caption)
                 .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                .SetMargin(UIThickness.All(12, 0, 0, 0))
+                .SetPlacement(UIGridPlacement.GridColumns, 1, 1, 1)
             );
 
     /// <summary>An own message's right click: Edit opens the words in a dialog, Delete asks first. The entry says what, the row says which.</summary>

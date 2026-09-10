@@ -8,6 +8,11 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// <remarks>
 /// Reaches the stylesheet as four custom properties (<c>--ui-selected-*</c>), so a custom look and the built-in ones share one rule set.
 /// </remarks>
+/// <param name="Background">The ground a chosen item is drawn on.</param>
+/// <param name="Foreground">The ink a chosen item's text takes.</param>
+/// <param name="Mark">The edge a chosen item is marked on.</param>
+/// <param name="MarkColor">The mark's own colour.</param>
+/// <param name="Bold">Whether a chosen item's text is drawn bold.</param>
 public readonly record struct UISelectionStyle(UIThemeColor? Background, UIThemeColor? Foreground, UISelectionMark? Mark, UIThemeColor? MarkColor, bool? Bold = null)
 {
     /// <summary>

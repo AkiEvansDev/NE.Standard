@@ -102,6 +102,8 @@ export const FileMaxSizeAttribute = "data-ui-file-max-size";
 export const PressRippleAttribute = "data-ui-press-ripple";
 /** Client-only: on a splitter while the pointer holds it, for the stylesheet's pressed look. */
 export const SplittingAttribute = "data-ui-splitting";
+/** Client-only: on a handle the pointer focused, so the stylesheet does not draw the keyboard's focus for it; a key or a blur takes it off. */
+export const PointerFocusAttribute = "data-ui-pointer-focus";
 
 /** Choosing rows in an items view: the mode, the chosen key(s), and the mark on a chosen row's wrapper. */
 export const SelectionAttribute = "data-ui-selection";
@@ -115,6 +117,8 @@ export const BindSelectedKeyAttribute = "data-ui-bind-selected-key";
 export const TabsSelectedAttribute = "data-ui-tabs-selected";
 export const TabOrderAttribute = "data-ui-tab-order";
 export const TabCaptionAttribute = "data-ui-tab-caption";
+/** On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it. */
+export const TabPinnedAttribute = "data-ui-tab-pinned";
 
 /** Every tier Visibility writes, narrowest first — each one fenced into its own width band by the stylesheet. */
 export const VisibilityTierAttributes = [

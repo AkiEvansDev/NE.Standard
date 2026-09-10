@@ -29,8 +29,10 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateBrowserGroup()],
-            [CreateCardGroup(), CreateEmptyGroup()]
+            [CreateCardGroup()]
         ));
+
+        _ = container.AddChild(CreateEmptyGroup());
     }
 
     /// <summary>
@@ -125,7 +127,6 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Starts empty",
             content => content.AddChild(new SurfaceComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsViewComponent()
                     .SetItems([])
                     .SetEmptyTemplate(new DefaultEmptyTemplate()
@@ -138,7 +139,9 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPageTemplate(new ParagraphComponent().BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative))
                 )
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            columns: 24,
+            note: "With no tabs there is no strip either: the empty template is the whole control, and the first tab added brings the strip with it."
         );
     }
 }

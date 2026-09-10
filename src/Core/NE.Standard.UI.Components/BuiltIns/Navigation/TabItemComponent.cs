@@ -49,6 +49,13 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     public double? Order { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the tab is pinned: drawn with a pin, without its close control, and left where it is by a drag. Whether a
+    /// close from elsewhere is refused is the controller's answer.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? Pinned { get; set; }
+
+    /// <summary>
     /// Initializes a new tab with the built-in caption region.
     /// </summary>
     protected TabItemComponent(string? id = null) : base(id)

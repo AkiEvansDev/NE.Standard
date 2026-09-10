@@ -27,9 +27,11 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateToolbarGroup(), CreateFieldGroup()],
+            [CreateToolbarGroup()],
             [CreatePeriodGroup()]
         ));
+
+        _ = container.AddChild(CreateFieldGroup());
     }
 
     /// <summary>
@@ -120,7 +122,9 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
                     ])
                     .SetPlacement(24, 1, 1, 1)
                 )
-            )
+            ),
+            columns: 24,
+            note: "The group sits at the far end of the row the field fills, which is only a row once it has the page's width."
         );
     }
 }

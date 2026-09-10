@@ -33,6 +33,8 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
             content => content.AddChild(new ContainerComponent("demo-split-sidebar")
                 .SetColumn(1, UIGridUnit.Absolute(220, min: 160, max: 420))
                 .SetColumn(2, UIGridUnit.Auto())
+                // The height is the group's subject here, so it is written on the pane itself rather than as a floor under the group.
+                .SetHeight(UILayoutLength.Absolute(280))
                 .SetOverflow(UIOverflow.Hidden)
                 .AddChild(CreateFilters().SetPlacement(1, 1, 1, 1))
                 .AddChild(new GridSplitterComponent().SetPlacement(2, 1, 1, 1))
@@ -40,7 +42,6 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
                 .SetPlacement(1, 1, 24, 1)
             ),
             columns: 24,
-            contentMinHeight: 280,
             note: "Named, so the width you choose is kept for the next visit and painted before the page's first frame. Double-click the bar to put 220 back."
         );
     }
@@ -85,6 +86,7 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
             content => content.AddChild(new ContainerComponent("demo-split-panes")
                 .SetColumn(8, UIGridUnit.Auto())
                 .SetColumn(17, UIGridUnit.Auto())
+                .SetHeight(UILayoutLength.Absolute(220))
                 .SetOverflow(UIOverflow.Hidden)
                 .AddChild(CreateWork("Files", "Seven star columns.").SetPlacement(1, 1, 7, 1))
                 .AddChild(new GridSplitterComponent().SetPlacement(8, 1, 1, 1))
@@ -93,8 +95,7 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
                 .AddChild(CreateWork("Preview", "Seven star columns.").SetPlacement(18, 1, 7, 1))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            columns: 24,
-            contentMinHeight: 220
+            columns: 24
         );
     }
 
@@ -115,8 +116,7 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
                 .AddChild(CreateLog().SetPlacement(1, 3, 24, 1))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            columns: 24,
-            contentMinHeight: 420
+            columns: 24
         );
     }
 

@@ -25,9 +25,15 @@
     }
 
 // Grid, not flex: the caption is a .ui-text body whose icon column and description subgrid line up against ui-text.less's own tracks.
+// A required marker alone does not open the header: it marks a caption, and a field with no caption — one in a row of a list — has
+// nothing for it to stand beside.
 :is([data-ui-text-title], [data-ui-text-icon]) > .ui-input__header,
-.ui-input__header:has(:is([data-ui-badge-icon], [data-ui-badge-text], .ui-input__required)) {
+.ui-input__header:has(:is([data-ui-badge-icon], [data-ui-badge-text])) {
     display: grid;
+}
+
+:not([data-ui-text-title]) > .ui-input__header .ui-input__required {
+    display: none;
 }
 
 // Caption is secondary to the value it labels, so muted; :where() keeps a .ui-color--* utility able to override it.
@@ -88,11 +94,23 @@
 
 // A field that is a box rather than a row — a <textarea>, a package's editor — takes the ground by class, and with it every appearance
 // and state below. `--ui-field-fill` is what the box paints at the moment, for anything of its own that has to paint the same (a sticky
-// gutter over scrolled text): the resting fill here, and what each appearance and the hover put in its place.
+// gutter over scrolled text): the resting fill here, and what each appearance puts in its place.
 .ui-field-box {
     --ui-field-fill: var(--ui-field-rest);
     color: var(--ui-color-on-surface);
     .ui-field-ground();
+}
+
+// An inset shadow is painted under the background of anything inside the box, so a box holding content with a ground of its own — the
+// code field's sticky gutter — showed the ring broken along that edge. An outline is painted over every descendant, and pulled inside
+// by its own width it lands exactly where the inset ring did, with the corner curve the browser works out rather than an inherited one.
+.ui-field-box:focus-within {
+    outline: var(--ui-input-focus-ring, 1px) solid var(--ui-field-ring, var(--ui-color-primary));
+    outline-offset: calc(-1 * var(--ui-input-focus-ring, 1px));
+}
+
+:is(.ui-invalid, .ui-validation--warning) > .ui-field-box {
+    --ui-field-ring: var(--ui-validation-color, var(--ui-color-danger));
 }
 
 // No fill, a border all the way round, in the theme's own colour rather than the fill it replaces — the whole difference from Filled.
@@ -149,23 +167,18 @@
 // open or focus (further down). Hover is written in :where(), so it weighs exactly what a resting rule does and every later state
 // outranks it by order alone — a hovered field that is focused wears the accent, not the hover's colour under the focus ring, and a
 // hovered invalid field stays red (a focused field under the pointer used to wear two colours).
-// Hover belongs to the appearance, not each control: Filled lifts its surface; Outline and Underline lift their border; Ghost washes.
+// Hover belongs to the appearance, not each control, and a field answers it through its edge alone — the owner's rule: a field is
+// not a button, so its ground never lifts. Filled sharpens the edge it has, Outline and Underline lift their border, and Ghost, which
+// has no edge until it is focused, does not react at all — which is what a row's own hover (a key-value row) needs of it.
 :where(.ui-input--filled:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
 :where(.ui-input--filled:not(.ui-disabled)) > .ui-field-box:hover {
-    --ui-field-fill: var(--ui-field-hover);
     border-color: var(--ui-field-hover);
-    background: var(--ui-field-hover);
 }
 
 // Primary but dimmed: full colour is reserved for focus, or Underline's ringless hover would look the same as its focus.
 :where(.ui-input--outline:not(.ui-disabled), .ui-input--underline:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
 :where(.ui-input--outline:not(.ui-disabled), .ui-input--underline:not(.ui-disabled)) > .ui-field-box:hover {
     border-color: var(--ui-field-hover-accent);
-}
-
-:where(.ui-input--ghost:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
-:where(.ui-input--ghost:not(.ui-disabled)) > .ui-field-box:hover {
-    background: var(--ui-field-hover-wash);
 }
 
 // A control with its popup open reads as active regardless of focus, since opening the popup doesn't move focus into it.
@@ -191,6 +204,16 @@
     background: transparent;
     color: var(--ui-color-on-surface);
     font: inherit;
+}
+
+// A value the browser filled in itself comes with the browser's own ground painted inside the field, a blue box inside the row's;
+// clipping that ground to the text leaves the value and nothing else.
+.ui-field:-webkit-autofill,
+.ui-field:-webkit-autofill:hover,
+.ui-field:-webkit-autofill:focus {
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: var(--ui-color-on-surface);
+    caret-color: var(--ui-color-on-surface);
 }
 
 

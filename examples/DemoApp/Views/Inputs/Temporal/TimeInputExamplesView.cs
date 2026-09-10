@@ -5,7 +5,6 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -29,7 +28,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateStepGroup(), CreateStateGroup()],
+            [CreateUsesGroup(), CreateStepGroup()],
             [CreateSegmentsGroup(), CreateBoundsGroup()]
         ));
     }
@@ -55,8 +54,14 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetBadgeText("UTC")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
-            ),
-            contentMinHeight: 300
+                .AddChild(new TimeInputComponent()
+                    .SetTitle("Quiet hours end at")
+                    .SetPrefixIcon(DemoIcons.Clock)
+                    .SetDisplayFormat("HH:mm")
+                    .SetValue(new TimeOnly(7, 0))
+                    .SetStepMinutes(30)
+                )
+            )
         );
     }
 
@@ -81,13 +86,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDisplayFormat("HH:mm:ss")
                     .SetValue(Window)
                 )
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("h:mm tt — twelve hours, and a designator to type into")
-                    .SetDisplayFormat("h:mm tt")
-                    .SetValue(Standup)
-                )
-            ),
-            contentMinHeight: 340
+            )
         );
     }
 
@@ -116,8 +115,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetStepSeconds(5)
                     .SetValue(Window)
                 )
-            ),
-            contentMinHeight: 280
+            )
         );
     }
 
@@ -146,42 +144,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-            ),
-            contentMinHeight: 280
-        );
-    }
-
-    /// <summary>The field's own surface, its affixes, and the states.</summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue(Standup)
-                )
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("With an affix glyph")
-                    .SetPrefixIcon(DemoIcons.Clock)
-                    .SetValue(Standup)
-                )
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(Standup)
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue(Standup)
-                    .SetEnabled(false)
-                )
-                .AddChild(new TimeInputComponent()
-                    .SetTitle("Required, nothing chosen yet")
-                    .Required("A time is required.")
-                )
-            ),
-            contentMinHeight: 400
+            )
         );
     }
 }

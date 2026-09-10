@@ -41,8 +41,7 @@ internal sealed class CollapsiblePanelExamplesView : DemoExamplesView, IUIViewDe
                 .AddChild(CreateLog().SetPlacement(1, 2, 24, 1))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            columns: 24,
-            contentMinHeight: 360
+            columns: 24
         );
     }
 
@@ -132,8 +131,7 @@ internal sealed class CollapsiblePanelExamplesView : DemoExamplesView, IUIViewDe
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            columns: 24,
-            contentMinHeight: 200
+            columns: 24
         );
     }
 }

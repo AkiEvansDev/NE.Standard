@@ -41,8 +41,8 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSidebarGroup(), CreateCommandsGroup(), CreateFiltersGroup()],
-            [CreateTopBarGroup(), CreateContextGroup(), CreateRowsGroup()]
+            [CreateFiltersGroup(), CreateSidebarGroup(), CreateContextGroup()],
+            [CreateCommandsGroup(), CreateRowsGroup(), CreateTopBarGroup()]
         ));
     }
 
@@ -114,7 +114,6 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                     .OnItemClickWithItemKey(nameof(MenuExamplesController.Filter))
                     .SetPlacement(13, 1, 12, 1)
                 ),
-            contentMinHeight: 260,
             note: "Kind = Select carries Value and its Items as the choices; Kind = Check carries Checked. Both click the entry command with their key, and the controller answers on the bound items."
         );
     }
@@ -167,8 +166,7 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetTitle("Right-click this card")
                     .SetDescription("The menu is set on the card itself — it compiles with the card and opens where the pointer is; Surface = Background puts it on the page's ground.")
                 )
-            ),
-            contentMinHeight: 120
+            )
         );
     }
 
@@ -183,8 +181,7 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetSpacing(8)
                 .SetPlacement(1, 1, 24, 1)
                 .SetTemplate(CreateRowTemplate())
-            ),
-            contentMinHeight: 160
+            )
         );
     }
 

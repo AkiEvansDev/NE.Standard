@@ -2,9 +2,9 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
+using NE.Standard.UI.CodeInput;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
@@ -103,13 +103,18 @@ public sealed class FilesView : TeamRoomView, IUIViewDefinition
             .SetDraggable(true)
             .SetMargin(UIThickness.All(8, 0, 0, 0))
             .OnItemRemove(nameof(FilesController.CloseDocument))
-            .SetPageTemplate(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            // A row for the toolbar and a star row for the editor, so the text reaches the bottom of the pane rather than stopping at a
+            // row count with the page's own ground under it.
+            .SetPageTemplate(new ContainerComponent()
+                .SetRow(1, UIGridUnit.Auto())
+                .AddRow(UIGridUnit.Star())
                 .SetPadding(UIThickness.All(0, 8, 0, 0))
+                .SetHeight(UILayoutLength.Fill())
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetSpacing(12)
+                    .SetMargin(UIThickness.All(0, 0, 0, 8))
+                    .SetPlacement(1, 1, 24, 1)
                     .BindVisibility(nameof(TeamRoomController.AdminVisibility))
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Primary)
@@ -126,13 +131,17 @@ public sealed class FilesView : TeamRoomView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
-                .AddChild(new TextAreaComponent()
+                // The code field: highlighted by the file's extension, committed as the author types, Ctrl+S saves — the same command the
+                // button runs. Ghost, the package's own default: the editor is the page here, not a box standing on it.
+                .AddChild(new CodeInputComponent()
                     .BindValue(nameof(DocumentTab.Body), UIBindingScope.Relative)
+                    .BindLanguage(nameof(DocumentTab.Language), UIBindingScope.Relative)
                     .BindIsReadOnly(nameof(TeamRoomController.IsReader))
                     .SetDebounceMilliseconds(400)
-                    .SetRows(24)
-                    .SetResize(UITextAreaResizeMode.Vertical)
+                    .SetHeight(UILayoutLength.Fill())
+                    .OnSave(nameof(FilesController.SaveDocument), UIAction.ArgCurrentItemKey("id"))
                     .SetHorizontalAlignment(UIAlignment.Stretch)
+                    .SetPlacement(1, 2, 24, 1)
                 )
             );
 }

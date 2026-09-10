@@ -9,4 +9,9 @@ public interface ITabItemModel : ITextBaseModel
     /// Gets where the tab sits in the strip, ascending; a drag writes the new position back.
     /// </summary>
     double? Order { get; }
+
+    /// <summary>
+    /// Gets whether the tab is pinned: drawn with a pin, without its close control, and left where it is by a drag.
+    /// </summary>
+    bool? Pinned { get; }
 }

@@ -6,7 +6,7 @@ using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
-namespace DemoApp.Controllers.Contents.KeyValueAction;
+namespace DemoApp.Controllers.Items.KeyValueAction;
 
 /// <summary>
 /// The properties that answer for the whole list rather than for one row.

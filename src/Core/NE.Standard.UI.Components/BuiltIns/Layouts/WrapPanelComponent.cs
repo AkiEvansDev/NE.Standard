@@ -6,7 +6,8 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
-/// A layout container that flows its children left to right, wrapping onto additional lines as needed.
+/// A layout container that flows its children left to right, wrapping onto additional lines as needed. A child takes its
+/// content's width; one with a placement takes that span of the 24-column grid instead (a span of 6 is four to a line).
 /// </summary>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent

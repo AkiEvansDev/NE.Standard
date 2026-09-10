@@ -62,16 +62,11 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                     .BindSelectedKey(nameof(EditorGroupContext.SelectedKey), UIBindingScope.Relative)
                     .SetRenamable(true)
                     .SetDraggable(true)
-                    // On the tab template, so every tab carries the menu; the tab's own id reaches the command from the enclosing item.
+                    // On the tab template, so every tab carries the menu, bound to the document's own entries: the pin entry reads "Unpin" once
+                    // the tab is pinned. The tab's own id reaches the command from the enclosing item.
                     .SetTemplate(new DefaultTabItemTemplate(binds: true)
                         .SetContextMenu(new MenuComponent()
-                            .SetItems(
-                            [
-                                new MenuItem { Id = TabsViewScenariosController.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                                new MenuItem { Id = EditorGroupContext.PinAction, Title = "Pin", Icon = DemoIcons.Outline(DemoIcons.Star) },
-                                new MenuItem { Id = EditorGroupContext.CloseOthersAction, Title = "Close others", Icon = DemoIcons.Outline(DemoIcons.Close) },
-                                new MenuItem { Id = EditorGroupContext.CloseAction, Title = "Close", Icon = DemoIcons.Outline(DemoIcons.Close) }
-                            ])
+                            .BindItems(nameof(DemoDocumentItem.Actions), UIBindingScope.Relative)
                             .OnItemClick(nameof(TabsViewScenariosController.TabAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(DemoDocumentItem.Id)))
                         )
                     )
@@ -86,7 +81,7 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                     .SetPlacement(10, 1, 15, 1)
                 ),
             contentMinHeight: 300,
-            note: "Open a file, close it, rename it, drag a header, right-click one: each one reaches the controller as a change to a single document, and the controller is what answers."
+            note: "Open a file, close it, rename it, drag a header, right-click one, pin it: each one reaches the controller as a change to a single document, and the controller is what answers. A pinned tab wears the pin, loses its close and stays put under a drag."
         );
     }
 

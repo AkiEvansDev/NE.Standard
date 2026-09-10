@@ -25,8 +25,8 @@ internal sealed class ScrollExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateConversationGroup(), CreateTableGroup()],
-            [CreateListGroup(), CreatePictureGroup()]
+            [CreateListGroup(), CreateConversationGroup()],
+            [CreatePictureGroup(), CreateTableGroup()]
         ));
     }
 

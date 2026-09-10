@@ -28,6 +28,7 @@ public abstract class DefaultTabItemTemplate<TTemplate> : TabItemComponent<TTemp
 
         _ = Bind(VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative);
         _ = Bind(EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative);
+        _ = Bind(PinnedProperty, nameof(ITabItemModel.Pinned), UIBindingScope.Relative);
         _ = this.BindItemAbilities();
 
         // Two-way explicitly: the raw Bind takes OneWay whatever the property's own default is.

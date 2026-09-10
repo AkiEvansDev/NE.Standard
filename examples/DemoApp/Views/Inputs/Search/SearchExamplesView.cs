@@ -55,8 +55,7 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-            ),
-            contentMinHeight: 240
+            )
         );
     }
 
@@ -82,8 +81,7 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-            ),
-            contentMinHeight: 300
+            )
         );
     }
 

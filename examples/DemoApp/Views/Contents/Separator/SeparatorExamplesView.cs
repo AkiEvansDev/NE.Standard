@@ -24,8 +24,8 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSectionsGroup(), CreateAgainstSpaceGroup()],
-            [CreateRowGroup(), CreateLabelledGroup()]
+            [CreateSectionsGroup(), CreateRowGroup()],
+            [CreateAgainstSpaceGroup(), CreateLabelledGroup()]
         ));
     }
 

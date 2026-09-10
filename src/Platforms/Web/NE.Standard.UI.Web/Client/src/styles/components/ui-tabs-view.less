@@ -104,6 +104,26 @@
         background: @ui-selected-mark-color;
     }
 
+// A pinned tab's mark, the library's own glyph, in the close control's place: a pinned tab has no close, so the caption keeps its width.
+.ui-tab-item__pin {
+    .ui-pin-glyph();
+    display: none;
+    flex: 0 0 auto;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin: 0 0.1875rem;
+    color: var(--ui-text-muted);
+    transform: rotate(45deg);
+}
+
+    .ui-tab-item[data-ui-tab-pinned] .ui-tab-item__pin {
+        display: block;
+    }
+
+    .ui-tab-item[data-ui-tab-pinned] .ui-tab-item__close {
+        display: none;
+    }
+
 // The close control keeps its space even when hidden, so no caption shifts on hover and fixed tabs stay aligned.
 // The same drawn cross a field's clear wears.
 .ui-tab-item__close {
@@ -155,7 +175,10 @@
     flex-direction: column;
     order: 1;
     min-width: 100%;
-    min-height: 0;
+    // What the strip leaves of the host, which TabsViewEngine measures: the strip and the page are two lines of one wrapping flex,
+    // and a line is only as tall as its content, so without this a page that asks to fill its host has nothing to fill. Taller
+    // content still grows it, and a host with no height of its own resolves this to nothing, as it did before.
+    min-height: calc(100% - var(--ui-tabs-view-strip, 0px));
     // The strip's rule width, so the caption mark lies over it exactly as in Tabs.
     border-top: @ui-tab-rule-width solid var(--ui-color-border);
     padding-top: @ui-space-3;

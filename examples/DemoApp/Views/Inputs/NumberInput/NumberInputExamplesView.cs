@@ -1,9 +1,8 @@
 using DemoApp.Views.Base;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.NumberInput;
 
@@ -22,9 +21,11 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateQuantityGroup(), CreateBoundsGroup()],
-            [CreateFormatGroup(), CreateFieldGroup()]
+            [CreateQuantityGroup()],
+            [CreateFormatGroup()]
         ));
+
+        _ = container.AddChild(CreateBoundsGroup());
     }
 
     /// <summary>
@@ -64,117 +65,83 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetAllowDecimals()
                     .SetStep(0.5m)
                 )
-            ),
-            contentMinHeight: 320
+            )
         );
     }
 
     /// <summary>
-    /// The Format properties change what may be typed and how it is written back, not the value itself.
+    /// What may be typed follows from the thing being measured, so each row is named by the thing rather than by the flag.
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
         return DemoUI.CreateGroup(null, "What may be typed",
             content => content.AddChild(DemoUI.CreateStack()
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Whole numbers only")
+                    .SetTitle("Replicas — a count, so no decimals and no minus")
                     .SetValue(12)
                     .SetAllowDecimals(false)
+                    .SetAllowNegative(false)
+                    .SetShowStepper()
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Decimals, trailing zeros trimmed")
+                    .SetTitle("Latency budget — decimals, and no trailing zeros to read past")
                     .SetValue(1.500m)
+                    .SetSuffixText("ms")
                     .SetAllowDecimals()
                     .SetTrimTrailingZeros()
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Decimals, two places written out")
+                    .SetTitle("Unit price — money, so the second place is always written")
                     .SetValue(1.5m)
+                    .SetPrefixText("$")
                     .SetAllowDecimals()
                     .SetDisplayFormat("N2")
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("A temperature, so negatives are allowed")
+                    .SetTitle("Chamber temperature — the one field that may go below zero")
                     .SetValue(-4)
                     .SetSuffixText("°C")
                     .SetAllowNegative()
                     .SetAllowDecimals()
                 )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("A count, so they are not")
-                    .SetValue(3)
-                    .SetAllowNegative(false)
-                    .SetShowStepper()
-                )
             ),
-            contentMinHeight: 400
+            note: "Every rule here is a property; what the page is for is which rule the measured thing asks for."
         );
     }
 
     /// <summary>
-    /// <c>Min</c>/<c>Max</c> are validated with the value rather than only guarding the stepper.
+    /// What the field refuses: the ends of the range, and an answer that has to be given at all.
     /// </summary>
+    /// <remarks>Full width, three across: the three refusals are read against each other, not down a column.</remarks>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "Bounds",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Between 1 and 64")
+        return DemoUI.CreateGroup(null, "What it refuses",
+            content => content.AddChild(DemoUI.CreateRow(24)
+                .AddChild(CreateBounded("Both ends — the stepper stops, and so does the typing", new NumberInputComponent()
+                    .SetTitle("Replicas")
                     .SetValue(8)
                     .SetRange(1, 64)
                     .SetShowStepper()
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("At least 1")
+                ))
+                .AddChild(CreateBounded("One end only — nothing above it", new NumberInputComponent()
+                    .SetTitle("Concurrent uploads")
                     .SetValue(1)
                     .SetMin(1)
                     .SetShowStepper()
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Required")
+                ))
+                .AddChild(CreateBounded("Empty is not an answer", new NumberInputComponent()
+                    .SetTitle("Replicas")
                     .SetPlaceholder("How many?")
                     .SetShowStepper()
                     .Required("A replica count is required.")
-                )
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 280
+            columns: 24,
+            note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too."
         );
     }
 
-    /// <summary>The field's own surface: the two appearances, affix glyphs, and the states.</summary>
-    private static ContainerComponent CreateFieldGroup()
-    {
-        return DemoUI.CreateGroup(null, "The field it sits in",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Filled")
-                    .SetValue(12)
-                    .SetShowStepper()
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue(12)
-                    .SetShowStepper()
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("With an affix glyph")
-                    .SetPrefixIcon(DemoIcons.Clock)
-                    .SetValue(30)
-                    .SetSuffixText("s")
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(64)
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue(0)
-                    .SetEnabled(false)
-                )
-            ),
-            contentMinHeight: 400
-        );
-    }
+    private static StackPanelComponent CreateBounded(string caption, NumberInputComponent field)
+        => DemoUI.CreateCaptionedItem(caption, field.SetWidth(UILayoutLength.Absolute(300)));
 }

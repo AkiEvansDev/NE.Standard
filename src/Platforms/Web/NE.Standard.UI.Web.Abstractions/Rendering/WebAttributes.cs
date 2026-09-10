@@ -246,6 +246,9 @@ public static class WebAttributes
 
     public const string TabOrder = "data-ui-tab-order";
 
+    /// <summary>On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it.</summary>
+    public const string TabPinned = "data-ui-tab-pinned";
+
     public const string TabPage = "data-ui-tab-page";
 
     public const string TabsRenamable = "data-ui-tabs-renamable";

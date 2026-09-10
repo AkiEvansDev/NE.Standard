@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Authoring.Components;
 
@@ -25,7 +26,15 @@ public interface IInputComponent : IVisualComponent
     /// </summary>
     static UIProperty FormIdProperty { get; } = new(nameof(FormId));
 
+    /// <summary>
+    /// Gets the registered property key for <see cref="Validation"/>.
+    /// </summary>
     static UIProperty ValidationProperty { get; } = new(nameof(Validation));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="ValidationPresentation"/>.
+    /// </summary>
+    static UIProperty ValidationPresentationProperty { get; } = new(nameof(ValidationPresentation));
 
     /// <summary>
     /// Gets the input's current value, boxed to <see cref="object"/>; a concrete input also exposes its own typed
@@ -49,6 +58,13 @@ public interface IInputComponent : IVisualComponent
     /// <summary>A message the controller puts on the field, beside whatever the client rules say; the strongest one shows.</summary>
     [UIComponentProperty(DefaultValue = null)]
     UIValidationMessage? Validation { get; }
+
+    /// <summary>
+    /// Where the message goes: a line under the field, or a mark at its edge with the message in a tooltip. Decided once at render;
+    /// <see cref="UIValidationPresentation.Auto"/> is the line except in a cell of a grid.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIValidationPresentation.Auto)]
+    UIValidationPresentation? ValidationPresentation { get; }
 
     /// <summary>
     /// Gets validation rules applied to the input value.

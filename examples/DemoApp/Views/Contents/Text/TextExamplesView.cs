@@ -1,6 +1,7 @@
 using System;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -27,10 +28,12 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        // Not every other one: the five hosts are most of a page by themselves.
+        // Not every other one: the five hosts are most of a page by themselves, and they take the full width.
+        _ = container.AddChild(CreateHostsGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateHostsGroup(), CreateAlignmentEdgesGroup()],
-            [CreateSwappedRolesGroup(), CreatePictureIconGroup(), CreateFoldGroup()]
+            [CreateSwappedRolesGroup(), CreateAlignmentEdgesGroup()],
+            [CreatePictureIconGroup(), CreateFoldGroup()]
         ));
     }
 
@@ -40,21 +43,16 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateHostsGroup()
     {
         return DemoUI.CreateGroup(null, "The same body, worn by five controls",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
-                // Wide enough that a header does not ellipsise, which would read as a difference between hosts.
-                .SetWidth(UILayoutLength.Absolute(470))
-                .AddChild(CreateCaption("On its own"))
-                .AddChild(new TextComponent()
+            // Across rather than down: six hosts in a column is a page of its own, and the point is that they match.
+            content => content.AddChild(DemoUI.CreateRow(24)
+                .AddChild(CreateHost("On its own", new TextComponent()
                     .SetIcon(DemoIcons.Shield)
                     .SetTitle("Two-factor authentication")
                     .SetDescription(Description)
                     .SetBadgeText("Recommended")
                     .SetBadgeStyle(UIBadgeType.Info)
-                )
-                .AddChild(CreateCaption("As a card's header"))
-                .AddChild(new CardComponent()
+                ))
+                .AddChild(CreateHost("As a card's header", new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
@@ -67,9 +65,8 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
-                )
-                .AddChild(CreateCaption("As an expander's header"))
-                .AddChild(new ExpanderComponent()
+                ))
+                .AddChild(CreateHost("As an expander's header", new ExpanderComponent()
                     .SetCollapsed()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Shield)
@@ -83,9 +80,8 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
-                )
-                .AddChild(CreateCaption("As a button's label, and as a row"))
-                .AddChild(new ButtonComponent()
+                ))
+                .AddChild(CreateHost("As a button's label", new ButtonComponent()
                     .SetType(UIButtonType.Outline)
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                     .SetTextAlignment(UITextAlignment.Start)
@@ -96,27 +92,33 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetBadgeText("Recommended")
                     .SetBadgeStyle(UIBadgeType.Info)
                     .SetBadgePlacement(UITextBadgePlacement.Trailing)
-                )
-                .AddChild(new ActionComponent()
+                ))
+                .AddChild(CreateHost("As a row that points somewhere", new ActionComponent()
                     .SetIcon(DemoIcons.Shield)
                     .SetTitle("Two-factor authentication")
                     .SetDescription(Description)
                     .SetBadgeText("Recommended")
                     .SetBadgeStyle(UIBadgeType.Info)
-                )
+                ))
                 // The one host that does not carry the whole body: a field's caption has no description.
-                .AddChild(CreateCaption("As an input's caption — icon, title and badge, and no description"))
-                .AddChild(new TextInputComponent()
+                .AddChild(CreateHost("As an input's caption — no description", new TextInputComponent()
                     .SetIcon(DemoIcons.Shield)
                     .SetTitle("Two-factor authentication")
                     .SetBadgeText("Recommended")
                     .SetBadgeStyle(UIBadgeType.Info)
                     .SetValue("robin@example.com")
-                )
+                ))
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            columns: 24,
+            note: "One body, one set of four properties, six hosts: what differs between the tiles belongs to the host, never to the text."
         );
     }
+
+    // Wide enough that a header does not ellipsise, which would read as a difference between hosts.
+    private static StackPanelComponent CreateHost(string caption, IVisualComponent sample)
+        => DemoUI.CreateCaptionedItem(caption, sample)
+            .SetWidth(UILayoutLength.Absolute(590));
 
     /// <summary>
     /// The two slots are two positions, not two importances: an Overline title over a Subtitle description
@@ -244,10 +246,4 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
             )
         );
     }
-
-    private static TextComponent CreateCaption(string title)
-        => new TextComponent()
-            .SetTitle(title)
-            .SetTitleType(UITextAppearance.Overline)
-            .SetTitleColor(UIThemeColor.Muted);
 }

@@ -77,6 +77,13 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public bool? ShowClearButton { get; set; }
 
     /// <summary>
+    /// Gets or sets what the browser may fill the field with, in the browser's own vocabulary (<see cref="UIAutocomplete"/>):
+    /// a password manager needs the sign-in pair named, and an address form fills itself only when its parts are.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public string? Autocomplete { get; set; }
+
+    /// <summary>
     /// Commits the value as the viewer types, this long after they pause.
     /// </summary>
     public T SetDebounceMilliseconds(int debounceMilliseconds)

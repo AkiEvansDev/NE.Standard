@@ -13,6 +13,8 @@ const VerticalClass = "ui-orientation--vertical";
 const FractionProperty = "--ui-slider-fraction";
 const BubbleGap = 6;
 const ValuePropertyName = "Value";
+// The three the fill is computed from: a push to any of them redraws it.
+const ReadingPropertyNames = new Set(["Value", "Min", "Max"]);
 
 export type RangeValueEngineOptions = {
     readonly root?: ParentNode;
@@ -36,24 +38,33 @@ export class RangeValueEngine {
         this.root.addEventListener("focusin", domEvent => this.placeBubble(domEvent.target), true);
         this.root.addEventListener("focusout", domEvent => this.releaseBubble(domEvent.target), true);
 
-        // A range input silently clamps what it is handed, so the browser's clamp is reported back through the two-way channel.
+        // A pushed value, minimum or maximum moves the fill and the readings as a drag does — the server-rendered fraction is the
+        // value the row was drawn with, not the one seeded into it later. And a range input silently clamps what it is handed, so
+        // the browser's clamp is reported back through the two-way channel.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            // This component's Value and nothing else: the handler is told about every property a slider has.
-            if (change.propertyName !== ValuePropertyName)
+            // The handler is told about every property a slider has.
+            if (!ReadingPropertyNames.has(change.propertyName))
                 return;
 
             const componentId = getIdValue(change.reference.componentId);
 
-            for (const component of this.options.dom?.findAllComponents(componentId, change.dynamicParameters) ?? [])
-                this.reportClamped(component.querySelector<HTMLInputElement>(`.${RangeInputClass}`), change.value);
+            for (const component of this.options.dom?.findAllComponents(componentId, change.dynamicParameters) ?? []) {
+                const input = component.querySelector<HTMLInputElement>(`.${RangeInputClass}`);
+
+                if (input === null)
+                    continue;
+
+                this.writeReadings(input);
+
+                if (change.propertyName === ValuePropertyName)
+                    this.reportClamped(input, change.value);
+            }
         });
     }
 
-    private reportClamped(input: HTMLInputElement | null, pushed: unknown): void {
-        if (input === null || pushed === null || pushed === undefined || input.value === String(pushed))
+    private reportClamped(input: HTMLInputElement, pushed: unknown): void {
+        if (pushed === null || pushed === undefined || input.value === String(pushed))
             return;
-
-        this.writeReadings(input);
 
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -90,8 +101,12 @@ export class RangeValueEngine {
 
         input.closest<HTMLElement>(`.${RangeTrackClass}`)?.style.setProperty(FractionProperty, String(fractionOf(input)));
 
-        // After the fraction, which is what moved the anchor the bubble stands over.
-        this.placeBubble(input);
+        // After the fraction, which is what moved the anchor the bubble stands over. Only a bubble the stylesheet is actually showing
+        // is placed: a pushed value on an untouched slider would otherwise leave the popup tracker watching a bubble nobody sees.
+        if (input.matches(":active, :focus-visible"))
+            this.placeBubble(input);
+        else
+            this.releaseBubble(input);
     }
 }
 

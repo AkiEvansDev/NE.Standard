@@ -50,10 +50,12 @@
     }
 }
 
-// The keyboard's row, washed like the pointer's while the host holds the focus — except where one row to choose already shows it:
-// with a single choice the chosen row is the keyboard's, and a second mark read as a stray frame.
+// The keyboard's row, washed like the pointer's while the host itself holds the focus — except where one row to choose already
+// shows it: with a single choice the chosen row is the keyboard's, and a second mark read as a stray frame. The host root is what
+// the roving focus sits on, so `:focus` and not `:focus-within`: a click on a button inside some other row must not light a row
+// the reader chose a while ago.
 .ui-row-cursor(@host; @row) {
-    @{host}:focus-within:not([data-ui-selection="one"]) > [data-ui-items-host] > @{row}[data-ui-row-focus] {
+    @{host}:focus:not([data-ui-selection="one"]) > [data-ui-items-host] > @{row}[data-ui-row-focus] {
         .ui-row-hover();
     }
 }

@@ -54,7 +54,6 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowActions { get; set; }
 
-
     /// <summary>
     /// Gets the template used to render each row's key content.
     /// </summary>
@@ -94,6 +93,9 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     protected KeyValueActionComponent(string? id = null) : base(id)
     {
+        // A list of rows is as tall as its rows: stretched to a taller cell it would hang its last row's rule mid-air.
+        VerticalAlignment = UIAlignment.Start;
+
         _ = SetRowTemplate(new DefaultRowTemplate());
         _ = SetKeyTemplate(new DefaultKeyTemplate(binds: true));
         _ = SetValueTemplate(new DefaultValueTemplate(binds: true));
@@ -180,6 +182,11 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         ArgumentNullException.ThrowIfNull(template);
 
+        // A field in a row is a filled box inside the row unless the author said otherwise — the settings editor's shape — set back by
+        // its own padding so its text starts where the value's did (the owner's call, 2026-09-07, after a ghost and a rule were tried).
+        if (template is IFieldInputComponent { Appearance: null } field)
+            field.Appearance = UIInputAppearance.Filled;
+
         // Spelled out: the raw Bind is one-way whatever the property declares, and a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);
     }
@@ -198,9 +205,8 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
 
         _ = row.Bind(DefaultRowTemplate.EditingProperty, nameof(IKeyValueActionModel.ShowInput), UIBindingScope.Relative, UIBindingMode.TwoWay);
 
-        // A ghost field: no box in a row that already has its own, and a row's height rather than a form's.
         if (ValueInputTemplate is null)
-            _ = SetValueInputTemplate(new TextInputComponent().SetAppearance(UIInputAppearance.Ghost));
+            _ = SetValueInputTemplate(new TextInputComponent());
 
         // The words are the framework's own keys: the page translates them the way it translates any title.
         ButtonComponent pencil = new ButtonComponent()

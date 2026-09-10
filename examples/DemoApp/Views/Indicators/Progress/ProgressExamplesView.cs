@@ -25,7 +25,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateQuotaGroup(), CreateKnownGroup()],
-            [CreateTileGroup(), CreateScaleGroup()]
+            [CreateScaleGroup(), CreateTileGroup()]
         ));
     }
 

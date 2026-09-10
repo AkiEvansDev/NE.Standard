@@ -5,7 +5,6 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Toggle;
@@ -26,7 +25,7 @@ internal abstract class ToggleExamplesView<T> : DemoExamplesView
     protected sealed override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSettingsGroup(), CreateStateGroup()],
+            [CreateSettingsGroup(), CreateRowEndGroup()],
             [CreateLabelGroup(), CreateAgainstRadioGroup()]
         ));
     }
@@ -52,8 +51,7 @@ internal abstract class ToggleExamplesView<T> : DemoExamplesView
                     .SetTitle("Keep build artefacts for ninety days")
                     .SetValue(false)
                 )
-            ),
-            contentMinHeight: 240
+            )
         );
     }
 
@@ -66,7 +64,7 @@ internal abstract class ToggleExamplesView<T> : DemoExamplesView
             content => content.AddChild(DemoUI.CreateStack()
                 .AddChild(Create()
                     .SetTitle("Require review before deploy")
-                    .SetDescription("Every merge into the release branch waits for **one approval** from someone who did not write it — [the review policy](https://example.com/docs/review).")
+                    .SetDescription("**One approval** from someone who did not write it.")
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetValue(true)
                 )
@@ -82,8 +80,8 @@ internal abstract class ToggleExamplesView<T> : DemoExamplesView
                 .AddChild(Create()
                     .SetIcon(DemoIcons.Alert)
                     .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
-                    .SetTitle("Allow force pushes to the release branch")
-                    .SetDescription("History can be rewritten. **Anything already pulled from it stops matching.**")
+                    .SetTitle("Allow force pushes")
+                    .SetDescription("**Anything already pulled stops matching.**")
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetBadgeText("Dangerous")
                     .SetBadgeStyle(UIBadgeType.Danger)
@@ -94,77 +92,74 @@ internal abstract class ToggleExamplesView<T> : DemoExamplesView
                     .SetTooltip("Sent on **Monday at 09:00** in the account's own timezone — see [the docs](https://example.com/docs/digest).")
                     .SetValue(true)
                 )
-            ),
-            contentMinHeight: 300
+            )
         );
     }
 
     /// <summary>
-    /// The three values a toggle can hold and the two ways it can be locked; the third is an unanswered question.
+    /// The other layout a settings screen uses: the control at the far end of the row rather than in front of it.
     /// </summary>
-    private ContainerComponent CreateStateGroup()
+    /// <remarks>Composed by hand, not a property: the control is as wide as itself, so the row is a grid with it in the last column.</remarks>
+    private ContainerComponent CreateRowEndGroup()
     {
-        return DemoUI.CreateGroup(null, "States",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(Create()
-                    .SetTitle("On")
-                    .SetValue(true)
+        return DemoUI.CreateGroup(null, "At the far end of a row",
+            content => content.AddChild(new SurfaceComponent()
+                .SetContent(DemoUI.CreateStack(4)
+                    .AddChild(CreateRowEnd(DemoIcons.Bell, "Deploy notifications", "Sent to #releases", true))
+                    .AddChild(CreateRowEnd(DemoIcons.History, "Keep build artefacts", "Ninety days, then they are dropped", false))
                 )
-                .AddChild(Create()
-                    .SetTitle("Off")
-                    .SetValue(false)
-                )
-                .AddChild(Create()
-                    .SetTitle("Never answered — the value is null")
-                    .SetDescription("Not the same as off: *nobody has said either way yet*.")
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-                .AddChild(Create()
-                    .SetTitle("Read-only")
-                    .SetValue(true)
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(Create()
-                    .SetTitle("Disabled")
-                    .SetValue(false)
-                    .SetEnabled(false)
-                )
-                .AddChild(Create()
-                    .SetTitle("I accept the terms")
-                    .Required("The terms have to be accepted.")
-                )
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 340
+            note: "In front of the text the control is the row's subject; at the far end the text is, and the control only answers it."
         );
     }
+
+    private ContainerComponent CreateRowEnd(string icon, string title, string description, bool value)
+        => new ContainerComponent()
+            .SetPadding(UIThickness.All(0, 6, 0, 6))
+            .SetColumn(24, UIGridUnit.Auto())
+            .AddChild(new TextComponent()
+                .SetIcon(icon)
+                .SetTitle(title)
+                .SetTitleType(UITextAppearance.Body)
+                .SetDescription(description)
+                .SetDescriptionType(UITextAppearance.Caption)
+                .SetDescriptionColor(UIThemeColor.Muted)
+                .SetVerticalAlignment(UIAlignment.Center)
+                .SetPlacement(1, 1, 23, 1)
+            )
+            .AddChild(Create()
+                .SetValue(value)
+                .SetVerticalAlignment(UIAlignment.Center)
+                .SetPlacement(24, 1, 1, 1)
+            );
 
     /// <summary>
     /// The control this one is not: one question with several answers is a radio group.
     /// </summary>
+    /// <remarks>Side by side rather than stacked, or the two read as one list instead of as a choice between two controls.</remarks>
     private ContainerComponent CreateAgainstRadioGroup()
     {
         return DemoUI.CreateGroup(null, "What it is not",
-            content => content.AddChild(DemoUI.CreateStack()
-                .AddChild(Create()
-                    .SetTitle("Notify by email")
-                    .SetValue(true)
-                )
-                .AddChild(Create()
-                    .SetTitle("Notify by chat")
-                    .SetValue(true)
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription($"Two {ControlPlural}, **two independent answers**, and both may be on. A choice where *exactly one* answer is allowed is a **RadioGroup** — building one out of several of these is the mistake this group exists to head off.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-                .AddChild(new RadioGroupComponent()
+            content => content.AddChild(DemoUI.CreateRow(32)
+                .AddChild(DemoUI.CreateCaptionedItem($"Two {ControlPlural}, two answers", DemoUI.CreateStack(8)
+                    .AddChild(Create()
+                        .SetTitle("Notify by email")
+                        .SetValue(true)
+                    )
+                    .AddChild(Create()
+                        .SetTitle("Notify by chat")
+                        .SetValue(true)
+                    )
+                ))
+                .AddChild(DemoUI.CreateCaptionedItem("A radio group, exactly one", new RadioGroupComponent()
                     .SetTitle("Notify me by")
                     .SetOptions(NotifyOptions())
                     .SetValue("email")
-                )
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 320
+            note: $"Building a one-of-several choice out of several {ControlPlural} is the mistake this group exists to head off."
         );
     }
 

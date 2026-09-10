@@ -6,6 +6,10 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// <summary>
 /// Represents corner radius values for a rectangular UI element.
 /// </summary>
+/// <param name="TopLeft">The top-left corner's radius, in pixels.</param>
+/// <param name="TopRight">The top-right corner's radius, in pixels.</param>
+/// <param name="BottomRight">The bottom-right corner's radius, in pixels.</param>
+/// <param name="BottomLeft">The bottom-left corner's radius, in pixels.</param>
 public readonly record struct UICornerRadius(double TopLeft, double TopRight, double BottomRight, double BottomLeft)
 {
     /// <summary>

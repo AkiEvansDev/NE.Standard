@@ -6,7 +6,6 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.RadioGroup;
@@ -26,16 +25,19 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePlainGroup(), CreateOrientationGroup(), CreateStateGroup()],
-            [CreateRichGroup(), CreateTemplateGroup()]
+            [CreatePlainGroup()],
+            [CreateOrientationGroup()]
         ));
+
+        _ = container.AddChild(CreateItemGroup());
     }
 
-    /// <summary>The ordinary case: a name per answer, and one of them already chosen.</summary>
+    /// <summary>The ordinary case: a name per answer, and the same question with nothing answered yet.</summary>
+    /// <remarks>Across rather than down, since a group of short answers is a third of its column wide.</remarks>
     private static ContainerComponent CreatePlainGroup()
     {
         return DemoUI.CreateGroup(null, "A list of answers",
-            content => content.AddChild(DemoUI.CreateStack(16)
+            content => content.AddChild(DemoUI.CreateRow(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Deploy strategy")
                     .SetOptions(Strategies())
@@ -45,26 +47,8 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetTitle("Nothing chosen yet")
                     .SetOptions(Strategies())
                 )
-            ),
-            contentMinHeight: 320
-        );
-    }
-
-    /// <summary>
-    /// The same control over options that carry a glyph, a second line and a badge, with no template of its own.
-    /// </summary>
-    private static ContainerComponent CreateRichGroup()
-    {
-        return DemoUI.CreateGroup(null, "An answer with more than a name",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("Target environment")
-                    .SetIcon(DemoIcons.Navigation)
-                    .SetOptions(Environments())
-                    .SetValue("staging")
-                )
-            ),
-            contentMinHeight: 300
+                .SetPlacement(1, 1, 24, 1)
+            )
         );
     }
 
@@ -73,8 +57,8 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateOrientationGroup()
     {
-        return DemoUI.CreateGroup(null, "Orientation",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateGroup(null, "Laid out down, or across",
+            content => content.AddChild(DemoUI.CreateRow(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Vertical — the default")
                     .SetOptions(Sizes())
@@ -86,20 +70,29 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetOptions(Sizes())
                     .SetValue("m")
                 )
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 280
+            note: "Horizontal is for answers of a word or two: a second line under one of them puts the row's baselines out."
         );
     }
 
     /// <summary>
-    /// A template of the author's own: it binds what the item says and decides everything the item does not.
+    /// What an option carries beyond its name, drawn by the default row and then by a template of the author's own.
     /// </summary>
-    private static ContainerComponent CreateTemplateGroup()
+    /// <remarks>The same three options both times, or the difference between the two rows cannot be read.</remarks>
+    private static ContainerComponent CreateItemGroup()
     {
-        return DemoUI.CreateGroup(null, "A template of your own",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("On call")
+        return DemoUI.CreateGroup(null, "More than a name",
+            content => content.AddChild(DemoUI.CreateRow(48)
+                .AddChild(DemoUI.CreateCaptionedItem("The default row — glyph, second line and badge", new RadioGroupComponent()
+                    .SetTitle("Target environment")
+                    .SetIcon(DemoIcons.Navigation)
+                    .SetOptions(Environments())
+                    .SetValue("staging")
+                ))
+                .AddChild(DemoUI.CreateCaptionedItem("A template of your own, over the same options", new RadioGroupComponent()
+                    .SetTitle("Target environment")
+                    .SetIcon(DemoIcons.Navigation)
                     .SetTemplate(new TextComponent()
                         .BindText()
                         .SetIconSize(UIIconSize.Large)
@@ -109,47 +102,13 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     )
-                    .SetOptions(Engineers())
-                    .SetValue("robin")
-                )
+                    .SetOptions(Environments())
+                    .SetValue("staging")
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 280
-        );
-    }
-
-    /// <summary>
-    /// The states, including a single answer disabled by its item rather than the whole group.
-    /// </summary>
-    private static ContainerComponent CreateStateGroup()
-    {
-        return DemoUI.CreateGroup(null, "States",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("One answer unavailable")
-                    .SetOptions(StrategiesWithOneDisabled())
-                    .SetValue("rolling")
-                )
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("Read-only")
-                    .SetOptions(Strategies())
-                    .SetValue("blue-green")
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("Disabled")
-                    .SetOptions(Strategies())
-                    .SetValue("rolling")
-                    .SetEnabled(false)
-                )
-                .AddChild(new RadioGroupComponent()
-                    .SetTitle("Required")
-                    .SetBadgeText("Pick one")
-                    .SetBadgeStyle(UIBadgeType.Warning)
-                    .SetOptions(Strategies())
-                    .Required("A deploy strategy is required.")
-                )
-            ),
-            contentMinHeight: 520
+            columns: 24,
+            note: "The template binds what the item says and decides everything the item does not: the glyph's size, which line is quiet, where the badge sits."
         );
     }
 
@@ -158,13 +117,6 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
             new() { Id = "rolling", Title = "Rolling" },
             new() { Id = "blue-green", Title = "Blue / green" },
             new() { Id = "recreate", Title = "Recreate" }
-        ];
-
-    private static OptionItem[] StrategiesWithOneDisabled()
-        => [
-            new() { Id = "rolling", Title = "Rolling" },
-            new() { Id = "blue-green", Title = "Blue / green" },
-            new() { Id = "recreate", Title = "Recreate", Description = "Needs a maintenance window", Enabled = false }
         ];
 
     private static OptionItem[] Sizes()
@@ -203,12 +155,5 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                 BadgeText = "Rebuilt daily",
                 BadgeStyle = UIBadgeType.Info
             }
-        ];
-
-    private static OptionItem[] Engineers()
-        => [
-            new() { Id = "robin", Icon = DemoIcons.UserRound, Title = "Robin", Description = "Platform · until 18:00" },
-            new() { Id = "sam", Icon = DemoIcons.UserRound, Title = "Sam", Description = "Payments · until 22:00" },
-            new() { Id = "alex", Icon = DemoIcons.UserRound, Title = "Alex", Description = "Night shift" }
         ];
 }

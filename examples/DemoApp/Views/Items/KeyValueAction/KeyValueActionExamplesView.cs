@@ -7,31 +7,31 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Styling;
 
-namespace DemoApp.Views.Contents.KeyValueAction;
+namespace DemoApp.Views.Items.KeyValueAction;
 
 /// <summary>
 /// What a row can be made of: key, value and action are each a whole text model rather than a string.
 /// </summary>
 internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefinition
 {
-    public static string ViewKey => "demo.contents.key-value-action.examples";
+    public static string ViewKey => "demo.items.key-value-action.examples";
 
-    protected override string ComponentRoute => "/contents/key-value-action";
+    protected override string ComponentRoute => "/items/key-value-action";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Main, DemoViewKind.Examples, DemoViewKind.Scenarios];
-    protected override string Header => "demo.contents.key-value-action.header";
-    protected override string HeaderDescription => "demo.contents.key-value-action.description";
+    protected override string Header => "demo.items.key-value-action.header";
+    protected override string HeaderDescription => "demo.items.key-value-action.description";
 
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateDetailsGroup(), CreateBadgedGroup(), CreateReadOnlyGroup()],
-            [CreateDescribedGroup(), CreateCompactGroup()]
+            [CreateDetailsGroup(), CreateBadgedGroup(), CreateCompactGroup()],
+            [CreateCardGroup(), CreateDescribedGroup(), CreateReadOnlyGroup()]
         ));
     }
 
     /// <summary>The ordinary case: key, value and a per-row action.</summary>
     private static ContainerComponent CreateDetailsGroup()
-        => CreateListGroup("Build details", 210, list => list
+        => CreateListGroup("Build details", list => list
             .SetItems(
             [
                 Row("commit", "Commit", "a079856", DemoIcons.Outline(DemoIcons.Copy)),
@@ -44,7 +44,7 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
     /// A description in either slot, which wraps under its title inside the column rather than widening the row.
     /// </summary>
     private static ContainerComponent CreateDescribedGroup()
-        => CreateListGroup("Explained settings", 240, list => list
+        => CreateListGroup("Explained settings", list => list
             .SetRowHoverable(true)
             .SetItems(
             [
@@ -57,7 +57,7 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
     /// A badge in either slot; the key's is <c>Inline</c>, since <c>Trailing</c> would send it to the value's doorstep.
     /// </summary>
     private static ContainerComponent CreateBadgedGroup()
-        => CreateListGroup("Flagged rows", 210, list => list
+        => CreateListGroup("Flagged rows", list => list
             .SetSurface(UISurfaceStyle.Raised)
             .SetItems(
             [
@@ -70,7 +70,7 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
     /// <c>StretchValue</c> off, so the value column shrinks to its content instead of pushing the action out.
     /// </summary>
     private static ContainerComponent CreateCompactGroup()
-        => CreateListGroup("Compact values", 180, list => list
+        => CreateListGroup("Compact values", list => list
             .SetStretchValue(false)
             .SetRowHoverable(true)
             .SetItems(
@@ -84,7 +84,7 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
     /// <c>ShowActions</c> off turns the same component into a plain definition list with no button at all.
     /// </summary>
     private static ContainerComponent CreateReadOnlyGroup()
-        => CreateListGroup("Read-only, no separators", 170, list => list
+        => CreateListGroup("Read-only, no separators", list => list
             .SetShowActions(false)
             .SetShowRowSeparators(false)
             .SetBorderThickness(UIThickness.Uniform(0))
@@ -95,13 +95,41 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
                 Row("visibility", "Visibility", "internal"),
             ]));
 
-    private static ContainerComponent CreateListGroup(string title, double contentMinHeight, Action<KeyValueActionComponent> configure)
+    /// <summary>
+    /// The list where it usually lives: a card's body, so the card draws the edge and the rows run to its sides.
+    /// </summary>
+    private static ContainerComponent CreateCardGroup()
+    {
+        return DemoUI.CreateGroup(null, "In a card",
+            content => content.AddChild(new CardComponent()
+                .ConfigureDefaultHeader(header => header
+                    .SetIcon(DemoIcons.Cloud)
+                    .SetTitle("payments-api")
+                    .SetDescription("What the deploy console reads off the service")
+                )
+                .SetContent(new KeyValueActionComponent()
+                    .SetShowActions(false)
+                    .SetBorderThickness(UIThickness.Uniform(0))
+                    .SetItems(
+                    [
+                        Row("region", "Region", "eu-west-1"),
+                        Row("replicas", "Replicas", "12"),
+                        Row("image", "Image", "payments-api:2.4.1"),
+                    ])
+                )
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            note: "No edge of its own inside a card, and no action column: a summary is read, not operated."
+        );
+    }
+
+    private static ContainerComponent CreateListGroup(string title, Action<KeyValueActionComponent> configure)
     {
         KeyValueActionComponent list = new KeyValueActionComponent().SetPlacement(1, 1, 24, 1);
 
         configure(list);
 
-        return DemoUI.CreateGroup(null, title, content => content.AddChild(list), contentMinHeight: contentMinHeight);
+        return DemoUI.CreateGroup(null, title, content => content.AddChild(list));
     }
 
     private static KeyValueActionItem Row(string id, string key, string value, string? actionIcon = null)

@@ -23,8 +23,10 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
+        _ = container.AddChild(CreateToolbarGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePairsGroup(), CreateFormGroup(), CreateToolbarGroup()],
+            [CreatePairsGroup(), CreateFormGroup()],
             [CreateHostsGroup(), CreateChoiceGroup()]
         ));
     }
@@ -70,6 +72,15 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetType(UIButtonType.Primary)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Lock))
                         .SetTitle("Sign in with SSO")
+                ))
+                .AddChild(CreatePair(
+                    "Leaving with something unsaved",
+                    new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetTitle("Discard"),
+                    new ButtonComponent()
+                        .SetType(UIButtonType.Primary)
+                        .SetTitle("Keep editing")
                 ))
                 )
                 .SetPlacement(1, 1, 24, 1)
@@ -118,7 +129,9 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                 )
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            columns: 24,
+            note: "A bar across the top of what it acts on, so it is drawn across the page rather than in a column."
         );
     }
 

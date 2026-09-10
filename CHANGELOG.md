@@ -8,6 +8,47 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.0.0-rc.2
+
+The second candidate: four passes by the owner over the first one, then a read back over everything they
+touched. No new component and no new concept — what changed is how the ones already here behave under a real
+pointer and a real keyboard.
+
+- **Rows are chosen the way a file manager's are.** A plain press takes one row, Ctrl adds or removes one,
+  Shift takes the range from the anchor — from the row the cursor stood on when no press has set one, so a
+  list reached with Tab extends properly. Enter opens the row the cursor is on and leaves a chosen group
+  standing, which is the group Delete reads. A press on a row hands the focus to its host, so the arrows carry
+  on from there, and the keyboard's row is washed only while that host holds the focus.
+- **A tab may be pinned** (`TabItem.Pinned`): it wears a pin in place of its close, and a drag leaves it where
+  it is. A tree drags every chosen node with the one under the pointer, but never one folded out of sight.
+- **A message a controller puts on an input is a mark inside a grid.** In a table's cell or a key-value row a
+  line under the field would grow the whole row, so the message becomes a dot at the field's corner that speaks
+  in a tooltip — including one that arrives already rendered, which used to stay a line until the next patch.
+  `ValidationPresentation` asks for one or the other anywhere. A field's own tooltip is no longer lost when
+  such a mark clears.
+- **A key-value list edits in place.** The pencil opens the row, the editor is a filled box set back so its
+  text starts where the value's did, and a typed input per row (`InputTemplate`) means the draft comes back as
+  the input sent it. The pages moved under Items, where rows of a collection belong.
+- **A field of a box kind draws its focus ring over its own content**, so an editor with a gutter of its own no
+  longer shows the ring broken along that edge.
+- **A field says what a browser may fill into it** (`TextInputComponent.Autocomplete`, `UIAutocomplete`), and a
+  password field is no longer wrapped in a form of its own. That wrapper silenced a console warning and cost
+  more than it was worth: a password manager saw a form with a password and no name in it and remembered the
+  password with no login against it.
+- **`WrapPanel` flows its children** (`UIItemsLayoutType.Wrap` on an items view), a slider's readings follow a
+  pushed value, a file field opens on any press and lets go of its drop mark when the drag leaves the window,
+  an image input keeps its shelf, and `PressRipple` is on by default.
+- **A tab's page fills the room the strip leaves it**, so an editor in a tab reaches the bottom of its pane
+  instead of stopping at a row count; a page with more content than that still grows.
+- **A file a field cannot take is refused while it is still in the air**: the drop mark goes to the colour of a
+  refusal and the browser draws its "no drop" cursor, where the field's rule is written in types rather than in
+  file extensions, which a drag does not carry.
+- **The documentation site reads like one.** Every page can be filtered from the sidebar, which opens on the
+  page you are on; a property has an anchor of its own; a phone gets the navigation behind a button instead of
+  in front of the content, and a property table scrolls inside its own box; the footer names the release the
+  site was built from. The colour vocabulary is written down in the theming guide, and the reference links to
+  `NE.Colors` for what each name is.
+
 ## 1.0.0-rc.1
 
 The release candidate. The framework, the icon sets and the code input go out on one number from here, so

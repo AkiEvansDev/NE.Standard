@@ -31,12 +31,22 @@
     border-color: var(--ui-color-primary);
 }
 
+// One the field will not take: the same dashed edge, in the colour of a refusal, and the drop is refused with it.
+.ui-file-input[data-ui-file-dragging="refused"] > .ui-file-input__row {
+    border-color: var(--ui-color-danger);
+}
+
 .ui-file-input__native {
     .ui-visually-hidden();
 }
 
+// The row is the pick control: a press anywhere on it opens the dialog, so the name reads as a button's label, not a field.
+.ui-file-input__row:not(:has(.ui-file-input__native:disabled)) {
+    cursor: pointer;
+}
+
 .ui-file-input__field {
-    cursor: default;
+    cursor: inherit;
     text-overflow: ellipsis;
 }
 

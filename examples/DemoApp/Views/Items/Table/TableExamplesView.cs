@@ -23,6 +23,7 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string OpenGroup = nameof(TableExamplesController.OpenGroup);
     private const string ActionGroup = nameof(TableExamplesController.ActionGroup);
+    private const string ChosenGroup = nameof(TableExamplesController.ChosenGroup);
 
     /// <summary>Id of the box the filtered table's rule names; a rule reads a component, not a value.</summary>
     private const string FilterId = "table-examples-filter";
@@ -37,8 +38,8 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFilterGroup(), CreateColumnKindsGroup(), CreateWindowedGroup()],
-            [CreateOpenGroup(), CreateChosenGroup(), CreateCardGroup()]
+            [CreateColumnKindsGroup(), CreateWindowedGroup(), CreateChosenGroup()],
+            [CreateFilterGroup(), CreateCardGroup(), CreateOpenGroup()]
         ));
     }
 
@@ -60,7 +61,8 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
                     .FilterBy(FilterId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Service))
                     .SetStriped(true)
                     .SetPlacement(1, 2, 24, 1)
-                )
+                ),
+            note: "All eight rows, because a filter is only worth a box when there are more rows than the reader wants to look through."
         );
     }
 
@@ -70,7 +72,7 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateOpenGroup()
     {
         return DemoUI.CreateGroup(OpenGroup, "A row that opens",
-            content => content.AddChild(CreateDeploymentsTable()
+            content => content.AddChild(CreateDeploymentsTable(rows: 5)
                 .SetRowHoverable(true)
                 .OnRowClickWithItemKey(nameof(TableExamplesController.OpenRow))
                 .SetPlacement(1, 1, 24, 1)
@@ -118,13 +120,16 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateChosenGroup()
     {
-        return DemoUI.CreateGroup(null, "Chosen rows",
-            content => content.AddChild(CreateDeploymentsTable()
+        return DemoUI.CreateGroup(ChosenGroup, "Chosen rows",
+            content => content.AddChild(CreateDeploymentsTable(rows: 6)
                 .SetSelectionMode(UISelectionMode.Many)
-                .SetSelectedKeys(["web-portal", "scheduler"])
+                .SetSelectedKeys(["web-portal", "notifier"])
                 .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
+                // The row Enter and a double click open, so the group's line says which one that was and what stayed chosen.
+                .OnRowOpenWithItemKey(nameof(TableExamplesController.OpenChosenRow))
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            note: "Ctrl and Shift choose as a file manager's rows do. Enter opens the row the keyboard is on and leaves the group chosen."
         );
     }
 
@@ -157,9 +162,9 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Cloud)
                     .SetTitle("Deployments")
-                    .SetDescription("Eight services across four regions.")
+                    .SetDescription("The four the card has room to summarise.")
                 )
-                .SetContent(CreateDeploymentsTable()
+                .SetContent(CreateDeploymentsTable(rows: 4)
                     .SetBorderThickness(UIThickness.Uniform(0))
                 )
                 .SetPlacement(1, 1, 24, 1)
@@ -167,10 +172,13 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
         );
     }
 
-    /// <summary>The four text columns most of the groups share, over the same eight rows.</summary>
-    private static TableComponent CreateDeploymentsTable()
+    /// <summary>
+    /// The four text columns most of the groups share; each group takes as many rows as its point needs.
+    /// </summary>
+    /// <remarks>One column set on purpose, so what differs between the groups is the behaviour and never the table.</remarks>
+    private static TableComponent CreateDeploymentsTable(int rows = 0)
         => new TableComponent()
-            .SetItems(DemoDeploymentRow.CreateDeployments())
+            .SetItems(rows > 0 ? DemoDeploymentRow.CreateDeployments().GetRange(0, rows) : DemoDeploymentRow.CreateDeployments())
             .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
             .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
             .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)

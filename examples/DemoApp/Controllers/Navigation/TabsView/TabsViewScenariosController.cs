@@ -97,14 +97,27 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
         }
     }
 
+    /// <summary>The tab draws the pin and drops its close by itself; the menu entry's word and glyph follow here, being the document's own.</summary>
     private void TogglePin(string id)
     {
         if (Find(id) is not DemoDocumentItem document)
             return;
 
-        document.Pinned = !document.Pinned;
-        document.CanRemove = !document.Pinned;
-        LogEvent(document.Pinned ? $"pinned {document.Title}" : $"unpinned {document.Title}");
+        document.Pinned = document.Pinned != true;
+        SetPinEntry(document);
+        LogEvent(document.Pinned == true ? $"pinned {document.Title}" : $"unpinned {document.Title}");
+    }
+
+    private static void SetPinEntry(DemoDocumentItem document)
+    {
+        foreach (MenuItem entry in document.Actions)
+        {
+            if (!string.Equals(entry.Id, PinAction, StringComparison.Ordinal))
+                continue;
+
+            entry.Title = document.Pinned == true ? "Unpin" : "Pin";
+            entry.Icon = DemoIcons.Outline(document.Pinned == true ? DemoIcons.Unpin : DemoIcons.Pin);
+        }
     }
 
     private void CloseOthers(string id)
@@ -123,7 +136,7 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
         if (Find(id) is not DemoDocumentItem document)
             return;
 
-        if (document.Pinned)
+        if (document.Pinned == true)
         {
             LogEvent($"{document.Title} is pinned and stays open");
             return;
@@ -174,7 +187,7 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
     {
         (var title, _, var icon, var body) = Project[id];
 
-        return new DemoDocumentItem
+        DemoDocumentItem document = new()
         {
             Id = id,
             Title = title,
@@ -185,6 +198,14 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
             Extension = Path.GetExtension(title),
             Pinned = pinned
         };
+
+        document.Actions.Add(new MenuItem { Id = TabsViewScenariosController.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) });
+        document.Actions.Add(new MenuItem { Id = PinAction });
+        document.Actions.Add(new MenuItem { Id = CloseOthersAction, Title = "Close others", Icon = DemoIcons.Outline(DemoIcons.Close) });
+        document.Actions.Add(new MenuItem { Id = CloseAction, Title = "Close", Icon = DemoIcons.Outline(DemoIcons.Close) });
+        SetPinEntry(document);
+
+        return document;
     }
 }
 

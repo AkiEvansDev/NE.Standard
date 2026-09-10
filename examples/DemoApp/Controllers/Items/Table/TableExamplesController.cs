@@ -27,6 +27,9 @@ internal sealed partial class TableExamplesController : DemoController
     [RecursiveMember]
     public partial TableOpenGroupContext ActionGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial TableOpenGroupContext ChosenGroup { get; set; } = new();
+
     /// <summary>A hundred thousand generated rows, read a window at a time — the same source the items view's scenarios use.</summary>
     [RecursiveMember(false)]
     public DemoRowsSource Source { get; } = new();
@@ -38,4 +41,8 @@ internal sealed partial class TableExamplesController : DemoController
     [UICommand]
     public void RestartRow(string id)
         => ActionGroup.Restart(id);
+
+    [UICommand]
+    public void OpenChosenRow(string id)
+        => ChosenGroup.Open(id);
 }

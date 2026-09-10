@@ -244,7 +244,6 @@ public sealed partial class ChatController : TeamRoomController
     [RecursiveMember]
     public partial string DeleteQuestion { get; set; } = string.Empty;
 
-
     [RecursiveMember]
     public partial string SearchText { get; set; } = string.Empty;
 
@@ -388,11 +387,17 @@ public sealed partial class ChatController : TeamRoomController
             _ => string.Create(CultureInfo.InvariantCulture, $"{size / (1024d * 1024d):0.#} MB")
         };
 
-    /// <summary>The reader has the newest message in front of them, so the count on the sidebar goes to zero.</summary>
+    /// <summary>
+    /// The reader has the newest message in front of them, so the count on the sidebar goes to zero — on this page now, and on the
+    /// account's other pages through the event, since a runtime kept for its window keeps the count it last drew.
+    /// </summary>
     private void MarkRead()
     {
-        if (Messages.Items.Count > 0 && long.TryParse(Messages.Items[^1].Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var last))
-            ChatStore.MarkRead(_conversationId, AccountId, last);
+        if (Messages.Items.Count == 0 || !long.TryParse(Messages.Items[^1].Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var last))
+            return;
+
+        ChatStore.MarkRead(_conversationId, AccountId, last);
+        Events.Publish(new MessagesRead(AccountId));
     }
 
     protected override void OnAppEvent(AppEvent appEvent)
@@ -502,6 +507,18 @@ public sealed partial class ChatController : TeamRoomController
     [UICommand]
     public static UICommandResult OpenAttach()
         => UICommandResult.Ok([new OpenDialogEffect(AttachDialogKey)]);
+
+    /// <summary>A file's square was clicked: the browser fetches it, named as it was sent.</summary>
+    [UICommand]
+    public UICommandResult DownloadAttachment(string id)
+    {
+        AttachmentItem? attachment = FindAttachment(id);
+
+        if (attachment is null)
+            return Refuse("That file is not in the feed any more.");
+
+        return UICommandResult.Ok([new DownloadFileEffect(attachment.Address, attachment.Name)]);
+    }
 
     /// <summary>A square in the feed was clicked: the picture opens at its full size, by the attachment's id the row carries.</summary>
     [UICommand]

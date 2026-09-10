@@ -15,12 +15,17 @@ import {
 } from "../metadata/metadata-index";
 import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
 import { UpdateProcessor } from "../updates/update-processor";
+import { observeComponents } from "./dom-mutations";
 import { evaluateOperator } from "./interaction-evaluator";
 
 const ErrorClass = "ui-invalid";
 const WarningClass = "ui-validation--warning";
 const InfoClass = "ui-validation--info";
 const MessageAttribute = "data-ui-validation-message";
+const MarkerClass = "ui-validation-message--marker";
+const TooltipAttribute = "data-ui-tooltip";
+const OwnTooltipAttribute = "data-ui-validation-tooltip";
+const PresentationProperty = "--ui-validation-presentation";
 const SeverityColorProperty = "--ui-validation-color";
 const ValidationPropertyName = "Validation";
 
@@ -28,6 +33,9 @@ const ValidationPropertyName = "Validation";
 const SeverityRank: Readonly<Record<WebValidationSeverityName, number>> = { Error: 0, Warning: 1, Info: 2 };
 
 const SeverityClass: Readonly<Record<WebValidationSeverityName, string>> = { Error: ErrorClass, Warning: WarningClass, Info: InfoClass };
+
+/** A field the server rendered a message on, which is how such a field is found before any patch names it. */
+const RenderedSelector = `.${ErrorClass}, .${WarningClass}, .${InfoClass}`;
 const SeverityColor: Readonly<Record<WebValidationSeverityName, string>> = { Error: "danger", Warning: "warning", Info: "info" };
 
 export type ValidationEngineOptions = {
@@ -63,6 +71,22 @@ export class ValidationEngine {
         this.root.addEventListener("focus", domEvent => this.markTouched(domEvent), true);
         this.root.addEventListener("blur", domEvent => this.applyBlurTrigger(domEvent), true);
         this.root.addEventListener("input", domEvent => this.applyInputTrigger(domEvent), true);
+
+        // A message that came rendered has never been through applyPresentation, so nothing has asked the stylesheet whether it is a mark.
+        this.applyRenderedMessages(this.root.querySelectorAll<HTMLElement>(RenderedSelector));
+        observeComponents(this.root, RenderedSelector, { childList: true }, components => this.applyRenderedMessages(components));
+    }
+
+    private applyRenderedMessages(elements: Iterable<HTMLElement>): void {
+        for (const element of elements) {
+            const message = element.querySelector<HTMLElement>(`:scope > [${MessageAttribute}]`);
+            const text = message?.textContent ?? "";
+
+            if (message === null || text.length === 0)
+                continue;
+
+            applyPresentation(element, message, { message: text, severity: renderedSeverity(element) });
+        }
     }
 
     private markTouched(domEvent: Event): void {
@@ -272,6 +296,13 @@ function readValidationMessage(value: unknown): ValidationDisplay | undefined {
     return message.length === 0 ? undefined : { message, severity: toSeverityName(record.severity) };
 }
 
+function renderedSeverity(element: Element): WebValidationSeverityName {
+    if (element.classList.contains(WarningClass))
+        return "Warning";
+
+    return element.classList.contains(InfoClass) ? "Info" : "Error";
+}
+
 function toSeverityName(value: unknown): WebValidationSeverityName {
     const name = getValidationSeverity(value as never);
 
@@ -289,8 +320,42 @@ function applyValidationState(element: Element, display: ValidationDisplay | und
     else
         htmlElement.style.setProperty(SeverityColorProperty, `var(--ui-color-${SeverityColor[display.severity]})`);
 
-    const messageTarget = element.querySelector(`[${MessageAttribute}]`);
+    const messageTarget = element.querySelector<HTMLElement>(`[${MessageAttribute}]`);
 
-    if (messageTarget !== null)
-        messageTarget.textContent = display?.message ?? "";
+    if (messageTarget === null)
+        return;
+
+    messageTarget.textContent = display?.message ?? "";
+    applyPresentation(htmlElement, messageTarget, display);
+}
+
+/**
+ * Where the stylesheet put the message — a line, or a mark in a cell of a grid — is read off the message's own variable once it is
+ * shown; as a mark it speaks in a tooltip, on the mark and on the field itself where the field has no tooltip of its own.
+ */
+function applyPresentation(root: HTMLElement, message: HTMLElement, display: ValidationDisplay | undefined): void {
+    const marker = display !== undefined && getComputedStyle(message).getPropertyValue(PresentationProperty).trim() === "marker";
+
+    message.classList.toggle(MarkerClass, marker);
+
+    if (marker) {
+        message.setAttribute(TooltipAttribute, display.message);
+
+        // The borrowed tooltip carries what was written, so a Tooltip the controller pushed over it is left alone here and below.
+        if (!root.hasAttribute(TooltipAttribute) || root.getAttribute(OwnTooltipAttribute) === root.getAttribute(TooltipAttribute)) {
+            root.setAttribute(TooltipAttribute, display.message);
+            root.setAttribute(OwnTooltipAttribute, display.message);
+        }
+
+        return;
+    }
+
+    message.removeAttribute(TooltipAttribute);
+
+    if (root.hasAttribute(OwnTooltipAttribute)) {
+        if (root.getAttribute(OwnTooltipAttribute) === root.getAttribute(TooltipAttribute))
+            root.removeAttribute(TooltipAttribute);
+
+        root.removeAttribute(OwnTooltipAttribute);
+    }
 }

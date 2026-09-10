@@ -75,6 +75,21 @@ export class SelectInteractionEngine {
         if (this.root instanceof Node) {
             const observer = new MutationObserver(mutations => {
                 for (const mutation of mutations) {
+                    // A select that arrives whole — a row the client built — had its value written before it joined the
+                    // document, so no attribute record will ever come for it: it is synced on arrival.
+                    if (mutation.type === "childList") {
+                        for (const added of mutation.addedNodes) {
+                            if (!(added instanceof HTMLElement))
+                                continue;
+
+                            if (added.classList.contains(SelectClass))
+                                this.sync(added);
+
+                            for (const select of added.querySelectorAll<HTMLElement>(`.${SelectClass}`))
+                                this.sync(select);
+                        }
+                    }
+
                     if (mutation.type === "attributes" && mutation.attributeName === SelectValueAttribute) {
                         if (mutation.target instanceof HTMLElement)
                             this.sync(mutation.target);

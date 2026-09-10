@@ -32,10 +32,15 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
 
     protected override void DrawContent(WrapPanelComponent container)
     {
+        _ = container.AddChild(CreateUsesGroup());
+        _ = container.AddChild(CreateQuoteGroup());
+
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateQuoteGroup(), CreateClampGroup()],
-            [CreateAgainstContentGroup(), CreateMarkupGroup()]
+            [CreateClampGroup()],
+            [CreateAgainstContentGroup()]
         ));
+
+        _ = container.AddChild(CreateMarkupGroup());
     }
 
     /// <summary>
@@ -82,7 +87,8 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
                     ));
 
                 _ = content.AddChild(stack.SetPlacement(1, 1, 24, 1));
-            }
+            },
+            columns: 24
         );
     }
 
@@ -119,7 +125,8 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
                     ));
 
                 _ = content.AddChild(stack.SetPlacement(1, 1, 24, 1));
-            }
+            },
+            columns: 24
         );
     }
 
@@ -128,7 +135,7 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
         => new SurfaceComponent()
             .SetSurface(surface)
             .SetBackground(background is UIColorStyle style ? UIThemeColor.FromStyle(style) : null)
-            .SetWidth(UILayoutLength.Absolute(300))
+            .SetWidth(UILayoutLength.Absolute(290))
             .SetVerticalAlignment(UIAlignment.Start)
             .SetContent(paragraph);
 
@@ -161,7 +168,7 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
         foreach ((var title, var body) in FeedEntries)
         {
             ParagraphComponent entry = new ParagraphComponent()
-                .SetWidth(UILayoutLength.Absolute(300))
+                .SetWidth(UILayoutLength.Absolute(280))
                 .SetIcon(DemoIcons.FileText)
                 .SetTitle(title)
                 .SetTitleType(UITextAppearance.Subtitle)
@@ -190,9 +197,8 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
         return DemoUI.CreateGroup(null, "Inline markup",
             content =>
             {
-                StackPanelComponent stack = new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12);
+                // Across rather than down: seven samples in one column is half a page of prose.
+                StackPanelComponent stack = DemoUI.CreateRow(24);
 
                 _ = stack
                     .AddChild(CreateMarkupSample("A link that falls across a line break",
@@ -221,13 +227,15 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
                     );
 
                 _ = content.AddChild(stack.SetPlacement(1, 1, 24, 1));
-            }
+            },
+            columns: 24
         );
     }
 
     private static ParagraphComponent CreateMarkupSample(string title, string description)
         => new ParagraphComponent()
-            .SetWidth(UILayoutLength.Absolute(460))
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetWidth(UILayoutLength.Absolute(390))
             .SetTitle(title)
             .SetDescription(description);
 

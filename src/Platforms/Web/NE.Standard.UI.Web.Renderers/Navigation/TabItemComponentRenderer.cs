@@ -14,6 +14,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
 {
     private const string CloseClass = "ui-tab-item__close";
     private const string LabelClass = "ui-tab-item__label";
+    private const string PinClass = "ui-tab-item__pin";
 
     public override string ComponentTypeKey => TabItemComponent.ComponentTypeKey;
 
@@ -35,6 +36,13 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         // The tab is its own row: the marks the strip reads — no close for an unremovable tab, no drag for an undraggable one — are its.
         ItemAbilitiesRenderer.RenderItemAbilities(context, root);
 
+        // A pinned tab is one more mark of the same kind, read by the stylesheet and the strip's engine alike.
+        _ = RenderProperty<bool?>(context, root, TabItemComponent.PinnedProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(WebAttributes.TabPinned);
+        }, [WebDomOperation.ToggleAttribute(WebAttributes.TabPinned, target: "root", condition: WebValueCondition.IsTrue)]);
+
         _ = root.Element("div", caption =>
         {
             _ = caption.Class("ui-tab-item__caption");
@@ -54,6 +62,13 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
                 }, [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass)]);
 
                 RenderRegion(context, label, RegionNames.Header);
+            });
+
+            // The pin is always in the markup and drawn only on a pinned tab, so pinning is an attribute flip, not a re-render.
+            _ = caption.Element("span", pin =>
+            {
+                _ = pin.Class(PinClass);
+                _ = pin.Attribute("aria-hidden", "true");
             });
 
             _ = caption.Element("button", close =>

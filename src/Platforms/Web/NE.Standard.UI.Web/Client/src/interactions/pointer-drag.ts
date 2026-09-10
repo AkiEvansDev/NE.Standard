@@ -1,7 +1,7 @@
 // A pointer dragging a handle — a grid splitter's bar, a table's column edge: the press takes the pointer, the moves are measured
 // from where it began, and the release lets go. One gesture for every handle; what the handle does with the distance is the engine's.
 
-import { SplittingAttribute } from "../addressing/dom-attributes";
+import { PointerFocusAttribute, SplittingAttribute } from "../addressing/dom-attributes";
 
 export type PointerDragOptions<TContext> = {
     readonly root: ParentNode;
@@ -35,6 +35,7 @@ export class PointerDrag<TContext> {
         options.root.addEventListener("pointerup", domEvent => this.handlePointerEnd(domEvent), true);
         options.root.addEventListener("pointercancel", domEvent => this.handlePointerEnd(domEvent), true);
         options.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
+        options.root.addEventListener("focusout", domEvent => unmarkPointerFocus(domEvent.target), true);
     }
 
     /** Whether a gesture is in progress — a key on the handle waits for it to end. */
@@ -67,6 +68,9 @@ export class PointerDrag<TContext> {
         }
 
         handle.setAttribute(SplittingAttribute, "");
+        // Focused so the arrows can carry on from where the drag ends, and marked as the pointer's doing: a focus given by script
+        // counts as the keyboard's to the browser, and the handle would stay lit after the release. A key or a blur takes the mark off.
+        handle.setAttribute(PointerFocusAttribute, "");
         handle.focus({ preventScroll: true });
 
         this.drag = { handle, context, origin: domEvent[this.options.coordinate(context)], pointerId: domEvent.pointerId };
@@ -95,6 +99,9 @@ export class PointerDrag<TContext> {
 
     /** Escape cancels the gesture in progress: back to the delta the drag began at, then released like any other end. */
     private handleKeyDown(domEvent: Event): void {
+        // A key on the handle is the keyboard's turn: the handle shows its focus from here on.
+        unmarkPointerFocus(domEvent.target);
+
         if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || this.drag === null)
             return;
 
@@ -115,4 +122,9 @@ export class PointerDrag<TContext> {
 
         this.options.end(handle, context);
     }
+}
+
+function unmarkPointerFocus(target: EventTarget | null): void {
+    if (target instanceof Element && target.hasAttribute(PointerFocusAttribute))
+        target.removeAttribute(PointerFocusAttribute);
 }

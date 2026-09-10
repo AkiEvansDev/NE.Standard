@@ -125,9 +125,10 @@
 }
 
 // The mark that an entry has more under it; lighter than a control's chevron, being a note on a row rather than its control.
-// 0.625rem, a whole pixel count (ten): on a partial pixel the unrotated (down) mask read as cut off, and at 0.5rem it read too faint.
+// 0.75rem, a whole pixel count (twelve), the size of every row's fold mark: on a partial pixel the unrotated (down) mask read as
+// cut off, and at ten it read small.
 [data-ui-menu-group] > .ui-menu-item::after {
-    .ui-chevron(0.625rem);
+    .ui-chevron(0.75rem);
     .ui-chevron-right();
     margin-left: auto;
     opacity: 0.6;

@@ -68,6 +68,11 @@
     border-color: var(--ui-color-primary);
 }
 
+// One that is not a picture the field takes: the same dashed edge, in the colour of a refusal, and the drop is refused with it.
+.ui-image-input[data-ui-image-dragging="refused"] > .ui-image-input__surface {
+    border-color: var(--ui-color-danger);
+}
+
 .ui-image-input__picture {
     position: absolute;
     inset: 0;
@@ -250,6 +255,10 @@
 
     .ui-image-input--multiple[data-ui-image-dragging] > .ui-image-input__surface {
         border-color: var(--ui-color-primary);
+    }
+
+    .ui-image-input--multiple[data-ui-image-dragging="refused"] > .ui-image-input__surface {
+        border-color: var(--ui-color-danger);
     }
 
 .ui-image-input__tiles {

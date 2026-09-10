@@ -23,8 +23,8 @@ internal sealed class ImageExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateBannerGroup(), CreateAvatarGroup()],
-            [CreateGridGroup(), CreateAgainstIconGroup()]
+            [CreateBannerGroup(), CreateGridGroup()],
+            [CreateAgainstIconGroup(), CreateAvatarGroup()]
         ));
     }
 

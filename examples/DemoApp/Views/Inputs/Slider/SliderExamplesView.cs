@@ -1,7 +1,6 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
@@ -23,9 +22,11 @@ internal sealed class SliderExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateStepGroup(), CreateStateGroup()],
+            [CreateUsesGroup(), CreateStepGroup()],
             [CreateReadoutGroup(), CreateOrientationGroup()]
         ));
+
+        _ = container.AddChild(CreateAgainstNumberGroup());
     }
 
     /// <summary>The jobs it is given: a share, a threshold, a limit with a unit at the end of its label.</summary>
@@ -61,8 +62,7 @@ internal sealed class SliderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetShowValue()
                     .SetShowRange()
                 )
-            ),
-            contentMinHeight: 320
+            )
         );
     }
 
@@ -97,8 +97,7 @@ internal sealed class SliderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetShowValue()
                     .SetShowRange()
                 )
-            ),
-            contentMinHeight: 340
+            )
         );
     }
 
@@ -130,8 +129,7 @@ internal sealed class SliderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetValue(2.5m)
                     .SetShowValue()
                 )
-            ),
-            contentMinHeight: 280
+            )
         );
     }
 
@@ -170,56 +168,40 @@ internal sealed class SliderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetValue(20)
                     .SetShowValue()
                 )
-            ),
-            contentMinHeight: 260
+            )
         );
     }
 
     /// <summary>
-    /// The states, and the same reading in a slider and in a number input side by side.
+    /// The control this one is not: the same reading, put beside the field that spells it out.
     /// </summary>
-    private static ContainerComponent CreateStateGroup()
+    /// <remarks>Full width, because the point is only made when the two are read side by side rather than stacked.</remarks>
+    private static ContainerComponent CreateAgainstNumberGroup()
     {
-        return DemoUI.CreateGroup(null, "States, and the same value as a number",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new SliderComponent()
-                    .SetTitle("Read-only")
-                    .SetRange(0, 100)
-                    .SetValue(72)
-                    .SetIsReadOnly(true)
-                    .SetShowValue()
-                    .SetShowRange()
-                )
-                .AddChild(new SliderComponent()
-                    .SetTitle("Disabled")
-                    .SetRange(0, 100)
-                    .SetValue(72)
-                    .SetEnabled(false)
-                    .SetShowRange()
-                )
-                .AddChild(new SliderComponent()
+        return DemoUI.CreateGroup(null, "Against a number input",
+            content => content.AddChild(DemoUI.CreateRow(32)
+                .AddChild(DemoUI.CreateCaptionedItem("Slider — the share of traffic", new SliderComponent()
                     .SetTitle("Traffic to the new build")
+                    .SetWidth(UILayoutLength.Absolute(320))
                     .SetRange(0, 100)
                     .SetStep(5)
                     .SetValue(25)
                     .SetShowValue()
                     .SetShowRange()
-                )
-                .AddChild(new NumberInputComponent()
-                    .SetTitle("The same thing, typed")
+                ))
+                .AddChild(DemoUI.CreateCaptionedItem("Number input — the exact percentage", new NumberInputComponent()
+                    .SetTitle("Traffic to the new build")
+                    .SetWidth(UILayoutLength.Absolute(320))
                     .SetRange(0, 100)
                     .SetStep(5)
                     .SetValue(25)
                     .SetSuffixText("%")
                     .SetShowStepper()
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("Reach for the slider when **the position in the range** is the answer, and for the number input when **the digits** are.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                ))
+                .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 400
+            columns: 24,
+            note: "Reach for the slider when **the position in the range** is the answer, and for the number input when **the digits** are."
         );
     }
 }

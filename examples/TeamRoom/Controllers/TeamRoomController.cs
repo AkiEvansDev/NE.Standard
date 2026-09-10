@@ -147,6 +147,10 @@ public abstract partial class TeamRoomController : UIControllerBase
                 Push(RefreshUnread);
                 break;
 
+            case MessagesRead read when read.AccountId == AccountId:
+                Push(RefreshUnread);
+                break;
+
             case AccountChanged changed when changed.AccountId == AccountId:
                 Push(() =>
                 {

@@ -393,6 +393,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             _ = target.Style("--ui-validation-color", $"var(--ui-color-{ValidationColor(message.Severity)})");
         }
 
+        // Auto says nothing on the element: the stylesheet decides by where the field stands, and the engine reads its decision.
+        _ = ResolveRenderValue(context, IInputComponent.ValidationPresentationProperty, out UIValidationPresentation? presentation, out _);
+
+        if (presentation is UIValidationPresentation.Marker)
+            _ = target.Class("ui-validation--marker");
+        else if (presentation is UIValidationPresentation.Message)
+            _ = target.Class("ui-validation--message");
+
         _ = target.Element("span", line =>
         {
             _ = line.Class("ui-validation-message");

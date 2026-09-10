@@ -61,6 +61,8 @@ public static class DemoIcons
     public const string LightMode = MaterialIcons.LightMode;
     public const string DarkMode = MaterialIcons.DarkMode;
     public const string Star = MaterialIcons.Star;
+    public const string Pin = MaterialIcons.Keep;
+    public const string Unpin = MaterialIcons.KeepOff;
 
     /// <summary>
     /// The outlined drawing of a glyph, which is what a control wears; the filled one is for content.

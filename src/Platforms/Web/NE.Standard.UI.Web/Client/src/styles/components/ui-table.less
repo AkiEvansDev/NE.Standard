@@ -98,7 +98,7 @@
     }
 
     .ui-table__resizer:hover::before,
-    .ui-table__resizer:focus-visible::before,
+    .ui-table__resizer:focus-visible:not([data-ui-pointer-focus])::before,
     .ui-table__resizer[data-ui-splitting]::before {
         width: 3px;
         background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);

@@ -39,11 +39,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 _ = target.Attribute(ClearShownAttribute);
         }, [WebDomOperation.ToggleAttribute(ClearShownAttribute, condition: WebValueCondition.IsTrue)]);
 
-        // A password field the browser finds outside a form gets a console warning on every page; the row is the form then,
-        // and Enter in it is the field-keys engine's, never a native submit.
-        _ = ResolveRenderValue(context, TextInputComponent.TypeProperty, out UITextInputType? type, out _);
-
-        _ = root.Element(type == UITextInputType.Password ? "form" : "span", row =>
+        _ = root.Element("span", row =>
         {
             _ = row.Class($"{ClassName}__row");
 
@@ -67,6 +63,15 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                     if (value is int maxLength)
                         _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute("maxlength")]);
+
+                // What the browser may fill in. A password manager reads the sign-in pair from these words and from nothing else:
+                // wrapping the password in a form of its own, which is what silenced Chrome's console warning, gave it a form with a
+                // password and no name in it, and it remembered the password without the login (the owner, 2026-09-10).
+                _ = RenderProperty<string?>(context, input, TextInputComponent.AutocompleteProperty, static (target, value) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                        _ = target.Attribute("autocomplete", value);
+                }, [WebDomOperation.Attribute("autocomplete")]);
 
                 NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderIsReadOnly(context, input);

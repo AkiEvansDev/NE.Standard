@@ -1,4 +1,3 @@
-using System;
 using DemoApp.Views.Base;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
@@ -25,14 +24,17 @@ internal sealed class ColorInputExamplesView : DemoExamplesView, IUIViewDefiniti
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateBrandingGroup(), CreateSurfacesGroup(), CreateStateGroup()],
-            [CreateVariantGroup(), CreateFormatGroup()]
+            [CreateBrandingGroup()],
+            [CreateSurfacesGroup()]
         ));
+
+        _ = container.AddChild(CreateFormatGroup());
     }
 
     /// <summary>
     /// A handful of colours making up a theme, each labelled with what it paints rather than with what it is.
     /// </summary>
+    /// <remarks>Both variants, because they are the two halves of one job: a field where the value is edited, swatches where it is chosen.</remarks>
     private static ContainerComponent CreateBrandingGroup()
     {
         return DemoUI.CreateGroup(null, "Where it is used",
@@ -52,35 +54,29 @@ internal sealed class ColorInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetBadgeText("also used by the legend")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
-            ),
-            contentMinHeight: 280
+                .AddChild(DemoUI.CreateCaption("The chart's other series, as swatches")
+                    .SetMargin(UIThickness.All(0, 8, 0, 0))
+                )
+                .AddChild(DemoUI.CreateRow(8)
+                    .AddChild(CreateSwatch(ColorName.StellarRed))
+                    .AddChild(CreateSwatch(ColorName.AuroraGreen))
+                    .AddChild(CreateSwatch(ColorName.NebulaGold))
+                    .AddChild(CreateSwatch(ColorName.NovaPurple))
+                )
+                .AddChild(new ParagraphComponent()
+                    .SetDescription("The colour a person picks has nothing to do with **which theme is live**, so the text written across a swatch is judged against *the swatch itself* — see `UIColorContrast`.")
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetDescriptionColor(UIThemeColor.Muted)
+                )
+            )
         );
     }
 
-    /// <summary>
-    /// <c>Variant</c> is how the control looks closed: a field for a form, a swatch for a dense row of colours.
-    /// </summary>
-    private static ContainerComponent CreateVariantGroup()
-    {
-        return DemoUI.CreateGroup(null, "Variant",
-            content =>
-            {
-                StackPanelComponent stack = DemoUI.CreateStack(16);
-
-                foreach (UIColorInputVariant variant in Enum.GetValues<UIColorInputVariant>())
-                {
-                    _ = stack.AddChild(new ColorInputComponent()
-                        .SetTitle(variant.ToString())
-                        .SetVariant(variant)
-                        .SetValue(UIThemeColor.FromColorVariant(ColorName.StellarRed))
-                    );
-                }
-
-                _ = content.AddChild(stack);
-            },
-            contentMinHeight: 260
-        );
-    }
+    private static ColorInputComponent CreateSwatch(ColorName color)
+        => new ColorInputComponent()
+            .SetVariant(UIColorInputVariant.Swatch)
+            .SetWidth(UILayoutLength.Absolute(120))
+            .SetValue(UIThemeColor.FromColorVariant(color));
 
     /// <summary>
     /// The three ways of choosing, switched on one at a time; all off leaves the text box.
@@ -114,73 +110,38 @@ internal sealed class ColorInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetShowPicker(false)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
                 )
-            ),
-            contentMinHeight: 340
+            )
         );
     }
 
     /// <summary>
-    /// <c>TextFormat</c> decides how the colour is written down, and how opacity is written with it.
+    /// The text the field writes back is read by something downstream, so the reader is what chooses the format.
     /// </summary>
+    /// <remarks>Written out rather than walked over the enum: the point is which reader wants which, not that there are two.</remarks>
     private static ContainerComponent CreateFormatGroup()
     {
         return DemoUI.CreateGroup(null, "How it is written down",
-            content =>
-            {
-                StackPanelComponent stack = DemoUI.CreateStack(16);
-
-                foreach (UIColorTextFormat format in Enum.GetValues<UIColorTextFormat>())
-                {
-                    _ = stack
-                        .AddChild(new ColorInputComponent()
-                            .SetTitle($"{format}, opaque")
-                            .SetTextFormat(format)
-                            .SetValue(UIThemeColor.FromColorVariant(ColorName.NebulaGold))
-                        )
-                        .AddChild(new ColorInputComponent()
-                            .SetTitle($"{format}, with an alpha")
-                            .SetTextFormat(format)
-                            .SetShowOpacity(true)
-                            .SetValue(UIThemeColor.FromColorVariant(ColorName.NebulaGold, opacity: 153))
-                        );
-                }
-
-                _ = content.AddChild(stack);
-            },
-            contentMinHeight: 340
+            content => content.AddChild(DemoUI.CreateRow(24)
+                .AddChild(DemoUI.CreateCaptionedItem("Hex — a stylesheet, a token file", CreateFormatted(UIColorTextFormat.Hex, opacity: null)))
+                .AddChild(DemoUI.CreateCaptionedItem("Hex, once it is not opaque", CreateFormatted(UIColorTextFormat.Hex, opacity: 153)))
+                .AddChild(DemoUI.CreateCaptionedItem("Rgb — anything that parses channels", CreateFormatted(UIColorTextFormat.Rgb, opacity: null)))
+                .AddChild(DemoUI.CreateCaptionedItem("Rgb, once it is not opaque", CreateFormatted(UIColorTextFormat.Rgb, opacity: 153)))
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            columns: 24,
+            note: "Opacity is not a format of its own: each of the two grows a fourth channel as soon as the colour stops being opaque."
         );
     }
 
-    /// <summary>The field's own surface, and the states.</summary>
-    private static ContainerComponent CreateStateGroup()
+    private static ColorInputComponent CreateFormatted(UIColorTextFormat format, byte? opacity)
     {
-        return DemoUI.CreateGroup(null, "Appearance and states",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(new ColorInputComponent()
-                    .SetTitle("Underline")
-                    .SetAppearance(UIInputAppearance.Underline)
-                    .SetValue(UIThemeColor.FromColorVariant(ColorName.NovaPurple))
-                )
-                .AddChild(new ColorInputComponent()
-                    .SetTitle("Read-only")
-                    .SetValue(UIThemeColor.FromColorVariant(ColorName.NovaPurple))
-                    .SetIsReadOnly(true)
-                )
-                .AddChild(new ColorInputComponent()
-                    .SetTitle("Disabled")
-                    .SetValue(UIThemeColor.FromColorVariant(ColorName.NovaPurple))
-                    .SetEnabled(false)
-                )
-                .AddChild(new ColorInputComponent()
-                    .SetTitle("Nothing chosen yet")
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The colour a person picks has nothing to do with **which theme is live**, so the text written across a swatch is judged against *the swatch itself* — see `UIColorContrast`.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-            ),
-            contentMinHeight: 380
-        );
+        ColorInputComponent field = new ColorInputComponent()
+            .SetTextFormat(format)
+            .SetWidth(UILayoutLength.Absolute(260))
+            .SetValue(opacity is null
+                ? UIThemeColor.FromColorVariant(ColorName.NebulaGold)
+                : UIThemeColor.FromColorVariant(ColorName.NebulaGold, opacity: opacity.Value));
+
+        return opacity is null ? field : field.SetShowOpacity(true);
     }
 }

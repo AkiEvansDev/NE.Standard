@@ -6,6 +6,8 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// <summary>
 /// Represents a step value for temporal input components.
 /// </summary>
+/// <param name="Unit">The unit one step counts in.</param>
+/// <param name="Value">How many units one step moves.</param>
 public readonly record struct UITemporalStep(UITemporalStepUnit Unit, int Value)
 {
     /// <summary>

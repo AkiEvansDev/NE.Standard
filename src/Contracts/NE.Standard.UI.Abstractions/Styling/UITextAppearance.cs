@@ -11,6 +11,11 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// When <see cref="Size"/> is set, it always wins over <see cref="Role"/> — mirroring how <see cref="UIThemeColor"/>'s
 /// explicit override wins over its semantic style.
 /// </remarks>
+/// <param name="Role">The semantic role the theme's typography sizes the text from; used only while <paramref name="Size"/> is unset.</param>
+/// <param name="Size">An explicit size, in pixels, which wins over the role.</param>
+/// <param name="Weight">An explicit font weight; read only alongside an explicit size.</param>
+/// <param name="LineHeight">An explicit line height, in pixels; read only alongside an explicit size.</param>
+/// <param name="LetterSpacing">An explicit letter spacing, in pixels; read only alongside an explicit size.</param>
 public readonly record struct UITextAppearance(UITextType? Role, double? Size, int? Weight, double? LineHeight, double? LetterSpacing)
 {
     /// <summary>

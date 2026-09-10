@@ -81,7 +81,6 @@ internal static class DemoTranslations
                 ["demo.nav.section.contents"] = "Contents",
                 ["demo.nav.contents.paragraph"] = "Paragraph",
                 ["demo.nav.contents.text"] = "Text",
-                ["demo.nav.contents.key-value-action"] = "Key-Value Action",
 
                 ["demo.nav.section.navigation"] = "Navigation",
                 ["demo.nav.navigation.menu"] = "Menu",
@@ -113,10 +112,10 @@ internal static class DemoTranslations
                 ["demo.nav.items.items-view"] = "Items View",
                 ["demo.nav.items.table"] = "Table",
                 ["demo.nav.items.tree"] = "Tree",
+                ["demo.nav.items.key-value-action"] = "Key-Value Action",
                 ["demo.nav.section.overlays"] = "Overlays",
                 ["demo.nav.overlays.dialog"] = "Dialog",
                 ["demo.nav.overlays.notification"] = "Notification",
-
 
                 ["demo.home.header"] = "NE.Standard.UI",
                 ["demo.home.description"] = "A server-driven UI framework — views and components are authored entirely in C#, compiled server-side, and rendered live to the browser over SignalR.",
@@ -137,9 +136,6 @@ internal static class DemoTranslations
 
                 ["demo.contents.paragraph.header"] = "Paragraph",
                 ["demo.contents.paragraph.description"] = "The text that is meant to be read: the same block, allowed to run over several lines.",
-
-                ["demo.contents.key-value-action.header"] = "Key-Value Action",
-                ["demo.contents.key-value-action.description"] = "Settings-style key/value/action rows, with and without separators/stretch/actions.",
 
                 ["demo.navigation.menu.header"] = "Menu",
                 ["demo.navigation.menu.description"] = "A list of places to go, or things to do: entries, captions and rules in one collection, a rail that folds to its icons, and the same component set on another one as its context menu.",
@@ -188,6 +184,9 @@ internal static class DemoTranslations
 
                 ["demo.items.table.header"] = "Table",
                 ["demo.items.table.description"] = "Rows of a keyed collection under a header, a template per column: it filters and sorts by rule, chooses rows and scrolls like an items view, and the viewer may drag a column's edge. Sorting by header, editing and paging are an add-on's.",
+
+                ["demo.items.key-value-action.header"] = "Key-Value Action",
+                ["demo.items.key-value-action.description"] = "Settings-style key/value/action rows, with and without separators/stretch/actions.",
 
                 ["demo.items.tree.header"] = "Tree",
                 ["demo.items.tree.description"] = "A file list's tree over a flat keyed list of nodes in walking order, each naming the node above it: folded by a chevron with the fold kept in the browser, chosen like an items view's rows, opened by a double click or Enter, renamed in place, filled in as a folder opens, with a menu per kind of node.",

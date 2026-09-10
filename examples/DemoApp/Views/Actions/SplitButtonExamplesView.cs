@@ -25,9 +25,11 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateVariantsGroup(), CreateFieldGroup()],
+            [CreateVariantsGroup()],
             [CreateToolbarGroup()]
         ));
+
+        _ = container.AddChild(CreateFieldGroup());
     }
 
     /// <summary>
@@ -116,9 +118,10 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     private static ContainerComponent CreateFieldGroup()
     {
         return DemoUI.CreateGroup(null, "At the end of a field",
-            content => content.AddChild(DemoUI.CreateStack()
+            content => content.AddChild(DemoUI.CreateRow(32)
                 .AddChild(new TextInputComponent()
                     .SetTitle("API key")
+                    .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue("sk_live_4f9c…d21e")
                     .SetIsReadOnly(true)
                     .SetTrailingAction(new ButtonComponent()
@@ -129,6 +132,7 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Assignee")
+                    .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue("release-bot")
                     .SetTrailingAction(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
@@ -142,7 +146,9 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                         ])
                     )
                 )
+                .SetPlacement(1, 1, 24, 1)
             ),
+            columns: 24,
             note: "The field lays the control in its row and dresses it as an adornment; the clipboard example on the TextInput page is the other one."
         );
     }

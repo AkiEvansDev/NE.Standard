@@ -113,6 +113,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                     .AddChild(CreateReading("p95 latency", "412 ms", "Watch", UIBadgeType.Warning))
                     .AddChild(CreateReading("Queue depth", "18 400", "Over", UIBadgeType.Danger))
                     .AddChild(CreateReading("Certificate", "expires in 3 days", "Renew", UIBadgeType.Warning))
+                    .AddChild(CreateReading("Last deploy", "4 minutes ago", "Healthy", UIBadgeType.Success))
                 )
                 .SetPlacement(1, 1, 24, 1)
             )
