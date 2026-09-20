@@ -121,6 +121,9 @@ internal sealed partial class KeyValueActionEditGroupContext : DemoGroupContext
                 _alerts = row.EditValue is true;
                 Text(row).Title = _alerts ? "on" : "off";
                 break;
+            case AvatarId:
+                // Saved with no picture chosen: the draft is the icon's address, and the row's text is not that.
+                break;
             default:
                 Text(row).Title = Convert.ToString(row.EditValue, CultureInfo.InvariantCulture)?.Trim() ?? string.Empty;
                 break;
@@ -295,25 +298,80 @@ internal sealed partial class KeyValueActionLocalEditGroupContext : DemoGroupCon
     }
 }
 
-internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
+internal sealed partial class KeyValueActionElsewhereGroupContext : DemoGroupContext
 {
     private const string LimitId = "limit";
+    private const string RetriesId = "retries";
 
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
     [
+        new KeyValueActionItem
+        {
+            Id = LimitId,
+            Key = new TextItem { Title = "Daily limit", TitleColor = UIThemeColor.Muted },
+            Value = new TextItem { Title = "500" },
+            EditValue = 500,
+            InputTemplate = LimitId,
+            ShowInput = true
+        },
+        new KeyValueActionItem
+        {
+            Id = RetriesId,
+            Key = new TextItem { Title = "Retries", TitleColor = UIThemeColor.Muted },
+            Value = new TextItem { Title = "3" },
+            EditValue = 3,
+            InputTemplate = RetriesId,
+            ShowInput = true
+        }
+    ];
+
+    public void Save(string id)
+    {
+        foreach (KeyValueActionItem row in Items)
+        {
+            if (row.Id == id)
+                row.ShowInput = false;
+        }
+    }
+}
+
+internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
+{
+    private const string LimitId = "limit";
+    private const string OwnerId = "owner";
+
+    // A rule the reader cannot satisfy is a rule that says nothing, so the note names the shape it wants.
+    private const string OwnerNote = "A team cannot sign a change off: name a person, as an address — sam@example.com.";
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<KeyValueActionItem> Items { get; } =
+    [
+        // Opens editing, so the rules the field carries are answering from the first keystroke the reader makes.
         new NotedRowItem
         {
             Id = LimitId,
             Key = new TextItem { Title = "Daily limit", TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = "500" },
-            EditValue = "500",
-            ShowInput = true,
-            Note = UIValidationMessage.Warning("Above the plan's 200; a change this size needs an owner's sign-off.")
+            EditValue = 500,
+            InputTemplate = LimitId,
+            ShowInput = true
+        },
+        new NotedRowItem
+        {
+            Id = OwnerId,
+            Key = new TextItem { Title = "Owner", TitleColor = UIThemeColor.Muted },
+            Value = new TextItem { Title = "platform-team" },
+            EditValue = "platform-team",
+            InputTemplate = OwnerId,
+            Note = UIValidationMessage.Warning(OwnerNote)
         }
     ];
 
-    /// <summary>The mark answers the draft: over the plan it stays, at or under it goes, and the row closes either way.</summary>
+    /// <summary>
+    /// The limit's mark is the field's own and is answered in the browser, so there is nothing to write here for it; the owner's is
+    /// this method's, read off what was actually saved. Either row closes.
+    /// </summary>
     public void Save(string id)
     {
         foreach (KeyValueActionItem row in Items)
@@ -324,9 +382,10 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
             var text = Convert.ToString(row.EditValue, CultureInfo.InvariantCulture)?.Trim() ?? string.Empty;
 
             ((TextItem)row.Value).Title = text;
-            noted.Note = int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var limit) && limit > 200
-                ? UIValidationMessage.Warning("Above the plan's 200; a change this size needs an owner's sign-off.")
-                : null;
+
+            if (id == OwnerId)
+                noted.Note = text.Contains('@', StringComparison.Ordinal) ? null : UIValidationMessage.Warning(OwnerNote);
+
             row.ShowInput = false;
             LogEvent($"saved {id} -> {text}");
             return;
@@ -353,6 +412,9 @@ internal sealed partial class KeyValueActionScenariosController() : DemoControll
 
     [RecursiveMember]
     public partial KeyValueActionNoteGroupContext NoteGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial KeyValueActionElsewhereGroupContext ElsewhereGroup { get; set; } = new();
 
     [UICommand]
     public void ClickRowWithItem(KeyValueActionItem item)
@@ -410,6 +472,10 @@ internal sealed partial class KeyValueActionScenariosController() : DemoControll
     [UICommand]
     public void SaveNotedRow(string id)
         => NoteGroup.Save(id);
+
+    [UICommand]
+    public void SaveElsewhereRow(string id)
+        => ElsewhereGroup.Save(id);
 
     [UICommand]
     public void OpenInputRow(string id)

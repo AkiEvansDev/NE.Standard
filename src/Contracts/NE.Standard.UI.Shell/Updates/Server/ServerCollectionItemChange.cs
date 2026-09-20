@@ -40,5 +40,8 @@ public sealed class ServerCollectionItemChange
 
         if (OldKey is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(OldKey);
+
+        if (Index is null && Key is null)
+            throw new InvalidOperationException("Item change must provide either index or key.");
     }
 }

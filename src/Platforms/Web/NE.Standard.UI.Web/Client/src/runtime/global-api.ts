@@ -3,6 +3,7 @@ import { EventRegistration } from "../events/event-descriptor";
 import { ValueConverterRegistration } from "../extensions/converters";
 import { ValueReaderRegistration } from "../extensions/value-readers";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
+import { getLogLevel, LogLevel, setLogLevel } from "./logger";
 import { DomOperationRegistration } from "../updates/dom-operation-registry";
 import type { PluginEngine, WebUIRuntime } from "./web-ui-runtime";
 
@@ -33,21 +34,15 @@ type PendingEngineRegistration = PluginEngine;
 export type NEStandardUIGlobalApi = {
     runtime?: WebUIRuntime;
     registerEvent<TEvent extends Event = Event>(name: string, registration?: WebUIPluginEventRegistration<TEvent>): void;
-    addEvent<TEvent extends Event = Event>(name: string, registration?: WebUIPluginEventRegistration<TEvent>): void;
     registerConverter(name: string, converter: WebUIPluginConverter): void;
-    addConverter(name: string, converter: WebUIPluginConverter): void;
     registerDomOperation(registration: DomOperationRegistration): void;
-    addDomOperation(registration: DomOperationRegistration): void;
     registerEffect(registration: EffectRegistration): void;
-    addEffect(registration: EffectRegistration): void;
     registerValueReader(registration: ValueReaderRegistration): void;
-    addValueReader(registration: ValueReaderRegistration): void;
     registerCollectionSink(registration: CollectionSinkRegistration): void;
-    addCollectionSink(registration: CollectionSinkRegistration): void;
     registerStrings(words: Readonly<Record<string, string>>): void;
-    addStrings(words: Readonly<Record<string, string>>): void;
     registerEngine(start: PluginEngine): void;
-    addEngine(start: PluginEngine): void;
+    setLogLevel(level: LogLevel): void;
+    getLogLevel(): LogLevel;
     __pendingEvents?: PendingEventRegistration[];
     __pendingConverters?: PendingConverterRegistration[];
     __pendingDomOperations?: PendingDomOperationRegistration[];
@@ -108,9 +103,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
             pendingEvents.push({ name, registration: registration as WebUIPluginEventRegistration });
         },
-        addEvent<TEvent extends Event = Event>(name: string, registration: WebUIPluginEventRegistration<TEvent> = {}): void {
-            this.registerEvent(name, registration);
-        },
         registerConverter(name: string, converter: WebUIPluginConverter): void {
             const registration = createConverterRegistration(name, converter);
             const runtime = window.NEStandardUI?.runtime;
@@ -122,9 +114,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
             pendingConverters.push(registration);
         },
-        addConverter(name: string, converter: WebUIPluginConverter): void {
-            this.registerConverter(name, converter);
-        },
         registerDomOperation(registration: DomOperationRegistration): void {
             const runtime = window.NEStandardUI?.runtime;
 
@@ -134,9 +123,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
             }
 
             pendingDomOperations.push(registration);
-        },
-        addDomOperation(registration: DomOperationRegistration): void {
-            this.registerDomOperation(registration);
         },
         registerEffect(registration: EffectRegistration): void {
             const runtime = window.NEStandardUI?.runtime;
@@ -148,9 +134,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
             pendingEffects.push(registration);
         },
-        addEffect(registration: EffectRegistration): void {
-            this.registerEffect(registration);
-        },
         registerValueReader(registration: ValueReaderRegistration): void {
             const runtime = window.NEStandardUI?.runtime;
 
@@ -160,9 +143,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
             }
 
             pendingValueReaders.push(registration);
-        },
-        addValueReader(registration: ValueReaderRegistration): void {
-            this.registerValueReader(registration);
         },
         registerCollectionSink(registration: CollectionSinkRegistration): void {
             const runtime = window.NEStandardUI?.runtime;
@@ -174,9 +154,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
             pendingCollectionSinks.push(registration);
         },
-        addCollectionSink(registration: CollectionSinkRegistration): void {
-            this.registerCollectionSink(registration);
-        },
         registerStrings(words: Readonly<Record<string, string>>): void {
             const runtime = window.NEStandardUI?.runtime;
 
@@ -186,9 +163,6 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
             }
 
             pendingStrings.push(words);
-        },
-        addStrings(words: Readonly<Record<string, string>>): void {
-            this.registerStrings(words);
         },
         registerEngine(start: PluginEngine): void {
             const runtime = window.NEStandardUI?.runtime;
@@ -200,8 +174,12 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
             pendingEngines.push(start);
         },
-        addEngine(start: PluginEngine): void {
-            this.registerEngine(start);
+        // The console switch: the client says nothing below a warning until someone here asks it to.
+        setLogLevel(level: LogLevel): void {
+            setLogLevel(level);
+        },
+        getLogLevel(): LogLevel {
+            return getLogLevel();
         }
     };
 

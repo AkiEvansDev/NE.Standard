@@ -9,6 +9,8 @@ export const UnremovableAttribute = "data-ui-unremovable";
 export const UnrenamableAttribute = "data-ui-unrenamable";
 /** On a component, a row or an items host: the context menu inside is not opened. */
 export const NoContextMenuAttribute = "data-ui-no-context-menu";
+/** On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open. */
+export const NoRowOpenAttribute = "data-ui-no-row-open";
 /** On a tree's root: the Delete key raises nothing, whatever a node says. */
 export const TreeUnremovableAttribute = "data-ui-tree-unremovable";
 /** On a tabs view's root: no tab can be closed, and the strip keeps no room for a close. */
@@ -19,6 +21,9 @@ export const TabsDraggableAttribute = "data-ui-tabs-draggable";
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
 export const BindingAttributePrefix = "data-ui-bind-";
+
+/** On the element holding a property some field sends its validation words to; the rest is the property name in kebab-case. */
+export const IntoAttributePrefix = "data-ui-into-";
 /** The binding a value is written through, on the element that carries the value. */
 export const ValueBindingAttribute = "data-ui-bind-value";
 
@@ -36,27 +41,47 @@ export const CollectionSinkAttribute = "data-ui-collection-sink";
 export const ItemsQueryAttribute = "data-ui-items-query";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
+/** The temporal culture pack as JSON — month and day names, the AM and PM words — read the same way. */
+export const TemporalCultureAttribute = "data-ui-temporal-culture";
 export const EmptyTemplateAttribute = "data-ui-empty-template";
 export const GroupTemplateAttribute = "data-ui-group-template";
 export const EmptyPlaceholderAttribute = "data-ui-empty-placeholder";
 export const GroupHeaderAttribute = "data-ui-group-header";
 export const GroupAttribute = "data-ui-group";
 
+/** Marks the one element a component keeps its value on, where that is not the element the reader starts from. */
+export const ValueHolderAttribute = "data-ui-value-holder";
+
 /** Names the reader that reads a written value off this element. */
 export const ValueKindAttribute = "data-ui-value-kind";
 
 /** How an items host holds its rows — "virtualized" or "windowed"; a plain host carries nothing. */
 export const HostModeAttribute = "data-ui-host-mode";
+/** On an items host that does not scroll itself: its parent is the viewport its rows are seen through (items-viewport.ts). */
+export const HostViewportAttribute = "data-ui-host-viewport";
+
+/** On a component root: the scroll group it scrolls with (scroll-group-engine.ts). */
+export const ScrollGroupAttribute = "data-ui-scroll-group";
+/** On the element a component scrolls, when that is neither its root nor an items host's viewport. */
+export const ScrollViewportAttribute = "data-ui-scroll-viewport";
+/** On an element whose children are a source's lines in order, the first child line 1. */
+export const ScrollLinesAttribute = "data-ui-scroll-lines";
+/** On an element drawn from a source line: the line's number, from 1. */
+export const SourceLineAttribute = "data-ui-source-line";
 
 /** Marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top" or "bottom". */
 export const WindowSpacerAttribute = "data-ui-window-spacer";
 
+/** On a windowed host whose window is a page: the scroll asks for nothing, and a package's pager asks for a window by offset. */
+export const WindowPagedAttribute = "data-ui-window-paged";
 /** A windowed host's geometry, read back on every layout. */
 export const WindowSizeAttribute = "data-ui-window-size";
 export const WindowOffsetAttribute = "data-ui-window-offset";
 export const WindowTotalAttribute = "data-ui-window-total";
 export const WindowMoreBeforeAttribute = "data-ui-window-more-before";
 export const WindowMoreAfterAttribute = "data-ui-window-more-after";
+/** On a windowed host: what the source computed over every item the query leaves, by property, as JSON. */
+export const WindowAggregatesAttribute = "data-ui-window-aggregates";
 export const FormIdAttribute = "data-ui-form-id";
 
 export const VisibilityAttribute = "data-ui-visibility";
@@ -67,6 +92,10 @@ export const CollapsedAttribute = "data-ui-collapsed";
 export const MenuGroupAttribute = "data-ui-menu-group";
 export const MenuSelectAttribute = "data-ui-menu-select";
 export const MenuOpenAttribute = "data-ui-menu-open";
+/** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
+export const MenuItemKindAttribute = "data-ui-menu-item-kind";
+/** A menu entry with a mark of its own — a group's chevron, a check's tick — which is also one a press leaves the menu open on. */
+export const MarkedMenuEntrySelector = `[${MenuGroupAttribute}] > .ui-menu-item, .ui-menu-item[${MenuItemKindAttribute}="check"]`;
 export const CollapseToggleAttribute = "data-ui-collapse-toggle";
 /** Client-only: on a collapsible while collapsible-engine.ts slides it, so the stylesheet holds the open layout until the slide ends. */
 export const FoldingAttribute = "data-ui-folding";
@@ -75,8 +104,25 @@ export const FoldingAttribute = "data-ui-folding";
 export const ColumnLimitsAttribute = "data-ui-column-limits";
 export const RowLimitsAttribute = "data-ui-row-limits";
 export const SplitterStepAttribute = "data-ui-splitter-step";
-/** On a table header's resize handle: the 0-based column it sizes. */
+/** On a table header's resize handle and on every cell: the 0-based column it belongs to. */
 export const TableColumnAttribute = "data-ui-table-column";
+/** On a table's header cell: the column's key, and the viewport tier below which the author hides the column. */
+export const TableColumnKeyAttribute = "data-ui-table-column-key";
+export const TableHideBelowAttribute = "data-ui-table-hide-below";
+/** On the header cell of a column the control owns: the viewer neither sizes it nor moves it. */
+export const TableFixedAttribute = "data-ui-table-fixed";
+/** Client-only: on a table's root, the indices of the columns hidden now, which the stylesheet puts out of sight. */
+export const TableHiddenAttribute = "data-ui-table-hidden";
+/** Client-only: on a table's root, the index of the column at the end of the row — the one with no edge of its own to drag. */
+export const TableLastAttribute = "data-ui-table-last";
+/** Client-only: on a table's root while a column is being dragged, on the cell being dragged, and on the cell the drop line stands at. */
+export const TableReorderingAttribute = "data-ui-table-reordering";
+export const TableDraggingAttribute = "data-ui-table-dragging";
+export const TableDropAttribute = "data-ui-table-drop";
+/** Client-only: on a table's root while it is scrolled sideways, so the last pinned column draws the shadow of what is under it. */
+export const TableScrolledAttribute = "data-ui-table-scrolled";
+/** On an items host whose rows are chosen by something of its own — a grid's checkboxes: a click on a row chooses nothing. */
+export const NoRowSelectAttribute = "data-ui-no-row-select";
 /** On a tree node's root: the key of the node above it, that it has children, that it starts unfolded, the title a rename wrote. */
 export const TreeParentAttribute = "data-ui-tree-parent";
 export const TreeChildrenAttribute = "data-ui-tree-children";
@@ -88,6 +134,8 @@ export const TreeRenamableAttribute = "data-ui-tree-renamable";
 export const TreeLoadingAttribute = "data-ui-tree-loading";
 /** On a tree node's text: the key of the node it was dropped on. */
 export const TreeDropTargetAttribute = "data-ui-tree-drop-target";
+/** On a tree's row: "hidden" or "shown" where the viewer's remembered fold disagrees with the authored one; the engine takes it off on its first walk. */
+export const TreeBootAttribute = "data-ui-tree-boot";
 /** On a tree's root: its nodes may be dragged onto one another; a double click renames rather than opens. */
 export const TreeDraggableAttribute = "data-ui-tree-draggable";
 export const TreeRenameOnDoubleClickAttribute = "data-ui-tree-rename-dblclick";

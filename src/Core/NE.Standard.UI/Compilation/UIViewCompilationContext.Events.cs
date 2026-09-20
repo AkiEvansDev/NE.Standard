@@ -80,6 +80,12 @@ internal sealed partial class UIViewCompilationContext
                 Kind = CompiledUIActionArgumentKind.Literal,
                 Value = argument.Value
             },
+            UIActionArgumentKind.EventKey => new CompiledUIActionArgument
+            {
+                Name = name,
+                Kind = CompiledUIActionArgumentKind.EventKey,
+                Value = argument.Value
+            },
             UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),

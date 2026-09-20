@@ -4,6 +4,7 @@ using System.Text;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
@@ -27,13 +28,13 @@ public static class WebThemeCssBuilder
         AppendOnColorVariables(builder, theme);
 
         // Re-emitted for every [data-ui-theme] element, not only :root: an overriding subtree must re-resolve them against its own palette.
-        AppendTheme(builder, "[data-ui-theme]", palette: null, typography: null, shape: null, includeSemantic: true);
+        AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, includeSemantic: true);
 
-        AppendTheme(builder, "[data-ui-theme=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false);
-        AppendTheme(builder, "[data-ui-theme=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false);
 
-        AppendMediaTheme(builder, "(prefers-color-scheme: light)", "[data-ui-theme=\"auto\"]", theme.Light);
-        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", "[data-ui-theme=\"auto\"]", theme.Dark);
+        AppendMediaTheme(builder, "(prefers-color-scheme: light)", $"[{WebAttributes.Theme}=\"auto\"]", theme.Light);
+        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", $"[{WebAttributes.Theme}=\"auto\"]", theme.Dark);
 
         return builder.ToString();
     }
@@ -161,11 +162,15 @@ public static class WebThemeCssBuilder
         Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");
         Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) 16%, transparent)");
         Append(builder, "wash-selected", "color-mix(in srgb, var(--ui-color-primary) 16%, transparent)");
+        // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
+        Append(builder, "wash-descendant", "color-mix(in srgb, var(--ui-color-primary) 8%, transparent)");
         // The other half of a selectable strip: the mark under a tab; stronger than a wash since a thin line needs more than 10% to read.
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
         Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
         Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 68%, transparent)");
-        Append(builder, "border-width", "1.5px");
+        // A whole device pixel at the common density; a declared 1.5px draws as 1px there, throwing off any layout sized
+        // against the declared value.
+        Append(builder, "border-width", "1px");
     }
 
     private static void Append(StringBuilder builder, string name, ColorVariant value)

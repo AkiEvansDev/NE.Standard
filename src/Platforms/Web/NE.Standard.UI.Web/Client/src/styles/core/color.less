@@ -1,4 +1,4 @@
-// Text colour only, declared before every modifier below so an explicit colour still wins the tie on the same element.
+﻿// Text colour only, declared before every modifier below so an explicit colour still wins the tie on the same element.
 [data-ui-theme] {
     color: var(--ui-color-on-background);
 }
@@ -72,14 +72,15 @@
     color: var(--ui-color-on-danger);
 }
 
-// The one relative colour: a fainter version of whatever the element is already on, at the same weight as `--ui-text-muted`.
+// Faint, measured from the ground the element sits on, not `currentColor` — muting an already-muted region would compound
+// (68% of 68% = 46%, below 2.75:1) and fade an accent's own ink. `--ui-faint-base` lets a surface fix its own ink to mute once.
 .ui-color--muted {
-    color: color-mix(in srgb, currentColor 68%, transparent);
+    color: color-mix(in srgb, var(--ui-faint-base, var(--ui-color-on-surface)) 68%, transparent);
 }
 
-// currentColor in a color declaration is the inherited value, not this cascade's own, so the themed element must name its base explicitly.
+// A themed element carries the page's ground, not a surface's.
 [data-ui-theme].ui-color--muted {
-    color: color-mix(in srgb, var(--ui-color-on-background) 68%, transparent);
+    color: color-mix(in srgb, var(--ui-faint-base, var(--ui-color-on-background)) 68%, transparent);
 }
 
 .ui-color--selected {

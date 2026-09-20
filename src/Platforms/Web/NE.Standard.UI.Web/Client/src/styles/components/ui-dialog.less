@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
+@import "../mixins/responsive.less";
 
 @ui-dialog-z: 100;
 
@@ -8,6 +9,10 @@
     inset: 0;
     z-index: @ui-dialog-z;
     display: grid;
+    // One track the size of the screen, named: an implicit auto track grows to the panel, and a panel's percentage guard
+    // would then measure the panel itself.
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
 }
 
@@ -29,14 +34,28 @@
 
 .ui-dialog__surface {
     position: relative;
-    // A column, so the one component inside is a flex item: an inline-flex child in a block would sit on a line box and
-    // leave the line's descender under it, and the padding would read larger below than above.
+    // A column, so the one child inside becomes a flex item; a block would sit it on a line box, leaving the descender's gap
+    // and uneven padding.
     display: flex;
     flex-direction: column;
-    // Sized against the viewport, not content, so an inner component's responsive size cannot grow the dialog past the screen.
-    margin: @ui-space-4;
-    max-width: min(560px, calc(100% - (@ui-space-4 * 2)));
-    max-height: calc(100% - (@ui-space-4 * 2));
+    // The overlay's one placed child carries the same Width/Height/alignment/Margin tiers as a component; unset, it centres
+    // and sizes to its content within the viewport, margined off the screen.
+    .ui-responsive-reset(--ui-width);
+    .ui-responsive-reset(--ui-min-width);
+    .ui-responsive-reset(--ui-max-width);
+    .ui-responsive-reset(--ui-height);
+    .ui-responsive-reset(--ui-min-height);
+    .ui-responsive-reset(--ui-max-height);
+    .ui-responsive-reset(--ui-margin);
+    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(max-width, --ui-max-width, calc(100% - (@ui-space-4 * 2)));
+    .ui-responsive-property(height, --ui-height, auto);
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+    .ui-responsive-property(max-height, --ui-max-height, calc(100% - (@ui-space-4 * 2)));
+    .ui-responsive-property(margin, --ui-margin, @ui-space-4);
+    justify-self: var(--ui-align-h, center);
+    align-self: var(--ui-align-v, center);
     overflow: auto;
     padding: @ui-space-4;
     border-radius: var(--ui-radius-card);
@@ -46,15 +65,15 @@
     animation: ui-dialog-surface-in @ui-motion-normal @ui-motion-ease;
 }
 
-// The other kinds of dialog, the card's own three: a screen of its own on the page background with a border instead of a
-// lift, and a tinted one mixed the way a tinted surface is.
+// The other two surfaces mirror the card's own: "background" sits flat on the page with a border instead of elevation, and
+// "tinted" mixes like a tinted surface.
 .ui-dialog__surface[data-ui-dialog-surface="background"] {
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: var(--ui-color-background);
 }
 
 .ui-dialog__surface[data-ui-dialog-surface="tinted"] {
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
 }
 
@@ -62,44 +81,68 @@
     outline: none;
 }
 
-// A sheet: the panel stands against one edge and runs the whole length of it, a drawer for a hidden menu or a
-// details pane. The width (or height) is the panel's own, capped so the page behind stays in view.
+// Below the phone breakpoint a centred dialog fills the screen less a thin margin, since a content-sized panel reads as a
+// card lost in the middle; an authored width or margin still wins, since these are the same tiers' defaults.
+@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+    .ui-dialog:not([data-ui-dialog-placement]) > .ui-dialog__surface {
+        .ui-responsive-property(width, --ui-width, calc(100% - (@ui-space-2 * 2)));
+        // Still the screen's guard, not none: a width the author named is honoured up to the screen, never past it.
+        .ui-responsive-property(max-width, --ui-max-width, calc(100% - (@ui-space-2 * 2)));
+        .ui-responsive-property(max-height, --ui-max-height, calc(100% - (@ui-space-2 * 2)));
+        .ui-responsive-property(margin, --ui-margin, @ui-space-2);
+    }
+}
+
+// A sheet: the panel stands against one edge, filling its length — a drawer for a hidden menu or details pane. Placement is
+// a shortcut over the same tiers, so an authored width, height or alignment still wins over its edge/stretch/cap defaults.
 .ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {
-    margin: 0;
+    .ui-responsive-property(margin, --ui-margin, 0);
     border-radius: 0;
     animation-name: ui-dialog-sheet-in;
 }
 
 .ui-dialog:is([data-ui-dialog-placement="left"], [data-ui-dialog-placement="right"]) > .ui-dialog__surface {
-    height: 100%;
-    max-height: 100%;
-    width: min(420px, calc(100% - (@ui-space-4 * 2)));
-    max-width: none;
+    .ui-responsive-property(width, --ui-width, min(420px, calc(100% - (@ui-space-4 * 2))));
+    .ui-responsive-property(max-width, --ui-max-width, none);
+    .ui-responsive-property(max-height, --ui-max-height, 100%);
+    align-self: var(--ui-align-v, stretch);
+}
+
+.ui-dialog[data-ui-dialog-placement="left"] > .ui-dialog__surface {
+    justify-self: var(--ui-align-h, start);
+}
+
+.ui-dialog[data-ui-dialog-placement="right"] > .ui-dialog__surface {
+    justify-self: var(--ui-align-h, end);
 }
 
 .ui-dialog:is([data-ui-dialog-placement="top"], [data-ui-dialog-placement="bottom"]) > .ui-dialog__surface {
-    width: 100%;
-    max-width: 100%;
-    max-height: min(60vh, calc(100% - (@ui-space-4 * 2)));
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-responsive-property(max-height, --ui-max-height, min(60vh, calc(100% - (@ui-space-4 * 2))));
+    justify-self: var(--ui-align-h, stretch);
+}
+
+.ui-dialog[data-ui-dialog-placement="top"] > .ui-dialog__surface {
+    align-self: var(--ui-align-v, start);
+}
+
+.ui-dialog[data-ui-dialog-placement="bottom"] > .ui-dialog__surface {
+    align-self: var(--ui-align-v, end);
 }
 
 .ui-dialog[data-ui-dialog-placement="left"] {
-    place-items: stretch start;
     --ui-dialog-sheet-from: translateX(-100%);
 }
 
 .ui-dialog[data-ui-dialog-placement="right"] {
-    place-items: stretch end;
     --ui-dialog-sheet-from: translateX(100%);
 }
 
 .ui-dialog[data-ui-dialog-placement="top"] {
-    place-items: start stretch;
     --ui-dialog-sheet-from: translateY(-100%);
 }
 
 .ui-dialog[data-ui-dialog-placement="bottom"] {
-    place-items: end stretch;
     --ui-dialog-sheet-from: translateY(100%);
 }
 

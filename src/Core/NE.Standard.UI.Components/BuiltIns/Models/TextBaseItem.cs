@@ -8,7 +8,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 /// <summary>
 /// A data model describing an item's icon and title, plus visibility/enabled state, for use in lists/collections bound to <see cref="ITextBaseModel"/>.
 /// </summary>
-/// <remarks>Styling starts at <see langword="null"/>; <see cref="Visibility"/> and <see cref="Enabled"/> keep their defaults, being state rather than style.</remarks>
+/// <remarks>
+/// Styling starts at <see langword="null"/>; <see cref="Visibility"/> and <see cref="Enabled"/> keep their defaults, since they
+/// are state, not style. Abilities are bound live by the built-in row templates; a custom template keeps the abilities it
+/// rendered with, and a non-row model (a menu entry) leaves them unread.
+/// </remarks>
 public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesModel
 {
     /// <inheritdoc />

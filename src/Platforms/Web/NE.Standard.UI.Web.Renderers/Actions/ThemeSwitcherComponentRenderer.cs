@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -9,10 +10,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>
-/// Draws the theme switcher as a button carrying both glyphs; the stylesheet picks which one shows, since the
-/// shell markup is cached across themes.
-/// </summary>
+/// <summary>Draws the theme switcher as a button carrying both glyphs.</summary>
+/// <remarks>The stylesheet picks which one shows, since the shell markup is cached across themes.</remarks>
 public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
 {
     public override string ComponentTypeKey => ThemeSwitcherComponent.ComponentTypeKey;
@@ -27,7 +26,7 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
         _ = root.Class("ui-theme-switcher");
 
         // The engine's hook is a marker attribute, not the class: a class is styling.
-        _ = root.Attribute("data-ui-theme-switcher", "");
+        _ = root.Attribute(WebAttributes.ThemeSwitcher);
 
         RenderThemeSwitcherChrome(context, root);
 
@@ -39,6 +38,9 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
     private static void RenderThemeSwitcherChrome(WebRenderContext context, IHtmlElementBuilder root)
     {
         _ = root.Attribute("type", "button");
+
+        // Two glyphs and no words: without this the switcher is a button a reader is told nothing about.
+        _ = root.Attribute("aria-label", context.Translate(UIStrings.ThemeSwitch));
 
         RenderTooltip(context, root);
 

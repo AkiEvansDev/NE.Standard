@@ -1,7 +1,7 @@
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
-/// Defines text wrapping behavior.
+/// Defines text wrapping behavior. A wrapping text is clamped by <c>MaxLines</c>, with an ellipsis on the last line it keeps.
 /// </summary>
 public enum UITextWrapMode
 {
@@ -14,9 +14,4 @@ public enum UITextWrapMode
     /// Text wraps onto multiple lines as needed to fit its container.
     /// </summary>
     Wrap = 1,
-
-    /// <summary>
-    /// Text wraps onto multiple lines, truncating with an ellipsis when it exceeds the available space.
-    /// </summary>
-    WrapEllipsis = 2,
 }

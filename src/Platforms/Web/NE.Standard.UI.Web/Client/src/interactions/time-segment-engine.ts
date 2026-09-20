@@ -1,7 +1,6 @@
 // TimeInput edits its value in place, as one focusable span per clock unit, which cannot produce an invalid value.
 
-import { DomRegistry } from "../addressing/dom-registry";
-import { getIdValue } from "../metadata/metadata-index";
+import { componentParts } from "../addressing/dom-registry";
 import { formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import {
@@ -38,7 +37,6 @@ type EditState = { unit: SegmentUnit | null; buffer: string };
 export type TimeSegmentEngineOptions = {
     readonly root?: ParentNode;
     readonly propertyPatchEngine?: PropertyPatchEngine;
-    readonly dom?: DomRegistry;
 };
 
 export class TimeSegmentEngine {
@@ -52,10 +50,9 @@ export class TimeSegmentEngine {
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
+        // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            const componentId = getIdValue(change.reference.componentId);
-
-            this.applyAll(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${RootClass}`) ?? []);
+            this.applyAll(componentParts(change.components, `.${RootClass}`));
         });
 
         // Min/Max only re-clamp, but a patched format changes which segments exist at all.

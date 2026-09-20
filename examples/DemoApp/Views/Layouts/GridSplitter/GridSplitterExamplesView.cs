@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.GridSplitter;
@@ -54,9 +55,7 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
             .SetBorderThickness(UIThickness.Uniform(0))
             .SetBorderRadius(UICornerRadius.Uniform(0))
             .SetPadding(UIThickness.Uniform(12))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            .SetContent(UILayout.Stack(8)
                 .AddChild(DemoUI.CreateCaption("Filters"))
                 .AddChild(new SwitchComponent().SetTitle("Only failures").SetValue(true))
                 .AddChild(new SwitchComponent().SetTitle("Include retries"))
@@ -127,9 +126,7 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
             .SetBorderThickness(UIThickness.Uniform(0))
             .SetBorderRadius(UICornerRadius.Uniform(0))
             .SetPadding(UIThickness.Uniform(12))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(4)
+            .SetContent(UILayout.Stack(4)
                 .AddChild(DemoUI.CreateCaption("Log"))
                 .AddChild(new TextComponent().SetTitle("12:04:10  pulled image payments-api:4821").SetTitleType(UITextAppearance.Caption))
                 .AddChild(new TextComponent().SetTitle("12:04:31  migrations applied (3)").SetTitleType(UITextAppearance.Caption))

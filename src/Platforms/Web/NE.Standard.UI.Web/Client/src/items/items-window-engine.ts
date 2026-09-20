@@ -1,5 +1,5 @@
 import {
-    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowSizeAttribute, WindowTotalAttribute
+    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowSizeAttribute, WindowTotalAttribute
 } from "../addressing/dom-attributes";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
 import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
@@ -7,6 +7,7 @@ import { findOwningComponentId } from "../addressing/dom-registry";
 import { ItemAnchorName, ServerChangeSet, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
+import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
 
 const DefaultWindowSize = 50;
 
@@ -22,7 +23,7 @@ const DecisionInterval = 60;
 export type ItemsWindowEngineOptions = {
     readonly root?: ParentNode;
     readonly requestWindow: (request: WebUIItemWindowRequest) => Promise<ServerChangeSet>;
-    readonly applyChanges: (changes: ServerChangeSet) => void;
+    readonly applyChanges: (changes: ServerChangeSet) => void | Promise<void>;
 };
 
 type WindowState = {
@@ -34,13 +35,18 @@ type WindowState = {
     scheduled: number;
 };
 
+/** The windowed hosts as a package reaches them: a window asked for by offset, which a pager over a host marked `data-ui-window-paged` does. */
+export type ItemWindows = {
+    requestOffsetAsync(host: Element, offset: number): Promise<void>;
+};
+
 /** Drives a windowed items host: asks for the part of the source the viewer is looking at, and spaces out the part they are not. */
 export class ItemsWindowEngine {
     private readonly options: ItemsWindowEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<Element, WindowState>();
-    // A reconnect or a controller-asked rebuild calls start() again; only the very first call may snap the viewport to
-    // the window read on the server — after that, the viewer's own scroll position is realigned to, not overridden.
+    // A reconnect or a controller-asked rebuild calls start() again; only the very first call may snap the viewport to the
+    // window read on the server — after that, the viewer's scroll position is realigned to, not overridden.
     private started = false;
 
     public constructor(options: ItemsWindowEngineOptions) {
@@ -75,13 +81,13 @@ export class ItemsWindowEngine {
     private revealWindow(host: Element): void {
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
-        if (offset === null)
+        // A window that starts at the source's own start is already in view; scrolling to its first row would push whatever stands
+        // above the rows in the same scroller out of sight (a wide table's band and header are inside its root).
+        if (offset === null || offset === 0)
             return;
 
         // At the end of the source there is nothing below to scroll into, so the last row goes to the bottom edge.
-        host.scrollTop = isTrue(host.getAttribute(WindowMoreAfterAttribute))
-            ? offset * this.getState(host).itemSize
-            : host.scrollHeight;
+        scrollHostTo(host, isTrue(host.getAttribute(WindowMoreAfterAttribute)) ? offset * this.getState(host).itemSize : host.scrollHeight);
     }
 
     /** Re-places the spacers after a change set moved a window, and follows a window that moved. */
@@ -93,20 +99,20 @@ export class ItemsWindowEngine {
     }
 
     /**
-     * Puts the viewport back on the window when the server moved it out from under the viewer: a rule that
-     * changed re-anchors the window at the start, and the scroll position it was read at then stands over a
-     * spacer with nothing in it. A viewer who is looking at rows is looking at the window, so this does nothing.
+     * Puts the viewport back on the window when the server moved it out from under the viewer, e.g. a changed rule re-anchoring
+     * the window at the start, leaving the old scroll position over an empty spacer. Does nothing while rows are in view.
      */
     private realign(host: Element): void {
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
         const items = itemElements(host);
 
-        if (offset === null || items.length === 0)
+        if (offset === null || items.length === 0 || host.hasAttribute(WindowPagedAttribute))
             return;
 
         const state = this.getState(host);
-        const firstVisible = Math.floor(host.scrollTop / state.itemSize);
-        const lastVisible = Math.ceil((host.scrollTop + host.clientHeight) / state.itemSize);
+        const scroll = readHostScroll(host);
+        const firstVisible = Math.floor(scroll.top / state.itemSize);
+        const lastVisible = Math.ceil((scroll.top + scroll.height) / state.itemSize);
 
         if (lastVisible >= offset && firstVisible <= offset + items.length)
             return;
@@ -120,14 +126,26 @@ export class ItemsWindowEngine {
             this.considerRequest(host);
     }
 
+    /** Reads the window that starts at `offset` into the host, replacing the one it holds: what a pager asks for. */
+    public async requestOffsetAsync(host: Element, offset: number): Promise<void> {
+        if (resolveHostMode(host) !== "windowed")
+            return;
+
+        await this.requestAsync(host, "Offset", Math.max(0, Math.floor(offset)), null, false);
+    }
+
     private hosts(): Element[] {
         return [...this.root.querySelectorAll(`[${ItemsHostAttribute}][${HostModeAttribute}="windowed"]`)];
     }
 
     private handleScroll(domEvent: Event): void {
-        const host = domEvent.target;
+        const host = hostOfScrollTarget(domEvent.target);
 
-        if (!(host instanceof Element) || resolveHostMode(host) !== "windowed")
+        if (host === null || resolveHostMode(host) !== "windowed")
+            return;
+
+        // A paged window is asked for by a pager, never by the scroll.
+        if (host.hasAttribute(WindowPagedAttribute))
             return;
 
         // One decision per interval, on a timer rather than a frame, because a background tab gets no frames.
@@ -153,6 +171,10 @@ export class ItemsWindowEngine {
             return;
         }
 
+        // A paged window stays the page it is, whatever the viewport shows; only an empty one is filled.
+        if (host.hasAttribute(WindowPagedAttribute) && countItems(host) > 0)
+            return;
+
         const items = itemElements(host);
 
         if (items.length === 0) {
@@ -167,13 +189,14 @@ export class ItemsWindowEngine {
         // With spacers there is no "near the bottom of the content", so the decision is about indices, not pixels.
         if (offset !== null) {
             const windowSize = this.windowSize(host);
+            const scroll = readHostScroll(host);
             const margin = Math.max(
                 1,
-                Math.round((host.clientHeight * EdgeThreshold) / state.itemSize),
+                Math.round((scroll.height * EdgeThreshold) / state.itemSize),
                 Math.floor(windowSize * WindowLeadFraction)
             );
-            const firstVisible = Math.floor(host.scrollTop / state.itemSize);
-            const lastVisible = Math.ceil((host.scrollTop + host.clientHeight) / state.itemSize);
+            const firstVisible = Math.floor(scroll.top / state.itemSize);
+            const lastVisible = Math.ceil((scroll.top + scroll.height) / state.itemSize);
 
             // The viewport shows nothing the window holds, so the window is replaced rather than extended towards it.
             if (lastVisible < offset || firstVisible > offset + items.length) {
@@ -195,10 +218,11 @@ export class ItemsWindowEngine {
         }
 
         // A source that cannot count has no spacers, so the edges of the content are the edges of the window.
-        const threshold = Math.max(1, host.clientHeight * EdgeThreshold);
-        const distanceToEnd = host.scrollHeight - host.scrollTop - host.clientHeight;
+        const scroll = readHostScroll(host);
+        const threshold = Math.max(1, scroll.height * EdgeThreshold);
+        const distanceToEnd = scroll.contentHeight - scroll.top - scroll.height;
 
-        if (host.scrollTop <= threshold && hasMoreBefore) {
+        if (scroll.top <= threshold && hasMoreBefore) {
             void this.requestAsync(host, "Before", 0, keyOf(items[0]), true);
             return;
         }
@@ -241,7 +265,7 @@ export class ItemsWindowEngine {
                 extend
             });
 
-            this.options.applyChanges(changes);
+            await this.options.applyChanges(changes);
         }
         catch (error) {
             logWarn("reading an item window failed.", { componentId, anchor, error });
@@ -262,6 +286,13 @@ export class ItemsWindowEngine {
     private layout(host: Element): void {
         const state = this.getState(host);
         const items = itemElements(host);
+
+        // A page stands on its own; a spacer standing for the rows before it would only push it down.
+        if (host.hasAttribute(WindowPagedAttribute)) {
+            ensureSpacer(host, TopSpacer, 0);
+            ensureSpacer(host, BottomSpacer, 0);
+            return;
+        }
 
         // The window's whole span over the items it stands as tall as, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {
@@ -304,9 +335,8 @@ function isTrue(value: string | null): boolean {
 }
 
 /**
- * How many items tall a window stands: its rows times the items one row holds. A stack answers its own count;
- * a wrapping host would otherwise average a row's height over every tile in it and read each item as a fraction
- * of its real size, which the spacers and the index arithmetic are both drawn from.
+ * How many items tall a window stands: its rows times the items one row holds. A stack answers its own count; a wrapping
+ * host would otherwise average a row's height over every tile and read each item as a fraction of its real size.
  */
 function rowSpan(items: Element[]): number {
     const top = boxOf(items[0]).top;
@@ -320,8 +350,8 @@ function rowSpan(items: Element[]): number {
 }
 
 /**
- * The box an item occupies. A wrapping host drops the row wrapper out of layout with `display: contents` so
- * the template's own root takes the grid cell, and a wrapper laid out that way measures as nothing.
+ * The box an item occupies. A wrapping host drops the row wrapper out of layout with `display: contents`, so the template's
+ * own root takes the grid cell — a wrapper laid out that way measures as nothing.
  */
 function boxOf(item: Element): DOMRect {
     const box = item.getBoundingClientRect();

@@ -3,12 +3,9 @@ using System;
 namespace NE.Standard.UI.Primitives.Security;
 
 /// <summary>
-/// Thrown when an authenticated session lacks the roles or permissions a route or command requires.
+/// Thrown when an authenticated session lacks the required roles or permissions; distinct from <see cref="UnauthorizedAccessException"/>,
+/// which means no identity yet. That routes to sign-in; this to a forbidden page.
 /// </summary>
-/// <remarks>
-/// Distinct from a plain <see cref="UnauthorizedAccessException"/>, which means no identity yet and should route to
-/// sign-in rather than a forbidden page.
-/// </remarks>
 public sealed class UIForbiddenAccessException : UnauthorizedAccessException
 {
     /// <summary>

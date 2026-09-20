@@ -33,7 +33,8 @@ internal sealed class UICommandInvoker
         if (method.ContainsGenericParameters)
             throw new InvalidOperationException($"Command '{commandName}' must not be generic.");
 
-        if (!controllerType.IsAssignableFrom(method.DeclaringType) && !method.DeclaringType!.IsAssignableFrom(controllerType))
+        // Expression.Call needs the controller to be the declaring type or derived from it; a method of a more derived type is no command of this one.
+        if (!method.DeclaringType!.IsAssignableFrom(controllerType))
             throw new InvalidOperationException($"Command '{commandName}' does not belong to controller type '{controllerType.Name}'.");
 
         ParameterInfo[] methodParameters = method.GetParameters();

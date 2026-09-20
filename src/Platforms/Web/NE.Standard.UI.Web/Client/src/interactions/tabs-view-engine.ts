@@ -61,7 +61,7 @@ export class TabsViewEngine {
 
     public constructor(options: TabsViewEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.overflow = new StripOverflowMenu(this.root, (strip, key) => this.select(strip, key));
+        this.overflow = new StripOverflowMenu((strip, key) => this.select(strip, key));
 
         this.applyAll();
 
@@ -91,11 +91,12 @@ export class TabsViewEngine {
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
         this.root.addEventListener("dragover", domEvent => this.handleDragOver(domEvent), true);
+        this.root.addEventListener("drop", domEvent => this.handleDrop(domEvent), true);
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // Tabs arrive with the collection, so childList counts as much as the selected attribute; a strip whose Draggable is switched
-        // live rewrites every caption's draggable flag, so that attribute is watched too.
+        // Tabs arrive with the collection, so childList counts as much as the selected attribute; a strip whose Draggable switches
+        // live rewrites every caption's draggable flag, so that's watched too.
         observeComponents(
             this.root,
             `.${RootClass}`,
@@ -181,11 +182,9 @@ export class TabsViewEngine {
         applyRovingTabIndex(labels, current);
     }
 
-    /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
     /**
-     * How much of the host the strip took, written on the host as a variable the stylesheet reads. The strip and the page are lines
-     * of one wrapping flex, and a line's height is its own content's, so the page has no way of its own to fill what is left; with
-     * this it can, and a page that asks for its whole height gets one that is not its content's.
+     * How much of the host the strip took, written on the host as a variable the stylesheet reads. The strip and page are lines of
+     * one wrapping flex, so a page has no way of its own to fill what's left; this variable gives it one.
      */
     private writeStripHeight(root: HTMLElement, page: HTMLElement | null): void {
         const host = this.hostOf(root);
@@ -202,6 +201,7 @@ export class TabsViewEngine {
         return root.querySelector<HTMLElement>(`:scope > [${ItemsHostAttribute}]`);
     }
 
+    /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
     private fitCaptions(root: HTMLElement, captions: readonly HTMLElement[], selected: HTMLElement | null): void {
         const host = this.hostOf(root);
         const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
@@ -394,7 +394,7 @@ export class TabsViewEngine {
         if (item === null)
             return;
 
-        // A tab whose item refuses to be dragged, and a pinned one, stay where they are; only a tab's own drag is refused here —
+        // A tab whose item refuses to be dragged, and a pinned one, stay where they are; only its own drag is refused, since
         // this listener sees every drag on the page.
         if (rowOf(item).hasAttribute(UndraggableAttribute) || item.hasAttribute(TabPinnedAttribute)) {
             domEvent.preventDefault();
@@ -420,13 +420,18 @@ export class TabsViewEngine {
 
         const dragging = root.querySelector<HTMLElement>(`.${DraggingModifier}`);
 
-        if (dragging === null || dragging === over)
+        if (dragging === null)
             return;
 
+        // Accepted over every tab of the strip, the dragged one included, since a drop the browser wasn't told to accept ends the
+        // drag as cancelled and the live reorder would be put back.
         domEvent.preventDefault();
 
         if (domEvent.dataTransfer !== null)
             domEvent.dataTransfer.dropEffect = "move";
+
+        if (dragging === over)
+            return;
 
         // Which side of the tab under the pointer decides the insertion point, so nothing is dropped on a gap.
         const bounds = over.querySelector<HTMLElement>(`.${CaptionClass}`)?.getBoundingClientRect();
@@ -434,13 +439,33 @@ export class TabsViewEngine {
         if (bounds === undefined)
             return;
 
-        const before = domEvent.clientX < bounds.left + bounds.width / 2;
-
         // The host's own child moves — the wrapper round the tab, not the tab out of it into another's wrapper.
         const draggingRow = rowOf(dragging);
-        const overRow = rowOf(over);
 
-        overRow.parentElement?.insertBefore(draggingRow, before ? overRow : overRow.nextElementSibling);
+        // The pinned tabs are the strip's head, as a browser keeps them: a tab dragged over one lands right after the last of them.
+        const pinnedHead = over.hasAttribute(TabPinnedAttribute) ? lastPinnedRow(root, draggingRow) : null;
+        const overRow = pinnedHead ?? rowOf(over);
+        const before = pinnedHead === null && domEvent.clientX < bounds.left + bounds.width / 2;
+        const reference = before ? overRow : overRow.nextElementSibling;
+
+        if (reference !== draggingRow)
+            overRow.parentElement?.insertBefore(draggingRow, reference);
+    }
+
+    /** The drop itself: accepted so the browser reports a move at dragend; the order was already rebuilt under the pointer. */
+    private handleDrop(domEvent: Event): void {
+        if (!(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
+            return;
+
+        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+
+        if (root === null || root.querySelector(`.${DraggingModifier}`) === null)
+            return;
+
+        domEvent.preventDefault();
+
+        if (domEvent.dataTransfer !== null)
+            domEvent.dataTransfer.dropEffect = "move";
     }
 
     private handleDragEnd(domEvent: Event): void {
@@ -461,6 +486,13 @@ export class TabsViewEngine {
             return;
         }
 
+        // Decided by where the tab stands against where it started, not by comparing orders, since the order read off the element
+        // can be one the server has since moved, missing a move judged "no change" by it.
+        const row = rowOf(item);
+
+        if (start !== null && row.parentNode === start.parent && row.nextSibling === start.next)
+            return;
+
         this.commitOrder(item);
     }
 
@@ -475,9 +507,6 @@ export class TabsViewEngine {
                 : next === null ? previous + 1
                     : (previous + next) / 2;
 
-        if (readOrder(item) === order)
-            return;
-
         item.setAttribute(TabOrderAttribute, String(order));
         item.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -489,6 +518,20 @@ export class TabsViewEngine {
     private ownItems(root: HTMLElement): HTMLElement[] {
         return ownDescendants(root, `.${ItemClass}`, `.${RootClass}`);
     }
+}
+
+/** The row of the last pinned tab in the strip, leaving the dragged row out; null when nothing is pinned. */
+function lastPinnedRow(root: HTMLElement, draggingRow: HTMLElement): HTMLElement | null {
+    let last: HTMLElement | null = null;
+
+    for (const item of ownDescendants(root, `.${ItemClass}`, `.${RootClass}`)) {
+        const row = rowOf(item as HTMLElement);
+
+        if (row !== draggingRow && item.hasAttribute(TabPinnedAttribute))
+            last = row;
+    }
+
+    return last;
 }
 
 /** The items host's child that holds a tab: the tab itself when nothing wraps it, else its wrapper. */
@@ -516,7 +559,7 @@ function draggedItem(domEvent: Event): HTMLElement | null {
     return caption?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
 }
 
-/** Puts `element` exactly where `target` sits inside `container`, in the same type. */
+/** The order a row was last written with, or null for a row that carries none or one that does not parse. */
 function readOrder(item: Element | null): number | null {
     const value = item?.getAttribute(TabOrderAttribute) ?? null;
 

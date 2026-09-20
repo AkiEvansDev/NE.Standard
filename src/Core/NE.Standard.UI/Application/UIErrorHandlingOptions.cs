@@ -1,3 +1,5 @@
+using NE.Standard.UI.Shell.Localization;
+
 namespace NE.Standard.UI.Application;
 
 /// <summary>
@@ -11,8 +13,8 @@ public sealed class UIErrorHandlingOptions
     public string? NotFoundRoute { get; set; }
 
     /// <summary>
-    /// Gets or sets the route used when an unhandled exception occurs while resolving a view, when configured.
-    /// A command that throws is reported to the user instead, rather than routed here.
+    /// Gets or sets the route used when resolving a view throws, when configured; a command that throws reports to the user
+    /// instead.
     /// </summary>
     public string? ErrorRoute { get; set; }
 
@@ -31,16 +33,16 @@ public sealed class UIErrorHandlingOptions
     /// <summary>
     /// Gets or sets what a command refused by an authorization check tells the user.
     /// </summary>
-    public string CommandRefusedMessage { get; set; } = "You are not allowed to do that.";
+    public string CommandRefusedMessage { get; set; } = UIStrings.CommandRefused;
 
     /// <summary>
     /// Gets or sets what a command that failed for any other reason tells the user.
     /// </summary>
-    public string CommandFailedMessage { get; set; } = "Something went wrong. Please try again.";
+    public string CommandFailedMessage { get; set; } = UIStrings.CommandFailed;
 
     /// <summary>
     /// Gets or sets what the error page's <c>message</c> parameter carries when <see cref="IncludeExceptionDetail"/>
     /// is off.
     /// </summary>
-    public string ErrorPageMessage { get; set; } = "Something went wrong. Please try again.";
+    public string ErrorPageMessage { get; set; } = UIStrings.ErrorMessage;
 }

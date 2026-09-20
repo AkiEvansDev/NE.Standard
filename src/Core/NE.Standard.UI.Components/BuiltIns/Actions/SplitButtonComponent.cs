@@ -12,13 +12,10 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Actions;
 
 /// <summary>
-/// A button whose end is a second control opening a menu of commands: the main part is the button's own click,
-/// the end part drops the entries. In <see cref="UISplitButtonMode.Menu"/> the whole button opens the menu.
+/// A button whose end opens a menu of commands: the main part fires its own click, the end part opens the menu; in
+/// <see cref="UISplitButtonMode.Menu"/> the whole button does.
 /// </summary>
-/// <remarks>
-/// The entries are a <see cref="MenuComponent"/> of the same <see cref="MenuItem"/> model a sidebar uses (icon, title,
-/// shortcut, enabled, a caption or a rule by <c>Kind</c>), drawn in a popup by the machinery a context menu uses.
-/// </remarks>
+/// <remarks>Entries are a <see cref="MenuComponent"/> of <see cref="MenuItem"/>, the same model a sidebar uses, drawn in a popup.</remarks>
 public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent
     where T : SplitButtonComponent<T>, IUIComponentDefinition
 {

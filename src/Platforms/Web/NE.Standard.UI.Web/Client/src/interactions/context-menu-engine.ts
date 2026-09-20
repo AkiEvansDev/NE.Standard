@@ -1,16 +1,18 @@
-// Right-click menus: when a menu rendered inside its owner is shown, and where — at the pointer, so there is no anchor to place against.
+// Right-click menus: shown at the pointer, since there is no anchor to place against. An owner may carry several, by name: the
+// part pressed says which (`data-ui-context-menu-use`), and the unnamed one is the rest's.
 
-import { ComponentKeyAttribute, ItemsHostAttribute, NoContextMenuAttribute } from "../addressing/dom-attributes";
+import { ComponentKeyAttribute, ItemsHostAttribute, MarkedMenuEntrySelector, NoContextMenuAttribute } from "../addressing/dom-attributes";
 import { clampToViewport } from "./anchored-popup";
 import { PopupDismissal } from "./popup-dismissal";
-import { FocusableSelector } from "./popup-focus";
+import { FocusableSelector, restoreFocusTo } from "./popup-focus";
 
 const OwnerAttribute = "data-ui-context-menu-owner";
 const MenuAttribute = "data-ui-context-menu";
+const UseAttribute = "data-ui-context-menu-use";
 const OpenClass = "ui-context-menu--open";
 
 /** An entry whose click keeps the menu up: a group's own entry opens its block, a check turns in place. */
-const StayingEntrySelector = "[data-ui-menu-group] > .ui-menu-item, .ui-menu-item[data-ui-menu-item-kind=\"check\"]";
+const StayingEntrySelector = MarkedMenuEntrySelector;
 
 export type ContextMenuEngineOptions = {
     readonly root?: ParentNode;
@@ -19,6 +21,8 @@ export type ContextMenuEngineOptions = {
 export class ContextMenuEngine {
     private readonly root: ParentNode;
     private openMenu: HTMLElement | null = null;
+    // Where the keyboard was when the menu took it, to give it back on close: the menu's own hide would drop it on the body.
+    private returnFocus: HTMLElement | null = null;
 
     public constructor(options: ContextMenuEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -26,10 +30,9 @@ export class ContextMenuEngine {
         this.root.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
 
         // A click inside closes on the click, not the press, or the entry it landed on never activates.
-        document.addEventListener("click", domEvent => this.handleInside(domEvent), false);
+        this.root.addEventListener("click", domEvent => this.handleInside(domEvent), false);
 
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.openMenu === null ? [] : [this.openMenu],
             close: () => this.close(),
             onPress: true,
@@ -46,10 +49,12 @@ export class ContextMenuEngine {
         if (owner === null)
             return;
 
-        // This owner's own menu: a renderer may nest it, but a nested owner's menu must not open for the outer one.
-        const menu = owner.querySelector<HTMLElement>(`[${MenuAttribute}]`);
+        // The nearest part that names a menu, inside this owner; a name the owner has no menu for falls back to its unnamed one.
+        const part = domEvent.target.closest(`[${UseAttribute}]`);
+        const name = part !== null && owner.contains(part) ? part.getAttribute(UseAttribute) ?? "" : "";
+        const menu = ownMenu(owner, name) ?? (name.length > 0 ? ownMenu(owner, "") : null);
 
-        if (menu === null || menu.closest(`[${OwnerAttribute}]`) !== owner || isRefused(owner))
+        if (menu === null || isRefused(owner))
             return;
 
         domEvent.preventDefault();
@@ -59,6 +64,8 @@ export class ContextMenuEngine {
     }
 
     private open(menu: HTMLElement, x: number, y: number): void {
+        this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
         menu.classList.add(OpenClass);
         this.openMenu = menu;
 
@@ -85,15 +92,29 @@ export class ContextMenuEngine {
         if (this.openMenu === null)
             return;
 
-        this.openMenu.classList.remove(OpenClass);
+        const menu = this.openMenu;
+
         this.openMenu = null;
+
+        // Before the menu hides, as every popup engine does: hidden, it has already dropped the focus there is to bring back.
+        restoreFocusTo(this.returnFocus, menu);
+        this.returnFocus = null;
+
+        menu.classList.remove(OpenClass);
     }
 }
 
-/**
- * The menu is refused where the owner says so, where the row the owner stands in says so, or where the host of that row says so
- * for every row — the three places `ShowContextMenu` and `CanShowContextMenu` are written.
- */
+/** This owner's own menu of that name: a renderer may nest menus, but a nested owner's menu must not open for the outer one. */
+function ownMenu(owner: HTMLElement, name: string): HTMLElement | null {
+    for (const menu of owner.querySelectorAll<HTMLElement>(`[${MenuAttribute}]`)) {
+        if ((menu.getAttribute(MenuAttribute) ?? "") === name && menu.closest(`[${OwnerAttribute}]`) === owner)
+            return menu;
+    }
+
+    return null;
+}
+
+/** Refused where the owner says so, where its row says so, or where the row's host says so for every row. */
 function isRefused(owner: HTMLElement): boolean {
     if (owner.hasAttribute(NoContextMenuAttribute))
         return true;

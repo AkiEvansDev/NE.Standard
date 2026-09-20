@@ -175,13 +175,9 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
                 .SetDescription(body)
                 .SetDescriptionColor(UIThemeColor.Muted);
 
-            // MaxLines only means anything against WrapEllipsis.
+            // MaxLines clamps the wrapping description, an ellipsis on its last line.
             if (clamped)
-            {
-                _ = entry
-                    .SetWrapMode(UITextWrapMode.WrapEllipsis)
-                    .SetMaxLines(2);
-            }
+                _ = entry.SetMaxLines(2);
 
             _ = feed.AddChild(entry);
         }
@@ -222,7 +218,6 @@ internal sealed class ParagraphExamplesView : DemoExamplesView, IUIViewDefinitio
                         + "cannot wait.} Nothing else changes for you."))
                     .AddChild(CreateMarkupSample("Clamped, with markup in the cut part",
                         "**Release 2.4** ships incremental rollout, a rewritten scheduler and forty-one fixes, of which [nine](https://example.com/releases/2.4) were reported from production.")
-                        .SetWrapMode(UITextWrapMode.WrapEllipsis)
                         .SetMaxLines(2)
                     );
 

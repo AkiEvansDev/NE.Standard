@@ -9,8 +9,8 @@ using NE.Standard.UI.Compiled.Models;
 namespace NE.Standard.UI.Compiled.Resolution;
 
 /// <summary>
-/// One item a template is resolved against: walks a compiled binding template over it, reading properties by name and
-/// stepping through <c>[]</c> slots from the scope stack. The client's <c>binding-template-evaluator.ts</c> is the same walk.
+/// One item a template is resolved against, reading properties by name and stepping through <c>[]</c> slots from the scope
+/// stack; the client's <c>binding-template-evaluator.ts</c> does the same walk.
 /// </summary>
 public sealed class ItemContext(object? item)
 {

@@ -1,11 +1,11 @@
-// A picture chosen by file: shown at once from the file itself, uploaded beside the hub, and kept until the controller
-// answers with a picture of its own — which is the only thing that replaces the local preview. A shelf (Multiple) keeps a
-// square per file chosen, each uploaded as a selection of its own, and hands the controller the list of handles.
+// A picture chosen by file: shown at once from the file itself, uploaded beside the hub, and kept until the controller answers
+// with its own picture. A shelf (Multiple) keeps a square per file, each uploaded as its own selection, handles sent as a list.
 
 import { ImageCaptionAttribute, ImageReadonlyAttribute, ImageSourceAttribute, SelectedKeysAttribute } from "../addressing/dom-attributes";
 import { clientStrings } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
 import { observeComponents } from "./dom-mutations";
+import { DraftDroppedEventName } from "./draft-events";
 import { attachFileDrop } from "./file-drop";
 import { filterWithinFileSizeLimit, publishSelection, uploadFilesAsync } from "./file-upload";
 
@@ -49,8 +49,8 @@ export class ImageInputEngine {
     // What each shelf has sent and not yet seen come back: the controller's echo of a list is not the controller dropping a square.
     private readonly published = new WeakMap<HTMLElement, string[]>();
 
-    // The root's list as last read, per shelf: the observer wakes for the shelf's own squares and hidden input too, and pruning by
-    // an unchanged list — an empty one on a shelf nothing is bound to — took every square off as it landed.
+    // The root's list as last read, per shelf: the observer also wakes for unrelated changes, and pruning by an unchanged list
+    // would take every newly landed square off again.
     private readonly seenKeys = new WeakMap<HTMLElement, string | null>();
 
     public constructor(options: ImageInputEngineOptions = {}) {
@@ -58,13 +58,16 @@ export class ImageInputEngine {
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        // The picture follows the root's source attribute, which a Value patch writes; a preview outranks it until the source changes.
-        // A shelf follows the root's list of handles: a handle the controller dropped takes its square with it.
+        // The picture follows the root's source attribute (written by a Value patch); a preview outranks it until the source changes.
+        // A shelf follows the root's list of handles: a dropped handle takes its square with it.
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => this.applyAll(roots));
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleRemoveClick(domEvent), true);
         this.root.addEventListener("change", domEvent => void this.handleNativeChangeAsync(domEvent), true);
+
+        // An editor that closed on a cancel lets the chosen picture go too: the controller's own picture is painted again.
+        this.root.addEventListener(DraftDroppedEventName, domEvent => this.handleDraftDropped(domEvent));
 
         // A file dragged onto the surface is chosen the way a picked one is; one file, whatever was dragged, unless the surface is a shelf.
         attachFileDrop({
@@ -132,9 +135,8 @@ export class ImageInputEngine {
         if (tiles === undefined || text === null)
             return;
 
-        // A list the shelf itself sent, back from the server: two squares landing close together send two lists, and the first one's
-        // echo arrives after the second square is on the shelf — pruning by it would take that square off. The lists sent before it
-        // are older still and are forgotten with it.
+        // A list the shelf itself sent, back from the server: two squares landing close together send two lists, and the first
+        // echo can arrive after the second square lands — pruning by it would take that square off, so older lists are forgotten with it.
         const sent = this.published.get(root) ?? [];
         const echo = sent.indexOf(text);
 
@@ -219,6 +221,22 @@ export class ImageInputEngine {
     }
 
     /** Shows the file at once, sends it, and hands the controller the handle; a failure leaves the handle empty and says so. */
+    private handleDraftDropped(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element))
+            return;
+
+        for (const root of domEvent.target.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
+            if (!this.previews.has(root))
+                continue;
+
+            this.dropPreview(root);
+            this.apply(root);
+
+            // The handle went to the controller as the file was chosen; the draft gone, the controller hears that it holds nothing.
+            publishSelection(root.querySelector<HTMLInputElement>(`.${SelectionClass}`), "");
+        }
+    }
+
     private async takeFileAsync(root: HTMLElement, file: File): Promise<void> {
         const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
         const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
@@ -246,7 +264,9 @@ export class ImageInputEngine {
         try {
             const uploaded = await uploadFilesAsync([file], () => undefined);
 
-            publishSelection(selection, uploaded.selectionId);
+            // The preview let go while the file was in flight: the upload is nobody's, and its handle is not written.
+            if (this.previews.get(root) === preview)
+                publishSelection(selection, uploaded.selectionId);
         }
         catch (error) {
             writeText(root, clientStrings.text("ui.file.failed"));

@@ -22,16 +22,15 @@
     overflow-clip-margin: @ui-space-2;
 }
 
-// Collapsed, the content is closed to nothing toward the edge the panel sits on and hidden outright, so nothing in it stays reachable.
+// Collapsed, the content is hidden outright, so nothing in it stays reachable.
 .ui-collapsible-panel[data-ui-collapsed] > .ui-collapsible-panel__content {
     opacity: 0;
     visibility: hidden;
 }
 
-.ui-collapsible-panel[data-ui-collapsed]:is(.ui-side--left, .ui-side--right) > .ui-collapsible-panel__content {
+// Zeroes both axes, not only the fold's own: zeroing one alone still lets text wrap to a one-word column, and a side panel's
+// rail would size to that. Skipped while [data-ui-folding], since collapsible-engine.ts then holds the other axis at its open size.
+.ui-collapsible-panel[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible-panel__content {
     inline-size: 0;
-}
-
-.ui-collapsible-panel[data-ui-collapsed]:is(.ui-side--top, .ui-side--bottom) > .ui-collapsible-panel__content {
     block-size: 0;
 }

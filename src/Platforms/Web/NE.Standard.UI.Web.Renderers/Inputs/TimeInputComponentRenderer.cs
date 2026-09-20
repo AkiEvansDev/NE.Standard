@@ -46,6 +46,8 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
+            RenderInputHeaderInside(context, root, row);
+
             _ = row.Element("span", container =>
             {
                 segments = container;
@@ -118,8 +120,8 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
             return false;
         }
 
-        // The date half is a placeholder for the shared plumbing and must match the client's, or a format
-        // carrying a weekday or year token would paint a different date on each side.
+        // The date half is a placeholder for the shared plumbing and must match the client's, or a weekday/year token would
+        // paint a different date on each side.
         moment = TimeOnlyBaseDate.ToDateTime(time);
         canonical = time.ToString(CanonicalTimeFormat, CultureInfo.InvariantCulture);
         return true;

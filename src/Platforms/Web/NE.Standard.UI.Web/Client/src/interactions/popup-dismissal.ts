@@ -1,11 +1,9 @@
-// Closing a popup from outside: a click outside or Escape, judged by composedPath so a re-render during the click cannot lie.
-// Escape is one document listener over every dismissal, so it closes the popup opened last and leaves the ones under it.
+// Closing a popup from outside: a click outside or Escape, judged by composedPath so a re-render during the click can't lie.
+// Escape is one document listener over every dismissal, closing only the popup opened last.
 
 export type PopupDismissReason = "outside" | "escape" | "blur";
 
 export type PopupDismissalOptions = {
-    /** The engine's root; a press or an Escape is always the document's to see. */
-    readonly root: ParentNode;
     /** The popups open right now, asked on every press: the engine answers from whatever it tracks. */
     readonly openPopups: () => Iterable<HTMLElement>;
     readonly close: (popup: HTMLElement, reason: PopupDismissReason) => void;

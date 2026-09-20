@@ -24,11 +24,11 @@ public interface IUIClientEndpoint
     Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, UIInstance instance, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The runtime a page render may read the values it renders with out of, when the host can say which one this load belongs to.
+    /// The runtime a page render may read its values from, when the host can say which one this load belongs to.
     /// </summary>
     /// <remarks>
-    /// Null means "render a fresh page": a render knows the session and address, not the window, so this only answers
-    /// when the key is unambiguous without it.
+    /// Null means "render a fresh page": a render knows the session and address, not the window, so this answers only
+    /// when unambiguous without it.
     /// </remarks>
     IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution);
 

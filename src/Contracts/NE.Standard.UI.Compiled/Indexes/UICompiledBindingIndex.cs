@@ -333,19 +333,28 @@ public sealed class UICompiledBindingIndex
         if (binding.TemplateId.IsEmpty)
             throw new InvalidOperationException($"Binding '{binding.Id}' template id must not be empty.");
 
-        _ = sources.GetRequired(binding.SourceId);
+        ValidateReference($"Binding '{binding.Id}'", binding.SourceId, binding.TemplateId, binding.Parameters, binding.DynamicParameterComponentIds, sources, templates);
+    }
 
-        CompiledUIBindingTemplate template = templates.GetRequired(binding.TemplateId);
+    /// <summary>
+    /// Holds a source, a template and the parameters naming them to one another — what a binding and a bound event argument both are.
+    /// </summary>
+    internal static void ValidateReference(string owner, UIBindingSourceId sourceId, UIBindingTemplateId templateId, CompiledUIBindingParameter[] parameters, UIComponentId[] dynamicParameterComponentIds, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    {
+        _ = sources.GetRequired(sourceId);
 
-        if (!template.SourceId.Equals(binding.SourceId))
-            throw new InvalidOperationException($"Binding '{binding.Id}' source '{binding.SourceId}' does not match template '{binding.TemplateId}' source '{template.SourceId}'.");
+        CompiledUIBindingTemplate template = templates.GetRequired(templateId);
 
-        var slotCount = CompiledUIBindingParameterResolver.CountSlots(binding.Parameters);
+        if (!template.SourceId.Equals(sourceId))
+            throw new InvalidOperationException($"{owner} source '{sourceId}' does not match template '{templateId}' source '{template.SourceId}'.");
+
+        // Slots, not the parameters' length: a Scope parameter is supplied by the client and consumed by no slot.
+        var slotCount = CompiledUIBindingParameterResolver.CountSlots(parameters);
 
         if (slotCount != template.ParameterCount)
-            throw new InvalidOperationException($"Binding '{binding.Id}' has {slotCount} parameters, but template '{template.Id}' expects {template.ParameterCount}.");
+            throw new InvalidOperationException($"{owner} has {slotCount} parameters, but template '{template.Id}' expects {template.ParameterCount}.");
 
-        CompiledUIBindingParameterResolver.ValidateDynamicComponentIds($"Binding '{binding.Id}'", binding.Parameters, binding.DynamicParameterComponentIds);
+        CompiledUIBindingParameterResolver.ValidateDynamicComponentIds(owner, parameters, dynamicParameterComponentIds);
     }
 
     private static void AddToDescendantTemplateKindIndex(Dictionary<BindingTemplateStringKindKey, List<CompiledUIBinding>> index, CompiledUIBinding binding, UICompiledBindingTemplateIndex templates)

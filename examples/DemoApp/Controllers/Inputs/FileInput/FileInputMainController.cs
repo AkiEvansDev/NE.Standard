@@ -24,6 +24,7 @@ internal sealed partial class FileInputValueGroupContext : InputValueGroupContex
     {
         AddOption(nameof(Value), ClearValue, () => Value);
         AddOption(nameof(SelectionId), ClearSelectionId, () => SelectionId);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

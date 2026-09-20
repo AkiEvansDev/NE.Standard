@@ -5,31 +5,10 @@ using System.Globalization;
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
 /// <summary>
-/// The locale-dependent text a formatted number needs — separators, group sizes, the currency and percent symbols and their
-/// patterns — resolved once from a <see cref="CultureInfo"/> and handed to the client as one JSON attribute
-/// (<c>data-ui-number-culture</c>). The client formats from it; .NET stays the single source of the values.
+/// Locale-dependent number-formatting text (separators, group sizes, currency/percent symbols) resolved once from a
+/// <see cref="CultureInfo"/> and sent to the client as <c>data-ui-number-culture</c>. .NET stays the single source of the values.
 /// </summary>
-public sealed record WebNumberCulturePack(
-    string DecimalSeparator,
-    string GroupSeparator,
-    IReadOnlyList<int> GroupSizes,
-    string NegativeSign,
-    int NegativePattern,
-    int DecimalDigits,
-    string CurrencySymbol,
-    string CurrencyDecimalSeparator,
-    string CurrencyGroupSeparator,
-    IReadOnlyList<int> CurrencyGroupSizes,
-    int CurrencyDecimalDigits,
-    int CurrencyPositivePattern,
-    int CurrencyNegativePattern,
-    string PercentSymbol,
-    string PercentDecimalSeparator,
-    string PercentGroupSeparator,
-    IReadOnlyList<int> PercentGroupSizes,
-    int PercentDecimalDigits,
-    int PercentPositivePattern,
-    int PercentNegativePattern)
+public sealed record WebNumberCulturePack(string DecimalSeparator, string GroupSeparator, IReadOnlyList<int> GroupSizes, string NegativeSign, int NegativePattern, int DecimalDigits, string CurrencySymbol, string CurrencyDecimalSeparator, string CurrencyGroupSeparator, IReadOnlyList<int> CurrencyGroupSizes, int CurrencyDecimalDigits, int CurrencyPositivePattern, int CurrencyNegativePattern, string PercentSymbol, string PercentDecimalSeparator, string PercentGroupSeparator, IReadOnlyList<int> PercentGroupSizes, int PercentDecimalDigits, int PercentPositivePattern, int PercentNegativePattern)
 {
     public static WebNumberCulturePack FromCulture(CultureInfo culture)
     {
@@ -88,9 +67,9 @@ public sealed record WebNumberCulturePack(
 }
 
 /// <summary>
-/// Formats a number against the <b>documented format subset</b> shared with the TypeScript client (<c>number-format.ts</c>):
-/// the standard <c>N</c>, <c>F</c>, <c>C</c>, <c>P</c> and <c>D</c> formats with an optional precision, and no format for the
-/// value as it is. <c>NumberFormatParityTests</c> holds the two ports to one corpus.
+/// Formats a number against the format subset shared with the TypeScript client (<c>number-format.ts</c>): <c>N</c>, <c>F</c>,
+/// <c>C</c>, <c>P</c>, <c>D</c> with optional precision, or none for the raw value. <c>NumberFormatParityTests</c> keeps both
+/// ports to one corpus.
 /// </summary>
 public static class WebNumberFormat
 {

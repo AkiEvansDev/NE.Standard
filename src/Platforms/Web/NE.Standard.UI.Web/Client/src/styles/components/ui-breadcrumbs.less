@@ -1,5 +1,5 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 
@@ -28,10 +28,10 @@
     min-width: 0;
 }
 
-    // Drawn beside the step, not inside its anchor, or the mark would sit in the link's hover block and answer to its clicks.
-    // After the step, not before the next: a trail that wraps keeps the mark at the end of the line rather than starting the next with it.
+    // Beside the step, not inside its anchor, or the mark would sit in the link's hover block and answer its clicks.
+    // After the step, not before the next, so a wrapped trail keeps the mark at the end of its line.
     .ui-breadcrumbs__item:has(~ .ui-breadcrumbs__item:not(.ui-hidden))::after {
-        .ui-chevron(0.5rem);
+        .ui-chevron(@ui-glyph-xs);
         .ui-chevron-right();
         color: var(--ui-text-muted);
         user-select: none;
@@ -113,3 +113,8 @@
     font-weight: 600;
     pointer-events: none;
 }
+
+    // The step's text body wears TitleType and would re-declare the weight over the line above, so the trail would end in nothing.
+    .ui-breadcrumb--current .ui-text {
+        font-weight: 600;
+    }

@@ -25,8 +25,8 @@ public sealed class WebRenderItemsTemplateMetadata
     public WebRenderItemsCompositeMetadata? Composite { get; init; }
 
     /// <summary>
-    /// The client-side decorator a row the client builds goes through after its template, named by kind: what the component's own
-    /// renderer puts beside a row that its template cannot (a menu's sub-entries); null when a row is its template alone.
+    /// The client-side decorator a client-built row goes through after its template, named by kind. Used for what a template
+    /// can't express (a menu's sub-entries); null when none.
     /// </summary>
     public string? RowDecorator { get; init; }
 

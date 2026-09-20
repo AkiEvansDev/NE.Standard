@@ -13,7 +13,9 @@
 // Captions are spaced by their own padding rather than a strip gap, so the mark and the rule stay visually attached to the caption.
 .ui-tab-caption() {
     position: relative;
-    padding: @ui-space-1 @ui-space-3 2px;
+    // A pixel short at the top, which the button's top border takes back, so the caption keeps four pixels of air on each
+    // side and the line fills the content box exactly at the small control height.
+    padding: calc(@ui-space-1 - 1px) @ui-space-3 @ui-space-1;
     // No bottom border of the button's: the mark is placed from the padding edge, and a border under it lifted the mark a pixel
     // above the strip's own rule.
     border-bottom-width: 0;

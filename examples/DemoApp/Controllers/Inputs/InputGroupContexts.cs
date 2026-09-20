@@ -16,11 +16,21 @@ internal abstract partial class InputValueGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial bool IsReadOnly { get; set; }
 
+    [RecursiveMember]
+    public partial UIInputSize? Size { get; set; } = UIInputSize.Medium;
+
     protected void AddReadOnlyOption()
         => AddOption(nameof(IsReadOnly), ToggleIsReadOnly, () => IsReadOnly);
 
+    // Every input takes a size, so the row stands in every value section, just before the read-only one that closes it.
+    protected void AddSizeOption()
+        => AddOption(nameof(Size), CycleSize, () => Size);
+
     public void ToggleIsReadOnly()
         => SetLastChange(nameof(IsReadOnly), IsReadOnly = !IsReadOnly);
+
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 }
 
 /// <summary>
@@ -151,6 +161,7 @@ internal sealed partial class TextInputValueGroupContext : TextValueGroupContext
     public TextInputValueGroupContext()
     {
         AddOption(nameof(ShowClearButton), ToggleShowClearButton, () => ShowClearButton);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -165,6 +176,7 @@ internal sealed partial class TextAreaValueGroupContext : TextValueGroupContext
 {
     public TextAreaValueGroupContext(string sample, string alternate) : base(sample, alternate)
     {
+        AddSizeOption();
         AddReadOnlyOption();
     }
 }
@@ -181,6 +193,7 @@ internal sealed partial class ToggleValueGroupContext : InputValueGroupContext
     public ToggleValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -200,6 +213,7 @@ internal sealed partial class OptionValueGroupContext : InputValueGroupContext
     public OptionValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

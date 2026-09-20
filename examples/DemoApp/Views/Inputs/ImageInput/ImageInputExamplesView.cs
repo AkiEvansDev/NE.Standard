@@ -1,5 +1,6 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -30,6 +31,7 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
             [CreateInlineGroup()]
         ));
 
+        _ = container.AddChild(CreateAppearanceGroup());
         _ = container.AddChild(CreateShelfGroup());
     }
 
@@ -116,8 +118,10 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                 .AddChild(new ImageInputComponent()
                     .SetShape(UIImageInputShape.Inline)
                     .SetTitle("Product picture")
-                    .SetPlaceholder("PNG or JPEG")
+                    .SetPlaceholder("PNG or JPEG, two megabytes at most")
                     .SetAccept("image/png,image/jpeg")
+                    // Refused in the browser before the upload; the endpoint's own limit still holds behind it.
+                    .SetMaxFileSize(2 * 1024 * 1024)
                 )
                 .AddChild(new ImageInputComponent()
                     .SetShape(UIImageInputShape.Inline)
@@ -127,6 +131,34 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                 )
             )
         );
+    }
+
+    /// <summary>
+    /// The row shape in every appearance: only Inline reads as a field among others, so it is the one shape Filled, Outline,
+    /// Underline and Ghost are worth comparing on — Avatar and Picture keep their drop-area border whatever Appearance says.
+    /// </summary>
+    private static ContainerComponent CreateAppearanceGroup()
+    {
+        return DemoUI.CreateGroup(null, "Appearances",
+            content => content.AddChild(DemoUI.CreateStack(16)
+                .AddChild(CreateAppearanceSample(UIInputAppearance.Filled, DemoImages.NightStreet))
+                .AddChild(CreateAppearanceSample(UIInputAppearance.Outline, null))
+                .AddChild(CreateAppearanceSample(UIInputAppearance.Underline, null))
+                .AddChild(CreateAppearanceSample(UIInputAppearance.Ghost, null))
+            ),
+            note: "Appearance dresses the inline row as it does a file input's; the picture and the avatar have one look, whatever the appearance."
+        );
+    }
+
+    private static ImageInputComponent CreateAppearanceSample(UIInputAppearance appearance, string? photo)
+    {
+        ImageInputComponent field = new ImageInputComponent()
+            .SetShape(UIImageInputShape.Inline)
+            .SetAppearance(appearance)
+            .SetTitle(appearance.ToString())
+            .SetPlaceholder("PNG or JPEG");
+
+        return photo is null ? field : field.SetValue(photo);
     }
 
     /// <summary>

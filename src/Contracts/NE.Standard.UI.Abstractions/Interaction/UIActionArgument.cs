@@ -21,15 +21,26 @@ public readonly record struct UIActionArgument
     }
 
     /// <summary>
-    /// Creates a contextual action argument resolved from the given kind.
+    /// Creates a contextual action argument resolved from the given kind; a kind that carries its own value
+    /// (literal, binding, event key) has its own constructor.
     /// </summary>
     public UIActionArgument(UIActionArgumentKind kind)
     {
-        if (kind is UIActionArgumentKind.Literal or UIActionArgumentKind.Binding)
+        if (kind is UIActionArgumentKind.Literal or UIActionArgumentKind.Binding or UIActionArgumentKind.EventKey)
             throw new ArgumentOutOfRangeException(nameof(kind));
 
         Kind = kind;
         Value = null;
+        Binding = null;
+    }
+
+    /// <summary>
+    /// Creates a contextual action argument of the given kind, carrying what the kind is read by.
+    /// </summary>
+    private UIActionArgument(UIActionArgumentKind kind, object? value)
+    {
+        Kind = kind;
+        Value = value;
         Binding = null;
     }
 
@@ -49,7 +60,7 @@ public readonly record struct UIActionArgument
     public UIActionArgumentKind Kind { get; }
 
     /// <summary>
-    /// Gets the literal value for literal arguments.
+    /// Gets the literal value for literal arguments, and the place in the event's key chain for an event key.
     /// </summary>
     public object? Value { get; }
 
@@ -77,6 +88,16 @@ public readonly record struct UIActionArgument
         => new(UIActionArgumentKind.CurrentItemKey);
 
     /// <summary>
+    /// Creates an action argument resolved from the key at <paramref name="index"/> of the event's own key chain.
+    /// </summary>
+    public static UIActionArgument EventKey(int index)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+
+        return new UIActionArgument(UIActionArgumentKind.EventKey, index);
+    }
+
+    /// <summary>
     /// Creates an action argument resolved from a binding path.
     /// </summary>
     public static UIActionArgument Bind(UIBindingPath binding)
@@ -87,6 +108,7 @@ public readonly record struct UIActionArgument
         {
             UIActionArgumentKind.Literal => $"{Value}",
             UIActionArgumentKind.Binding => $"{{{Binding}}}",
+            UIActionArgumentKind.EventKey => $"{{{Kind}[{Value}]}}",
             UIActionArgumentKind.CurrentItem or UIActionArgumentKind.CurrentItemKey => $"{{{Kind}}}",
             _ => throw new UnreachableException()
         };

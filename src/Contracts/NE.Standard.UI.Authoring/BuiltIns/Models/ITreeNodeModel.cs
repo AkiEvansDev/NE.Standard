@@ -1,8 +1,8 @@
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 
 /// <summary>
-/// One node of a tree: a text item naming the node above it, in a flat list in walking order. A rename writes the new
-/// <c>Title</c> back through the node's two-way binding, so the node shows it at once; the controller judges it on <c>rename</c>.
+/// One node of a tree, given as a flat list in walking order. A rename writes the new <c>Title</c> back through the
+/// two-way binding at once; the controller judges it on <c>rename</c>.
 /// </summary>
 public interface ITreeNodeModel : ITextBaseModel
 {

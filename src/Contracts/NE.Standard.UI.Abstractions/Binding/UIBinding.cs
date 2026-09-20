@@ -10,12 +10,13 @@ namespace NE.Standard.UI.Abstractions.Binding;
 /// </summary>
 public readonly record struct UIBinding
 {
-    private UIBinding(UIProperty target, RecursivePath source, UIBindingScope scope, UIBindingMode mode)
+    private UIBinding(UIProperty target, RecursivePath source, UIBindingScope scope, UIBindingMode mode, bool optional)
     {
         Target = target;
         Source = source;
         Scope = scope;
         Mode = mode;
+        Optional = optional;
     }
 
     /// <summary>
@@ -39,15 +40,20 @@ public readonly record struct UIBinding
     public UIBindingMode Mode { get; }
 
     /// <summary>
+    /// Gets whether a source without the path is expected: the property is left unset and nothing warns about it.
+    /// </summary>
+    public bool Optional { get; }
+
+    /// <summary>
     /// Creates a binding for a component property.
     /// </summary>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="path"/> is <see langword="null"/>.
     /// </exception>
-    public static UIBinding Property(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public static UIBinding Property(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
     {
         ArgumentNullException.ThrowIfNull(path);
-        return new UIBinding(property, path, scope, mode);
+        return new UIBinding(property, path, scope, mode, optional);
     }
 
     /// <summary>
@@ -59,7 +65,7 @@ public readonly record struct UIBinding
     public static UIBinding Context(RecursivePath path, UIBindingScope scope = UIBindingScope.Relative, UIBindingMode mode = UIBindingMode.OneWay)
     {
         ArgumentNullException.ThrowIfNull(path);
-        return new UIBinding(new UIProperty(nameof(IBindableComponent.Context)), path, scope, mode);
+        return new UIBinding(new UIProperty(nameof(IBindableComponent.Context)), path, scope, mode, optional: false);
     }
 
     public override string ToString()

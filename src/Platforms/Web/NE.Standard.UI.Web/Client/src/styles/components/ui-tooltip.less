@@ -13,6 +13,8 @@
     line-height: var(--ui-text-caption-line-height);
     // Reachable with the pointer: its text is allowed to carry a link, and TooltipEngine keeps it open while the pointer is inside it.
     overflow-wrap: anywhere;
+    // A tooltip a caller composed may be more than one line — a chart naming every series at one x; the line it wrote is the line shown.
+    white-space: pre-line;
 }
 
 .ui-tooltip--visible {
@@ -27,8 +29,8 @@
     left: var(--ui-popup-arrow, 50%);
     width: 0.45rem;
     height: 0.45rem;
-    border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
+    border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: var(--ui-color-surface);
     transform: translate(-50%, 55%) rotate(45deg);
 }
@@ -39,8 +41,8 @@
         bottom: auto;
         border-top: none;
         border-left: none;
-        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
+        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
         transform: translate(-50%, -55%) rotate(45deg);
     }
 
@@ -50,7 +52,7 @@
         bottom: auto;
         left: 100%;
         border-left: none;
-        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
         transform: translate(-55%, -50%) rotate(45deg);
     }
 
@@ -60,6 +62,6 @@
         left: auto;
         right: 100%;
         border-top: none;
-        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
         transform: translate(55%, -50%) rotate(45deg);
     }

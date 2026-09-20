@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Shell.Hosting;
@@ -24,6 +25,9 @@ public sealed class WebRenderContext
 
     public required ITranslator Translator { get; init; }
 
+    /// <summary>The application's theme, for a renderer that writes what the theme's own stylesheet cannot say — the length of the series run.</summary>
+    public required UITheme Theme { get; init; }
+
     /// <summary>
     /// Translates <paramref name="key"/> for this session's language; the key itself when nothing translates it.
     /// </summary>
@@ -41,60 +45,32 @@ public sealed class WebRenderContext
     public bool IsPresentationCopy { get; init; }
 
     public WebRenderContext ForHtml(IHtmlElementBuilder html)
-        => new()
-        {
-            ViewResolution = ViewResolution,
-            Node = Node,
-            Parameters = Parameters,
-            Html = html,
-            Renderer = Renderer,
-            Metadata = Metadata,
-            Translator = Translator,
-            Values = Values,
-            IsPresentationCopy = IsPresentationCopy
-        };
+        => Copy(Node, Parameters, html, IsPresentationCopy);
 
     public WebRenderContext ForNode(UIComponentNode node, IHtmlElementBuilder html)
+        => Copy(node, Parameters, html, IsPresentationCopy);
+
+    /// <summary>Renders into <paramref name="html"/> as a picture of a component — see <see cref="IsPresentationCopy"/>.</summary>
+    public WebRenderContext AsPresentationCopy(IHtmlElementBuilder html)
+        => Copy(Node, Parameters, html, isPresentationCopy: true);
+
+    public WebRenderContext WithParameters(IReadOnlyList<UIDynamicParameterScope> parameters)
+        => Copy(Node, parameters, Html, IsPresentationCopy);
+
+    // The one place every member is carried over, so a member added later cannot be dropped by one of the four copies.
+    private WebRenderContext Copy(UIComponentNode node, IReadOnlyList<UIDynamicParameterScope> parameters, IHtmlElementBuilder html, bool isPresentationCopy)
         => new()
         {
             ViewResolution = ViewResolution,
             Node = node,
-            Parameters = Parameters,
-            Html = html,
-            Renderer = Renderer,
-            Metadata = Metadata,
-            Translator = Translator,
-            Values = Values,
-            IsPresentationCopy = IsPresentationCopy
-        };
-
-    /// <summary>Renders into <paramref name="html"/> as a picture of a component — see <see cref="IsPresentationCopy"/>.</summary>
-    public WebRenderContext AsPresentationCopy(IHtmlElementBuilder html)
-        => new()
-        {
-            ViewResolution = ViewResolution,
-            Node = Node,
-            Parameters = Parameters,
-            Html = html,
-            Renderer = Renderer,
-            Metadata = Metadata,
-            Translator = Translator,
-            Values = Values,
-            IsPresentationCopy = true
-        };
-
-    public WebRenderContext WithParameters(IReadOnlyList<UIDynamicParameterScope> parameters)
-        => new()
-        {
-            ViewResolution = ViewResolution,
-            Node = Node,
             Parameters = parameters,
-            Html = Html,
+            Html = html,
             Renderer = Renderer,
             Metadata = Metadata,
             Translator = Translator,
+            Theme = Theme,
             Values = Values,
-            IsPresentationCopy = IsPresentationCopy
+            IsPresentationCopy = isPresentationCopy
         };
 
     public void Validate()
@@ -106,6 +82,7 @@ public sealed class WebRenderContext
         ArgumentNullException.ThrowIfNull(Renderer);
         ArgumentNullException.ThrowIfNull(Metadata);
         ArgumentNullException.ThrowIfNull(Translator);
+        ArgumentNullException.ThrowIfNull(Theme);
 
         ViewResolution.Validate();
     }

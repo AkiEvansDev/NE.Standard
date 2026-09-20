@@ -1,6 +1,6 @@
-// `.ts` on the value imports, and the type-only ones kept as `import type`: `node --test` runs this module and resolves
-// files literally, and a type-only import that stays a value one would drag its module's whole graph in just to erase it.
-import { tryReadItemProperty } from "./binding-template-evaluator.ts";
+// `.ts` on value imports, type-only ones kept as `import type`: `node --test` resolves files literally, and a type-only
+// import kept as a value would drag its module's whole graph in just to erase it.
+import { readItemPropertyPath } from "./binding-template-evaluator.ts";
 import { ComponentSelector, ItemsQueryAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { getRealItemElements, HiddenClass } from "./items-empty-renderer.ts";
@@ -81,6 +81,12 @@ export function itemMatchesFilters(config: WebRenderItemsFilterSortMetadata | un
         && (query?.filters ?? []).every(term => evaluateOperator(readItemPropertyPath(item, term.itemProperty), term.operator, term.value));
 }
 
+/** Whether any authored filter is active or the viewer's query carries a term: a tree keeps every row until one is. */
+export function hasActiveFilters(config: WebRenderItemsFilterSortMetadata | undefined, state: PropertyStateStore, query: ItemsQuery | null = null): boolean {
+    return (config?.filters ?? []).some(filter => isRuleActive(filter.source, filter.activeOperator, filter.activeValue, state))
+        || (query?.filters?.length ?? 0) > 0;
+}
+
 /** The sorts in force: the viewer's first, since a sort chosen by a header outranks the authored one, then the active authored ones by priority. */
 export function getActiveSorts(config: WebRenderItemsFilterSortMetadata | undefined, state: PropertyStateStore, query: ItemsQuery | null = null): ActiveSort[] {
     const authored = (config?.sorts ?? [])
@@ -128,21 +134,6 @@ function isRuleActive(
         return true;
 
     return evaluateOperator(state.get(source, []), activeOperator, activeValue);
-}
-
-function readItemPropertyPath(item: unknown, path: string): unknown {
-    let current: unknown = item;
-
-    for (const segment of path.split(".")) {
-        const resolution = tryReadItemProperty(current, segment);
-
-        if (!resolution.ok)
-            return undefined;
-
-        current = resolution.value;
-    }
-
-    return current;
 }
 
 /** One item property against another: numeric where both sides read as numbers, else by locale-aware text; null/undefined sort first. */

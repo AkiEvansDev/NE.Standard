@@ -49,11 +49,9 @@ public sealed class CompiledUIBindingParameter
     }
 
     /// <summary>
-    /// Creates a parameter that identifies an enclosing item scope without indexing this path.
+    /// Creates a parameter that identifies an enclosing item scope without indexing this path, for a nested items collection
+    /// with a source of its own.
     /// </summary>
-    /// <remarks>
-    /// Used when a nested items collection has a source of its own, so this path is not an extension of the row's own path.
-    /// </remarks>
     public static CompiledUIBindingParameter Scope(UIComponentId componentId)
     {
         if (componentId.IsEmpty)

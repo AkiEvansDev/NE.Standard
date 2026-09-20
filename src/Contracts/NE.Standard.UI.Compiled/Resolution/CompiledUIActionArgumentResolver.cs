@@ -23,7 +23,8 @@ public static class CompiledUIActionArgumentResolver
 
         return argument.Kind switch
         {
-            CompiledUIActionArgumentKind.Literal => new CompiledUIActionArgumentResolution(argument, null, null, argument.Value),
+            // An event key addresses nothing: what is compiled is its place in the chain, and the runtime reads the chain itself.
+            CompiledUIActionArgumentKind.Literal or CompiledUIActionArgumentKind.EventKey => new CompiledUIActionArgumentResolution(argument, null, null, argument.Value),
             CompiledUIActionArgumentKind.Binding or CompiledUIActionArgumentKind.CurrentItemKey => ResolveBindingArgument(argument, sources, templates, dynamicParameters),
             _ => throw new UnreachableException()
         };

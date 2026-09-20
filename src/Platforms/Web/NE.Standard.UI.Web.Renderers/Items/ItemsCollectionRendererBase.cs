@@ -1,11 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
@@ -58,24 +56,18 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>Writes the selection mode and the single key onto the root; one element holds one writable value, so the list goes on the host.</summary>
-    protected static void RenderSelection(WebRenderContext context, IHtmlElementBuilder root, bool focusable = false)
+    protected static void RenderSelection(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // The root takes the focus and the arrows walk its rows: always where the host walks them anyway, else only with rows to choose.
-        if (focusable)
-            _ = root.Attribute("tabindex", "0");
+        // The root takes the focus and the arrows walk its rows, whatever the mode: a host that only opens rows is walked too.
+        _ = root.Attribute("tabindex", "0");
 
-        _ = RenderProperty<UISelectionMode?>(context, root, ISelectableItemsComponent.SelectionModeProperty, (target, value) =>
+        _ = RenderProperty<UISelectionMode?>(context, root, ISelectableItemsComponent.SelectionModeProperty, static (target, value) =>
         {
-            if (value is not UISelectionMode mode)
-                return;
-
-            _ = target.Attribute(WebAttributes.Selection, WebCssValues.SelectionMode(mode));
-
-            if (!focusable && mode != UISelectionMode.None)
-                _ = target.Attribute("tabindex", "0");
+            if (value is UISelectionMode mode)
+                _ = target.Attribute(WebAttributes.Selection, WebCssValues.SelectionMode(mode));
         }, [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)]);
 
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKey);
@@ -89,9 +81,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// The terms the viewer set — a header's sort, a filter row — as JSON on a hidden element of their own inside the root, since the
-    /// root's one writable value is the chosen key. An engine writes the attribute and raises <c>change</c> on the element; the rule
-    /// watcher re-syncs the host on either side's write.
+    /// The viewer's terms (a header's sort, a filter row) as JSON on their own hidden element, since the root's one writable value
+    /// is the chosen key. An engine writes the attribute and raises <c>change</c>; the rule watcher re-syncs on either side's write.
     /// </summary>
     protected static void RenderItemsQuery(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -120,8 +111,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// The row template of a composite is stamped, not rendered, so the abilities it carries are written here under the slot's own
-    /// context; a list whose row template is not the built-in one writes nothing.
+    /// The row template of a composite is stamped, not rendered, so its abilities are written here under the slot's context; a
+    /// non-built-in row template writes nothing.
     /// </summary>
     protected static void RenderStampedRowAbilities(WebRenderContext context, IHtmlElementBuilder row, object? item)
     {
@@ -190,17 +181,25 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = host.Attribute(WebAttributes.HostMode, "windowed");
     }
 
-    /// <summary>The <see cref="IScrollableComponent"/> block, as classes and the anchor attribute on the host, which is the element that scrolls.</summary>
-    protected static void ApplyHostScroll(WebRenderContext context, IHtmlElementBuilder host)
+    // The one operation every host's horizontal mode carries; a host with no extras shares the array rather than building one.
+    private static readonly WebDomOperation[] HostScrollXOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollXClass)];
+
+    /// <summary>
+    /// The <see cref="IScrollableComponent"/> block as classes and the anchor attribute on the scrolling host. A table whose root
+    /// scrolls instead passes <paramref name="horizontalOperations"/> for elsewhere.
+    /// </summary>
+    protected static void ApplyHostScroll(WebRenderContext context, IHtmlElementBuilder host, params ReadOnlySpan<WebDomOperation> horizontalOperations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
+
+        WebDomOperation[] horizontal = horizontalOperations.Length == 0 ? HostScrollXOperations : [HostScrollXOperations[0], .. horizontalOperations];
 
         _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.HorizontalScrollProperty, static (target, value) =>
         {
             if (value is UIScrollMode scrollMode)
                 _ = target.Class(WebClassNames.ScrollX(scrollMode));
-        }, [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollXClass)]);
+        }, horizontal);
 
         _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.VerticalScrollProperty, static (target, value) =>
         {
@@ -239,6 +238,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         RenderWindowValue(context, host, IItemsHostComponent.WindowTotalCountProperty, WebAttributes.WindowTotal);
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreBeforeProperty, WebAttributes.WindowMoreBefore);
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreAfterProperty, WebAttributes.WindowMoreAfter);
+
+        // The totals as JSON, in the wire's conventions; a live patch writes the same text through the client's own stringify.
+        _ = RenderProperty<IReadOnlyDictionary<string, object>?>(context, host, IItemsHostComponent.WindowAggregatesProperty, static (target, value) =>
+        {
+            if (value is { Count: > 0 })
+                _ = target.Attribute(WebAttributes.WindowAggregates, JsonSerializer.Serialize(value, QueryJsonOptions));
+        }, [WebDomOperation.Attribute(WebAttributes.WindowAggregates, $"[{WebAttributes.ItemsHost}]")]);
     }
 
     private static void RenderWindowValue(WebRenderContext context, IHtmlElementBuilder host, UIProperty property, string attribute)
@@ -347,71 +353,9 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
     }
 
-    /// <summary>Resolves the item collection, and whether it is left to the client to render.</summary>
-    protected static (IReadOnlyList<object?> Items, bool IsBound) ResolveItems(WebRenderContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        CompiledView view = context.ViewResolution.View;
-
-        if (!view.State.TryGetValue(context.Node.ComponentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? propertyValue) || propertyValue is null)
-            return ([], false);
-
-        if (!propertyValue.IsBind)
-            return ResolveStaticItems(propertyValue.Value);
-
-        if (propertyValue.BindingId is not UIBindingId bindingId || bindingId.IsEmpty)
-            throw new InvalidOperationException($"Property '{IItemsComponent.ItemsProperty.Name}' binding id is required.");
-
-        CompiledUIBinding binding = view.Bindings.GetRequired(bindingId);
-
-        // A bound Items is not automatically a client-rendered one: it resolves statically whenever the binding is
-        // reachable from an already-known parent item.
-        if (TryResolveStaticBindingValue(context, binding, out var bindingValue))
-            return ResolveStaticItems(bindingValue);
-
-        // A controller-bound one is server-rendered too when this render was handed the session's items.
-        return TryResolveSessionItems(context, out IReadOnlyList<object?> sessionItems)
-            ? (sessionItems, false)
-            : ([], true);
-    }
-
-    private static (IReadOnlyList<object?> Items, bool IsBound) ResolveStaticItems(object? value)
-    {
-        if (value is null)
-            return ([], false);
-
-        if (value is IReadOnlyList<object?> objectList)
-            return (objectList, false);
-
-        if (value is IEnumerable enumerable and not string)
-        {
-            List<object?> result = [];
-
-            foreach (var item in enumerable)
-                result.Add(item);
-
-            return (result, false);
-        }
-
-        throw new InvalidOperationException($"Property '{IItemsComponent.ItemsProperty.Name}' value must be an item collection.");
-    }
-
-    private static bool TryResolveSessionItems(WebRenderContext context, out IReadOnlyList<object?> items)
-    {
-        items = [];
-
-        if (context.Values is null)
-            return false;
-
-        UIComponentAddress component = new(context.Node.ComponentId, ResolveDynamicParameters(context));
-
-        return context.Values.TryGetItems(component, out items);
-    }
-
     /// <summary>
-    /// The inner element the items go in — inner, not the root, because the client resolves it with <c>querySelector</c>,
-    /// which searches descendants only. A bound list leaves it empty for the client; an empty static one shows the placeholder.
+    /// The inner element the items go in, not the root, since the client resolves it with <c>querySelector</c>, which searches
+    /// descendants only. A bound list leaves it empty; an empty static one shows the placeholder.
     /// </summary>
     protected static void RenderItemsHost(WebRenderContext context, IHtmlElementBuilder root, string hostClassName, IReadOnlyList<object?> items, bool isBound, string itemClassName, Action<IHtmlElementBuilder>? configureHost = null, string itemElementName = "div", Action<IHtmlElementBuilder, object?, int>? decorateItem = null, Action<IHtmlElementBuilder, object?, int>? appendItem = null, Action<IHtmlElementBuilder>? renderItems = null)
     {
@@ -445,8 +389,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// Renders a resolved item list, bucketed into contiguous group sections when a group template is configured. With a limit only the
-    /// first rows are rendered, ungrouped, and every value is published: the client draws the rest.
+    /// Renders a resolved item list, bucketed into group sections when a group template is configured. With a limit, only the
+    /// first rows render, ungrouped, with every value published for the client to draw the rest.
     /// </summary>
     protected static void RenderItemList(WebRenderContext context, IHtmlElementBuilder host, IReadOnlyList<object?> items, string itemClassName, string itemElementName = "div", Action<IHtmlElementBuilder, object?, int>? decorateItem = null, Action<IHtmlElementBuilder, object?, int>? appendItem = null, int? limit = null, bool publishValues = false)
     {
@@ -615,7 +559,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>Renders a fixed, named template-variant slot for an item; a no-op if that variant is not configured.</summary>
-    protected static void RenderNamedTemplateSlot(WebRenderContext context, IHtmlElementBuilder host, object? item, string variantKey, string itemClassName, string? variantKeyPropertyName = null, string? role = null)
+    protected static void RenderNamedTemplateSlot(WebRenderContext context, IHtmlElementBuilder host, object? item, string variantKey, string itemClassName, string? variantKeyPropertyName = null, string? role = null, IReadOnlyDictionary<string, string>? attributes = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
@@ -645,16 +589,21 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             if (role is not null)
                 _ = slotRoot.Attribute("role", role);
 
+            if (attributes is not null)
+            {
+                foreach (KeyValuePair<string, string> attribute in attributes)
+                    _ = slotRoot.Attribute(attribute.Key, attribute.Value);
+            }
+
             ApplyItemParameterAttributes(slotRoot, parameter, item);
 
             context.Renderer.RenderComponent(itemContext.ForHtml(slotRoot), slot.RootComponentId);
         });
     }
 
-    /// <summary>Makes an already-rendered element the DOM host for a named template variant, instead of wrapping it in a new one.</summary>
     /// <summary>
-    /// The context a stamped slot's own properties render under — the slot's node, the item's parameter and the stamped element —
-    /// for the properties a stamped row carries that its template's renderer never got to write; null when the list has no such slot.
+    /// The context a stamped slot's properties render under (its node, the item's parameter, the stamped element), for properties
+    /// a stamped row carries that its template renderer never wrote; null when there's no such slot.
     /// </summary>
     protected static WebRenderContext? ForStampedSlot(WebRenderContext context, IHtmlElementBuilder existingRoot, object? item, string variantKey)
     {
@@ -674,6 +623,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         return context.WithParameters([.. context.Parameters, parameter]).ForNode(node, existingRoot);
     }
 
+    /// <summary>Makes an already-rendered element the DOM host for a named template variant, instead of wrapping it in a new one.</summary>
     protected static void StampTemplateSlotAsHost(WebRenderContext context, IHtmlElementBuilder existingRoot, object? item, string variantKey)
     {
         ArgumentNullException.ThrowIfNull(context);

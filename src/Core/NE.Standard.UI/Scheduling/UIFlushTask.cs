@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Scheduling;
@@ -16,25 +15,25 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Scheduled UI screen flush failed for '{InstanceId}'.")]
         public static partial void ScheduledFlushFailed(ILogger logger, Exception exception, string instanceId);
 
-        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Scheduled UI flush drained {RuntimeCount} runtime(s): {SentChangeSetCount} change set(s) sent, {FailedRuntimeCount} failed.")]
+        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Scheduled UI flush drained {RuntimeCount} runtime(s): {SentChangeSetCount} change set(s) queued, {FailedRuntimeCount} failed.")]
         public static partial void ScheduledFlushCompleted(ILogger logger, int runtimeCount, int sentChangeSetCount, int failedRuntimeCount);
     }
 
     private readonly UIRuntimeStore _runtimeStore;
-    private readonly Func<IUIUpdateSink> _updatesFactory;
+    private readonly UIUpdateDispatcher _dispatcher;
     private readonly ILogger _logger;
     private readonly int _maxParallelFlushes;
 
-    public UIFlushTask(UIRuntimeStore runtimeStore, Func<IUIUpdateSink> updatesFactory, ILogger logger, TimeSpan interval, int maxParallelFlushes)
+    public UIFlushTask(UIRuntimeStore runtimeStore, UIUpdateDispatcher dispatcher, ILogger logger, TimeSpan interval, int maxParallelFlushes)
         : base(new RuntimeScheduledTaskOptions { Interval = interval })
     {
         ArgumentNullException.ThrowIfNull(runtimeStore);
-        ArgumentNullException.ThrowIfNull(updatesFactory);
+        ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxParallelFlushes);
 
         _runtimeStore = runtimeStore;
-        _updatesFactory = updatesFactory;
+        _dispatcher = dispatcher;
         _logger = logger;
         _maxParallelFlushes = maxParallelFlushes;
     }
@@ -43,7 +42,7 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
     {
         IUIRuntime[] runtimes = _runtimeStore.GetRuntimesReadyToFlush(utcNow);
 
-        var sentChangeSetCount = 0;
+        var queuedChangeSetCount = 0;
         var failedRuntimeCount = 0;
 
         try
@@ -56,6 +55,10 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
 
             await Parallel.ForEachAsync(runtimes, options, async (runtime, itemCancellationToken) =>
             {
+                // Selected before the cleanup pass, which runs beside this one, may have stopped and disposed it since.
+                if (runtime.IsStopped)
+                    return;
+
                 try
                 {
                     ServerChangeSet changes = await runtime
@@ -66,17 +69,19 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
                     if (changes.IsEmpty || runtime.AttachedInstanceIds.Count == 0)
                         return;
 
-                    IUIUpdateSink updates = _updatesFactory();
+                    // Handed over, not sent here: a full transport would otherwise hold this pass's slot until it gave up,
+                    // delaying every runtime behind it.
+                    _dispatcher.Enqueue(runtime, changes);
 
-                    await updates
-                        .SendChangesAsync(runtime.Handle, runtime.AttachedInstanceIds, changes, itemCancellationToken)
-                        .ConfigureAwait(false);
-
-                    _ = Interlocked.Increment(ref sentChangeSetCount);
+                    _ = Interlocked.Increment(ref queuedChangeSetCount);
                 }
                 catch (OperationCanceledException) when (itemCancellationToken.IsCancellationRequested)
                 {
                     throw;
+                }
+                catch (Exception exception) when (runtime.IsStopped && exception is ObjectDisposedException or InvalidOperationException)
+                {
+                    // Stopped under the flush: a runtime that is gone has nothing left to send, and no failure to report.
                 }
                 catch (Exception exception)
                 {
@@ -88,11 +93,11 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         finally
         {
             // Logged rather than kept on the task since nothing holds the instance; logged only when the pass did something.
-            var sent = Volatile.Read(ref sentChangeSetCount);
+            var queued = Volatile.Read(ref queuedChangeSetCount);
             var failed = Volatile.Read(ref failedRuntimeCount);
 
-            if (sent > 0 || failed > 0)
-                Log.ScheduledFlushCompleted(_logger, runtimes.Length, sent, failed);
+            if (queued > 0 || failed > 0)
+                Log.ScheduledFlushCompleted(_logger, runtimes.Length, queued, failed);
         }
     }
 }

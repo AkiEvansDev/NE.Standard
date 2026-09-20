@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
 
 // Both glyphs ship in the markup and CSS picks one, so caching cannot leak a reader's theme; anchored on :root, never on a themed card.
@@ -12,6 +13,16 @@
     cursor: pointer;
 }
 
+    // Both classes together, since this file loads after ui-button.less: its own default would otherwise outrank a size
+    // class by source order.
+    .ui-theme-switcher.ui-button--small {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-theme-switcher.ui-button--large {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3);
+    }
+
     // Measured against the control, not a label it doesn't have; :where() keeps an authored IconSize winning.
     :where(.ui-theme-switcher .ui-theme-switcher__icon) {
         font-size: 1.25em;
@@ -19,6 +30,21 @@
 
 .ui-theme-switcher__icon {
     display: none;
+}
+
+// With no icon named, the library's own sun/moon draws on the same pseudo-element `.ui-icon::before` uses, stepping aside
+// once `data-ui-icon` names a pack glyph. The base rule paints a mask (currentColor); a glyph is text and paints nothing behind itself.
+.ui-theme-switcher__icon:not([data-ui-icon])::before {
+    display: block;
+    background-color: transparent;
+}
+
+.ui-theme-switcher__icon--light:not([data-ui-icon])::before {
+    .ui-light-glyph(1em);
+}
+
+.ui-theme-switcher__icon--dark:not([data-ui-icon])::before {
+    .ui-dark-glyph(1em);
 }
 
 :root[data-ui-theme="light"] .ui-theme-switcher__icon--dark,

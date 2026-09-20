@@ -31,16 +31,16 @@ public interface IScrollableComponent : IVisualComponent
     static UIProperty ScrollAnchorProperty { get; } = new UIProperty(nameof(ScrollAnchor));
 
     /// <summary>
-    /// Gets whether the viewport scrolls horizontally — Disabled, Auto, or Always; default Disabled.
+    /// Gets or sets whether the viewport scrolls horizontally — Disabled, Auto, or Always; default Disabled.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIScrollMode.Disabled)]
-    UIScrollMode? HorizontalScroll { get; }
+    UIScrollMode? HorizontalScroll { get; set; }
 
     /// <summary>
-    /// Gets whether the viewport scrolls vertically — Disabled, Auto, or Always; default Auto.
+    /// Gets or sets whether the viewport scrolls vertically — Disabled, Auto, or Always; default Auto.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIScrollMode.Auto)]
-    UIScrollMode? VerticalScroll { get; }
+    UIScrollMode? VerticalScroll { get; set; }
 
     /// <summary>
     /// Gets whether a scroll comes to rest on a child's edge rather than wherever it was let go.
@@ -49,9 +49,9 @@ public interface IScrollableComponent : IVisualComponent
     UIScrollSnapMode? ScrollSnap { get; }
 
     /// <summary>
-    /// Gets how the viewport reacts when its content grows, applying to the component's own scrolling element
-    /// so it also works for a windowed host that a wrapping <c>ScrollContainer</c> could not reach.
+    /// Gets or sets how the viewport reacts when its content grows; applies to the component's own scrolling element, reaching
+    /// a windowed host a wrapping <c>ScrollContainer</c> could not.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIScrollAnchor.None)]
-    UIScrollAnchor? ScrollAnchor { get; }
+    UIScrollAnchor? ScrollAnchor { get; set; }
 }

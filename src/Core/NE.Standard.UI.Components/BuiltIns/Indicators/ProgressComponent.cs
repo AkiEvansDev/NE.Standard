@@ -10,7 +10,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Indicators;
 /// <summary>
 /// A linear or circular progress indicator showing a value within a min/max range.
 /// </summary>
-public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
+public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOrderedRangeComponent
     where T : ProgressComponent<T>, IUIComponentDefinition
 {
     private static readonly UIThemeColor DefaultColor = UIThemeColor.FromStyle(UIColorStyle.Default);
@@ -78,7 +78,7 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
     /// </summary>
     public T SetValue(decimal value)
     {
-        ValidateRange(Min, Max, value);
+        OrderedRange.Validate(Min, Max, value, "progress value");
 
         Value = value;
         return Self;
@@ -88,38 +88,19 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>
     /// Sets the minimum value of the progress range, validating it against the current value and maximum.
     /// </summary>
     public T SetMin(decimal min)
-    {
-        ValidateRange(min, Max, Value);
-
-        Min = min;
-        return Self;
-    }
+        => Self.SetOrderedMin(min, "progress value");
 
     /// <summary>
     /// Sets the maximum value of the progress range, validating it against the current value and minimum.
     /// </summary>
     public T SetMax(decimal max)
-    {
-        ValidateRange(Min, max, Value);
-
-        Max = max;
-        return Self;
-    }
+        => Self.SetOrderedMax(max, "progress value");
 
     /// <summary>
     /// Sets the minimum and maximum values of the progress range, validating them against the current value.
     /// </summary>
     public T SetRange(decimal min, decimal max)
-    {
-        ValidateRange(min, max, Value);
-
-        Min = min;
-        Max = max;
-        return Self;
-    }
-
-    private static void ValidateRange(decimal? min, decimal? max, decimal? value)
-        => OrderedRange.Validate(min, max, value, "progress value");
+        => Self.SetOrderedRange(min, max, "progress value");
 }
 
 /// <summary>

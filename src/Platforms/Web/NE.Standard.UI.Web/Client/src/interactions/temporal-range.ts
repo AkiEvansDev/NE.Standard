@@ -15,13 +15,13 @@ export type PeriodChoice = Period & {
 };
 
 /**
- * The period after `day` is chosen with `active` as the end being set. Choosing a start clears an end that falls
- * before it and moves on to the end; choosing an end before the start starts the period over from that day, which
- * is what a person who clicked the wrong way round meant. The chosen day keeps the time its end held.
+ * The period after `day` is chosen with `active` as the end being set. A start clears an end before it and moves on to the
+ * end; an end before the start restarts the period from that day, as a person clicking the wrong way round meant. Each
+ * chosen day keeps its end's time, or the picker's default moment when none was set.
  */
 export function chooseDay(period: Period, active: PeriodEnd, day: Date): PeriodChoice {
     if (active === "start" || period.start === null) {
-        const start = withTime(day, period.start);
+        const start = withTime(day, period.start ?? day);
         const end = period.end !== null && period.end.getTime() < start.getTime() ? null : period.end;
 
         return { start, end, active: "end", complete: false };
@@ -51,12 +51,10 @@ export function orderPeriod(period: Period): Period {
     return period;
 }
 
-function withTime(day: Date, timeOf: Date | null): Date {
-    return timeOf === null
-        ? new Date(day.getFullYear(), day.getMonth(), day.getDate())
-        : new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
+function withTime(day: Date, timeOf: Date): Date {
+    return new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
 }
 
-function startOfDay(value: Date): Date {
+export function startOfDay(value: Date): Date {
     return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }

@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
-using NE.Standard.UI.Compiled.Resolution;
 
 namespace NE.Standard.UI.Compiled.Indexes;
 
@@ -154,6 +153,19 @@ public sealed class UIEventIndex
 
                 break;
 
+            // An event key is read off the chain the event named, so it addresses nothing: only its place in it is compiled.
+            case CompiledUIActionArgumentKind.EventKey:
+                if (argument.Value is not int index || index < 0)
+                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' event-key argument '{argument.Name}' must specify a place in the key chain.");
+
+                if (argument.SourceId is not null || argument.TemplateId is not null)
+                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' event-key argument '{argument.Name}' must not address a binding.");
+
+                if (argument.Parameters.Length != 0 || argument.DynamicParameterComponentIds.Length != 0)
+                    throw new InvalidOperationException($"Event '{compiledEvent.Id}' event-key argument '{argument.Name}' must not specify parameters.");
+
+                break;
+
             // A current-item key is addressed the same way as a binding argument: the resolved path's last
             // segment is the key, verified at runtime against the collection it belongs to.
             case CompiledUIActionArgumentKind.CurrentItemKey:
@@ -177,24 +189,6 @@ public sealed class UIEventIndex
         if (argument.TemplateId is null || argument.TemplateId.Value.IsEmpty)
             throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must specify template id.");
 
-        UIBindingSourceId sourceId = argument.SourceId.Value;
-        UIBindingTemplateId templateId = argument.TemplateId.Value;
-
-        _ = sources.GetRequired(sourceId);
-
-        CompiledUIBindingTemplate template = templates.GetRequired(templateId);
-
-        if (!template.SourceId.Equals(sourceId))
-            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' source '{sourceId}' does not match template '{templateId}' source '{template.SourceId}'.");
-
-        var slotCount = CompiledUIBindingParameterResolver.CountSlots(argument.Parameters);
-
-        if (slotCount != template.ParameterCount)
-            throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' has {slotCount} parameters, but template '{template.Id}' expects {template.ParameterCount}.");
-
-        CompiledUIBindingParameterResolver.ValidateDynamicComponentIds(
-            $"Event '{compiledEvent.Id}' argument '{argument.Name}'",
-            argument.Parameters,
-            argument.DynamicParameterComponentIds);
+        UICompiledBindingIndex.ValidateReference($"Event '{compiledEvent.Id}' argument '{argument.Name}'", argument.SourceId.Value, argument.TemplateId.Value, argument.Parameters, argument.DynamicParameterComponentIds, sources, templates);
     }
 }

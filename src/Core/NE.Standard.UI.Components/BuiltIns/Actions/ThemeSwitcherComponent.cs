@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <summary>
 /// A button that switches the page between the light and dark theme, and wears the theme it offers.
 /// </summary>
-/// <remarks>Both glyphs are rendered and <c>:root[data-ui-theme]</c> picks one, because the shell is cached across themes.</remarks>
+/// <remarks>Both glyphs render; the platform shows the one matching the current theme, since the shell is cached across themes.</remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]

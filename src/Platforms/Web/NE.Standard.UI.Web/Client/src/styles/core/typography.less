@@ -1,4 +1,5 @@
-// Every one of these states `text-transform` explicitly, even as `none`, so Overline's `uppercase` can't inherit into a nested type.
+// Each type states `text-transform` explicitly, even `none`, so Overline's `uppercase` can't inherit into a nested type. Each
+// also republishes its step as `--ui-letter-spacing` (always a length, never `normal`), so code that centres text can subtract it back.
 
 .ui-text-type--display {
     text-transform: none;
@@ -6,6 +7,7 @@
     line-height: var(--ui-text-display-line-height);
     font-weight: var(--ui-text-display-font-weight);
     letter-spacing: var(--ui-text-display-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-display-letter-spacing, 0px);
 }
 
 .ui-text-type--title {
@@ -14,6 +16,7 @@
     line-height: var(--ui-text-title-line-height);
     font-weight: var(--ui-text-title-font-weight);
     letter-spacing: var(--ui-text-title-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-title-letter-spacing, 0px);
 }
 
 .ui-text-type--subtitle {
@@ -22,6 +25,7 @@
     line-height: var(--ui-text-subtitle-line-height);
     font-weight: var(--ui-text-subtitle-font-weight);
     letter-spacing: var(--ui-text-subtitle-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-subtitle-letter-spacing, 0px);
 }
 
 .ui-text-type--body {
@@ -30,6 +34,7 @@
     line-height: var(--ui-text-body-line-height);
     font-weight: var(--ui-text-body-font-weight);
     letter-spacing: var(--ui-text-body-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-body-letter-spacing, 0px);
 }
 
 .ui-text-type--caption {
@@ -38,6 +43,7 @@
     line-height: var(--ui-text-caption-line-height);
     font-weight: var(--ui-text-caption-font-weight);
     letter-spacing: var(--ui-text-caption-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-caption-letter-spacing, 0px);
 }
 
 .ui-text-type--overline {
@@ -45,5 +51,6 @@
     line-height: var(--ui-text-overline-line-height);
     font-weight: var(--ui-text-overline-font-weight);
     letter-spacing: var(--ui-text-overline-letter-spacing, normal);
+    --ui-letter-spacing: var(--ui-text-overline-letter-spacing, 0px);
     text-transform: uppercase;
 }

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using DemoApp.Controllers.Items.ItemsView;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;

@@ -1,10 +1,15 @@
 using DemoApp.Controllers.Inputs.TextInput;
 using DemoApp.Views.Base;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
@@ -18,6 +23,8 @@ namespace DemoApp.Views.Inputs.TextInput;
 internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinition
 {
     private const string SubmitFormId = "deploy-form";
+    private const string BlockFormId = "service-form";
+    private const string BlockErrorsId = "service-form-errors";
 
     public static string ViewKey => "demo.inputs.text-input.scenarios";
 
@@ -30,7 +37,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateChangeGroup(), CreateSubmitGroup()],
-            [CreateTrimGroup(), CreateFilterGroup()]
+            [CreateTrimGroup(), CreateFilterGroup(), CreateBlockGroup()]
         ));
     }
 
@@ -57,9 +64,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
     private static ContainerComponent CreateFilterGroup()
     {
         return DemoUI.CreateGroup(nameof(TextInputScenariosController.FilterGroup), "Filter as you type",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetPlacement(1, 1, 24, 1)
                 .AddChild(new TextInputComponent()
                     .SetTitle("Find a service")
@@ -108,9 +113,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
         return DemoUI.CreateGroup(nameof(TextInputScenariosController.SubmitGroup), "Validated submit",
             content =>
             {
-                _ = content.AddChild(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                _ = content.AddChild(UILayout.Stack(12)
                     .SetPlacement(1, 1, 24, 1)
                     .AddChild(new TextInputComponent()
                         .SetTitle("Owner email")
@@ -137,6 +140,58 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
             },
             contentMinHeight: 200,
             note: "Only an error on the Submit trigger stops the press; a warning or an info says its piece and lets the command through. The server has its say too: owner@example.com is already taken, and the refusal comes back as a message on the field."
+        );
+    }
+
+    /// <summary>
+    /// Three fields send their words to one paragraph under the form (<c>ValidationInto</c>): each holds a line of it, and a field put
+    /// right takes only its own line away. The fields keep the severity on their edge and nothing else.
+    /// </summary>
+    private static ContainerComponent CreateBlockGroup()
+    {
+        return DemoUI.CreateGroup(nameof(TextInputScenariosController.BlockGroup), "The words under the form",
+            content =>
+            {
+                _ = content.AddChild(UILayout.Stack(12)
+                    .SetPlacement(1, 1, 24, 1)
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("Service name")
+                        .SetFormId(BlockFormId)
+                        .BindValue(nameof(TextInputBlockGroupContext.Name), UIBindingScope.Relative)
+                        .Required("A service needs a name.", UIValidationTrigger.Submit)
+                        .Regex("^[a-z0-9-]+$", "Lower-case letters, digits and dashes only.", UIValidationTrigger.Blur)
+                        .ValidationInto(BlockErrorsId, ITextComponent.DescriptionProperty)
+                    )
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("Port")
+                        .SetFormId(BlockFormId)
+                        .BindValue(nameof(TextInputBlockGroupContext.Port), UIBindingScope.Relative)
+                        .Required("A port is required.", UIValidationTrigger.Submit)
+                        .Regex("^[0-9]{2,5}$", "A port is a number between 10 and 65535.", UIValidationTrigger.Blur)
+                        .ValidationInto(BlockErrorsId, ITextComponent.DescriptionProperty)
+                    )
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("Owner email")
+                        .SetFormId(BlockFormId)
+                        .BindValue(nameof(TextInputBlockGroupContext.Email), UIBindingScope.Relative)
+                        .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur)
+                        .Regex("@example\\.com$", "An outside address gets the weekly digest only.", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
+                        .ValidationInto(BlockErrorsId, ITextComponent.DescriptionProperty)
+                    )
+                    .AddChild(new ParagraphComponent(BlockErrorsId)
+                        .SetDescription(" ")
+                        .SetDescriptionColor(UIThemeColor.Danger)
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Primary)
+                        .SetHorizontalAlignment(UIAlignment.Start)
+                        .OnSubmit(BlockFormId, nameof(TextInputScenariosController.SubmitBlock))
+                        .SetTitle("Create service")
+                    )
+                );
+            },
+            contentMinHeight: 200,
+            note: "Press Create with the form empty: two lines appear under it at once, one per field, and the fields only redden; a Submit rule speaks again at the next press. Leave the email field with a bad address and a third line joins them; put it right and only that line goes. A warning takes a line too."
         );
     }
 }

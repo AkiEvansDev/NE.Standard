@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Sessions;
+using NE.Standard.UI.Shell.Updates;
+using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Shell.Runtime;
 
@@ -42,10 +46,7 @@ public sealed class UIContext
             Content = content;
 
         Route = route;
-        ConnectionHandle = handle;
-        Dialogs = dialogs;
-        Downloads = downloads;
-        Uploads = uploads;
+        _connection = new Connection(handle, dialogs, downloads, uploads);
     }
 
     /// <summary>
@@ -89,13 +90,17 @@ public sealed class UIContext
     /// </remarks>
     public UIRouteDefinition Route { get; }
 
-    private UIHandle ConnectionHandle { get; set; }
+    // Swapped whole: under PerClient, a reattach can replace it while a command reads it; four separate properties could
+    // then split across old and new connections.
+    private volatile Connection _connection;
+
+    private sealed record Connection(UIHandle Handle, IUIDialogService Dialogs, IUIDownloadService Downloads, IUIUploadService Uploads);
 
     /// <summary>
     /// Gets the UI handle a command is running for — the connection that raised it, or the connection the
     /// runtime is attached to outside a command.
     /// </summary>
-    public UIHandle Handle => _invokingHandle.Value ?? ConnectionHandle;
+    public UIHandle Handle => _invokingHandle.Value ?? _connection.Handle;
 
     /// <summary>
     /// Marks the connection a command is running for.
@@ -122,17 +127,45 @@ public sealed class UIContext
     /// <summary>
     /// Gets the dialog service for the current client connection.
     /// </summary>
-    public IUIDialogService Dialogs { get; private set; }
+    public IUIDialogService Dialogs => _connection.Dialogs;
 
     /// <summary>
     /// Gets the download service for the current client connection.
     /// </summary>
-    public IUIDownloadService Downloads { get; private set; }
+    public IUIDownloadService Downloads => _connection.Downloads;
 
     /// <summary>
     /// Gets the upload service for the current client connection.
     /// </summary>
-    public IUIUploadService Uploads { get; private set; }
+    public IUIUploadService Uploads => _connection.Uploads;
+
+    /// <summary>
+    /// Sends client effects to the connection this is running for, without waiting for a command to answer.
+    /// </summary>
+    /// <remarks>
+    /// A command's own effects apply only once it answers, so long-running work (a node network, a long import) needs this
+    /// channel instead. A runtime answering a single request, not holding a connection, drops them.
+    /// </remarks>
+    public Task SendEffectsAsync(IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+
+        if (effects.Count == 0)
+            return Task.CompletedTask;
+
+        // The command-result channel with no command behind it, the route a download already takes when it is raised outside one.
+        UICommandExecutionResult result = new()
+        {
+            Command = UICommandResult.Ok(Runtime.ResolveEffects(effects)),
+            Changes = ServerChangeSet.Empty
+        };
+
+        return Updates.SendCommandResultAsync(Handle, result, cancellationToken);
+    }
+
+    private IUIUpdateSink Updates
+        => (IUIUpdateSink?)Services.GetService(typeof(IUIUpdateSink))
+            ?? throw new InvalidOperationException($"'{nameof(IUIUpdateSink)}' is not registered.");
 
     /// <summary>
     /// Translates a key using the current session language.
@@ -173,16 +206,13 @@ public sealed class UIContext
 
         handle.Instance.Validate();
 
-        ConnectionHandle = handle;
-        Dialogs = dialogs;
-        Downloads = downloads;
-        Uploads = uploads;
+        _connection = new Connection(handle, dialogs, downloads, uploads);
 
         Validate();
     }
 
     /// <summary>
-    /// Marks this session authenticated and gives it its roles and permissions, which is what the route and command access checks read.
+    /// Marks this session authenticated, giving it roles and permissions the route and command access checks read.
     /// </summary>
     /// <remarks>
     /// Only marks the session for id rotation; the actual rotation happens on the next full page load, so sign-in must end in a navigation.

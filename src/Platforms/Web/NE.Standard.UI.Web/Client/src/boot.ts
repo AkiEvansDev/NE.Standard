@@ -57,30 +57,32 @@
         let complete = true;
 
         for (const patch of patches) {
-            const target = patch.selector === undefined ? element : element.querySelector(patch.selector);
+            // Every element the selector names, not the first: a tree's fold marks many rows with one patch.
+            const targets = patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
-            if (target === null) {
+            if (targets.length === 0) {
                 complete = false;
                 continue;
             }
 
             // A patch is the viewer's own past write read back out of storage, but the parser still trusts it sight unseen —
-            // the same allowlist a compromised or hand-edited entry cannot widen: `data-`/`aria-` plus the two bare names an
-            // engine ever passes, and only the custom properties every engine's boot patch is actually made of.
-            for (const [name, value] of Object.entries(patch.attributes ?? {})) {
-                if (!isAllowedAttributeName(name))
-                    continue;
+            // the same allowlist a compromised or hand-edited entry cannot widen.
+            for (const target of targets) {
+                for (const [name, value] of Object.entries(patch.attributes ?? {})) {
+                    if (!isAllowedAttributeName(name))
+                        continue;
 
-                if (value === null)
-                    target.removeAttribute(name);
-                else if (target.getAttribute(name) !== value)
-                    target.setAttribute(name, value);
-            }
+                    if (value === null)
+                        target.removeAttribute(name);
+                    else if (target.getAttribute(name) !== value)
+                        target.setAttribute(name, value);
+                }
 
-            if (target instanceof HTMLElement) {
-                for (const [property, value] of Object.entries(patch.styles ?? {})) {
-                    if (property.startsWith("--"))
-                        target.style.setProperty(property, value);
+                if (target instanceof HTMLElement) {
+                    for (const [property, value] of Object.entries(patch.styles ?? {})) {
+                        if (property.startsWith("--"))
+                            target.style.setProperty(property, value);
+                    }
                 }
             }
         }

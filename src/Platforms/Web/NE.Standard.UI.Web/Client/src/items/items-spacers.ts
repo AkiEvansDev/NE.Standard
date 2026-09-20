@@ -15,7 +15,9 @@ export function ensureSpacer(host: Element, position: string, height: number): v
     if (spacer === null) {
         spacer = document.createElement("div");
         spacer.setAttribute(WindowSpacerAttribute, position);
-        (spacer as HTMLElement).style.flex = "0 0 auto";
+        // The shrink alone, not the basis: a wrapping host gives a spacer the whole row via its stylesheet, and an inline basis
+        // would seat it beside the tiles in the last row and stretch that row to its height.
+        (spacer as HTMLElement).style.flexShrink = "0";
     }
 
     // Put back at its end every time, not only when created: a collection insert appends past an existing spacer.

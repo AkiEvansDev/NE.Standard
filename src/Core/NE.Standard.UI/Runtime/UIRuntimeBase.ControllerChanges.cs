@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -28,6 +30,7 @@ internal abstract partial class UIRuntimeBase
             return ServerChangeSet.Empty;
 
         ServerChangeSet changeSet;
+        List<UIComponentId>? staleWindows;
 
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -46,14 +49,20 @@ internal abstract partial class UIRuntimeBase
                     ArgumentNullException.ThrowIfNull(changes[i]);
                     AppendControllerChangeNoLock(changes[i]);
                 }
+
+                MarkHeldValuesNoLock();
             }
 
+            // A background write can dirty a windowed host as a command does, and a push runtime has no later tick to reload it on.
+            staleWindows = DrainDirtyItemWindowsNoLock();
             changeSet = DrainPendingUpdatesForRuntimeModeNoLock(force: false);
         }
         finally
         {
             _ = _stateLock.Release();
         }
+
+        changeSet = await AppendItemWindowReloadsAsync(changeSet, staleWindows, cancellationToken).ConfigureAwait(false);
 
         return await PublishChangesAsync(changeSet, cancellationToken).ConfigureAwait(false);
     }
@@ -98,17 +107,33 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// The rows a collection just gained carry collections of their own — a message with its attachments — which reach the
-    /// client as inserts of their own, addressed by the row's key; without them the row is stamped and its nested host stays empty.
+    /// New rows may carry nested collections of their own — a message's attachments — which reach the client as their own
+    /// inserts, keyed by the row; without them the row's nested host stays empty.
     /// </summary>
     private void AppendInsertedItemCollectionsNoLock(RecursiveChange change)
     {
+        // Every row of one change shares its path template — only the key differs — so whether anything is bound under a row is
+        // asked once; a window of plain rows then costs no path and no template per row.
+        var asked = false;
+
         for (var i = 0; i < change.Count; i++)
         {
             var key = GetItemKey(change, i, old: false);
 
-            if (key is not null)
-                AppendDescendantCollectionUpdatesNoLock(change.Path.AppendKey(key));
+            if (key is null)
+                continue;
+
+            RecursivePath itemPath = change.Path.AppendKey(key);
+
+            if (!asked)
+            {
+                if (View.Bindings.GetControllerDescendantCollections(itemPath, out _).Count == 0)
+                    return;
+
+                asked = true;
+            }
+
+            AppendDescendantCollectionUpdatesNoLock(itemPath);
         }
     }
 
@@ -166,28 +191,41 @@ internal abstract partial class UIRuntimeBase
         if (component.DynamicParameters.Length == 0 || !View.Bindings.TryGetCollection(component.Id, out CompiledUIBinding? binding))
             return true;
 
-        var parameters = new object[component.DynamicParameters.Length];
-
-        for (var i = 0; i < parameters.Length; i++)
-            parameters[i] = component.DynamicParameters[i] ?? string.Empty;
-
         // The row is the path up to its last key or index; what follows names the collection inside it.
-        ReadOnlySpan<PathSegment> segments = View.Bindings.MaterializePath(binding, parameters).AsSpan();
+        RecursivePath path = View.Bindings.MaterializePath(binding, NonNullParameters(component.DynamicParameters));
         var rowLength = 0;
 
-        for (var i = 0; i < segments.Length; i++)
+        for (var i = 0; i < path.Count; i++)
         {
-            if (segments[i].Kind is PathSegmentKind.Key or PathSegmentKind.Index)
+            if (path[i].Kind is PathSegmentKind.Key or PathSegmentKind.Index)
                 rowLength = i + 1;
         }
 
-        return rowLength == 0 || IsStampedForItem(component.Id, TryGetControllerValue(new RecursivePath(segments[..rowLength].ToArray(), ownsArray: true)));
+        return rowLength == 0 || IsStampedForItem(component.Id, TryGetControllerValue(path.Take(rowLength)));
+    }
+
+    // On every queued collection update: the address's own array is handed over as it is, and copied only when a null needs a stand-in.
+    private static object[] NonNullParameters(object?[] parameters)
+    {
+        var hasNull = false;
+
+        for (var i = 0; i < parameters.Length && !hasNull; i++)
+            hasNull = parameters[i] is null;
+
+        if (!hasNull)
+            return parameters!;
+
+        var copy = new object[parameters.Length];
+
+        for (var i = 0; i < copy.Length; i++)
+            copy[i] = parameters[i] ?? string.Empty;
+
+        return copy;
     }
 
     /// <summary>
-    /// Whether a component inside an items template is on the page for this row: the row wears its own key's variant when
-    /// there is one, else the host's fallback, else the default template — the same choice the renderer and the client make.
-    /// A variant the key property could never name (a menu's Submenu beside its Kind variants) is a slot every row wears.
+    /// Whether a component inside an items template is on the page for this row: the row wears its own key's variant, else the
+    /// host's fallback, else the default. A variant the key property could never name (a menu's <c>Submenu</c>) is worn by every row.
     /// </summary>
     private bool IsStampedForItem(UIComponentId componentId, object? item)
     {
@@ -206,6 +244,11 @@ internal abstract partial class UIRuntimeBase
                 if (slot.RootComponentId != node.ComponentId || slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant))
                     continue;
 
+                // A composite's slot is worn by the item's kind: "node:folder" by a folder, "node" by any row naming no typed
+                // variant; TemplateKeyProperty says nothing about these.
+                if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)
+                    return WearsCompositeSlot(parent.ComponentId, item, slot.Key, slot.KeyProperty);
+
                 var worn = ResolveWornVariant(parent.ComponentId, item);
 
                 return slot.Kind == UIComponentSlotKind.TemplateVariant
@@ -217,6 +260,19 @@ internal abstract partial class UIRuntimeBase
         }
 
         return true;
+    }
+
+    private bool WearsCompositeSlot(UIComponentId hostId, object? item, string slotKey, string keyProperty)
+    {
+        var colon = slotKey.IndexOf(':', StringComparison.Ordinal);
+        var kind = colon < 0 ? null : slotKey[(colon + 1)..];
+        var baseKey = colon < 0 ? slotKey : slotKey[..colon];
+        var itemKind = ReadItemProperty(item, keyProperty);
+
+        if (kind is not null)
+            return string.Equals(kind, itemKind, StringComparison.Ordinal);
+
+        return string.IsNullOrEmpty(itemKind) || !View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, $"{baseKey}:{itemKind}");
     }
 
     private string? ResolveWornVariant(UIComponentId hostId, object? item)
@@ -259,8 +315,16 @@ internal abstract partial class UIRuntimeBase
         if (item is RecursiveObservable observable)
             return observable.TryGetRecursiveValue(propertyName, out var value) ? value?.ToString() : null;
 
-        return item?.GetType().GetProperty(propertyName)?.GetValue(item)?.ToString();
+        if (item is null)
+            return null;
+
+        // A plain item is read by reflection; the lookup is cached, since this runs on every queued collection update.
+        PropertyInfo? property = ItemProperties.GetOrAdd((item.GetType(), propertyName), static key => key.Type.GetProperty(key.Name));
+
+        return property?.GetValue(item)?.ToString();
     }
+
+    private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> ItemProperties = new();
 
     /// <summary>
     /// Re-sends a bound collection whose whole instance was assigned, as a reset followed by its items.
@@ -332,6 +396,8 @@ internal abstract partial class UIRuntimeBase
 
         for (var i = 0; i < changes.Length; i++)
             AppendControllerChangeNoLock(changes[i]);
+
+        MarkHeldValuesNoLock();
     }
 
     private RecursiveChange[] CompactControllerChangesNoLock()

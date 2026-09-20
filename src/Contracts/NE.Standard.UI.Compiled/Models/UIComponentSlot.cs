@@ -44,4 +44,10 @@ public sealed class UIComponentSlot
     /// Gets the slot key for named slots.
     /// </summary>
     public string? Key { get; init; }
+
+    /// <summary>
+    /// For a composite slot's variant — the base key or <c>base:kind</c> — the item property whose value names the typed
+    /// variant a row wears; null for every other slot.
+    /// </summary>
+    public string? KeyProperty { get; init; }
 }

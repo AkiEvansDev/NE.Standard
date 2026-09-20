@@ -1,6 +1,6 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
-import { TemporalCulturePack } from "../rendering/temporal-format";
+import { parseWrittenMoment, TemporalCulturePack, writtenMomentDate } from "../rendering/temporal-format";
 
 export const RootClass = "ui-temporal-input";
 export const ValueInputClass = "ui-temporal-input__value-input";
@@ -125,10 +125,7 @@ export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean
     valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-/**
- * Puts a period's ends in order after one of them was written: an end typed or stepped before the start swaps with
- * it, which is what the person meant, rather than a refusal they have to read.
- */
+/** Puts a period's ends in order after one is written: an end typed or stepped before the start swaps with it, rather than refusing. */
 export function orderPeriod(root: HTMLElement): void {
     if (!isRange(root))
         return;
@@ -197,7 +194,6 @@ export function clampToStep(root: HTMLElement, moment: Date): Date {
     return snapped;
 }
 
-const DatePattern = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}))?)?/;
 const TimePattern = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/;
 
 export function parseCanonical(text: string, mode: TemporalMode): Date | null {
@@ -214,11 +210,9 @@ export function parseCanonical(text: string, mode: TemporalMode): Date | null {
             : new Date(TimeOnlyBaseYear, 0, 1, Number(match[1]), Number(match[2]), Number(match[3] ?? "0"));
     }
 
-    const match = DatePattern.exec(trimmed);
+    const written = parseWrittenMoment(trimmed);
 
-    return match === null
-        ? null
-        : new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4] ?? "0"), Number(match[5] ?? "0"), Number(match[6] ?? "0"));
+    return written === null ? null : writtenMomentDate(written);
 }
 
 export function toCanonical(value: Date, mode: TemporalMode): string {

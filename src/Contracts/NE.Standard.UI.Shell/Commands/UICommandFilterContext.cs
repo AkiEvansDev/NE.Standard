@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
 
@@ -52,6 +53,11 @@ public sealed class UICommandFilterContext
     /// Gets the application service provider.
     /// </summary>
     public IServiceProvider Services { get; }
+
+    /// <summary>
+    /// Gets the token that cancels the invocation when the client that raised it goes away.
+    /// </summary>
+    public CancellationToken CancellationToken { get; init; }
 
     /// <summary>
     /// Gets whether the command itself ran.

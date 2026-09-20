@@ -30,7 +30,7 @@ export class ClientStrings {
     private readonly missing = new Set<string>();
 
     // A bare host or a test page carries no strings block at all, so every key is expectedly missing there: a debug note,
-    // not a warning about a page that did carry one and still came up short.
+    // not a warning about a page that carried one and still came up short.
     private hasStringsBlock = false;
 
     /** Reads the words the shell wrote; a page without them (a test, a bare host) reads keys back. */

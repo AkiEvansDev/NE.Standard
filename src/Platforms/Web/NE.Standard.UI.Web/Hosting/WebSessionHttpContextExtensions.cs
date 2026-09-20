@@ -33,7 +33,7 @@ public static class WebSessionHttpContextExtensions
         IUserSessionStore sessions = http.RequestServices.GetRequiredService<IUserSessionStore>();
         UserSessionState? stored = await sessions.TryGetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        if (stored is null || stored.LastSeenAtUtc + application.Sessions.IdleTimeout <= DateTime.UtcNow)
+        if (stored is null || stored.IsIdle(application.Sessions.IdleTimeout, DateTime.UtcNow))
             return null;
 
         return stored;

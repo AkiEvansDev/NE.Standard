@@ -104,12 +104,6 @@ public sealed class UIComponentGraph
     public IReadOnlyList<UIComponentNode> All => _all;
 
     /// <summary>
-    /// Gets all slots owned by a component.
-    /// </summary>
-    public IReadOnlyList<UIComponentSlot> GetSlots(UIComponentId componentId)
-        => GetRequired(componentId).Slots;
-
-    /// <summary>
     /// Gets child component ids for a component.
     /// </summary>
     public IReadOnlyList<UIComponentId> GetChildren(UIComponentId componentId)

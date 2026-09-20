@@ -11,9 +11,9 @@ public abstract class DateTimeInputComponent<T>(string? id = null) : TemporalInp
     where T : DateTimeInputComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Validates that the minimum, maximum, and current date-time values are consistent with each other.
+    /// Validates that one end of the value or the period sits between the minimum and the maximum.
     /// </summary>
-    protected override void ValidateRange(DateTimeOffset? min, DateTimeOffset? max, DateTimeOffset? value)
+    protected override void ValidateEnd(DateTimeOffset? min, DateTimeOffset? max, DateTimeOffset? value)
         => ValidateOrderedRange(min, max, value, "date-time");
 
     /// <inheritdoc/>

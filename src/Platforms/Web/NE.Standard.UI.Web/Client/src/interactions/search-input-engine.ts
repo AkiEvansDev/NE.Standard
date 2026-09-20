@@ -21,10 +21,15 @@ export class SearchInputEngine {
         this.root = options.root ?? document;
 
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
+        // A composed character arrives whole at its end; the keystrokes that build it are not a query yet.
+        this.root.addEventListener("compositionend", domEvent => this.handleInput(domEvent), true);
     }
 
     private handleInput(domEvent: Event): void {
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass))
+            return;
+
+        if (domEvent instanceof InputEvent && domEvent.isComposing)
             return;
 
         const input = domEvent.target;
@@ -38,7 +43,7 @@ export class SearchInputEngine {
         const debounceText = input.getAttribute(DebounceAttribute);
         const debounce = debounceText === null ? DefaultDebounceMilliseconds : Number(debounceText);
 
-        this.timers.set(input, window.setTimeout(() => this.commit(input), debounce));
+        this.timers.set(input, window.setTimeout(() => this.commit(input), Number.isFinite(debounce) && debounce >= 0 ? debounce : DefaultDebounceMilliseconds));
     }
 
     private commit(input: HTMLInputElement): void {

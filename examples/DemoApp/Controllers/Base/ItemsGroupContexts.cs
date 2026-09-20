@@ -13,6 +13,13 @@ namespace DemoApp.Controllers.Base;
 /// One row of the lists on the items pages: a text item that also belongs to a group, so the same model is
 /// drawn by the default text template and bucketed by the default group template.
 /// </summary>
+/// <summary>A release as the tiles draw it: the text body plus the picture across the top.</summary>
+internal sealed partial class DemoReleaseItem : TextItem
+{
+    [RecursiveMember]
+    public partial string Picture { get; set; } = string.Empty;
+}
+
 internal sealed partial class DemoServiceItem : TextItem, IBindableGroup
 {
     [RecursiveMember]

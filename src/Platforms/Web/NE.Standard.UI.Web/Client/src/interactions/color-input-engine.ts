@@ -5,6 +5,8 @@ import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { PopupDismissal } from "./popup-dismissal";
 import { moveFocusInto, restoreFocusTo } from "./popup-focus";
 import { observeComponents } from "./dom-mutations";
+import { PointerDrag } from "./pointer-drag";
+import { clampByte, toHexByte } from "../rendering/color-bytes";
 
 const RootClass = "ui-color-input";
 const OpenClass = "ui-color-input--open";
@@ -55,6 +57,13 @@ type ColorState = {
     paneChosen: boolean;
 };
 
+/** A drag in progress over the picker's square or its hue bar. */
+type ColorDragContext = {
+    readonly input: HTMLElement;
+    readonly element: HTMLElement;
+    readonly surface: "square" | "hue";
+};
+
 export type ColorInputEngineOptions = {
     readonly root?: ParentNode;
 
@@ -72,7 +81,6 @@ export class ColorInputEngine {
     private readonly returnFocus = new WeakMap<HTMLElement, HTMLElement>();
 
     private openInput: HTMLElement | null = null;
-    private dragging: { input: HTMLElement; surface: "square" | "hue" } | null = null;
 
     public constructor(options: ColorInputEngineOptions = {}) {
         this.options = options;
@@ -97,14 +105,31 @@ export class ColorInputEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
         this.root.addEventListener("change", domEvent => this.handleFieldChange(domEvent), true);
-        this.root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
 
-        document.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
-        document.addEventListener("pointerup", () => this.dragging = null, true);
+        new PointerDrag<ColorDragContext>({
+            root: this.root,
+            resolveHandle: target => target.closest<HTMLElement>(`[${SquareAttribute}], [${HueAttribute}]`),
+            // Reads the pointer's own position against the box, not a delta from where the press began, so the colour under the
+            // pointer at the press itself is the first one applied.
+            begin: (handle, point) => {
+                const input = handle.closest<HTMLElement>(`.${RootClass}`);
+
+                if (input === null)
+                    return null;
+
+                const context: ColorDragContext = { input, element: handle, surface: handle.hasAttribute(SquareAttribute) ? "square" : "hue" };
+
+                this.applyPoint(context, point);
+
+                return context;
+            },
+            move: (context, _, point) => this.applyPoint(context, point),
+            // Every position along the way already committed; nothing is left to do once the pointer lets go.
+            end: () => undefined
+        });
 
         // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.openInput === null ? [] : [this.openInput],
             close: input => this.setOpen(input, false)
         });
@@ -160,6 +185,8 @@ export class ColorInputEngine {
             state = { ...state, hue, saturation, value };
         }
 
+        const previous = this.states.get(input);
+
         this.states.set(input, state);
 
         // On the root rather than the swatch: the swatch, the thumbs and the text across it all read the same colour.
@@ -169,8 +196,13 @@ export class ColorInputEngine {
         writeTexts(input, state.held ? describe(input, red, green, blue, state.opacity) : "");
 
         this.applyPicker(input, state, red, green, blue);
-        this.applyPalette(input, state);
-        this.applyPanes(input, state);
+
+        // The palette's chip and the pane in front follow the name and the pane alone; a drag across the square changes neither,
+        // and runs on every pointer move.
+        if (previous === undefined || previous.name !== state.name || previous.pane !== state.pane || previous.held !== state.held) {
+            this.applyPalette(input, state);
+            this.applyPanes(input, state);
+        }
     }
 
     private applyPicker(input: HTMLElement, state: ColorState, red: number, green: number, blue: number): void {
@@ -363,54 +395,20 @@ export class ColorInputEngine {
         this.commit(input, current => ({ ...current, hue, saturation, value, name: null }));
     }
 
-    private handlePointerDown(domEvent: Event): void {
-        if (!(domEvent instanceof PointerEvent) || !(domEvent.target instanceof Element))
-            return;
-
-        const square = domEvent.target.closest<HTMLElement>(`[${SquareAttribute}]`);
-        const hue = square === null ? domEvent.target.closest<HTMLElement>(`[${HueAttribute}]`) : null;
-        const surface = square ?? hue;
-
-        if (surface === null)
-            return;
-
-        const input = surface.closest<HTMLElement>(`.${RootClass}`);
-
-        if (input === null)
-            return;
-
-        domEvent.preventDefault();
-
-        this.dragging = { input, surface: square === null ? "hue" : "square" };
-        this.applyPointer(domEvent);
-    }
-
-    private handlePointerMove(domEvent: Event): void {
-        if (domEvent instanceof PointerEvent && this.dragging !== null)
-            this.applyPointer(domEvent);
-    }
-
-    private applyPointer(domEvent: PointerEvent): void {
-        if (this.dragging === null)
-            return;
-
-        const { input, surface } = this.dragging;
-        const element = input.querySelector<HTMLElement>(surface === "square" ? `[${SquareAttribute}]` : `[${HueAttribute}]`);
-
-        if (element === null)
-            return;
-
+    /** The square and the hue bar are read against their own box, at whatever the pointer's position is now. */
+    private applyPoint(context: ColorDragContext, point: { readonly x: number; readonly y: number }): void {
+        const { input, element, surface } = context;
         const rect = element.getBoundingClientRect();
 
         if (surface === "hue") {
-            const ratio = clampRatio((domEvent.clientY - rect.top) / rect.height);
+            const ratio = clampRatio((point.y - rect.top) / rect.height);
 
             this.commit(input, state => ({ ...state, hue: ratio * 360, name: null }));
             return;
         }
 
-        const saturation = clampRatio((domEvent.clientX - rect.left) / rect.width);
-        const value = 1 - clampRatio((domEvent.clientY - rect.top) / rect.height);
+        const saturation = clampRatio((point.x - rect.left) / rect.width);
+        const value = 1 - clampRatio((point.y - rect.top) / rect.height);
 
         this.commit(input, state => ({ ...state, saturation, value, name: null }));
     }
@@ -636,10 +634,6 @@ function toHex(red: number, green: number, blue: number): string {
     return `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}`;
 }
 
-function toHexByte(value: number): string {
-    return clampByte(value).toString(16).padStart(2, "0").toUpperCase();
-}
-
 function toRgbaCss(red: number, green: number, blue: number, opacity: number): string {
     return `rgba(${red}, ${green}, ${blue}, ${(opacity / 255).toFixed(3)})`;
 }
@@ -685,10 +679,6 @@ function hsvToRgb(hue: number, saturation: number, value: number): [number, numb
                         : [chroma, 0, secondary];
 
     return [clampByte((r + match) * 255), clampByte((g + match) * 255), clampByte((b + match) * 255)];
-}
-
-function clampByte(value: number): number {
-    return Number.isFinite(value) ? Math.min(255, Math.max(0, Math.round(value))) : 0;
 }
 
 function clampRatio(value: number): number {

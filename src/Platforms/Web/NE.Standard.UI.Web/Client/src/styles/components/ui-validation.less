@@ -1,10 +1,11 @@
-@import "../core/tokens.less";
+﻿@import "../core/tokens.less";
 
-// The message line under a field, shared by every input. It is text, so it wears the severity's ink, not the fill the field's edge
-// wears (`--ui-validation-color`): the warning fill measures 1.1:1 on the light page, its ink 5.9:1.
+// The message line under a field, shared by every input. Being text, it wears the severity's ink, not the edge's fill
+// (`--ui-validation-color`) — the warning fill only measures 1.1:1 contrast on a light page, its ink 5.9:1.
 .ui-validation-message {
     display: none;
-    padding: 0 @ui-space-1;
+    // The field publishes where its own text stands (ui-input.less); Filled and Outline are the fallback here.
+    padding: 0 var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px)));
     color: var(--ui-color-danger-ink);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
@@ -24,9 +25,8 @@
     color: var(--ui-color-info-ink);
 }
 
-// Where the field stands in a cell of a grid — a table's, a key-value row's — a line under it would grow the whole row, so the message
-// is a mark at the field's top right corner and speaks in a tooltip (the validation engine reads this variable and writes the
-// tooltip). `Marker` asks for it anywhere, `Message` refuses it anywhere; both outrank the cell.
+// In a grid cell (a table's, a key-value row's) a message line would grow the whole row, so it becomes a corner mark with a
+// tooltip instead (the engine reads this variable and writes the tooltip). `Marker`/`Message` ask for either mode anywhere, outranking the cell default.
 .ui-table__cell [data-ui-validation-message],
 .ui-key-value-action__value-input [data-ui-validation-message],
 .ui-validation--marker > .ui-validation-message {
@@ -37,10 +37,25 @@
     --ui-validation-presentation: message;
 }
 
+// A field whose words go to another component says nothing itself (no line, mark or tooltip); its edge already wears the
+// severity, the whole point of sending the words elsewhere.
+.ui-validation--elsewhere > .ui-validation-message {
+    --ui-validation-presentation: elsewhere;
+    display: none;
+}
+
+// A key-value row's field shares its cell with the value it edits and disappears when the row closes, taking its mark with
+// it; the engine keeps a copy of the mark in the named cell, so the row still speaks while only the value shows.
+.ui-key-value-action__value-input [data-ui-validation-message] {
+    --ui-validation-marker-host: ui-key-value-action__value;
+}
+
 :is(.ui-invalid, .ui-validation--warning, .ui-validation--info):has(> .ui-validation-message--marker) {
     position: relative;
 }
 
+// A field being edited draws nothing of its own — its edge already wears the severity colour and the tooltip speaks via
+// `data-ui-tooltip-mark` — since a corner dot would sit on top of a stepper's arrows or a picker's toggle. What's left anchors the tooltip.
 .ui-validation-message--marker {
     position: absolute;
     top: 0.25rem;
@@ -49,18 +64,29 @@
     height: 0.5rem;
     padding: 0;
     overflow: hidden;
+    font-size: 0;
+    line-height: 0;
+    pointer-events: none;
+}
+
+// The copy the engine puts in the other cell: the same dot, but in that cell's own line rather than a field's corner,
+// carrying the message as text for a reader who can't see it.
+.ui-validation-mark {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    overflow: hidden;
     border-radius: 50%;
     background: currentColor;
     color: var(--ui-color-danger-ink);
     font-size: 0;
     line-height: 0;
-    pointer-events: auto;
 }
 
-.ui-validation--warning > .ui-validation-message--marker {
+.ui-validation-mark--warning {
     color: var(--ui-color-warning-ink);
 }
 
-.ui-validation--info > .ui-validation-message--marker {
+.ui-validation-mark--info {
     color: var(--ui-color-info-ink);
 }

@@ -10,6 +10,9 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class SeparatorComponentRenderer : WebComponentRendererBase
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string LabelAttribute = "data-ui-separator-label";
+
     public override string ComponentTypeKey => SeparatorComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-separator";
@@ -47,12 +50,12 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
                 var labelText = value ?? string.Empty;
 
                 if (!string.IsNullOrWhiteSpace(labelText))
-                    _ = target.Attribute("data-ui-separator-label");
+                    _ = target.Attribute(LabelAttribute);
 
                 _ = label!.Text(labelText);
             }, [
                 WebDomOperation.Text(target: ".ui-separator__label"),
-                WebDomOperation.ToggleAttribute("data-ui-separator-label", condition: WebValueCondition.HasText)
+                WebDomOperation.ToggleAttribute(LabelAttribute, condition: WebValueCondition.HasText)
             ]);
         });
     }

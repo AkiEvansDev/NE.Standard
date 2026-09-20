@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 
 namespace NE.Standard.UI.Views;
 
@@ -18,10 +19,10 @@ internal sealed class DefaultNotFoundView : UIViewBase, IUIViewDefinition
         => new ContainerComponent()
             .SetPadding(UIThickness.Uniform(24))
             .AddChild(new TextComponent()
-                .SetTitle("404")
+                .SetTitle(UIStrings.NotFoundTitle)
                 .SetTitleType(UITextAppearance.Display)
                 .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.OnBackground))
-                .SetDescription("The page you are looking for does not exist.")
+                .SetDescription(UIStrings.NotFoundDescription)
                 .SetDescriptionType(UITextAppearance.Body)
                 .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                 .SetPlacement(1, 1, 24, 1)

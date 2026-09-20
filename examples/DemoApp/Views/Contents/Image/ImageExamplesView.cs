@@ -3,6 +3,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Image;
@@ -69,9 +70,7 @@ internal sealed class ImageExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateAvatarGroup()
     {
         return DemoUI.CreateGroup(null, "A face at the start of a row",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(340))
                 .AddChild(CreatePersonRow(DemoImages.Avatar, "Robin Hale", "Client runtime"))
                 // A portrait photograph in a square box: Cover takes the middle of it.
@@ -137,9 +136,7 @@ internal sealed class ImageExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Against an icon carrying a picture",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .AddChild(DemoUI.CreateCaption("As a mark on a text body"))
                     .AddChild(new TextComponent()
                         .SetIcon(DemoImages.Logo)

@@ -44,6 +44,7 @@ internal sealed class SearchMainView : DemoMainView, IUIViewDefinition
             .BindItems($"{ResultsGroup}.{nameof(SearchResultsGroupContext.Options)}")
             .BindValue($"{ValueGroup}.{nameof(SearchValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(SearchValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(SearchValueGroupContext.Size)}")
             .BindSearchText($"{TermGroup}.{nameof(SearchTermGroupContext.SearchText)}")
             .BindAutoSearch($"{TermGroup}.{nameof(SearchTermGroupContext.AutoSearch)}")
             .BindDebounceMilliseconds($"{TermGroup}.{nameof(SearchTermGroupContext.DebounceMilliseconds)}")

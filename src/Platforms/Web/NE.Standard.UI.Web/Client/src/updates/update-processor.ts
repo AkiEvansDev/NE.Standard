@@ -122,7 +122,8 @@ export class UpdateProcessor {
             const update = updates[index];
             const refill = readCollectionRefill(update, updates[index + 1]);
 
-            if (refill === null) {
+            // A component that takes its collection through a sink has no rows to reconcile: the reset and the insert go to the sink.
+            if (refill === null || this.namesSink(refill)) {
                 this.applyUpdate(update);
                 continue;
             }
@@ -130,6 +131,10 @@ export class UpdateProcessor {
             this.applyCollectionRefill(refill);
             index++;
         }
+    }
+
+    private namesSink(refill: CollectionRefill): boolean {
+        return this.dom.findComponent(refill.componentId, refill.dynamicParameters)?.hasAttribute(CollectionSinkAttribute) === true;
     }
 
     /** Applies a reset-then-whole-collection pair by reconciling against the rows on screen, rather than rebuilding them. */
@@ -299,8 +304,8 @@ export class UpdateProcessor {
         const host = this.findItemsHost(componentId, dynamicParameters);
 
         if (host === null) {
-            // An empty reset with nowhere to land is nothing to show: a nested list a row renders only when it has entries (a menu's
-            // sub-entries) gets its initial reset like every other collection. Anything else addressed to a missing host is a fault.
+            // An empty reset with nowhere to land is nothing to show: a nested list rendered only when it has entries (a menu's
+            // sub-entries) still gets its initial reset like any collection. Anything else addressed to a missing host is a fault.
             if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
                 logWarn("items host was not found for a collection change update.", update);
 
@@ -390,10 +395,19 @@ export class UpdateProcessor {
         return child === null ? undefined : this.itemsRenderer.getItemScope(child)?.item;
     }
 
+    /** The component's own host — not the first one under it, which may be a nested component's (a select in a grid's filter row). */
     private findItemsHost(componentId: number, dynamicParameters: readonly unknown[]): Element | null {
         const root = this.dom.findComponent(componentId, dynamicParameters);
 
-        return root?.querySelector<Element>(`[${ItemsHostAttribute}]`) ?? null;
+        if (root === null)
+            return null;
+
+        for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+            if (findOwningComponentId(host) === componentId)
+                return host;
+        }
+
+        return null;
     }
 
     // Placed by source index, not child index: a sorted or grouped host's children are in another order, and the sync after restores it.

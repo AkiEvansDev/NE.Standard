@@ -5,9 +5,8 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// The root of an item's row saying what its host may do with the item: chosen, dragged, removed, renamed, its menu opened. Each
-/// is unset by default, which lets it; the built-in row templates bind them to the item's <c>IItemAbilitiesModel</c>, and a
-/// bound flag reaches the row live, the way any bound property does.
+/// The root of an item's row saying what its host may do with the item, each unset by default: chosen, dragged, removed,
+/// renamed, or have its menu opened.
 /// </summary>
 public interface IItemAbilitiesComponent : IVisualComponent
 {

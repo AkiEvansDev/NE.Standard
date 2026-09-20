@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/placement.less";
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
 
@@ -13,14 +14,17 @@
     min-width: 0;
 }
 
+// A region the framework lays out is a container (see @ui-placement-hosts in ui-container.less): the content is placed on the
+// twenty-four columns like anything else, closed by display alone.
 .ui-flyout__content {
     .ui-popup-surface();
     .ui-popup-scroll();
+    .ui-placement-host();
     display: none;
     min-width: 12rem;
     padding: @ui-space-3;
 }
 
 .ui-flyout--open > .ui-flyout__content {
-    display: block;
+    display: grid;
 }

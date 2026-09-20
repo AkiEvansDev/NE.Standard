@@ -1,5 +1,4 @@
-import { DomRegistry } from "../addressing/dom-registry";
-import { getIdValue } from "../metadata/metadata-index";
+import { componentParts } from "../addressing/dom-registry";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 
 const FieldClass = "ui-number-input__field";
@@ -16,7 +15,6 @@ export type NumberInputEngineOptions = {
     readonly root?: ParentNode;
 
     readonly propertyPatchEngine?: PropertyPatchEngine;
-    readonly dom?: DomRegistry;
 };
 
 export class NumberInputEngine {
@@ -35,10 +33,9 @@ export class NumberInputEngine {
         // Formatting runs at attach and after every server-pushed value, not only on blur.
         this.applyDisplayFormatting(this.root.querySelectorAll<HTMLInputElement>(`.${FieldClass}`));
 
+        // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            const componentId = getIdValue(change.reference.componentId);
-
-            this.applyDisplayFormatting(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${FieldClass}`) as HTMLInputElement[] ?? []);
+            this.applyDisplayFormatting(componentParts(change.components, `.${FieldClass}`) as HTMLInputElement[]);
         });
     }
 

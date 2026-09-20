@@ -25,6 +25,7 @@ export class SignalRTransport {
     // A hydrated page is clickable before the connection opens, so every call but the attach waits behind this.
     private attached: Promise<void>;
     private markAttached: () => void = () => { };
+    private failAttachGate: (error: unknown) => void = () => { };
 
     public constructor(windowId: string, options: SignalRTransportOptions = {}) {
         this.windowId = windowId;
@@ -115,11 +116,21 @@ export class SignalRTransport {
     }
 
     public async attachAsync(request: WebUIAttachRequest): Promise<WebUIAttachResult> {
-        const result = await this.invokeCoreAsync<WebUIAttachResult>("AttachAsync", request);
+        try {
+            const result = await this.invokeCoreAsync<WebUIAttachResult>("AttachAsync", request);
 
-        this.markAttached();
+            this.markAttached();
 
-        return result;
+            return result;
+        }
+        catch (error) {
+            // A gate nobody ever marks attached would hang every later call forever; failing it lets a call already waiting behind it
+            // reject, and a fresh gate is armed at once so a retried attach can still succeed.
+            this.failAttachGate(error);
+            this.attached = this.createAttachGate();
+
+            throw error;
+        }
     }
 
     public async processEventAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
@@ -140,8 +151,8 @@ export class SignalRTransport {
     }
 
     private async invokeAsync<TResult>(methodName: string, ...args: unknown[]): Promise<TResult> {
-        // A call made before the attach is answered waits in silence; past this long the wait is said, so a click that seems to go
-        // nowhere can be told from one that was never made.
+        // A call made before the attach is answered waits in silence; past this long the wait is logged, so a click that
+        // seems to go nowhere can be told from one that was never made.
         const stalled = window.setTimeout(() => logWarn("call waiting behind the attach.", { methodName }), AttachStallWarningMilliseconds);
 
         try {
@@ -153,8 +164,8 @@ export class SignalRTransport {
         return await this.invokeCoreAsync<TResult>(methodName, ...args);
     }
 
-    // Rethrown without a log of its own: every caller already logs the failure in its own words, and a bare rethrow here
-    // would otherwise say the same thing about it twice.
+    // Rethrown without a log of its own, since every caller already logs the failure in its own words; a bare rethrow here
+    // would say the same thing twice.
     private async invokeCoreAsync<TResult>(methodName: string, ...args: unknown[]): Promise<TResult> {
         await this.ensureConnectedAsync();
 
@@ -162,9 +173,16 @@ export class SignalRTransport {
     }
 
     private createAttachGate(): Promise<void> {
-        return new Promise<void>(resolve => {
+        const gate = new Promise<void>((resolve, reject) => {
             this.markAttached = resolve;
+            this.failAttachGate = reject;
         });
+
+        // A gate nobody ends up awaiting (the attach fails before any call queues behind it) must not report as an unhandled
+        // rejection; a real waiter still sees the same rejection through its own await.
+        gate.catch(() => { });
+
+        return gate;
     }
 
     private async ensureConnectedAsync(): Promise<void> {

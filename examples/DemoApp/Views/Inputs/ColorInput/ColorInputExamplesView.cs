@@ -2,9 +2,9 @@ using DemoApp.Views.Base;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.ColorInput;
@@ -63,11 +63,7 @@ internal sealed class ColorInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .AddChild(CreateSwatch(ColorName.NebulaGold))
                     .AddChild(CreateSwatch(ColorName.NovaPurple))
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The colour a person picks has nothing to do with **which theme is live**, so the text written across a swatch is judged against *the swatch itself* — see `UIColorContrast`.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("The colour a person picks has nothing to do with **which theme is live**, so the text written across a swatch is judged against *the swatch itself* — see `UIColorContrast`."))
             )
         );
     }

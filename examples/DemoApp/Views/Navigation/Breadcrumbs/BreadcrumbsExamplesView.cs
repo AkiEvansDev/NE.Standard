@@ -9,6 +9,8 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -42,22 +44,23 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
     {
         return DemoUI.CreateGroup(nameof(BreadcrumbsExamplesController.Browser), "A folder browser",
             content => content.AddChild(CreateSurface(360)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(8)
+                .SetContent(UILayout.Stack(8)
                     .AddChild(new BreadcrumbsComponent()
                         .BindItems(nameof(FolderBrowserContext.Path), UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(BreadcrumbsExamplesController.Open))
                     )
                     .AddChild(new SeparatorComponent())
+                    // Wrapped, one full-width row per entry, not stacked: a stack's rows carry an inset for a wash the action wears itself.
                     .AddChild(new ItemsViewComponent()
                         .BindItems(nameof(FolderBrowserContext.Entries), UIBindingScope.Relative)
+                        .SetLayoutType(UIItemsLayoutType.Wrap)
                         .SetSpacing(0)
                         .SetTemplate(new ActionComponent()
                             .SetSize(UIButtonSize.Small)
                             .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
                             .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
                             .OnClick(nameof(BreadcrumbsExamplesController.Open), UIAction.ArgCurrentItemKey("id"))
+                            .SetPlacement(1, 1, 24, 1)
                         )
                     )
                 )
@@ -73,9 +76,7 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
     {
         return DemoUI.CreateGroup(null, "A record and what owns it",
             content => content.AddChild(CreateSurface(360)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
                     [
                         new BreadcrumbItem { Id = "customers", Title = "Customers", Icon = DemoIcons.Outline(DemoIcons.Groups), Url = "https://example.com/customers" },
@@ -101,9 +102,7 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
     {
         return DemoUI.CreateGroup(null, "A page header",
             content => content.AddChild(CreateSurface(300)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
                     [
                         new BreadcrumbItem { Id = "settings", Title = "Settings", Icon = DemoIcons.Outline(DemoIcons.Settings), Url = "https://example.com/settings" },
@@ -131,9 +130,7 @@ internal sealed class BreadcrumbsExamplesView : DemoExamplesView, IUIViewDefinit
     {
         return DemoUI.CreateGroup(null, "Against a row of links",
             content => content.AddChild(CreateSurface(340)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .AddChild(DemoUI.CreateCaption("Three links — three places"))
                     .AddChild(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)

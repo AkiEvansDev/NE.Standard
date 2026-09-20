@@ -30,7 +30,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 {
     private static partial class Log
     {
-        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Rendering web UI route '{Route}'.")]
+        [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Rendering web UI route '{Route}'.")]
         public static partial void Rendering(ILogger logger, string route);
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Response compression is switched on but this host does not accept middleware here; call UseResponseCompression() yourself.")]
@@ -50,6 +50,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         MapAssets(group);
 
         WebFileEndpoints.Map(group);
+        WebValueEndpoint.Map(group);
         WebContentEndpoint.Map(group);
 
         UseResponseCompression(endpoints);
@@ -118,9 +119,8 @@ public static partial class WebEndpointRouteBuilderExtensions
             _ = endpoint.RequireAuthorization(options.AuthorizationPolicy);
     }
     /// <summary>
-    /// A request naming the current version is cached for good; one naming none, or an old one, revalidates by
-    /// ETag every time — the font a stylesheet reaches is the case, and a 304 is what keeps its glyphs from
-    /// blinking on every navigation.
+    /// A request naming the current version is cached for good; an unversioned or stale one revalidates by ETag every time, so a
+    /// 304 keeps a stylesheet's font from blinking on navigation.
     /// </summary>
     private static IResult ServeAsset(HttpContext http, WebAssetDescriptor asset)
     {

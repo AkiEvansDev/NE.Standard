@@ -1,7 +1,7 @@
 import { ComponentSelector } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 import { hasOpenPopups } from "./popup-dismissal";
-import { FocusableSelector } from "./popup-focus";
+import { FocusableSelector, moveFocusInto, restoreFocusTo } from "./popup-focus";
 import { isRovingCandidate } from "./roving-focus";
 
 const DialogAttribute = "data-ui-dialog";
@@ -37,14 +37,13 @@ export class DialogEngine {
         if (!dialog.hasAttribute("hidden"))
             return true;
 
-        // Captured before the dialog takes focus, so closing can hand it back to whatever opened this.
-        const active = document.activeElement;
-
-        if (active instanceof HTMLElement)
-            this.returnFocusByKey.set(key, active);
-
         dialog.removeAttribute("hidden");
-        this.focusInitial(dialog);
+
+        // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind.
+        const previous = moveFocusInto(dialog.querySelector<HTMLElement>(`.${SurfaceClass}`) ?? dialog, dialog.querySelector<HTMLElement>(FocusableSelector));
+
+        if (previous !== null)
+            this.returnFocusByKey.set(key, previous);
 
         return true;
     }
@@ -60,15 +59,13 @@ export class DialogEngine {
         if (dialog.hasAttribute("hidden"))
             return true;
 
-        dialog.setAttribute("hidden", "");
-
         const returnFocus = this.returnFocusByKey.get(key);
 
         this.returnFocusByKey.delete(key);
 
-        // The opener may have been re-rendered away while the dialog was up; focusing a detached node does nothing.
-        if (returnFocus !== undefined && returnFocus.isConnected)
-            returnFocus.focus();
+        // Before the dialog hides, while the focus is still inside it; the opener may have been re-rendered away meanwhile.
+        restoreFocusTo(returnFocus?.isConnected === true ? returnFocus : null, dialog);
+        dialog.setAttribute("hidden", "");
 
         return true;
     }
@@ -77,18 +74,6 @@ export class DialogEngine {
         const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(key) : key;
 
         return this.root.querySelector<HTMLElement>(`[${DialogAttribute}="${escaped}"]`);
-    }
-
-    private focusInitial(dialog: HTMLElement): void {
-        const focusable = dialog.querySelector<HTMLElement>(FocusableSelector);
-
-        if (focusable !== null) {
-            focusable.focus();
-            return;
-        }
-
-        // A dialog with nothing focusable in it still has to take focus, or Tab escapes back to the page behind.
-        dialog.querySelector<HTMLElement>(`.${SurfaceClass}`)?.focus();
     }
 
     private handleClick(domEvent: Event): void {
@@ -138,11 +123,7 @@ export class DialogEngine {
             this.trapTab(topmost, domEvent);
     }
 
-    /**
-     * Escape and a backdrop press close the dialog and tell the server: a bubbling `close` on the content component, where
-     * `OnClose` is attached. A server-driven close (the `CloseDialog` effect, through the public `close`) raises nothing —
-     * the server already knows.
-     */
+    /** Escape and a backdrop press close the dialog and raise a bubbling `close` (`OnClose`); a server-driven close raises nothing, since the server already knows. */
     private closeFromViewer(key: string): void {
         const dialog = this.find(key);
         const wasOpen = dialog !== null && !dialog.hasAttribute("hidden");

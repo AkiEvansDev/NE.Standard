@@ -44,6 +44,10 @@ export function renderCompositeItem(
 
         wrapper.className = slot.wrapperClassName;
         setRole(wrapper, slot.wrapperRole);
+
+        for (const [name, value] of Object.entries(slot.wrapperAttributes ?? {}))
+            wrapper.setAttribute(name, value);
+
         wrapper.appendChild(content);
 
         // Each slot wrapper is addressable in its own right, being the nearest ancestor a command inside it finds.

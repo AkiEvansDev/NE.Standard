@@ -1,7 +1,7 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under the button, dismissed
-// like every popup, and closed by the entry that was chosen.
+// like every popup, and closed by the chosen entry.
 
-import { SplitModeAttribute } from "../addressing/dom-attributes";
+import { MenuItemKindAttribute, SplitModeAttribute } from "../addressing/dom-attributes";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { PopupDismissal } from "./popup-dismissal";
 import { moveFocusInto, restoreFocusTo } from "./popup-focus";
@@ -12,7 +12,6 @@ const ToggleClass = "ui-split-button__toggle";
 const MenuClass = "ui-split-button__menu";
 const OpenClass = "ui-split-button--open";
 const MenuItemClass = "ui-menu-item";
-const KindAttribute = "data-ui-menu-item-kind";
 const MenuGap = 4;
 
 export type SplitButtonEngineOptions = {
@@ -35,7 +34,6 @@ export class SplitButtonEngine {
 
         // The whole button counts as inside: a press on its opener is this engine's to toggle, not the dismissal's to close.
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.open === null ? [] : [this.open],
             close: () => this.close()
         });
@@ -85,7 +83,7 @@ export class SplitButtonEngine {
         if (menu === null || entry === null || !menu.contains(entry))
             return;
 
-        if (entry.matches(`[${KindAttribute}="header"], [${KindAttribute}="separator"], [${KindAttribute}="check"]`) || entry.parentElement?.hasAttribute("data-ui-menu-group") === true)
+        if (entry.matches(`[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"], [${MenuItemKindAttribute}="check"]`) || entry.parentElement?.hasAttribute("data-ui-menu-group") === true)
             return;
 
         this.close();

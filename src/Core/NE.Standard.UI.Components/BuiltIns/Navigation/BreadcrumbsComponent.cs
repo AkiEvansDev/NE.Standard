@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -14,7 +12,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// The trail back to where the current page sits, one step per entry of a collection.
 /// </summary>
 /// <remarks>Fed by the controller, not the router; the last step is the current page, marked by position rather than by a flag.</remarks>
-public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>
+public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>, IButtonTemplatedItemsComponent
     where T : BreadcrumbsComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 2d;
@@ -41,46 +39,6 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
 
         TemplateKeyProperty = null;
     }
-
-    /// <summary>
-    /// Registers a click command invoked when a step is clicked.
-    /// </summary>
-    public T OnItemClick(string command)
-    {
-        _ = RequiredTemplate.OnClick(command);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a click command that passes the clicked item as an argument.
-    /// </summary>
-    public T OnItemClickWithItem(string command, string argumentName = "item")
-        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
-
-    /// <summary>
-    /// Registers a step click command that passes the clicked step's key as an argument.
-    /// </summary>
-    public T OnItemClickWithItemKey(string command, string argumentName = "id")
-        => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a click command invoked when a step is clicked, with UI action arguments.
-    /// </summary>
-    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.OnClick(command, arguments);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a click command invoked when an item is clicked, with literal argument values.
-    /// </summary>
-    public T OnItemClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-    {
-        _ = RequiredTemplate.OnClickLiteral(command, arguments);
-        return Self;
-    }
-
 }
 
 /// <summary>

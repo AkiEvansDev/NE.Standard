@@ -32,13 +32,15 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         }, [WebDomOperation.ToggleClass("ui-number-input--stepper")]);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: true);
 
         _ = root.Element("span", row =>
         {
             _ = row.Class($"{ClassName}__row");
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
+
+            RenderInputHeaderInside(context, root, row);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 

@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/interactive.less";
+@import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
 @import "../mixins/tabs.less";
@@ -25,10 +26,11 @@
     min-height: 0;
 }
 
+// A page is a placement host (@ui-placement-hosts in ui-container.less), so its content is placed like a card's; the flex
+// properties are the page's own place in the pages column.
 .ui-tabs__page {
-    display: flex;
+    .ui-placement-host();
     flex: 1 1 auto;
-    flex-direction: column;
     min-width: 0;
     min-height: 0;
 }
@@ -58,8 +60,8 @@
     // overflow: visible, since the underline is drawn outside the caption's box; the renderer writes no inline Overflow for a caption.
     overflow: visible;
     border-radius: var(--ui-radius-row) var(--ui-radius-row) 0 0;
-    .ui-responsive-property(min-height, --ui-min-height, 2rem);
-    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-3 2px);
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
+    .ui-responsive-property(padding, --ui-padding, calc(@ui-space-1 - 1px) @ui-space-3 @ui-space-1);
 }
 
 // Not :where(): needs to outrank .ui-button's one-class on-surface color, which a zero-specificity rule can't.
@@ -78,8 +80,9 @@
     });
 }
 
-    // Excluded rather than out-ranked: this selector's specificity (0,5,1) beats the selected rule below.
-    .ui-tab-header:not(.ui-disabled):not(:disabled):not(.ui-tab-header--selected):hover::after {
+    // Excluded rather than out-ranked: this selector's specificity (0,5,1) beats the selected rule below. The live guard is the
+    // button family's own, so a loading header is as quiet as a disabled one.
+    .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
         background: var(--ui-mark-hover);
     }
 
@@ -93,6 +96,11 @@
         .ui-selected-ink(var(--ui-color-on-surface); 600);
     });
 }
+
+    // The caption's text body wears TitleType and re-declares the weight over the header's; it is said again where the words are.
+    .ui-tab-header--selected .ui-text {
+        font-weight: var(--ui-selected-font-weight, 600);
+    }
 
     // Keeps its own line under the pointer, since the hover rule above excludes selected headers outright.
     .ui-tab-header--selected::after {

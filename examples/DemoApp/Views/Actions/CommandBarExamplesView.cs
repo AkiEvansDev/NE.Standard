@@ -6,6 +6,8 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -46,9 +48,7 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
         return DemoUI.CreateGroup(ToolbarGroup, "A toolbar over a document",
             content => content.AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(8)
+                .SetContent(UILayout.Stack(8)
                     .AddChild(new CommandBarComponent()
                         .SetSpacing(2)
                         .SetGroupSeparator(UIGroupSeparator.Rule)
@@ -77,9 +77,7 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
         return DemoUI.CreateGroup(DeployGroup, "The actions a deploy offers",
             content => content.AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .AddChild(new TextComponent()
                         .SetIcon(DemoIcons.Upload)
                         .SetTitle("payments-api · #481")
@@ -113,9 +111,7 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
             content => content.AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetWidth(UILayoutLength.Absolute(360))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(16)
+                .SetContent(UILayout.Stack(16)
                     .AddChild(new ParagraphComponent()
                         .SetTitle("Rename the workspace?")
                         .SetTitleType(UITextAppearance.Title)

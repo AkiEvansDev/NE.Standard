@@ -1,5 +1,5 @@
-// A file input: the pick control opens the native dialog, a file dropped on the row is taken the same way, and either sends the
-// files beside the hub and writes the handle back as the selection id.
+// A file input: the pick control opens the native dialog, a drop on the row is taken the same way, and either sends the files
+// beside the hub and writes the handle back as the selection id.
 
 import { clientStrings } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
@@ -22,6 +22,8 @@ export type FileInputEngineOptions = {
 
 export class FileInputEngine {
     private readonly root: ParentNode;
+    // The number of the latest pick per field, so an upload a later pick overtook writes nothing when it lands.
+    private readonly picks = new WeakMap<HTMLElement, number>();
 
     public constructor(options: FileInputEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -31,8 +33,8 @@ export class FileInputEngine {
         // Capture: the hidden native input's "change" is not the bound value; the selection id is.
         this.root.addEventListener("change", domEvent => void this.handleSelectionAsync(domEvent), true);
 
-        // A drop on the row is a pick: the native input says what is accepted and whether more than one is taken, and a
-        // read-only or disabled input has that native input disabled.
+        // A drop on the row is a pick: the native input says what is accepted and whether more than one is taken; disabled
+        // when that native input is disabled.
         attachFileDrop({
             root: this.root,
             draggingAttribute: DraggingAttribute,
@@ -100,20 +102,32 @@ export class FileInputEngine {
         if (accepted.length === 0)
             return;
 
+        // A pick made while the last is still on its way supersedes it: the older upload's answer, whenever it lands, is not written.
+        const pick = (this.picks.get(root) ?? 0) + 1;
+
+        this.picks.set(root, pick);
+
         try {
             const selection = await uploadFilesAsync(accepted, percent => {
-                field.value = clientStrings.format("ui.file.uploading", { percent });
+                if (this.picks.get(root) === pick)
+                    field.value = clientStrings.format("ui.file.uploading", { percent });
             });
+
+            if (this.picks.get(root) !== pick)
+                return;
 
             field.value = describeSelection(accepted);
             this.publishSelection(root, selection.selectionId);
         }
         catch (error) {
+            logWarn("file upload failed.", error);
+
+            if (this.picks.get(root) !== pick)
+                return;
+
             // The id stays empty rather than pointing at a half-written upload.
             field.value = clientStrings.text("ui.file.failed");
             this.publishSelection(root, "");
-
-            logWarn("file upload failed.", error);
         }
     }
 

@@ -5,9 +5,8 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Items;
 
 /// <summary>
-/// One column of a table: the key its cell template is registered under, the caption its header shows, its track and how
-/// its cells align. The template itself is a template variant of the table, keyed <c>column:{Key}</c>. A record class rather than a
-/// struct, so a package's column may derive from it and carry more.
+/// One column of a table: its template key, header caption, track and cell alignment. A record class, not a struct,
+/// so a package's column may subclass it.
 /// </summary>
 public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITextAlignment? Alignment = null)
 {
@@ -16,6 +15,24 @@ public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITex
 
     /// <summary>The template-variant key this column's cells render through.</summary>
     public string TemplateKey => $"{TemplatePrefix}:{Key}";
+
+    /// <summary>
+    /// Whether the column stays in place while a wide table scrolls sideways under it. Pinned columns lead the table: one after an
+    /// unpinned column is refused when it is added.
+    /// </summary>
+    public bool Pinned { get; init; }
+
+    /// <summary>
+    /// The viewport tier below which the column is hidden (track and cells) unless the viewer chose otherwise in a chooser;
+    /// null shows it at every width.
+    /// </summary>
+    public UIResponsiveTier? HideBelow { get; init; }
+
+    /// <summary>
+    /// Whether the column belongs to the control rather than the author (e.g. a grid's checkbox column): no resize handle,
+    /// and a chooser leaves it out.
+    /// </summary>
+    public bool Fixed { get; init; }
 
     public void Validate()
     {

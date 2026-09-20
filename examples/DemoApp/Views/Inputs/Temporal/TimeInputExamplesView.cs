@@ -1,10 +1,9 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -139,11 +138,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Standup)
                     .SetMin(new TimeOnly(8, 0))
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The editor is **segments only** — free text is gone for this control, so nothing it produces can fail to parse and `FormatMessage` is never reached from it.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("The editor is **segments only** — free text is gone for this control, so nothing it produces can fail to parse and `FormatMessage` is never reached from it."))
             )
         );
     }

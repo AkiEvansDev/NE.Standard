@@ -181,7 +181,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Runs the command through its filter chain: authorization, then global filters, then the controller's and command's own filters.
+    /// Runs the command through its filter chain: ordered by <see cref="IUICommandFilter.Order"/>, ties broken global then
+    /// controller then command.
     /// </summary>
     /// <remarks>
     /// The authorization filter is pinned outermost (<see cref="int.MinValue"/>) so no other filter can bypass it.
@@ -194,7 +195,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             Context.Handle,
             Context.Route,
             Context.Services
-        );
+        )
+        {
+            CancellationToken = cancellationToken
+        };
 
         IUICommandFilter[] filters =
         [
@@ -202,6 +206,9 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             .. globalFilters,
             .. descriptor.Filters
         ];
+
+        // A stable sort: filters of one order keep their attachment order.
+        filters = [.. filters.OrderBy(static filter => filter.Order)];
 
         Func<Task> next = async () =>
         {
@@ -235,7 +242,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             ArgumentNullException.ThrowIfNull(context);
             ArgumentNullException.ThrowIfNull(next);
 
-            await controller.EnsureCommandAuthorizedAsync((UICommandDescriptor)context.Command, CancellationToken.None).ConfigureAwait(false);
+            await controller.EnsureCommandAuthorizedAsync((UICommandDescriptor)context.Command, context.CancellationToken).ConfigureAwait(false);
 
             await next().ConfigureAwait(false);
         }
@@ -422,7 +429,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             if (_context is not null)
                 Log.ChangeNotifierFailed(_context.Logger, exception);
         }
-        catch { }
+        catch
+        {
+            // A logger that throws must not turn a failure already recovered from into a new one.
+        }
     }
 
     /// <inheritdoc />

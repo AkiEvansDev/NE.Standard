@@ -5,8 +5,7 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// Represents a component that offers the choice of what it is made of — the page's own ground inside an
-/// edge, a panel raised off it, or a tint of its colour.
+/// Represents a component whose surface can be chosen: the page's own ground, a raised panel, or a tint of its colour.
 /// </summary>
 public interface ISurfaceStyleComponent : IVisualComponent
 {

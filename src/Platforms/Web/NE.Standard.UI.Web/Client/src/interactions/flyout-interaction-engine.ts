@@ -45,7 +45,6 @@ export class FlyoutInteractionEngine {
 
         // The open set is re-read from the document rather than tracked: a server IsOpen patch bypasses this engine.
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.root.querySelectorAll<HTMLElement>(OpenFlyoutSelector),
             canDismiss: (flyout, reason) => !flyout.hasAttribute(reason === "escape" ? NoEscapeCloseAttribute : NoBackdropCloseAttribute),
             close: flyout => this.setOpen(flyout, false)

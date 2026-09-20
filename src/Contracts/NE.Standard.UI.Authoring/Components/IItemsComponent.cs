@@ -28,8 +28,8 @@ public interface IItemsComponent : ITemplatedComponent, IBindableItemsComponent
     UIItemsView? ItemsView { get; }
 
     /// <summary>
-    /// Gets the terms the viewer set after the view compiled — a header's sort, a filter row — applied beside the authored rules; bound
-    /// both ways, so a windowed source is asked with them and a controller can set them.
+    /// Gets the terms the viewer set after the view compiled (a header's sort, a filter row), applied beside the authored rules;
+    /// two-way bound, so a windowed source is asked with them.
     /// </summary>
     UIItemsQuery? Query { get; }
 

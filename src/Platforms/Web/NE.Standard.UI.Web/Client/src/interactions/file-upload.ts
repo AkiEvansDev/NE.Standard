@@ -5,10 +5,7 @@ import { logWarn } from "../runtime/logger";
 
 const UploadPath = "/_ne/files/upload";
 
-/**
- * The files within the root's `FileMaxSizeAttribute`, if it carries one; an oversized file is refused before the upload ever
- * starts, since the server would refuse it anyway and a big file is a slow way to find that out.
- */
+/** The files within the root's `FileMaxSizeAttribute`, if it carries one; an oversized file is refused before the upload starts, since the server would refuse it anyway. */
 export function filterWithinFileSizeLimit(root: Element, files: readonly File[]): File[] {
     const limit = Number(root.getAttribute(FileMaxSizeAttribute));
 
@@ -72,6 +69,18 @@ export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: nu
         request.send(body);
     });
 }
+
+/**
+ * The one way a file leaves the browser: the framework's own multipart POST, answering with a selection id. A package must not
+ * post to the endpoint itself, since the path and response shape are the framework's own.
+ */
+export type FileUploads = {
+    uploadAsync(files: Iterable<File>, onProgress?: (percent: number) => void): Promise<UploadedSelection>;
+};
+
+const noProgress = (): void => { };
+
+export const fileUploads: FileUploads = { uploadAsync: (files, onProgress) => uploadFilesAsync(files, onProgress ?? noProgress) };
 
 /** Writes a selection id through the hidden input it binds on, and raises the "change" a value set from script does not. */
 export function publishSelection(selection: HTMLInputElement | null, selectionId: string): void {

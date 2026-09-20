@@ -7,26 +7,9 @@ namespace NE.Standard.UI.Generators.ComponentProperties;
 /// <summary>
 /// One property to generate for one component type.
 /// </summary>
-internal sealed record UIComponentPropertyModel(
-    IPropertySymbol Property,
-    INamedTypeSymbol ContainingType,
-    UIComponentPropertyAttributeValues Values,
-    bool DeclareProperty = false,
-    INamedTypeSymbol? DefaultValueOwner = null
-);
+internal sealed record UIComponentPropertyModel(IPropertySymbol Property, INamedTypeSymbol ContainingType, UIComponentPropertyAttributeValues Values, bool DeclareProperty = false, INamedTypeSymbol? DefaultValueOwner = null);
 
-internal sealed record UIComponentPropertyAttributeValues(
-    INamedTypeSymbol? Contract,
-    string? ContractPropertyName,
-    bool IsBindable,
-    string? BindingCapabilities,
-    bool HasDefaultValue,
-    string? DefaultValueSource,
-    string? DefaultValueMember,
-    bool GenerateSetter,
-    bool GenerateBinder,
-    string? DefaultBindingScope,
-    string? DefaultBindingMode)
+internal sealed record UIComponentPropertyAttributeValues(INamedTypeSymbol? Contract, string? ContractPropertyName, bool IsBindable, string? BindingCapabilities, bool HasDefaultValue, string? DefaultValueSource, string? DefaultValueMember, bool GenerateSetter, bool GenerateBinder, string? DefaultBindingScope, string? DefaultBindingMode)
 {
     public static UIComponentPropertyAttributeValues From(AttributeData attribute)
     {

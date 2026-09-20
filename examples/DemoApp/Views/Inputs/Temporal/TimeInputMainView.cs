@@ -49,6 +49,7 @@ internal sealed class TimeInputMainView : DemoMainView, IUIViewDefinition
             .BindMin($"{ValueGroup}.{nameof(TimeValueGroupContext.Min)}")
             .BindMax($"{ValueGroup}.{nameof(TimeValueGroupContext.Max)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(TimeValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(TimeValueGroupContext.Size)}")
             .BindDisplayFormat($"{FieldGroup}.{nameof(TemporalFieldGroupContext.DisplayFormat)}")
             .BindAppearance($"{FieldGroup}.{nameof(TemporalFieldGroupContext.Appearance)}")
             .BindPrefixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.PrefixIcon)}")

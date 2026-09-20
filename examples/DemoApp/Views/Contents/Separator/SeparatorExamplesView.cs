@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Separator;
@@ -39,9 +40,7 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetWidth(UILayoutLength.Absolute(260))
                 .SetPadding(UIThickness.Uniform(6))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(2)
+                .SetContent(UILayout.Stack(2)
                     .AddChild(CreateRow(DemoIcons.Edit, "Rename"))
                     .AddChild(CreateRow(DemoIcons.Copy, "Duplicate"))
                     .AddChild(new SeparatorComponent())
@@ -108,9 +107,7 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
     {
         return DemoUI.CreateGroup(null, "A rule with a word in it",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(new TextComponent()
                         .SetTitle("Payments API")
@@ -141,10 +138,7 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
     private static ContainerComponent CreateAgainstSpaceGroup()
     {
         return DemoUI.CreateGroup(null, "Against the space that would do it",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(16)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(16)
                 .AddChild(CreateGrouping("With rules", ruled: true))
                 .AddChild(CreateGrouping("With space", ruled: false))
                 .SetPlacement(1, 1, 24, 1)

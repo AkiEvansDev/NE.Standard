@@ -166,10 +166,7 @@ internal sealed partial class NotificationTestController() : DemoController
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect(
-                "The staging deploy was rolled back because the health check at https://staging.example.com/healthz answered 503 for ninety seconds, which is longer than the window the release gate allows.",
-                UIColorStyle.Danger
-            )
+            new ShowNotificationEffect("The staging deploy was rolled back because the health check at https://staging.example.com/healthz answered 503 for ninety seconds, which is longer than the window the release gate allows.", UIColorStyle.Danger)
         ]);
     }
 }

@@ -3,12 +3,12 @@
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
 import { PopupDismissal } from "./popup-dismissal";
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemKindAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
 import { ClientStore } from "../state/client-store";
 
 const RootClass = "ui-menu";
-// A submenu's own sub-entries are a nested menu of their own, with no authored name of their own to keep state under — the
-// viewer's choice of open group is kept only for a menu the server named.
+// A submenu's sub-entries are a nested menu with no authored name to keep state under, so the viewer's choice of open
+// group is kept only for a menu the server named.
 const NestedClass = "ui-menu--nested";
 const ItemClass = "ui-menu-item";
 const SelectedModifier = "ui-menu-item--selected";
@@ -19,7 +19,6 @@ const GroupAttribute = MenuGroupAttribute;
 const OpenAttribute = MenuOpenAttribute;
 const FlyoutAttribute = "data-ui-menu-flyout";
 const SelectAttribute = MenuSelectAttribute;
-const KindAttribute = "data-ui-menu-item-kind";
 
 const OpenGroupSlot = "menu-open-group";
 
@@ -43,7 +42,6 @@ export class MenuGroupEngine {
 
         // The group as a whole rather than the submenu alone: a click on the group's own entry is the toggle, not a click outside.
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.openFlyout?.parentElement === null || this.openFlyout === null ? [] : [this.openFlyout.parentElement],
             close: () => this.closeFlyout()
         });
@@ -109,10 +107,10 @@ export class MenuGroupEngine {
 
         const entry = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
 
-        // An entry inside an open flyout is an ordinary entry — let it navigate, and take the flyout with it. A check is the one
-        // exception: turning options on and off is done in place, so the list stays until the pointer leaves it.
+        // An entry inside an open flyout is ordinary — let it navigate, taking the flyout with it. A check is the exception: it
+        // toggles in place, so the list stays until the pointer leaves it.
         if (entry !== null && this.openFlyout !== null && this.openFlyout.contains(entry)) {
-            if (entry.getAttribute(KindAttribute) !== "check")
+            if (entry.getAttribute(MenuItemKindAttribute) !== "check")
                 this.closeFlyout();
 
             return;

@@ -23,10 +23,12 @@ export type AnchoredPopupOptions = {
     readonly placement: AnchoredPopupPlacement;
     /** Distance between anchor and popup along the main axis, in pixels. */
     readonly gap: number;
-    /** Sizes the popup to the anchor's width before measuring, for dropdown-shaped popups. */
-    readonly matchAnchorWidth?: boolean;
+    /** Makes the popup at least as wide as the anchor before measuring, wider when its content asks, for dropdown-shaped popups. */
+    readonly minAnchorWidth?: boolean;
     /** Aligns the popup along the cross axis to this element instead of the anchor. */
     readonly crossAnchor?: Element;
+    /** The popup draws an arrow at the anchor, so it may be shifted along the cross axis to let the arrow reach a small anchor's centre. */
+    readonly arrow?: boolean;
 };
 
 // The anchor is any element — an SVG shape as well as a control — since only its box is read.
@@ -48,7 +50,46 @@ export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options:
     tracked.set(popup, { anchor, options });
     attachListeners();
     resizeObserver?.observe(popup);
+    liftOutOfTransform(popup);
     position(anchor, popup, options);
+}
+
+// On a popup lifted into the top layer, for the stylesheet to take the popover's own box back off it.
+const LiftedAttribute = "data-ui-popup-lifted";
+
+/**
+ * A popup under a transformed ancestor is fixed to it and scaled with it, not the viewport; lifting it into the top layer as a
+ * manual popover fixes that, without moving it in the document, so its engine still finds its options under it.
+ */
+function liftOutOfTransform(popup: HTMLElement): void {
+    if (popup.hasAttribute(LiftedAttribute) || !hasTransformedAncestor(popup))
+        return;
+
+    popup.setAttribute("popover", "manual");
+    popup.setAttribute(LiftedAttribute, "");
+    popup.showPopover();
+}
+
+function hasTransformedAncestor(element: Element): boolean {
+    for (let current = element.parentElement; current !== null; current = current.parentElement) {
+        const style = getComputedStyle(current);
+
+        if (style.transform !== "none" || style.filter !== "none" || style.perspective !== "none")
+            return true;
+    }
+
+    return false;
+}
+
+function lowerIntoPlace(popup: HTMLElement): void {
+    if (!popup.hasAttribute(LiftedAttribute))
+        return;
+
+    if (popup.matches(":popover-open"))
+        popup.hidePopover();
+
+    popup.removeAttribute("popover");
+    popup.removeAttribute(LiftedAttribute);
 }
 
 export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): void {
@@ -57,6 +98,7 @@ export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): voi
 
     tracked.delete(popup);
     resizeObserver?.unobserve(popup);
+    lowerIntoPlace(popup);
 }
 
 function attachListeners(): void {
@@ -96,17 +138,29 @@ function repositionAll(): void {
 }
 
 function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
-    if (options.matchAnchorWidth === true)
-        popup.style.width = `${anchor.getBoundingClientRect().width}px`;
+    if (options.minAnchorWidth === true)
+        popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
 
-    // Measured after the width is applied, or a match-anchor-width popup is placed against its old size.
+    // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
     const anchorRect = anchor.getBoundingClientRect();
     const crossRect = (options.crossAnchor ?? anchor).getBoundingClientRect();
     const popupRect = popup.getBoundingClientRect();
     const side = resolveSide(anchorRect, popupRect, options);
 
-    const top = clampToViewport(mainAxisOffset(anchorRect, crossRect, popupRect, side, options.gap), popupRect.height, window.innerHeight);
-    const left = clampToViewport(crossAxisOffset(anchorRect, crossRect, popupRect, side, options.gap), popupRect.width, window.innerWidth);
+    let top = mainAxisOffset(anchorRect, crossRect, popupRect, side, options.gap);
+    let left = crossAxisOffset(anchorRect, crossRect, popupRect, side, options.gap);
+
+    // An end-aligned popup over a small mark would clamp the arrow away from the mark's centre: the popup moves instead, so the
+    // arrow lands on the anchor's centre.
+    if (options.arrow === true) {
+        if (isVertical(side))
+            left = aimAtAnchor(left, crossRect.left + (crossRect.width / 2), popupRect.width);
+        else
+            top = aimAtAnchor(top, crossRect.top + (crossRect.height / 2), popupRect.height);
+    }
+
+    top = clampToViewport(top, popupRect.height, window.innerHeight);
+    left = clampToViewport(left, popupRect.width, window.innerWidth);
 
     popup.style.top = `${top}px`;
     popup.style.left = `${left}px`;
@@ -115,6 +169,19 @@ function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOpt
     popup.dataset.uiPlacement = side;
 
     setArrowOffset(popup, crossRect, popupRect, side, top, left);
+}
+
+// The cross-axis offset that keeps the anchor's centre at least an arrow's inset inside the popup's edge.
+function aimAtAnchor(offset: number, anchorCentre: number, popupSpan: number): number {
+    const centre = anchorCentre - offset;
+
+    if (centre < ArrowInset)
+        return offset - (ArrowInset - centre);
+
+    if (centre > popupSpan - ArrowInset)
+        return offset + (centre - (popupSpan - ArrowInset));
+
+    return offset;
 }
 
 // Where along its own edge a popup draws its arrow, so it points at the anchor even after the clamp moved the popup.

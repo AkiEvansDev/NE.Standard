@@ -233,6 +233,92 @@ internal sealed partial class TreeSettingsGroupContext : DemoGroupContext
         => new() { Id = id, Title = title, ParentId = parentId };
 }
 
+/// <summary>A node whose menu is its own: the entries travel with the item, so two nodes of one kind may offer different things.</summary>
+internal sealed partial class DemoActionNode : TreeNode
+{
+    [RecursiveMember(false)]
+    public RecursiveCollection<MenuItem> Actions { get; } = [];
+}
+
+/// <summary>
+/// A tree of environments: the menu on a node is the node's own list — a production environment cannot be deleted, a paused one
+/// offers Resume where the others offer Pause — and a press names both the entry and the node.
+/// </summary>
+internal sealed partial class TreeMenuGroupContext : DemoGroupContext
+{
+    public const string DeployAction = "deploy";
+    public const string PauseAction = "pause";
+    public const string ResumeAction = "resume";
+    public const string DeleteAction = "delete";
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<DemoActionNode> Items { get; } =
+    [
+        Node("prod", "Production", null, true, DemoIcons.Shield, DeployAction),
+        Node("prod-eu", "eu-west-1", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
+        Node("prod-us", "us-east-1", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
+        Node("staging", "Staging", null, true, DemoIcons.Sliders, DeployAction, DeleteAction),
+        Node("staging-eu", "eu-west-1", "staging", false, DemoIcons.Cloud, DeployAction, ResumeAction, DeleteAction),
+        Node("sandbox", "Sandbox", null, false, DemoIcons.Folder, DeleteAction)
+    ];
+
+    public void Act(string action, string id)
+    {
+        foreach (DemoActionNode node in Items)
+        {
+            if (node.Id != id)
+                continue;
+
+            // A pause and a resume swap places in the node's own list, and nothing else on the page is touched.
+            if (action is PauseAction or ResumeAction)
+            {
+                for (var i = 0; i < node.Actions.Count; i++)
+                {
+                    if (node.Actions[i].Id == action)
+                    {
+                        node.Actions.RemoveAt(i);
+                        node.Actions.Insert(i, Entry(action == PauseAction ? ResumeAction : PauseAction));
+                        break;
+                    }
+                }
+            }
+
+            LogEvent($"{action} on {node.Title}");
+            return;
+        }
+    }
+
+    private static DemoActionNode Node(string id, string title, string? parentId, bool expanded, string icon, params string[] actions)
+    {
+        DemoActionNode node = new() { Id = id, Title = title, ParentId = parentId, Expanded = expanded, Icon = DemoIcons.Outline(icon) };
+
+        foreach (var action in actions)
+            node.Actions.Add(Entry(action));
+
+        return node;
+    }
+
+    private static MenuItem Entry(string action)
+        => new()
+        {
+            Id = action,
+            Title = action switch
+            {
+                DeployAction => "Deploy here",
+                PauseAction => "Pause",
+                ResumeAction => "Resume",
+                _ => "Delete"
+            },
+            Icon = DemoIcons.Outline(action switch
+            {
+                DeployAction => DemoIcons.Upload,
+                PauseAction => DemoIcons.Clock,
+                ResumeAction => DemoIcons.ArrowRight,
+                _ => DemoIcons.Close
+            })
+        };
+}
+
 internal sealed partial class TreeExamplesController : DemoController
 {
     public const string FilesTreeId = "examples-files-tree";
@@ -245,6 +331,9 @@ internal sealed partial class TreeExamplesController : DemoController
 
     [RecursiveMember]
     public partial TreeSettingsGroupContext SettingsGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TreeMenuGroupContext MenuGroup { get; set; } = new();
 
     [UICommand]
     public void OpenNode(string id)
@@ -284,4 +373,8 @@ internal sealed partial class TreeExamplesController : DemoController
     [UICommand]
     public void LoadChildren(string id)
         => LazyGroup.Load(id);
+
+    [UICommand]
+    public void NodeMenuAction(string action, string id)
+        => MenuGroup.Act(action, id);
 }

@@ -13,8 +13,8 @@ namespace NE.Standard.UI.Authoring.Components;
 public interface IVisualComponent : IBindableComponent
 {
     /// <summary>
-    /// Gets whether the component's id was written by the author rather than generated for it; only an
-    /// authored id can be used to find this component again later, such as across a navigation or in a test.
+    /// Gets whether the component's id was authored rather than generated; only an authored id can find this
+    /// component again later (e.g. across a navigation or in a test).
     /// </summary>
     bool HasAuthoredId { get; }
 
@@ -191,12 +191,9 @@ public interface IVisualComponent : IBindableComponent
     IVisualComponent On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments);
 
     /// <summary>
-    /// Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.
+    /// Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>. Inside an item template, its
+    /// entries scope <c>ArgCurrentItemKey</c> to themselves, not the row; reach the row with a <c>Parent</c>-scoped argument.
     /// </summary>
-    /// <remarks>
-    /// Inside an item template, the menu's own entries introduce a new item scope: <c>ArgCurrentItemKey</c>
-    /// inside one resolves to the entry, not the row — reach the row with a <c>Parent</c>-scoped argument.
-    /// </remarks>
     IVisualComponent? ContextMenu { get; }
 
     /// <summary>
@@ -209,4 +206,16 @@ public interface IVisualComponent : IBindableComponent
     /// stays in the tree and nothing opens it.
     /// </summary>
     bool? ShowContextMenu { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="ScrollGroup"/>.
+    /// </summary>
+    static UIProperty ScrollGroupProperty { get; } = new(nameof(ScrollGroup));
+
+    /// <summary>
+    /// Gets the scroll group this component belongs to: every component sharing the name scrolls together, driven by whichever
+    /// one the reader scrolls. Components that mark their shown source lines (e.g. a code field and a Markdown display) sync
+    /// line-for-line; otherwise by scroll fraction.
+    /// </summary>
+    string? ScrollGroup { get; }
 }

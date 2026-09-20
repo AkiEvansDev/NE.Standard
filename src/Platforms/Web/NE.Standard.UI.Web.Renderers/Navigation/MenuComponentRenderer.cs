@@ -13,8 +13,8 @@ using NE.Standard.UI.Web.Renderers.Items;
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
 /// <summary>
-/// Renders a list of menu entries, owning the direction; an entry's sub-entries are the nested menu in its <c>Submenu</c> slot,
-/// rendered under the entry's wrapper — a compiled collection of its own, so a sub-entry is updated like any other row.
+/// Renders a list of menu entries, owning the direction; sub-entries are the nested menu in the entry's <c>Submenu</c> slot, a
+/// compiled collection updated like any other row.
 /// </summary>
 public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 {
@@ -70,8 +70,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// Renders an entry's sub-entries as the nested menu in the Submenu slot, under the entry's wrapper; the client's row decorator
-    /// builds the same block for a row that arrives live, so the two must stay one shape.
+    /// Renders an entry's sub-entries as the nested menu under its wrapper; the client's row decorator builds the same block for
+    /// a live row, so the two must match.
     /// </summary>
     private static void RenderSubmenu(WebRenderContext context, IHtmlElementBuilder itemRoot, object? item)
     {

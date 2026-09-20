@@ -43,7 +43,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         RenderPresentation(context, root);
         RenderReadOnly(context, root);
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: true);
 
         // Both variants and both panes are always rendered, the root says which show: no DOM operation swaps elements.
         List<IHtmlElementBuilder> texts = [];
@@ -103,6 +103,8 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
+            RenderInputHeaderInside(context, root, row);
+
             _ = row.Element("span", element => element.Class("ui-color-input__swatch"));
 
             _ = row.Element("span", element =>
@@ -111,7 +113,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 onText(element);
             });
 
-            RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle);
+            RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle, button => button.Attribute("aria-label", context.Translate(UIStrings.ColorChoose)));
         });
     }
 
@@ -120,6 +122,8 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     {
         RenderPopupToggle(root, "ui-color-input__swatch ui-color-input__swatch--button", WebAttributes.ColorToggle, button =>
         {
+            _ = button.Attribute("aria-label", context.Translate(UIStrings.ColorChoose));
+
             BorderStyleRenderer.RenderBorderStyle(context, button);
 
             _ = button.Element("span", element =>
@@ -234,8 +238,10 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         {
             _ = chip.Class("ui-color-input__chip");
             _ = chip.Attribute("type", "button");
-            // The palette name is the colour's identifier, on both sides of the wire, so it is shown as it is spelled.
+            // The palette name is the colour's identifier on both sides of the wire, shown as spelled; since the tooltip engine
+            // reads to nobody else, the name doubles as the label.
             _ = chip.Attribute(WebAttributes.Tooltip, name.ToString());
+            _ = chip.Attribute("aria-label", name.ToString());
             _ = chip.Attribute(WebAttributes.ColorName, name.ToString());
             _ = chip.Style("--ui-color-input-chip", new ColorVariant(name).ToHex());
         });

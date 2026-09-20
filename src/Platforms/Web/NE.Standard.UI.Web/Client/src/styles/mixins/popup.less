@@ -7,9 +7,12 @@
     top: 0;
     left: 0;
     z-index: @z-index;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     border-radius: var(--ui-radius-input);
     background: var(--ui-color-surface);
+    // A popup is a surface, and what stands on it steps off that; without this a field inside would mix its fill into the
+    // page's colour instead of the popup's.
+    --ui-surface-fill: var(--ui-color-surface);
     .ui-elevation-2();
 }
 

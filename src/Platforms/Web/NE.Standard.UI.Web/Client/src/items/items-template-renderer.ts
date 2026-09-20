@@ -19,6 +19,10 @@ export class ItemsTemplateRenderer {
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
 
+    // Once per binding, not per row: a row template's abilities are bound on every row, and most items say nothing about
+    // them — the server reads that as nothing, so one line here is what a typo gets.
+    private readonly unresolved = new Set<number>();
+
     public constructor(
         private readonly metadata: MetadataIndex,
         private readonly templates: ItemsTemplateRegistry,
@@ -63,7 +67,7 @@ export class ItemsTemplateRenderer {
     }
 
     /** The component's own half of a row, after its template: the decorator its metadata names, if the client registered it. */
-    private decorateRow(kind: string, row: Element, item: unknown, key: string, componentId: number, ancestors: readonly ItemStackEntry[]): void {
+    public decorateRow(kind: string, row: Element, item: unknown, key: string, componentId: number, ancestors: readonly ItemStackEntry[]): void {
         const decorator = this.extensions.rowDecorators.get(kind);
 
         if (decorator === undefined) {
@@ -204,7 +208,11 @@ export class ItemsTemplateRenderer {
             : tryResolveItemTemplateValue(stack, binding.itemTemplate, binding.itemTemplateParameters);
 
         if (!resolution.ok) {
-            logWarn("item binding value could not be resolved.", { binding, stack });
+            if (binding.optional !== true && !this.unresolved.has(bindingId)) {
+                this.unresolved.add(bindingId);
+                logWarn("item binding value could not be resolved; the item has no such property.", { binding, stack });
+            }
+
             return;
         }
 

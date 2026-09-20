@@ -108,10 +108,6 @@ public static class UIPropertyRegister
         return Expression.Lambda<Func<IBindableComponent, object?>>(boxValue, componentParameter).Compile();
     }
 
-    /// <summary>
-    /// Gets a registered property definition or throws when it is not registered.
-    /// </summary>
-
     private static void Register(UIPropertyDefinition definition)
     {
         lock (Sync)
@@ -128,6 +124,10 @@ public static class UIPropertyRegister
             definitions.Add(definition.Property, definition);
         }
     }
+
+    /// <summary>
+    /// Gets a registered property definition or throws when it is not registered.
+    /// </summary>
     public static UIPropertyDefinition GetRequired(string typeKey, UIProperty property)
         => TryGet(typeKey, property, out UIPropertyDefinition? definition)
             ? definition

@@ -5,6 +5,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Expander;
@@ -37,9 +38,7 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateFaqGroup()
     {
         return DemoUI.CreateGroup(null, "Questions and answers",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            content => content.AddChild(UILayout.Stack(8)
                 .SetWidth(UILayoutLength.Absolute(420))
                 .AddChild(CreateQuestion(
                     "How does rendering work?",
@@ -77,9 +76,7 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateAdvancedGroup()
     {
         return DemoUI.CreateGroup(null, "The part of a form nobody touches",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(380))
                 .AddChild(new TextInputComponent()
                     .SetTitle("Service name")
@@ -93,9 +90,7 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetTitle("Advanced")
                         .SetTitleType(UITextAppearance.Caption)
                     )
-                    .SetContent(new StackPanelComponent()
-                        .SetOrientation(UIOrientation.Vertical)
-                        .SetSpacing(12)
+                    .SetContent(UILayout.Stack(12)
                         .AddChild(new NumberInputComponent()
                             .SetTitle("Request timeout")
                             .SetSuffixText("s")
@@ -139,9 +134,7 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateListGroup()
     {
         return DemoUI.CreateGroup(null, "A list that reads closed",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            content => content.AddChild(UILayout.Stack(8)
                 .SetWidth(UILayoutLength.Absolute(400))
                 .AddChild(new ExpanderComponent()
                     .SetExpanded(true)

@@ -11,6 +11,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -25,12 +26,18 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     private readonly HashSet<UIPropertyAddress> _rejectedValueAddresses = [];
 
+    /// <summary>
+    /// The values clients wrote that no controller change has been turned into updates for yet. Guarded by <c>_stateLock</c>.
+    /// </summary>
+    private readonly List<HeldValue> _heldValues = [];
+
     /// <inheritdoc />
-    public async Task<ServerChangeSet> ProcessChangeSetFromUIAsync(ClientChangeSet changeSet, CancellationToken cancellationToken = default)
+    public async Task<ServerChangeSet> ProcessChangeSetFromUIAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         EnsureStarted();
 
+        ArgumentNullException.ThrowIfNull(invoker);
         ArgumentNullException.ThrowIfNull(changeSet);
         changeSet.Validate();
 
@@ -53,10 +60,13 @@ internal abstract partial class UIRuntimeBase
                         continue;
                     }
 
-                    ServerValidationUIUpdate? validation = ApplyClientUpdate(changeSet.Updates[i]);
+                    ServerValidationUIUpdate? validation = ApplyClientUpdate(changeSet.Updates[i], out ClientValueUIUpdate? applied);
 
                     if (validation is not null)
                         (validationUpdates ??= []).Add(validation);
+
+                    if (applied is not null)
+                        _heldValues.Add(new HeldValue(applied, invoker.Instance.Id));
                 }
 
                 DrainControllerChangesNoLock();
@@ -80,7 +90,9 @@ internal abstract partial class UIRuntimeBase
             // Arrives here, not through a flush, so a windowed host's reload rules see what just changed.
             changes = await AppendItemWindowReloadsAsync(changes, staleWindows, cancellationToken).ConfigureAwait(false);
 
-            return await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+            changes = await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+
+            return changes.For(invoker.Instance.Id);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -121,15 +133,15 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Applies one client update, returning the validation update it produced, if any.
+    /// Applies one client update, returning the validation update it produced, if any, and the update when the controller took it.
     /// </summary>
-    private ServerValidationUIUpdate? ApplyClientUpdate(ClientUIUpdate update)
+    private ServerValidationUIUpdate? ApplyClientUpdate(ClientUIUpdate update, out ClientValueUIUpdate? applied)
     {
         ArgumentNullException.ThrowIfNull(update);
 
         return update switch
         {
-            ClientValueUIUpdate valueUpdate => ApplyValueUpdate(valueUpdate),
+            ClientValueUIUpdate valueUpdate => ApplyValueUpdate(valueUpdate, out applied),
             _ => throw new UnreachableException()
         };
     }
@@ -137,9 +149,11 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// Applies a client value update; a value the format cannot read is rejected, not thrown, while a malformed update still throws.
     /// </summary>
-    private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update)
+    private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update, out ClientValueUIUpdate? applied)
     {
         ArgumentNullException.ThrowIfNull(update.DynamicParameters);
+
+        applied = null;
 
         CompiledUIBindingResolution resolution = View.Bindings.Resolve(update.Address, update.DynamicParameters);
 
@@ -153,7 +167,10 @@ internal abstract partial class UIRuntimeBase
             return RejectValueNoLock(update, resolution.Binding);
 
         if (Controller.TrySetRecursiveValue(resolution.Path, value))
+        {
+            applied = update;
             return ClearRejectionNoLock(update);
+        }
 
         // A path that reads but refuses the value comes back as a refusal; one that cannot even read is a broken address and still throws.
         if (!Controller.TryGetRecursiveValue(resolution.Path, out _))
@@ -214,6 +231,46 @@ internal abstract partial class UIRuntimeBase
             ? new ServerValidationUIUpdate { Address = address, Message = null }
             : null;
     }
+
+    /// <summary>
+    /// Marks queued updates that carry exactly what a client just wrote to the same address, so the writer doesn't get its own
+    /// value echoed back, then forgets the writes — one kept past this append could hold back a later value.
+    /// </summary>
+    /// <remarks>
+    /// Equal by <see cref="object.Equals(object?, object?)"/>: a value the setter changed, or one that differs in shape (object
+    /// here, JSON there), still goes back.
+    /// </remarks>
+    private void MarkHeldValuesNoLock()
+    {
+        if (_heldValues.Count == 0)
+            return;
+
+        for (var i = 0; i < _pendingUpdates.Count; i++)
+        {
+            if (_pendingUpdates[i] is not ServerValueUIUpdate { ExceptInstanceId: null } pending)
+                continue;
+
+            foreach (HeldValue held in _heldValues)
+            {
+                ClientValueUIUpdate update = held.Update;
+
+                if (!pending.Address.Component.Id.Equals(update.Address.Component.Id)
+                    || !pending.Address.Property.Equals(update.Address.Property)
+                    || !AreDynamicParametersEqual(pending.Address.Component.DynamicParameters, update.DynamicParameters)
+                    || !Equals(pending.Value, update.Value))
+                {
+                    continue;
+                }
+
+                _pendingUpdates[i] = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, ExceptInstanceId = held.InstanceId };
+                break;
+            }
+        }
+
+        _heldValues.Clear();
+    }
+
+    private readonly record struct HeldValue(ClientValueUIUpdate Update, string InstanceId);
 
     private static ServerChangeSet AppendUpdates(ServerChangeSet changes, ServerChangeSet additional)
         => additional.IsEmpty ? changes : AppendUpdates(changes, [.. additional.Updates]);

@@ -448,7 +448,10 @@ public sealed class UIApplicationBuilder
         {
             Lifetime = source.Lifetime,
             DisconnectedRetention = source.DisconnectedRetention,
+            UnclaimedRenderRetention = source.UnclaimedRenderRetention,
             FlushSchedulerInterval = source.FlushSchedulerInterval,
+            MaxParallelFlushes = source.MaxParallelFlushes,
+            MaxQueuedChangeSets = source.MaxQueuedChangeSets,
             CleanupInterval = source.CleanupInterval
         };
 
@@ -480,7 +483,8 @@ public sealed class UIApplicationBuilder
             NotifyOnCommandFailure = source.NotifyOnCommandFailure,
             IncludeExceptionDetail = source.IncludeExceptionDetail,
             CommandRefusedMessage = source.CommandRefusedMessage,
-            CommandFailedMessage = source.CommandFailedMessage
+            CommandFailedMessage = source.CommandFailedMessage,
+            ErrorPageMessage = source.ErrorPageMessage
         };
 
     /// <summary>

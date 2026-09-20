@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
@@ -17,10 +18,13 @@ public sealed class WebRenderItemsCompositeSlotMetadata
     public string? WrapperRole { get; init; }
 
     /// <summary>
-    /// Gets the item property whose value names a typed variant of this slot (<c>{VariantKey}:{value}</c>); the slot's own
-    /// variant when the item names none or names one the list does not have.
+    /// The item property naming a typed variant of this slot (<c>{VariantKey}:{value}</c>); falls back to the slot's own variant
+    /// if unnamed or unmatched.
     /// </summary>
     public string? VariantKeyPropertyName { get; init; }
+
+    /// <summary>Attributes the slot wrapper carries (a grid cell's column key); null for none.</summary>
+    public IReadOnlyDictionary<string, string>? WrapperAttributes { get; init; }
 
     public void Validate()
     {

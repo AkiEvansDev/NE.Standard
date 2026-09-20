@@ -11,15 +11,8 @@ using NE.Standard.UI.Abstractions.Styling;
 namespace NE.Standard.UI.Abstractions.Recursive;
 
 /// <summary>
-/// Coerces a value into a target property's actual CLR type, when the two don't already match: a client-dispatched
-/// value (a boxed <see cref="string"/>, <see cref="long"/>, <see cref="double"/> or <see cref="bool"/>, or an array of them) on the way
-/// in, and a controller's plain value against a <see cref="UIResponsive{T}"/> property on the way out. A JSON object or array the
-/// client sent against a model type is rebuilt through the serializer, so a component's value may be a document of its own.
+/// Coerces a value into a target property's actual CLR type when the two don't already match.
 /// </summary>
-/// <remarks>
-/// One rule for every path — a client change, a server update, a page render — or a value that fits on one of them
-/// silently does nothing on another.
-/// </remarks>
 public static class RecursiveValueCoercion
 {
     private static readonly ConcurrentDictionary<Type, Func<object, object>?> ResponsiveWrappers = new();
@@ -104,6 +97,9 @@ public static class RecursiveValueCoercion
                 _ when IsStringList(underlyingType) && value is IEnumerable<object?> listItems => ToStringArray(listItems),
                 _ when underlyingType.IsEnum && value is string enumText => Enum.Parse(underlyingType, enumText, ignoreCase: false),
                 _ when underlyingType.IsEnum => Enum.ToObject(underlyingType, value),
+                // An enum maps back to a text property as its member's name — the wire format, and how a select's options are
+                // keyed; otherwise a select bound to an enum opens empty.
+                _ when underlyingType == typeof(string) && value.GetType().IsEnum => value.ToString(),
                 // A document the client sent, as the inferred dictionary or array it arrives as, against the model that declares its
                 // shape — a graph's nodes, a grid's sort terms.
                 _ when value is IDictionary<string, object?> or object?[] && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),

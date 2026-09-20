@@ -50,6 +50,11 @@ public sealed class CompiledUIBinding
     public required UIBindingMode Mode { get; init; }
 
     /// <summary>
+    /// Gets whether a source without the path is expected, so a client resolving it against an item does not warn.
+    /// </summary>
+    public bool Optional { get; init; }
+
+    /// <summary>
     /// Gets fixed and dynamic parameters used to materialize the source path template.
     /// </summary>
     public CompiledUIBindingParameter[] Parameters { get; init; } = [];

@@ -7,9 +7,8 @@ using NE.Standard.UI.Compiled.Models;
 namespace NE.Standard.UI.Compilation;
 
 /// <summary>
-/// One short hash over what a page's client holds of a compiled view — the components with their slots, the bindings, the events
-/// and the interactions, by id — so a page and a compile that disagree are told apart: the render cache keys on it, and an attach
-/// presenting another one is sent to reload instead of being fed updates its ids cannot address.
+/// One short hash over what a page's client holds of a compiled view — components, slots, bindings, events and interactions,
+/// by id — so a stale client and a new compile can be told apart.
 /// </summary>
 internal static class UIViewFingerprint
 {
@@ -28,7 +27,7 @@ internal static class UIViewFingerprint
         foreach (CompiledUIBinding binding in bindings)
         {
             Append(text, "b", binding.Id.Value, binding.Kind, binding.Address.Component.Id.Value, binding.Address.Property.Name, binding.Mode,
-                binding.SourceId.Value, binding.TemplateId.Value, binding.DynamicParameterComponentIds.Length);
+                binding.SourceId.Value, binding.TemplateId.Value, binding.DynamicParameterComponentIds.Length, binding.Optional);
         }
 
         foreach (CompiledUIEvent compiledEvent in events)

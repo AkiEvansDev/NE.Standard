@@ -15,6 +15,9 @@
 // A button says its own size — see UIButtonSize. @ui-control-height stays the medium one so other controls reading it are unaffected.
 @ui-button-height-sm: 1.75rem;
 @ui-button-height-lg: 3rem;  
+// A field says its own size too — see UIInputSize. A small one is a line of caption text with room for a glyph, for a dense surface.
+@ui-control-height-sm: 1.5rem;
+@ui-control-height-lg: 3rem;
 
 // A line in a list that is scanned, not pressed - a menu entry, a breadcrumb step, a calendar cell: read-down height, not press-target.
 @ui-list-row-height: 1.75rem;
@@ -26,6 +29,10 @@
 @ui-row-height: 3.25rem;
 @ui-row-height-sm: 2.5rem;
 @ui-row-height-lg: 4rem;
+
+// One shared step off a row's own ground, used by a table's header, stripe and footer alike, so the three never drift apart
+// as separate literals would.
+@ui-table-tint: 6%;
 
 @ui-motion-fast: 120ms;
 @ui-motion-normal: 200ms;

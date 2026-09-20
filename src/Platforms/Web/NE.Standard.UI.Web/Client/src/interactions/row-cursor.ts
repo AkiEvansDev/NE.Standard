@@ -1,13 +1,11 @@
-// The keyboard's row in a host with rows — an items view, a table, a tree: one mark, one way of moving it, one answer to which
-// row a key acts on. The host's root holds the focus and names the row for assistive technology through aria-activedescendant.
+// The keyboard's row in a host with rows (an items view, a table, a tree): one mark, one way of moving it, one answer
+// to which row a key acts on. The host's root holds focus and names the row via aria-activedescendant.
 
-import { ComponentIdAttribute, SelectedAttribute } from "../addressing/dom-attributes";
+import { ComponentIdAttribute, SelectedAttribute, ensureElementId } from "../addressing/dom-attributes";
 import { resolveRovingTarget, RovingAxis } from "./roving-focus";
 
 /** On the row the keyboard is on; the engine of the host moves it. */
 export const RowFocusAttribute = "data-ui-row-focus";
-
-let rowIds = 0;
 
 /** A row is disabled when the component it wraps is: the wrapper itself, or the template's root one or two levels down. */
 export function isRowDisabled(row: HTMLElement): boolean {
@@ -37,10 +35,7 @@ export function setRowFocus(root: HTMLElement, rows: readonly HTMLElement[], row
 
     row.setAttribute(RowFocusAttribute, "");
 
-    if (row.id.length === 0)
-        row.id = `ui-row-${++rowIds}`;
-
-    root.setAttribute("aria-activedescendant", row.id);
+    root.setAttribute("aria-activedescendant", ensureElementId(row, "ui-row"));
     row.scrollIntoView({ block: "nearest" });
 }
 
@@ -57,11 +52,9 @@ export function dispatchRowEvent(row: HTMLElement, name: string): void {
 }
 
 /**
- * Called with the rows as they stand right before one is taken out of the host — `removed` still among `rows`, at its live
- * position. Answers null when the row held neither the cursor nor the focus; otherwise a callback to run once it is actually
- * gone, which moves the cursor to the row that takes its place (else the one before it) and, if focus was inside the removed
- * row, hands it back to the host root — a Delete must not leave `aria-activedescendant` naming a row that is gone, nor drop
- * focus off the host onto the page behind it.
+ * Called with the rows as they stand right before `removed` is taken out, still among `rows`. Null when the row held neither
+ * the cursor nor focus; otherwise a callback that, once it's gone, moves the cursor to the row taking its place (or the one
+ * before it) and returns focus to the host root, so a Delete never leaves the mark on a row that's gone.
  */
 export function planRowRemoval(root: HTMLElement, rows: readonly HTMLElement[], removed: HTMLElement): (() => void) | null {
     const hadCursor = removed.hasAttribute(RowFocusAttribute);

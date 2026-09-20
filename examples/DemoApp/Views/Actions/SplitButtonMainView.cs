@@ -7,6 +7,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
@@ -48,9 +49,7 @@ internal sealed class SplitButtonMainView : DemoMainView, IUIViewDefinition
         if (mode == UISplitButtonMode.Split)
             _ = button.OnClick(nameof(SplitButtonMainController.Merge));
 
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(12)
+        return UILayout.Stack(12)
             .AddChild(button)
             .AddChild(new TextComponent()
                 .SetTitleType(UITextAppearance.Caption)

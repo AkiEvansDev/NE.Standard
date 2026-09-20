@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -133,6 +134,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 _ = target.Attribute(WebAttributes.NoContextMenu);
         }, [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)]);
 
+        _ = RenderProperty<string?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ScrollGroupProperty, static (target, value) =>
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _ = target.Attribute(WebAttributes.ScrollGroup, value.Trim());
+        }, [WebDomOperation.Attribute(WebAttributes.ScrollGroup)]);
+
         _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
         {
             if (value is UIAlignment alignment)
@@ -178,12 +185,30 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.ContextMenu, out UIComponentSlot? slot))
             return;
 
+        RenderContextMenuHost(context, root, slot, null);
+    }
+
+    /// <summary>Renders one of the component's regions as a further named right-click menu of its owner.</summary>
+    /// <remarks>A region the component does not have renders nothing.</remarks>
+    protected static void RenderContextMenuRegion(WebRenderContext context, IHtmlElementBuilder root, string name, string regionName)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(regionName);
+
+        if (context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, regionName))
+            RenderContextMenuHost(context, root, slot, name);
+    }
+
+    private static void RenderContextMenuHost(WebRenderContext context, IHtmlElementBuilder root, UIComponentSlot slot, string? name)
+    {
         _ = root.Attribute(WebAttributes.ContextMenuOwner);
 
         _ = root.Element("div", host =>
         {
             _ = host.Class("ui-context-menu");
-            _ = host.Attribute(WebAttributes.ContextMenu);
+            _ = host.Attribute(WebAttributes.ContextMenu, name);
             _ = host.Attribute("role", "menu");
             // An entry with no command of its own must not hand its click to the owner's.
             _ = host.Attribute(WebAttributes.EventBoundary);
@@ -279,7 +304,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             context.Renderer.RenderComponent(context.ForHtml(html), children[i]);
     }
 
-    public static void RenderRegion(WebRenderContext context, IHtmlElementBuilder html, string regionName)
+    /// <summary>
+    /// Renders the component a region holds; <paramref name="exposed"/> properties are ones a package's client may set like
+    /// a push (<c>properties.set</c>), for state it keeps in sync.
+    /// </summary>
+    public static void RenderRegion(WebRenderContext context, IHtmlElementBuilder html, string regionName, params ReadOnlySpan<UIProperty> exposed)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(html);
@@ -289,6 +318,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
         if (!view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, regionName))
             return;
+
+        // Before the render, which marks the element each exposed property lands on.
+        foreach (UIProperty property in exposed)
+            context.Metadata.ExposeProperty(new UIPropertyAddress(slot.RootComponentId, property));
 
         context.Renderer.RenderComponent(context.ForHtml(html), slot.RootComponentId);
     }
@@ -376,8 +409,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>
-    /// The message line under a field (the <c>data-ui-validation-message</c> span), painted with the controller's
-    /// <c>Validation</c> when one is set; the client's ValidationEngine owns it from then on and merges it with the rules.
+    /// The message line under a field (<c>data-ui-validation-message</c>), painted from the controller's <c>Validation</c> when
+    /// set; the client's ValidationEngine then owns and merges it with the rules.
     /// </summary>
     protected static void RenderValidationMessage(WebRenderContext context, IHtmlElementBuilder target)
     {
@@ -400,6 +433,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             _ = target.Class("ui-validation--marker");
         else if (presentation is UIValidationPresentation.Message)
             _ = target.Class("ui-validation--message");
+
+        // A field sending its words elsewhere outranks either presentation, since the two can't both be on; the target is
+        // resolved after the page renders since it may come later.
+        if (context.ViewResolution.View.Validations.TryGetMessageTarget(context.Node.ComponentId, out UIPropertyAddress messageTarget))
+        {
+            _ = target.Class("ui-validation--elsewhere");
+            context.Metadata.AddValidationTarget(context.Node.ComponentId, messageTarget);
+        }
 
         _ = target.Element("span", line =>
         {
@@ -460,21 +501,27 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         }, [WebDomOperation.ToggleClass(className, condition: condition)]);
     }
 
-    public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, IReadOnlyList<WebDomOperation> operations)
+    public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         return RenderProperty(context, target, context.Node.TypeKey, property, renderStatic, operations);
     }
 
-    public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, IReadOnlyList<WebDomOperation> operations)
+    /// <summary>
+    /// Renders one property and registers what it does to the DOM, so the static markup and a live patch agree.
+    /// </summary>
+    /// <remarks>
+    /// The operations are a span so the call site's collection expression stays on the stack; this runs for every rendered
+    /// property on the page.
+    /// </remarks>
+    public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyOwnerTypeKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
         ArgumentNullException.ThrowIfNull(renderStatic);
-        ArgumentNullException.ThrowIfNull(operations);
 
         WebRenderValueKind kind = ResolveRenderValue(context, property, out T? value, out CompiledUIBinding? binding);
         UIPropertyAddress address = new(context.Node.ComponentId, property);
@@ -485,6 +532,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             case WebRenderValueKind.Static:
                 renderStatic(target, value);
+                RenderIntoMark(context, target, address);
                 break;
 
             case WebRenderValueKind.Binding:
@@ -505,10 +553,24 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             default:
             case WebRenderValueKind.Missing:
+                RenderIntoMark(context, target, address);
                 break;
         }
 
         return kind;
+    }
+
+    /// <summary>
+    /// Marks the element an unbound property lands on, for patches that still reach it (a field's validation words, an exposed
+    /// property); without a mark, a patch lands on the root.
+    /// </summary>
+    private static void RenderIntoMark(WebRenderContext context, IHtmlElementBuilder target, UIPropertyAddress address)
+    {
+        if (context.IsPresentationCopy)
+            return;
+
+        if (context.ViewResolution.View.Validations.IsMessageTarget(address) || context.Metadata.IsExposed(address))
+            _ = target.Attribute(WebAttributes.IntoPrefix + WebNaming.ToKebabCase(address.Property.Name));
     }
 
     /// <summary>Registers a property for value tracking only, with no DOM effect of its own.</summary>
@@ -522,6 +584,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// <inheritdoc cref="RenderValue{T}(WebRenderContext, IHtmlElementBuilder, UIProperty)"/>
     protected static WebRenderValueKind RenderValue<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property)
         => RenderProperty<T>(context, target, propertyOwnerTypeKey, property, static (_, _) => { }, [WebDomOperation.Data()]);
+
+    /// <summary>A property's render-time value, or <paramref name="fallback"/> where it is missing, bound with no value yet, or null.</summary>
+    protected static T ReadRenderValue<T>(WebRenderContext context, UIProperty property, T fallback)
+    {
+        _ = ResolveRenderValue(context, property, out T? value, out _);
+
+        return value ?? fallback;
+    }
 
     /// <summary>Reads a property's render-time value.</summary>
     public static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding)
@@ -608,8 +678,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (context.Values is null)
             return false;
 
-        // A Dynamic parameter's value travels as the row and never has an update of its own, so the shape is
-        // decided by the binding rather than by attempting a lookup that cannot hit.
+        // A Dynamic parameter's value travels as the row and never updates on its own, so the binding decides the shape
+        // rather than a lookup that can't hit.
         object? raw;
 
         if (HasDynamicParameter(binding))
@@ -688,6 +758,86 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             parameters[i] = context.Parameters[context.Parameters.Count - count + i].Key;
 
         return parameters;
+    }
+
+    /// <summary>The culture this session's page is written in, for a value the renderer formats itself.</summary>
+    protected static CultureInfo ResolveCulture(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return WebCultures.Resolve(context.ViewResolution.Session.Language);
+    }
+
+    /// <summary>The items of an items component, and whether they are left to the client to render.</summary>
+    protected static (IReadOnlyList<object?> Items, bool IsBound) ResolveItems(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        CompiledView view = context.ViewResolution.View;
+
+        if (!view.State.TryGetValue(context.Node.ComponentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? propertyValue) || propertyValue is null)
+            return ([], false);
+
+        if (!propertyValue.IsBind)
+            return ResolveStaticItems(propertyValue.Value);
+
+        if (propertyValue.BindingId is not UIBindingId bindingId || bindingId.IsEmpty)
+            throw new InvalidOperationException($"Property '{IItemsComponent.ItemsProperty.Name}' binding id is required.");
+
+        CompiledUIBinding binding = view.Bindings.GetRequired(bindingId);
+
+        // A bound Items is not automatically a client-rendered one: it resolves statically whenever the binding is
+        // reachable from an already-known parent item.
+        if (TryResolveStaticBindingValue(context, binding, out var bindingValue))
+            return ResolveStaticItems(bindingValue);
+
+        // A controller-bound one is server-rendered too when this render was handed the session's items.
+        return TryResolveSessionItems(context, out IReadOnlyList<object?> sessionItems)
+            ? (sessionItems, false)
+            : ([], true);
+    }
+
+    private static (IReadOnlyList<object?> Items, bool IsBound) ResolveStaticItems(object? value)
+    {
+        if (value is null)
+            return ([], false);
+
+        if (value is IReadOnlyList<object?> objectList)
+            return (objectList, false);
+
+        if (value is IEnumerable enumerable and not string)
+        {
+            List<object?> result = [];
+
+            foreach (var item in enumerable)
+                result.Add(item);
+
+            return (result, false);
+        }
+
+        throw new InvalidOperationException($"Property '{IItemsComponent.ItemsProperty.Name}' value must be an item collection.");
+    }
+
+    private static bool TryResolveSessionItems(WebRenderContext context, out IReadOnlyList<object?> items)
+    {
+        items = [];
+
+        if (context.Values is null)
+            return false;
+
+        UIComponentAddress component = new(context.Node.ComponentId, ResolveDynamicParameters(context));
+
+        return context.Values.TryGetItems(component, out items);
+    }
+
+    /// <summary>Renders one of the component's template variants into <paramref name="parent"/>, outside any row; a variant it does not have renders nothing.</summary>
+    protected static void RenderTemplateVariant(WebRenderContext context, IHtmlElementBuilder parent, string variantKey)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(parent);
+
+        if (context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, variantKey))
+            context.Renderer.RenderComponent(context.ForHtml(parent), slot.RootComponentId);
     }
 
     private static string CreateBindingAttributeName(UIProperty property)

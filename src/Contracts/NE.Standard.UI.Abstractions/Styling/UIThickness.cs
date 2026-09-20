@@ -4,12 +4,8 @@ using System.Globalization;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents thickness values for the four sides of a rectangular UI element.
+/// Thickness values, in pixels, for a rectangular UI element's four sides.
 /// </summary>
-/// <param name="Left">The left side's value, in pixels.</param>
-/// <param name="Top">The top side's value, in pixels.</param>
-/// <param name="Right">The right side's value, in pixels.</param>
-/// <param name="Bottom">The bottom side's value, in pixels.</param>
 public readonly record struct UIThickness(double Left, double Top, double Right, double Bottom)
 {
     /// <summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -102,6 +103,34 @@ internal sealed partial class UIViewCompilationContext
             throw new InvalidOperationException($"Client effect kind '{effect.Kind}' cannot be run by an interaction.");
 
         return effect.Resolve(this);
+    }
+
+    /// <summary>
+    /// The fields whose validation message targets another component's property, resolved to addresses.
+    /// </summary>
+    /// <remarks>Refused here, not at render: a dangling name is an authoring mistake better caught at compile time than shown as an empty error box.</remarks>
+    private KeyValuePair<UIComponentId, UIPropertyAddress>[] BuildValidationMessageTargets()
+    {
+        List<KeyValuePair<UIComponentId, UIPropertyAddress>> targets = [];
+
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            IVisualComponent component = _componentOrder[i];
+
+            if (component is not IInputComponent input || input.ValidationTarget is not UIPropertyReference reference)
+                continue;
+
+            IVisualComponent targetComponent = GetComponent(reference.Component.Id);
+
+            _ = GetRequiredPropertyDefinition(targetComponent.TypeKey, reference.Property);
+
+            targets.Add(new KeyValuePair<UIComponentId, UIPropertyAddress>(
+                GetComponentId(component.Id),
+                new UIPropertyAddress(GetComponentId(reference.Component.Id), reference.Property)
+            ));
+        }
+
+        return [.. targets];
     }
 
     private CompiledUIValidationRule[] BuildValidations()

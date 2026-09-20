@@ -12,11 +12,9 @@ namespace NE.Standard.UI.Sessions;
 public static class UserSessionStoreExtensions
 {
     /// <summary>
-    /// Records the theme a session moved to, so the next page render starts in it.
+    /// Records the theme a session moved to, so the next page render starts in it; answers <see langword="false"/> when the
+    /// session no longer exists or already carries this theme, meaning nothing was saved.
     /// </summary>
-    /// <returns>
-    /// <see langword="false"/> when the session no longer exists or already carries this theme — nothing was saved.
-    /// </returns>
     public static async ValueTask<bool> SetThemeModeAsync(this IUserSessionStore store, string sessionId, UIThemeMode? mode, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(store);

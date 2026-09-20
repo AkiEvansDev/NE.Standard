@@ -24,13 +24,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
 
-        // The selected key rides on the root rather than as a class per tab, so a click and a server patch drive one fact.
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabsSelected);
-        _ = RenderProperty<string?>(context, root, TabsComponent.SelectedKeyProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.TabsSelected, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")]);
+        TabsSelectionRenderer.RenderSelectedKey(context, root, TabsComponent.SelectedKeyProperty);
 
         RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, "ui-tabs--no-overflow", WebValueCondition.IsFalse);
 

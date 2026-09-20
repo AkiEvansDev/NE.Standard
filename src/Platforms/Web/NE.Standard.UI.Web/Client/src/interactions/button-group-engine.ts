@@ -1,5 +1,4 @@
-// A button group's current segment: a press writes the key back the way a tab strip's does, a pushed key marks the
-// segment the same way, and the arrows walk the strip like a radio group's.
+// A button group's segment: a press or key writes it like a tab strip does, and the arrows walk the strip like a radio group's.
 
 import { BindSelectedKeyAttribute, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";

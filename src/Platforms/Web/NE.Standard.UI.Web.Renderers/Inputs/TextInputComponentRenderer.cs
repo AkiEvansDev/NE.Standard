@@ -30,7 +30,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: true);
 
         // Whether the clear button shows, on the root: the button itself is always rendered.
         _ = RenderProperty<bool?>(context, root, TextInputComponent.ShowClearButtonProperty, static (target, value) =>
@@ -44,6 +44,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
             _ = row.Class($"{ClassName}__row");
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
+
+            RenderInputHeaderInside(context, root, row);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
@@ -64,9 +66,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute("maxlength")]);
 
-                // What the browser may fill in. A password manager reads the sign-in pair from these words and from nothing else:
-                // wrapping the password in a form of its own, which is what silenced Chrome's console warning, gave it a form with a
-                // password and no name in it, and it remembered the password without the login (the owner, 2026-09-10).
+                // What the browser may fill in. A password manager reads the sign-in pair from these words alone; a password
+                // wrapped in its own form gets treated as a login with no username, so it stays in the page's one form.
                 _ = RenderProperty<string?>(context, input, TextInputComponent.AutocompleteProperty, static (target, value) =>
                 {
                     if (!string.IsNullOrWhiteSpace(value))

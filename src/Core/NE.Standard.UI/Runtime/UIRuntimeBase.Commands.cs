@@ -21,6 +21,9 @@ namespace NE.Standard.UI.Runtime;
 internal abstract partial class UIRuntimeBase
 {
     /// <inheritdoc />
+    public bool HasCommandsInFlight => Volatile.Read(ref _commandsInFlight) != 0;
+
+    /// <inheritdoc />
     public async Task<UICommandExecutionResult> ProcessEventAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -60,21 +63,39 @@ internal abstract partial class UIRuntimeBase
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = ResolveCommandResult(error, exception),
-                Changes = changes
+                Changes = changes.For(invoker.Instance.Id)
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
 
         if (metadata.ConcurrencyMode == UICommandConcurrencyMode.Background)
-            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessBackgroundCommand", cancellationToken).ConfigureAwait(false);
+        {
+            _ = Interlocked.Increment(ref _commandsInFlight);
+            try
+            {
+                return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessBackgroundCommand", cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _ = Interlocked.Decrement(ref _commandsInFlight);
+            }
+        }
 
-        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        _ = Interlocked.Increment(ref _commandsInFlight);
         try
         {
-            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessExclusiveCommand", cancellationToken).ConfigureAwait(false);
+            await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessExclusiveCommand", cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _ = _exclusiveCommandLock.Release();
+            }
         }
         finally
         {
-            _ = _exclusiveCommandLock.Release();
+            _ = Interlocked.Decrement(ref _commandsInFlight);
         }
     }
 
@@ -114,7 +135,7 @@ internal abstract partial class UIRuntimeBase
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = ResolveCommandResult(error, exception),
-                Changes = changes
+                Changes = changes.For(invoker.Instance.Id)
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
 
@@ -133,7 +154,7 @@ internal abstract partial class UIRuntimeBase
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = commandResult,
-                Changes = changes
+                Changes = changes.For(invoker.Instance.Id)
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -156,12 +177,13 @@ internal abstract partial class UIRuntimeBase
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = ResolveCommandResult(error, exception),
-                Changes = changes
+                Changes = changes.For(invoker.Instance.Id)
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private FrozenDictionary<string, object?> BuildCommandArguments(CompiledUIEvent compiledEvent, object?[] dynamicParameters)
+    // Read once per argument by the command and dropped: a plain dictionary, not a frozen one whose build would never pay back.
+    private IReadOnlyDictionary<string, object?> BuildCommandArguments(CompiledUIEvent compiledEvent, object?[] dynamicParameters)
     {
         ArgumentNullException.ThrowIfNull(compiledEvent);
         ArgumentNullException.ThrowIfNull(dynamicParameters);
@@ -181,13 +203,14 @@ internal abstract partial class UIRuntimeBase
                 CompiledUIActionArgumentKind.Literal => resolution.LiteralValue,
                 CompiledUIActionArgumentKind.Binding => Controller.GetRecursiveValue(resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.")),
                 CompiledUIActionArgumentKind.CurrentItemKey => ResolveCurrentItemKey(argument, resolution),
+                CompiledUIActionArgumentKind.EventKey => ResolveEventKey(argument, dynamicParameters),
                 _ => throw new UnreachableException()
             };
 
             result.Add(argument.Name, value);
         }
 
-        return result.ToFrozenDictionary(StringComparer.Ordinal);
+        return result;
     }
 
     /// <summary>
@@ -195,10 +218,8 @@ internal abstract partial class UIRuntimeBase
     /// the collection no longer holds.
     /// </summary>
     /// <remarks>
-    /// The item is the innermost keyed segment: a click site inside a row's own slot — the action button of a key-value row, whose
-    /// scope is the row's <c>Action</c> — addresses that property under the row, and the key it means is the row's. Only a
-    /// controller-backed collection is checked: a compile-time static one is rendered whole and cannot have changed since, and
-    /// has no path the controller can resolve.
+    /// The item is the innermost keyed segment — e.g. an action button in a key-value row's <c>Action</c> slot resolves to the
+    /// row's key, not the slot's.
     /// </remarks>
     private string ResolveCurrentItemKey(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
     {
@@ -211,24 +232,29 @@ internal abstract partial class UIRuntimeBase
         if (keyIndex < 0)
             throw new InvalidOperationException($"Argument '{argument.Name}' does not address a keyed item.");
 
-        if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(ItemPath(path, keyIndex), out _))
+        if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(path.Take(keyIndex + 1), out _))
             throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item no longer in its collection.");
 
         return path[keyIndex].Key;
     }
 
-    /// <summary>The path up to and including the keyed segment at <paramref name="keyIndex"/>; the path itself when that is its last.</summary>
-    private static RecursivePath ItemPath(RecursivePath path, int keyIndex)
+    /// <summary>
+    /// Reads one key of the chain the event itself named, by its place in it; the argument is empty where the event named fewer.
+    /// </summary>
+    /// <remarks>
+    /// A component's own event may carry keys no item scope addresses — a chart point's series, a node's two ends — so its
+    /// place in the chain is all there is to resolve by.
+    /// </remarks>
+    private static object? ResolveEventKey(CompiledUIActionArgument argument, object?[] dynamicParameters)
     {
-        if (keyIndex == path.Count - 1)
-            return path;
+        var at = argument.Value switch
+        {
+            int index => index,
+            long index => (int)index,
+            _ => -1
+        };
 
-        PathSegment[] segments = new PathSegment[keyIndex + 1];
-
-        for (var i = 0; i <= keyIndex; i++)
-            segments[i] = path[i];
-
-        return new RecursivePath(segments, ownsArray: true);
+        return at >= 0 && at < dynamicParameters.Length ? dynamicParameters[at] : null;
     }
 
     private UICommandResult ResolveCommandResult(RuntimeExceptionResult result, Exception exception)

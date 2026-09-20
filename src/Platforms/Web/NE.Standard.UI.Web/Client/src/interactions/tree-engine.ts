@@ -1,17 +1,21 @@
-// A tree's rows are a flat list in walking order; this derives each row's depth and fold from the node above it, keeps the
-// viewer's fold in the browser, walks the rows with the keyboard, opens a node, asks for children it does not have yet, lays
-// the rename field over a title, and reports a drag from one node onto another — or of every chosen node at once.
+// A tree's rows are a flat list in walking order; this derives each row's depth and fold, keeps the viewer's fold in the
+// browser, and handles keyboard walking, opening, lazy children, inline rename and drag/drop of one or every chosen node.
 
 import {
-    ComponentKeyAttribute, ItemsHostAttribute, SelectedAttribute, SelectionAttribute, TreeChildrenAttribute, TreeDraggableAttribute, TreeDropTargetAttribute,
-    TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute, TreeTitleAttribute,
-    TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute, UnselectableAttribute
+    ComponentKeyAttribute, ItemsHostAttribute, SelectedAttribute, SelectionAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
+    TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
+    TreeTitleAttribute, TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute, UnselectableAttribute
 } from "../addressing/dom-attributes";
+import { findOwningComponentId } from "../addressing/dom-registry";
 import { EffectRegistry } from "../effects/effect-registry";
-import { getIdValue, RenameNodeClientEffect } from "../metadata/metadata-index";
+import { ActiveSort, compareItems, getActiveSorts, hasActiveFilters, itemMatchesFilters, ItemsQuery, readItemsQuery } from "../items/items-filter-sort";
+import { TreeRulesEventName } from "../items/items-host-sync";
+import type { ItemsTemplateRenderer } from "../items/items-template-renderer";
+import { getIdValue, MetadataIndex, RenameNodeClientEffect, WebRenderItemsFilterSortMetadata } from "../metadata/metadata-index";
 import { clientStrings } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
-import { ClientStore } from "../state/client-store";
+import { ClientBootPatch, ClientStore } from "../state/client-store";
+import type { PropertyStateStore } from "../state/property-state-store";
 import { observeComponents } from "./dom-mutations";
 import { clearDragMarks, markDragStart } from "./drag-marks";
 import { openInlineRename } from "./inline-rename";
@@ -24,6 +28,9 @@ import { chooseRow, ensureAnchor, gestureOf, PlainGesture, selectedRows } from "
 const RootClass = "ui-tree";
 const RowClass = "ui-tree__row";
 const FoldedClass = "ui-tree__row--folded";
+const FilteredClass = "ui-tree__row--filtered";
+const BootHiddenSlot = "fold-hidden";
+const BootShownSlot = "fold-shown";
 const DraggingClass = "ui-tree__row--dragging";
 const LoadingClass = "ui-tree__loading";
 const LoadingRingClass = "ui-tree__loading-ring";
@@ -46,18 +53,38 @@ type Placement = {
     readonly depth: number;
     readonly shown: boolean;
     readonly expanded: boolean;
+    /** Shown under the fold the server rendered, so the boot patch can name only the rows the viewer's fold disagrees on. */
+    readonly authoredShown: boolean;
+};
+
+/** The rules on a tree, resolved once per walk: whether any filter is in force, and the sorts to order siblings by. */
+type TreeRules = {
+    readonly config: WebRenderItemsFilterSortMetadata | undefined;
+    readonly query: ItemsQuery | null;
+    readonly filtering: boolean;
+    readonly sorts: readonly ActiveSort[];
+};
+
+/** What a walk that applies rules reads: the rules by component, their sources' values, and each row's item. */
+export type TreeRuleServices = {
+    readonly metadata: MetadataIndex;
+    readonly state: PropertyStateStore;
+    readonly renderer: ItemsTemplateRenderer;
 };
 
 export type TreeEngineOptions = {
     readonly root?: ParentNode;
     readonly effects?: EffectRegistry;
+    /** Without these the walk applies no filter and no sort — a test's tree, or a page with no rules. */
+    readonly rules?: TreeRuleServices;
 };
 
 export class TreeEngine {
     private readonly root: ParentNode;
     private readonly store = new ClientStore();
+    private readonly rules: TreeRuleServices | undefined;
 
-    // The fold as this page has it, per tree: read from the store on first sight and written back on every change, so a tree
+    // The fold as this page has it, per tree: read from the store on first sight, written back on every change, so a tree
     // with no name to store under still folds for as long as the page lives.
     private readonly folds = new WeakMap<Element, StoredFold>();
 
@@ -70,6 +97,15 @@ export class TreeEngine {
 
     public constructor(options: TreeEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.rules = options.rules;
+
+        // The rule watcher's word that a filter's or a sort's source changed: the walk runs again over the same rows.
+        this.root.addEventListener(TreeRulesEventName, domEvent => {
+            const tree = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${RootClass}`) : null;
+
+            if (tree !== null)
+                this.layout(tree);
+        }, true);
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
@@ -117,10 +153,14 @@ export class TreeEngine {
             this.layout(tree);
     }
 
-    /** Derives every row's depth and fold from the rows above it, the viewer's fold over the authored one. */
+    /**
+     * Derives every row's depth and fold from the rows above it, the viewer's fold over the authored one, after the rules:
+     * siblings ordered by the active sorts, and under a filter a row stays only while it or something under it matches.
+     */
     private layout(tree: HTMLElement): void {
         const stored = this.foldOf(tree);
-        const rows = this.rowsOf(tree);
+        const rules = this.resolveRules(tree);
+        const rows = rules === null ? this.rowsOf(tree) : this.orderRows(tree, rules);
         const draggable = tree.hasAttribute(TreeDraggableAttribute);
         const children = new Set<string>();
 
@@ -131,6 +171,7 @@ export class TreeEngine {
                 children.add(parent);
         }
 
+        const kept = rules?.filtering === true ? this.matchingRows(rows, rules) : null;
         const placed = new Map<string, Placement>();
 
         for (const row of rows) {
@@ -142,11 +183,17 @@ export class TreeEngine {
             const shown = parent === undefined ? true : parent.shown && parent.expanded;
             const declared = node?.hasAttribute(TreeChildrenAttribute) === true;
             const hasChildren = declared || children.has(key);
-            const expanded = hasChildren && (stored[key] ?? node?.hasAttribute(TreeExpandedAttribute) === true);
+            const authoredExpanded = hasChildren && node?.hasAttribute(TreeExpandedAttribute) === true;
+            const authoredShown = parent === undefined ? true : parent.authoredShown && this.authoredExpandedOf(parent);
+            // A folder with a match under it stands open while the filter lasts; the viewer's fold is neither read nor written for it.
+            const expanded = hasChildren && (kept !== null ? kept.has(key) : stored[key] ?? authoredExpanded);
+            const filtered = kept !== null && !kept.has(key);
 
             row.style.setProperty(DepthVariable, String(depth));
             row.setAttribute("aria-level", String(depth + 1));
             row.classList.toggle(FoldedClass, !shown);
+            row.classList.toggle(FilteredClass, filtered);
+            row.removeAttribute(TreeBootAttribute);
             row.draggable = draggable && !row.hasAttribute(UndraggableAttribute);
 
             if (hasChildren)
@@ -168,9 +215,157 @@ export class TreeEngine {
             if (!expanded)
                 this.requested.delete(row);
 
-            this.placeLoadingRow(row, depth + 1, row.hasAttribute(TreeLoadingAttribute), shown && expanded);
-            placed.set(key, { row, depth, shown, expanded });
+            this.placeLoadingRow(row, depth + 1, row.hasAttribute(TreeLoadingAttribute), shown && expanded && !filtered);
+            placed.set(key, { row, depth, shown, expanded, authoredShown });
         }
+
+        if (kept === null)
+            this.writeBootFold(tree, stored, placed);
+    }
+
+    /** Whether the server rendered this node open: the authored fold, which the boot patch is measured against. */
+    private authoredExpandedOf(placement: Placement): boolean {
+        return nodeOf(placement.row)?.hasAttribute(TreeExpandedAttribute) === true;
+    }
+
+    /**
+     * The fold the next page load should paint before the runtime walks: rows the viewer's fold hides that the authored one
+     * shows, and the reverse. Two patches, one attribute value each, by key.
+     */
+    private writeBootFold(tree: HTMLElement, stored: StoredFold, placed: Map<string, Placement>): void {
+        if (Object.keys(stored).length === 0)
+            return;
+
+        const hidden: string[] = [];
+        const shown: string[] = [];
+
+        for (const [key, placement] of placed) {
+            if (placement.shown === placement.authoredShown)
+                continue;
+
+            (placement.shown ? shown : hidden).push(`.${RowClass}[${ComponentKeyAttribute}="${CSS.escape(key)}"]`);
+        }
+
+        this.store.writeBoot(tree, BootHiddenSlot, hidden.length === 0 ? null : this.bootPatch(hidden, "hidden"));
+        this.store.writeBoot(tree, BootShownSlot, shown.length === 0 ? null : this.bootPatch(shown, "shown"));
+    }
+
+    private bootPatch(selectors: readonly string[], value: string): ClientBootPatch {
+        return { selector: selectors.join(","), attributes: { [TreeBootAttribute]: value } };
+    }
+
+    /** The rules on this tree, or null when none is in force — the common case, which costs one lookup. */
+    private resolveRules(tree: HTMLElement): TreeRules | null {
+        const host = this.hostOf(tree);
+        const componentId = findOwningComponentId(tree);
+
+        if (this.rules === undefined || host === null || componentId === null)
+            return null;
+
+        const config = this.rules.metadata.getItemsFilterSortMetadata(componentId);
+        const query = readItemsQuery(host);
+
+        if (config === undefined && query === null)
+            return null;
+
+        const sorts = getActiveSorts(config, this.rules.state, query);
+        const filtering = hasActiveFilters(config, this.rules.state, query);
+
+        return filtering || sorts.length > 0 ? { config, query, filtering, sorts } : null;
+    }
+
+    /**
+     * The rows in walking order with each group of siblings sorted by the active sorts, parents before children. The host's
+     * children are moved only when the order actually changed.
+     */
+    private orderRows(tree: HTMLElement, rules: TreeRules): HTMLElement[] {
+        const rows = this.rowsOf(tree);
+
+        if (rules.sorts.length === 0 || this.rules === undefined)
+            return rows;
+
+        const renderer = this.rules.renderer;
+        const keys = new Set(rows.map(keyOf));
+        const byParent = new Map<string, HTMLElement[]>();
+
+        for (const row of rows) {
+            const declared = nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "";
+            const parent = keys.has(declared) ? declared : "";
+            const group = byParent.get(parent);
+
+            if (group === undefined)
+                byParent.set(parent, [row]);
+            else
+                group.push(row);
+        }
+
+        const ordered: HTMLElement[] = [];
+        const visit = (parent: string): void => {
+            const group = byParent.get(parent);
+
+            if (group === undefined)
+                return;
+
+            group.sort((left, right) => compareItems(renderer.getItemValue(left), renderer.getItemValue(right), rules.sorts));
+
+            for (const row of group) {
+                ordered.push(row);
+                visit(keyOf(row));
+            }
+        };
+
+        visit("");
+
+        if (ordered.length !== rows.length || ordered.every((row, index) => row === rows[index]))
+            return ordered.length === rows.length ? ordered : rows;
+
+        const host = this.hostOf(tree);
+
+        if (host === null)
+            return rows;
+
+        // The rows of waiting go with their nodes: taken out here and put back by the walk that follows.
+        for (const placeholder of host.querySelectorAll(`:scope > .${LoadingClass}`))
+            placeholder.remove();
+
+        for (const row of ordered)
+            host.appendChild(row);
+
+        return ordered;
+    }
+
+    /**
+     * The keys of the rows a filter keeps: every row that matches, and every ancestor of one. Children follow their parents, so
+     * one pass from the end carries a match up to the root.
+     */
+    private matchingRows(rows: readonly HTMLElement[], rules: TreeRules): Set<string> {
+        const kept = new Set<string>();
+
+        if (this.rules === undefined)
+            return kept;
+
+        const state = this.rules.state;
+        const renderer = this.rules.renderer;
+
+        for (let index = rows.length - 1; index >= 0; index--) {
+            const row = rows[index];
+            const key = keyOf(row);
+            const value = renderer.getItemValue(row);
+
+            // Fail open: a row whose value never reached the client cannot be judged, and hiding it would silently empty the tree.
+            const matches = value === undefined || itemMatchesFilters(rules.config, value, state, rules.query);
+
+            if (matches || kept.has(key)) {
+                kept.add(key);
+
+                const parent = nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "";
+
+                if (parent.length > 0)
+                    kept.add(parent);
+            }
+        }
+
+        return kept;
     }
 
     /** One row of waiting under a node that asked for its children, in the children's place; gone the moment they arrive. */
@@ -193,8 +388,8 @@ export class TreeEngine {
     }
 
     /**
-     * The chevron folds; so does the whole row of a node that refuses to be chosen, since a click on it chooses nothing. Choosing
-     * is the selection engine's, which also moves the keyboard's row under the pointer.
+     * The chevron folds; so does the whole row of a node that refuses to be chosen, since a click on it chooses nothing.
+     * Choosing is the selection engine's, which also moves the keyboard's row under the pointer.
      */
     private handleClick(domEvent: Event): void {
         const found = this.rowOfEvent(domEvent);
@@ -294,8 +489,8 @@ export class TreeEngine {
                     this.setFocus(tree, this.parentOf(tree, current), PlainGesture);
                 break;
             case "Enter":
-                // Enter is the keyboard's click: it chooses the node as a click does, and opens it as a double click does. A cursor
-                // already inside a chosen group leaves the group standing, since Delete reads that same group.
+                // Enter is the keyboard's click: chooses like a click, opens like a double click. A cursor inside a chosen group
+                // leaves the group standing, since Delete reads that same group.
                 if (!selectedRows(rows).includes(current))
                     chooseRow(tree, rows, current, PlainGesture);
 
@@ -308,8 +503,8 @@ export class TreeEngine {
                 this.startRename(current);
                 break;
             case "Delete": {
-                // The chosen nodes go together when the cursor is on one of them. A node that cannot be removed raises nothing, nor
-                // does a tree that removes nothing; whether one that can is removed is the controller's answer.
+                // The chosen nodes go together when the cursor is on one of them. An unremovable node raises nothing, nor does a
+                // tree that removes nothing; whether a removable one is removed is the controller's answer.
                 if (tree.hasAttribute(TreeUnremovableAttribute))
                     return;
 
@@ -342,8 +537,8 @@ export class TreeEngine {
         if (row === null || tree === null || !tree.hasAttribute(TreeDraggableAttribute))
             return;
 
-        // A chosen node dragged takes the other chosen nodes with it; one that is not chosen goes alone. A node folded away is not
-        // among them: the viewer cannot see it, so moving it would be a move they never asked for.
+        // A chosen node dragged takes the other chosen nodes with it; one not chosen goes alone. A node folded away is excluded,
+        // since the viewer can't see it and moving it would be a move they never asked for.
         const companions = row.hasAttribute(SelectedAttribute)
             ? selectedRows(this.rowsOf(tree)).filter(other => other !== row && other.draggable && other.getClientRects().length > 0)
             : [];
@@ -411,8 +606,8 @@ export class TreeEngine {
     }
 
     /**
-     * The drop writes where each node landed on its own text and raises `move` on its row, one node at a time; the controller does
-     * the moving. A node whose parent is in the air stays with it. The folder dropped on opens, so the moved nodes are in view.
+     * The drop writes where each node landed on its own text and raises `move` on its row, one node at a time; the controller
+     * does the moving. The folder dropped on opens, so the moved nodes are in view.
      */
     private handleDrop(domEvent: Event): void {
         if (!(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
@@ -519,8 +714,8 @@ export class TreeEngine {
     }
 
     /**
-     * Moves the keyboard's row; with one row to choose, the move chooses it too, as a file list does, and with many, a move under
-     * Shift extends the range. Given no gesture the move only moves.
+     * Moves the keyboard's row; with one row to choose, the move chooses it too, like a file list; with many, Shift extends the
+     * range. With no gesture, the move only moves.
      */
     private setFocus(tree: HTMLElement, row: HTMLElement | null, gesture: SelectionGesture | null): void {
         if (row === null)

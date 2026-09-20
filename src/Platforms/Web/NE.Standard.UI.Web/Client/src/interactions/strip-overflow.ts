@@ -68,14 +68,13 @@ export class StripOverflowMenu {
     private button: HTMLElement | null = null;
     private strip: HTMLElement | null = null;
 
-    public constructor(root: ParentNode, private readonly pick: (strip: HTMLElement, key: string) => void) {
+    public constructor(private readonly pick: (strip: HTMLElement, key: string) => void) {
         this.menu = document.createElement("div");
         this.menu.className = MenuClass;
         this.menu.setAttribute("role", "menu");
         this.menu.addEventListener("click", domEvent => this.handleClick(domEvent));
 
         new PopupDismissal({
-            root,
             openPopups: () => this.button === null ? [] : [this.menu],
             close: () => this.close(),
             // The control that opened it counts as inside: its own click is the toggle, handled by the engine.

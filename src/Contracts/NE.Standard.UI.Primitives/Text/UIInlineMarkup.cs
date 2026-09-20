@@ -53,8 +53,8 @@ public static class UIInlineMarkup
     }
 
     /// <summary>
-    /// Strips the markup, leaving the text a reader would see — for the places that take a plain string, such
-    /// as an <c>aria-label</c>. A fold reads unfolded: its caption, then its text.
+    /// Strips the markup, leaving the text a reader would see, for places that take a plain string (e.g. <c>aria-label</c>).
+    /// A fold reads unfolded: its caption, then its text.
     /// </summary>
     public static string ToPlainText(string? text)
     {
@@ -83,11 +83,9 @@ public static class UIInlineMarkup
     }
 
     /// <summary>
-    /// Escapes every marker in a value so it reads as the text it is.
+    /// Escapes every marker in a value so it reads as plain text; escape a value before substituting it into a localized
+    /// string, so it can't turn the rest into markup.
     /// </summary>
-    /// <remarks>
-    /// Escape a value before substituting it into a localized string so it cannot turn the rest of the sentence into markup.
-    /// </remarks>
     public static string Escape(string? text)
     {
         if (string.IsNullOrEmpty(text))
@@ -177,10 +175,7 @@ public static class UIInlineMarkup
         }
     }
 
-    /// <summary>
-    /// Reads a code marker at <paramref name="index"/> and finds where its run closes, by the same hugging
-    /// rule every other marker follows.
-    /// </summary>
+    /// <summary>Finds where the code run starting at <paramref name="index"/> closes, by the same hugging rule every marker follows.</summary>
     private static bool TryReadCode(string text, int index, int end, out int contentEnd)
     {
         contentEnd = 0;
@@ -225,10 +220,7 @@ public static class UIInlineMarkup
         _ = buffer.Clear();
     }
 
-    /// <summary>
-    /// Reads a style marker at <paramref name="index"/> and finds where its run closes; two-character markers
-    /// are tried first, so <c>**</c> is never read as two italics.
-    /// </summary>
+    /// <summary>Finds where the style marker at <paramref name="index"/> closes; two-character markers are tried first, so <c>**</c> is never read as two italics.</summary>
     private static bool TryReadStyle(string text, int index, int end, out UIInlineStyles style, out int markerLength, out int contentEnd)
     {
         style = UIInlineStyles.None;
@@ -336,10 +328,7 @@ public static class UIInlineMarkup
         return -1;
     }
 
-    /// <summary>
-    /// What may name a glyph: the characters a pack's constants are made of, and nothing that could turn into
-    /// a scheme, a path or a payload.
-    /// </summary>
+    /// <summary>Whether <paramref name="value"/> could name a glyph — a pack constant's characters, never something that could turn into a scheme, path or payload.</summary>
     private static bool IsGlyphName(ReadOnlySpan<char> value)
     {
         if (value.IsEmpty)

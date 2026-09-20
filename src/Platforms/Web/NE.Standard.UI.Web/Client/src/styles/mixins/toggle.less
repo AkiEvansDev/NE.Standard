@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "./responsive.less";
 
 // The row shape shared by checkbox, switch and radio: centred on the whole label, not its first line, so it does not hang off the top.
 .ui-toggle-row() {
@@ -7,11 +8,32 @@
     min-width: 0;
 }
 
+// The root of a checkbox or a switch, which *is* the row: box, label body, validation message. Shared by both, since a
+// hook renamed in one stylesheet only would fail silently in the other.
+.ui-toggle-root() {
+    display: inline-grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    .ui-toggle-row();
+    font: inherit;
+    cursor: pointer;
+
+    // Under the label rather than under the box, which is the column the text is in.
+    > .ui-validation-message {
+        grid-column: 2;
+    }
+
+    &.ui-disabled {
+        cursor: default;
+    }
+}
+
 .ui-toggle-box(@height) {
     position: relative;
     flex: 0 0 auto;
     height: @height;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: var(--ui-surface-raised);
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }

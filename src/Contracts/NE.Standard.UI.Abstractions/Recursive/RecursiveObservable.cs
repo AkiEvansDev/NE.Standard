@@ -38,6 +38,12 @@ public abstract class RecursiveObservable
     }
 
     /// <summary>
+    /// Attempts to get the value one segment below this object, without a path of its own.
+    /// </summary>
+    public bool TryGetRecursiveValue(PathSegment segment, out object? value)
+        => TryGetValueCore(new ReadOnlySpan<PathSegment>(in segment), 0, out value);
+
+    /// <summary>
     /// Gets a value by recursive path.
     /// </summary>
     /// <exception cref="InvalidOperationException">
@@ -196,13 +202,18 @@ public abstract class RecursiveObservable
 
     private PropertyForwarder GetOrCreatePropertyForwarder(PathSegment segment)
     {
-        if (_propertyForwarders.TryGetValue(segment, out PropertyForwarder? forwarder))
+        // Locked: background commands and client writes can touch this dictionary from different threads; unsynchronized, it can
+        // corrupt into a lookup that never returns.
+        lock (_propertyForwarders)
+        {
+            if (_propertyForwarders.TryGetValue(segment, out PropertyForwarder? forwarder))
+                return forwarder;
+
+            forwarder = new PropertyForwarder(this, segment);
+            _propertyForwarders.Add(segment, forwarder);
+
             return forwarder;
-
-        forwarder = new PropertyForwarder(this, segment);
-        _propertyForwarders.Add(segment, forwarder);
-
-        return forwarder;
+        }
     }
 
     /// <summary>

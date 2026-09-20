@@ -7,16 +7,15 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
-/// A track boundary the viewer can drag: placed in a track of its own inside a <see cref="ContainerComponent"/>, it
-/// re-divides the room between the tracks on either side, and the position is the viewer's — kept on the client
-/// under the container's authored id, never on the controller.
+/// A track boundary the viewer can drag, placed in its own track inside a <see cref="ContainerComponent"/> to re-divide the
+/// room on either side. Its position lives on the client, under the container's authored id, never on the controller.
 /// </summary>
 /// <remarks>
-/// Give it a <c>UIGridUnit.Auto()</c> track (it sizes the track itself) or a fixed one; a star track would share the
-/// room it is meant to divide. The tracks either side keep their meaning: a run of stars is re-weighted, a run holding a
-/// fixed or content track is written in pixels. A double-click puts the authored layout back.
+/// Give it an <c>UIGridUnit.Auto()</c> or fixed track — a star track fails to compile, like a splitter on the container's
+/// edge. Neighboring stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores
+/// the authored layout.
 /// </remarks>
-public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>
+public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>, IGridSplitterComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
 {
     protected GridSplitterComponent(string? id = null) : base(id)

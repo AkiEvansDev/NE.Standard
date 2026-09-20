@@ -1,6 +1,6 @@
 /**
- * Calls back whenever an element's box changes: through a `ResizeObserver` where the page has one, and the window's resize
- * where it does not (a hidden tab, an old engine). The initial size is not reported; the caller reads it. Returns what stops it.
+ * Calls back whenever an element's box changes, via `ResizeObserver` or, failing that, the window's resize event. The initial
+ * size is not reported. Returns a function that stops it.
  */
 export function observeSize(element: Element, handler: (element: Element) => void): () => void {
     if (typeof ResizeObserver === "function") {

@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -19,17 +20,17 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
 
         SurfaceChromeRenderer.RenderChrome(context, root);
 
-        // `data-ui-no-click` rather than `pointer-events: none`: the pipeline keeps walking outwards, so an
+        // The click suppress mark rather than `pointer-events: none`: the pipeline keeps walking outwards, so an
         // enclosing handler still gets its turn instead of the subtree going inert.
         _ = RenderProperty<bool?>(context, root, SurfaceComponent.ClickableProperty, static (target, value) =>
         {
             if (value == true)
                 _ = target.Class(ClickableClassName);
             else
-                _ = target.Attribute("data-ui-no-click");
+                _ = target.Attribute(WebAttributes.EventSuppress(EventNames.Click));
         }, [
             WebDomOperation.ToggleClass(ClickableClassName),
-            WebDomOperation.ToggleAttribute("data-ui-no-click", condition: WebValueCondition.IsFalse)
+            WebDomOperation.ToggleAttribute(WebAttributes.EventSuppress(EventNames.Click), condition: WebValueCondition.IsFalse)
         ]);
     }
 }

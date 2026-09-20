@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,13 +51,13 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         [LoggerMessage(EventId = 3, Level = LogLevel.Debug, Message = "Attaching UI runtime for route '{Route}', session '{SessionId}', tab '{ClientWindowId}', instance '{InstanceId}'.")]
         public static partial void AttachingRuntime(ILogger logger, string route, string sessionId, string clientWindowId, string instanceId);
 
-        [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Created UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', active instances '{ActiveInstances}'.")]
+        [LoggerMessage(EventId = 4, Level = LogLevel.Debug, Message = "Created UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', active instances '{ActiveInstances}'.")]
         public static partial void CreatedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, int activeInstances);
 
-        [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Reused UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', attached '{Attached}', active instances '{ActiveInstances}'.")]
+        [LoggerMessage(EventId = 5, Level = LogLevel.Debug, Message = "Reused UI runtime for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', attached '{Attached}', active instances '{ActiveInstances}'.")]
         public static partial void ReusedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, bool attached, int activeInstances);
 
-        [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Detached UI instance for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', detached '{Detached}', active instances '{ActiveInstances}'.")]
+        [LoggerMessage(EventId = 6, Level = LogLevel.Debug, Message = "Detached UI instance for route '{Route}', tab '{ClientWindowId}', instance '{InstanceId}', detached '{Detached}', active instances '{ActiveInstances}'.")]
         public static partial void DetachedRuntime(ILogger logger, string route, string clientWindowId, string instanceId, bool detached, int activeInstances);
 
         [LoggerMessage(EventId = 7, Level = LogLevel.Debug, Message = "UI runtime detach skipped because instance '{InstanceId}' is not attached.")]
@@ -73,7 +72,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         [LoggerMessage(EventId = 12, Level = LogLevel.Debug, Message = "Discarded the runtime prepared for page '{PageId}' on route '{Route}': tab '{ClientWindowId}' already had one.")]
         public static partial void DiscardedPreparedRuntime(ILogger logger, string pageId, string route, string clientWindowId);
 
-        [LoggerMessage(EventId = 13, Level = LogLevel.Information, Message = "Dropped '{Count}' per-page runtime(s) tab '{ClientWindowId}' left behind by navigating to route '{Route}'.")]
+        [LoggerMessage(EventId = 13, Level = LogLevel.Debug, Message = "Dropped '{Count}' per-page runtime(s) tab '{ClientWindowId}' left behind by navigating to route '{Route}'.")]
         public static partial void DroppedLeftPageRuntimes(ILogger logger, int count, string clientWindowId, string route);
 
         [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Updating UI runtime connection for route '{Route}', tab '{ClientWindowId}', old instance '{OldInstanceId}', new instance '{NewInstanceId}'.")]
@@ -83,7 +82,10 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         public static partial void SessionIdRotated(ILogger logger, string oldSessionId, string newSessionId);
     }
 
-    private readonly UIRuntimeStore _runtimeStore = new();
+    /// <summary>The store the flush pass walks; reachable so a benchmark can measure that walk without a host of its own.</summary>
+    internal UIRuntimeStore RuntimeStore { get; } = new();
+
+    private readonly UIUpdateDispatcher _dispatcher;
     private readonly ConcurrentDictionary<string, IUIViewFilter[]> _filterChains = new(StringComparer.Ordinal);
     private readonly RuntimeScheduler _scheduler;
 
@@ -111,35 +113,17 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         _scheduler = new RuntimeScheduler(logger);
 
-        _scheduler.Add(new UIFlushTask(
-            _runtimeStore,
-            () => ResolveClientServices().Updates,
-            _logger,
-            interval: application.Persistence.FlushSchedulerInterval,
-            maxParallelFlushes: application.Persistence.MaxParallelFlushes
-        ));
+        _dispatcher = new UIUpdateDispatcher(() => ResolveClientServices().Updates, _logger, maxQueued: application.Persistence.MaxQueuedChangeSets);
 
-        _scheduler.Add(new UISessionCleanupTask(
-            () => _services.GetRequiredService<IUserSessionStore>(),
-            _logger,
-            interval: application.Sessions.CleanupInterval,
-            idleTimeout: application.Sessions.IdleTimeout
-        ));
+        _scheduler.Add(new UIFlushTask(RuntimeStore, _dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes));
+        _scheduler.Add(new UISessionCleanupTask(() => _services.GetRequiredService<IUserSessionStore>(), _logger, interval: application.Sessions.CleanupInterval, idleTimeout: application.Sessions.IdleTimeout));
+        _scheduler.Add(new UIFileCleanupTask(() => _services.GetRequiredService<IUIFileStore>(), _logger, interval: application.Files.CleanupInterval, uploadRetention: application.Files.UploadRetention, downloadRetention: application.Files.DownloadRetention));
 
-        _scheduler.Add(new UIFileCleanupTask(
-            () => _services.GetRequiredService<IUIFileStore>(),
-            _logger,
-            interval: application.Files.CleanupInterval,
-            uploadRetention: application.Files.UploadRetention,
-            downloadRetention: application.Files.DownloadRetention
-        ));
+        // The sweep runs as often as the shorter of the two retentions, or an unclaimed render would wait out the long interval
+        // anyway and the short retention would buy nothing.
+        TimeSpan runtimeSweep = Min(application.Persistence.CleanupInterval, application.Persistence.UnclaimedRenderRetention);
 
-        _scheduler.Add(new UIRuntimeCleanupTask(
-            _runtimeStore,
-            _logger,
-            interval: application.Persistence.CleanupInterval,
-            retention: _application.Persistence.DisconnectedRetention
-        ));
+        _scheduler.Add(new UIRuntimeCleanupTask(RuntimeStore, _logger, interval: runtimeSweep, retention: _application.Persistence.DisconnectedRetention, unclaimedRetention: _application.Persistence.UnclaimedRenderRetention));
 
         _scheduler.Start();
     }
@@ -157,6 +141,10 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         return clientServices;
     }
+
+    /// <summary>The shorter of the two, ignoring a zero: a scheduled task's interval has to be positive.</summary>
+    private static TimeSpan Min(TimeSpan first, TimeSpan second)
+        => second > TimeSpan.Zero && second < first ? second : first;
 
     /// <inheritdoc />
     public async Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.Attach, CancellationToken cancellationToken = default)
@@ -181,7 +169,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
                         .ResolveAsync(sessionInit, cancellationToken)
                         .ConfigureAwait(false);
 
-                    ValidateSession(session);
+                    UserSessions.Validate(session);
 
                     session = await RotateSessionIdIfPendingAsync(session, phase, cancellationToken).ConfigureAwait(false);
 
@@ -322,7 +310,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         if (stored is null || !stored.PendingIdRotation)
             return session;
 
-        var rotatedId = CreateSessionId();
+        var rotatedId = UserSessions.NewId();
 
         await store.SaveAsync(stored with { SessionId = rotatedId, PendingIdRotation = false }, cancellationToken).ConfigureAwait(false);
         await store.RemoveAsync(stored.SessionId, cancellationToken).ConfigureAwait(false);
@@ -339,12 +327,6 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
             session.Permissions
         );
     }
-
-    /// <summary>
-    /// Issues an unguessable session id — a predictable one is a session-fixation invitation.
-    /// </summary>
-    private static string CreateSessionId()
-        => Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
 
     /// <summary>
     /// Writes the resolved session to the store, which is the authority the live command check reads.
@@ -381,15 +363,6 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     private static bool IdentityChanged(UserSessionState? stored, IUserSessionContext session)
         => stored is not null
         && (stored.IsAuthenticated != session.IsAuthenticated || !string.Equals(stored.UserId, session.UserId, StringComparison.Ordinal));
-
-    private static void ValidateSession(IUserSessionContext session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        ArgumentException.ThrowIfNullOrWhiteSpace(session.SessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(session.Language);
-        ArgumentNullException.ThrowIfNull(session.Roles);
-        ArgumentNullException.ThrowIfNull(session.Permissions);
-    }
 
     private static void EnsureAuthorized(UIRouteDefinition route, IUserSessionContext session, IUIAuthorizationService authorization)
     {
@@ -503,7 +476,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         await AdoptPreparedRuntimeAsync(key, handle).ConfigureAwait(false);
 
-        UIRuntimeEntry entry = _runtimeStore.GetOrAdd(
+        UIRuntimeEntry entry = RuntimeStore.GetOrAdd(
             key,
             handle.Instance.Id,
             () => CreateRuntime(handle, resolution.Route, resolution.View),
@@ -535,7 +508,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
             {
                 entry.MarkInitializationFailed(error);
 
-                if (_runtimeStore.Remove(key, out IUIRuntime? removed))
+                if (RuntimeStore.Remove(key, out IUIRuntime? removed))
                     await removed!.DisposeAsync().ConfigureAwait(false);
 
                 throw;
@@ -582,7 +555,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         UIRuntimeKey preparedKey = key with { WindowId = pageId };
 
-        if (_runtimeStore.Rekey(preparedKey, key, out IUIRuntime? discarded))
+        if (RuntimeStore.Rekey(preparedKey, key, out IUIRuntime? discarded))
         {
             Log.AdoptedPreparedRuntime(_logger, pageId, key.Route, key.WindowId);
             return;
@@ -604,7 +577,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         if (_application.Persistence.Lifetime is not UIRuntimeLifetime.PerPage || key.WindowId is null)
             return;
 
-        IUIRuntime[] left = _runtimeStore.RemoveWindowEntriesExcept(key.SessionId, key.WindowId, key);
+        IUIRuntime[] left = RuntimeStore.RemoveWindowEntriesExcept(key.SessionId, key.WindowId, key);
 
         if (left.Length == 0)
             return;
@@ -768,11 +741,11 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
         // PerClient puts no tab in the key, so the render can build the exact key the client will attach to.
         if (_application.Persistence.Lifetime is UIRuntimeLifetime.PerClient)
         {
-            _ = _runtimeStore.TryGet(new UIRuntimeKey(sessionId, resolution.Route.Route, identity, null), out IUIRuntime? shared);
+            _ = RuntimeStore.TryGet(new UIRuntimeKey(sessionId, resolution.Route.Route, identity, null), out IUIRuntime? shared);
             return shared;
         }
 
-        _ = _runtimeStore.TryGetSingle(sessionId, resolution.Route.Route, identity, out IUIRuntime? single);
+        _ = RuntimeStore.TryGetSingle(sessionId, resolution.Route.Route, identity, out IUIRuntime? single);
 
         return single;
     }
@@ -782,7 +755,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
-        var detached = _runtimeStore.Detach(instanceId, DateTime.UtcNow, out IUIRuntime? runtime, out var activeInstances);
+        var detached = RuntimeStore.Detach(instanceId, DateTime.UtcNow, out IUIRuntime? runtime, out var activeInstances);
 
         if (runtime is null)
         {
@@ -809,7 +782,7 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
 
         UIRuntimeKey key = CreateRuntimeKey(handle);
 
-        var detached = _runtimeStore.Detach(key, handle.Instance.Id, DateTime.UtcNow, out IUIRuntime? runtime, out var activeInstances);
+        var detached = RuntimeStore.Detach(key, handle.Instance.Id, DateTime.UtcNow, out IUIRuntime? runtime, out var activeInstances);
 
         if (runtime is IUIRuntimeConnectionUpdater updater)
             updater.DetachConnection(handle.Instance.Id);
@@ -840,38 +813,67 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task<ServerChangeSet> ProcessChangeSetAsync(UIHandle handle, ClientChangeSet changeSet, CancellationToken cancellationToken = default)
+    public async Task<ServerChangeSet> ProcessChangeSetAsync(UIHandle handle, ClientChangeSet changeSet, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(changeSet);
 
         changeSet.Validate();
 
-        IUIRuntime runtime = GetRequiredRuntime(handle);
+        UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
 
-        return runtime.ProcessChangeSetFromUIAsync(changeSet, cancellationToken);
+        await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false);
+
+        return await entry.Runtime.ProcessChangeSetFromUIAsync(handle, changeSet, cancellationToken).ConfigureAwait(false);
     }
 
-    private IUIRuntime GetRequiredRuntime(UIHandle handle)
+    private UIRuntimeEntry GetRequiredRuntimeEntry(UIHandle handle)
     {
         UIRuntimeKey key = CreateRuntimeKey(handle);
 
-        return _runtimeStore.TryGetAttached(key, handle.Instance.Id, out IUIRuntime? runtime)
-            ? runtime!
+        return RuntimeStore.TryGetAttachedEntry(key, handle.Instance.Id, out UIRuntimeEntry? entry)
+            ? entry!
             : throw new InvalidOperationException($"Attached runtime for instance '{handle.Instance.Id}' was not found.");
     }
 
+    /// <summary>
+    /// Refreshes the session's last-seen time from hub traffic, throttled to a tenth of the idle timeout, so a chatty tab
+    /// isn't a write per message.
+    /// </summary>
+    /// <remarks>
+    /// Otherwise a tab that only sends events, never reloading, would idle out while the connection stays alive and lose
+    /// uploads to a 401.
+    /// </remarks>
+    private async Task RefreshSessionActivityAsync(UIHandle handle, UIRuntimeEntry entry, CancellationToken cancellationToken)
+    {
+        TimeSpan throttle = TimeSpan.FromTicks(_application.Sessions.IdleTimeout.Ticks / 10);
+
+        if (entry.ShouldPersistSessionActivity(DateTime.UtcNow, throttle))
+            await PersistSessionAsync(handle.Session, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <inheritdoc />
-    public Task<UICommandExecutionResult> ProcessEventAsync(UIHandle handle, UICommandRequest request, CancellationToken cancellationToken = default)
+    public async Task<UICommandExecutionResult> ProcessEventAsync(UIHandle handle, UICommandRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(request);
 
         request.Validate();
 
-        IUIRuntime runtime = GetRequiredRuntime(handle);
+        UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
 
-        return runtime.ProcessEventAsync(handle, request, cancellationToken);
+        await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false);
+
+        return await entry.Runtime.ProcessEventAsync(handle, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private IUIRuntime GetRequiredRuntime(UIHandle handle)
+    {
+        UIRuntimeKey key = CreateRuntimeKey(handle);
+
+        return RuntimeStore.TryGetAttached(key, handle.Instance.Id, out IUIRuntime? runtime)
+            ? runtime!
+            : throw new InvalidOperationException($"Attached runtime for instance '{handle.Instance.Id}' was not found.");
     }
 
     /// <inheritdoc />
@@ -901,13 +903,15 @@ internal sealed partial class UIHost : IUIHost, IDisposable, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _scheduler.DisposeAsync().ConfigureAwait(false);
-        await _runtimeStore.DisposeAsync().ConfigureAwait(false);
+        _dispatcher.Dispose();
+        await RuntimeStore.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
         _scheduler.Dispose();
-        _runtimeStore.Dispose();
+        _dispatcher.Dispose();
+        RuntimeStore.Dispose();
     }
 }

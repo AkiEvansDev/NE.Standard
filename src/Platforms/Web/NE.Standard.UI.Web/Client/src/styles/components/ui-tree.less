@@ -1,24 +1,35 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
 @import "../mixins/text.less";
 
-// A tree on the file list's model: thin rows, each stepped in by its level, a chevron where there is something to unfold, the
-// chosen row washed across the whole width. The rows are a flat list; tree-engine.ts writes each row's `--ui-tree-depth` and
-// folds the rows under a folded node with a class.
+// The chevron's square, named once: the toggle draws it and the row of waiting reserves it.
+@ui-tree-chevron-size: 1.25rem;
+
+// A tree on the file list's model: thin rows stepped in by level, a chevron where a node can unfold, the chosen row washed
+// full width. Rows are a flat list; tree-engine.ts writes each row's `--ui-tree-depth` and folds hidden nodes via a class.
 .ui-tree {
     .ui-selected-scope();
 
     display: flex;
     flex-direction: column;
     border-style: solid;
-    border-width: var(--ui-border-width, 0);
+    // Written flat, not as a fallback: --ui-border-width is always defined, so the 0 behind it could never be read. An authored
+    // BorderThickness arrives as an inline border-width and outranks this regardless.
+    border-width: 0;
     border-color: var(--ui-color-border);
     border-radius: var(--ui-radius-row);
     background: var(--ui-surface-color, transparent);
     outline: none;
+    // The room before a title: the chevron's square plus the node's gap. The row of waiting spends the same space; a tree
+    // with no chevron drops the pair together, since the hidden toggle collapses its gap too.
+    --ui-tree-chevron: calc(@ui-tree-chevron-size + @ui-space-1);
+}
+
+.ui-tree--no-chevron {
+    --ui-tree-chevron: 0px;
 }
 
 .ui-tree > template {
@@ -74,13 +85,28 @@
     display: none;
 }
 
+// A row a filter took out: neither it nor anything under it matched.
+.ui-tree__row--filtered {
+    display: none;
+}
+
+// The viewer's remembered fold, painted by the boot script before the runtime walks the rows, only where it disagrees with
+// the server-rendered fold; removed again by the first walk.
+.ui-tree__row[data-ui-tree-boot="hidden"] {
+    display: none;
+}
+
+.ui-tree__row--folded[data-ui-tree-boot="shown"] {
+    display: flex;
+}
+
 // The row of waiting under a node that asked for its children: in the children's place, at their depth, muted.
 .ui-tree__loading {
     display: flex;
     align-items: center;
     gap: @ui-space-2;
     min-height: @ui-button-height-sm;
-    padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1 + 1.25rem + @ui-space-1);
+    padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1 + var(--ui-tree-chevron, 0px));
     color: var(--ui-text-muted);
     font-size: var(--ui-text-caption-font-size);
 }
@@ -144,11 +170,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: @ui-tree-chevron-size;
+    height: @ui-tree-chevron-size;
     appearance: none;
     border: 0;
-    border-radius: var(--ui-radius-sm, 0.25rem);
+    border-radius: 0.25rem;
     background: none;
     padding: 0;
     color: var(--ui-text-muted);
@@ -170,9 +196,9 @@
         color: inherit;
     }
 
-    // Twelve whole pixels, the menu's size: at 0.6em the mark read too faint beside the title.
+    // The menu's size, a whole pixel count: in em of the title the mark reads too faint beside it.
     .ui-tree-node__toggle::before {
-        .ui-chevron(0.75rem);
+        .ui-chevron(@ui-glyph-md);
         .ui-chevron-right();
     }
 

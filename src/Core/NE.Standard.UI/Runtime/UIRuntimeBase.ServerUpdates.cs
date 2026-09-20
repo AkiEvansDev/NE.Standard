@@ -121,6 +121,8 @@ internal abstract partial class UIRuntimeBase
     {
         ClearPendingUpdatesNoLock();
 
+        // A resync sends every value to every instance; a write held back from one would be held from nothing.
+        _heldValues.Clear();
         _pendingFullResync = true;
         _pendingUpdates.Add(new ServerFullResyncUIUpdate());
     }

@@ -21,8 +21,8 @@ public enum UIInputAppearance
     Underline = 2,
 
     /// <summary>
-    /// No box until it is touched: the text sits on whatever is behind it, a wash under the pointer says it can be edited,
-    /// the ring says it is. Tighter than the others, for a field that stands in a row of a list.
+    /// No box until touched: the text sits on whatever is behind it; a hover wash signals it's editable, the focus ring that
+    /// it is. Tighter than the others, for a field in a list row.
     /// </summary>
     Ghost = 3,
 }

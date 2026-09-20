@@ -1,10 +1,7 @@
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 
 /// <summary>
-/// What an item lets a host do with it, each unset by default: be chosen, be dragged, be removed, be renamed, open its menu. A
-/// host reads what it understands — a tree's heading that refuses the choice folds on a click instead, a pinned node is neither
-/// dragged nor removed, a tab that cannot be removed shows no close. The built-in templates bind each to the matching
-/// <c>IItemAbilitiesComponent</c> property of the row, so a flag flipped on a live item reaches its row.
+/// What an item lets a host do with it, each unset by default: be chosen, be dragged, be removed, be renamed, or have its menu opened.
 /// </summary>
 public interface IItemAbilitiesModel
 {

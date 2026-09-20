@@ -55,12 +55,25 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             return;
 
         _directChanges.Enqueue(change);
+        SignalPump();
+    }
 
+    private void SignalPump()
+    {
         try
         {
             _ = _directSignal.Release();
         }
-        catch (ObjectDisposedException) { }
+        catch (ObjectDisposedException)
+        {
+            // Released after teardown: the pump is gone and there is nobody left to wake.
+        }
+    }
+
+    protected override void OnFullResyncRequested()
+    {
+        if (!_directCancellation.IsCancellationRequested)
+            SignalPump();
     }
 
     private async Task ProcessDirectChangesAsync()
@@ -73,12 +86,8 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             {
                 await _directSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                RecursiveChange[] changes = DrainDirectChanges();
-
-                if (changes.Length == 0)
-                    continue;
-
-                _ = await PublishExternalControllerChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+                // Called with no changes too: a wake can be a resync request alone, which the publish answers and an empty drain skips.
+                _ = await PublishExternalControllerChangesAsync(DrainDirectChanges(), cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -115,7 +124,10 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             if (Controller is IUIContextController contextController)
                 Log.DirectChangePublishingFailed(contextController.Context.Logger, exception, Connection.Handle.Instance.Id);
         }
-        catch { }
+        catch
+        {
+            // A logger that throws must not turn a failure already recovered from into a new one.
+        }
     }
 
     protected override void OnStoppingNoLock()
@@ -124,11 +136,7 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
 
         _directCancellation.Cancel();
 
-        try
-        {
-            _ = _directSignal.Release();
-        }
-        catch (ObjectDisposedException) { }
+        SignalPump();
     }
 
     protected override async Task<ServerChangeSet> PublishChangesAsync(ServerChangeSet changes, CancellationToken cancellationToken)
@@ -140,8 +148,8 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         UIClientServices clientServices = connection.ClientServices
             ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
 
-        await clientServices.Updates
-            .SendChangesAsync(connection.Handle, AttachedInstanceIds, changes, cancellationToken)
+        await UIChangeDelivery
+            .SendAsync(clientServices.Updates, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
             .ConfigureAwait(false);
 
         return changes;
@@ -183,8 +191,8 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         UIClientServices clientServices = connection.ClientServices
             ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
 
-        await clientServices.Updates
-            .SendChangesAsync(connection.Handle, AttachedInstanceIds, changes, cancellationToken)
+        await UIChangeDelivery
+            .SendAsync(clientServices.Updates, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
             .ConfigureAwait(false);
 
         return ServerChangeSet.Empty;
@@ -203,14 +211,10 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
 
         _directCancellation.Cancel();
 
-        try
-        {
-            _ = _directSignal.Release();
-        }
-        catch (ObjectDisposedException) { }
+        SignalPump();
 
-        // Bounded, not awaited: the sync path has no async alternative, but disposing under the pump's feet would
-        // still be worse than a short block — mirrors the wait DisposeRuntimeResourcesAsync gives it.
+        // Bounded, not awaited: no async alternative here, and disposing under the pump would be worse than a short block —
+        // mirrors DisposeRuntimeResourcesAsync's wait.
         if (_directPump is not null)
         {
             try
@@ -230,11 +234,7 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
 
         await _directCancellation.CancelAsync().ConfigureAwait(false);
 
-        try
-        {
-            _ = _directSignal.Release();
-        }
-        catch (ObjectDisposedException) { }
+        SignalPump();
 
         if (_directPump is not null)
         {

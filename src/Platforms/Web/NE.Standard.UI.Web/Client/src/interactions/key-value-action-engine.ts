@@ -1,11 +1,12 @@
-// A key-value row that has become its own editor (the list's EnableEditing): the keyboard's Enter and Escape are its save and
-// cancel, the input takes focus as the row opens, and a row opened on the client alone starts from the value's own text.
+// A key-value row that has become its own editor (the list's EnableEditing): Enter and Escape are its save and cancel, the
+// input takes focus on open, and a client-only open starts from the value's own text.
 
 import { RowEditingAttribute, ValueBindingAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { isCaretField, isCaretInput } from "./caret-fields";
 import { observeComponents } from "./dom-mutations";
+import { dispatchDraftDropped } from "./draft-events";
 import { PopupRoleSelector } from "./own-control";
 
 const RowClass = "ui-key-value-action__row";
@@ -28,7 +29,9 @@ export class KeyValueActionEngine {
         this.options = options;
         this.root = options.root ?? document;
 
-        observeComponents(this.root, `.${RowClass}`, { attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows));
+        // A row may be rendered already editing — one the server added open — so rows are read as they arrive, and once at the start.
+        this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${RowClass}`));
+        observeComponents(this.root, `.${RowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows));
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
     }
 
@@ -42,8 +45,8 @@ export class KeyValueActionEngine {
     }
 
     /**
-     * A row that closed lets its draft go. A text field is emptied, so the next open starts from the value's text again rather
-     * than a draft the server last echoed; a toggle or a picture returns to the server's last word, which is its own state.
+     * A row that closed lets its draft go: a text field is emptied so the next open starts from the value's text, a toggle
+     * returns to the server's last state, and a client-chosen picture is told the same, since its preview isn't a bound value.
      */
     private close(row: HTMLElement): void {
         for (const bound of row.querySelectorAll<HTMLElement>(`.${ValueInputClass} [${ValueBindingAttribute}]`)) {
@@ -56,16 +59,21 @@ export class KeyValueActionEngine {
 
             this.options.propertyPatchEngine.restoreBoundValue(bound, resolved?.dynamicParameters ?? []);
         }
+
+        dispatchDraftDropped(row);
     }
 
-    /** The draft is the value's text when the row was opened without the server — a server open has seeded it already. */
+    /**
+     * The draft is the value's text when the row opened without the server — a server open has already seeded it. Only the field
+     * carrying the value takes it, since a search's visible text box is a query over a value kept on a hidden input.
+     */
     private open(row: HTMLElement): void {
         const field = row.querySelector<HTMLElement>(`.${ValueInputClass} :is(input, textarea, select)`);
 
         if (field === null)
             return;
 
-        if (isCaretField(field) && field.value.length === 0) {
+        if (isCaretField(field) && field.value.length === 0 && field.hasAttribute(ValueBindingAttribute)) {
             const text = row.querySelector<HTMLElement>(`.${ValueClass} .${TitleClass}`)?.textContent?.trim() ?? "";
 
             if (text.length > 0) {
@@ -96,10 +104,12 @@ export class KeyValueActionEngine {
         if (cell === null || row === null || !row.hasAttribute(RowEditingAttribute) || (domEvent.key === "Enter" && cell.classList.contains(EditActionClass)))
             return;
 
-        // A popup the field opened — a select's list, a picker — owns both keys until it closes; Enter in a multi-line field is a line.
+        // A popup the field opened (a select's list, a picker) owns both keys until it closes, whether the key lands in the popup
+        // or the field that opened it; Enter in a multi-line field is just a line break.
         const popup = domEvent.target.closest(PopupRoleSelector);
+        const openList = cell.querySelector("[role='listbox']");
 
-        if ((popup !== null && cell.contains(popup)) || (domEvent.key === "Enter" && domEvent.target instanceof HTMLTextAreaElement))
+        if ((popup !== null && cell.contains(popup)) || (openList !== null && openList.getClientRects().length > 0) || (domEvent.key === "Enter" && domEvent.target instanceof HTMLTextAreaElement))
             return;
 
         const buttons = row.querySelectorAll<HTMLButtonElement>(`.${EditActionClass} button`);

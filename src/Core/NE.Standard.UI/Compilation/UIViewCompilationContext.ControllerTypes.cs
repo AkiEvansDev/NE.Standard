@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Data;
+using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -109,11 +110,39 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
+    /// Warns when a bound path names a property the controller's types don't have — a typo the component would otherwise show
+    /// silently.
+    /// </summary>
+    /// <remarks>Skips type-less walks and item-scoped paths — both look unresolvable without being wrong, so flagging them would bury real typos.</remarks>
+    private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, UIBindingScope scope, CompiledPath path)
+    {
+        if (_controllerType is null || scope != UIBindingScope.Root || path.Source.Kind != CompiledUIBindingSourceKind.Controller)
+            return;
+
+        _ = TryResolveControllerPathType(path.Template.Template, out var missingProperty, out Type? owner);
+
+        if (missingProperty is null || owner is null)
+            return;
+
+        _warnings.Add(
+            $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but " +
+            $"'{owner.Name}' has no public property '{missingProperty}'. The binding resolves to nothing and the " +
+            "component keeps the value it was authored with.");
+    }
+
+    /// <summary>
     /// Walks a binding template against the controller's CLR types, returning what it lands on, or
     /// <see langword="null"/> as soon as a segment cannot be resolved.
     /// </summary>
     private Type? TryResolveControllerPathType(string template)
+        => TryResolveControllerPathType(template, out _, out _);
+
+    /// <inheritdoc cref="TryResolveControllerPathType(string)" />
+    private Type? TryResolveControllerPathType(string template, out string? missingProperty, out Type? missingPropertyOwner)
     {
+        missingProperty = null;
+        missingPropertyOwner = null;
+
         Type? current = _controllerType;
         var index = 0;
 
@@ -138,8 +167,20 @@ internal sealed partial class UIViewCompilationContext
             while (index < template.Length && template[index] != '.' && template[index] != '[')
                 index++;
 
+            // Nothing is known about what an `object` holds, so a property it does not declare is not a missing one.
+            if (current == typeof(object))
+                return null;
+
             PropertyInfo? property = current.GetProperty(template[start..index], BindingFlags.Public | BindingFlags.Instance);
-            current = property?.PropertyType;
+
+            if (property is null)
+            {
+                missingProperty = template[start..index];
+                missingPropertyOwner = current;
+                return null;
+            }
+
+            current = property.PropertyType;
         }
 
         return current;

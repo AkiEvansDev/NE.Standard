@@ -17,7 +17,7 @@ public sealed class WebRenderMetadata
     private readonly HashSet<string> _eventKeys = [];
     private readonly HashSet<string> _validationKeys = [];
     private readonly HashSet<string> _usedPropertyDefinitionIds = [];
-    private readonly Dictionary<string, string> _propertyDefinitionIds = [];
+    private readonly Dictionary<(string OwnerTypeKey, string PropertyName), string> _propertyDefinitionIds = [];
     private readonly Dictionary<string, WebRenderPropertyDefinitionMetadata> _propertyDefinitionsById = [];
     private readonly Dictionary<UIPropertyAddress, string> _renderedPropertyIds = [];
     private readonly Dictionary<CompiledUIInteraction, WebRenderInteractionMetadata> _interactionMetadata = [];
@@ -25,6 +25,14 @@ public sealed class WebRenderMetadata
     private readonly List<(CompiledUIItemsSort Compiled, WebRenderItemsSortMetadata Metadata)> _pendingItemsSorts = [];
 
     private readonly List<WebRenderPropertyDefinitionMetadata> _propertyDefinitions = [];
+    private readonly List<WebRenderValidationTargetMetadata> _validationTargets = [];
+
+    // Resolved after every component has rendered, since the target component may come later on the page and only a rendered
+    // property has an id.
+    private readonly List<(UIComponentId Field, UIPropertyAddress Message)> _pendingValidationTargets = [];
+    private readonly List<UIPropertyAddress> _pendingExposedProperties = [];
+    private readonly HashSet<(UIComponentId Component, string Property)> _exposedPropertyNames = [];
+    private readonly List<WebRenderPropertyMetadata> _exposedProperties = [];
     private readonly List<WebRenderBindingMetadata> _bindings = [];
     private readonly List<WebRenderEventMetadata> _events = [];
     private readonly List<WebRenderInteractionMetadata> _interactions = [];
@@ -44,6 +52,11 @@ public sealed class WebRenderMetadata
 
     public IReadOnlyList<WebRenderValidationMetadata> Validations => _validations;
 
+    public IReadOnlyList<WebRenderValidationTargetMetadata> ValidationTargets => _validationTargets;
+
+    /// <summary>The properties a package's client may set the way a push does, by component and name (<c>properties.set</c>).</summary>
+    public IReadOnlyList<WebRenderPropertyMetadata> ExposedProperties => _exposedProperties;
+
     public IReadOnlyList<WebRenderItemsTemplateMetadata> ItemsTemplates => _itemsTemplates;
 
     public IReadOnlyList<WebRenderItemsFilterSortMetadata> ItemsFilterSort => _itemsFilterSort;
@@ -57,13 +70,19 @@ public sealed class WebRenderMetadata
             .OrderBy(static bindingId => bindingId.Value)
             .ToArray();
 
-    public string RegisterProperty(string propertyOwnerTypeKey, UIProperty property, IReadOnlyList<WebDomOperation> operations)
+    /// <summary>
+    /// Registers what a property does to the DOM, once per component type, and answers the id the render writes.
+    /// </summary>
+    /// <remarks>
+    /// The operations arrive as a span so the call site's collection expression stays on the stack; all but the first call
+    /// for a given property discard it.
+    /// </remarks>
+    public string RegisterProperty(string propertyOwnerTypeKey, UIProperty property, params ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyOwnerTypeKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
-        ArgumentNullException.ThrowIfNull(operations);
 
-        var key = CreatePropertyDefinitionKey(propertyOwnerTypeKey, property.Name);
+        (string, string) key = (propertyOwnerTypeKey, property.Name);
 
         if (_propertyDefinitionIds.TryGetValue(key, out var propertyId))
         {
@@ -82,7 +101,7 @@ public sealed class WebRenderMetadata
             PropertyId = propertyId,
             ComponentTypeKey = propertyOwnerTypeKey,
             PropertyName = property.Name,
-            Operations = operations
+            Operations = operations.ToArray()
         };
 
         metadata.Validate();
@@ -123,6 +142,7 @@ public sealed class WebRenderMetadata
             DynamicParameterComponentIds = binding.DynamicParameterComponentIds,
             ItemTemplate = itemTemplate,
             ItemTemplateParameters = itemTemplateParameters,
+            Optional = binding.Optional,
             // Only set for a binding read out of an item — every other value already reaches the client substituted.
             FallbackValue = itemTemplate is null ? null : binding.TargetFallbackValue
         };
@@ -317,6 +337,32 @@ public sealed class WebRenderMetadata
         }
     }
 
+    /// <summary>Records that a field sends its validation message to another component's property.</summary>
+    public void AddValidationTarget(UIComponentId componentId, UIPropertyAddress message)
+    {
+        if (componentId.IsEmpty || message.Component.Id.IsEmpty)
+            return;
+
+        _pendingValidationTargets.Add((componentId, message));
+    }
+
+    /// <summary>
+    /// Records that a package's client may set a component's property like a push; called before the component renders so
+    /// its element gets marked.
+    /// </summary>
+    public void ExposeProperty(UIPropertyAddress address)
+    {
+        if (address.Component.Id.IsEmpty)
+            return;
+
+        _pendingExposedProperties.Add(address);
+        _ = _exposedPropertyNames.Add((address.Component.Id, address.Property.Name));
+    }
+
+    /// <summary>Whether a package's client may set the property, which a render marks the element of.</summary>
+    public bool IsExposed(UIPropertyAddress address)
+        => _exposedPropertyNames.Contains((address.Component.Id, address.Property.Name));
+
     public void AddValidations(IReadOnlyList<CompiledUIValidationRule> rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
@@ -361,6 +407,11 @@ public sealed class WebRenderMetadata
     {
         CompleteInteractionMetadata();
         CompleteItemsFilterSortMetadata();
+        CompleteValidationTargetMetadata();
+        CompleteExposedPropertyMetadata();
+
+        for (var i = 0; i < _validationTargets.Count; i++)
+            _validationTargets[i].Validate();
 
         for (var i = 0; i < _propertyDefinitions.Count; i++)
             _propertyDefinitions[i].Validate();
@@ -450,6 +501,35 @@ public sealed class WebRenderMetadata
         }
     }
 
+    private void CompleteValidationTargetMetadata()
+    {
+        foreach ((UIComponentId field, UIPropertyAddress message) in _pendingValidationTargets)
+        {
+            // A target that never rendered is left out rather than refused: the page still works, the words simply have
+            // nowhere to go, and the client says so once.
+            if (!TryCreatePropertyMetadata(message, out WebRenderPropertyMetadata? messageMetadata))
+                continue;
+
+            _validationTargets.Add(new WebRenderValidationTargetMetadata
+            {
+                ComponentId = field,
+                Message = messageMetadata!
+            });
+        }
+    }
+
+    private void CompleteExposedPropertyMetadata()
+    {
+        foreach (UIPropertyAddress address in _pendingExposedProperties)
+        {
+            // Refused rather than left out: a package that exposes a property its component never renders would set nothing, silently.
+            if (!TryCreatePropertyMetadata(address, out WebRenderPropertyMetadata? metadata))
+                throw new InvalidOperationException($"Exposed property '{address.Component.Id.Value}.{address.Property.Name}' is not rendered by its component.");
+
+            _exposedProperties.Add(metadata!);
+        }
+    }
+
     private void CompleteItemsFilterSortMetadata()
     {
         foreach ((CompiledUIItemsFilter compiled, WebRenderItemsFilterMetadata metadata) in _pendingItemsFilters)
@@ -465,9 +545,6 @@ public sealed class WebRenderMetadata
         }
     }
 
-    private static string CreatePropertyDefinitionKey(string propertyOwnerTypeKey, string propertyName)
-        => string.Create(CultureInfo.InvariantCulture, $"{propertyOwnerTypeKey}:{propertyName}");
-
     private static WebRenderBindingParameterMetadata ToParameterMetadata(CompiledUIBindingParameter parameter)
         => new()
         {
@@ -476,9 +553,9 @@ public sealed class WebRenderMetadata
             Value = parameter.Value
         };
 
-    private static bool OperationsEqual(IReadOnlyList<WebDomOperation> left, IReadOnlyList<WebDomOperation> right)
+    private static bool OperationsEqual(IReadOnlyList<WebDomOperation> left, ReadOnlySpan<WebDomOperation> right)
     {
-        if (left.Count != right.Count)
+        if (left.Count != right.Length)
             return false;
 
         for (var i = 0; i < left.Count; i++)

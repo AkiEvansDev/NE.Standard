@@ -19,7 +19,7 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
 
         UserSessionContext session = await ResolveCoreAsync(initData, cancellationToken).ConfigureAwait(false);
 
-        ValidateSession(session);
+        UserSessions.Validate(session);
 
         return session;
     }
@@ -28,15 +28,6 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
     /// Resolves a concrete user session context.
     /// </summary>
     protected abstract Task<UserSessionContext> ResolveCoreAsync(UserSessionInitData initData, CancellationToken cancellationToken);
-
-    private static void ValidateSession(UserSessionContext session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        ArgumentException.ThrowIfNullOrWhiteSpace(session.SessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(session.Language);
-        ArgumentNullException.ThrowIfNull(session.Roles);
-        ArgumentNullException.ThrowIfNull(session.Permissions);
-    }
 
     /// <summary>
     /// Creates an unauthenticated user session context, deriving its session id from

@@ -6,6 +6,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -54,8 +55,26 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     public UITextAppearance? DescriptionType { get; set; }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// The label is centered by default; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb)
+    /// left-aligns it in its own constructor.
+    /// </remarks>
+    [UIComponentProperty(Contract = typeof(ITextComponent), DefaultValue = UITextAlignment.Center)]
+    public UITextAlignment? TextAlignment { get; set; }
+
+    /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonSize.Medium)]
     public UIButtonSize? Size { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the button is a toggle and its pressed state: null is an ordinary button, true/false a toggle;
+    /// two-way, so a press writes back.
+    /// </summary>
+    [UIComponentProperty(
+        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
+        DefaultBindingMode = UIBindingMode.TwoWay,
+        DefaultValue = null)]
+    public bool? Pressed { get; set; }
 
     /// <summary>
     /// Gets the id of the form this button submits, scoping the Submit-trigger validation that runs before the click command.
@@ -73,10 +92,11 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     }
 
     /// <summary>
-    /// Runs the command on a click and shows the button waiting for exactly the round trip: two client interactions on
-    /// <c>Loading</c>, one before the dispatch and one after the result, nothing bound and nothing for a controller to clear.
+    /// Runs the command on click and shows the button loading for exactly the round trip, via two client interactions with
+    /// nothing to bind or clear.
     /// </summary>
-    public T OnClickWithLoading(string command)
+    /// <remarks>Named for what it shows, not what it carries — unlike <c>With</c> methods, nothing is passed here.</remarks>
+    public T OnClickShowingLoading(string command)
         => OnClick(command)
             .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
             .InteractAfterClick(IVisualComponent.LoadingProperty, false);

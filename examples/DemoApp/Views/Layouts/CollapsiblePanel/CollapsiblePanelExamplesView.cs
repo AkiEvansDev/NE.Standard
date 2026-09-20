@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.CollapsiblePanel;
@@ -51,10 +52,8 @@ internal sealed class CollapsiblePanelExamplesView : DemoExamplesView, IUIViewDe
             .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
             .SetPadding(UIThickness.Uniform(12))
             .SetWidth(UILayoutLength.Absolute(220))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
-                .AddChild(new TextComponent().SetTitle("Filters").SetTitleType(UITextAppearance.Overline).SetTitleColor(UIThemeColor.Muted))
+            .SetContent(UILayout.Stack(8)
+                .AddChild(UIText.Label("Filters"))
                 .AddChild(new SwitchComponent().SetTitle("Only failures").SetValue(true))
                 .AddChild(new SwitchComponent().SetTitle("Include retries"))
                 .AddChild(new SwitchComponent().SetTitle("Last 24 hours").SetValue(true))
@@ -76,10 +75,8 @@ internal sealed class CollapsiblePanelExamplesView : DemoExamplesView, IUIViewDe
             .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
             .SetPadding(UIThickness.Uniform(12))
             .SetWidth(UILayoutLength.Absolute(240))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
-                .AddChild(new TextComponent().SetTitle("Detail").SetTitleType(UITextAppearance.Overline).SetTitleColor(UIThemeColor.Muted))
+            .SetContent(UILayout.Stack(8)
+                .AddChild(UIText.Label("Detail"))
                 .AddChild(new TextComponent().SetTitle("Started by").SetDescription("Release bot"))
                 .AddChild(new TextComponent().SetTitle("Region").SetDescription("eu-west-1"))
                 .AddChild(new TextComponent().SetTitle("Duration").SetDescription("4 min 12 s"))
@@ -90,10 +87,8 @@ internal sealed class CollapsiblePanelExamplesView : DemoExamplesView, IUIViewDe
             .SetSide(UISide.Bottom)
             .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
             .SetPadding(UIThickness.Uniform(12))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(4)
-                .AddChild(new TextComponent().SetTitle("Log").SetTitleType(UITextAppearance.Overline).SetTitleColor(UIThemeColor.Muted))
+            .SetContent(UILayout.Stack(4)
+                .AddChild(UIText.Label("Log"))
                 .AddChild(new TextComponent().SetTitle("12:04:10  pulled image payments-api:4821").SetTitleType(UITextAppearance.Caption))
                 .AddChild(new TextComponent().SetTitle("12:04:31  migrations applied (3)").SetTitleType(UITextAppearance.Caption))
                 .AddChild(new TextComponent().SetTitle("12:08:22  health check passed").SetTitleType(UITextAppearance.Caption))

@@ -1,14 +1,13 @@
-// The press ripple: opt-in per theme (press-ripple-engine.ts only ever adds `.ui-pressing`, and only under the flag), so a
-// component that mixes this in pays nothing beyond an idle pseudo-element until the class actually lands. `--ui-press-x/y`
-// are the pointer's own offset in the element, written by the engine at `pointerdown`.
+// The press ripple: opt-in per theme (press-ripple-engine.ts adds `.ui-pressing` only under the flag), so mixing this in
+// costs nothing beyond an idle pseudo-element until then. `--ui-press-x/y` are the pointer's offset, written at `pointerdown`.
 .ui-press-ripple() {
-    // Clipped only while the ripple plays, so a rounded corner is not spilled over and an adornment's own overhang is
-    // otherwise untouched at rest.
-    &.ui-pressing {
+    // Clipped only while the ripple plays, so a rounded corner isn't spilled over and an adornment's own overhang stays untouched at rest.
+    // Not while loading: the veil in runtime.less is the same pseudo-element, and a ripple winning it would flash behind the label for a moment.
+    &.ui-pressing:not(.ui-loading) {
         overflow: hidden;
     }
 
-    &.ui-pressing::after {
+    &.ui-pressing:not(.ui-loading)::after {
         content: "";
         position: absolute;
         left: var(--ui-press-x, 50%);

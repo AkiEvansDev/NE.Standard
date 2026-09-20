@@ -1,9 +1,11 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Scroll;
@@ -39,9 +41,7 @@ internal sealed class ScrollExamplesView : DemoExamplesView, IUIViewDefinition
             content => content.AddChild(CreateViewport(280)
                 .VerticalScrollOnly()
                 .AnchorToEnd()
-                .AddChild(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(10)
+                .AddChild(UILayout.Stack(10)
                     .AddChild(ScrollDemo.CreateMessage("Robin", "The staging deploy is stuck on the health check again.", false))
                     .AddChild(ScrollDemo.CreateMessage("You", "Which replica?", true))
                     .AddChild(ScrollDemo.CreateMessage("Robin", "Two of eight, both in eu-west-1.", false))
@@ -63,9 +63,7 @@ internal sealed class ScrollExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(null, "More rows than room",
             content => content.AddChild(CreateViewport(280)
                 .VerticalScrollOnly()
-                .AddChild(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(2)
+                .AddChild(UILayout.Stack(2)
                     .AddChild(CreateDeploy("payments-api", "481", "Deployed 4 minutes ago", DemoIcons.Check, UIColorStyle.Success))
                     .AddChild(CreateDeploy("search-index", "127", "Rolled back", DemoIcons.Undo, UIColorStyle.Danger))
                     .AddChild(CreateDeploy("web-portal", "902", "Waiting on review", DemoIcons.Clock, UIColorStyle.Warning))
@@ -102,9 +100,7 @@ internal sealed class ScrollExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetPadding(UIThickness.Uniform(12))
                 .SetBorderThickness(UIThickness.Uniform(1))
                 .SetBorderColor(UIThemeColor.Border)
-                .AddChild(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(0)
+                .AddChild(UILayout.Stack(0)
                     .AddChild(CreateTableRow("Service", "Build", "Environment", "Replicas", "Started", "Duration", "Result", header: true))
                     .AddChild(CreateTableRow("payments-api", "#481", "production", "8 of 8", "17:04", "4 m 12 s", "Passed", header: false))
                     .AddChild(CreateTableRow("search-index", "#127", "staging", "2 of 4", "16:51", "11 m 03 s", "Rolled back", header: false))

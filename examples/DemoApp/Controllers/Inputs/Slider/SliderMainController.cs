@@ -28,6 +28,7 @@ internal sealed partial class SliderValueGroupContext : InputValueGroupContext
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddOption(nameof(Step), CycleStep, () => Step);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

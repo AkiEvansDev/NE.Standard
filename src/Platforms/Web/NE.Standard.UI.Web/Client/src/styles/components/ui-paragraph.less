@@ -1,20 +1,11 @@
 @import "../core/tokens.less";
 
-// Paragraph lifts only the *description* out of .ui-text's one-line rule; pre-line so an author-written newline still breaks the line.
-.ui-paragraph.ui-text--wrap[data-ui-text-description] > .ui-text__body > .ui-text__description {
+// Lifts only the *description* out of .ui-text's one-line rule; pre-line, so an author-written newline still breaks the line.
+// Matches ui-text.less's description selector weight exactly, or its `normal` wrap rule outranks a lighter one here.
+.ui-paragraph.ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     overflow: visible;
     white-space: pre-line;
     text-overflow: clip;
-}
-
-.ui-paragraph.ui-text--wrap-ellipsis[data-ui-text-description] > .ui-text__body > .ui-text__description {
-    display: -webkit-box;
-    overflow: hidden;
-    white-space: pre-line;
-    text-overflow: clip;
-    line-clamp: var(--ui-text-max-lines, 2);
-    -webkit-line-clamp: var(--ui-text-max-lines, 2);
-    -webkit-box-orient: vertical;
 }
 
 // Centred by text-align, not by ui-text.less's content-sized tracks: a wrapping description would blow out an intrinsic track it spans.
@@ -26,8 +17,8 @@
     grid-template-columns: auto minmax(0, 1fr);
 }
 
-// MaxLines clamps a wrapping paragraph too, with WrapEllipsis's ellipsis; without it, Wrap runs on.
-.ui-paragraph.ui-text--wrap.ui-text--max-lines[data-ui-text-description] > .ui-text__body > .ui-text__description {
+// MaxLines clamps a wrapping paragraph, an ellipsis on the last line it keeps; without it, Wrap runs on.
+.ui-paragraph.ui-text--wrap.ui-text--max-lines@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     display: -webkit-box;
     overflow: hidden;
     line-clamp: var(--ui-text-max-lines);
@@ -35,9 +26,8 @@
     -webkit-box-orient: vertical;
 }
 
-// The quote line stands beside the whole block, icon included, the block's full height. Unset, its colour is the text's at a
-// quarter, like a progress track. Painted under a transparent border rather than as a border with padding, since a padding here
-// would shadow the root's responsive Padding chain.
+// The quote line runs the block's full height, icon included. Painted as a background under a transparent border rather than
+// a real border+padding, since padding here would shadow the root's responsive Padding chain.
 @ui-quote-color: ~"var(--ui-quote-color, color-mix(in srgb, currentColor 25%, transparent))";
 
 .ui-paragraph--quote {

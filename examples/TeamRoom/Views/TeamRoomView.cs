@@ -5,6 +5,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 
@@ -26,19 +27,7 @@ public abstract class TeamRoomView : UIViewBase
     protected abstract string PageDescription { get; }
 
     protected override IVisualComponent? CreateHeader()
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(24, 16, 24, 8))
-            .AddRow(UIGridUnit.Auto())
-            .AddChild(new TextComponent()
-                .SetTitle(PageTitle)
-                .SetTitleType(UITextAppearance.Display)
-                .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.OnBackground))
-                .SetDescription(PageDescription)
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
-                .SetPlacement(1, 1, 16, 1)
-            )
-            .AddChild(CreatePerson().SetPlacement(17, 1, 8, 1));
+        => UIPage.Header(PageTitle, PageDescription, CreatePerson()).SetPadding(UIThickness.All(24, 16, 24, 8));
 
     /// <summary>Who is signed in, and the two things they may do from anywhere: switch the theme, leave.</summary>
     private static StackPanelComponent CreatePerson()

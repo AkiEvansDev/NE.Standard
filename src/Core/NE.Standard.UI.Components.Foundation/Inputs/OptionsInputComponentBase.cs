@@ -8,8 +8,7 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// Base class for inputs whose value is one option out of a bound list: the option collection API and the text-restricted
-/// item template; the derived input installs its default item, empty and group templates.
+/// Base class for inputs whose value is one option from a bound list, providing the option collection API and item template.
 /// </summary>
 public abstract partial class OptionsInputComponentBase<TComponent, TItem>(string? id = null) : InputTemplatedComponentBase<TComponent, TItem, string?, ITextComponent>(id)
     where TComponent : OptionsInputComponentBase<TComponent, TItem>, IUIComponentDefinition

@@ -1,7 +1,5 @@
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Regions;
 
@@ -20,11 +18,6 @@ public sealed class ExpanderHeaderRegion : TextComponent<ExpanderHeaderRegion>, 
     /// </summary>
     public ExpanderHeaderRegion() : base()
     {
-        _ = SetIconAlignment(UITextIconAlignment.Content);
-        _ = SetTitleType(UITextAppearance.Title);
-        _ = SetDescriptionType(UITextAppearance.Caption);
-        _ = SetBadgePlacement(UITextBadgePlacement.Trailing);
-        // Pinned to the content: the chevron is centred against the whole block, and a title-line badge sits above it.
-        _ = SetBadgeAlignment(UITextBadgeAlignment.Content);
+        _ = this.ApplyHeaderRegionDefaults();
     }
 }

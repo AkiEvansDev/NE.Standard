@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
@@ -18,37 +17,37 @@ internal sealed partial class UIViewCompilationContext
 
     private UIComponentId CreateComponentId()
     {
-        var id = Interlocked.Increment(ref _componentId);
+        var id = ++_componentId;
         return new UIComponentId(id);
     }
 
     private UIBindingSourceId CreateSourceId()
     {
-        var id = Interlocked.Increment(ref _sourceId);
+        var id = ++_sourceId;
         return new UIBindingSourceId(id);
     }
 
     private UIBindingTemplateId CreateTemplateId()
     {
-        var id = Interlocked.Increment(ref _templateId);
+        var id = ++_templateId;
         return new UIBindingTemplateId(id);
     }
 
     private UIContextId CreateContextId()
     {
-        var id = Interlocked.Increment(ref _contextId);
+        var id = ++_contextId;
         return new UIContextId(id);
     }
 
     private UIBindingId CreateBindingId()
     {
-        var id = Interlocked.Increment(ref _bindingId);
+        var id = ++_bindingId;
         return new UIBindingId(id);
     }
 
     private UIEventId CreateEventId()
     {
-        var id = Interlocked.Increment(ref _eventId);
+        var id = ++_eventId;
         return new UIEventId(id);
     }
 

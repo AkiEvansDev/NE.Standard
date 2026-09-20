@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Abstractions.Identity;
 /// Identifies a compiled UI component.
 /// </summary>
 [JsonConverter(typeof(UIComponentIdJsonConverter))]
-public readonly record struct UIComponentId(int Value)
+public readonly record struct UIComponentId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.
@@ -20,7 +20,7 @@ public readonly record struct UIComponentId(int Value)
 /// Identifies a compiled UI binding.
 /// </summary>
 [JsonConverter(typeof(UIBindingIdJsonConverter))]
-public readonly record struct UIBindingId(int Value)
+public readonly record struct UIBindingId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.
@@ -34,7 +34,7 @@ public readonly record struct UIBindingId(int Value)
 /// Identifies a compiled binding source.
 /// </summary>
 [JsonConverter(typeof(UIBindingSourceIdJsonConverter))]
-public readonly record struct UIBindingSourceId(int Value)
+public readonly record struct UIBindingSourceId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.
@@ -48,7 +48,7 @@ public readonly record struct UIBindingSourceId(int Value)
 /// Identifies a compiled binding template.
 /// </summary>
 [JsonConverter(typeof(UIBindingTemplateIdJsonConverter))]
-public readonly record struct UIBindingTemplateId(int Value)
+public readonly record struct UIBindingTemplateId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.
@@ -62,7 +62,7 @@ public readonly record struct UIBindingTemplateId(int Value)
 /// Identifies a compiled UI event.
 /// </summary>
 [JsonConverter(typeof(UIEventIdJsonConverter))]
-public readonly record struct UIEventId(int Value)
+public readonly record struct UIEventId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.
@@ -76,7 +76,7 @@ public readonly record struct UIEventId(int Value)
 /// Identifies a compiled UI context.
 /// </summary>
 [JsonConverter(typeof(UIContextIdJsonConverter))]
-public readonly record struct UIContextId(int Value)
+public readonly record struct UIContextId(int Value) : IUIId
 {
     /// <summary>
     /// Gets whether this id is unset.

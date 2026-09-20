@@ -25,7 +25,7 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// <summary>
     /// Gets or sets the format string used to parse/format the value.
     /// </summary>
-    /// <remarks>Unbindable: the runtime reads it once off the compiled state while normalizing what the user typed.</remarks>
+    /// <remarks>Render-time only: the runtime reads it once off the compiled state while normalizing what the user typed.</remarks>
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
     public string? Format { get; set; }
 
@@ -38,7 +38,7 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// <summary>
     /// Gets or sets the culture used to parse/format the value.
     /// </summary>
-    /// <remarks>Unbindable: it resolves a culture pack server-side that no client-side converter could reproduce.</remarks>
+    /// <remarks>Render-time only: it resolves a culture pack server-side that no client-side converter could reproduce.</remarks>
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
     public string? Culture { get; set; }
 

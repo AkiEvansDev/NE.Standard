@@ -121,8 +121,8 @@ public static class WebRendererRegistryExtensions
         _ = services.AddSingleton<IWebComponentRenderer>(
             _ => new WebComponentRendererAlias(DefaultBreadcrumbItemTemplate.ComponentTypeKey, new BreadcrumbItemComponentRenderer()));
 
-        // The row template is stamped onto each row rather than rendered there; its own renderer runs inside the list's
-        // <template>, where the row's editing flag has to leave its binding for the client's rows to copy.
+        // The row template is stamped onto each row rather than rendered there; its renderer runs inside the list's <template>,
+        // where the editing flag must stay bound for rows to copy.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DefaultRowTemplateRenderer>());
     }
 }

@@ -41,15 +41,15 @@ export class TabsEngine {
 
     public constructor(options: TabsEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.overflow = new StripOverflowMenu(this.root, (root, key) => this.select(root, key));
+        this.overflow = new StripOverflowMenu((root, key) => this.select(root, key));
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // A server patch writes the same attribute a click does, as does a caption being hidden or shown; a tabs view that arrives
-        // whole in a row the client built had its attribute written before it joined the document, so it is applied on arrival.
+        // A server patch writes the same attribute a click does, as does a caption hidden or shown; a tabs view that arrives whole
+        // (a row the client built) had its attribute written before it joined the document, so it's applied on arrival.
         observeComponents(
             this.root,
             `.${RootClass}`,

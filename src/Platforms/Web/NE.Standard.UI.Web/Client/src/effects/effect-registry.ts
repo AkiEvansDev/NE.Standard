@@ -1,7 +1,8 @@
-import { ValueKindAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
+import { VisibilityTierAttributes } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
-import { ValueReaderRegistry, toDomString } from "../extensions/value-readers";
+import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensions/value-readers";
 import { DialogEngine } from "../interactions/dialog-engine";
+import { copySelection } from "../interactions/legacy-commands";
 import { FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine } from "../interactions/notification-engine";
 import {
@@ -361,24 +362,12 @@ function resolveClipboardText(context: EffectContext, valueReaders: ValueReaderR
         return null;
     }
 
-    const holder = resolveValueHolder(element);
-
-    if (holder === null) {
+    if (resolveValueHolder(element) === null) {
         logWarn("copy to clipboard effect target holds no value.", context.effect);
         return null;
     }
 
-    return toDomString(valueReaders.read(holder));
-}
-
-const NativeValueSelector = "input, textarea, select";
-
-/** The element a component keeps its value on: the root when it names a kind or is a field itself, else the first field inside it. */
-function resolveValueHolder(element: Element): Element | null {
-    if (element.hasAttribute(ValueKindAttribute) || element.matches(NativeValueSelector))
-        return element;
-
-    return element.querySelector(`[${ValueKindAttribute}], ${NativeValueSelector}`);
+    return toDomString(valueReaders.readHeld(element));
 }
 
 async function copyText(text: string): Promise<void> {
@@ -408,10 +397,7 @@ function copyBySelection(text: string): boolean {
     holder.select();
 
     try {
-        return document.execCommand("copy");
-    }
-    catch {
-        return false;
+        return copySelection();
     }
     finally {
         holder.remove();

@@ -8,10 +8,10 @@ using NE.Standard.UI.Primitives.Constants;
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
-/// A panel that folds away toward one edge and back — a sidebar, a properties pane, a log at the bottom —
-/// with a switch of its own. Collapsed, it shows nothing but the switch.
+/// A panel that folds away toward one edge and back — a sidebar, properties pane, or bottom log — with its own switch.
+/// Collapsed, it shows only the switch.
 /// </summary>
-/// <remarks>Place it in a track that can give the room back (<c>UIGridUnit.Auto</c>); in a fixed track the panel folds and the track does not.</remarks>
+/// <remarks>Place it in a track that can give the room back (<c>UIGridUnit.Auto</c>); a fixed track won't shrink with the panel.</remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]

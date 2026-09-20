@@ -1,9 +1,9 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Design.Colors;
@@ -26,9 +26,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
 
     private static ContainerComponent CreateThemePanel(UIThemeMode mode)
     {
-        StackPanelComponent stack = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(16)
+        StackPanelComponent stack = UILayout.Stack(16)
             .SetPlacement(1, 1, 24, 1)
             .AddChild(new TextComponent()
                 .SetTitle(mode.ToString())
@@ -69,9 +67,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
                 .SetIcon(DemoIcons.Refresh)
                 .SetBadgeText("Running")
             )
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            .SetContent(UILayout.Stack(12)
                 .AddChild(new TextComponent()
                     .SetTitle("Test suite 419/419, packaging in progress.")
                     .SetTitleType(UITextAppearance.Body)
@@ -98,13 +94,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
             .SetFooter(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(8)
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
-                    .SetTitle("Invite")
-                )
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetTitle("Copy link")
-                )
+                .AddChild(UIButtons.Primary("Invite"))
+                .AddChild(UIButtons.Ghost("Copy link"))
             );
 }

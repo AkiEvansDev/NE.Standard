@@ -1,5 +1,13 @@
 @import "../core/tokens.less";
 @import "../mixins/responsive.less";
+@import "../mixins/arc.less";
+
+// The ring's share of its turn, registered so a transition runs through the number rather than through the shape it cuts.
+@property --ui-progress-share {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
 
 .ui-progress {
     --ui-progress-min: 0;
@@ -54,9 +62,11 @@
 }
 
 // The authored size belongs to the ring, not the root: the --ui-width/--ui-height chain is re-declared on the ring's box.
+// Stretched across a column, a ring doesn't grow with it, so it centres in the given width rather than sitting at its start.
 .ui-progress--circular {
     width: auto;
     height: auto;
+    justify-content: center;
 }
 
 .ui-progress--circular > .ui-progress__dial {
@@ -75,34 +85,51 @@
     display: none;
 }
 
-// Two stroked circles rather than a masked conic gradient; the stroke is in viewBox units, so proportions hold at every size.
-// The turn to twelve o'clock is on the circle inside, so the SVG is painted in place and never resampled as a transformed layer.
+// Stroked circles, not a masked conic gradient, so the stroke's viewBox units keep proportions at every size. A circle cut to
+// its share with dot ends (mixins/arc.less), not a dash, which browsers antialias in coarse steps; angles match the renderer's 36-unit box.
 .ui-progress__ring {
     display: none;
     height: 100%;
     aspect-ratio: 1 / 1;
+    --ui-arc-start: -90deg;
+    --ui-arc-sweep: 360deg;
+    --ui-arc-origin: 18px 18px;
+    --ui-arc-width: 4px;
+    --ui-progress-share: clamp(0, calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min))), 1);
+    transition: --ui-progress-share @ui-motion-normal @ui-motion-ease;
 }
 
 .ui-progress--circular .ui-progress__ring {
     display: block;
 }
 
-.ui-progress__ring > circle {
+.ui-progress__ring-track,
+.ui-progress__ring-arc {
     fill: none;
-    stroke-width: 4;
+    stroke-width: var(--ui-arc-width);
 }
 
 .ui-progress__ring-track {
     stroke: color-mix(in srgb, currentColor 18%, transparent);
 }
 
+// A reading of none draws nothing, not a dot where it would start; any share above none shows both ends at once.
 .ui-progress__ring-fill {
+    --ui-arc-to: var(--ui-progress-share);
+    opacity: clamp(0, calc(var(--ui-progress-share) * 1000), 1);
+}
+
+.ui-progress__ring-arc {
     stroke: currentColor;
-    stroke-linecap: round;
-    // pathLength is 100, so the dash units are hundredths of the way round and the offset is what is left.
-    stroke-dasharray: 100;
-    stroke-dashoffset: calc(100 - (var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min)) * 100);
-    transition: stroke-dashoffset @ui-motion-normal @ui-motion-ease;
+    .ui-arc-cut();
+}
+
+.ui-progress__ring-cap {
+    .ui-arc-cap();
+}
+
+.ui-progress__ring-cap--end {
+    --ui-arc-at: var(--ui-arc-to);
 }
 
 .ui-progress--circular .ui-progress__value {

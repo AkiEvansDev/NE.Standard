@@ -1,6 +1,6 @@
-// A host that holds every item's value and keeps only the rows in view in the document. The values are the model here, not the
-// children: filter, sort and grouping run over them, a patch to a row that is not drawn lands in them, and a row is drawn from them
-// when it scrolls into view and dropped when it scrolls out.
+// A host that holds every item's value and keeps only the rows in view in the document. The values are the model here, not
+// the children: filter, sort and grouping run over them, a patch to an undrawn row lands in them, and a row is drawn from
+// them on scrolling into view and dropped on scrolling out.
 
 import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
 import { planRowRemoval } from "../interactions/row-cursor";
@@ -18,6 +18,7 @@ import { renderItemRow } from "./items-row-renderer";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 import { ItemsTemplateRenderer, writeItemValuePath } from "./items-template-renderer";
+import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
 import { logWarn } from "../runtime/logger";
 
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
@@ -76,6 +77,23 @@ export class ItemsVirtualizationEngine {
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
     }
 
+    /** The items the host would show, top to bottom, once its rules have run — the rows themselves, not the group headers. */
+    public itemsOf(host: Element): readonly unknown[] | null {
+        const state = this.states.get(host);
+
+        if (state === undefined)
+            return null;
+
+        const items: unknown[] = [];
+
+        for (const row of state.projected) {
+            if (!row.header)
+                items.push(row.entry.item);
+        }
+
+        return items;
+    }
+
     /** Runs the rules over the values and lays the host out again; the entry point after anything changed. */
     public sync(host: Element): void {
         const state = this.getState(host);
@@ -90,7 +108,7 @@ export class ItemsVirtualizationEngine {
 
         // Growth that stays outside the drawn range touches no child, so the anchor engine never hears of it.
         if (atEnd && !isAtEnd(host)) {
-            host.scrollTop = host.scrollHeight;
+            scrollHostTo(host, host.scrollHeight);
             this.layout(host, state);
         }
     }
@@ -292,9 +310,9 @@ export class ItemsVirtualizationEngine {
     // ---- the document
 
     private handleScroll(domEvent: Event): void {
-        const host = domEvent.target;
+        const host = hostOfScrollTarget(domEvent.target);
 
-        if (!(host instanceof Element) || resolveHostMode(host) !== "virtualized")
+        if (host === null || resolveHostMode(host) !== "virtualized")
             return;
 
         const state = this.getState(host);
@@ -322,8 +340,9 @@ export class ItemsVirtualizationEngine {
 
         // A horizontal or wrapping host is not laid out in a column, so every row is drawn; the values still drive it.
         if (isColumn(host) && total > 0) {
-            const top = host.scrollTop;
-            const bottom = top + host.clientHeight;
+            const scroll = readHostScroll(host);
+            const top = scroll.top;
+            const bottom = top + scroll.height;
             let offset = 0;
 
             first = total;

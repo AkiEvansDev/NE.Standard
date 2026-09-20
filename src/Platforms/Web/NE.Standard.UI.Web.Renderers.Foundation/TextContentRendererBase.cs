@@ -21,10 +21,25 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     public const string InputClassPrefix = "ui-input";
 
     /// <summary>
-    /// The class a field that is a box of its own — a textarea, a package's editor — wears for the ground and the states every
-    /// field takes; the stylesheet's one contract for a field it does not know.
+    /// The class a field-shaped box (a textarea, a package's editor) wears for its ground and states — the stylesheet's contract
+    /// for fields it doesn't know.
     /// </summary>
     public const string FieldBoxClassName = "ui-field-box";
+
+    // On the root of a field whose caption stands inside its box, for the stylesheet to read the value from the trailing edge.
+    private const string TitleInsideClassName = "ui-input--title-inside";
+
+    /// <summary>
+    /// The attribute the framework's button reads to draw an icon-only button as a square; set by a text body's own button and
+    /// by a package's hand-built one (a pager's chevron).
+    /// </summary>
+    public const string IconOnlyButtonAttribute = "data-ui-text-icon";
+
+    // Read by the stylesheet alone: which parts of a text body hold something, so the body lays out only those.
+    private const string TitleShownAttribute = "data-ui-text-title";
+    private const string DescriptionShownAttribute = "data-ui-text-description";
+    private const string PrefixIconShownAttribute = "data-ui-input-prefix-icon";
+    private const string SuffixIconShownAttribute = "data-ui-input-suffix-icon";
 
     /// <summary>
     /// Renders the whole text body into <paramref name="container"/>; <paramref name="root"/> must be the root carrying the patch hooks.
@@ -123,8 +138,11 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             });
     }
 
-    /// <summary>The label row every input draws above its field — icon, title, badge and required marker.</summary>
-    public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root)
+    /// <summary>
+    /// The label row every input draws above its field. A single-row field passes <paramref name="titleCanGoInside"/> true, and
+    /// an inside caption is then <see cref="RenderInputHeaderInside"/>'s job.
+    /// </summary>
+    public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root, bool titleCanGoInside = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -133,7 +151,25 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (HasRequiredValidation(context))
             _ = root.Attribute("aria-required", "true");
 
-        _ = root.Element("span", header =>
+        if (titleCanGoInside && IsTitleInside(context))
+        {
+            _ = root.Class(TitleInsideClassName);
+            return;
+        }
+
+        RenderInputHeaderElement(context, root, root);
+    }
+
+    private static bool IsTitleInside(WebRenderContext context)
+    {
+        _ = ResolveRenderValue(context, IFieldInputComponent.TitlePlacementProperty, out UIInputTitlePlacement? placement, out _);
+
+        return placement == UIInputTitlePlacement.Inside;
+    }
+
+    private static void RenderInputHeaderElement(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent)
+    {
+        _ = parent.Element("span", header =>
         {
             _ = header.Class($"{InputClassPrefix}__header");
 
@@ -143,6 +179,20 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 Trailing = marker => RenderRequiredMarker(context, marker, $"{InputClassPrefix}__required")
             });
         });
+    }
+
+    /// <summary>
+    /// The caption inside the field's own box, at its leading edge, for a field whose <see cref="IFieldInputComponent.TitlePlacement"/>
+    /// is <see cref="UIInputTitlePlacement.Inside"/>; called first thing in the box, and nothing for a caption on top.
+    /// </summary>
+    public static void RenderInputHeaderInside(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder field)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(field);
+
+        if (IsTitleInside(context))
+            RenderInputHeaderElement(context, root, field);
     }
 
     /// <summary>The word at either end of a value — a currency sign, a unit — for an <see cref="IAffixTextInputComponent"/>.</summary>
@@ -174,6 +224,21 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UIInputAppearance appearance)
                 _ = target.Class(WebClassNames.InputAppearance(appearance));
         }, [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)]);
+
+        RenderInputSize(context, root);
+    }
+
+    /// <summary>How much room an input takes, as a modifier on the component root; a field's appearance renders it with itself.</summary>
+    public static void RenderInputSize(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = RenderProperty<UIInputSize?>(context, root, ISizedInputComponent.SizeProperty, static (target, value) =>
+        {
+            if (value is UIInputSize size)
+                _ = target.Class(WebClassNames.InputSize(size));
+        }, [WebDomOperation.Class(converter: WebDomConverters.InputSizeClass)]);
     }
 
     /// <summary>A glyph beside the text inside the field; icon name only, the field decides size and colour.</summary>
@@ -190,7 +255,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         _ = icon.Class("ui-icon");
 
         UIProperty property = suffix ? IAffixedInputComponent.SuffixIconProperty : IAffixedInputComponent.PrefixIconProperty;
-        var attribute = $"data-{InputClassPrefix}-{modifier}-icon";
+        var attribute = suffix ? SuffixIconShownAttribute : PrefixIconShownAttribute;
 
         _ = RenderProperty<string?>(context, icon, property, (target, value) =>
         {
@@ -289,18 +354,16 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         IconValueRenderer.RenderIconAppearance(context, icon, ITextBaseComponent.IconSizeProperty, ITextBaseComponent.IconColorProperty);
 
-        var iconAttribute = $"data-{TextClassPrefix}-icon";
-
         _ = RenderProperty<string?>(context, icon, ITextBaseComponent.IconProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {
-                _ = root.Attribute(iconAttribute);
+                _ = root.Attribute(IconOnlyButtonAttribute);
                 IconValueRenderer.RenderIconValue(target, value);
             }
         }, [
             .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(iconAttribute, target: "root", condition: WebValueCondition.HasText)
+            WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.HasText)
         ]);
     }
 
@@ -312,20 +375,18 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         _ = title.Class($"{TextClassPrefix}__title");
 
-        TextAppearanceRenderer.RenderTextAppearance(context, title, ITextBaseComponent.TitleTypeProperty);
-
-        var titleAttribute = $"data-{TextClassPrefix}-title";
-
+        // No type of its own: the body already wears TitleType (RenderTextContent); a role class here would block inherited
+        // values like a button's step or a tab's weight from reaching the title.
         _ = RenderProperty<string?>(context, title, ITextBaseComponent.TitleProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {
-                _ = root.Attribute(titleAttribute);
+                _ = root.Attribute(TitleShownAttribute);
                 _ = target.Text(value);
             }
         }, [
             WebDomOperation.Text(),
-            WebDomOperation.ToggleAttribute(titleAttribute, target: "root", condition: WebValueCondition.HasText)
+            WebDomOperation.ToggleAttribute(TitleShownAttribute, target: "root", condition: WebValueCondition.HasText)
         ]);
     }
 
@@ -345,19 +406,17 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         ThemeColorRenderer.RenderThemeColor(context, description, ITextComponent.DescriptionColorProperty);
 
-        var descriptionAttribute = $"data-{TextClassPrefix}-description";
-
         // Inline markup is allowed here but deliberately not in the title, which is a label rather than a sentence.
         _ = RenderProperty<string?>(context, description, ITextComponent.DescriptionProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {
-                _ = root.Attribute(descriptionAttribute);
+                _ = root.Attribute(DescriptionShownAttribute);
                 InlineMarkupRenderer.Render(target, value);
             }
         }, [
             WebDomOperation.Markup(),
-            WebDomOperation.ToggleAttribute(descriptionAttribute, target: "root", condition: WebValueCondition.HasText)
+            WebDomOperation.ToggleAttribute(DescriptionShownAttribute, target: "root", condition: WebValueCondition.HasText)
         ]);
     }
 }

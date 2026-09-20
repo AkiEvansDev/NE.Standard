@@ -27,17 +27,14 @@ public sealed record UITheme
     public UIShape Shape { get; init; } = new();
 
     /// <summary>
-    /// Whether a keyboard focus ring is drawn on everything that takes focus. Off by default.
+    /// Whether a keyboard focus ring is drawn on everything that takes focus; off by default since it can land oddly over
+    /// controls with their own "current" state.
     /// </summary>
-    /// <remarks>
-    /// Off by default because it can land oddly over controls that already show their own "current" state;
-    /// a keyboard-navigated application turns it on for the whole theme.
-    /// </remarks>
     public bool FocusRing { get; init; }
 
     /// <summary>
-    /// Whether a press on a button, an action row or a menu entry answers with a wash spreading from the pointer. On by default;
-    /// a platform that cannot animate ignores it, and a viewer who asked for reduced motion is left alone either way.
+    /// Whether a press on a button, action row or menu entry answers with a wash spreading from the pointer; on by default,
+    /// ignored by platforms that can't animate and by reduced-motion viewers.
     /// </summary>
     public bool PressRipple { get; init; } = true;
 

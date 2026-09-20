@@ -1,9 +1,9 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Link;
@@ -36,9 +36,7 @@ internal sealed class LinkExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "What it is for",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(14)
+                .SetContent(UILayout.Stack(14)
                     .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(new ParagraphComponent()
                         .SetTitle("Rollout paused")
@@ -80,9 +78,7 @@ internal sealed class LinkExamplesView : DemoExamplesView, IUIViewDefinition
             content => content.AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetWidth(UILayoutLength.Absolute(260))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(10)
+                .SetContent(UILayout.Stack(10)
                     .AddChild(DemoUI.CreateCaption("Documentation"))
                     .AddChild(CreateEntry("Getting started", "https://example.com/docs/start"))
                     .AddChild(CreateEntry("The binding model", "https://example.com/docs/binding"))
@@ -116,9 +112,7 @@ internal sealed class LinkExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Against a Link-typed button",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(DemoUI.CreateCaption("LinkComponent — an address"))
                     .AddChild(new LinkComponent()
@@ -128,9 +122,7 @@ internal sealed class LinkExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .AddChild(new SeparatorComponent())
                     .AddChild(DemoUI.CreateCaption("ButtonComponent, Type = Link — a command"))
-                    .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Link)
-                        .SetTitle("Request a review")
+                    .AddChild(UIButtons.Link("Request a review")
                         .SetHorizontalAlignment(UIAlignment.Start)
                     )
                 )
@@ -146,9 +138,7 @@ internal sealed class LinkExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Against a link inside a sentence",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(DemoUI.CreateCaption("Inside the sentence"))
                     .AddChild(new ParagraphComponent()

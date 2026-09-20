@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Indicators.Progress;
@@ -36,9 +37,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Under the thing it measures",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(16)
+                .SetContent(UILayout.Stack(16)
                     .SetWidth(UILayoutLength.Absolute(360))
                     .AddChild(CreateQuota("Build minutes", "1 240 of 2 000 this month", 62, null))
                     .AddChild(CreateQuota("Artifact storage", "47 GB of 50 GB", 94, UIColorStyle.Danger))
@@ -50,9 +49,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     }
 
     private static StackPanelComponent CreateQuota(string title, string reading, decimal value, UIColorStyle? style)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(6)
+        => UILayout.Stack(6)
             .AddChild(new TextComponent()
                 .SetTitle(title)
                 .SetTitleType(UITextAppearance.Body)
@@ -72,9 +69,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateKnownGroup()
     {
         return DemoUI.CreateGroup(null, "How far, and whether that is known",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(16)
+            content => content.AddChild(UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(DemoUI.CreateCaption("Known — the value is a number"))
                 .AddChild(new ProgressComponent()
@@ -98,10 +93,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateTileGroup()
     {
         return DemoUI.CreateGroup(null, "A ring, where a bar has no room",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(12)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(CreateTile("Coverage", 87, UIColorStyle.Success))
                 .AddChild(CreateTile("Error budget", 41, UIColorStyle.Warning))
                 .AddChild(CreateTile("Disk", 96, UIColorStyle.Danger))
@@ -114,9 +106,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
             .SetWidth(UILayoutLength.Absolute(150))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(10)
+            .SetContent(UILayout.Stack(10)
                 .SetHorizontalAlignment(UIAlignment.Center)
                 .AddChild(new ProgressComponent()
                     .SetVariant(UIProgressVariant.Circular)
@@ -138,9 +128,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateScaleGroup()
     {
         return DemoUI.CreateGroup(null, "The same value, three windows",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(16)
+            content => content.AddChild(UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(CreateScale("0 to 100", 0, 100))
                 .AddChild(CreateScale("0 to 200", 0, 200))
@@ -151,9 +139,7 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     }
 
     private static StackPanelComponent CreateScale(string label, decimal min, decimal max)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(6)
+        => UILayout.Stack(6)
             .AddChild(DemoUI.CreateCaption(label))
             .AddChild(new ProgressComponent()
                 .SetRange(min, max)

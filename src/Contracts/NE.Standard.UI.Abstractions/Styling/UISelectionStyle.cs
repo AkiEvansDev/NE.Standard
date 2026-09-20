@@ -3,10 +3,10 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// What a chosen item looks like: its ground, its ink, and a mark on one edge; any unset part keeps the control's own default.
+/// What a chosen item looks like: ground, ink, and an edge mark; unset parts keep the control's default.
 /// </summary>
 /// <remarks>
-/// Reaches the stylesheet as four custom properties (<c>--ui-selected-*</c>), so a custom look and the built-in ones share one rule set.
+/// Reaches the stylesheet as four custom properties (<c>--ui-selected-*</c>), shared by custom and built-in looks alike.
 /// </remarks>
 /// <param name="Background">The ground a chosen item is drawn on.</param>
 /// <param name="Foreground">The ink a chosen item's text takes.</param>

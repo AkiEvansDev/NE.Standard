@@ -1,5 +1,5 @@
 // Which native fields hold a caret: the ones Enter and Escape leave, and the ones a closing editor empties rather than restores.
-// One list, so the two engines that ask never drift apart.
+// One list, so two engines never drift apart.
 
 const CaretInputTypes = new Set(["text", "search", "number", "password", "email", "url", "tel"]);
 

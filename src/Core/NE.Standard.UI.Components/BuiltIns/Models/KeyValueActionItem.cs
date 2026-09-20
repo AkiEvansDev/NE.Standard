@@ -10,8 +10,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 public partial class KeyValueActionItem : RecursiveObservable, IKeyValueActionModel
 {
     /// <inheritdoc />
-    [RecursiveMember]
-    public partial string Id { get; set; } = string.Empty;
+    /// <remarks>Init-only and non-notifying: a keyed collection indexes its items by this, so re-keying after insertion would break the id map.</remarks>
+    [RecursiveMember(false)]
+    public string Id { get; init; } = string.Empty;
 
     /// <inheritdoc />
     [RecursiveMember]

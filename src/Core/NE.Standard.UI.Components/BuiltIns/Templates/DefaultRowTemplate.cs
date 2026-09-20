@@ -10,8 +10,8 @@ using NE.Standard.UI.Primitives.Constants;
 namespace NE.Standard.UI.Components.BuiltIns.Templates;
 
 /// <summary>
-/// The identity of a composite row — a key-value list's, a table's, a tree's: the element a click on the whole row is attached
-/// to, and the one that says what its host may do with the item (<see cref="IItemAbilitiesComponent"/>, bound to the item).
+/// The identity of a composite row — a key-value list's, a table's, a tree's — the element a row click attaches to, bound to
+/// the item's abilities (<see cref="IItemAbilitiesComponent"/>).
 /// </summary>
 [UIComponentPropertyBlock(typeof(IItemAbilitiesComponent))]
 public abstract partial class DefaultRowTemplate<TTemplate> : ContainerComponent<TTemplate>, IItemAbilitiesComponent

@@ -13,12 +13,18 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     where TComponent : TemplatedComponentBase<TComponent>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _templates = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _compositeSlots = new(StringComparer.Ordinal);
 
     /// <inheritdoc/>
     IVisualComponent? ITemplatedComponent.Template => Template;
 
     /// <inheritdoc/>
     IReadOnlyDictionary<string, IVisualComponent> ITemplatedComponent.Templates => Templates;
+
+    /// <summary>
+    /// The composite slots by base key, each with the item property naming its typed variants (<see cref="DeclareCompositeSlot"/>).
+    /// </summary>
+    public IReadOnlyDictionary<string, string> CompositeSlotKeyProperties => _compositeSlots;
 
     /// <summary>
     /// Gets the default template, untyped; an items component hides this with its own strongly-typed <c>Template</c>.
@@ -46,6 +52,19 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
 
     /// <inheritdoc/>
     public bool HasTemplates => _templates.Count > 0;
+
+    /// <summary>
+    /// Declares a composite slot: the base variant key every row wears unless its <paramref name="keyPropertyName"/> names a
+    /// typed variant (<c>base:kind</c>) that exists.
+    /// </summary>
+    protected TComponent DeclareCompositeSlot(string baseKey, string keyPropertyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyPropertyName);
+
+        _compositeSlots[baseKey] = keyPropertyName;
+        return Self;
+    }
 
     /// <inheritdoc/>
     public bool HasEmptyTemplate => EmptyTemplate is not null;

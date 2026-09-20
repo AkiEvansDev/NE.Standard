@@ -4,6 +4,7 @@ using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -34,7 +35,8 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
     protected override string HeaderDescription => "demo.navigation.tabs-view.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateEditorGroup()], [CreateDriveGroup()]));
+        // Both bands: in a half-width group the strip held two tabs and the rest overflowed, so there was nothing to drag onto.
+        => _ = container.AddChild(CreateEditorGroup()).AddChild(CreateDriveGroup());
 
     /// <summary>
     /// An editor: a tree of files on the left, the open ones on the right, every gesture answered by the controller.
@@ -81,6 +83,7 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                     .SetPlacement(10, 1, 15, 1)
                 ),
             contentMinHeight: 300,
+            columns: 24,
             note: "Open a file, close it, rename it, drag a header, right-click one, pin it: each one reaches the controller as a change to a single document, and the controller is what answers. A pinned tab wears the pin, loses its close and stays put under a drag."
         );
     }
@@ -108,6 +111,7 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                 ["Next step"] = nameof(TabsViewScenariosController.NextStep),
             }),
             contentMinHeight: 160,
+            columns: 24,
             note: "SelectedKey is a property, so a command walks the tabs as readily as a click does — and a click moves the same property back."
         );
     }

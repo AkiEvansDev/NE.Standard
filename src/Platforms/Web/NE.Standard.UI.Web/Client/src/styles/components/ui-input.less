@@ -24,9 +24,8 @@
         display: none;
     }
 
-// Grid, not flex: the caption is a .ui-text body whose icon column and description subgrid line up against ui-text.less's own tracks.
-// A required marker alone does not open the header: it marks a caption, and a field with no caption — one in a row of a list — has
-// nothing for it to stand beside.
+// Grid, not flex, so the caption's icon column and description subgrid line up against ui-text.less's own tracks. A required
+// marker alone doesn't open the header: without a caption (e.g. a field in a list row) it has nothing to stand beside.
 :is([data-ui-text-title], [data-ui-text-icon]) > .ui-input__header,
 .ui-input__header:has(:is([data-ui-badge-icon], [data-ui-badge-text])) {
     display: grid;
@@ -35,6 +34,33 @@
 :not([data-ui-text-title]) > .ui-input__header .ui-input__required {
     display: none;
 }
+
+// A caption inside the field's box (UIInputTitlePlacement.Inside) opens and marks the same way, one level further down.
+:is([data-ui-text-title], [data-ui-text-icon]) > :is(@{ui-input-field}) > .ui-input__header {
+    display: grid;
+}
+
+:not([data-ui-text-title]) > :is(@{ui-input-field}) > .ui-input__header .ui-input__required {
+    display: none;
+}
+
+// The caption doesn't shrink with the field: unlike the value, a shrinking caption would lose its letters first. It's inert
+// (pointer-events: none), so a press still reaches the field beneath it.
+.ui-input--title-inside > :is(@{ui-input-field}) > .ui-input__header {
+    flex: 0 0 auto;
+    max-width: 65%;
+    user-select: none;
+    pointer-events: none;
+}
+
+    .ui-input--title-inside > :is(@{ui-input-field}) > .ui-input__header .ui-text__title {
+        .ui-text-nowrap();
+    }
+
+    // The value reads from the trailing edge, against the caption at the leading one.
+    .ui-input--title-inside .ui-field {
+        text-align: end;
+    }
 
 // Caption is secondary to the value it labels, so muted; :where() keeps a .ui-color--* utility able to override it.
 :where(.ui-input__header > .ui-text__icon) {
@@ -92,21 +118,22 @@
 // The three inputs that open a popup, for the rule below.
 @ui-input-open: ~".ui-color-input--open, .ui-select--open, .ui-temporal-input--open";
 
-// A field that is a box rather than a row — a <textarea>, a package's editor — takes the ground by class, and with it every appearance
-// and state below. `--ui-field-fill` is what the box paints at the moment, for anything of its own that has to paint the same (a sticky
-// gutter over scrolled text): the resting fill here, and what each appearance puts in its place.
+// A box-shaped field (a <textarea>, a package's editor), not a row, takes the ground by class, with every appearance and state
+// below. `--ui-field-fill` exposes what the box paints now, so a nested part like a sticky gutter can match it.
 .ui-field-box {
     --ui-field-fill: var(--ui-field-rest);
     color: var(--ui-color-on-surface);
+    // A stacking context of its own, or a descendant with a z-index (a sticky gutter) would paint over the focus ring below,
+    // since an outline is painted in its own stacking context.
+    isolation: isolate;
     .ui-field-ground();
 }
 
-// An inset shadow is painted under the background of anything inside the box, so a box holding content with a ground of its own — the
-// code field's sticky gutter — showed the ring broken along that edge. An outline is painted over every descendant, and pulled inside
-// by its own width it lands exactly where the inset ring did, with the corner curve the browser works out rather than an inherited one.
+// An outline, not the inset box-shadow used below: an inset shadow paints under a child's own ground (e.g. the sticky gutter)
+// and broke there, while an outline paints over every descendant and, pulled inward by its width, lands in the same place.
 .ui-field-box:focus-within {
     outline: var(--ui-input-focus-ring, 1px) solid var(--ui-field-ring, var(--ui-color-primary));
-    outline-offset: calc(-1 * var(--ui-input-focus-ring, 1px));
+    outline-offset: calc(-1 * (var(--ui-input-focus-ring, 1px) + var(--ui-border-width, 1px)));
 }
 
 :is(.ui-invalid, .ui-validation--warning) > .ui-field-box {
@@ -124,6 +151,7 @@
 // A rule under the text, not a box; the ring is zeroed via a variable, since an input's own ring selector cannot be outranked from here.
 .ui-input--underline {
     --ui-input-focus-ring: 0;
+    --ui-field-inset: 0px;
 }
 
 .ui-input--underline > :is(@{ui-input-field}),
@@ -131,7 +159,7 @@
     --ui-field-fill: var(--ui-field-ground);
     // Sides switched off by style, not width: an authored BorderThickness arrives as an inline border-width no stylesheet can outrank.
     border-style: none none solid none;
-    border-width: 0 0 var(--ui-border-width, 1.5px) 0;
+    border-width: 0 0 var(--ui-border-width, 1px) 0;
     border-color: var(--ui-color-border);
     border-radius: 0;
     background: none;
@@ -144,8 +172,24 @@
     min-height: 1.75rem;
 }
 
-// No box at all until it is touched: the text sits on whatever is behind it, a wash under the pointer says it can be edited, and
-// the ring every field takes on focus says it is. A small button's height and half the side padding, so it fits a row of a list.
+// The stepper/action normally gives back side padding (mixins/field.less); Underline has none to give, so this stays flush.
+// Ghost gives back a step below, and a file field's pick matches it, to stand where a stepper stands.
+.ui-input--underline > :is(@{ui-input-field}) > :is(.ui-number-input__stepper, .ui-temporal-input__stepper, .ui-text-input__action) {
+    margin-right: 0;
+}
+
+.ui-input--ghost > :is(@{ui-input-field}) > :is(.ui-number-input__stepper, .ui-temporal-input__stepper, .ui-file-input__pick) {
+    margin-right: -@ui-space-1;
+}
+
+// No ring on focus either (below): the variable is zeroed for the box's outline and the row's inset shadow alike.
+.ui-input--ghost {
+    --ui-input-focus-ring: 0;
+    --ui-field-inset: calc(@ui-space-2 + var(--ui-border-width, 1px));
+}
+
+// No box until touched, so the text sits on whatever is behind it; focus shows as a wash instead. Sized and padded like a
+// small button, so it fits a row of a list.
 .ui-input--ghost > :is(@{ui-input-field}) {
     border-color: transparent;
     background: none;
@@ -154,7 +198,34 @@
     padding-right: @ui-space-2;
 }
 
-// A box keeps its own height under Ghost — it is not a row of a list — and loses the box and half the side padding as a row does.
+// Small and large move a field's height, its side padding and its text. After Ghost and Underline, whose own heights a size overrides.
+.ui-input--small {
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-input--small > :is(@{ui-input-field}) {
+    min-height: @ui-control-height-sm;
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+    gap: 0.375rem;
+}
+
+.ui-input--underline.ui-input--small > :is(@{ui-input-field}) {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.ui-input--large {
+    font-size: var(--ui-text-subtitle-font-size);
+    line-height: var(--ui-text-subtitle-line-height);
+}
+
+.ui-input--large > :is(@{ui-input-field}) {
+    min-height: @ui-control-height-lg;
+}
+
+// A box keeps its own height under Ghost, unlike a row, but still loses its edge and half the side padding as a row does.
 .ui-input--ghost > .ui-field-box {
     --ui-field-fill: var(--ui-field-ground);
     border-color: transparent;
@@ -163,13 +234,8 @@
     padding-right: @ui-space-2;
 }
 
-// A field's states are one ladder, later wins: the resting appearance above, hover here, then a message on the field, then a popup
-// open or focus (further down). Hover is written in :where(), so it weighs exactly what a resting rule does and every later state
-// outranks it by order alone — a hovered field that is focused wears the accent, not the hover's colour under the focus ring, and a
-// hovered invalid field stays red (a focused field under the pointer used to wear two colours).
-// Hover belongs to the appearance, not each control, and a field answers it through its edge alone — the owner's rule: a field is
-// not a button, so its ground never lifts. Filled sharpens the edge it has, Outline and Underline lift their border, and Ghost, which
-// has no edge until it is focused, does not react at all — which is what a row's own hover (a key-value row) needs of it.
+// States are a ladder by source order: hover uses :where() (0 specificity) so every later state always outranks it. A field
+// answers hover through its edge alone, never a lifted ground, since it is not a button.
 :where(.ui-input--filled:not(.ui-disabled)) > :is(@{ui-input-field}):hover,
 :where(.ui-input--filled:not(.ui-disabled)) > .ui-field-box:hover {
     border-color: var(--ui-field-hover);
@@ -181,7 +247,8 @@
     border-color: var(--ui-field-hover-accent);
 }
 
-// A control with its popup open reads as active regardless of focus, since opening the popup doesn't move focus into it.
+// A popup-open control reads as active regardless of focus, since opening a popup doesn't move focus into it; a ghost's open
+// state instead reuses its focus wash below, since it has no edge.
 :is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
     border-color: var(--ui-color-primary);
     box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
@@ -206,8 +273,7 @@
     font: inherit;
 }
 
-// A value the browser filled in itself comes with the browser's own ground painted inside the field, a blue box inside the row's;
-// clipping that ground to the text leaves the value and nothing else.
+// Autofill paints its own ground inside the field (a blue box); clipping that ground to the text removes it, leaving only the value.
 .ui-field:-webkit-autofill,
 .ui-field:-webkit-autofill:hover,
 .ui-field:-webkit-autofill:focus {
@@ -222,13 +288,35 @@
     border-color: var(--ui-validation-color, var(--ui-color-danger));
 }
 
-// Inset, not an outer ring a panel's overflow: hidden would clip unevenly; :focus-within covers a row and a directly focused field alike.
+// :focus-within covers a row and a directly focused field alike.
 :not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
     border-color: var(--ui-color-primary);
-    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
 }
 
 :is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
     border-color: var(--ui-validation-color, var(--ui-color-danger));
+}
+
+// Inset, not an outer ring: overflow: hidden on a panel would clip an outer ring unevenly. A row's own; a box uses the outline
+// above instead, since its own content would paint over a shadow.
+:not(.ui-disabled) > :is(@{ui-input-field}):focus-within {
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-color-primary);
+}
+
+:is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field}):focus-within {
     box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) var(--ui-validation-color, var(--ui-color-danger));
+}
+
+// A ghost has no edge to lift, so focus is the wash a ghost button uses instead; a ring would read as a smaller Outline. Only a
+// visible focus, or a closed list handing focus back to its trigger would leave the wash showing with no visible reason.
+.ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):has(:focus-visible),
+.ui-input--ghost:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    border-color: transparent;
+    background: var(--ui-wash-hover);
+}
+
+// No edge for any focus, including a press: opening a list focuses the trigger briefly before it opens, and closing hands focus
+// back — both would otherwise paint the primary edge every other appearance takes.
+.ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+    border-color: transparent;
 }

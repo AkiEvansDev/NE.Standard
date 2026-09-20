@@ -38,7 +38,7 @@ internal static class UIViewCompiler
             Bindings = new UICompiledBindingIndex(result.Bindings, sources, templates),
             Interactions = new UIInteractionIndex(result.Interactions),
             Events = new UIEventIndex(result.Events, sources, templates),
-            Validations = new UIValidationIndex(result.Validations),
+            Validations = new UIValidationIndex(result.Validations, result.ValidationMessageTargets),
             Warnings = result.Warnings,
             Fingerprint = UIViewFingerprint.Compute(result.Nodes, result.Bindings, result.Events, result.Interactions)
         };

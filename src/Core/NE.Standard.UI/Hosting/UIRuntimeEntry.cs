@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Runtime;
 
@@ -9,6 +10,7 @@ internal sealed class UIRuntimeEntry
 {
     private readonly HashSet<string> _connectionIds = new(StringComparer.Ordinal);
     private readonly TaskCompletionSource _initialization = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private long _lastSessionActivityPersistTicksUtc;
 
     public UIRuntimeEntry(IUIRuntime runtime, UIFlushOptions flush)
     {
@@ -97,6 +99,26 @@ internal sealed class UIRuntimeEntry
     public bool ShouldFlush(DateTime utcNow)
         => Flush.IsScheduled && LastFlushedAtUtc + Flush.Interval <= utcNow;
 
-    public bool ShouldCleanup(DateTime utcNow, TimeSpan retention)
-        => DisconnectedAtUtc is DateTime disconnectedAt && disconnectedAt + retention <= utcNow;
+    /// <summary>
+    /// Whether this entry is past its retention window — the short one until a page has presented it. A runtime with a
+    /// command in flight is kept regardless, collected on a later sweep once it finishes.
+    /// </summary>
+    public bool ShouldCleanup(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)
+        => !Runtime.HasCommandsInFlight
+        && DisconnectedAtUtc is DateTime disconnectedAt
+        && disconnectedAt + (IsAdopted ? retention : unclaimedRetention) <= utcNow;
+
+    /// <summary>
+    /// Claims the right to refresh the session's last-seen time now, throttled so hub traffic does not turn into
+    /// a session-store write per message.
+    /// </summary>
+    public bool ShouldPersistSessionActivity(DateTime utcNow, TimeSpan throttle)
+    {
+        var previousTicks = Interlocked.Read(ref _lastSessionActivityPersistTicksUtc);
+
+        if (utcNow.Ticks - previousTicks < throttle.Ticks)
+            return false;
+
+        return Interlocked.CompareExchange(ref _lastSessionActivityPersistTicksUtc, utcNow.Ticks, previousTicks) == previousTicks;
+    }
 }

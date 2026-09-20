@@ -100,6 +100,12 @@ public sealed class UIItemWindow<TItem>
     public int? TotalCount { get; init; }
 
     /// <summary>
+    /// Gets per-property aggregates (sum, average, count) over the whole query, not only this window;
+    /// <see langword="null"/> when the source computes none.
+    /// </summary>
+    public IReadOnlyDictionary<string, object>? Aggregates { get; init; }
+
+    /// <summary>
     /// Gets whether the source has items before this window.
     /// </summary>
     public bool HasMoreBefore { get; init; }

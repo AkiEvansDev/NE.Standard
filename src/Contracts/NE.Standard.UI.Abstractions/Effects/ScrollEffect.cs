@@ -38,7 +38,7 @@ public enum ScrollPosition
 /// <summary>
 /// Requests the UI client to scroll a container, as opposed to bringing a component into view.
 /// </summary>
-public sealed class ScrollEffect : ClientEffect
+public sealed class ScrollEffect(UIComponentReference target, ScrollPosition position) : TargetedClientEffect(target)
 {
     /// <summary>
     /// Creates an effect that scrolls the container identified by <paramref name="targetComponentId"/> to the given position.
@@ -47,17 +47,6 @@ public sealed class ScrollEffect : ClientEffect
         : this(new UIComponentReference(targetComponentId, dynamicParameters), position)
     { }
 
-    /// <summary>
-    /// Creates an effect that scrolls the given container to the given position.
-    /// </summary>
-    public ScrollEffect(UIComponentReference target, ScrollPosition position)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(target.Id);
-
-        Target = target;
-        Position = position;
-    }
-
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Scroll;
 
@@ -65,14 +54,9 @@ public sealed class ScrollEffect : ClientEffect
     public override bool CanRunInInteraction => true;
 
     /// <summary>
-    /// Gets the target container reference.
-    /// </summary>
-    public UIComponentReference Target { get; }
-
-    /// <summary>
     /// Gets the position the container is scrolled to.
     /// </summary>
-    public ScrollPosition Position { get; }
+    public ScrollPosition Position { get; } = position;
 
     /// <summary>
     /// Gets the axis scrolled by the effect.
@@ -98,14 +82,13 @@ public sealed class ScrollEffect : ClientEffect
     }
 }
 
-internal sealed class CompiledScrollEffect(UIComponentAddress target, ScrollPosition position, UIOrientation axis, double offset, ScrollToBehavior behavior) : ClientEffect
+internal sealed class CompiledScrollEffect(UIComponentAddress target, ScrollPosition position, UIOrientation axis, double offset, ScrollToBehavior behavior) : CompiledTargetedClientEffect(target)
 {
     public override string Kind => ClientEffectKinds.Scroll;
 
     /// <inheritdoc />
     public override bool CanRunInInteraction => true;
 
-    public UIComponentAddress Target { get; } = target;
     public ScrollPosition Position { get; } = position;
     public UIOrientation Axis { get; } = axis;
     public double Offset { get; } = offset;

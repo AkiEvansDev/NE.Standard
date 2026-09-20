@@ -35,4 +35,7 @@ public static class WebValueKinds
 
     /// <summary>The checked radio under a radio group's root.</summary>
     public const string CheckedRadio = "checked-radio";
+
+    /// <summary>A toggle button's pressed state, read off its root.</summary>
+    public const string Pressed = "pressed";
 }

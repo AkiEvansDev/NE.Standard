@@ -1,12 +1,12 @@
+using DemoApp.Controllers.Actions.ButtonGroup;
 using DemoApp.Controllers.Base;
-using DemoApp.Controllers.Navigation.ButtonGroup;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 
-namespace DemoApp.Views.Navigation.ButtonGroup;
+namespace DemoApp.Views.Actions.ButtonGroup;
 
 /// <summary>
 /// One strip of three views, and every property that can be bound to it.
@@ -18,12 +18,12 @@ internal sealed class ButtonGroupMainView : DemoMainView, IUIViewDefinition
     private const string SegmentGroup = nameof(ButtonGroupMainController.SegmentGroup);
     private const string BorderGroup = nameof(ButtonGroupMainController.BorderGroup);
 
-    public static string ViewKey => "demo.navigation.button-group.main";
+    public static string ViewKey => "demo.actions.button-group.main";
 
-    protected override string ComponentRoute => "/navigation/button-group";
+    protected override string ComponentRoute => "/actions/button-group";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Main, DemoViewKind.Examples];
-    protected override string Header => "demo.navigation.button-group.header";
-    protected override string HeaderDescription => "demo.navigation.button-group.description";
+    protected override string Header => "demo.actions.button-group.header";
+    protected override string HeaderDescription => "demo.actions.button-group.description";
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ButtonGroupComponent()

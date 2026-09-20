@@ -30,6 +30,7 @@ internal sealed partial class DateValueGroupContext : InputValueGroupContext
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -92,6 +93,7 @@ internal sealed partial class TimeValueGroupContext : InputValueGroupContext
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -155,6 +157,7 @@ internal sealed partial class DateTimeValueGroupContext : InputValueGroupContext
         AddOption("Offset", CycleOffset, () => Value?.Offset);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

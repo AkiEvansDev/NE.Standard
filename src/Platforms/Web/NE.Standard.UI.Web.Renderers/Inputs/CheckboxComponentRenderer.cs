@@ -19,8 +19,8 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
         => RenderCheckable(context, root, ClassName);
 
     /// <summary>
-    /// Renders the label + hidden input + box + text-body shell shared by a checkbox and a switch;
-    /// <c>BadgePlacement</c> is not honoured, an inline-flex toggle having no free space in its row.
+    /// Renders the label/hidden-input/box/text-body shell shared by a checkbox and a switch; <c>BadgePlacement</c> is not honoured,
+    /// since an inline-flex toggle has no free space in its row.
     /// </summary>
     public static void RenderCheckable(WebRenderContext context, IHtmlElementBuilder root, string classPrefix)
     {
@@ -29,6 +29,7 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
         ArgumentException.ThrowIfNullOrWhiteSpace(classPrefix);
 
         RenderTooltip(context, root);
+        RenderInputSize(context, root);
 
         _ = root.Element("input", input =>
         {

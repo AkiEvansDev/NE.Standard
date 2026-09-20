@@ -41,8 +41,8 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     public bool? Draggable { get; set; }
 
     /// <summary>
-    /// Gets or sets whether tabs can be closed at all; off, no caption shows a close and the strip keeps no room for one.
-    /// A single tab refuses its close with the item's <c>CanRemove</c>.
+    /// Gets or sets whether tabs can be closed at all; off, no caption shows a close and the strip reserves no room. A
+    /// single tab refuses its close via the item's <c>CanRemove</c>.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? Removable { get; set; }

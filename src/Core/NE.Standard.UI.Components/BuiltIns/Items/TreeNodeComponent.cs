@@ -10,8 +10,8 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>
-/// The face of one tree node: the chevron, the glyph and the title, drawn once per node from an <see cref="ITreeNodeModel"/>.
-/// A tree has one by default and one per <see cref="ITreeNodeModel.Kind"/> where the kinds differ — in their menu, say.
+/// The face of one tree node — chevron, glyph and title — drawn once per node from an <see cref="ITreeNodeModel"/>. A tree
+/// has one by default and one per differing <see cref="ITreeNodeModel.Kind"/>.
 /// </summary>
 public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     where T : TreeNodeComponent<T>, IUIComponentDefinition
@@ -75,8 +75,7 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
         _ = Bind(ParentIdProperty, nameof(ITreeNodeModel.ParentId), UIBindingScope.Relative);
         _ = Bind(HasChildrenProperty, nameof(ITreeNodeModel.HasChildren), UIBindingScope.Relative);
         _ = Bind(ExpandedProperty, nameof(ITreeNodeModel.Expanded), UIBindingScope.Relative);
-        // Two-way onto the title itself, as a tab's caption is: the node shows the new name at once and the controller judges it on
-        // `rename`. Spelled out: the raw Bind is one-way whatever the property declares.
+        // Two-way like a tab's caption: shows the new name at once, and Bind is one-way by default so this needs spelling out.
         _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative, UIBindingMode.TwoWay);
         _ = Bind(DropTargetProperty, nameof(ITreeNodeModel.DropTarget), UIBindingScope.Relative, UIBindingMode.TwoWay);
     }

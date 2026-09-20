@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Design.Colors;
@@ -89,9 +90,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
     private static StackPanelComponent CreatePairCard(RolePair role)
     {
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(6)
+        return UILayout.Stack(6)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
@@ -160,9 +159,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
     private static StackPanelComponent CreateInkCard(SingleRole role)
     {
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(6)
+        return UILayout.Stack(6)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
@@ -220,9 +217,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
         ColorVariant light = role.Select(UIThemeDefaults.LightPalette);
         ColorVariant dark = role.Select(UIThemeDefaults.DarkPalette);
 
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(6)
+        return UILayout.Stack(6)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
@@ -238,9 +233,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
     private static StackPanelComponent CreateSwatch(string label, string hex, UIThemeColor color)
     {
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(4)
+        return UILayout.Stack(4)
             .AddChild(new ContainerComponent()
                 .SetBackground(color)
                 .SetBorderColor(UIThemeColor.Border)

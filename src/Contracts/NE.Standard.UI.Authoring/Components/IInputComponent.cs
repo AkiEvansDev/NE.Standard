@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Primitives.Annotations;
@@ -60,14 +61,25 @@ public interface IInputComponent : IVisualComponent
     UIValidationMessage? Validation { get; }
 
     /// <summary>
-    /// Where the message goes: a line under the field, or a mark at its edge with the message in a tooltip. Decided once at render;
-    /// <see cref="UIValidationPresentation.Auto"/> is the line except in a cell of a grid.
+    /// Where the message goes: a line under the field, or an edge mark with the message in a tooltip. Decided once at render;
+    /// <see cref="UIValidationPresentation.Auto"/> is the line except in a grid cell.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIValidationPresentation.Auto)]
     UIValidationPresentation? ValidationPresentation { get; }
 
     /// <summary>
+    /// Redirects the message away from the field, to a component property named like an items rule's source; the field then
+    /// shows only its edge, in the severity's colour. When several fields target the same property, the last to change wins.
+    /// </summary>
+    UIPropertyReference? ValidationTarget { get; set; }
+
+    /// <summary>
     /// Gets validation rules applied to the input value.
     /// </summary>
     IReadOnlyList<UIValidationRule> Validations { get; }
+
+    /// <summary>
+    /// Adds a validation rule; the input's own <c>Required</c>/<c>Regex</c>/<c>Validate</c> shorthands go through this.
+    /// </summary>
+    void AddValidation(UIValidationRule rule);
 }

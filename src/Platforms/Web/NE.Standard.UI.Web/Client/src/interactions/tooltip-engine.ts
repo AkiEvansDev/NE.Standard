@@ -5,8 +5,13 @@ import { AnchoredPopupPlacement, isAnchoredPopupPlacement, placeAnchoredPopup, r
 
 const TooltipAttribute = "data-ui-tooltip";
 const PlacementAttribute = "data-ui-tooltip-placement";
+// A control that speaks through a mark inside it (a field with a validation dot at its corner): the tooltip is the mark's,
+// drawn against the mark wherever in the control the reader points.
+const MarkAttribute = "data-ui-tooltip-mark";
 const TooltipClass = "ui-tooltip";
 const VisibleClass = "ui-tooltip--visible";
+// A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
+const OpenSelector = "[aria-haspopup][aria-expanded=\"true\"]";
 
 // The side a tooltip takes when its anchor names none; above, because that covers nothing the reader is about to need.
 const DefaultPlacement: AnchoredPopupPlacement = "top";
@@ -23,9 +28,11 @@ const RepeatWindowMs = 300;
 const AnchorGap = 7;
 
 let tooltip: HTMLElement | null = null;
-// Also the record of whether a tooltip is on screen: set only by `show`, cleared only by `close`. Any element, an SVG shape
-// included: only its box and its attributes are read.
+// Also the record of whether a tooltip is on screen: set only by `show`, cleared only by `close`. Any element (an SVG shape
+// included) works, since only its box and attributes are read.
 let anchor: Element | null = null;
+// A mark whose control holds the focus: its tooltip is the focus's, and the pointer crossing the page neither replaces nor closes it.
+let pinned: Element | null = null;
 let showTimer = 0;
 let hideTimer = 0;
 let lastHiddenAt = 0;
@@ -48,10 +55,13 @@ export function startTooltips(root: ParentNode = document): void {
 
     // A press outside makes the tooltip stale; a press inside it is the reader following a link.
     host.addEventListener("pointerdown", event => {
-        if (!isInsideTooltip(event.target))
+        if (pinned === null && !isInsideTooltip(event.target))
             hide(true);
     }, true);
-    window.addEventListener("blur", () => hide(true));
+    window.addEventListener("blur", () => {
+        pinned = null;
+        hide(true);
+    });
 }
 
 function onPointerOver(event: Event): void {
@@ -70,6 +80,9 @@ function onPointerOver(event: Event): void {
 }
 
 function onPointerOut(event: Event): void {
+    if (pinned !== null)
+        return;
+
     const related = (event as PointerEvent).relatedTarget;
 
     // Moving onto a child of the same anchor is not leaving it, and neither is moving onto the tooltip.
@@ -80,24 +93,33 @@ function onPointerOut(event: Event): void {
         hide(false);
 }
 
-// A keyboard user gets the tooltip the moment the control takes focus.
+// A keyboard user gets the tooltip the moment the control takes focus; one that speaks through a mark keeps it for as long
+// as focus is in it, since a message about the value typed must not come and go with the pointer crossing the row.
 function onFocusIn(event: Event): void {
     const target = findAnchor(event.target);
 
     if (target === null)
         return;
 
+    pinned = event.target instanceof Element && event.target.closest(`[${MarkAttribute}]`) !== null ? target : null;
+
     show(target);
 }
 
 function onFocusOut(event: Event): void {
-    if (findAnchor(event.target) === anchor)
-        hide(true);
+    if (findAnchor(event.target) !== anchor)
+        return;
+
+    pinned = null;
+    hide(true);
 }
 
 function onKeyDown(event: KeyboardEvent): void {
-    if (event.key === "Escape" && anchor !== null)
-        hide(true);
+    if (event.key !== "Escape" || anchor === null)
+        return;
+
+    pinned = null;
+    hide(true);
 }
 
 function isInsideTooltip(target: EventTarget | null): boolean {
@@ -108,15 +130,24 @@ function findAnchor(target: EventTarget | null): Element | null {
     if (!(target instanceof Element))
         return null;
 
-    const element = target.closest(`[${TooltipAttribute}]`);
+    const element = target.closest(`[${TooltipAttribute}], [${MarkAttribute}]`);
 
     if (element === null)
         return null;
 
-    return (element.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? element : null;
+    // A tooltip of the control's own — one a controller wrote — is the control's; with none, the mark inside it speaks for it.
+    const spoken = element.hasAttribute(TooltipAttribute) ? element : element.querySelector(`[${TooltipAttribute}]`);
+
+    if (spoken === null)
+        return null;
+
+    return (spoken.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? spoken : null;
 }
 
 function schedule(target: Element): void {
+    if (pinned !== null)
+        return;
+
     window.clearTimeout(hideTimer);
     window.clearTimeout(showTimer);
 
@@ -137,10 +168,10 @@ function schedule(target: Element): void {
     showTimer = window.setTimeout(() => show(target), ShowDelayMs);
 }
 
-function show(target: Element): void {
-    const text = (target.getAttribute(TooltipAttribute) ?? "").trim();
+function show(target: Element, words?: string): void {
+    const text = (words ?? target.getAttribute(TooltipAttribute) ?? "").trim();
 
-    if (text.length === 0 || !target.isConnected)
+    if (text.length === 0 || !target.isConnected || isOpen(target))
         return;
 
     window.clearTimeout(showTimer);
@@ -159,7 +190,59 @@ function show(target: Element): void {
     element.setAttribute("data-ui-tooltip-text", inlineMarkupToPlainText(text));
 
     // Against the control and centred on it, not at the pointer, so the same control always shows it in the same place.
-    placeAnchoredPopup(target, element, { placement: readPlacement(target), gap: AnchorGap });
+    placeAnchoredPopup(target, element, { placement: readPlacement(target), gap: AnchorGap, arrow: true });
+}
+
+/**
+ * Shows a tooltip of the caller's own words against an element, whatever that element says for itself — what a package
+ * drawing its own picture needs. No wait: the caller is answering a pointer already where it means to be.
+ */
+// A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.
+function isOpen(target: Element): boolean {
+    return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null;
+}
+
+export function showTooltipWith(target: Element, words: string): void {
+    show(target, words);
+}
+
+/** Closes the tooltip on screen at once, however it was opened. */
+export function closeTooltip(): void {
+    hide(true);
+}
+
+/** The page's one tooltip as a package reaches it: shown at once with the package's own words, closed by `hide` or by the reader pointing elsewhere. */
+export type Tooltips = {
+    show(target: Element, words: string): void;
+    hide(): void;
+};
+
+export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip };
+
+/**
+ * Opens an anchor's tooltip and holds it open until focus leaves the control it belongs to — for a mark that appears under
+ * the reader's own typing, with no focus event left to open on.
+ */
+export function pinTooltip(element: Element): void {
+    pinned = element;
+    show(element);
+}
+
+/**
+ * Re-reads the tooltip of the element on screen: a message rewritten under the reader (a validation mark's, as the value
+ * changes) is redrawn where it stands; one taken away closes it rather than leaving a stale line.
+ */
+export function updateTooltip(element: Element): void {
+    if (anchor !== element)
+        return;
+
+    if ((element.getAttribute(TooltipAttribute) ?? "").trim().length === 0) {
+        pinned = null;
+        hide(true);
+        return;
+    }
+
+    show(element);
 }
 
 function readPlacement(target: Element): AnchoredPopupPlacement {

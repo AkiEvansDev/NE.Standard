@@ -1,5 +1,7 @@
 using System;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
@@ -7,15 +9,24 @@ using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
+using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Html;
 
 namespace NE.Standard.UI.Web.Rendering;
 
 internal sealed class WebViewRenderer : IWebViewRenderer
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string RegionAttribute = "data-ui-region";
+    private const string StickyAttribute = "data-ui-sticky";
+    private const string DialogPlacementAttribute = "data-ui-dialog-placement";
+    private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
+
     private readonly IWebRendererRegistry _renderers;
     private readonly ITranslator _translator;
+    private readonly UITheme _theme;
 
     public WebViewRenderer(IWebRendererRegistry renderers, UIApplication application)
     {
@@ -24,6 +35,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
         _renderers = renderers;
         _translator = application.Translator;
+        _theme = application.Theme;
     }
 
     public WebRenderResult Render(UIViewResolution resolution, IWebRenderValues? values = null)
@@ -63,11 +75,11 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
             _ = html.Element("section", section =>
             {
-                _ = section.Attribute("data-ui-region", region.Key);
+                _ = section.Attribute(RegionAttribute, region.Key);
 
                 // On the region rather than on the root: sticking is a property of this band of the page.
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
-                    _ = section.Attribute("data-ui-sticky");
+                    _ = section.Attribute(StickyAttribute);
 
                 UIComponentNode root = view.Graph.GetRequired(region.RootComponentId);
 
@@ -80,6 +92,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     Renderer = this,
                     Metadata = metadata,
                     Translator = _translator,
+                    Theme = _theme,
                     Values = values
                 };
 
@@ -91,6 +104,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             });
         }
     }
+
+    /// <summary>The width a centred panel with no width of its own is capped at, from the Sm tier up; below it the panel is the screen less a margin.</summary>
+    private const string CenteredDialogWidthCap = "560px";
 
     /// <summary>
     /// Renders every declared dialog into the shell up front, closed; opening it is purely a client-side visibility flip.
@@ -125,7 +141,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                 // Render-time only, like the surface: the stylesheet lays the panel against the edge named.
                 if (dialog.Placement != UIDialogPlacement.Center)
-                    _ = layer.Attribute("data-ui-dialog-placement", dialog.Placement.ToString().ToLowerInvariant());
+                    _ = layer.Attribute(DialogPlacementAttribute, dialog.Placement.ToString().ToLowerInvariant());
 
                 _ = layer.Element("div", backdrop => _ = backdrop
                     .Class("ui-dialog__backdrop")
@@ -141,7 +157,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.
                     if (dialog.Surface != UISurfaceStyle.Raised)
-                        _ = surface.Attribute("data-ui-dialog-surface", dialog.Surface.ToString().ToLowerInvariant());
+                        _ = surface.Attribute(DialogSurfaceAttribute, dialog.Surface.ToString().ToLowerInvariant());
+
+                    RenderDialogLayout(dialog, surface);
 
                     // aria-modal only when the dialog truly traps interaction, or a reader is told the page is inert when it's not.
                     if (dialog.Modal)
@@ -158,6 +176,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         Renderer = this,
                         Metadata = metadata,
                         Translator = _translator,
+                        Theme = _theme,
                         Values = values
                     };
 
@@ -169,6 +188,39 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 });
             });
         }
+    }
+
+    /// <summary>
+    /// The panel's place on the overlay, as responsive tiers; a centred panel with no set width is capped from Sm up, and below
+    /// that the stylesheet makes it the screen minus a margin.
+    /// </summary>
+    private static void RenderDialogLayout(CompiledDialog dialog, IHtmlElementBuilder surface)
+    {
+        WriteDialogLength(surface, dialog.Width, "--ui-width");
+        WriteDialogLength(surface, dialog.MinWidth, "--ui-min-width");
+        WriteDialogLength(surface, dialog.MaxWidth, "--ui-max-width");
+        WriteDialogLength(surface, dialog.Height, "--ui-height");
+        WriteDialogLength(surface, dialog.MinHeight, "--ui-min-height");
+        WriteDialogLength(surface, dialog.MaxHeight, "--ui-max-height");
+
+        if (dialog.Margin is UIResponsive<UIThickness> margin)
+            WebResponsiveCss.WriteTiers(surface, margin, "--ui-margin", WebCssValues.Thickness);
+
+        if (dialog.HorizontalAlignment is UIAlignment horizontal)
+            _ = surface.Style("--ui-align-h", WebCssValues.Alignment(horizontal));
+
+        if (dialog.VerticalAlignment is UIAlignment vertical)
+            _ = surface.Style("--ui-align-v", WebCssValues.Alignment(vertical));
+
+        // Written here, not in the stylesheet: a cap in the chain's default would clamp a width the author named.
+        if (dialog.Placement == UIDialogPlacement.Center && dialog.Width is null && dialog.MaxWidth is null)
+            _ = surface.Style("--ui-max-width-sm", CenteredDialogWidthCap);
+    }
+
+    private static void WriteDialogLength(IHtmlElementBuilder surface, UIResponsive<UILayoutLength>? value, string cssVariableName)
+    {
+        if (value is UIResponsive<UILayoutLength> responsive)
+            WebResponsiveCss.WriteTiers(surface, responsive, cssVariableName, WebCssValues.ResponsiveLayoutLength);
     }
 
     public void RenderComponent(WebRenderContext parent, UIComponentId componentId)

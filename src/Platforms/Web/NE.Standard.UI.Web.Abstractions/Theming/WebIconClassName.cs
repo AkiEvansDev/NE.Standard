@@ -26,6 +26,8 @@ public static class WebIconClassName
                 AppendDash(builder);
                 continue;
             }
+
+            // Any other character is dropped, as icon-value.ts drops it: a refused url reads as a glyph name, never as an error.
         }
 
         if (builder.Length == "ui-icon-glyph--".Length)

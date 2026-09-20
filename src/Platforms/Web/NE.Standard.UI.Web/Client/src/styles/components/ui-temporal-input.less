@@ -1,4 +1,4 @@
-@import "../core/tokens.less";
+﻿@import "../core/tokens.less";
 @import "../mixins/field.less";
 @import "../mixins/popup.less";
 @import "../mixins/interactive.less";
@@ -38,8 +38,8 @@
         cursor: default;
     }
 
-// A period is written as one phrase: each field is as wide as its text, the dash between them, and the row's spare width stays
-// after the second field rather than pulling the two apart.
+// A period reads as one phrase: each field is as wide as its text, with the dash between them, so the row's spare width
+// stays after the second field instead of pulling the two apart.
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__field {
     flex: 0 1 auto;
     width: auto;
@@ -49,6 +49,13 @@
 
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__segments {
     flex: 0 0 auto;
+}
+
+// The control stays at the field's end, as every other field keeps its (a period's calendar toggle, a time's stepper), so
+// spare width goes between the phrase and the control, not after it.
+.ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__toggle,
+.ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__stepper {
+    margin-inline-start: auto;
 }
 
 .ui-temporal-input__range-separator {
@@ -66,28 +73,9 @@
         opacity: 0.5;
     }
 
+    // The library's own calendar, so the toggle needs no icon package.
     .ui-temporal-input__toggle::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0.75rem;
-        height: 0.7rem;
-        transform: translate(-50%, -50%);
-        border: 1.5px solid currentColor;
-        border-radius: 2px;
-    }
-
-    // Drawn from two pseudo-elements rather than an icon, so the glyph follows currentColor and needs no icon package.
-    .ui-temporal-input__toggle::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0.75rem;
-        height: 0.18rem;
-        transform: translate(-50%, calc(-50% - 0.26rem));
-        background: currentColor;
+        .ui-calendar-glyph(@ui-glyph-sm);
     }
 
 // TimeInput's row: one focusable span per clock unit, plus a stepper — no field and no popup toggle, the segments are the editor.
@@ -98,6 +86,11 @@
     min-width: 0;
     font-variant-numeric: tabular-nums;
 }
+
+    // With the caption inside the box, a clock's segments read from the trailing edge, as a text field's value does.
+    .ui-input--title-inside .ui-temporal-input__segments {
+        justify-content: flex-end;
+    }
 
 .ui-temporal-input__segment {
     padding: 0 2px;
@@ -112,6 +105,7 @@
         outline: none;
         background: var(--ui-color-primary);
         color: var(--ui-color-on-primary);
+        --ui-faint-base: var(--ui-color-on-primary);
     }
 
 :where(.ui-temporal-input__segment--empty),
@@ -243,10 +237,11 @@
 .ui-temporal-input__month--selected {
     background: var(--ui-color-primary);
     color: var(--ui-color-on-primary);
+    --ui-faint-base: var(--ui-color-on-primary);
 }
 
-// The days between a period's two ends, and the span a click would make while the end is being chosen: the same tint, paler
-// while it is only a preview, so the ends stay the strongest marks on the grid.
+// The days between a period's two ends, and the span a click would preview while choosing the second end: the same tint,
+// paler when only a preview, so the ends stay the strongest marks on the grid.
 .ui-temporal-input__day--within {
     background: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
 }

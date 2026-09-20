@@ -8,7 +8,7 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
@@ -18,6 +18,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// configurable orientation/spacing.
 /// </summary>
 /// <remarks>Row choice is two-way through <c>SelectionMode</c>; <c>SelectionStyle</c> says what a chosen row looks like.</remarks>
+[UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
@@ -25,45 +26,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
-    private const int DefaultWindowSize = 50;
-
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = UIItemsHostMode.Plain, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public UIItemsHostMode HostMode { get; private set; }
-
-    /// <summary>
-    /// Gets or sets how many items one window holds; not bindable, the client reads it once.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = DefaultWindowSize, GenerateBinder = false, IsBindable = false)]
-    public int WindowSize { get; set; } = DefaultWindowSize;
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public int? WindowOffset { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public int? WindowTotalCount { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public bool WindowHasMoreBefore { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public bool WindowHasMoreAfter { get; }
 
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.
     /// </summary>
     public T Virtualized()
     {
-        if (HostMode == UIItemsHostMode.Windowed)
-            throw new InvalidOperationException("A windowed host already keeps only its window; it cannot be virtualized as well.");
-
-        HostMode = UIItemsHostMode.Virtualized;
+        HostMode = ItemsHostModes.Virtualize(HostMode);
         return Self;
     }
 
@@ -75,10 +45,7 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        if (HostMode == UIItemsHostMode.Virtualized)
-            throw new InvalidOperationException("A virtualized host holds its collection whole; a source hands over one window at a time instead.");
-
-        HostMode = UIItemsHostMode.Windowed;
+        HostMode = ItemsHostModes.Window(HostMode);
 
         return BindItems(path, scope);
     }
@@ -103,6 +70,12 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
         _ = RequiredTemplate.On(EventNames.Click, command, arguments);
         return Self;
     }
+
+    /// <summary>
+    /// Registers a click command with an argument derived from the specified <paramref name="argumentKind"/>.
+    /// </summary>
+    public T OnItemClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
+        => OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
 
     /// <summary>
     /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click — with the item's key.
@@ -153,15 +126,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Follows content appended at the end while the viewer is already at the end.
-    /// </summary>
-    public T AnchorToEnd()
-    {
-        ScrollAnchor = UIScrollAnchor.End;
-        return Self;
-    }
-
-    /// <summary>
     /// Initializes a new items view with the built-in text, empty and group templates.
     /// </summary>
     protected ItemsViewComponent(string? id = null) : base(id)
@@ -175,77 +139,20 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// Configures the built-in default text template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultTemplate(Action<DefaultTextTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (Template is not DefaultTextTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultTextTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
 
     /// <summary>
     /// Configures the built-in default empty template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (EmptyTemplate is not DefaultEmptyTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultEmptyTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
 
     /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
+        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
 
-        if (GroupTemplate is not DefaultGroupTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultGroupTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
-
-    /// <summary>
-    /// Disables both horizontal and vertical scrolling.
-    /// </summary>
-    public T DisableScroll()
-        => SetScroll(UIScrollMode.Disabled, UIScrollMode.Disabled);
-
-    /// <summary>
-    /// Enables vertical scrolling only.
-    /// </summary>
-    public T VerticalScrollOnly()
-        => SetScroll(UIScrollMode.Disabled, UIScrollMode.Auto);
-
-    /// <summary>
-    /// Enables horizontal scrolling only.
-    /// </summary>
-    public T HorizontalScrollOnly()
-        => SetScroll(UIScrollMode.Auto, UIScrollMode.Disabled);
-
-    /// <summary>
-    /// Enables both horizontal and vertical scrolling.
-    /// </summary>
-    public T BothScroll()
-        => SetScroll(UIScrollMode.Auto, UIScrollMode.Auto);
-
-    /// <summary>
-    /// Sets the horizontal and vertical scroll behaviors.
-    /// </summary>
-    public T SetScroll(UIScrollMode horizontalScroll, UIScrollMode verticalScroll)
-    {
-        HorizontalScroll = horizontalScroll;
-        VerticalScroll = verticalScroll;
-        return Self;
-    }
 }
 
 /// <summary>

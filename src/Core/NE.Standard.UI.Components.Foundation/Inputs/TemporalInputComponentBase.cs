@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
@@ -8,8 +9,8 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// Base class for temporal input components with step and first-day-of-week metadata, and the period mode every one
-/// of them can take: <see cref="IsRange"/> puts a second field beside the first and <see cref="EndValue"/> behind it.
+/// Base class for temporal input components with step and first-day-of-week metadata, and the period mode every one can take
+/// via <see cref="IsRange"/> and <see cref="EndValue"/>.
 /// </summary>
 public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : MinMaxInputComponentBase<TComponent, TValue>(id)
     where TComponent : TemporalInputComponentBase<TComponent, TValue>, IUIComponentDefinition
@@ -17,22 +18,21 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// <summary>
     /// Gets or sets the step increment used when adjusting the value.
     /// </summary>
-    /// <remarks>Unbindable: the picker builds its time columns from this once.</remarks>
+    /// <remarks>Render-time only: the picker builds its time columns from this once.</remarks>
     [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateBinder = false, GenerateSetter = false)]
     public UITemporalStep? Step { get; set; }
 
     /// <summary>
     /// Gets or sets the first day of the week used when rendering a calendar/picker.
     /// </summary>
-    /// <remarks>Unbindable: the weekday header is ordered once at render.</remarks>
+    /// <remarks>Render-time only: the weekday header is ordered once at render.</remarks>
     [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateBinder = false)]
     public UIDayOfWeek? FirstDayOfWeek { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the control edits a period: <c>Value</c> is its start, <see cref="EndValue"/> its end, in two
-    /// fields under one caption, chosen on one calendar.
+    /// Gets or sets whether the control edits a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.
     /// </summary>
-    /// <remarks>Unbindable: how many fields the row holds is how the control is built.</remarks>
+    /// <remarks>Render-time only: how many fields the row holds is how the control is built.</remarks>
     [UIComponentProperty(DefaultValue = false, IsBindable = false, GenerateBinder = false)]
     public bool? IsRange { get; set; }
 
@@ -59,6 +59,20 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
         EndValue = endValue;
         return Self;
     }
+
+    /// <summary>The range check over both ends of the period, so a bound moved after the end was set still holds it.</summary>
+    protected override void ValidateRange(TValue? min, TValue? max, TValue? value)
+    {
+        ValidateEnd(min, max, value);
+
+        if (EndValue is not null && !EqualityComparer<TValue?>.Default.Equals(value, EndValue))
+            ValidateEnd(min, max, EndValue);
+    }
+
+    /// <summary>
+    /// Validates one end of the period against the range.
+    /// </summary>
+    protected abstract void ValidateEnd(TValue? min, TValue? max, TValue? value);
 
     /// <summary>
     /// Validates that a period's end does not fall before its start.

@@ -45,9 +45,8 @@
     flex-direction: column;
 }
 
-// The wrap panel's flow, not a grid: an item with no span of its own takes its content's width and the line wraps where the room
-// ends; a span, where the template names one, is the same share of twenty-four columns a wrap panel's child takes (a grid put an
-// unplaced item across the whole row, which read as a stack).
+// The wrap panel's flow, not a grid: a spanless item takes its content's width and wraps where room ends; a span is the same
+// share of 24 columns a wrap panel's child takes (a grid stretches an unplaced item across the row, reading as a stack).
 .ui-items-view--wrap > .ui-items-view__host,
 .ui-items-view--wrap > [data-ui-items-host] {
     display: flex;
@@ -110,6 +109,13 @@
 .ui-items-view--wrap > .ui-items-view__host > [data-ui-group-header],
 .ui-items-view--wrap > [data-ui-items-host] > [data-ui-group-header] {
     flex-basis: 100%;
+}
+
+// The empty state's description line clips a shade under its ink (ui-text.less); a scroller ending exactly there still counts
+// that pixel as scrollable, so this pixel of room keeps the ink inside instead.
+.ui-items-view > .ui-items-view__host > [data-ui-empty-placeholder],
+.ui-items-view > [data-ui-items-host] > [data-ui-empty-placeholder] {
+    padding-bottom: 1px;
 }
 
 // The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.

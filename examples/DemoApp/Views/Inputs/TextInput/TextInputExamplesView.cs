@@ -5,6 +5,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -30,6 +31,89 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
             [CreateServiceGroup(), CreateClipboardGroup()],
             [CreateCredentialsGroup(), CreateGhostGroup()]
         ));
+
+        _ = container.AddChildren(DemoUI.CreateColumns(
+            [CreateSizesGroup()],
+            [CreateDenseGroup()]
+        ));
+    }
+
+    /// <summary>The three sizes a field says outright: the height, the side padding and the text step together.</summary>
+    private static ContainerComponent CreateSizesGroup()
+    {
+        return DemoUI.CreateGroup(null, "Sizes",
+            content => content.AddChild(DemoUI.CreateStack()
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Small — a node, a status bar, a cell")
+                    .SetSize(UIInputSize.Small)
+                    .SetValue("payments-api")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Medium — a form")
+                    .SetValue("payments-api")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Large — the field the page is about")
+                    .SetSize(UIInputSize.Large)
+                    .SetValue("payments-api")
+                )
+            )
+        );
+    }
+
+    /// <summary>
+    /// A dense panel: small fields with the caption inside the box and the value at the far edge, one line each, as a node on a
+    /// canvas draws its values.
+    /// </summary>
+    private static ContainerComponent CreateDenseGroup()
+    {
+        return DemoUI.CreateGroup(null, "Caption inside the field",
+            content => content.AddChild(DemoUI.CreateStack(4)
+                .AddChild(new TextInputComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Label")
+                    .SetValue("Area")
+                )
+                .AddChild(new NumberInputComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Width")
+                    .SetSuffixText("px")
+                    .SetValue(640)
+                )
+                .AddChild(new SelectComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Operation")
+                    .SetOptions([new OptionItem { Id = "add", Title = "Add" }, new OptionItem { Id = "multiply", Title = "Multiply" }])
+                    .SetValue("multiply")
+                )
+                .AddChild(new DateInputComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Due")
+                )
+                .AddChild(new TimeInputComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("At")
+                )
+                .AddChild(new SearchComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Assignee")
+                    .SetPlaceholder("Search people")
+                )
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Icon")
+                    .SetPlaceholder("None chosen")
+                )
+            )
+        );
     }
 
     /// <summary>The ordinary form case: a label per field, one of them with a unit suffix.</summary>

@@ -1,9 +1,11 @@
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.FileInput;
@@ -92,14 +94,8 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     )
                 )
                 .SetFooter(DemoUI.CreateRow(8)
-                    .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Primary)
-                        .SetTitle("Attach")
-                    )
-                    .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetTitle("Cancel")
-                    )
+                    .AddChild(UIButtons.Primary("Attach"))
+                    .AddChild(UIButtons.Ghost("Cancel"))
                 )
                 .SetPlacement(1, 1, 24, 1)
             )

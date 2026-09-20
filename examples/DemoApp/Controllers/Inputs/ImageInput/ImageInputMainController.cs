@@ -24,6 +24,7 @@ internal sealed partial class ImageValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(SelectionId), ClearSelectionId, () => SelectionId);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

@@ -28,8 +28,8 @@ public interface ITextMarkAlignmentComponent : IVisualComponent
     UITextIconAlignment? IconAlignment { get; }
 
     /// <summary>
-    /// Gets where a trailing badge sits against the text beside it: <c>Title</c> (the default) keeps it at
-    /// the far end of the title's own line, while <c>Content</c> centres it against title and description.
+    /// Gets where a trailing badge sits against the text beside it: <c>Title</c> (default) keeps it at the title line's end;
+    /// <c>Content</c> centres it across title and description.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UITextBadgeAlignment.Title)]
     UITextBadgeAlignment? BadgeAlignment { get; }

@@ -1,4 +1,4 @@
-import { BindingAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes";
+import { BindingAttributePrefix, ComponentSelector, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes";
 import { DomRegistry } from "./dom-registry";
 import {
     MetadataIndex,
@@ -80,11 +80,37 @@ export class AddressResolver {
         }));
     }
 
+    /** The property on one component element the caller holds — a part a package drew, perhaps one of several clones of a template. */
+    public resolvePropertyOn(component: Element, reference: WebRenderPropertyReferenceMetadata): ResolvedPropertyAddress | null {
+        const componentId = getIdValue(reference.componentId);
+        const definition = this.metadata.getPropertyDefinition(reference.propertyId);
+
+        if (componentId <= 0 || definition === undefined)
+            return null;
+
+        return {
+            componentId,
+            propertyId: reference.propertyId,
+            propertyName: definition.propertyName,
+            dynamicParameters: [],
+            component,
+            definition,
+            bindingId: 0,
+            bindingSelector: null,
+            address: { component: { id: componentId, dynamicParameters: [] }, property: { name: definition.propertyName } }
+        };
+    }
+
     /** Every element the operation lands on, not the first: one property may be rendered onto several elements. */
     public resolveOperationTargets(resolved: ResolvedPropertyAddress, operation: WebDomOperation): Element[] {
         return resolveOperationElements(resolved.component, operation, () => {
-            if (resolved.bindingSelector === null)
-                return [resolved.component];
+            // An unbound property is patched only as a field's validation target, and the renderer marked its element for that;
+            // a property with neither mark is the root's own.
+            if (resolved.bindingSelector === null) {
+                const into = resolved.component.querySelector<Element>(`[${IntoAttributePrefix}${toKebabCase(resolved.propertyName)}]`);
+
+                return [into ?? resolved.component];
+            }
 
             const elements = Array.from(resolved.component.querySelectorAll<Element>(resolved.bindingSelector));
 
@@ -104,9 +130,13 @@ export function resolveOperationElements(component: Element, operation: WebDomOp
         return [component];
 
     if (target !== null && target !== undefined && target.trim().length > 0) {
-        const element = component.querySelector<Element>(target);
+        // The component's own part, not the first match under it: a grid's filter-band select has its own items host that must be skipped.
+        for (const element of component.querySelectorAll<Element>(target)) {
+            if (element.closest(ComponentSelector) === component)
+                return [element];
+        }
 
-        return element === null ? [] : [element];
+        return [];
     }
 
     return bound();

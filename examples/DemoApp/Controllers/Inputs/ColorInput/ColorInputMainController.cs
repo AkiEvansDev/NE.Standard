@@ -21,6 +21,7 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(TextFormat), CycleTextFormat, () => TextFormat);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

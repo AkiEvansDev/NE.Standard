@@ -1,11 +1,11 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
 
-// One pill wearing .ui-button's fill, edge, size and states; the two parts inside are presses, not buttons of their own
-// look, so the padding the chrome resolves lands on the parts and the root keeps none.
+// One pill wearing .ui-button's fill, edge, size and states; the two inner parts are presses, not buttons of their own look,
+// so resolved padding lands on the parts and the root keeps none.
 .ui-split-button {
     // Zero here, and re-read on the parts through the same chain, so an authored Padding still reaches the label.
     .ui-responsive-property(padding, --ui-padding, 0);
@@ -41,6 +41,30 @@
         border-bottom-right-radius: 0;
     }
 
+    // The label's alignment, as ui-button.less says it for a plain button — restated here since the label lives in
+    // `.ui-split-button__main`, not the root, which those `.ui-button > …` rules never reach.
+    .ui-split-button__main:has(.ui-text--align-start) {
+        justify-content: flex-start;
+    }
+
+    .ui-split-button__main:has(.ui-text--align-end) {
+        justify-content: flex-end;
+    }
+
+    .ui-split-button__main:has(.ui-text--align-justify) > .ui-button__content {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .ui-split-button__main > .ui-text--align-center:has(> .ui-text__body > .ui-text__description:not(:empty)) {
+        justify-content: flex-start;
+        text-align: start;
+    }
+
+    .ui-split-button.ui-loading:not([data-ui-text-icon]) > .ui-split-button__main > .ui-button__content {
+        opacity: 0.35;
+    }
+
     .ui-split-button__toggle {
         flex: 0 0 auto;
         padding: 0 @ui-space-2;
@@ -61,18 +85,20 @@
     }
 
     .ui-split-button__chevron {
-        .ui-chevron(0.7em);
-        .ui-chevron-down();
+        .ui-glyph-host();
     }
 
-    .ui-split-button--open .ui-split-button__chevron {
-        .ui-chevron-up();
-    }
+        .ui-split-button__chevron::before {
+            .ui-chevron(@ui-glyph-sm);
+            .ui-chevron-down();
+        }
 
-    // One wash: the part under the pointer is the surface that reacts, so the root's own hover comes off — the ghost's, the
-    // link's and the outline's wash, and the filled variants' inset tint — or the hovered part wore two. Surface keeps its own
-    // fill instead: it has one to lose, unlike the three transparent variants, so `.ui-button--surface`'s own hover/press
-    // ground (ui-button.less) is left in force rather than turned off under it.
+        .ui-split-button--open .ui-split-button__chevron::before {
+            .ui-chevron-up();
+        }
+
+    // One wash, not two: the hovered part is what reacts, so the root's own hover (ghost/link/outline wash, filled inset tint)
+    // is turned off here. Surface keeps its own, since — unlike the transparent variants — it has a fill to lose.
     .ui-split-button:is(.ui-button--ghost, .ui-button--link) {
         .ui-reveal-hover-off();
     }
@@ -93,11 +119,12 @@
         background-color: var(--ui-wash-active);
     }
 
-    // A menu button is one press: no rule between the parts, the chevron reads as the label's end, and the pointer anywhere
-    // over it washes both parts together rather than the one it happens to be on.
+    // A menu button is one press: no rule between the parts, so the pointer anywhere over it washes both parts together
+    // instead of just the one it's on.
     .ui-split-button[data-ui-split-mode="menu"] > .ui-split-button__toggle {
         border-left: 0;
         padding-left: 0;
+        padding-right: @ui-space-3;
     }
 
     .ui-split-button[data-ui-split-mode="menu"]:not(.ui-disabled):not(.ui-loading):hover > :is(.ui-split-button__main, .ui-split-button__toggle) {

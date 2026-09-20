@@ -102,6 +102,22 @@ internal sealed partial class TextInputSubmitGroupContext : DemoGroupContext
     }
 }
 
+/// <summary>The form whose errors stand under it in one paragraph; the submit only says what it received.</summary>
+internal sealed partial class TextInputBlockGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial string? Name { get; set; }
+
+    [RecursiveMember]
+    public partial string? Port { get; set; }
+
+    [RecursiveMember]
+    public partial string? Email { get; set; }
+
+    public void Submit()
+        => LogEvent($"created -> {Name} on {Port}, owner {Email ?? "nobody"}");
+}
+
 internal sealed partial class TextInputScenariosController() : DemoController
 {
     [RecursiveMember]
@@ -115,6 +131,9 @@ internal sealed partial class TextInputScenariosController() : DemoController
 
     [RecursiveMember]
     public partial TextInputFilterGroupContext FilterGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TextInputBlockGroupContext BlockGroup { get; set; } = new();
 
     [UICommand]
     public void RecordChange()
@@ -131,4 +150,8 @@ internal sealed partial class TextInputScenariosController() : DemoController
     [UICommand]
     public void Filter()
         => FilterGroup.Filter();
+
+    [UICommand]
+    public void SubmitBlock()
+        => BlockGroup.Submit();
 }

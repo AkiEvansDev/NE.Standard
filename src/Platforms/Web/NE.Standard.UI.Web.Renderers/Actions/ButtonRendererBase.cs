@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -59,13 +60,23 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         BorderStyleRenderer.RenderBorderStyle(context, root);
     }
 
-    /// <summary>Draws the button's label — icon, title, description and badge — into a box the chrome can address.</summary>
+    /// <summary>
+    /// Draws the button's label (icon, title, description, badge) into a box the chrome can address; a titleless control takes
+    /// the tooltip as its accessible name.
+    /// </summary>
     protected static void RenderButtonLabel(WebRenderContext context, IHtmlElementBuilder root)
+        => RenderButtonLabel(context, root, root);
+
+    /// <summary>
+    /// The same label inside <paramref name="host"/> — the press a composite control draws inside its root, which is what takes the name.
+    /// </summary>
+    protected static void RenderButtonLabel(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder host)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(host);
 
-        _ = root.Element("span", label =>
+        _ = host.Element("span", label =>
         {
             _ = label.Class("ui-button__content");
 
@@ -75,5 +86,13 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
                 DefaultBadgePlacement = UITextBadgePlacement.Trailing
             });
         });
+
+        // An icon-only control is named by its tooltip; a titled control keeps its title regardless. Decided at render since a
+        // property's operations can't read another property.
+        _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+        _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _);
+
+        if (string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(tooltip))
+            _ = host.Attribute("aria-label", tooltip);
     }
 }

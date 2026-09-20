@@ -27,8 +27,8 @@ public sealed class UIInstance
     /// Gets the id of the page render this instance belongs to, when the host issued one.
     /// </summary>
     /// <remarks>
-    /// Lets one runtime serve both halves of a page load; null when a host does not prepare a runtime at render
-    /// time, and the key falls back to the connection.
+    /// Lets one runtime serve both halves of a page load; null when the host doesn't prepare one at render time,
+    /// and the key falls back to the connection.
     /// </remarks>
     public string? PageId { get; init; }
 

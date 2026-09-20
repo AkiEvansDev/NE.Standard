@@ -2,6 +2,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
@@ -10,9 +11,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 /// <remarks>Its label is a full <see cref="ITextComponent"/>, not an input caption; <c>BadgePlacement</c> has no effect here.</remarks>
 [UIComponentPropertyBlock(typeof(ITextComponent))]
-public abstract partial class CheckboxComponent<T>(string? id = null) : TextInputComponentBase<T, bool?>(id), ITextComponent
+public abstract partial class CheckboxComponent<T>(string? id = null) : TextInputComponentBase<T, bool?>(id), ITextComponent, ISizedInputComponent
     where T : CheckboxComponent<T>, IUIComponentDefinition
-{ }
+{
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
+    public UIInputSize? Size { get; set; }
+}
 
 /// <summary>
 /// A checkbox input that toggles a boolean value.

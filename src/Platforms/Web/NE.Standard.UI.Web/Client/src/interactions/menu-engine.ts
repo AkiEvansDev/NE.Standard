@@ -5,6 +5,7 @@ import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { KeyboardShortcut, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut";
 import { logWarn } from "../runtime/logger";
+import { MenuItemKindAttribute } from "../addressing/dom-attributes";
 
 const RootClass = "ui-menu";
 const ItemClass = "ui-menu-item";
@@ -13,8 +14,7 @@ const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
 
-const KindAttribute = "data-ui-menu-item-kind";
-const NonInteractiveSelector = `[${KindAttribute}="header"], [${KindAttribute}="separator"]`;
+const NonInteractiveSelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 
 const ShortcutAttribute = "data-ui-menu-shortcut";
 
@@ -36,8 +36,8 @@ export class MenuEngine {
     public constructor(options: MenuEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        // The arrows are a menu's own, taken before anything else sees them; a shortcut waits for the bubble, so a field or a
-        // popup that takes the chord itself (a code field's Ctrl+S) has already prevented it.
+        // The arrows are a menu's own, taken before anything else sees them; a shortcut waits for the bubble, so a field that
+        // takes the chord itself (a code field's Ctrl+S) has already prevented it.
         this.root.addEventListener("keydown", domEvent => this.handleNavigationKeydown(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
@@ -45,10 +45,14 @@ export class MenuEngine {
         this.applyTabStops();
 
         if (this.root instanceof Node) {
-            // The shortcut registry is only invalidated, so the next press pays for the rebuild; tab stops cannot wait for a press.
-            const observer = new MutationObserver(() => {
+            // The shortcut registry is only invalidated, so the next press pays for the rebuild; tab stops can't wait for a press.
+            // Hand-rolled rather than observeComponents, since any change stales the shortcuts with no component to collect, while
+            // tab stops rebuild only for a change that touched a menu, not every row a table draws.
+            const observer = new MutationObserver(mutations => {
                 this.shortcutsStale = true;
-                this.scheduleTabStops();
+
+                if (mutations.some(touchesMenu))
+                    this.scheduleTabStops();
             });
 
             observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [ShortcutAttribute] });
@@ -128,9 +132,8 @@ export class MenuEngine {
     }
 
     /**
-     * A shortcut is an accelerator: it fires from anywhere on the page, a field included, unless the field took the chord itself. Two
-     * things stop it — an unmodified key belongs to the text under the caret, and an open modal dialog keeps every entry outside it out
-     * of reach, as it does the pointer.
+     * A shortcut is an accelerator: fires from anywhere on the page, a field included, unless the field took the chord itself. An
+     * unmodified key belongs to the caret's text, and an open modal keeps outside entries out of reach, like the pointer.
      */
     private handleShortcutKeydown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
@@ -203,6 +206,21 @@ export class MenuEngine {
 }
 
 /** Whether an unmodified press belongs to text the user is editing. */
+/** Whether a mutation happened in a menu or brought one: only then are the tab stops worth laying out again. */
+function touchesMenu(mutation: MutationRecord): boolean {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+
+    if (target !== null && target.closest(`.${RootClass}`) !== null)
+        return true;
+
+    for (const node of mutation.addedNodes) {
+        if (node instanceof Element && (node.classList.contains(RootClass) || node.querySelector(`.${RootClass}`) !== null))
+            return true;
+    }
+
+    return false;
+}
+
 function isTypingTarget(domEvent: KeyboardEvent): boolean {
     if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
         return false;

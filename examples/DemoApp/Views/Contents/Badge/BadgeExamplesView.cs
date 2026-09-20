@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Badge;
@@ -35,9 +36,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateCarriedGroup()
     {
         return DemoUI.CreateGroup(null, "Carried by something else",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(400))
                 .AddChild(new CardComponent()
                     .ConfigureDefaultHeader(header => header
@@ -47,11 +46,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetBadgeText("Latest")
                         .SetBadgeStyle(UIBadgeType.Success)
                     )
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("A card header is a text component, so its badge is the same pair of properties.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
+                    .SetContent(UIText.Note("A card header is a text component, so its badge is the same pair of properties."))
                 )
                 .AddChild(new ExpanderComponent()
                     .SetCollapsed()
@@ -61,11 +56,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetBadgeText("Owner only")
                         .SetBadgeStyle(UIBadgeType.Warning)
                     )
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("So is an expander's, which is why the two look identical closed.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
+                    .SetContent(UIText.Note("So is an expander's, which is why the two look identical closed."))
                 )
                 .AddChild(new ActionComponent()
                     .SetIcon(DemoIcons.Bell)
@@ -105,9 +96,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
             // On a panel: the pills only read as one column of verdicts sharing a right edge and a ground.
             content => content.AddChild(new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(4)
+                .SetContent(UILayout.Stack(4)
                     .SetWidth(UILayoutLength.Absolute(360))
                     .AddChild(CreateReading("Error rate", "0.4%", "Normal", UIBadgeType.Success))
                     .AddChild(CreateReading("p95 latency", "412 ms", "Watch", UIBadgeType.Warning))
@@ -120,7 +109,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
         );
     }
 
-    private static ContainerComponent CreateReading(string name, string value, string state, UIBadgeType style)
+    private static ContainerComponent CreateReading(string name, string value, string state, UIBadgeType type)
         => new ContainerComponent()
             .SetPadding(UIThickness.All(0, 6, 0, 6))
             .SetColumn(24, UIGridUnit.Auto())
@@ -133,7 +122,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetPlacement(1, 1, 23, 1)
             )
             .AddChild(new BadgeComponent()
-                .SetStyle(style)
+                .SetType(type)
                 .SetText(state)
                 .SetVerticalAlignment(UIAlignment.Center)
                 .SetHorizontalAlignment(UIAlignment.End)
@@ -149,9 +138,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
             content => content.AddChild(new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(8))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(4)
+                .SetContent(UILayout.Stack(4)
                     .AddChild(CreateRail(DemoIcons.Mail, "Inbox", "12", UIBadgeType.Danger))
                     .AddChild(CreateRail(DemoIcons.Bell, "Alerts", "3", UIBadgeType.Warning))
                     .AddChild(CreateRail(DemoIcons.Check, "Done", null, UIBadgeType.Success))
@@ -162,7 +149,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
     }
 
     // No text on the last one: the pill is a dot, for when the number does not matter.
-    private static ContainerComponent CreateRail(string icon, string title, string? count, UIBadgeType style)
+    private static ContainerComponent CreateRail(string icon, string title, string? count, UIBadgeType type)
         => new ContainerComponent()
             .SetWidth(UILayoutLength.Absolute(200))
             .SetPadding(UIThickness.All(4, 4, 4, 4))
@@ -175,7 +162,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetPlacement(1, 1, 23, 1)
             )
             .AddChild(new BadgeComponent()
-                .SetStyle(style)
+                .SetType(type)
                 .SetText(count)
                 .SetTooltip(count is null ? "Nothing waiting" : null)
                 .SetVerticalAlignment(UIAlignment.Center)
@@ -184,7 +171,7 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
             );
 
     /// <summary>
-    /// A row of pills, each one a thing rather than a state; this is where <c>Color</c> earns its place over <c>Style</c>.
+    /// A row of pills, each one a thing rather than a state; this is where <c>Color</c> earns its place over <c>Type</c>.
     /// </summary>
     private static ContainerComponent CreateCategoryGroup()
     {
@@ -198,16 +185,13 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Horizontal)
-                    .SetSpacing(6)
-                    .SetWrap(true)
+                .SetContent(UILayout.Row(6)
                     .AddChild(CreateTag("client", UIColorStyle.Info))
                     .AddChild(CreateTag("rendering", UIColorStyle.Accent))
                     .AddChild(CreateTag("good first issue", UIColorStyle.Success))
                     .AddChild(CreateTag("needs design", UIColorStyle.Warning))
                     .AddChild(new BadgeComponent()
-                        .SetStyle(UIBadgeType.Surface)
+                        .SetType(UIBadgeType.Surface)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
                         .SetText("opened 6 days ago")
                     )

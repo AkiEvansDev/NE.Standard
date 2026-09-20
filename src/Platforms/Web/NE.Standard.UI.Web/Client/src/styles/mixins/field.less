@@ -1,5 +1,4 @@
 @import "../core/tokens.less";
-@import "./chevron.less";
 @import "./glyphs.less";
 @import "./interactive.less";
 
@@ -12,10 +11,10 @@
     --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
     // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
     --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
-    // What Outline and Underline lift their border to. A control that does not lift under the pointer — a code field is not a row of a
-    // list — sets these to its rest, and the hover rules go on writing them to no visible effect.
+    // What Outline and Underline lift their border to on hover. A control that doesn't lift (a code field, not a list row) sets
+    // this to its rest, so the hover rule still runs but has no visible effect.
     --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
-    border: var(--ui-border-width, 1.5px) solid var(--ui-field-rest);
+    border: var(--ui-border-width, 1px) solid var(--ui-field-rest);
     border-radius: var(--ui-radius-input);
     background: var(--ui-field-rest);
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
@@ -33,8 +32,8 @@
     .ui-field-ground();
 }
 
-// A glyph button inside a field (text input's clear, temporal input's picker toggle): round, borderless, muted. Under the pointer it
-// answers with its ink alone — the field's row is the surface that lifts, and a second wash on the glyph read as a button on a button.
+// A glyph button inside a field (text input's clear, temporal input's picker toggle): round, borderless, muted. It answers
+// hover with its ink alone, since the field's row is the surface that lifts — a wash on the glyph too would read as a button on a button.
 .ui-field-adornment() {
     position: relative;
     display: inline-flex;
@@ -54,6 +53,25 @@
 
     &:hover {
         color: var(--ui-color-on-surface);
+    }
+}
+
+// The veil over a picture a viewer may replace (the picture field, a package's picture surface): a pencil on dark glass,
+// shown under the pointer or keyboard, never over an empty surface. When it shows is the caller's rule.
+.ui-picture-veil(@glyph: 1.5rem) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, black 45%, transparent);
+    color: white;
+    opacity: 0;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+    pointer-events: none;
+
+    &::before {
+        .ui-pencil-glyph(@glyph; 0);
     }
 }
 
@@ -90,7 +108,7 @@
     }
 
     &::before {
-        .ui-chevron(0.55em);
+        .ui-chevron(@ui-glyph-xs);
     }
 }
 
@@ -116,8 +134,7 @@
     line-height: 1;
 }
 
-// The field shapes every input wears, as a variable because the list repeats across the stylesheets that dress a field: a row missing
-// from one silently half-applies. The states list adds `.ui-field-box`: a field that is a box of its own rather than a row — the text
-// area's, a package's editor — and the one class a renderer outside this stylesheet can reach the ground and the states with.
+// A shared variable, not repeated per file, since a row missing from one silently half-applies. `@ui-input-field-state` adds
+// `.ui-field-box` (box-shaped fields) and the image input's surface, which want the invalid/focus border but not this sizing, which would distort their shape.
 @ui-input-field: ~".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger";
-@ui-input-field-state: ~"@{ui-input-field}, .ui-field-box";
+@ui-input-field-state: ~"@{ui-input-field}, .ui-field-box, .ui-image-input__surface";

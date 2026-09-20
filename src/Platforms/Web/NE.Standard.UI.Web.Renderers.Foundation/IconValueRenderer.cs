@@ -32,6 +32,25 @@ public static class IconValueRenderer
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
     }
 
+    /// <summary>
+    /// Renders a standalone icon element — a package's chrome mark or the framework's <c>ne-</c> glyph beside a word. Decorative:
+    /// a screen reader hears the words, not the mark.
+    /// </summary>
+    public static void RenderIcon(IHtmlElementBuilder parent, string icon, string? className = null)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentException.ThrowIfNullOrWhiteSpace(icon);
+
+        _ = parent.Element("span", element =>
+        {
+            _ = element.Class(className is null ? "ui-icon" : $"ui-icon {className}");
+            // `.ui-icon::before` stays hidden until this says there is a glyph to draw.
+            _ = element.Attribute(WebAttributes.Icon);
+            _ = element.Attribute("aria-hidden", "true");
+            RenderIconValue(element, icon);
+        });
+    }
+
     /// <summary>Writes the icon onto <paramref name="target"/>: a glyph as its pack's class, a picture as the image URL.</summary>
     public static void RenderIconValue(IHtmlElementBuilder target, string value)
     {

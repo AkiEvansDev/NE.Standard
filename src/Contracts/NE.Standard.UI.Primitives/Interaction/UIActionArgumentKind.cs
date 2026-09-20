@@ -24,4 +24,9 @@ public enum UIActionArgumentKind
     /// The argument value is resolved from a binding.
     /// </summary>
     Binding = 3,
+
+    /// <summary>
+    /// The argument value is one key of the event's own chain, by its place in it — for an event that names its keys itself.
+    /// </summary>
+    EventKey = 4,
 }

@@ -1,4 +1,4 @@
-import { EventBoundaryAttribute, eventSuppressAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
+import { EventBoundaryAttribute, eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { EffectRegistry } from "../effects/effect-registry";
@@ -8,7 +8,7 @@ import { ValidationEngine } from "../interactions/validation-engine";
 import { MetadataIndex } from "../metadata/metadata-index";
 import { ServerChangeSet } from "../metadata/metadata-index";
 import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
-import { EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
+import { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
 import { EventRegistry } from "./event-registry";
 import { EventRequestFactory } from "./event-request-factory";
 import { logError } from "../runtime/logger";
@@ -19,8 +19,8 @@ export type EventPipelineOptions = {
     readonly dom: DomRegistry;
     readonly dispatcher: CommandDispatcher;
 
-    /** How a command's answer reaches the page; the host's own entry point, not the update processor. */
-    readonly applyChanges: (changes: ServerChangeSet | undefined) => void;
+    /** How a command's answer reaches the page; the host's own entry point, not the update processor. Awaited when it names a staged value. */
+    readonly applyChanges: (changes: ServerChangeSet | undefined) => void | Promise<void>;
 
     /** Run once the command's effects have been applied, for whatever has to look at the DOM they moved. */
     readonly afterEffects?: () => void;
@@ -34,6 +34,21 @@ export type EventPipelineOptions = {
 
     readonly valueBinding?: ValueBindingEngine;
 };
+
+type EventOutcome = Pick<EventCompletionContext, "dispatched" | "success" | "error">;
+
+/** An event the page turned away before it reached the server: nothing ran, and nothing landed. */
+const Refused: EventOutcome = { dispatched: false, success: false };
+
+/** A command that left the page and came to nothing — the connection dropped under it — as against a failure before it was sent. */
+class DispatchFailure extends Error {
+    public readonly reason: unknown;
+
+    public constructor(reason: unknown) {
+        super(String(reason));
+        this.reason = reason;
+    }
+}
 
 export class EventPipeline {
     private readonly options: EventPipelineOptions;
@@ -104,8 +119,7 @@ export class EventPipeline {
         if (isInnerBoundaryCrossing(domEvent, resolved.element))
             return;
 
-        // A boundary between the target and the component keeps the event on its own side: a menu's entry, a split button's
-        // end, never hands its click to the component holding them.
+        // A boundary keeps the event on its own side: a menu entry or split-button end never hands its click to the component holding it.
         const boundary = domEvent.target.closest(`[${EventBoundaryAttribute}]`);
 
         if (boundary !== null && boundary !== resolved.element && resolved.element.contains(boundary))
@@ -124,6 +138,24 @@ export class EventPipeline {
             ? resolvedContext
             : { ...resolvedContext, dynamicParameters: registration.dynamicParameters(resolvedContext) ?? resolvedContext.dynamicParameters };
 
+        // Told whatever happens, a dropped connection included: a package waiting on the answer of the value it sent would
+        // otherwise wait for ever.
+        try {
+            const outcome = await this.runAsync(eventName, registration, resolved.element, context);
+
+            registration.completed?.({ ...context, ...outcome });
+        }
+        catch (error) {
+            const dispatched = error instanceof DispatchFailure;
+            const reason = dispatched ? error.reason : error;
+
+            registration.completed?.({ ...context, dispatched, success: false, error: String(reason) });
+            throw reason;
+        }
+    }
+
+    /** The command the event stands for, from the request to its answer; what it came to is what the registration is told. */
+    private async runAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext): Promise<EventOutcome> {
         this.applyDomPolicy(registration, context);
 
         const request = this.requestFactory.create(registration, context);
@@ -133,45 +165,49 @@ export class EventPipeline {
                 name: eventName,
                 componentId: context.componentId,
                 dynamicParameters: context.dynamicParameters,
-                domEvent
+                domEvent: context.domEvent
             });
-            return;
+
+            // Nothing to wait for: an event carrying no command has landed as soon as the page has run it.
+            return { dispatched: false, success: true };
         }
 
         if (this.options.dispatcher.isPending(request)) {
-            domEvent.preventDefault();
-            return;
+            context.domEvent.preventDefault();
+            return Refused;
         }
 
-        const submitFormId = resolved.element.getAttribute(SubmitFormIdAttribute);
+        const submitFormId = element.getAttribute(SubmitFormIdAttribute) ?? (registration.submitsForm === true ? fieldFormId(context) : null);
 
         if (submitFormId !== null) {
             if (this.options.validationEngine?.runSubmitValidation(submitFormId) === false) {
-                domEvent.preventDefault();
-                return;
+                context.domEvent.preventDefault();
+                return Refused;
             }
 
             // After validation and before the command: an OnSubmit field holds its value back until here.
             await this.options.valueBinding?.submitFormAsync(submitFormId);
         }
 
-        if (await this.isRefusedValueEventAsync(registration, resolved.element))
-            return;
+        if (await this.isRefusedValueEventAsync(registration, element))
+            return Refused;
 
         // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
         if (this.options.dispatcher.isPending(request))
-            return;
+            return Refused;
 
         this.options.interactionEngine.applyEvent({
             name: `before-${eventName}`,
             componentId: context.componentId,
             dynamicParameters: context.dynamicParameters,
-            domEvent
+            domEvent: context.domEvent
         });
 
-        const result = await this.options.dispatcher.dispatchAsync(request);
+        const result = await this.options.dispatcher.dispatchAsync(request).catch(error => {
+            throw new DispatchFailure(error);
+        });
 
-        this.options.applyChanges(result.changes);
+        await this.options.applyChanges(result.changes);
 
         // After the change set: an effect that focuses or scrolls needs the DOM those changes produced.
         this.options.effects.applyAll(result.command?.effects, this.options.dom);
@@ -181,8 +217,10 @@ export class EventPipeline {
             name: `after-${eventName}`,
             componentId: context.componentId,
             dynamicParameters: context.dynamicParameters,
-            domEvent
+            domEvent: context.domEvent
         });
+
+        return { dispatched: true, success: result.command?.success !== false, error: result.command?.message ?? null };
     }
 
     // An .OnChange command must not run for a value the controller never took, so it waits for that value's round-trip; a package's
@@ -234,4 +272,12 @@ function isInnerBoundaryCrossing(domEvent: Event, component: Element): boolean {
     const related = (domEvent as MouseEvent).relatedTarget;
 
     return related instanceof Node && component.contains(related);
+}
+
+/** The form of the field an event came from: the target's own, or the first field inside the component that declares one. */
+function fieldFormId(context: EventDispatchContext): string | null {
+    const target = context.domEvent.target;
+    const field = (target instanceof Element ? target.closest(`[${FormIdAttribute}]`) : null) ?? context.component.querySelector(`[${FormIdAttribute}]`);
+
+    return field?.getAttribute(FormIdAttribute) ?? null;
 }

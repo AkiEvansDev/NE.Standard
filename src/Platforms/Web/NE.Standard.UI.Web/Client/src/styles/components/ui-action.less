@@ -1,5 +1,5 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
 @import "../mixins/text.less";
 
@@ -13,6 +13,11 @@
     .ui-responsive-property(min-height, --ui-min-height, @ui-row-height);
     .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-3);
     text-align: start;
+}
+
+// The same as a menu entry: an action whose label is only a glyph stays a row rather than becoming a square as tall as it is wide.
+.ui-action[data-ui-text-icon]:not([data-ui-text-title]) {
+    aspect-ratio: auto;
 }
 
 // Requires both `.ui-action` and `.ui-button--small`: a single shared class ties in specificity, leaving Size unable to move the height.
@@ -68,11 +73,14 @@
     }
 
 // The library's own chevron, so the default trailing glyph needs no icon package; hidden once a real icon is named.
-// Twelve whole pixels, the size of every row's fold mark (menu, tree, expander): at 0.6em it read small and soft.
 .ui-action__chevron {
-    .ui-chevron(0.75rem);
-    .ui-chevron-right();
+    .ui-glyph-host();
 }
+
+    .ui-action__chevron::before {
+        .ui-chevron(@ui-glyph-md);
+        .ui-chevron-right();
+    }
 
 .ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__chevron {
     display: none;

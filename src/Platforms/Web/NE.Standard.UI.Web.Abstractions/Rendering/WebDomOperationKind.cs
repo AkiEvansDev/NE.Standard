@@ -1,8 +1,8 @@
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 /// <summary>
-/// The operations the client knows out of the box. The wire carries the name, so a package's own operation travels the same way
-/// under a name of its own — <see cref="WebDomOperation.Custom"/>.
+/// The operations the client knows out of the box; a package's own operation travels the same way, named via
+/// <see cref="WebDomOperation.Custom"/>.
 /// </summary>
 public enum WebDomOperationKind
 {

@@ -9,6 +9,7 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -17,10 +18,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// A list of navigation entries, vertical or horizontal, that folds to its icons alone.
 /// </summary>
 /// <remarks>
-/// <c>Surface</c> names the fill of the popup the menu opens in — the context menu it is, the split button's list, its sub-entries'
-/// flyout — a popup wears the surface colour unless told otherwise. One collection carries entries, captions, rules, checks and
-/// selects; <see cref="IMenuItemModel.Kind"/> selects the template variant. A check's click and a select's option click are the entry click command with the entry's key; the controller answers
-/// on the bound item (<c>Checked</c>, <c>Value</c>), so both kinds want a bound collection rather than entries set once.
+/// <c>Surface</c> names the popup's fill — the context menu, split button list, or sub-entry flyout — unset elsewhere. One
+/// collection carries entries, captions, rules, checks and selects via <see cref="IMenuItemModel.Kind"/>; checks and selects
+/// write back to the bound item, so they need a bound collection, not entries set once.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
@@ -60,15 +60,15 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
-    /// Gets or sets the ground the menu paints, unset by default: a menu in a sidebar draws no ground of its own, and one in a popup
-    /// — the context menu it is, the split button's list, its sub-entries' flyout — wears the popup's surface colour.
+    /// Gets or sets the ground the menu paints, unset by default: a sidebar menu draws no ground, while a popup menu (context
+    /// menu, split-button list, flyout) wears the popup's surface colour.
     /// </summary>
     /// <remarks>Declared here rather than through the property block, whose default (<c>Background</c>) would paint every menu.</remarks>
     [UIComponentProperty(Contract = typeof(ISurfaceStyleComponent), DefaultValue = null)]
     public UISurfaceStyle? Surface { get; set; }
 
     /// <summary>
-    /// Gets whether this menu is the sub-entries of another's entry: it folds and flies out with that entry, and has no sub-entries of its own.
+    /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry, and has no sub-entries of its own.
     /// </summary>
     /// <remarks>Render-time only: a nested list is built as its entry's block.</remarks>
     [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
@@ -124,6 +124,12 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
 
     /// <summary>
+    /// Registers a click command with an argument derived from the specified <paramref name="argumentKind"/>.
+    /// </summary>
+    public T OnItemClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
+        => OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
+
+    /// <summary>
     /// Registers a click command invoked when an entry is clicked, with UI action arguments.
     /// </summary>
     public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
@@ -141,8 +147,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     private MenuComponent? Submenu => GetTemplateVariant(SubmenuTemplateKey) as MenuComponent;
 
     /// <summary>
-    /// The templates a click is a command on: the entry's and the check's. A caption and a rule take no click, and a select's own
-    /// click only opens its choices — the choices themselves are entries or checks.
+    /// The entry and check templates; captions and rules take no click, and a select's own click only opens its choices.
     /// </summary>
     private IEnumerable<IButtonComponent> ClickableTemplates()
     {

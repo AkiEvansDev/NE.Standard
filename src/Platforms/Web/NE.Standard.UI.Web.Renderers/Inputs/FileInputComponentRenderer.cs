@@ -1,8 +1,7 @@
 using System;
-using System.Globalization;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -24,14 +23,9 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
         RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: true);
 
-        // What the client refuses before it uploads; the endpoint's own limit holds whatever this says.
-        _ = RenderProperty<long?>(context, root, FileInputComponent.MaxFileSizeProperty, static (target, value) =>
-        {
-            if (value > 0)
-                _ = target.Attribute(WebAttributes.FileMaxSize, value.Value.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.FileMaxSize)]);
+        NativeInputRendererBase.RenderMaxFileSize(context, root, FileInputComponent.MaxFileSizeProperty);
 
         RenderRow(context, root);
         RenderValidationMessage(context, root);
@@ -50,27 +44,13 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
+            RenderInputHeaderInside(context, root, row);
+
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            _ = row.Element("input", input =>
+            NativeInputRendererBase.RenderFilePicker(context, row, $"{ClassName}__native", FileInputComponent.AcceptProperty, input =>
             {
                 native = input;
-
-                _ = input.Class($"{ClassName}__native");
-                _ = input.Attribute("type", "file");
-                // See the image input: the picker's change is the engine's, the component's comes with the upload's handle.
-                _ = input.Attribute(WebAttributes.EventBoundary);
-                NativeInputRendererBase.RenderFieldName(context, input, "file");
-
-                // Hidden but present: only a real file input opens the OS dialog, and the pick button is what is used.
-                _ = input.Attribute("tabindex", "-1");
-                _ = input.Attribute("aria-hidden", "true");
-
-                _ = RenderProperty<string?>(context, input, FileInputComponent.AcceptProperty, static (target, value) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(value))
-                        _ = target.Attribute("accept", value);
-                }, [WebDomOperation.Attribute("accept")]);
 
                 _ = RenderProperty<bool?>(context, input, FileInputComponent.MultipleProperty, static (target, value) =>
                 {
@@ -102,26 +82,9 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Property("value")]);
             });
 
-            // The selection id needs its own hidden element, since the field's own value is the file names.
-            _ = ResolveRenderValue(context, FileInputComponent.SelectionIdProperty, out string? _, out CompiledUIBinding? selectionBinding);
-
-            _ = row.Element("input", input =>
-            {
-                _ = input.Class($"{ClassName}__selection");
-                _ = input.Attribute("type", "hidden");
-                NativeInputRendererBase.RenderFieldName(context, input, "selection");
-
-                // RenderProperty as well as the attribute: resolving alone leaves the binding unregistered, and the
-                // client refuses a binding id it cannot look up.
-                _ = RenderProperty<string?>(context, input, FileInputComponent.SelectionIdProperty, static (target, value) =>
-                {
-                    if (!string.IsNullOrEmpty(value))
-                        _ = target.Attribute("value", value);
-                }, [WebDomOperation.Property("value")]);
-
-                if (selectionBinding is not null)
-                    _ = input.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
-            });
+            // The selection id needs its own hidden element, since the field's own value is the file names; it's the component's
+            // value for a reader, as other fields come first in the markup.
+            NativeInputRendererBase.RenderSelectionInput(context, row, $"{ClassName}__selection", FileInputComponent.SelectionIdProperty, holdsValue: true);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
@@ -131,6 +94,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
                 _ = button.Class($"{ClassName}__pick");
                 _ = button.Attribute("type", "button");
+                _ = button.Attribute("aria-label", context.Translate(UIStrings.FileChoose));
                 _ = button.Attribute(WebAttributes.FilePick);
             });
         });

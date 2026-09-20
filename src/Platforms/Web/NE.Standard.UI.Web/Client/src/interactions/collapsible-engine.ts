@@ -90,8 +90,8 @@ export class CollapsibleEngine {
         return component.querySelector<HTMLElement>(`:scope > [${CollapseToggleAttribute}]`);
     }
 
-    // Measured and slid, not transitioned: a stretched panel's auto size is not a length CSS can interpolate, in either direction.
-    // While it slides the component is marked folding and keeps its open layout, clipped, so nothing inside jumps before the edge arrives.
+    // Measured and slid, not transitioned: an auto size is not a length CSS can interpolate.
+    // Marked folding while it slides so it keeps its open layout, clipped, and nothing inside jumps before the edge arrives.
     private playFold(component: HTMLElement, content: HTMLElement | null, before: FoldSize, collapsed: boolean): void {
         if (typeof component.animate !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches)
             return;
@@ -107,8 +107,8 @@ export class CollapsibleEngine {
         const options: KeyframeAnimationOptions = { duration: FoldDuration, easing: FoldEasing };
         const animations = [component.animate([{ [axis]: `${before.component}px` }, { [axis]: `${after.component}px` }], options)];
 
-        // Held at its open size and never squeezed: a paragraph re-wrapping on every frame is not a fold. Faded only when it ends
-        // closed; a menu's rail keeps its icons, and fading them out and back is a blink.
+        // Held at its open size, never squeezed, so a paragraph doesn't re-wrap every frame; faded only when it ends closed, since
+        // a menu's rail would otherwise blink its icons out and back.
         if (content !== null) {
             const open = `${collapsed ? before.content : after.content}px`;
             const fades = (collapsed ? after.content : before.content) === 0;

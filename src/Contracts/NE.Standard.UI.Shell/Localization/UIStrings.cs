@@ -6,9 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 namespace NE.Standard.UI.Shell.Localization;
 
 /// <summary>
-/// The words the framework's own chrome writes — a picker's "Today", a strip's "More tabs" — as translation
-/// keys with their English text. An application translates or overrides one the way it translates its own
-/// text: the same key in its own <see cref="ITranslationSource"/>.
+/// The framework's own chrome words (a picker's "Today", a strip's "More tabs") as translation keys with their English
+/// text; an application translates or overrides one the same way, via its own <see cref="ITranslationSource"/>.
 /// </summary>
 public static class UIStrings
 {
@@ -41,6 +40,9 @@ public static class UIStrings
     public const string ColorBlue = "ui.color.blue";
     public const string ColorFactor = "ui.color.factor";
     public const string ColorOpacity = "ui.color.opacity";
+    public const string ColorChoose = "ui.color.choose";
+    public const string PickerOpen = "ui.picker.open";
+    public const string FileChoose = "ui.file.choose";
     public const string SplitterLabel = "ui.splitter.label";
     public const string SplitButtonMore = "ui.split.more";
     public const string ImageChoose = "ui.image.choose";
@@ -51,6 +53,14 @@ public static class UIStrings
     public const string RowCancel = "ui.row.cancel";
     public const string TableResizeColumn = "ui.table.resize";
     public const string TreeToggle = "ui.tree.toggle";
+    public const string CollapseToggle = "ui.collapse.toggle";
+    public const string ThemeSwitch = "ui.theme.switch";
+    public const string NotFoundTitle = "ui.notfound.title";
+    public const string NotFoundDescription = "ui.notfound.description";
+    public const string ErrorTitle = "ui.error.title";
+    public const string ErrorMessage = "ui.error.message";
+    public const string CommandRefused = "ui.command.refused";
+    public const string CommandFailed = "ui.command.failed";
     public const string TreeLoading = "ui.tree.loading";
 
     /// <summary>
@@ -87,6 +97,9 @@ public static class UIStrings
         [ColorBlue] = "B",
         [ColorFactor] = "Factor",
         [ColorOpacity] = "Opacity",
+        [ColorChoose] = "Choose a colour",
+        [PickerOpen] = "Open the picker",
+        [FileChoose] = "Choose files",
         [SplitterLabel] = "Resize",
         [SplitButtonMore] = "More actions",
         [ImageChoose] = "Choose a picture",
@@ -97,6 +110,14 @@ public static class UIStrings
         [RowCancel] = "Cancel",
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",
+        [CollapseToggle] = "Expand or collapse",
+        [ThemeSwitch] = "Switch theme",
+        [NotFoundTitle] = "404",
+        [NotFoundDescription] = "The page you are looking for does not exist.",
+        [ErrorTitle] = "Something went wrong",
+        [ErrorMessage] = "Something went wrong. Please try again.",
+        [CommandRefused] = "You are not allowed to do that.",
+        [CommandFailed] = "Something went wrong. Please try again.",
         [TreeLoading] = "Loading…"
     }.ToFrozenDictionary(StringComparer.Ordinal);
 

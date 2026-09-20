@@ -26,7 +26,7 @@ export class RadioGroupSyncEngine {
         for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
             this.claimGroupName(group);
 
-        for (const group of this.root.querySelectorAll<HTMLElement>(`[${RadioValueAttribute}]`))
+        for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
             this.sync(group);
 
         if (!(this.root instanceof Node))
@@ -37,7 +37,7 @@ export class RadioGroupSyncEngine {
             for (const mutation of mutations) {
                 if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
                     // A class change is an option's Enabled moving: the group it belongs to re-reads its options.
-                    this.sync(mutation.attributeName === "class" ? mutation.target.closest<HTMLElement>(`.${RadioGroupClass}`) : mutation.target);
+                    this.sync(mutation.target.closest<HTMLElement>(`.${RadioGroupClass}`));
                     continue;
                 }
 
@@ -52,7 +52,7 @@ export class RadioGroupSyncEngine {
             }
         });
 
-        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, "class"], childList: true, subtree: true });
+        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, DisabledAttribute, "class"], childList: true, subtree: true });
     }
 
     private decorateAddedGroups(node: HTMLElement): void {
@@ -91,15 +91,16 @@ export class RadioGroupSyncEngine {
             radio.name = unique;
 
         // The browser unchecked the group that held the shared name, so every group re-reads its own value.
-        for (const other of this.root.querySelectorAll<HTMLElement>(`[${RadioValueAttribute}]`))
+        for (const other of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
             this.sync(other);
     }
 
     private sync(group: HTMLElement | null): void {
-        const value = group?.getAttribute(RadioValueAttribute);
-
-        if (group === null || value === null || value === undefined)
+        if (group === null)
             return;
+
+        // No value is a group with nothing chosen, not one to skip: its radios still take the read-only mark.
+        const value = group.getAttribute(RadioValueAttribute);
 
         const groupDisabled = group.hasAttribute(DisabledAttribute);
 

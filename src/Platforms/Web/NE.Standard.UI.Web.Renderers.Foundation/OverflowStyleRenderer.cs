@@ -21,10 +21,8 @@ public static class OverflowStyleRenderer
             if (value is not UIOverflow overflow)
                 return;
 
+            // Clips at the padding box, not the content box; the content box crops text descenders since a line's ink exceeds its box height.
             _ = target.Style("overflow", WebCssValues.Overflow(overflow));
-
-            // Inert unless the overflow above resolves to `clip`, so it needs no operation of its own.
-            _ = target.Style("overflow-clip-margin", "content-box");
         }, [WebDomOperation.Style("overflow", converter: WebDomConverters.OverflowCss)]);
     }
 }

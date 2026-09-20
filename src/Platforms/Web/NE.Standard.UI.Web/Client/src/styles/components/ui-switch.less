@@ -4,26 +4,10 @@
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
 
-// The root *is* the row, as on the checkbox: box, label body, validation message. A nested row would sit too deep for the ui-text gate.
+// The root *is* the row, as on the checkbox. A nested row would sit too deep for the ui-text gate.
 .ui-switch {
-    // Shares CheckboxComponentRenderer's body, so the two stylesheets must stay in step: a hook renamed in one fails silently.
-    display: inline-grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    .ui-toggle-row();
-    font: inherit;
-    cursor: pointer;
+    .ui-toggle-root();
 }
-
-    // Under the label rather than under the box, which is the column the text is in.
-    .ui-switch > .ui-validation-message {
-        grid-column: 2;
-    }
-
-    .ui-switch.ui-disabled {
-        cursor: default;
-    }
 
 .ui-switch__input {
     .ui-visually-hidden();
@@ -50,13 +34,46 @@
     border-radius: 999px;
     background: var(--ui-color-border);
     transform: translateY(-50%);
-    transition: transform @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
+    transition: left @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
+// The far rim is a percentage of the box's padding box, not a flat rem, so it resolves correctly whatever the browser rounds
+// the border pair to — a flat value overshoots the room the two borders leave for the knob's travel.
 .ui-switch__input:checked ~ .ui-switch__box::after {
     background: var(--ui-color-on-primary);
-    transform: translate(1rem, -50%);
+    left: calc(100% - 0.2rem - 0.8rem);
 }
+
+// A size steps the track and the knob with the text ui-input.less sizes; the knob's travel is written again for its own width.
+.ui-switch.ui-input--small > .ui-switch__box {
+    width: 1.75rem;
+    height: 1rem;
+}
+
+    .ui-switch.ui-input--small > .ui-switch__box::after {
+        left: 0.15rem;
+        width: 0.6rem;
+        height: 0.6rem;
+    }
+
+    .ui-switch.ui-input--small > .ui-switch__input:checked ~ .ui-switch__box::after {
+        left: calc(100% - 0.15rem - 0.6rem);
+    }
+
+.ui-switch.ui-input--large > .ui-switch__box {
+    width: 2.75rem;
+    height: 1.5rem;
+}
+
+    .ui-switch.ui-input--large > .ui-switch__box::after {
+        left: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .ui-switch.ui-input--large > .ui-switch__input:checked ~ .ui-switch__box::after {
+        left: calc(100% - 0.25rem - 1rem);
+    }
 
 .ui-switch__required {
     .ui-required-marker();

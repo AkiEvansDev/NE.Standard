@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -57,6 +58,8 @@ public static class CollapsibleChromeRenderer
             _ = toggle.Attribute("type", "button");
             _ = toggle.Attribute(ToggleAttribute);
             _ = toggle.Attribute("aria-expanded", expanded == false ? "false" : "true");
+            // Drawn in CSS, so the button has no text of its own to be read out.
+            _ = toggle.Attribute("aria-label", context.Translate(UIStrings.CollapseToggle));
         });
     }
 }

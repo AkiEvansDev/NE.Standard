@@ -6,8 +6,17 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 /// </summary>
 public static class WebAttributes
 {
+    /// <summary>A badge's text shown, "compact" while it fits a circle; the client writes it too for a count the page computes itself.</summary>
+    public const string BadgeText = "data-ui-badge-text";
+
     /// <summary>The prefix a bound property's attribute carries; the rest is the property name in kebab-case.</summary>
     public const string BindingPrefix = "data-ui-bind-";
+
+    /// <summary>
+    /// The prefix on the element holding a property's validation target (<c>ValidationInto</c>); the rest is the property name
+    /// in kebab-case. Without it, a patch lands on the root.
+    /// </summary>
+    public const string IntoPrefix = "data-ui-into-";
 
     public const string BindValue = "data-ui-bind-value";
 
@@ -56,6 +65,9 @@ public static class WebAttributes
 
     public const string ContextMenuOwner = "data-ui-context-menu-owner";
 
+    /// <summary>On a part inside a menu's owner: the name of the owner's menu a right press there opens, rather than its unnamed one.</summary>
+    public const string ContextMenuUse = "data-ui-context-menu-use";
+
     public const string Dialog = "data-ui-dialog";
 
     public const string DialogBackdrop = "data-ui-dialog-backdrop";
@@ -72,6 +84,19 @@ public static class WebAttributes
 
     /// <summary>An element no event crosses outward: a component above it never takes an event raised inside it.</summary>
     public const string EventBoundary = "data-ui-event-boundary";
+
+    /// <summary>The attribute that says "not me, keep walking" for one event; the client's twin is <c>eventSuppressAttribute</c>.</summary>
+    public static string EventSuppress(string eventName)
+        => $"data-ui-no-{eventName}";
+
+    /// <summary>The script element that carries the page's words.</summary>
+    public const string Strings = "data-ui-strings";
+
+    /// <summary>The script element that carries the hydration payload.</summary>
+    public const string Hydration = "data-ui-hydration";
+
+    /// <summary>The script element that carries the render metadata.</summary>
+    public const string Metadata = "data-ui-metadata";
 
     public const string FallbackSrc = "data-ui-fallback-src";
 
@@ -90,6 +115,9 @@ public static class WebAttributes
     public const string Group = "data-ui-group";
 
     public const string HostMode = "data-ui-host-mode";
+
+    /// <summary>On an items host that does not scroll itself: the element the rows are seen through is its parent, which the engines read the scroll of.</summary>
+    public const string HostViewport = "data-ui-host-viewport";
 
     public const string GroupHeader = "data-ui-group-header";
 
@@ -138,6 +166,12 @@ public static class WebAttributes
     /// <summary>On a component, an item's row or a host with rows: the context menu inside is not opened (<c>ShowContextMenu</c>, <c>CanShowContextMenu</c>).</summary>
     public const string NoContextMenu = "data-ui-no-context-menu";
 
+    /// <summary>On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open.</summary>
+    public const string NoRowOpen = "data-ui-no-row-open";
+
+    /// <summary>On a host with rows whose choosing is something of its own — a grid's checkboxes: a click on a row chooses nothing, the keyboard still does.</summary>
+    public const string NoRowSelect = "data-ui-no-row-select";
+
     /// <summary>The inline image input's text for the controller's picture, read by image-input-engine.ts.</summary>
     public const string ImageCaption = "data-ui-image-caption";
 
@@ -183,6 +217,14 @@ public static class WebAttributes
     public const string RowLimits = "data-ui-row-limits";
 
     public const string ScrollAnchor = "data-ui-scroll-anchor";
+    /// <summary>On a component root: the scroll group it scrolls with.</summary>
+    public const string ScrollGroup = "data-ui-scroll-group";
+    /// <summary>On the element a component scrolls, when that is not its root and not an items host's viewport.</summary>
+    public const string ScrollViewport = "data-ui-scroll-viewport";
+    /// <summary>On an element whose children are the source's lines in order, the first child line 1 — a code field's text.</summary>
+    public const string ScrollLines = "data-ui-scroll-lines";
+    /// <summary>On an element drawn from a source line: the line's number, from 1 — a Markdown display's block.</summary>
+    public const string SourceLine = "data-ui-source-line";
 
     public const string SearchDebounce = "data-ui-search-debounce";
 
@@ -199,6 +241,9 @@ public static class WebAttributes
 
     public const string SelectValue = "data-ui-select-value";
 
+    /// <summary>On a select-shaped root whose list opens anywhere but below from the start edge: the placement's token.</summary>
+    public const string SelectPlacement = "data-ui-select-placement";
+
     public const string SubmitFormId = "data-ui-submit-form-id";
 
     /// <summary>A split button's mode — <c>split</c> or <c>menu</c> — which says whether the main part opens the menu too.</summary>
@@ -207,8 +252,17 @@ public static class WebAttributes
     /// <summary>The pixels a splitter moves per arrow press.</summary>
     public const string SplitterStep = "data-ui-splitter-step";
 
-    /// <summary>On a table header's resize handle: the 0-based column it sizes.</summary>
+    /// <summary>On a table's header cell: the column's key, for the columns engine.</summary>
+    public const string TableColumnKey = "data-ui-table-column-key";
+
+    /// <summary>On a table's header cell: the viewport tier below which the column hides.</summary>
+    public const string TableHideBelow = "data-ui-table-hide-below";
+
+    /// <summary>On a table header's resize handle and on every cell: the 0-based column it belongs to.</summary>
     public const string TableColumn = "data-ui-table-column";
+
+    /// <summary>On the header cell of a column the control owns: the viewer neither sizes it nor moves it.</summary>
+    public const string TableFixed = "data-ui-table-fixed";
 
     public const string TabCaption = "data-ui-tab-caption";
 
@@ -265,6 +319,9 @@ public static class WebAttributes
 
     public const string TemporalAm = "data-ui-temporal-am";
 
+    /// <summary>The temporal culture pack as JSON; an engine formats a date by the nearest one above the element.</summary>
+    public const string TemporalCulture = "data-ui-temporal-culture";
+
     public const string TemporalDaynames = "data-ui-temporal-daynames";
 
     /// <summary>On a temporal input editing a period; on the second of its two fields, which holds the period's end.</summary>
@@ -306,6 +363,9 @@ public static class WebAttributes
 
     public const string Theme = "data-ui-theme";
 
+    /// <summary>The hook the theme switcher's engine finds its button by; a class would be styling.</summary>
+    public const string ThemeSwitcher = "data-ui-theme-switcher";
+
     public const string Tooltip = "data-ui-tooltip";
 
     public const string TooltipPlacement = "data-ui-tooltip-placement";
@@ -314,9 +374,11 @@ public static class WebAttributes
 
     public const string ValidationMessage = "data-ui-validation-message";
 
+    /// <summary>Marks the one element a component keeps its value on, where that is not the element the reader starts from.</summary>
+    public const string ValueHolder = "data-ui-value-holder";
+
     /// <summary>Names the reader that reads a written value off this element; the names are <see cref="WebValueKinds"/>.</summary>
     public const string ValueKind = "data-ui-value-kind";
-
 
     public const string Visibility = "data-ui-visibility";
 
@@ -335,6 +397,12 @@ public static class WebAttributes
     public const string WindowOffset = "data-ui-window-offset";
 
     public const string WindowSize = "data-ui-window-size";
+
+    /// <summary>On a windowed host: what the source computed over every item the query leaves, by property, as JSON.</summary>
+    public const string WindowAggregates = "data-ui-window-aggregates";
+
+    /// <summary>On a windowed host whose window is a page: the scroll asks for nothing, and a package's pager asks for a window by offset.</summary>
+    public const string WindowPaged = "data-ui-window-paged";
 
     public const string WindowTotal = "data-ui-window-total";
 

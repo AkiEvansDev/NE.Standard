@@ -7,8 +7,7 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 
 /// <summary>
 /// Converts boxed <see cref="JsonElement"/> values back into their inferred native CLR type for <see cref="object"/>-typed members:
-/// text, a whole or a fractional number, a boolean, an array of them, or a dictionary. The hub reads a client's value through it,
-/// and <see cref="RecursiveValueCoercion"/> rebuilds a model through it, so an <see cref="object"/> inside a model reads the same way.
+/// text, a whole or a fractional number, a boolean, an array of them, or a dictionary.
 /// </summary>
 public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
 {

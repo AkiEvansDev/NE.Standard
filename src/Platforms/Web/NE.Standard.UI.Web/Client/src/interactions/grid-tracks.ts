@@ -23,10 +23,7 @@ export type GridSplitRuns = {
     readonly after: readonly number[];
 };
 
-/**
- * Reads the template `ContainerComponentRenderer` writes (`repeat()`, `minmax()`, `fit-content()`, `auto`, `px`)
- * or one a drag wrote; null when a token is not one of those, so an unreadable template is left alone.
- */
+/** Reads the template `ContainerComponentRenderer` writes (`repeat()`, `minmax()`, `fit-content()`, `auto`, `px`) or one a drag wrote; null when unreadable. */
 export function parseGridTracks(template: string): GridTrack[] | null {
     const tracks: GridTrack[] = [];
 
@@ -186,10 +183,7 @@ export function applyGridTrackLimits(tracks: readonly GridTrack[], limits: reado
     return bounded;
 }
 
-/**
- * The runs a splitter at `index` divides, bounded by the container's edge or the next splitter along the same axis.
- * Null when a run is empty: a splitter at an edge has nothing on one side to give.
- */
+/** The runs a splitter at `index` divides, bounded by the container's edge or the next splitter; null when a run would be empty. */
 export function resolveSplitRuns(index: number, splitterIndices: readonly number[], trackCount: number): GridSplitRuns | null {
     let start = 0;
     let end = trackCount;
@@ -217,10 +211,8 @@ function range(start: number, end: number): number[] {
 }
 
 /**
- * The tracks after the boundary between `runs.before` and `runs.after` moves by `delta` pixels, given every track's size
- * as laid out (`sizes`). A run of stars is re-weighted so a window resize keeps the proportion; a run holding a fixed or
- * content track is written in pixels. The delta is clamped so no track leaves its bounds, scaling within a run
- * proportionally. Null when nothing can move.
+ * Moves the boundary between `runs.before` and `runs.after` by `delta` pixels. A run of stars is re-weighted proportionally to
+ * survive a resize; a fixed or content run is written in pixels, clamped so no track leaves its bounds. Null when nothing can move.
  */
 export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number): GridTrack[] | null {
     const before = measureRun(tracks, sizes, runs.before);
@@ -347,4 +339,21 @@ export function splitPercent(sizes: readonly number[], runs: GridSplitRuns): num
     const total = before + sum(runs.after, sizes);
 
     return total <= 0 ? 0 : Math.round(before / total * 100);
+}
+
+/** Where each of a table's first `pinned` columns sticks: the laid-out widths before it added up, the first at zero. */
+export function pinOffsets(sizes: readonly number[], pinned: number): number[] {
+    const offsets: number[] = [];
+
+    for (let i = 0, left = 0; i < pinned; i++) {
+        offsets.push(left);
+        left += Number.isFinite(sizes[i]) ? sizes[i] : 0;
+    }
+
+    return offsets;
+}
+
+/** The tracks with the hidden columns' at zero and unbounded: a hidden column keeps its track, so every index after it stays true. */
+export function zeroTracks(tracks: readonly GridTrack[], hidden: ReadonlySet<number>): GridTrack[] {
+    return tracks.map((track, index) => hidden.has(index) ? { kind: "px", value: 0 } : track);
 }

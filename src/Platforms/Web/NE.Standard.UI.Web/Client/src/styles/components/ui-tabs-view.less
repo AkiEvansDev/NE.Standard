@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
+@import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
 @import "../mixins/tabs.less";
@@ -60,8 +61,9 @@
 .ui-tab-item__label {
     position: relative;
     border-radius: 0;
-    .ui-responsive-property(min-height, --ui-min-height, 2rem);
-    padding: @ui-space-1 0 2px;
+    .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
+    // Borders on both sides here, unlike .ui-tab-header, so the air is even: four pixels of chrome above and below.
+    padding: calc(@ui-space-1 - 1px) 0;
     color: var(--ui-text-muted);
 }
 
@@ -99,6 +101,11 @@
     .ui-selected-ink(var(--ui-color-on-surface); 600);
 }
 
+    // As in a tab strip: the label's text body wears TitleType and would re-declare the weight over the one set just above.
+    .ui-tab-item--selected .ui-tab-item__label .ui-text {
+        font-weight: var(--ui-selected-font-weight, 600);
+    }
+
     .ui-tab-item--selected .ui-tab-item__caption::after,
     .ui-tab-item--selected .ui-tab-item__caption:hover::after {
         background: @ui-selected-mark-color;
@@ -106,9 +113,8 @@
 
 // A pinned tab's mark, the library's own glyph, in the close control's place: a pinned tab has no close, so the caption keeps its width.
 .ui-tab-item__pin {
-    .ui-pin-glyph();
+    .ui-glyph-host();
     display: none;
-    flex: 0 0 auto;
     width: 0.875rem;
     height: 0.875rem;
     margin: 0 0.1875rem;
@@ -116,8 +122,12 @@
     transform: rotate(45deg);
 }
 
+    .ui-tab-item__pin::before {
+        .ui-pin-glyph(@ui-glyph-sm);
+    }
+
     .ui-tab-item[data-ui-tab-pinned] .ui-tab-item__pin {
-        display: block;
+        display: inline-flex;
     }
 
     .ui-tab-item[data-ui-tab-pinned] .ui-tab-item__close {
@@ -127,7 +137,7 @@
 // The close control keeps its space even when hidden, so no caption shifts on hover and fixed tabs stay aligned.
 // The same drawn cross a field's clear wears.
 .ui-tab-item__close {
-    .ui-cross-glyph();
+    .ui-cross-glyph(@ui-glyph-sm);
     position: relative;
     display: flex;
     align-items: center;
@@ -154,8 +164,8 @@
         color: var(--ui-color-on-surface);
     }
 
-    // A tab that cannot be removed keeps the close control's slot but loses the control, so its caption stays aligned with its
-    // neighbours' — as long as some neighbour can be closed.
+    // A tab that cannot be removed keeps the close control's slot but loses the control, so its caption still aligns with its
+    // neighbours', as long as some neighbour can be closed.
     [data-ui-unremovable] .ui-tab-item__close {
         visibility: hidden;
         pointer-events: none;
@@ -170,14 +180,13 @@
 
 // Ordered after every caption and forced to a full line, so it lands under the strip regardless of its item's position.
 .ui-tab-item__page {
-    display: flex;
+    // A placement host (@ui-placement-hosts in ui-container.less), like a tab's page in Tabs.
+    .ui-placement-host();
     flex: 1 1 100%;
-    flex-direction: column;
     order: 1;
     min-width: 100%;
-    // What the strip leaves of the host, which TabsViewEngine measures: the strip and the page are two lines of one wrapping flex,
-    // and a line is only as tall as its content, so without this a page that asks to fill its host has nothing to fill. Taller
-    // content still grows it, and a host with no height of its own resolves this to nothing, as it did before.
+    // What the strip leaves of the host (TabsViewEngine measures --ui-tabs-view-strip): the strip and page are two lines of one
+    // wrapping flex, and a line is only as tall as its content, so without this a filling page has nothing to fill.
     min-height: calc(100% - var(--ui-tabs-view-strip, 0px));
     // The strip's rule width, so the caption mark lies over it exactly as in Tabs.
     border-top: @ui-tab-rule-width solid var(--ui-color-border);

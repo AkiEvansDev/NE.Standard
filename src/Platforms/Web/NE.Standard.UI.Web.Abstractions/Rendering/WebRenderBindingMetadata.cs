@@ -31,6 +31,11 @@ public sealed class WebRenderBindingMetadata
     public IReadOnlyList<WebRenderBindingParameterMetadata>? ItemTemplateParameters { get; init; }
 
     /// <summary>
+    /// Gets whether an item without the property is expected, so the client leaves it unset without a warning.
+    /// </summary>
+    public bool Optional { get; init; }
+
+    /// <summary>
     /// Gets what the property falls back to when the binding resolves to <see langword="null"/> — the authored value, or the
     /// property's registered default.
     /// </summary>

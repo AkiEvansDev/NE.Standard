@@ -54,8 +54,8 @@ export class ClientStore {
             this.writeBoot(component, slot, value === null ? null : boot ?? null);
     }
 
-    /** One boot record per component, a patch per slot: the shape the boot script reads. */
-    private writeBoot(component: Element, slot: string, patch: ClientBootPatch | null): void {
+    /** One boot record per component, a patch per slot: the shape the boot script reads. A slot with no stored value of its own may carry one too. */
+    public writeBoot(component: Element, slot: string, patch: ClientBootPatch | null): void {
         const key = this.resolveKey(component, BootSlot);
 
         if (key === null)

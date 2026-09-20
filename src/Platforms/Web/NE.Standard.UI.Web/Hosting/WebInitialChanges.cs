@@ -10,8 +10,8 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
-/// Everything a freshly rendered page has to be told: every bound value, and one synthetic insert per bound
-/// collection; applying it twice must be a no-op, since both the shell render and the attach send it.
+/// Everything a freshly rendered page must be told: every bound value, plus one synthetic insert per bound collection. Applying
+/// it twice must be a no-op, since the render and the attach both send it.
 /// </summary>
 internal static class WebInitialChanges
 {

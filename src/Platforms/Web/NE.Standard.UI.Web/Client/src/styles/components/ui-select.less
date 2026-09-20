@@ -1,9 +1,9 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
-@import "../mixins/field.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/field.less";
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
 @import "../mixins/text.less";
 
 .ui-select {
@@ -28,11 +28,11 @@
     cursor: pointer;
 }
 
+// No vertical padding: the trigger is a field row that centres its content within its own min-height, not by padding it.
 .ui-select__trigger-content {
     display: none;
     flex: 1 1 auto;
     min-width: 0;
-    padding: @ui-space-2 0;
     overflow: hidden;
 }
 
@@ -46,7 +46,7 @@
 // The same cross as the text input's clear, a step smaller to sit beside the chevron; shown only with a value to clear.
 .ui-select__clear {
     .ui-field-adornment();
-    .ui-cross-glyph(0.5rem);
+    .ui-cross-glyph(@ui-glyph-xs);
     display: none;
     width: 1rem;
     height: 1rem;
@@ -61,13 +61,17 @@
 }
 
 .ui-select__chevron {
-    .ui-chevron(0.7em);
-    .ui-chevron-down();
+    .ui-glyph-host();
 }
 
-.ui-select--open .ui-select__chevron {
-    .ui-chevron-up();
-}
+    .ui-select__chevron::before {
+        .ui-chevron(@ui-glyph-sm);
+        .ui-chevron-down();
+    }
+
+    .ui-select--open .ui-select__chevron::before {
+        .ui-chevron-up();
+    }
 
 // Capped at a list's height and, on a short viewport, below that: a list is read a screenful at a time.
 .ui-select__popup {
@@ -88,12 +92,41 @@
         min-width: 0;
     }
 
+    // The chosen option is the field's value, so it's set in the field's own font size, as a text field's is, not the body
+    // size its option template carries.
+    .ui-select__trigger-content > .ui-text {
+        font-size: inherit;
+    }
+
+    // With the caption inside the box, the chosen option reads from the trailing edge, as a text field's value does.
+    .ui-input--title-inside .ui-select__trigger-content {
+        justify-content: flex-end;
+    }
+
+        .ui-input--title-inside .ui-select__trigger-content > * {
+            flex: 0 1 auto;
+        }
+
+    .ui-input--title-inside .ui-select__placeholder {
+        text-align: end;
+    }
+
 .ui-select__option {
     display: block;
     padding: @ui-space-2 @ui-space-3;
     border-radius: 4px;
     cursor: pointer;
 }
+
+    // A small field's list is as dense as the field: caption text, and half the padding.
+    .ui-input--small .ui-select__option {
+        padding: @ui-space-1 @ui-space-2;
+    }
+
+        .ui-input--small .ui-select__option > .ui-text {
+            font-size: var(--ui-text-caption-font-size);
+            line-height: var(--ui-text-caption-line-height);
+        }
 
     .ui-select__option:hover {
         background: var(--ui-wash-hover);
@@ -106,7 +139,7 @@
 }
 
 .ui-select__option[aria-selected="true"] {
-    background: var(--ui-wash-selected);
+    .ui-selected-ground();
 }
 
 // A disabled option says so by looking spent, and takes no pointer of its own.

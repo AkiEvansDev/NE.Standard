@@ -3,18 +3,30 @@
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
 
-// One grid for the whole table: the header row and the rows' host are subgrids of it, so a header cell and the cells under it share
-// a track whatever their content, while the host alone scrolls. The authored tracks are `--ui-table-columns` (TableComponentRenderer);
-// the viewer's resized columns sit over them in `--ui-table-sized-columns` (table-columns-engine.ts).
+// The root is a column: what a package draws over the table, the box holding it, and what it draws under — so a grid's band
+// and pager stand beside the frame, not inside it, whatever the table's width.
 .ui-table {
     .ui-selected-scope();
 
+    display: flex;
+    flex-direction: column;
+}
+
+// One grid for the whole table: header and rows' host are subgrids of this box, so a header cell and its column share a track
+// regardless of content; tracks are `--ui-table-columns`, with resized widths layered over them in `--ui-table-sized-columns`.
+.ui-table__scroll {
     display: grid;
     grid-template-columns: var(--ui-table-sized-columns, var(--ui-table-columns, auto));
-    grid-template-rows: auto minmax(0, 1fr);
-    // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs a card and a key-value list use.
+    // Four rows, two the table's own: a package may add a band before the header (a filter row) or after the rows (totals); an
+    // empty one takes no height. Rows are named, not auto-placed, or an optional one would push the header into the stretching track.
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    // The box takes the height the root is given, and gives it back to the host rather than to a squeezed track.
+    flex: 1 1 auto;
+    min-height: 0;
+    // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs a card and a key-value list use; the
+    // renderer writes them on this box, not on the root.
     border-style: solid;
-    border-width: var(--ui-border-width, 1.5px);
+    border-width: var(--ui-border-width, 1px);
     border-color: var(--ui-color-border);
     border-radius: var(--ui-radius-row);
     background: var(--ui-surface-color, transparent);
@@ -22,9 +34,42 @@
     overflow: hidden;
 }
 
+    .ui-table__scroll > .ui-table__header {
+        grid-row: 2;
+    }
+
+    .ui-table__scroll > .ui-table__host {
+        grid-row: 3;
+    }
+
 .ui-table > template {
     display: none !important;
 }
+
+// Scrolling sideways, the box scrolls both axes so the header sticks with the rows and rows size to content, not a squeezed
+// track. Not container-type: contains layout would make the box a fixed popup's containing block, clipping it (e.g. a select's list).
+.ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) > .ui-table__scroll {
+    grid-template-rows: none;
+    overflow: auto;
+}
+
+.ui-table.ui-scroll-x--always > .ui-table__scroll {
+    overflow-x: scroll;
+}
+
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) .ui-table__host {
+        overflow: visible;
+        min-height: auto;
+    }
+
+    // Sticky over rows, the header's ground is made opaque: the surface or the page under the tint it wears anyway.
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) .ui-table__header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: var(--ui-surface-color, var(--ui-color-background));
+        background-image: linear-gradient(color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent), color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent));
+    }
 
 // The header is a row of the same tracks, bold on its own ground; it stays put while the host under it scrolls.
 .ui-table__header {
@@ -32,11 +77,11 @@
     grid-template-columns: subgrid;
     grid-column: 1 / -1;
     align-items: stretch;
-    background: color-mix(in srgb, var(--ui-color-on-surface) 6%, transparent);
+    background: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
     border-bottom: 1px solid var(--ui-color-border);
 }
 
-.ui-table--no-header > .ui-table__header {
+.ui-table--no-header .ui-table__header {
     display: none;
 }
 
@@ -65,8 +110,8 @@
     white-space: nowrap;
 }
 
-// The handle at a column's end: the width of a splitter's hit area, drawn only while ResizableColumns is on and only under the pointer
-// or the keyboard; it sits over the cell's edge so the column line and the handle are one place.
+// The handle at a column's end: a splitter's hit area, shown only with ResizableColumns and only under the pointer or
+// keyboard; it overlaps the cell's edge so the column line and handle are one place.
 .ui-table__resizer {
     display: none;
     position: absolute;
@@ -80,8 +125,10 @@
     z-index: 1;
 }
 
-// Every column's but the last: its edge is the table's own, and moving it would move the table.
-.ui-table--resizable .ui-table__header-cell:not(:last-child) .ui-table__resizer {
+// Every column's edge but the one at the row's end, which is the table's own and would move the table if resized. Which
+// column that is, the engine names on the root (data-ui-table-last); until then, the header's last cell is assumed.
+.ui-table--resizable .ui-table__header-cell:not(:last-child) .ui-table__resizer,
+.ui-table--resizable[data-ui-table-last] .ui-table__header-cell .ui-table__resizer {
     display: block;
 }
 
@@ -109,6 +156,9 @@
     display: grid;
     grid-template-columns: subgrid;
     grid-column: 1 / -1;
+    // max-content, not auto: Chrome sizes an auto track by a subgrid row's one-line minimum, which would overflow a two-line
+    // cell or a bar. A spacer is a fixed height either way.
+    grid-auto-rows: max-content;
     align-content: start;
     min-width: 0;
     min-height: 0;
@@ -158,16 +208,23 @@
     grid-column: 1 / -1;
     align-items: center;
     min-height: @ui-button-height-sm;
-    border-bottom: 1px solid var(--ui-color-border);
+    // Fenced per row: a nested table's rows must not paint the outer row's wash on their pinned cells.
+    --ui-row-wash: transparent;
+    // Drawn, not laid out: with no padding there's no pixel to give back, and a border would take one from the content box,
+    // leaving every cell half a pixel off-centre.
+    box-shadow: inset 0 -1px 0 var(--ui-color-border);
 }
 
     .ui-table--no-separators .ui-table__row,
     .ui-table__row:last-child {
-        border-bottom: none;
+        box-shadow: none;
     }
 
-.ui-table--striped .ui-table__row:nth-child(even of .ui-table__row) {
-    background-color: color-mix(in srgb, var(--ui-color-on-surface) 3%, transparent);
+// :where() keeps a stripe the weakest claim on a row's ground, so hover and keyboard focus still win on an even row —
+// `:nth-child(of S)` otherwise counts S and outranks them.
+:where(.ui-table--striped) .ui-table__row:where(:nth-child(even of .ui-table__row)) {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
+    --ui-row-wash: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
 }
 
 .ui-table--row-hover .ui-table__row:hover {
@@ -197,17 +254,140 @@
         .ui-responsive-property(max-width, --ui-max-width, 100%);
     }
 
-// Column lines on the cells' inner edges, header and rows alike; the last column ends at the table's own border.
-.ui-table--column-lines :is(.ui-table__cell, .ui-table__header-cell):not(:last-child) {
+// A pinned column stays sticky in the root's scroll, on an opaque ground with the row's own wash painted over it
+// (--ui-row-wash) and its own row line, since the row's runs underneath. Where each one sticks the columns engine writes on the root.
+.ui-table__cell--pinned,
+.ui-table__header-cell--pinned {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--ui-surface-color, var(--ui-color-background));
+    background-image: linear-gradient(var(--ui-row-wash, transparent), var(--ui-row-wash, transparent));
+}
+
+    .ui-table__header-cell--pinned {
+        z-index: 3;
+        --ui-row-wash: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
+    }
+
+    // A sticky cell with a z-index is a stacking context, so a popup opened from a field in it would paint under the pinned
+    // cells below and the header; focus lifts the cell above them all.
+    .ui-table__cell--pinned:focus-within {
+        z-index: 4;
+    }
+
+    .ui-table__row > .ui-table__cell--pinned {
+        box-shadow: inset 0 -1px 0 var(--ui-color-border);
+    }
+
+    .ui-table--no-separators .ui-table__row > .ui-table__cell--pinned,
+    .ui-table__row:last-child > .ui-table__cell--pinned {
+        box-shadow: none;
+    }
+
+    // The last pinned column ends in a line, and in a shadow once something has scrolled under it.
+    .ui-table__cell--pinned-edge::after,
+    .ui-table__header-cell--pinned-edge::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 1px;
+        background: var(--ui-color-border);
+        pointer-events: none;
+        transition: box-shadow @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-table[data-ui-table-scrolled] :is(.ui-table__cell--pinned-edge, .ui-table__header-cell--pinned-edge)::after {
+        box-shadow: 2px 0 6px color-mix(in srgb, var(--ui-color-on-surface) 18%, transparent);
+    }
+
+// Generated once per column index (up to 64), since a cell only knows its own column and the root carries per-index state —
+// which columns are hidden, and each column's viewer-chosen `order` — that a single generic rule couldn't express.
+.ui-table-column-rules(@index) {
+    // Important, since a derived table's own inset (a grid's taller rows) would otherwise keep the hidden cell's width.
+    .ui-table[data-ui-table-hidden~="@{index}"] [data-ui-table-column="@{index}"] {
+        visibility: hidden;
+        padding: 0 !important;
+        border: 0 !important;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .ui-table[data-ui-table-hidden~="@{index}"] [data-ui-table-column="@{index}"]::after {
+        display: none;
+    }
+
+    [data-ui-table-column="@{index}"] {
+        order: var(~"--ui-table-order-@{index}", @index);
+    }
+
+    .ui-table--column-lines[data-ui-table-last="@{index}"] [data-ui-table-column="@{index}"] {
+        border-right: 0;
+    }
+
+    .ui-table--resizable[data-ui-table-last="@{index}"] [data-ui-table-column="@{index}"] > .ui-table__resizer {
+        display: none;
+    }
+}
+
+.ui-table-column-rules-all(@index) when (@index < 64) {
+    .ui-table-column-rules(@index);
+    .ui-table-column-rules-all(@index + 1);
+}
+
+// Column lines on cells' inner edges; the last column (named by the root, as for the resize handle) gets no line since it
+// ends at the table's border. Written before the per-index rules — same specificity, so removing the last column's line must come later.
+.ui-table--column-lines :is(.ui-table__cell, .ui-table__header-cell):not(:last-child),
+.ui-table--column-lines[data-ui-table-last] :is(.ui-table__cell, .ui-table__header-cell) {
     border-right: 1px solid var(--ui-color-border);
 }
 
+.ui-table-column-rules-all(0);
+
+// The viewer's order applies only to cells: anything else a row holds (e.g. a package's detail band) is placed after them
+// all, or auto-placement would land it in the row's own line instead.
+.ui-table__row > :not(.ui-table__cell) {
+    order: 64;
+}
+
+// A draggable caption shows a grab cursor, dims while dragging, and the drop line sits at the edge of the column it would
+// go before — drawn over the cell, so it reads against the header's own ground.
+.ui-table--reorderable .ui-table__header > .ui-table__header-cell:not(.ui-table__header-cell--pinned, [data-ui-table-fixed]) {
+    cursor: grab;
+}
+
+.ui-table--reorderable .ui-table__header > .ui-table__header-cell[data-ui-table-dragging] {
+    cursor: grabbing;
+    opacity: 0.5;
+}
+
+.ui-table[data-ui-table-reordering] .ui-table__header-cell[data-ui-table-drop]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--ui-color-primary);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.ui-table[data-ui-table-reordering] .ui-table__header-cell[data-ui-table-drop="before"]::before {
+    left: 0;
+}
+
+.ui-table[data-ui-table-reordering] .ui-table__header-cell[data-ui-table-drop="after"]::before {
+    right: 0;
+}
+
 // Choosing a row: the wrapper wears the selected look the same way an items view's does.
-.ui-table[data-ui-selection="one"] > [data-ui-items-host] > .ui-table__row,
-.ui-table[data-ui-selection="many"] > [data-ui-items-host] > .ui-table__row {
+.ui-table[data-ui-selection="one"] [data-ui-items-host] > .ui-table__row,
+.ui-table[data-ui-selection="many"] [data-ui-items-host] > .ui-table__row {
     cursor: pointer;
 }
 
-.ui-table > [data-ui-items-host] > .ui-table__row[data-ui-selected] {
+.ui-table [data-ui-items-host] > .ui-table__row[data-ui-selected] {
     .ui-selected-row();
 }

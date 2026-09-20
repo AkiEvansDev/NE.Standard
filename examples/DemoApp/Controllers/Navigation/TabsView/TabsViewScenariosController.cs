@@ -104,8 +104,35 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
             return;
 
         document.Pinned = document.Pinned != true;
+        document.Order = HeadOrder(document);
         SetPinEntry(document);
         LogEvent(document.Pinned == true ? $"pinned {document.Title}" : $"unpinned {document.Title}");
+    }
+
+    /// <summary>Where a tab just pinned or unpinned stands: after the last pinned tab, or before the first unpinned one.</summary>
+    private double? HeadOrder(DemoDocumentItem document)
+    {
+        double? lastPinned = null;
+        double? firstUnpinned = null;
+
+        foreach (DemoDocumentItem other in Documents)
+        {
+            if (ReferenceEquals(other, document) || other.Order is not double order)
+                continue;
+
+            if (other.Pinned == true)
+                lastPinned = lastPinned is null ? order : Math.Max(lastPinned.Value, order);
+            else
+                firstUnpinned = firstUnpinned is null ? order : Math.Min(firstUnpinned.Value, order);
+        }
+
+        return (lastPinned, firstUnpinned) switch
+        {
+            (null, null) => document.Order,
+            (null, double first) => first - 1,
+            (double last, null) => last + 1,
+            (double last, double first) => (last + first) / 2
+        };
     }
 
     private static void SetPinEntry(DemoDocumentItem document)

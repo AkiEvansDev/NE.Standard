@@ -1,5 +1,7 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -9,9 +11,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A slider input that lets the user pick a numeric value by dragging a handle along a track.
 /// </summary>
-public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id)
+public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent
     where T : SliderComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
+    public UIInputSize? Size { get; set; }
+
     /// <summary>
     /// Gets or sets the minimum selectable value.
     /// </summary>
@@ -52,39 +58,30 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// Sets the minimum selectable value.
     /// </summary>
     public T SetMin(decimal min)
-    {
-        ValidateConfiguration(min, Max, Step, Value);
-        Min = min;
-        return Self;
-    }
+        => Self.SetOrderedMin(min, "value");
 
     /// <summary>
     /// Sets the maximum selectable value.
     /// </summary>
     public T SetMax(decimal max)
-    {
-        ValidateConfiguration(Min, max, Step, Value);
-        Max = max;
-        return Self;
-    }
+        => Self.SetOrderedMax(max, "value");
 
     /// <summary>
     /// Sets the minimum and maximum selectable values.
     /// </summary>
     public T SetRange(decimal min, decimal max)
-    {
-        ValidateConfiguration(min, max, Step, Value);
-        Min = min;
-        Max = max;
-        return Self;
-    }
+        => Self.SetOrderedRange(min, max, "value");
 
     /// <summary>
     /// Sets the increment between selectable values.
     /// </summary>
     public T SetStep(decimal step)
     {
-        ValidateConfiguration(Min, Max, step, Value);
+        OrderedRange.Validate(Min, Max, Value, "value");
+
+        if (step <= 0)
+            throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
+
         Step = step;
         return Self;
     }
@@ -100,14 +97,6 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// </summary>
     public T SetShowRange()
         => SetShowRange(true);
-
-    private static void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value)
-    {
-        OrderedRange.Validate(min, max, value, "value");
-
-        if (step.HasValue && step.Value <= 0)
-            throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
-    }
 }
 
 /// <summary>

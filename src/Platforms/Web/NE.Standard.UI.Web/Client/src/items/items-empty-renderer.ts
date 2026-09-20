@@ -23,8 +23,8 @@ export function findEmptyPlaceholder(host: Element): Element | null {
     return host.querySelector<Element>(`:scope > [${EmptyPlaceholderAttribute}]`);
 }
 
-// Visible items, not existing ones: a filter only toggles a class, so it has to run before this. A virtualized host says itself
-// whether it has any, since what it draws is not what it holds.
+// Visible items, not existing ones: a filter only toggles a class, so it must run before this. A virtualized host says
+// itself whether it has any, since what it draws isn't what it holds.
 export function ensureEmptyState(host: Element, componentId: number, templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, hasItems?: boolean): void {
     hasItems ??= getRealItemElements(host).some(item => !item.classList.contains(HiddenClass));
     const placeholder = findEmptyPlaceholder(host);

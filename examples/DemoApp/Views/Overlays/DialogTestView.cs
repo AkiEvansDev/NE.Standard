@@ -9,6 +9,8 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -49,9 +51,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     )
                 )
             },
+            // Wider than a centred dialog's own cap: the width is the dialog's to name, and the fields stretch to it.
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
+                Width = UILayoutLength.Absolute(640),
                 Content = CreatePanel("Edit the service", null,
                     new TextInputComponent()
                         .SetTitle("Name")
@@ -85,9 +89,8 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             {
                 Key = DialogTestController.DetailsKey,
                 Placement = UIDialogPlacement.Right,
-                Content = new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                Width = UILayoutLength.Absolute(480),
+                Content = UILayout.Stack(12)
                     .AddChild(new TextComponent()
                         .BindTitle($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedService)}")
                         .SetTitleType(UITextAppearance.Title)
@@ -163,7 +166,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .BindDescription(nameof(ProgressGroupContext.Published), UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
-                    .OnClickWithLoading(nameof(DialogTestController.PublishAsync))
+                    .OnClickShowingLoading(nameof(DialogTestController.PublishAsync))
                     .SetType(UIButtonType.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Publish")
@@ -241,9 +244,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         if (descriptionPath is not null)
             _ = heading.BindDescription(descriptionPath);
 
-        StackPanelComponent panel = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(12)
+        StackPanelComponent panel = UILayout.Stack(12)
             .SetMinWidth(UILayoutLength.Absolute(320))
             .AddChild(heading);
 

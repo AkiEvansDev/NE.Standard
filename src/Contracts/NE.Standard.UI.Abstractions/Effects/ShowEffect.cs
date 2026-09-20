@@ -1,4 +1,3 @@
-using System;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -6,7 +5,7 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// <summary>
 /// Requests the UI client to show a component.
 /// </summary>
-public sealed class ShowEffect : ClientEffect
+public sealed class ShowEffect(UIComponentReference target) : TargetedClientEffect(target)
 {
     /// <summary>
     /// Creates an effect that shows the component identified by <paramref name="targetComponentId"/>.
@@ -15,31 +14,15 @@ public sealed class ShowEffect : ClientEffect
         : this(new UIComponentReference(targetComponentId, dynamicParameters))
     { }
 
-    /// <summary>
-    /// Creates an effect that shows the given target component.
-    /// </summary>
-    public ShowEffect(UIComponentReference target)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(target.Id);
-        Target = target;
-    }
-
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Show;
-
-    /// <summary>
-    /// Gets the target component reference.
-    /// </summary>
-    public UIComponentReference Target { get; }
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
         => new CompiledShowEffect(resolver.ResolveComponent(Target));
 }
 
-internal sealed class CompiledShowEffect(UIComponentAddress target) : ClientEffect
+internal sealed class CompiledShowEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)
 {
     public override string Kind => ClientEffectKinds.Show;
-
-    public UIComponentAddress Target { get; } = target;
 }

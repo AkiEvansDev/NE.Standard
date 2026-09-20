@@ -44,6 +44,7 @@ internal sealed class NumberInputMainView : DemoMainView, IUIViewDefinition
             .BindMax($"{ValueGroup}.{nameof(NumberValueGroupContext.Max)}")
             .BindStep($"{ValueGroup}.{nameof(NumberValueGroupContext.Step)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(NumberValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(NumberValueGroupContext.Size)}")
             .BindAppearance($"{FieldGroup}.{nameof(NumberFieldGroupContext.Appearance)}")
             .BindPlaceholder($"{FieldGroup}.{nameof(NumberFieldGroupContext.Placeholder)}")
             .BindPrefixText($"{FieldGroup}.{nameof(NumberFieldGroupContext.PrefixText)}")

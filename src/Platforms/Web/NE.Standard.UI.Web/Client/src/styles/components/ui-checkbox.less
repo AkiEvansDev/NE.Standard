@@ -1,27 +1,19 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
 
-// The root *is* the row: box, label text body, validation message. A nested row would put the body too deep for the ui-text gate.
+// The root *is* the row. A nested row would put the body too deep for the ui-text gate.
 .ui-checkbox {
-    display: inline-grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    .ui-toggle-row();
-    font: inherit;
-    cursor: pointer;
+    .ui-toggle-root();
 }
 
-    // Under the label rather than under the box, which is the column the text is in.
-    .ui-checkbox > .ui-validation-message {
-        grid-column: 2;
-    }
-
-    .ui-checkbox.ui-disabled {
-        cursor: default;
+    // A checkbox drawn by hand — a package's editor — is no component root, and the height it reads is then its host's (ui-button.less
+    // says why); taken back here.
+    .ui-checkbox:not([data-ui-id]) {
+        .ui-responsive-reset(--ui-height);
     }
 
 .ui-checkbox__input {
@@ -43,14 +35,10 @@
     border-color: var(--ui-color-primary);
 }
 
-// Two borders of a box, turned into a tick; nudged up optically because a tick's ink sits below its box's centre.
+// The framework's own check mark, as a menu entry and a row's save button draw it, centred by the box.
 .ui-checkbox__box::after {
-    content: "";
-    width: 0.3rem;
-    height: 0.56rem;
-    border: solid var(--ui-color-on-primary);
-    border-width: 0 0.14rem 0.14rem 0;
-    transform: translateY(-0.06rem) rotate(45deg);
+    .ui-check-glyph(@ui-glyph-sm);
+    color: var(--ui-color-on-primary);
     opacity: 0;
     transition: opacity @ui-motion-fast @ui-motion-ease;
 }
@@ -58,6 +46,27 @@
 .ui-checkbox__input:checked ~ .ui-checkbox__box::after {
     opacity: 1;
 }
+
+// A size steps the box with the text ui-input.less sizes: a small box for a caption line, a large one for a subtitle.
+.ui-checkbox.ui-input--small > .ui-checkbox__box {
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 0.1875rem;
+}
+
+    .ui-checkbox.ui-input--small > .ui-checkbox__box::after {
+        .ui-check-glyph(@ui-glyph-xs);
+    }
+
+.ui-checkbox.ui-input--large > .ui-checkbox__box {
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 0.3125rem;
+}
+
+    .ui-checkbox.ui-input--large > .ui-checkbox__box::after {
+        .ui-check-glyph(@ui-glyph-md);
+    }
 
 .ui-checkbox__required {
     .ui-required-marker();

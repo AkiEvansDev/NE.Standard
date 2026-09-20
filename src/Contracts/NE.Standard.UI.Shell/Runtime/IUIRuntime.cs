@@ -78,9 +78,10 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     Task<IReadOnlyList<ServerCollectionChangeUIUpdate>> BuildInitialCollectionChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Processes client-originated value changes.
+    /// Processes client-originated value changes; <paramref name="invoker"/> is the instance that wrote them, which is not sent
+    /// back a value it already holds.
     /// </summary>
-    Task<ServerChangeSet> ProcessChangeSetFromUIAsync(ClientChangeSet changeSet, CancellationToken cancellationToken = default);
+    Task<ServerChangeSet> ProcessChangeSetFromUIAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Processes a client-originated event command.
@@ -99,6 +100,15 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// Read without the state lock: a change arriving between the question and the answer is picked up one interval later.
     /// </remarks>
     bool HasPendingWork { get; }
+
+    /// <summary>
+    /// Gets whether a command is currently executing against this runtime.
+    /// </summary>
+    /// <remarks>
+    /// Kept true for the whole run of a background or exclusive command, so a cleanup pass racing a disconnect
+    /// does not dispose the runtime out from under it.
+    /// </remarks>
+    bool HasCommandsInFlight { get; }
 
     /// <summary>
     /// Flushes pending server-originated updates.

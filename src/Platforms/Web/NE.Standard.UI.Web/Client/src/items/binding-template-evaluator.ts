@@ -131,6 +131,22 @@ function resolveStackItem(stack: readonly ItemStackEntry[], componentId: IdValue
     return NotResolved;
 }
 
+/** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step is missing. */
+export function readItemPropertyPath(item: unknown, path: string): unknown {
+    let current: unknown = item;
+
+    for (const segment of path.split(".")) {
+        const resolution = tryReadItemProperty(current, segment);
+
+        if (!resolution.ok)
+            return undefined;
+
+        current = resolution.value;
+    }
+
+    return current;
+}
+
 export function tryReadItemProperty(item: unknown, propertyName: string): BindingTemplateResolution {
     if (item === null || item === undefined)
         return NotResolved;

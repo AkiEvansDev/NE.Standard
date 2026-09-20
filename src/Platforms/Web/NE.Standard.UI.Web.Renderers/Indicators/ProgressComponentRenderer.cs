@@ -11,6 +11,9 @@ namespace NE.Standard.UI.Web.Renderers.Indicators;
 
 public sealed class ProgressComponentRenderer : WebComponentRendererBase
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string ValueShownAttribute = "data-ui-progress-value";
+
     public override string ComponentTypeKey => ProgressComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-progress";
@@ -37,8 +40,8 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         _ = RenderProperty<bool?>(context, root, ProgressComponent.ShowValueProperty, (target, value) =>
         {
             if (value == true)
-                _ = root.Attribute("data-ui-progress-value");
-        }, [WebDomOperation.ToggleAttribute("data-ui-progress-value", condition: WebValueCondition.IsTrue)]);
+                _ = root.Attribute(ValueShownAttribute);
+        }, [WebDomOperation.ToggleAttribute(ValueShownAttribute, condition: WebValueCondition.IsTrue)]);
 
         _ = root.Element("span", label =>
         {
@@ -64,7 +67,8 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         {
             _ = dial.Class("ui-progress__dial");
 
-            // Stroked circles, not a masked conic gradient, which antialiases badly; both variants stay in the DOM as Variant is bindable.
+            // Stroked circles, not a masked conic gradient (poor antialiasing); both variants stay in the DOM since Variant is bindable.
+            // The reading is a full circle cut to its share by the stylesheet, with a dot at each end rather than a dash.
             _ = dial.Element("svg", ring =>
             {
                 _ = ring.Class("ui-progress__ring");
@@ -72,8 +76,13 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
                 _ = ring.Attribute("aria-hidden", "true");
                 _ = ring.Attribute("focusable", "false");
                 _ = ring.Element("circle", track => RenderRingCircle(track, "ui-progress__ring-track"));
-                // Zero is at three o'clock in SVG, and a reading starts at the top.
-                _ = ring.Element("circle", fill => RenderRingCircle(fill, "ui-progress__ring-fill").Attribute("transform", "rotate(-90 18 18)"));
+                _ = ring.Element("g", fill =>
+                {
+                    _ = fill.Class("ui-progress__ring-fill");
+                    _ = fill.Element("circle", arc => RenderRingCircle(arc, "ui-progress__ring-arc"));
+                    _ = fill.Element("circle", cap => RenderRingCap(cap, "ui-progress__ring-cap"));
+                    _ = fill.Element("circle", cap => RenderRingCap(cap, "ui-progress__ring-cap ui-progress__ring-cap--end"));
+                });
             });
 
             _ = dial.Element("span", valueText =>
@@ -112,8 +121,14 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
             .Class(className)
             .Attribute("cx", "18")
             .Attribute("cy", "18")
-            .Attribute("r", "16")
-            .Attribute("pathLength", "100");
+            .Attribute("r", "16");
+
+    // A round end stands on the ring at three o'clock; the stylesheet turns it about the centre to the end it marks.
+    private static IHtmlElementBuilder RenderRingCap(IHtmlElementBuilder circle, string className)
+        => circle
+            .Class(className)
+            .Attribute("cx", "34")
+            .Attribute("cy", "18");
 
     /// <summary>The reading is the value itself, never a percentage of the range; unset prints nothing.</summary>
     private static string FormatValue(decimal? value)

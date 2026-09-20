@@ -1,5 +1,6 @@
 using System;
 using DemoApp.Controllers.Actions;
+using DemoApp.Controllers.Actions.ButtonGroup;
 using DemoApp.Controllers.Contents.Badge;
 using DemoApp.Controllers.Contents.Icon;
 using DemoApp.Controllers.Contents.Image;
@@ -36,13 +37,14 @@ using DemoApp.Controllers.Layouts.StackPanel;
 using DemoApp.Controllers.Layouts.Surface;
 using DemoApp.Controllers.Layouts.WrapPanel;
 using DemoApp.Controllers.Navigation.Breadcrumbs;
-using DemoApp.Controllers.Navigation.ButtonGroup;
 using DemoApp.Controllers.Navigation.Menu;
 using DemoApp.Controllers.Navigation.Tabs;
 using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Controllers.Overlays;
+using DemoApp.Controllers.Screens;
 using DemoApp.Views;
 using DemoApp.Views.Actions;
+using DemoApp.Views.Actions.ButtonGroup;
 using DemoApp.Views.Contents.Badge;
 using DemoApp.Views.Contents.Icon;
 using DemoApp.Views.Contents.Image;
@@ -80,11 +82,11 @@ using DemoApp.Views.Layouts.StackPanel;
 using DemoApp.Views.Layouts.Surface;
 using DemoApp.Views.Layouts.WrapPanel;
 using DemoApp.Views.Navigation.Breadcrumbs;
-using DemoApp.Views.Navigation.ButtonGroup;
 using DemoApp.Views.Navigation.Menu;
 using DemoApp.Views.Navigation.Tabs;
 using DemoApp.Views.Navigation.TabsView;
 using DemoApp.Views.Overlays;
+using DemoApp.Views.Screens;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Startup;
 
@@ -100,6 +102,21 @@ public sealed class DemoAppStartup : UIStartupBase
 
         _ = application.Route<HomeView>("/");
 
+        // Screens
+        _ = application.Route<SignUpView, SignUpController>("/screens/sign-up");
+        _ = application.Route<CheckoutView, CheckoutController>("/screens/checkout");
+        _ = application.Route<WorkspaceSettingsView, WorkspaceSettingsController>("/screens/settings");
+        _ = application.Route<CatalogueView, CatalogueController>("/screens/catalogue");
+        _ = application.Route<InboxView, InboxController>("/screens/inbox");
+        _ = application.Route<ArticleView, ArticleController>("/screens/article");
+
+        // The security screens. SignInView and ForbiddenView also record where the host sends a refused request, so the two
+        // answers a refusal has are both real pages of the demo.
+        _ = application.SignInView<SignInView, SignInController>("/screens/sign-in");
+        _ = application.Route<AccountView, AccountController>("/screens/account");
+        _ = application.Route<AdminView, AdminController>("/screens/admin");
+        _ = application.ForbiddenView<ForbiddenView, ForbiddenController>("/screens/forbidden");
+
         _ = application.Route<ColorsView>("/design/colors");
         _ = application.Route<ColorsSemanticView>("/design/colors/semantic");
         _ = application.Route<ColorsComponentsView>("/design/colors/components");
@@ -114,7 +131,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<CommandBarExamplesView, CommandBarExamplesController>("/actions/command-bar/examples");
         _ = application.Route<ThemeSwitcherMainView, ThemeSwitcherMainController>("/actions/theme-switcher");
         _ = application.Route<SplitButtonMainView, SplitButtonMainController>("/actions/split-button");
-        _ = application.Route<SplitButtonExamplesView>("/actions/split-button/examples");
+        _ = application.Route<SplitButtonExamplesView, SplitButtonExamplesController>("/actions/split-button/examples");
 
         // Layouts
         _ = application.Route<ContainerMainView, ContainerMainController>("/layouts/container");
@@ -173,8 +190,8 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<TabsViewScenariosView, TabsViewScenariosController>("/navigation/tabs-view/scenarios");
         _ = application.Route<BreadcrumbsMainView, BreadcrumbsMainController>("/navigation/breadcrumbs");
         _ = application.Route<BreadcrumbsExamplesView, BreadcrumbsExamplesController>("/navigation/breadcrumbs/examples");
-        _ = application.Route<ButtonGroupMainView, ButtonGroupMainController>("/navigation/button-group");
-        _ = application.Route<ButtonGroupExamplesView>("/navigation/button-group/examples");
+        _ = application.Route<ButtonGroupMainView, ButtonGroupMainController>("/actions/button-group");
+        _ = application.Route<ButtonGroupExamplesView>("/actions/button-group/examples");
 
         // Inputs
         _ = application.Route<TextInputExamplesView>("/inputs/text-input/examples");
@@ -219,7 +236,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<TreeExamplesView, TreeExamplesController>("/items/tree/examples");
 
         // Overlays
-        _ = application.Route<DialogTestView, DialogTestController>("/overlays/dialog/test");
-        _ = application.Route<NotificationTestView, NotificationTestController>("/overlays/notification/test");
+        _ = application.Route<DialogTestView, DialogTestController>("/overlays/dialog");
+        _ = application.Route<NotificationTestView, NotificationTestController>("/overlays/notification");
     }
 }

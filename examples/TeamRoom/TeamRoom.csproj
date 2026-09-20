@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\..\src\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
     <ProjectReference Include="..\..\src\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+    <ProjectReference Include="..\..\src\Packages\NE.Standard.UI.Extensions\NE.Standard.UI.Extensions.csproj" />
     <ProjectReference Include="..\..\addons\Icons\src\NE.Standard.UI.Icons.Material\NE.Standard.UI.Icons.Material.csproj" />
     <ProjectReference Include="..\..\addons\CodeInput\src\NE.Standard.UI.CodeInput\NE.Standard.UI.CodeInput.csproj" />
   </ItemGroup>
@@ -21,6 +22,7 @@
     <PackageReference Include="NE.Standard.UI.Generators" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Components" Version="$(CoreVersion)" />
+    <PackageReference Include="NE.Standard.UI.Extensions" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Icons.Material" Version="$(IconsVersion)" />
     <PackageReference Include="NE.Standard.UI.CodeInput" Version="$(CodeInputVersion)" />
   </ItemGroup>

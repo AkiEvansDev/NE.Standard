@@ -23,6 +23,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderTooltip(context, root);
+        RenderInputSize(context, root);
         RenderInputHeader(context, root);
 
         _ = RenderProperty<UIOrientation?>(context, root, SliderComponent.OrientationProperty, static (target, value) =>

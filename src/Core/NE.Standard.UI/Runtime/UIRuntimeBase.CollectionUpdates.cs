@@ -69,8 +69,8 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Re-sends the one item whose changed property decides how the host draws it — the template key it is
-    /// rendered by, or the group it belongs to.
+    /// Re-sends an item whose changed property decides how the host draws it — its template key or group — or any item of a
+    /// host that takes values whole (a chart), whatever changed.
     /// </summary>
     /// <remarks>
     /// Neither the template key nor the group is bound on the item, so only a full <c>Replace</c> update reaches the client's redraw rules.
@@ -86,7 +86,7 @@ internal abstract partial class UIRuntimeBase
         if (propertySegment.Kind != PathSegmentKind.Property || itemSegment.Kind == PathSegmentKind.Property)
             return;
 
-        RecursivePath collectionPath = new(path.AsSpan()[..^2].ToArray(), ownsArray: true);
+        RecursivePath collectionPath = path.Take(path.Count - 2);
         IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
 
         if (collectionBindings.Count == 0)
@@ -102,7 +102,8 @@ internal abstract partial class UIRuntimeBase
                 continue;
 
             if (!IsTemplateKeyProperty(binding.Address.Component.Id, propertySegment.Property) &&
-                !IsGroupProperty(binding.Address.Component.Id, propertySegment.Property))
+                !IsGroupProperty(binding.Address.Component.Id, propertySegment.Property) &&
+                !TakesItemValues(binding.Address.Component.Id))
             {
                 continue;
             }
@@ -110,7 +111,7 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
-            item ??= TryGetControllerValue(new RecursivePath(path.AsSpan()[..^1].ToArray(), ownsArray: true));
+            item ??= TryGetControllerValue(path.Take(path.Count - 1));
 
             if (item is null)
                 continue;
@@ -156,6 +157,18 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
+    /// Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.
+    /// </summary>
+    /// <remarks>
+    /// No components live inside its item template for a value update to reach, so any property change on an item must arrive
+    /// as a full replace, not a value alone.
+    /// </remarks>
+    private bool TakesItemValues(UIComponentId componentId)
+        => View.State.TryGetValue(componentId, IItemValuesComponent.TakesItemValuesProperty, out CompiledUIPropertyValue? value) &&
+           !value.IsBind &&
+           value.Value is true;
+
+    /// <summary>
     /// Whether the property is the item's group, on a host that actually draws groups.
     /// </summary>
     /// <remarks>
@@ -167,6 +180,14 @@ internal abstract partial class UIRuntimeBase
 
     private static int? TryGetItemIndex(object? collection, object item)
     {
+        // A list answers by its own index: a RecursiveCollection keeps one per item, so the position costs no scan on this path.
+        if (collection is System.Collections.IList list)
+        {
+            var found = list.IndexOf(item);
+
+            return found < 0 ? null : found;
+        }
+
         if (collection is not System.Collections.IEnumerable enumerable)
             return null;
 
@@ -238,13 +259,18 @@ internal abstract partial class UIRuntimeBase
 
         ServerCollectionItemChange[] result = new ServerCollectionItemChange[change.Count];
 
+        // Resolved once for the change: every row is then one segment below it, which costs no path per row.
+        RecursiveObservable? collection = action is CollectionUpdateAction.Insert or CollectionUpdateAction.Replace
+            ? TryGetControllerValue(collectionPath) as RecursiveObservable
+            : null;
+
         for (var i = 0; i < result.Length; i++)
         {
             var index = change.Index + i;
             var key = GetItemKey(change, i, old: false);
 
             var item = action is CollectionUpdateAction.Insert or CollectionUpdateAction.Replace
-                ? ResolveChangedItem(collectionPath, key, index)
+                ? ResolveChangedItem(collection, collectionPath, key, index)
                 : null;
 
             result[i] = action switch
@@ -283,8 +309,13 @@ internal abstract partial class UIRuntimeBase
     /// <remarks>
     /// Falls back to index only when the change carried no key; by flush time a later change in the same batch may have moved items.
     /// </remarks>
-    private object? ResolveChangedItem(RecursivePath collectionPath, string? key, int index)
-        => TryGetControllerValue(key is null ? collectionPath.AppendIndex(index) : collectionPath.AppendKey(key));
+    private object? ResolveChangedItem(RecursiveObservable? collection, RecursivePath collectionPath, string? key, int index)
+    {
+        if (collection is null)
+            return TryGetControllerValue(key is null ? collectionPath.AppendIndex(index) : collectionPath.AppendKey(key));
+
+        return collection.TryGetRecursiveValue(key is null ? PathSegment.AtIndex(index) : PathSegment.WithKey(key), out var item) ? item : null;
+    }
 
     private static string? TryGetItemKey(object? item)
         => item is IBindableItem { Id: { Length: > 0 } id } ? id : null;

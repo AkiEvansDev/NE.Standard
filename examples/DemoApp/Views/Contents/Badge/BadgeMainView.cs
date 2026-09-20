@@ -33,7 +33,7 @@ internal sealed class BadgeMainView : DemoMainView, IUIViewDefinition
             .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
             .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
-            .BindStyle($"{BadgeGroup}.{nameof(BadgeGroupContext.Style)}")
+            .BindType($"{BadgeGroup}.{nameof(BadgeGroupContext.Type)}")
             .BindColor($"{BadgeGroup}.{nameof(BadgeGroupContext.Color)}")
             .BindIcon($"{BadgeGroup}.{nameof(BadgeGroupContext.Icon)}")
             .BindIconColor($"{BadgeGroup}.{nameof(BadgeGroupContext.IconColor)}")

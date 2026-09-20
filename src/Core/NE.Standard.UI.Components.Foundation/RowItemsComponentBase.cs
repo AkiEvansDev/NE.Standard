@@ -7,8 +7,8 @@ using NE.Standard.UI.Primitives.Constants;
 namespace NE.Standard.UI.Components.Foundation;
 
 /// <summary>
-/// An items component whose item is a row of named slots laid out by the renderer rather than one template: the row itself is a
-/// <typeparamref name="TRow"/> the derived component installs, the identity a click on the whole row is attached to.
+/// An items component whose item is a row of named slots laid out by the renderer, rendered as a <typeparamref name="TRow"/>
+/// the derived component installs.
 /// </summary>
 public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id = null) : ItemsComponentBase<TComponent, TItem>(id)
     where TComponent : RowItemsComponentBase<TComponent, TItem, TRow>, IUIComponentDefinition

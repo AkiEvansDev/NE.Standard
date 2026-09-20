@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
-using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
@@ -47,11 +46,7 @@ internal sealed partial class UIViewCompilationContext
 
         ArgumentException.ThrowIfNullOrWhiteSpace(reference.Component.Id);
 
-        UIComponentId sourceComponentId = GetComponentId(reference.Component.Id);
-        var sourceAuthoringId = GetAuthoringId(sourceComponentId);
-
-        if (!_components.TryGetValue(sourceAuthoringId, out IVisualComponent? sourceComponent))
-            throw new InvalidOperationException($"ItemsView {ruleName} source component '{reference.Component.Id}' was not found for component '{owner.Id}'.");
+        IVisualComponent sourceComponent = GetComponent(reference.Component.Id);
 
         _ = GetRequiredPropertyDefinition(sourceComponent.TypeKey, reference.Property);
 

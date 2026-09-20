@@ -1,5 +1,5 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/placement.less";
 
 // Border, radius, fill and padding come from the shared surface block; what is left here is what a `details` is and a surface is not.
@@ -42,7 +42,9 @@
 // Two columns, star and auto, like a card's header — see the note in ui-container.less. The chevron is the control half here.
 .ui-expander__header {
     .ui-control-band();
-    padding: @ui-space-3 @ui-space-4;
+    // The bottom inset is a pixel short of the top, since the separator below takes that pixel back — otherwise the centred
+    // words sit half a pixel above true middle.
+    padding: @ui-space-3 @ui-space-4 calc(@ui-space-3 - 1px);
     // Always present and transparent until open, so the border doesn't add a pixel to the box's height when it appears.
     border-bottom: 1px solid transparent;
     list-style: none;
@@ -71,21 +73,25 @@
     grid-column: 1;
 }
 
-// Twelve whole pixels, the size of every row's fold mark (menu, tree, action row).
+// The size of every row's fold mark (menu, tree, action row): @ui-glyph-md.
 .ui-expander__chevron {
-    .ui-chevron(0.75rem);
-    .ui-chevron-right();
+    .ui-glyph-host();
     grid-column: 2;
     margin-left: @ui-space-2;
-    // In step with the content opening under it rather than at the fast tempo the other chevrons turn at.
-    transition-duration: @ui-motion-normal;
 }
+
+    .ui-expander__chevron::before {
+        .ui-chevron(@ui-glyph-md);
+        .ui-chevron-right();
+        // In step with the content opening under it rather than at the fast tempo the other chevrons turn at.
+        transition-duration: @ui-motion-normal;
+    }
 
 // :where() so a .ui-color--* utility on the chevron itself still wins.
 :where(.ui-expander__chevron) {
     color: var(--ui-text-muted);
 }
 
-.ui-expander[open] > .ui-expander__header .ui-expander__chevron {
+.ui-expander[open] > .ui-expander__header .ui-expander__chevron::before {
     .ui-chevron-down();
 }

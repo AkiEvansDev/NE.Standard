@@ -1,0 +1,21 @@
+// A circle's turn stretch, drawn as the whole circle cut down rather than a stroked arc, since Chrome antialiases a stroked
+// (or dashed) arc path at four samples a pixel, staircasing its edge where a circle's own edge is smooth.
+
+// A wedge from the circle's centre, its far side stepped out to twice the circle's box, so no chord ever nears the circle
+// even for a full turn; only the wedge's two short radial edges are left to the coarse samples.
+.ui-arc-cut() {
+    --ui-arc-cut-start: calc(var(--ui-arc-start) + var(--ui-arc-from, 0) * var(--ui-arc-sweep));
+    --ui-arc-cut-step: calc((var(--ui-arc-to, 1) - var(--ui-arc-from, 0)) * var(--ui-arc-sweep) / 4);
+    clip-path: ~"polygon(50% 50%, calc(50% + cos(var(--ui-arc-cut-start)) * 200%) calc(50% + sin(var(--ui-arc-cut-start)) * 200%), calc(50% + cos(calc(var(--ui-arc-cut-start) + var(--ui-arc-cut-step))) * 200%) calc(50% + sin(calc(var(--ui-arc-cut-start) + var(--ui-arc-cut-step))) * 200%), calc(50% + cos(calc(var(--ui-arc-cut-start) + 2 * var(--ui-arc-cut-step))) * 200%) calc(50% + sin(calc(var(--ui-arc-cut-start) + 2 * var(--ui-arc-cut-step))) * 200%), calc(50% + cos(calc(var(--ui-arc-cut-start) + 3 * var(--ui-arc-cut-step))) * 200%) calc(50% + sin(calc(var(--ui-arc-cut-start) + 3 * var(--ui-arc-cut-step))) * 200%), calc(50% + cos(calc(var(--ui-arc-cut-start) + 4 * var(--ui-arc-cut-step))) * 200%) calc(50% + sin(calc(var(--ui-arc-cut-start) + 4 * var(--ui-arc-cut-step))) * 200%))";
+}
+
+// A round end of a cut ring: a dot the ring's width (--ui-arc-width), placed at the ring's radius and rotated about the
+// centre (--ui-arc-origin) to --ui-arc-at. A dot, not a round linecap, since a cut circle's ends are square.
+.ui-arc-cap() {
+    r: calc(var(--ui-arc-width) / 2);
+    fill: currentColor;
+    stroke: none;
+    transform-box: view-box;
+    transform-origin: var(--ui-arc-origin);
+    transform: rotate(calc(var(--ui-arc-start) + var(--ui-arc-at, 0) * var(--ui-arc-sweep)));
+}

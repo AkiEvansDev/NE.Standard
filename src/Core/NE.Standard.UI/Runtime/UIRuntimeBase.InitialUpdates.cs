@@ -173,11 +173,7 @@ internal abstract partial class UIRuntimeBase
     private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(IReadOnlyList<TemplateElement> elements)
         => EnumerateMaterializedCollectionPaths(elements, 0, RecursivePath.Empty, []);
 
-    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(
-        IReadOnlyList<TemplateElement> elements,
-        int elementIndex,
-        RecursivePath currentPath,
-        object?[] dynamicParameters)
+    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(IReadOnlyList<TemplateElement> elements, int elementIndex, RecursivePath currentPath, object?[] dynamicParameters)
     {
         for (; elementIndex < elements.Count; elementIndex++)
         {
@@ -315,69 +311,25 @@ internal abstract partial class UIRuntimeBase
         return MaterializeInitialPathPrefix(template.Template, binding.Parameters);
     }
 
+    /// <summary>The template's segments up to its first dynamic parameter: the part a path has before any row is named.</summary>
     private static RecursivePath MaterializeInitialPathPrefix(string template, CompiledUIBindingParameter[] parameters)
     {
-        ArgumentNullException.ThrowIfNull(template);
-        ArgumentNullException.ThrowIfNull(parameters);
+        List<TemplateElement> elements = ParseTemplateElements(template, parameters);
 
-        if (template.Length == 0 || template == ".")
+        if (elements.Count == 0)
             return RecursivePath.Empty;
 
-        List<PathSegment> segments = [];
-        ReadOnlySpan<char> span = template.AsSpan();
+        List<PathSegment> segments = new(elements.Count);
 
-        var i = 0;
-        var parameterIndex = 0;
-        var expectSegment = true;
-
-        while (i < span.Length)
+        for (var i = 0; i < elements.Count; i++)
         {
-            if (span[i] == '.')
-            {
-                if (expectSegment)
-                    throw new FormatException($"Invalid path template '{template}'.");
+            TemplateElement element = elements[i];
 
-                expectSegment = true;
-                i++;
-                continue;
-            }
+            if (element.Kind == TemplateElementKind.Dynamic)
+                break;
 
-            if (span[i] == '[')
-            {
-                if (i + 1 >= span.Length || span[i + 1] != ']')
-                    throw new FormatException($"Invalid parameter segment in path template '{template}'.");
-
-                if (parameterIndex >= parameters.Length)
-                    throw new InvalidOperationException($"Path template '{template}' expects more binding parameters.");
-
-                CompiledUIBindingParameter parameter = parameters[parameterIndex++];
-
-                if (parameter.Kind == CompiledUIBindingParameterKind.Dynamic)
-                    return new RecursivePath(segments);
-
-                segments.Add(CreateFixedParameterSegment(parameter));
-                i += 2;
-                expectSegment = false;
-                continue;
-            }
-
-            var start = i;
-
-            while (i < span.Length && span[i] != '.' && span[i] != '[')
-                i++;
-
-            if (i == start)
-                throw new FormatException($"Invalid property segment in path template '{template}'.");
-
-            segments.Add(PathSegment.ForProperty(span[start..i].ToString()));
-            expectSegment = false;
+            segments.Add(element.Kind == TemplateElementKind.Property ? PathSegment.ForProperty(element.PropertyName!) : element.FixedSegment);
         }
-
-        if (expectSegment)
-            throw new FormatException($"Invalid path template '{template}'.");
-
-        if (parameterIndex != parameters.Length)
-            throw new InvalidOperationException($"Path template '{template}' has {parameterIndex} parameters, but binding has {parameters.Length}.");
 
         return new RecursivePath(segments);
     }
@@ -422,27 +374,9 @@ internal abstract partial class UIRuntimeBase
             PathSegment segment = path[i];
 
             if (segment.Kind is PathSegmentKind.Index or PathSegmentKind.Key)
-                return Take(path, i);
+                return path.Take(i);
         }
 
         return path;
-    }
-
-    private static RecursivePath Take(RecursivePath path, int count)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-        ArgumentOutOfRangeException.ThrowIfNegative(count);
-
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, path.Count);
-
-        if (count == 0)
-            return RecursivePath.Empty;
-
-        PathSegment[] segments = new PathSegment[count];
-
-        for (var i = 0; i < count; i++)
-            segments[i] = path[i];
-
-        return new RecursivePath(segments, ownsArray: true);
     }
 }

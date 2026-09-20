@@ -17,7 +17,7 @@ public sealed class BadgeComponentRenderer : WebComponentRendererBase
         BadgeRenderer.RenderBadge(context, root, root,
             new WebBadgeRenderOptions
             {
-                StyleProperty = BadgeComponent.StyleProperty,
+                StyleProperty = BadgeComponent.TypeProperty,
                 ColorProperty = BadgeComponent.ColorProperty,
                 IconProperty = BadgeComponent.IconProperty,
                 IconColorProperty = BadgeComponent.IconColorProperty,

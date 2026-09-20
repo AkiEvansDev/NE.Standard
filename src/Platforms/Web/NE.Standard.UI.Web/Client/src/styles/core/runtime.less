@@ -133,6 +133,20 @@
     color: inherit;
 }
 
+// A popup lifted into the top layer (anchored-popup.ts) is a manual popover, whose browser default box (centred, bordered,
+// padded) would override everything the popup's own rules leave unset; reset at zero specificity, so every class rule still wins.
+:where([data-ui-popup-lifted]) {
+    inset: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+    border: none;
+    padding: 0;
+    overflow: visible;
+    color: inherit;
+    background: none;
+}
+
 // The client's own way of taking something out of a list, distinct from the author-facing Visibility property.
 .ui-hidden {
     display: none !important;
@@ -185,10 +199,21 @@
     cursor: progress;
 }
 
-// What waiting looks like with no better way to say it: the ground fades and the ring turns. Components with an icon opt out.
-@ui-loading-veiled: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon)";
+// Chrome is pressed, opened and dragged, never selected: a drag on a tab's caption mustn't start a text selection, nor a
+// press on a menu entry leave its words highlighted. Selectable text inside stays selectable, for prose only.
+@ui-chrome-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-key-value-action__action";
 
-@{ui-loading-veiled} {
+:is(@{ui-chrome-hosts}),
+:is(@{ui-chrome-hosts}) .ui-text--selectable {
+    user-select: none;
+}
+
+// Loading fades the ground and turns the ring; an icon opts out, and a button with no icon dims its label instead
+// (ui-button.less), since Chrome paints a <button>'s label box over the veil pseudo-element, leaving a lighter rectangle behind.
+@ui-loading-ringed: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon)";
+@ui-loading-veiled: ~".ui-loading:not(.ui-button):not([data-ui-input-prefix-icon]):not(.ui-icon)";
+
+@{ui-loading-ringed} {
     position: relative;
 }
 
@@ -202,7 +227,7 @@
         pointer-events: none;
     }
 
-    @{ui-loading-veiled}::before {
+    @{ui-loading-ringed}::before {
         content: "";
         position: absolute;
         top: 50%;

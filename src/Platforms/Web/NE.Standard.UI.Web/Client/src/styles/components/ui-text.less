@@ -1,5 +1,5 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/color.less";
 @import "../mixins/responsive.less";
 @import "../mixins/text.less";
@@ -15,8 +15,8 @@
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }
 
-// data-ui-text-* hooks sit on the component root: .ui-text itself, or one part of the same component down — an input's
-// header row, a split button's main part — never past another component's root, so the gates match all three.
+// data-ui-text-* hooks sit on the component root: `.ui-text` itself, or one part of the same component (an input's header
+// row, a split button's main part) — never past another component's root, so the gates below match all three.
 @ui-text-with-icon: ~":is([data-ui-text-icon] > .ui-text, [data-ui-text-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-icon].ui-text)";
 @ui-text-with-title: ~":is([data-ui-text-title] > .ui-text, [data-ui-text-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-title].ui-text)";
 @ui-text-with-description: ~":is([data-ui-text-description] > .ui-text, [data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-description].ui-text)";
@@ -187,7 +187,7 @@
     }
 }
 
-// One line, ellipsised, by default; only ParagraphComponent may wrap, via .ui-text--wrap / --wrap-ellipsis below.
+// One line, ellipsised, by default; only ParagraphComponent may wrap, via .ui-text--wrap below.
 .ui-text__description {
     display: none;
     min-width: 0;
@@ -200,16 +200,17 @@
     display: block;
 }
 
-// The gap above the description comes from its line-height, not a negative margin, which would overlap selection highlights across lines.
-// The clip is let out by a quarter em, or the descenders a line-height of one leaves outside the box are cut.
-@{ui-text-with-both}:not(.ui-text--wrap, .ui-text--wrap-ellipsis) > .ui-text__body > .ui-text__description:not(:has(.ui-text__fold)) {
+// The gap above the description comes from its line-height, not a negative margin, which would overlap selection highlights
+// across lines; overflow-clip-margin lets the box grow a quarter em to keep descenders, since containers clip by default.
+@{ui-text-with-both}:not(.ui-text--wrap) > .ui-text__body > .ui-text__description:not(:has(.ui-text__fold)) {
     line-height: 1;
+    padding-bottom: 0.2em;
     overflow: clip;
     overflow-clip-margin: 0.25em;
 }
 
-// A description with a fold in it has more behind it than one line, so it wraps as a paragraph's does: a caption cut behind the
-// ellipsis could never be pressed, and the text it opens takes lines of its own.
+// A description with a fold wraps like a paragraph, since a caption cut behind the ellipsis could never be pressed, and the
+// text it opens needs its own lines.
 @{ui-text-with-description} > .ui-text__body > .ui-text__description:has(.ui-text__fold) {
     overflow: visible;
     white-space: normal;
@@ -274,15 +275,6 @@
     white-space: normal;
 }
 
-.ui-text--wrap-ellipsis@{ui-text-with-description} > .ui-text__body > .ui-text__description {
-    display: -webkit-box;
-    overflow: hidden;
-    white-space: normal;
-    line-clamp: var(--ui-text-max-lines, 2);
-    -webkit-line-clamp: var(--ui-text-max-lines, 2);
-    -webkit-box-orient: vertical;
-}
-
 // The [label](url) inline markup link, not .ui-link: a clickable word inheriting its surroundings but for the accent and the underline.
 .ui-text__link {
     color: var(--ui-color-primary-ink);
@@ -322,8 +314,8 @@
     margin-inline: 0.15em;
 }
 
-// The [caption]{text} fold: the caption is a word of the sentence, a step greyer and heavier, with a chevron after it; a press turns
-// the chevron up and puts the text on the line below. The button is reset to a word so it takes nothing of a control's box.
+// The [caption]{text} fold: the caption reads as a word of the sentence — greyer, heavier, with a trailing chevron — and a
+// press reveals the text below. Reset to a word, so the button takes nothing of a control's own box.
 .ui-text__fold-toggle {
     appearance: none;
     border: 0;
@@ -344,7 +336,7 @@
     }
 
     .ui-text__fold-toggle::after {
-        .ui-chevron(0.55em);
+        .ui-chevron(@ui-glyph-xs);
         .ui-chevron-right();
         display: inline-block;
         margin-inline-start: 0.3em;

@@ -88,8 +88,7 @@ public sealed class WebAssetDescriptor
         return SourceKind switch
         {
             UIWebAssetSourceKind.File => ResolveFileVersion(),
-            // The content is what changes, so the content is what the version follows — the same number on every machine and every
-            // start, where a hash of the names was a fresh number per process and told nobody which build a page was showing.
+            // The content is what changes, so the content is what the version follows — the same number on every machine and every start.
             UIWebAssetSourceKind.EmbeddedResource or UIWebAssetSourceKind.Content => _contentVersion ??= HashContent(),
             UIWebAssetSourceKind.Url => "external",
             _ => throw new NotSupportedException($"Web asset source kind '{SourceKind}' has no version.")

@@ -29,14 +29,7 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// One client write that a source has to approve, held aside so applying it need not await author code under the state lock.
     /// </summary>
-    private readonly record struct PendingSourceWrite(
-        UIItemSourceBase Source,
-        UIPropertyAddress Address,
-        string ItemKey,
-        string ItemProperty,
-        object? Value,
-        RecursivePath Path
-    );
+    private readonly record struct PendingSourceWrite(UIItemSourceBase Source, UIPropertyAddress Address, string ItemKey, string ItemProperty, object? Value, RecursivePath Path);
 
     /// <summary>
     /// A windowed host whose rules read controller state, with the paths a change to which invalidates the
@@ -115,7 +108,7 @@ internal abstract partial class UIRuntimeBase
         if (window.Kind != PathSegmentKind.Property || !string.Equals(window.Property, UIItemSourceBase.WindowProperty, StringComparison.Ordinal))
             throw new InvalidOperationException($"Component '{componentId}' binds '{resolution.Path}', which does not address a source window.");
 
-        RecursivePath sourcePath = TrimLast(resolution.Path);
+        RecursivePath sourcePath = resolution.Path.Take(resolution.Path.Count - 1);
 
         return TryGetControllerValue(sourcePath) as UIItemSourceBase
             ?? throw new InvalidOperationException($"Path '{sourcePath}' does not resolve to an item source.");
@@ -172,8 +165,8 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// The terms the viewer set on the host: read through its binding when bound, else the authored value — an unbound query changed on
-    /// the client never reaches here, so a windowed host binds it.
+    /// The viewer's terms on the host: bound, they're read through the binding; unbound, the authored value — a windowed host
+    /// must bind, since an unbound change never reaches here.
     /// </summary>
     private UIItemsQuery? ReadItemsQueryNoLock(UIComponentId componentId)
     {
@@ -204,7 +197,7 @@ internal abstract partial class UIRuntimeBase
     /// The controller value behind a rule's source component property.
     /// </summary>
     /// <remarks>
-    /// Only a bound source can be read; a binding needing runtime parameters is refused since a host's rules belong to the host, not a row.
+    /// Only a bound source can be read; parameterized bindings are refused, since a host's rules belong to the host, not a row.
     /// </remarks>
     private object? TryGetRuleSourceValueNoLock(UIPropertyAddress address)
         => TryGetRuleSourcePathNoLock(address, out RecursivePath? path) ? TryGetControllerValue(path) : null;
@@ -453,7 +446,7 @@ internal abstract partial class UIRuntimeBase
             return false;
         }
 
-        if (TryGetControllerValue(TrimLast(TrimLast(TrimLast(path)))) is not UIItemSourceBase source)
+        if (TryGetControllerValue(path.Take(path.Count - 3)) is not UIItemSourceBase source)
             return false;
 
         pending = new PendingSourceWrite(
@@ -507,7 +500,4 @@ internal abstract partial class UIRuntimeBase
             ? changes
             : AppendUpdates(changes, refusals);
     }
-
-    private static RecursivePath TrimLast(RecursivePath path)
-        => new(path.AsSpan()[..^1].ToArray(), ownsArray: true);
 }

@@ -63,6 +63,9 @@ internal sealed partial class WebUIHub : Hub
         public object?[] DynamicParameters { get; init; } = [];
 
         public object? Value { get; init; }
+
+        /// <summary>The token of a value staged beside the hub, carried instead of <see cref="Value"/> when the value is large.</summary>
+        public string? ValueToken { get; init; }
     }
 
     internal sealed class WebUISetThemeRequest
@@ -133,15 +136,19 @@ internal sealed partial class WebUIHub : Hub
     private readonly IWebViewRenderer _renderer;
     private readonly UIApplication _application;
     private readonly IUserSessionStore _sessions;
+    private readonly WebValueStagingStore _stagedValues;
+    private readonly WebOutgoingValues _outgoing;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, ILogger<WebUIHub> logger)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(renderCache);
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(stagedValues);
+        ArgumentNullException.ThrowIfNull(outgoing);
         ArgumentNullException.ThrowIfNull(logger);
 
         _host = host;
@@ -149,6 +156,8 @@ internal sealed partial class WebUIHub : Hub
         _renderer = renderer;
         _application = application;
         _sessions = sessions;
+        _stagedValues = stagedValues;
+        _outgoing = outgoing;
         _logger = logger;
     }
 
@@ -224,7 +233,7 @@ internal sealed partial class WebUIHub : Hub
 
         return new WebUIAttachResult
         {
-            InitialChanges = initialChanges
+            InitialChanges = _outgoing.Stage(initialChanges, runtime.Handle.Session.SessionId, 1)
         };
     }
 
@@ -285,39 +294,61 @@ internal sealed partial class WebUIHub : Hub
 
         request.Validate();
 
-        if (!Context.Items.TryGetValue(HandleContextItemKey, out var value) || value is not UIHandle handle)
-            throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
+        UIHandle handle = RequireHandle();
 
-        return await _host
+        UICommandExecutionResult result = await _host
             .ProcessEventAsync(handle, request, Context.ConnectionAborted)
             .ConfigureAwait(false);
+
+        return _outgoing.Stage(result, handle.Session.SessionId, 1);
     }
+
+    /// <summary>The handle the attach left on this connection; a connection that never attached has none to act on.</summary>
+    private UIHandle RequireHandle()
+        => Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle
+            ? handle
+            : throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
 
     public async Task<ServerChangeSet> ProcessChangeSetAsync(WebUIChangeSetRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Updates);
 
-        if (!Context.Items.TryGetValue(HandleContextItemKey, out var value) || value is not UIHandle handle)
-            throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
+        UIHandle handle = RequireHandle();
 
-        ClientChangeSet changeSet = new() { Updates = [.. request.Updates.Select(CreateClientValueUpdate)] };
+        // Every token is checked before any is taken: a token spends once, and a batch failing on its last field must not have
+        // burnt its first ones' staged values.
+        foreach (WebUIValueChangeRequest update in request.Updates)
+        {
+            if (update?.ValueToken is not null && !_stagedValues.Holds(handle.Session.SessionId, update.ValueToken))
+                throw new InvalidOperationException("The staged value was not found; it may have expired.");
+        }
 
-        return await _host
+        ClientChangeSet changeSet = new() { Updates = [.. request.Updates.Select(update => CreateClientValueUpdate(handle, update))] };
+
+        ServerChangeSet changes = await _host
             .ProcessChangeSetAsync(handle, changeSet, Context.ConnectionAborted)
             .ConfigureAwait(false);
+
+        return _outgoing.Stage(changes, handle.Session.SessionId, 1);
     }
 
-    private static ClientValueUIUpdate CreateClientValueUpdate(WebUIValueChangeRequest update)
+    private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update)
     {
         ArgumentNullException.ThrowIfNull(update);
         ArgumentException.ThrowIfNullOrWhiteSpace(update.PropertyName);
+
+        var value = update.Value;
+
+        // A large value was staged beside the hub by this session; one that expired or is not its own is a failed update, not null.
+        if (update.ValueToken is not null && !_stagedValues.TryTake(handle.Session.SessionId, update.ValueToken, out value))
+            throw new InvalidOperationException("The staged value was not found; it may have expired.");
 
         return new ClientValueUIUpdate
         {
             Address = new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName),
             DynamicParameters = update.DynamicParameters ?? [],
-            Value = update.Value
+            Value = value
         };
     }
 
@@ -325,12 +356,13 @@ internal sealed partial class WebUIHub : Hub
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!Context.Items.TryGetValue(HandleContextItemKey, out var value) || value is not UIHandle handle)
-            throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
+        UIHandle handle = RequireHandle();
 
-        return await _host
+        ServerChangeSet changes = await _host
             .RequestItemWindowAsync(handle, CreateItemWindowRequest(request), Context.ConnectionAborted)
             .ConfigureAwait(false);
+
+        return _outgoing.Stage(changes, handle.Session.SessionId, 1);
     }
 
     /// <summary>

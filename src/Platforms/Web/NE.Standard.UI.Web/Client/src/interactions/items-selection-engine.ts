@@ -1,18 +1,15 @@
-// Choosing rows in an items view, a table or a tree: a click marks the row and sends the key back, and a pushed key marks the rows the
-// same way. For an items view and a table the keyboard is here too — the arrows move the keyboard's row, Space and Enter choose,
-// Enter opens, Delete removes; a tree walks its own rows, since its arrows fold as well as move. How a gesture changes the chosen
-// set is `row-selection.ts`, which the tree shares.
+// Choosing rows in an items view, a table or a tree: a click or key marks rows and sends the key back; the items view and
+// table also handle the keyboard here, while a tree walks its own rows since its arrows also fold. How a gesture changes the
+// chosen set is `row-selection.ts`, shared with the tree.
 
-import { SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes";
+import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 import { ownControlOf } from "./own-control";
 import { ownDescendants } from "./own-descendants";
 import { dispatchRowEvent, focusedRow, isRowDisabled, resolveRowTarget, setRowFocus } from "./row-cursor";
-import { chooseRow, ensureAnchor, gestureOf, markSelectedRows, PlainGesture, selectedRows } from "./row-selection";
-
-// The three hosts with rows to choose; a root's rows are its own shape's, so a table in an items view's row chooses nothing outside itself.
-const RootSelector = ".ui-items-view, .ui-table, .ui-tree";
-const ItemSelector = ".ui-items-view__item, .ui-table__row, .ui-tree__row";
+import {
+    chooseRow, ensureAnchor, gestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector
+} from "./row-selection";
 
 // The two whose keyboard is this engine's; the tree's is its own.
 const KeyboardRootSelector = ".ui-items-view, .ui-table";
@@ -47,14 +44,9 @@ export class ItemsSelectionEngine {
             this.apply(root);
     }
 
-    /** Marks the chosen rows from whichever keys the mode reads; a host with rows to choose takes the focus, so its keys can reach them. */
+    /** Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode. */
     private apply(root: HTMLElement): void {
         markSelectedRows(root, this.ownItems(root));
-
-        const mode = root.getAttribute(SelectionAttribute);
-
-        if (mode === "one" || mode === "many")
-            root.tabIndex = 0;
     }
 
     /** The row and its host a press landed in, scoped to the host that owns the row: a list nested in another's row must not choose the outer one. */
@@ -80,22 +72,26 @@ export class ItemsSelectionEngine {
         const { root, item } = resolved;
         const rows = this.ownItems(root);
 
-        // The keyboard's row follows the pointer, in the tree as well — its own engine moves the mark only for what it folds. The
-        // host takes the focus with it, as a file manager's list does, so the arrows carry on from the row that was clicked; a host
-        // that chooses nothing is not focusable, so nothing is taken from the page there.
+        // The keyboard's row follows the pointer, in the tree as well, so the arrows carry on from the row that was clicked. The host
+        // takes the focus with it, like a file manager's list; a host that chooses nothing is not focusable, so nothing is taken there.
         setRowFocus(root, rows, item);
         root.focus({ preventScroll: true });
+
+        // A host whose rows are chosen by something of its own (a grid's checkboxes) keeps the click for whatever else the row
+        // does; the keyboard still chooses, being the only way there without a pointer.
+        if (root.hasAttribute(NoRowSelectAttribute))
+            return;
 
         // A row that refuses to be chosen leaves the click to whatever else the row does.
         if (chooseRow(root, rows, item, gestureOf(domEvent)))
             domEvent.preventDefault();
     }
 
-    /** A double click anywhere on the row but its own controls opens it, as Enter does. */
+    /** A double click anywhere on the row but its own controls opens it, as Enter does; a cell that edits on a double click says so and keeps it. */
     private handleDoubleClick(domEvent: Event): void {
         const resolved = this.resolveRow(domEvent, KeyboardRootSelector);
 
-        if (resolved === null)
+        if (resolved === null || (domEvent.target instanceof Element && resolved.item.contains(domEvent.target.closest(`[${NoRowOpenAttribute}]`))))
             return;
 
         domEvent.preventDefault();
@@ -126,8 +122,8 @@ export class ItemsSelectionEngine {
             domEvent.preventDefault();
             setRowFocus(root, rows, next);
 
-            // With one row to choose, a move chooses it too, as a file list does; with many, a move under Shift extends the range
-            // from where the cursor stood — which is the anchor when no click has set one.
+            // With one row to choose, a move chooses it too, like a file list; with many, Shift extends the range from where the
+            // cursor stood, or the anchor if no click set one.
             if (root.getAttribute(SelectionAttribute) === "one" || domEvent.shiftKey) {
                 if (domEvent.shiftKey)
                     ensureAnchor(root, current);
@@ -148,16 +144,16 @@ export class ItemsSelectionEngine {
                     return;
                 break;
             case "Enter":
-                // Enter is the keyboard's click: it chooses the row as a click does, and opens it as a double click does. A cursor
-                // already inside a chosen group leaves the group standing, since Delete reads that same group.
+                // Enter is the keyboard's click: chooses like a click, opens like a double click. A cursor inside a chosen group
+                // leaves the group standing, since Delete reads that same group.
                 if (!selectedRows(rows).includes(current))
                     chooseRow(root, rows, current, PlainGesture);
 
                 dispatchRowEvent(current, "open");
                 break;
             case "Delete": {
-                // The chosen rows go together when the cursor is on one of them; a row that cannot be removed raises nothing, and
-                // whether one that can is removed is the controller's answer. With nothing to remove the key is the page's again.
+                // The chosen rows go together when the cursor is on one of them; an unremovable row raises nothing, and whether a
+                // removable one is removed is the controller's answer. With nothing to remove the key is the page's again.
                 const removable = removableRows(rows, current);
 
                 if (removable.length === 0)

@@ -8,11 +8,8 @@ using NE.Standard.UI.Web.Renderers.Layouts;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
 
-/// <summary>
-/// Renders a key-value row's template the way a container renders, plus the editing flag the row's stylesheet reads. It
-/// runs inside the list's <c>&lt;template&gt;</c>, where the flag leaves the binding the client's rows copy; a row the
-/// server stamps gets the flag from the list renderer through <see cref="RenderEditing"/>.
-/// </summary>
+/// <summary>Renders a key-value row's template the way a container renders, plus the editing flag the row's stylesheet reads.</summary>
+/// <remarks>A row the server stamps gets the flag from the list renderer through <see cref="RenderEditing"/> instead of from here.</remarks>
 public sealed class DefaultRowTemplateRenderer : WebComponentRendererBase
 {
     public override string ComponentTypeKey => DefaultRowTemplate.ComponentTypeKey;

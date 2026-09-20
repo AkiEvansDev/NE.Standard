@@ -67,6 +67,7 @@ internal sealed partial class SearchValueGroupContext : InputValueGroupContext
     public SearchValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
+        AddSizeOption();
         AddReadOnlyOption();
     }
 

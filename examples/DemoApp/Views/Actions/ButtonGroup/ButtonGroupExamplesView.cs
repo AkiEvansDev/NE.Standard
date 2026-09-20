@@ -8,7 +8,7 @@ using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 
-namespace DemoApp.Views.Navigation.ButtonGroup;
+namespace DemoApp.Views.Actions.ButtonGroup;
 
 /// <summary>
 /// The places a strip of segments is written: a view switched by icons in a toolbar, a period chosen by word, and a
@@ -17,12 +17,12 @@ namespace DemoApp.Views.Navigation.ButtonGroup;
 /// <remarks>Nothing here is bound: the pages show the shapes, and the strips keep their own current segment.</remarks>
 internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinition
 {
-    public static string ViewKey => "demo.navigation.button-group.examples";
+    public static string ViewKey => "demo.actions.button-group.examples";
 
-    protected override string ComponentRoute => "/navigation/button-group";
+    protected override string ComponentRoute => "/actions/button-group";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Main, DemoViewKind.Examples];
-    protected override string Header => "demo.navigation.button-group.header";
-    protected override string HeaderDescription => "demo.navigation.button-group.description";
+    protected override string Header => "demo.actions.button-group.header";
+    protected override string HeaderDescription => "demo.actions.button-group.description";
 
     protected override void DrawContent(WrapPanelComponent container)
     {

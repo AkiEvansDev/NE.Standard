@@ -8,6 +8,9 @@ namespace NE.Standard.UI.Web.Renderers.Indicators;
 
 public sealed class SpinnerComponentRenderer : WebComponentRendererBase
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string LabelAttribute = "data-ui-spinner-label";
+
     public override string ComponentTypeKey => SpinnerComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-spinner";
@@ -32,12 +35,12 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
             {
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    _ = root.Attribute("data-ui-spinner-label");
+                    _ = root.Attribute(LabelAttribute);
                     _ = target.Text(value);
                 }
             }, [
                 WebDomOperation.Text(),
-                WebDomOperation.ToggleAttribute("data-ui-spinner-label", target: "root", condition: WebValueCondition.HasText)
+                WebDomOperation.ToggleAttribute(LabelAttribute, target: "root", condition: WebValueCondition.HasText)
             ]);
         });
     }

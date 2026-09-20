@@ -5,11 +5,11 @@ using NE.Standard.UI.Abstractions.Identity;
 namespace NE.Standard.UI.Shell.Data;
 
 /// <summary>
-/// Represents a client asking a windowed items host for the part of its source it can show.
+/// A client asking a windowed items host for the part of its source it can show.
 /// </summary>
 /// <remarks>
-/// Its own request rather than a client update: reading a window awaits the author's code, and the change-set path
-/// applies updates under a lock it cannot release.
+/// Separate from a client update: reading a window awaits the author's code, which the change-set path cannot do while
+/// holding its lock.
 /// </remarks>
 public sealed class UIItemWindowClientRequest
 {

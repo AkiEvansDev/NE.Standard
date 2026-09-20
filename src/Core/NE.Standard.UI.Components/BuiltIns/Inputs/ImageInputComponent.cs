@@ -9,17 +9,16 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
 /// <summary>
-/// A picture the viewer replaces by choosing a file: an avatar, a large picture over a drop area, or a row like the
-/// file input's. <c>Value</c> is the picture shown — a URL the controller owns; the chosen file is uploaded at once
-/// and its handle written to <see cref="SelectionId"/>, the way a file input's is, while the file itself is shown as
-/// a local preview until the controller answers with a picture of its own.
+/// A picture the viewer replaces by choosing a file, shown as an avatar, a drop area, or a file-input row. <c>Value</c>
+/// holds the picture's URL; the chosen file uploads at once, its handle landing in <see cref="SelectionId"/>, with a local
+/// preview shown until the controller replies.
 /// </summary>
 /// <remarks>
-/// Nothing on the control removes the one picture: a controller that offers that puts a button beside it and clears <c>Value</c>.
-/// With <see cref="Multiple"/> the control is a shelf of the pictures chosen, each with a cross that takes it away, and their
-/// handles arrive in <see cref="SelectionIds"/>; <c>Value</c>, <c>Caption</c> and <see cref="SelectionId"/> stay unused then.
+/// Nothing removes the picture on its own — offer a button that clears <c>Value</c>. With <see cref="Multiple"/> the control
+/// becomes a shelf of pictures whose handles arrive in <see cref="SelectionIds"/>, and <c>Value</c>, <c>Caption</c> and
+/// <see cref="SelectionId"/> go unused.
 /// </remarks>
-public abstract partial class ImageInputComponent<T>(string? id = null) : TextInputComponentBase<T, string?>(id), IPlaceholderInputComponent
+public abstract partial class ImageInputComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
     where T : ImageInputComponent<T>, IUIComponentDefinition
 {
     private const string DefaultAccept = "image/*";
@@ -42,15 +41,15 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : TextIn
     public string? SelectionId { get; set; }
 
     /// <summary>
-    /// Gets or sets whether several pictures are taken at once, each shown as a square the viewer can take away again.
+    /// Gets or sets whether several pictures are taken at once, each shown as a square the viewer can remove.
     /// </summary>
-    /// <remarks>Render-time only: a shelf is a different build from a picture. Read with the <see cref="UIImageInputShape.Picture"/> shape.</remarks>
+    /// <remarks>Render-time only: a shelf is a different build from a picture. Read together with <see cref="UIImageInputShape.Picture"/>.</remarks>
     [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
     public bool? Multiple { get; set; }
 
     /// <summary>
-    /// Gets or sets the ids of the uploaded pictures under <see cref="Multiple"/>, one selection per picture, in the order chosen;
-    /// written by the client as pictures land and leave. Set it empty to clear the shelf.
+    /// Gets or sets the ids of the uploaded pictures under <see cref="Multiple"/>, one per picture in the order chosen.
+    /// Written by the client as pictures land and leave; set it empty to clear the shelf.
     /// </summary>
     [UIComponentProperty(
         DefaultValue = null,
@@ -63,6 +62,12 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : TextIn
     /// </summary>
     [UIComponentProperty(DefaultValue = DefaultAccept)]
     public string? Accept { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum allowed file size, in bytes; the client refuses a larger picture before uploading it.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
+    public long? MaxFileSize { get; set; }
 
     /// <summary>
     /// Gets or sets the glyph shown while there is no picture; unset, the shape draws its own.
@@ -83,8 +88,8 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : TextIn
     public UIImageFit? Fit { get; set; }
 
     /// <summary>
-    /// Gets or sets what the inline row says about the picture the controller gave — its name, as the controller knows it.
-    /// Unset, the row reads the file name off the picture's address, and nothing when the address carries none.
+    /// Gets or sets what the inline row says about the picture — its name, as the controller knows it. Unset, it falls back
+    /// to the file name from the picture's address, or nothing if the address carries none.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? Caption { get; set; }

@@ -11,6 +11,7 @@ namespace DemoApp;
 /// <remarks>Also the list the host registers, so the constants and what the pack serves cannot drift apart.</remarks>
 public static class DemoIcons
 {
+    public const string Add = MaterialIcons.Add;
     public const string Check = MaterialIcons.Check;
     public const string Copy = MaterialIcons.ContentCopy;
     public const string Edit = MaterialIcons.Edit;

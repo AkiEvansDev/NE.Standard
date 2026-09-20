@@ -1,7 +1,8 @@
 // The client half of `UIInlineMarkup`, which must read the same markup the same way; nodes are built, never innerHTML.
 
 import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
-import { toIconGlyphClassName } from "./icon-value.ts";
+import { applyIconValue } from "./icon-value.ts";
+import { isSafeLink } from "./url-safety.ts";
 
 // Plain constants rather than an `enum`: the node test runner strips types rather than compiling them.
 export const InlineStyles = {
@@ -173,8 +174,8 @@ function renderFold(segment: InlineSegment, options: InlineMarkupOptions): Node 
 function renderIcon(icon: string): Node {
     const element = document.createElement("i");
 
-    element.className = `ui-icon ui-text__icon-inline ${toIconGlyphClassName(icon)}`.trim();
-    element.setAttribute("data-ui-icon", "");
+    element.className = "ui-text__icon-inline";
+    applyIconValue(element, icon);
     element.setAttribute("aria-hidden", "true");
 
     return element;
@@ -412,37 +413,13 @@ function readLink(text: string, index: number, end: number): LinkMatch | null {
 
     const url = text.slice(closingLabel + 2, closingUrl).trim();
 
-    if (!isSafeUrl(url))
+    if (!isSafeLink(url))
         return null;
 
     const labelStart = index + 1;
     const labelEnd = closingLabel;
 
     return labelEnd > labelStart ? { labelStart, labelEnd, url, linkEnd: closingUrl + 1 } : null;
-}
-
-function isSafeUrl(url: string | null | undefined): boolean {
-    if (url === null || url === undefined || url.trim().length === 0)
-        return false;
-
-    for (const character of url) {
-        const code = character.codePointAt(0) ?? 0;
-
-        if (code < 0x20 || code === 0x7f || isSpace(character))
-            return false;
-    }
-
-    if (url[0] === "/" || url[0] === "#" || url[0] === "?" || url[0] === ".")
-        return true;
-
-    const colon = url.indexOf(":");
-
-    if (colon < 0)
-        return true;
-
-    const scheme = url.slice(0, colon).toLowerCase();
-
-    return scheme === "http" || scheme === "https" || scheme === "mailto" || scheme === "tel";
 }
 
 type FoldMatch = { readonly caption: string; readonly contentStart: number; readonly contentEnd: number };

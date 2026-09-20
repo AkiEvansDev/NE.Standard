@@ -10,9 +10,18 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A multi-line text input for entering longer free-form text.
 /// </summary>
-public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent
+public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, string?>, IPlaceholderInputComponent, IDebounceInputComponent, ITextLengthComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
+    /// <summary>
+    /// Initializes the area stretched, unlike the one-line fields it shares a base with: a box for longer text takes the height its
+    /// track gives it.
+    /// </summary>
+    protected TextAreaComponent(string? id = null) : base(id)
+    {
+        VerticalAlignment = UIAlignment.Stretch;
+    }
+
     /// <inheritdoc/>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
@@ -50,17 +59,6 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInp
     public int? DebounceMilliseconds { get; set; }
 
     /// <summary>
-    /// Commits the value as the viewer types, this long after they pause.
-    /// </summary>
-    public T SetDebounceMilliseconds(int debounceMilliseconds)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(debounceMilliseconds);
-
-        DebounceMilliseconds = debounceMilliseconds;
-        return Self;
-    }
-
-    /// <summary>
     /// Sets the number of visible text rows.
     /// </summary>
     public T SetRows(int rows)
@@ -68,17 +66,6 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : FieldInp
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rows);
 
         Rows = rows;
-        return Self;
-    }
-
-    /// <summary>
-    /// Sets the maximum number of characters allowed.
-    /// </summary>
-    public T SetMaxLength(int maxLength)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLength);
-
-        MaxLength = maxLength;
         return Self;
     }
 

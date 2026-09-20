@@ -1,5 +1,14 @@
 import {
-    ItemsQueryAttribute, SelectedKeyAttribute, SelectedKeysAttribute, TabCaptionAttribute, TreeDropTargetAttribute, TreeTitleAttribute, TabOrderAttribute, TabsSelectedAttribute, ValueKindAttribute
+    ItemsQueryAttribute,
+    SelectedKeyAttribute,
+    SelectedKeysAttribute,
+    TabCaptionAttribute,
+    TreeDropTargetAttribute,
+    TreeTitleAttribute,
+    TabOrderAttribute,
+    TabsSelectedAttribute,
+    ValueHolderAttribute,
+    ValueKindAttribute
 } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 
@@ -22,6 +31,18 @@ export function isNullishValue(value: unknown): boolean {
 
 /** Reads the value an element holds, for the kind named by its `data-ui-value-kind`. */
 export type ValueReader = (element: Element) => unknown;
+
+/**
+ * A value read as the framework reads it: off the kind an element names, off what the element is, or off the element a composed
+ * control keeps its value on when given the component's own root.
+ */
+export type ValueReading = {
+    read(element: Element): unknown;
+    /** Holds an element's value as the reader's until it is sent: a value the server pushes meanwhile is not written into it. */
+    hold(element: Element): void;
+    /** Lets a held value go, and puts the server's latest value back into the element. */
+    release(element: Element): void;
+};
 
 export type ValueReaderRegistration = {
     readonly kind: string;
@@ -70,6 +91,13 @@ export class ValueReaderRegistry {
             ? value.trim()
             : value;
     }
+
+    /** The value of whatever is given: a field's own element, or a component's root, whose value may sit on an element inside it. */
+    public readHeld(element: Element): unknown {
+        const holder = resolveValueHolder(element);
+
+        return holder === null ? null : this.read(holder);
+    }
 }
 
 function readNativeValue(element: Element): unknown {
@@ -94,6 +122,16 @@ function readNativeValue(element: Element): unknown {
     return null;
 }
 
+const NativeValueSelector = "input, textarea, select";
+
+/** The element a component keeps its value on: the one given when it names a kind or is itself a field, else the value holder inside it. */
+export function resolveValueHolder(element: Element): Element | null {
+    if (element.hasAttribute(ValueKindAttribute) || element.matches(NativeValueSelector))
+        return element;
+
+    return element.querySelector(`[${ValueHolderAttribute}]`) ?? element.querySelector(`[${ValueKindAttribute}], ${NativeValueSelector}`);
+}
+
 function numberOrNull(text: string | null): number | null {
     return text === null ? null : Number(text);
 }
@@ -116,7 +154,9 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // the query element every items component renders: the viewer's terms, as an engine wrote them
     { kind: "items-query", read: element => readJsonAttribute(element, ItemsQueryAttribute) },
     // radio-group-sync-engine.ts
-    { kind: "checked-radio", read: element => element.querySelector<HTMLInputElement>("input[type=\"radio\"]:checked")?.value ?? null }
+    { kind: "checked-radio", read: element => element.querySelector<HTMLInputElement>("input[type=\"radio\"]:checked")?.value ?? null },
+    // toggle-button-engine.ts
+    { kind: "pressed", read: element => element.getAttribute("aria-pressed") === "true" }
 ];
 
 /** The list itself, not its text: the engine keeps it serialized only because an attribute is text. */

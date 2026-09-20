@@ -6,16 +6,15 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents a grid track size, with the floor and ceiling a splitter may move it between.
+/// A grid track's size, with the floor and ceiling a splitter may move it between.
 /// </summary>
 /// <remarks>
-/// The platform holds what its layout can hold — a star track's floor, a content track's floor or ceiling — and a
-/// <c>GridSplitter</c> clamps to the rest; a fixed track's bounds only say how far it may be dragged.
+/// A fixed track's bounds only limit dragging; a star or content track's bounds also constrain what the platform's layout resolves it to.
 /// </remarks>
-/// <param name="Unit">How the track is sized: a fixed length, a share of the free space, or its content.</param>
-/// <param name="Value">The size in the unit's own terms.</param>
-/// <param name="MinValue">The floor a splitter may drag the track down to.</param>
-/// <param name="MaxValue">The ceiling a splitter may drag the track up to.</param>
+/// <param name="Unit">How the track is sized: fixed length, a share of free space, or its content.</param>
+/// <param name="Value">The size, in the unit's own terms.</param>
+/// <param name="MinValue">The floor a splitter may drag the track to.</param>
+/// <param name="MaxValue">The ceiling a splitter may drag the track to.</param>
 public readonly record struct UIGridUnit(UIGridUnitType Unit, double Value, double? MinValue = null, double? MaxValue = null)
 {
     /// <summary>

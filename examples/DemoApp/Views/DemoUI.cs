@@ -10,6 +10,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -22,6 +23,19 @@ internal static class DemoUI
 
     public static readonly (string Title, string Icon, (string ComponentRoute, string Label)[] Links)[] NavSections =
     [
+        // First, because these are the pages a reader judges the whole by: pieces of an application, not a component each.
+        ("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Home),
+        [
+            ("/screens/sign-up", "demo.nav.screens.sign-up"),
+            ("/screens/checkout", "demo.nav.screens.checkout"),
+            ("/screens/settings", "demo.nav.screens.settings"),
+            ("/screens/catalogue", "demo.nav.screens.catalogue"),
+            ("/screens/inbox", "demo.nav.screens.inbox"),
+            ("/screens/article", "demo.nav.screens.article"),
+            ("/screens/sign-in", "demo.nav.screens.sign-in"),
+            ("/screens/account", "demo.nav.screens.account"),
+            ("/screens/admin", "demo.nav.screens.admin"),
+        ]),
         ("demo.nav.section.layouts", DemoIcons.Outline(DemoIcons.LayoutDashboard),
         [
             ("/layouts/container", "demo.nav.layouts.container"),
@@ -49,6 +63,7 @@ internal static class DemoUI
         [
             ("/actions/button", "demo.nav.actions.button"),
             ("/actions/split-button", "demo.nav.actions.split-button"),
+            ("/actions/button-group", "demo.nav.actions.button-group"),
             ("/actions/action", "demo.nav.actions.action"),
             ("/actions/command-bar", "demo.nav.actions.command-bar"),
             ("/actions/theme-switcher", "demo.nav.actions.theme-switcher"),
@@ -77,7 +92,6 @@ internal static class DemoUI
             ("/navigation/tabs", "demo.nav.navigation.tabs"),
             ("/navigation/tabs-view", "demo.nav.navigation.tabs-view"),
             ("/navigation/breadcrumbs", "demo.nav.navigation.breadcrumbs"),
-            ("/navigation/button-group", "demo.nav.navigation.button-group"),
         ]),
         ("demo.nav.section.items", DemoIcons.Outline(DemoIcons.List),
         [
@@ -103,6 +117,17 @@ internal static class DemoUI
     /// </summary>
     internal static readonly Dictionary<string, DemoViewKind> LandingKinds = new(StringComparer.Ordinal)
     {
+        // A screen's route is its own page, which is what Main means here; it has no other kinds.
+        ["/screens/sign-up"] = DemoViewKind.Main,
+        ["/screens/checkout"] = DemoViewKind.Main,
+        ["/screens/settings"] = DemoViewKind.Main,
+        ["/screens/catalogue"] = DemoViewKind.Main,
+        ["/screens/inbox"] = DemoViewKind.Main,
+        ["/screens/article"] = DemoViewKind.Main,
+        ["/screens/sign-in"] = DemoViewKind.Main,
+        ["/screens/account"] = DemoViewKind.Main,
+        ["/screens/admin"] = DemoViewKind.Main,
+        ["/screens/forbidden"] = DemoViewKind.Main,
         ["/actions/button"] = DemoViewKind.Main,
         ["/actions/action"] = DemoViewKind.Main,
         ["/actions/split-button"] = DemoViewKind.Main,
@@ -150,38 +175,17 @@ internal static class DemoUI
         ["/navigation/tabs"] = DemoViewKind.Main,
         ["/navigation/tabs-view"] = DemoViewKind.Main,
         ["/navigation/breadcrumbs"] = DemoViewKind.Main,
-        ["/navigation/button-group"] = DemoViewKind.Main,
+        ["/actions/button-group"] = DemoViewKind.Main,
         ["/overlays/dialog"] = DemoViewKind.Test,
         ["/overlays/notification"] = DemoViewKind.Test
     };
 
+    /// <summary>The page band from the preset; the theme switcher is on every page, controller or not, since the theme is the framework's state.</summary>
     public static ContainerComponent CreateHeader(string title, string description)
-    {
-        ContainerComponent header = new ContainerComponent()
-            .SetPadding(UIThickness.All(24, 20, 24, 4))
-            .AddRow(UIGridUnit.Star());
-
-        _ = header.AddChild(new TextComponent()
-            .SetTitle(title)
-            .SetTitleType(UITextAppearance.Display)
-            .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.OnBackground))
-            .SetDescription(description)
-            .SetDescriptionType(UITextAppearance.Body)
-            .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
-            .SetPlacement(1, 1, 22, 1)
-        );
-
-        // On every page, controller or not: the theme is the framework's state, so nothing is bound.
-        _ = header.AddChild(new ThemeSwitcherComponent()
+        => UIPage.Header(title, description, new ThemeSwitcherComponent()
             .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
             .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
-            .SetHorizontalAlignment(UIAlignment.End)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetPlacement(23, 1, 2, 1)
         );
-
-        return header;
-    }
 
     /// <summary>
     /// The sidebar every route wears, built from <see cref="MenuComponent"/>.
@@ -308,8 +312,8 @@ internal static class DemoUI
     /// in pairs, so the two groups of a row start level, and each takes its own height.
     /// </summary>
     /// <remarks>
-    /// Two independent stacks were tried first and read as crooked — every row past the first started at a different height on
-    /// each side (the owner's call, 2026-09-07). A pair leaves room under its shorter group instead, which reads as a row.
+    /// Not two independent stacks: every row past the first would start at a different height on each side. A pair leaves room
+    /// under its shorter group instead, which reads as a row.
     /// </remarks>
     public static IVisualComponent[] CreateColumns(IEnumerable<ContainerComponent> left, IEnumerable<ContainerComponent> right)
     {
@@ -331,33 +335,19 @@ internal static class DemoUI
 
     /// <summary>The vertical stack an Examples group lays its samples in, the width of the group.</summary>
     public static StackPanelComponent CreateStack(double spacing = 12)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(spacing)
-            .SetPlacement(1, 1, 24, 1);
+        => UILayout.Stack(spacing).SetPlacement(1, 1, 24, 1);
 
     /// <summary>A row of samples that wraps when the group is narrow.</summary>
     public static StackPanelComponent CreateRow(double spacing = 12)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(spacing)
-            .SetWrap(true);
+        => UILayout.Row(spacing);
 
     /// <summary>The overline caption a sample or a pane is named by.</summary>
     public static TextComponent CreateCaption(string label)
-        => new TextComponent()
-            .SetTitle(label)
-            .SetTitleType(UITextAppearance.Overline)
-            .SetTitleColor(UIThemeColor.Muted);
+        => UIText.Label(label);
 
     /// <summary>A sample under its caption, for the "against" groups that set two things side by side.</summary>
     public static StackPanelComponent CreateCaptionedItem(string label, IVisualComponent sample)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetSpacing(6)
-            .AddChild(CreateCaption(label))
-            .AddChild(sample);
+        => UIPage.Labelled(label, sample);
 
     /// <summary>
     /// The shell every demo page is built from, so a layout fix here lands on every demo route at once.
@@ -425,17 +415,9 @@ internal static class DemoUI
 
         _ = group.AddChild(header);
 
-        // A description rather than a title: prose wraps, a title ends in an ellipsis.
+        // A note rather than a title: prose wraps, a title ends in an ellipsis.
         if (hasNote)
-        {
-            _ = group.AddChild(new ParagraphComponent()
-                .SetDescription(note!)
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.Muted)
-                .SetMargin(UIThickness.All(0, 0, 0, 8))
-                .SetPlacement(1, 2, span, 1)
-            );
-        }
+            _ = group.AddChild(UIText.Note(note!).SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 2, span, 1));
 
         _ = group.AddChild(content);
 
@@ -450,10 +432,7 @@ internal static class DemoUI
             .AddRow(UIGridUnit.Auto())
             // The spacer keeps the frame the height of its rows rather than sharing the column's slack.
             .AddRow(UIGridUnit.Star())
-            .AddChild(new TextComponent()
-                .SetTitle("Actions")
-                .SetTitleType(UITextAppearance.Overline)
-                .SetTitleColor(UIThemeColor.Muted)
+            .AddChild(UIText.Label("Actions")
                 .SetVerticalAlignment(UIAlignment.Start)
                 .SetPlacement(1, 1, 24, 1)
             )
@@ -485,9 +464,7 @@ internal static class DemoUI
     {
         ArgumentNullException.ThrowIfNull(panes);
 
-        StackPanelComponent stack = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(12)
+        StackPanelComponent stack = UILayout.Stack(12)
             .SetPlacement(1, 1, 24, 1);
 
         // One pane keeps the whole height; several share it, none below what a two-line component needs.
@@ -582,9 +559,14 @@ internal static class DemoUI
         return CreateTabs(tabs, RouteFor(componentRoute, current));
     }
 
-    /// <summary>The page a kind lives at; <see cref="DemoViewKind.Main"/> is the component's own route.</summary>
+    /// <summary>
+    /// The page a kind lives at. A component's first page is its own route: <see cref="DemoViewKind.Main"/>, or
+    /// <see cref="DemoViewKind.Test"/> for the two that have no Main, so no component's own address is a 404.
+    /// </summary>
     public static string RouteFor(string componentRoute, DemoViewKind kind)
-        => kind == DemoViewKind.Main ? componentRoute : $"{componentRoute}/{kind.ToString().ToLowerInvariant()}";
+        => kind is DemoViewKind.Main or DemoViewKind.Test
+            ? componentRoute
+            : $"{componentRoute}/{kind.ToString().ToLowerInvariant()}";
 
     public static StackPanelComponent CreateTabs((string Label, string Url)[] tabs, string currentUrl)
     {

@@ -87,8 +87,8 @@ public abstract class UIViewBase : IUIView
         _regions = [.. context.Regions];
         _dialogs = [.. context.Dialogs];
 
-        // Validation reads the regions back through the properties, so it runs after they are set — and lets go of them when
-        // it refuses, or the next read would hand out a tree that was never validated.
+        // Validation reads the regions back through the properties, so it runs after they're set, and clears them on failure
+        // so a later read can't return an unvalidated tree.
         try
         {
             UIViewValidation.Validate(this);

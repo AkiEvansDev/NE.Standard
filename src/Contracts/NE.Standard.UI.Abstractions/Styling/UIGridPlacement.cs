@@ -3,15 +3,8 @@ using System;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
-/// Represents a component placement in a fixed-column grid.
+/// A component's placement in the fixed-column grid: 1-based column/row, and how many columns/rows it spans.
 /// </summary>
-/// <remarks>
-/// <see cref="Column"/> and <see cref="Row"/> are 1-based.
-/// </remarks>
-/// <param name="Column">The 1-based column the component starts in.</param>
-/// <param name="Row">The 1-based row the component starts in.</param>
-/// <param name="ColumnSpan">How many columns the component covers.</param>
-/// <param name="RowSpan">How many rows the component covers.</param>
 public readonly record struct UIGridPlacement(int Column, int Row, int ColumnSpan = 1, int RowSpan = 1)
 {
     /// <summary>

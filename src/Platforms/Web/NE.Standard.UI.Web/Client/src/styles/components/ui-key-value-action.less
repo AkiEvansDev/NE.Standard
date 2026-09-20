@@ -10,12 +10,12 @@
     flex-direction: column;
     // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs Card uses.
     border-style: solid;
-    border-width: var(--ui-border-width, 1.5px);
+    border-width: var(--ui-border-width, 1px);
     border-color: var(--ui-color-border);
     border-radius: var(--ui-radius-row);
     background: var(--ui-surface-color, transparent);
-    // No padding of its own: every row carries the list's inset, so a row's wash and its separator run from border to border
-    // without a negative margin — one browser clipped a subgrid row's overhang at the content box, another did not.
+    // No padding of its own: every row carries the list's inset instead, so a row's wash and separator run border to border
+    // without a negative margin, which subgrid row overhang clips inconsistently across browsers.
     padding: 0;
 }
 
@@ -25,17 +25,19 @@
     grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr) auto;
 }
 
-// The row is as wide as the list and carries the inset itself (a step wider than a field's, so a row's wash leaves the key
-// some air); the separator and the wash therefore run from border to border.
+// The row carries the list's inset itself, a step wider than a field's, so the wash leaves the key some air; separator and
+// wash both run from border to border.
 .ui-key-value-action__row {
     display: grid;
     grid-template-columns: subgrid;
     grid-column: 1 / -1;
     align-items: center;
     column-gap: @ui-space-3;
-    // Action height plus outline border, row padding and separator, spelled out so ShowActions off does not collapse the row.
-    min-height: calc(@ui-button-height-sm + 2px + (@ui-space-1 * 2) + 1px);
-    padding: @ui-space-1 @ui-space-4;
+    // Spelled out explicitly, so ShowActions off doesn't collapse the row; the content box is an even 30px, so a 28px
+    // control sits on whole pixels.
+    min-height: calc(@ui-button-height-sm + 2px + (@ui-space-1 * 2));
+    // A pixel short at the bottom, which the separator below takes back: see the note on .ui-expander__header.
+    padding: @ui-space-1 @ui-space-4 calc(@ui-space-1 - 1px);
     border-bottom: 1px solid var(--ui-color-border);
 }
 
@@ -50,12 +52,11 @@
     }
 }
 
-    .ui-key-value-action--no-separators .ui-key-value-action__row {
-        border-bottom: none;
-    }
-
+    // A row with no separator takes the pixel back into its padding, so its content box stays the even 30px the others have.
+    .ui-key-value-action--no-separators .ui-key-value-action__row,
     .ui-key-value-action__row:last-child {
         border-bottom: none;
+        padding-bottom: @ui-space-1;
     }
 
     // The outer rows follow the list's corners, so a themed radius is not poked through by a square wash.
@@ -77,6 +78,14 @@
 // The floor lives on the track (minmax above), not the cell — a min-width here couldn't shrink past it either.
 .ui-key-value-action__key {
     color: var(--ui-text-muted);
+}
+
+// A cell with a copy of its field's validation mark becomes a line, so the dot sits after the value instead of under it,
+// with the value keeping whatever room the dot doesn't take.
+.ui-key-value-action__value:has(> .ui-validation-mark) {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
 }
 
 :where(.ui-key-value-action__key, .ui-key-value-action__value, .ui-key-value-action__action) {
@@ -101,9 +110,8 @@
         display: none;
     }
 
-// An editable list (EnableEditing): five slots to a row, the input under the value and the save/cancel pair under the action,
-// each in the cell it stands in for; data-ui-row-editing on the row (its Editing flag, bound to the item's ShowInput) says which
-// half of each cell shows. Explicit columns and one row, so the two halves share a cell rather than wrapping the subgrid.
+// An editable list (EnableEditing): the input/save-cancel pair overlay the value/action cells; data-ui-row-editing picks which
+// half shows. Explicit columns and one row, so both halves share a cell instead of wrapping the subgrid.
 .ui-key-value-action--editable .ui-key-value-action__key {
     grid-column: 1;
     grid-row: 1;
@@ -129,34 +137,29 @@
 }
 
 .ui-key-value-action__row[data-ui-row-editing] {
-    // The input's message goes under it and the row grows with it; the cells stay centred on the whole, key and buttons level with the field.
+    // The input's message goes under it, growing the row with it, while key and buttons stay centred and level with the field.
+    // The row keeps its padding, or the content box would round to an odd pixel.
     align-items: center;
-    // The field is the whole cell, so the row's own vertical padding goes and the cell takes the row's height.
-    padding-top: 0;
-    padding-bottom: 0;
 }
 
-    // The editor fills the cell's width and sits in the middle of its height, a small control tall: a filled box (the default) set back
-    // by its own padding so its text starts where the value's did; a ghost or an underlined field the same, with no box to set back.
+    // The editor fills the cell width, sized to a small control's height; a filled box is set back by its own padding so its
+    // text starts where the value's did — a ghost or underline needs no such offset, having no box to set back.
     .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         flex: 1 1 auto;
         align-self: center;
         .ui-responsive-property(min-width, --ui-min-width, 0);
     }
 
-    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline) {
-        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0 @ui-space-1 calc(-1 * (@ui-space-3 + var(--ui-border-width, 1.5px))));
+    // Set back by the field's own inset, whichever appearance it wears: a ghost keeps two thirds of a filled box's padding, an
+    // underline none — without it, an unset ghost's text shifts right whenever the row opens.
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+        .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px)))));
     }
 
-    .ui-key-value-action__value-input > :is(.ui-input--ghost, .ui-input--underline) {
-        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
-    }
-
-    // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline, with
-    // the row's own inset back, since the row gave its padding to the field.
+    // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.
     .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         align-self: center;
-        .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
+        .ui-responsive-property(margin, --ui-margin, 0);
     }
 
     .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
@@ -164,12 +167,8 @@
         min-height: @ui-button-height-sm;
     }
 
-    .ui-key-value-action__value-input :is(.ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
-        border-radius: 0;
-    }
-
-    // No box and no wash under the caret either: the row is the box, and a field with no edge of its own does not react — the rule
-    // every input follows.
+    // No box or wash under the caret: the row is the box, and a field with no edge of its own doesn't react — the rule every
+    // input follows.
     .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
         border-color: transparent;
         box-shadow: none;
@@ -190,8 +189,7 @@
         display: block;
     }
 
-// The three words are the framework's own, drawn as glyphs and kept for the reader: the pencil that opens a row, the check that
-// saves it, the cross that lets it go.
+// The framework's own three glyphs — pencil to open a row, check to save it, cross to let it go — with their words kept for the reader.
 .ui-key-value-action--editable .ui-key-value-action__action .ui-button,
 .ui-key-value-action__edit-action .ui-button {
     position: relative;
@@ -210,19 +208,13 @@
     }
 
     .ui-key-value-action--editable .ui-key-value-action__action .ui-button::before {
-        content: "";
-        width: 0.875rem;
-        height: 0.875rem;
-        .ui-pencil-glyph();
+        .ui-pencil-glyph(@ui-glyph-sm);
     }
 
     .ui-key-value-action__edit-action .ui-button:first-child::before {
-        content: "";
-        width: 0.875rem;
-        height: 0.875rem;
-        .ui-check-glyph();
+        .ui-check-glyph(@ui-glyph-sm);
     }
 
     .ui-key-value-action__edit-action .ui-button:last-child {
-        .ui-cross-glyph();
+        .ui-cross-glyph(@ui-glyph-sm);
     }

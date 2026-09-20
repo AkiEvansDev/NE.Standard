@@ -40,6 +40,7 @@ internal sealed class RadioGroupMainView : DemoMainView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(OptionValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(OptionValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(OptionValueGroupContext.Size)}")
             .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
             .BindOrientation($"{OptionsGroup}.{nameof(RadioOptionsGroupContext.Orientation)}")
             .BindSpacing($"{OptionsGroup}.{nameof(RadioOptionsGroupContext.Spacing)}")

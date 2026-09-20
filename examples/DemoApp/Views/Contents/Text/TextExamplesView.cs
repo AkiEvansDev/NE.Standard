@@ -7,6 +7,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Text;
@@ -60,11 +61,7 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetBadgeText("Recommended")
                         .SetBadgeStyle(UIBadgeType.Info)
                     )
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("The card gives it a band and a rule; the body inside is unchanged.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
+                    .SetContent(UIText.Note("The card gives it a band and a rule; the body inside is unchanged."))
                 ))
                 .AddChild(CreateHost("As an expander's header", new ExpanderComponent()
                     .SetCollapsed()
@@ -75,11 +72,7 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetBadgeText("Recommended")
                         .SetBadgeStyle(UIBadgeType.Info)
                     )
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("And the expander adds a chevron, which is its own and not the text's.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
+                    .SetContent(UIText.Note("And the expander adds a chevron, which is its own and not the text's."))
                 ))
                 .AddChild(CreateHost("As a button's label", new ButtonComponent()
                     .SetType(UIButtonType.Outline)

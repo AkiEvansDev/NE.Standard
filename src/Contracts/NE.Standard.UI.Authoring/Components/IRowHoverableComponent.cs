@@ -4,8 +4,8 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// A host with rows that may wash under the pointer — a key-value list, a table, a tree. Presentational only, independent of a
-/// row click or the selection; off by default, and a host whose rows are a list to walk turns it on for itself.
+/// A host with rows that wash under the pointer (a key-value list, a table, a tree); presentational only, independent of
+/// row click or selection, off by default.
 /// </summary>
 public interface IRowHoverableComponent : IVisualComponent
 {

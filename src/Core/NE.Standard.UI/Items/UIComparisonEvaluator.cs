@@ -11,9 +11,8 @@ namespace NE.Standard.UI.Items;
 /// Applies a <see cref="UIComparisonOperator"/> to a pair of values.
 /// </summary>
 /// <remarks>
-/// Comparisons are the framework's rule, which every platform's client-side rules follow — JavaScript's rather than .NET's,
-/// because that is what the rules already meant on the web: text unless the operator is numeric,
-/// <see langword="null"/> as an empty string.
+/// Follows JavaScript's comparison rules, not .NET's, since that's what the rules already mean on the web: text unless the
+/// operator is numeric, <see langword="null"/> as an empty string.
 /// </remarks>
 public static class UIComparisonEvaluator
 {
@@ -32,10 +31,10 @@ public static class UIComparisonEvaluator
             UIComparisonOperator.Required => left is not null and not false && !string.IsNullOrWhiteSpace(text),
             UIComparisonOperator.Equal => string.Equals(text, AsText(right), StringComparison.Ordinal),
             UIComparisonOperator.NotEqual => !string.Equals(text, AsText(right), StringComparison.Ordinal),
-            UIComparisonOperator.Greater => AsNumber(left) > AsNumber(right),
-            UIComparisonOperator.GreaterOrEqual => AsNumber(left) >= AsNumber(right),
-            UIComparisonOperator.Less => AsNumber(left) < AsNumber(right),
-            UIComparisonOperator.LessOrEqual => AsNumber(left) <= AsNumber(right),
+            UIComparisonOperator.Greater => IsOrdered(left, right, static order => order > 0),
+            UIComparisonOperator.GreaterOrEqual => IsOrdered(left, right, static order => order >= 0),
+            UIComparisonOperator.Less => IsOrdered(left, right, static order => order < 0),
+            UIComparisonOperator.LessOrEqual => IsOrdered(left, right, static order => order <= 0),
             UIComparisonOperator.Like => text.Contains(AsText(right), StringComparison.Ordinal),
             UIComparisonOperator.LikeIgnoreCase => text.Contains(AsText(right), StringComparison.OrdinalIgnoreCase),
             UIComparisonOperator.In => IsIn(text, right),
@@ -56,6 +55,11 @@ public static class UIComparisonEvaluator
             double number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
             float number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
             decimal number => FormatNumber(number.ToString(CultureInfo.InvariantCulture)),
+            // A moment as the wire writes it, which is the text the client compares and the shape that orders as the moments do.
+            DateTime moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture),
+            DateTimeOffset moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture),
+            DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            TimeOnly time => time.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             IEnumerable elements => JoinElements(elements),
             _ => value.ToString() ?? string.Empty
@@ -126,6 +130,22 @@ public static class UIComparisonEvaluator
     }
 
     /// <summary>
+    /// Whether the pair stands in the order asked: as numbers, or — when neither text reads as a number — as ordinal text.
+    /// </summary>
+    private static bool IsOrdered(object? left, object? right, Func<int, bool> asked)
+    {
+        var leftNumber = AsNumber(left);
+        var rightNumber = AsNumber(right);
+
+        if (!double.IsNaN(leftNumber) && !double.IsNaN(rightNumber))
+            return asked(leftNumber.CompareTo(rightNumber));
+
+        // One side a number and the other not stays incomparable, as in JavaScript; two texts order as text, which is what
+        // dates in the wire's ISO shape need.
+        return double.IsNaN(leftNumber) && double.IsNaN(rightNumber) && IsText(left) && IsText(right) && asked(string.CompareOrdinal(AsText(left), AsText(right)));
+    }
+
+    /// <summary>
     /// The value as a number, matching what JavaScript's <c>Number(x)</c> would answer, or <see cref="double.NaN"/> when it is not one.
     /// </summary>
     private static double AsNumber(object? value)
@@ -158,6 +178,12 @@ public static class UIComparisonEvaluator
 
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.NaN;
     }
+
+    /// <summary>
+    /// Whether the value is text on the client: a string, or a moment, which travels as one.
+    /// </summary>
+    private static bool IsText(object? value)
+        => value is string or DateTime or DateTimeOffset or DateOnly or TimeOnly;
 
     private static bool IsIn(string text, object? right)
     {

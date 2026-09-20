@@ -1,3 +1,4 @@
+@import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
 
 .ui-icon {
@@ -79,4 +80,62 @@
 
 .ui-icon-size--large {
     font-size: 1.5rem;
+}
+
+// The core's own face as an icon pack, under the `ne-` prefix, so `SetIcon(UIGlyphs.Check)` draws through the same slot a
+// pack's name would, with none installed. Fill defaults to the glyph's own shape (a pencil is filled, a calendar is not).
+.ui-glyph-rule(@name; @code; @fill: 0) {
+    .ui-icon-glyph--ne-@{name} {
+        --ui-icon-font: @ui-glyph-font;
+        --ui-icon-glyph: @code;
+        --ui-icon-fill: @fill;
+        --ui-icon-paint: transparent;
+    }
+}
+
+.ui-glyph-rule(chevron-down; @ui-glyph-chevron);
+.ui-glyph-rule(chevron-up; @ui-glyph-chevron);
+.ui-glyph-rule(chevron-left; @ui-glyph-chevron);
+.ui-glyph-rule(chevron-right; @ui-glyph-chevron);
+.ui-glyph-rule(close; @ui-glyph-close);
+.ui-glyph-rule(more-horizontal; @ui-glyph-more-horizontal);
+.ui-glyph-rule(more-vertical; @ui-glyph-more-vertical);
+.ui-glyph-rule(edit; @ui-glyph-edit; 1);
+.ui-glyph-rule(person; @ui-glyph-person; 1);
+.ui-glyph-rule(image; @ui-glyph-image);
+.ui-glyph-rule(pin; @ui-glyph-pin; 1);
+.ui-glyph-rule(pin-outlined; @ui-glyph-pin);
+.ui-glyph-rule(pin-off; @ui-glyph-pin-off);
+.ui-glyph-rule(check; @ui-glyph-check);
+.ui-glyph-rule(calendar; @ui-glyph-calendar);
+.ui-glyph-rule(menu; @ui-glyph-burger);
+.ui-glyph-rule(light-mode; @ui-glyph-light);
+.ui-glyph-rule(dark-mode; @ui-glyph-dark);
+.ui-glyph-rule(colorize; @ui-glyph-pipette);
+.ui-glyph-rule(arrow-up; @ui-glyph-arrow-up);
+.ui-glyph-rule(arrow-down; @ui-glyph-arrow-down);
+.ui-glyph-rule(sort; @ui-glyph-sort);
+.ui-glyph-rule(first-page; @ui-glyph-first-page);
+.ui-glyph-rule(last-page; @ui-glyph-last-page);
+.ui-glyph-rule(filter; @ui-glyph-filter);
+.ui-glyph-rule(columns; @ui-glyph-columns);
+.ui-glyph-rule(add; @ui-glyph-add);
+.ui-glyph-rule(search; @ui-glyph-search);
+.ui-glyph-rule(delete; @ui-glyph-delete);
+.ui-glyph-rule(remove; @ui-glyph-remove);
+.ui-glyph-rule(fit; @ui-glyph-fit);
+.ui-glyph-rule(replace; @ui-glyph-replace);
+.ui-glyph-rule(replace-all; @ui-glyph-replace-all);
+
+// The chevron is one glyph, turned (glyphs.less): the three other ways are the same rule under a transform.
+.ui-icon-glyph--ne-chevron-up::before {
+    transform: rotate(180deg);
+}
+
+.ui-icon-glyph--ne-chevron-left::before {
+    transform: rotate(90deg);
+}
+
+.ui-icon-glyph--ne-chevron-right::before {
+    transform: rotate(-90deg);
 }

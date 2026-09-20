@@ -6,6 +6,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Flyout;
@@ -49,14 +50,8 @@ internal sealed class FlyoutMainView : DemoMainView, IUIViewDefinition
             // A width and nothing else: the panel already is a surface.
             .SetContent(new ContainerComponent()
                 .SetWidth(UILayoutLength.Absolute(220))
-                .AddChild(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(8)
-                    .AddChild(new TextComponent()
-                        .SetTitle("Narrow the list")
-                        .SetTitleType(UITextAppearance.Overline)
-                        .SetTitleColor(UIThemeColor.Muted)
-                    )
+                .AddChild(UILayout.Stack(8)
+                    .AddChild(UIText.Label("Narrow the list"))
                     .AddChild(new TextComponent()
                         .SetTitle("All environments")
                         .SetTitleType(UITextAppearance.Body)

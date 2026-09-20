@@ -13,9 +13,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Items;
 
 /// <summary>
-/// Renders a tree as a list of rows, each a composite of the row template and the node's face chosen by its kind. The depth
-/// and the fold are written here for the first paint from the nodes' parent keys; the client derives them again after every
-/// change and lays the viewer's own fold over them.
+/// Renders a tree as a list of rows, each a composite of the row template and the node's face chosen by its kind. Depth and fold
+/// are written here for the first paint; the client re-derives them after every change, layered under the viewer's own fold.
 /// </summary>
 public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
 {
@@ -71,7 +70,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, TreeComponent.ShowFoldChevronProperty, "ui-tree--no-chevron", WebValueCondition.IsFalse);
 
         // The tree takes the focus whatever it chooses: the arrows fold and walk its rows.
-        RenderSelection(context, root, focusable: true);
+        RenderSelection(context, root);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, composite: CompositeItem);

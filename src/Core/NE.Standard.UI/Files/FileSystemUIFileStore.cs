@@ -122,10 +122,18 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_uploads.TryGetValue((sessionId, fileId), out StoredUpload? stored) || !File.Exists(stored.Path))
+        if (!_uploads.TryGetValue((sessionId, fileId), out StoredUpload? stored))
             return Task.FromResult<Stream?>(null);
 
-        return Task.FromResult<Stream?>(new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read));
+        // Opened rather than checked first: the cleanup pass may delete the file between an exists check and the open.
+        try
+        {
+            return Task.FromResult<Stream?>(new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read));
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return Task.FromResult<Stream?>(null);
+        }
     }
 
     /// <inheritdoc />

@@ -15,15 +15,13 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>
-/// A picture over a hidden native picker: the surface is one button holding the picture, the placeholder glyph and the
-/// pencil overlay; <c>Value</c> paints the picture and <c>SelectionId</c> carries the upload back, each on its own hidden input.
-/// Under <c>Multiple</c> the surface is a shelf instead: the squares the engine fills, a square that picks more, and
-/// <c>SelectionIds</c> as a JSON list on its hidden input.
-/// </summary>
+/// <summary>A picture over a hidden native picker; under <c>Multiple</c> the surface is a shelf of pictures instead.</summary>
+/// <remarks><c>Value</c> paints the picture and the upload rides back on its own hidden input, as <c>SelectionId</c> or, under <c>Multiple</c>, <c>SelectionIds</c> as a JSON list.</remarks>
 public sealed class ImageInputComponentRenderer : TextContentRendererBase
 {
     private const string MultipleClassName = "ui-image-input--multiple";
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
     public override string ComponentTypeKey => ImageInputComponent.ComponentTypeKey;
 
@@ -41,7 +39,13 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         _ = ResolveRenderValue(context, ImageInputComponent.MultipleProperty, out bool? multiple, out _);
         _ = root.Class(WebClassNames.ImageInputShape(shape ?? UIImageInputShape.Picture));
 
-        RenderInputHeader(context, root);
+        RenderInputAppearance(context, root);
+
+        // Only the inline row is a single-line field; Picture and Avatar keep the caption on top since it would crowd a drop
+        // area or circle with no room for it.
+        RenderInputHeader(context, root, titleCanGoInside: shape == UIImageInputShape.Inline);
+
+        NativeInputRendererBase.RenderMaxFileSize(context, root, ImageInputComponent.MaxFileSizeProperty);
 
         if (multiple == true)
         {
@@ -52,7 +56,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         }
         else
         {
-            RenderSurface(context, root);
+            RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
             RenderNative(context, root, multiple: false);
             RenderValues(context, root);
         }
@@ -61,7 +65,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The button the viewer presses or drops on: the picture, the glyph shown without one, the text of the inline row, the pencil.</summary>
-    private void RenderSurface(WebRenderContext context, IHtmlElementBuilder root)
+    private void RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
     {
         _ = root.Element("button", surface =>
         {
@@ -70,6 +74,11 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             _ = surface.Attribute(WebAttributes.FilePick);
 
             BorderStyleRenderer.RenderBorderStyle(context, surface);
+
+            // The row's own caption, as FileInput's row carries its; Picture and Avatar never reach here since RenderInputHeader
+            // above kept their caption on the root.
+            if (shape == UIImageInputShape.Inline)
+                RenderInputHeaderInside(context, root, surface);
 
             _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? value, out _);
             _ = surface.Attribute("aria-label", context.Translate(string.IsNullOrEmpty(value) ? UIStrings.ImageChoose : UIStrings.ImageChange));
@@ -164,37 +173,22 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             _ = RenderProperty<string?>(context, text, IPlaceholderInputComponent.PlaceholderProperty, static (target, placeholder) =>
             {
                 if (!string.IsNullOrEmpty(placeholder))
-                    _ = target.Attribute("data-ui-image-placeholder", placeholder);
-            }, [WebDomOperation.Attribute("data-ui-image-placeholder")]);
+                    _ = target.Attribute(PlaceholderAttribute, placeholder);
+            }, [WebDomOperation.Attribute(PlaceholderAttribute)]);
         });
     }
 
     /// <summary>The native picker, present but hidden: only a real file input opens the OS dialog.</summary>
     private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, bool multiple)
     {
-        _ = root.Element("input", native =>
+        NativeInputRendererBase.RenderFilePicker(context, root, $"{ClassName}__native", ImageInputComponent.AcceptProperty, native =>
         {
-            _ = native.Class($"{ClassName}__native");
-            _ = native.Attribute("type", "file");
-            // The picker's change is the engine's, never the component's: the component changes when the upload's handle lands
-            // on the selection input, or an OnChange command ran with nothing picked yet.
-            _ = native.Attribute(WebAttributes.EventBoundary);
-            _ = native.Attribute("tabindex", "-1");
-            _ = native.Attribute("aria-hidden", "true");
-            NativeInputRendererBase.RenderFieldName(context, native, "file");
-
             if (multiple)
                 _ = native.Attribute("multiple");
-
-            _ = RenderProperty<string?>(context, native, ImageInputComponent.AcceptProperty, static (target, value) =>
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                    _ = target.Attribute("accept", value);
-            }, [WebDomOperation.Attribute("accept")]);
         });
 
-        // Read-only is one mark on the root: the engine refuses the press and the drop under it, the stylesheet the pointer's cues —
-        // the surface stays focusable, the way a read-only field does.
+        // Read-only is one mark on the root: the engine refuses press and drop, the stylesheet cues the pointer; the surface
+        // stays focusable, like a read-only field.
         _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
         {
             if (value == true)
@@ -221,28 +215,13 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             ]);
         });
 
-        _ = ResolveRenderValue(context, ImageInputComponent.SelectionIdProperty, out string? _, out CompiledUIBinding? selectionBinding);
-
-        _ = root.Element("input", selection =>
-        {
-            _ = selection.Class($"{ClassName}__selection");
-            _ = selection.Attribute("type", "hidden");
-            NativeInputRendererBase.RenderFieldName(context, selection, "selection");
-
-            _ = RenderProperty<string?>(context, selection, ImageInputComponent.SelectionIdProperty, static (target, value) =>
-            {
-                if (!string.IsNullOrEmpty(value))
-                    _ = target.Attribute("value", value);
-            }, [WebDomOperation.Property("value")]);
-
-            if (selectionBinding is not null)
-                _ = selection.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
-        });
+        // The picture's URL above is the component's value; the handle is a second one beside it.
+        NativeInputRendererBase.RenderSelectionInput(context, root, $"{ClassName}__selection", ImageInputComponent.SelectionIdProperty, holdsValue: false);
     }
 
     /// <summary>
-    /// The shelf's handles: a JSON list on a hidden input the value engine reads as selected keys, and the same list on the root, where
-    /// the engine watches it to take squares off the shelf when the controller drops their handles.
+    /// The shelf's handles: a JSON list of selected keys, on a hidden input the value engine reads and on the root, where it
+    /// removes squares when the controller drops their handles.
     /// </summary>
     private void RenderSelections(WebRenderContext context, IHtmlElementBuilder root)
     {

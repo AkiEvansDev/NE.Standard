@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 public interface ITooltipModel
 {
     /// <summary>
-    /// Gets the tooltip shown on hover and on focus.
+    /// Gets the tooltip shown on hover and focus; on an icon button with no title, it also names the control for screen readers.
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITooltipComponent), DefaultValue = null)]

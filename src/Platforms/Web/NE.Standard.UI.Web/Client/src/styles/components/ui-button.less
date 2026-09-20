@@ -1,8 +1,9 @@
-@import "../mixins/color.less";
+﻿@import "../mixins/color.less";
 @import "../mixins/interactive.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 @import "../mixins/ripple.less";
+@import "../mixins/selected.less";
 @import "../mixins/text.less";
 
 .ui-button {
@@ -28,6 +29,15 @@
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
     // `.ui-action` and `.ui-menu-item` wear this class too, so the theme flag's ripple reaches every pressable one from here.
     .ui-press-ripple();
+}
+
+// A button with no [data-ui-id] is not a component root, so these custom properties would otherwise inherit from its host; a root
+// resets them in runtime.less, so a non-root button must reset them here.
+.ui-button:not([data-ui-id]) {
+    --ui-surface-color: initial;
+    .ui-responsive-reset(--ui-max-width);
+    .ui-responsive-reset(--ui-min-height);
+    .ui-responsive-reset(--ui-padding);
 }
 
 // Small/large re-declare min-height/padding through .ui-responsive-property with their own default, so an authored value still wins.
@@ -94,6 +104,17 @@
         cursor: progress;
     }
 
+        // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead.
+        .ui-button.ui-loading:not([data-ui-text-icon]) > .ui-button__content {
+            opacity: 0.35;
+        }
+
+    // Centred by default, but a label with a description is a row of two lines beside its icon, and a row reads from its start.
+    .ui-button > .ui-text--align-center:has(> .ui-text__body > .ui-text__description:not(:empty)) {
+        justify-content: flex-start;
+        text-align: start;
+    }
+
         // Replaces the glyph ligature with the loading ring, keeping width and label; a button with no icon takes the veil in runtime.less.
         .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before {
             content: "";
@@ -108,16 +129,19 @@
 .ui-button--primary {
     background-color: var(--ui-surface-color, var(--ui-color-primary));
     color: var(--ui-color-on-primary);
+    --ui-faint-base: var(--ui-color-on-primary);
 }
 
 .ui-button--accent {
     background-color: var(--ui-surface-color, var(--ui-color-accent));
     color: var(--ui-color-on-accent);
+    --ui-faint-base: var(--ui-color-on-accent);
 }
 
 .ui-button--danger {
     background-color: var(--ui-surface-color, var(--ui-color-danger));
     color: var(--ui-color-on-danger);
+    --ui-faint-base: var(--ui-color-on-danger);
 }
 
 .ui-button--outline {
@@ -179,8 +203,7 @@
     .ui-reveal-hover();
 }
 
-// A surface button owns an opaque ground, so the wash is mixed into it rather than laid over the page: laid over, the translucent
-// wash replaced the raised fill, and a hovered row came out darker than a resting one with its press lighter than its hover.
+// A surface button owns an opaque ground, so the wash is mixed into it rather than laid translucent over the page.
 .ui-button--surface@{ui-button-live} {
     transition: background-color @ui-motion-fast @ui-motion-ease;
 
@@ -202,6 +225,12 @@
     .ui-button--link@{ui-button-live}:active {
         background-color: var(--ui-wash-active);
     }
+
+// A toggle held down wears the selected ground and ink, the mark every chosen thing in the framework wears.
+.ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
+    .ui-selected-ground();
+    .ui-selected-ink();
+}
 
 // No display of its own: the shared body is a grid, and overriding it here collapses a picture icon's width to zero.
 .ui-button__content {

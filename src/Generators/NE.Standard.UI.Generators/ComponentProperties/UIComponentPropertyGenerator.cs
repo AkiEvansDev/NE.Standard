@@ -147,10 +147,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     /// <summary>
     /// Pairs every component type with its own annotated properties plus what its <c>[UIComponentPropertyBlock]</c> contracts contribute.
     /// </summary>
-    private static List<(INamedTypeSymbol Type, ImmutableArray<UIComponentPropertyModel> Properties)> GroupByType(
-        SourceProductionContext context,
-        ImmutableArray<UIComponentPropertyModel> properties,
-        ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    private static List<(INamedTypeSymbol Type, ImmutableArray<UIComponentPropertyModel> Properties)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
     {
         Dictionary<ISymbol, List<UIComponentPropertyModel>> byType = new(SymbolEqualityComparer.Default);
         List<INamedTypeSymbol> order = [];
@@ -292,12 +289,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         return false;
     }
 
-    /// <summary>
-    /// Whether a base type already carries this property, so a wider block only adds what the base does not already have.
-    /// </summary>
-    /// <remarks>
-    /// The base's blocks are read from its attributes rather than its members, since a generator cannot see what another pass produced.
-    /// </remarks>
+    /// <summary>Whether a base type already carries this property; read from its attributes, not members, since a generator can't see what another pass produced.</summary>
     private static bool IsDeclaredByBase(INamedTypeSymbol type, IPropertySymbol property)
     {
         for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)

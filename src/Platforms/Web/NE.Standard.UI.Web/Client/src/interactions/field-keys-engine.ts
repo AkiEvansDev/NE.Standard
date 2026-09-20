@@ -1,7 +1,5 @@
-// Enter and Escape leave a field the caret is in: the focus goes back to the page, and the blur commits what was typed the way
-// leaving by the pointer does. In the bubble phase and only when nothing nearer took the key, so a control with its own idea of
-// Enter (a row's editor, a picker, a select's search) keeps it. Enter in a field that belongs to a form is also the form's
-// button: the value lands first, then the button is pressed the way a pointer would.
+// Enter and Escape leave a field, blurring it to commit the value the way leaving by pointer does; listened in the bubble phase
+// so a nearer control's own idea of Enter wins. Enter in a form field also presses the form's submit button, value first.
 
 import { FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
 import { isCaretInput } from "./caret-fields";
@@ -13,8 +11,8 @@ export type FieldKeysEngineOptions = {
 export class FieldKeysEngine {
     private readonly root: ParentNode;
 
-    // What the field held when the caret came in, and whether leaving it raised a change: the browser raises one only for a value
-    // the reader typed, so a value that arrived any other way is committed here.
+    // What the field held on focus, and whether leaving raised a change: the browser only raises one for typed input, so any
+    // other arrival is committed here.
     private valueOnFocus = "";
     private changes = 0;
 

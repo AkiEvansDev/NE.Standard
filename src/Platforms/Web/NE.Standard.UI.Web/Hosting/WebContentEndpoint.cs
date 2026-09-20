@@ -40,7 +40,7 @@ internal static class WebContentEndpoint
             return Results.NotFound();
 
         UIContent? content = await provider
-            .ResolveAsync(new UIContentRequest { Session = session, Key = Uri.UnescapeDataString(key) }, cancellationToken)
+            .ResolveAsync(new UIContentRequest { Session = session, Key = key }, cancellationToken)
             .ConfigureAwait(false);
 
         if (content is null)

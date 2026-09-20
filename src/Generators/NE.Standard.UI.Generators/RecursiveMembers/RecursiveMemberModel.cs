@@ -4,12 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace NE.Standard.UI.Generators.RecursiveMembers;
 
-internal sealed record RecursiveMemberModel(
-    BasePropertyDeclarationSyntax PropertySyntax,
-    IPropertySymbol Property,
-    INamedTypeSymbol ContainingType,
-    RecursiveMemberAttributeValues Values
-);
+internal sealed record RecursiveMemberModel(BasePropertyDeclarationSyntax PropertySyntax, IPropertySymbol Property, INamedTypeSymbol ContainingType, RecursiveMemberAttributeValues Values);
 
 internal sealed record RecursiveMemberAttributeValues(bool Generate)
 {

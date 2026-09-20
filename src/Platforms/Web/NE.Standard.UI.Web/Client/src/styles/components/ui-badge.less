@@ -1,8 +1,9 @@
-@import "../core/tokens.less";
+﻿@import "../core/tokens.less";
 @import "../mixins/responsive.less";
 @import "../mixins/text.less";
 
-// Badge proportions and gap are in `em` of its own text, not the page's — an Overline badge stays a small label, a Body one a chip.
+// Proportions and gap scale in `em` of the badge's own text, not the page's, so an Overline badge stays small and a Body one a chip.
+// Padding is rounded to the pixel — unrounded, it lands the badge, and the row and card around it, on a half pixel that softens the border.
 .ui-badge {
     // .ui-badge is worn by both a component root and a nested __badge part; a --ui-* custom property must be gated on [data-ui-id].
     display: inline-flex;
@@ -11,7 +12,7 @@
     gap: 0.25em;
     max-width: 100%;
     min-height: 1.5em;
-    padding: 0.125em 0.5em;
+    padding: ~"round(nearest, 0.125em, 1px)" 0.5em;
     border-radius: 999px;
     overflow: hidden;
     vertical-align: middle;
@@ -41,6 +42,8 @@
     display: none;
     // line-height: 1 keeps the text tight to its glyphs so the badge's flex centring splits the leading evenly around it.
     line-height: 1;
+    // The same for the horizontal: a spaced type carries its step after the last glyph too, which reads as a wider end padding.
+    margin-inline-end: calc(-1 * var(--ui-letter-spacing, 0px));
     .ui-text-nowrap();
 }
 
@@ -62,7 +65,7 @@
 }
 
 .ui-badge[data-ui-badge-icon]:not([data-ui-badge-text]) {
-    padding: 0.375em;
+    padding: ~"round(nearest, 0.375em, 1px)";
     aspect-ratio: 1;
 }
 
@@ -76,31 +79,37 @@
 .ui-badge-style--primary {
     background: var(--ui-color-primary);
     color: var(--ui-color-on-primary);
+    --ui-faint-base: var(--ui-color-on-primary);
 }
 
 .ui-badge-style--accent {
     background: var(--ui-color-accent);
     color: var(--ui-color-on-accent);
+    --ui-faint-base: var(--ui-color-on-accent);
 }
 
 .ui-badge-style--info {
     background: var(--ui-color-info);
     color: var(--ui-color-on-info);
+    --ui-faint-base: var(--ui-color-on-info);
 }
 
 .ui-badge-style--warning {
     background: var(--ui-color-warning);
     color: var(--ui-color-on-warning);
+    --ui-faint-base: var(--ui-color-on-warning);
 }
 
 .ui-badge-style--success {
     background: var(--ui-color-success);
     color: var(--ui-color-on-success);
+    --ui-faint-base: var(--ui-color-on-success);
 }
 
 .ui-badge-style--danger {
     background: var(--ui-color-danger);
     color: var(--ui-color-on-danger);
+    --ui-faint-base: var(--ui-color-on-danger);
 }
 
 // The one style that can sit on a surface ground, so it needs its own edge, drawn from currentColor to follow whatever it is painted in.

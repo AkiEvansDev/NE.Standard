@@ -44,6 +44,8 @@ internal sealed partial class UIViewCompilationContext
                     ? BuildItemsBindingPath(component, sourceBinding.Value, componentContexts, rootPath)
                     : BuildBindingPath(component, sourceBinding.Value, componentContexts, rootPath);
 
+                WarnOnUnresolvableControllerPath(component, definition.Property.Name, sourceBinding.Value.Scope, fullPath);
+
                 // An items collection is one binding, not two — compiling it again as a scalar property would
                 // send a value the client has no binding metadata for.
                 CompiledUIBindingKind kind = definition.Property.Equals(IItemsComponent.ItemsProperty)
@@ -59,7 +61,8 @@ internal sealed partial class UIViewCompilationContext
                     sourceBinding.Value.Mode,
                     fullPath,
                     definition.ValueType,
-                    definition.Getter(component) ?? definition.DefaultValue
+                    definition.Getter(component) ?? definition.DefaultValue,
+                    sourceBinding.Value.Optional
                 );
 
                 values.Add(new CompiledUIPropertyValue
@@ -170,7 +173,7 @@ internal sealed partial class UIViewCompilationContext
     private static bool DefinesOwnContext(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts)
         => componentContexts.TryGetValue(component.Id, out ResolvedComponentContext context) && context.DefinesParameter;
 
-    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null, object? targetFallbackValue = null)
+    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null, object? targetFallbackValue = null, bool optional = false)
     {
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
@@ -182,6 +185,7 @@ internal sealed partial class UIViewCompilationContext
             SourceId = fullPath.Source.Id,
             TemplateId = template.Id,
             Mode = mode,
+            Optional = optional,
             Parameters = fullPath.Parameters,
             DynamicParameterComponentIds = GetDynamicParameterComponentIds(fullPath.Parameters),
             TargetValueType = targetValueType,
@@ -229,6 +233,9 @@ internal sealed partial class UIViewCompilationContext
 
         if (property.Equals(IItemsHostComponent.WindowHasMoreAfterProperty))
             return nameof(UIItemSourceBase.HasMoreAfter);
+
+        if (property.Equals(IItemsHostComponent.WindowAggregatesProperty))
+            return nameof(UIItemSourceBase.Aggregates);
 
         return null;
     }

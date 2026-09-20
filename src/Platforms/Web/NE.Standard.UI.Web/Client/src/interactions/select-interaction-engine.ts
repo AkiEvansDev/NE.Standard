@@ -2,7 +2,7 @@ import {
     BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute,
     ensureElementId
 } from "../addressing/dom-attributes";
-import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
+import { isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { PopupDismissal } from "./popup-dismissal";
 import { ownDescendants } from "./own-descendants";
 import { restoreFocusTo } from "./popup-focus";
@@ -10,6 +10,8 @@ import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { clearOptionsFilter, refreshEmptyState } from "./search-input-engine";
 
 const SelectValueAttribute = "data-ui-select-value";
+// Where the list opens when the author said so; below from the start edge otherwise.
+const SelectPlacementAttribute = "data-ui-select-placement";
 const SelectClass = "ui-select";
 const OpenClass = "ui-select--open";
 const TriggerClass = "ui-select__trigger";
@@ -24,6 +26,8 @@ const ValueInputClass = "ui-select__value-input";
 const ClearAttribute = "data-ui-select-clear";
 const TriggerModeAttribute = "data-ui-select-trigger-mode";
 const SearchInputClass = "ui-search__input";
+// The one selection mode that writes the chosen option into the field; the other keeps whatever the reader typed.
+const ReplaceModeClass = "ui-search-mode--replace";
 const TitleClass = "ui-text__title";
 // What `Enabled = false` leaves on an option, on the item template's own root rather than the option wrapper.
 const DisabledClass = "ui-disabled";
@@ -46,6 +50,11 @@ function isReadOnly(select: HTMLElement | null): boolean {
 /** This select's own options: a select rendered inside an option's template keeps its list to itself. */
 function optionsOf(select: HTMLElement): HTMLElement[] {
     return ownDescendants(select, `.${PopupClass} .${OptionClass}`, `.${SelectClass}`);
+}
+
+/** What an option reads as in a field: its title where it has one, else everything it draws. */
+function optionLabel(option: HTMLElement | null): string | null {
+    return option === null ? null : option.querySelector<HTMLElement>(`.${TitleClass}`)?.textContent ?? option.textContent;
 }
 
 function stripAddressingAttributes(element: Element): void {
@@ -73,10 +82,12 @@ export class SelectInteractionEngine {
             this.sync(select);
 
         if (this.root instanceof Node) {
+            // Hand-rolled rather than observeComponents: an arriving select, its value attribute and a popup change each call for
+            // different work, and the engine's own writes are skipped by name, which only the record carries.
             const observer = new MutationObserver(mutations => {
                 for (const mutation of mutations) {
-                    // A select that arrives whole — a row the client built — had its value written before it joined the
-                    // document, so no attribute record will ever come for it: it is synced on arrival.
+                    // A select that arrives whole (a row the client built) had its value written before it joined the document, so
+                    // no attribute record will ever come for it: synced on arrival.
                     if (mutation.type === "childList") {
                         for (const added of mutation.addedNodes) {
                             if (!(added instanceof HTMLElement))
@@ -115,9 +126,9 @@ export class SelectInteractionEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
         // Typing is asking to search, and asking to search is asking to see the answers.
         this.root.addEventListener("input", domEvent => this.handleSearchInput(domEvent), true);
+        this.root.addEventListener("focusin", domEvent => this.handleSearchFocus(domEvent), true);
 
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.openSelect === null ? [] : [this.openSelect],
             close: () => this.close()
         });
@@ -133,18 +144,24 @@ export class SelectInteractionEngine {
             : optionsOf(select).find(option => option.getAttribute(ComponentKeyAttribute) === value) ?? null;
 
         const matched = selectedOption !== null;
-        const matchedLabel = selectedOption === null
-            ? null
-            : selectedOption.querySelector<HTMLElement>(`.${TitleClass}`)?.textContent ?? selectedOption.textContent;
+        const matchedLabel = optionLabel(selectedOption);
 
         this.renderTriggerContent(select, selectedOption);
 
-        // Search's trigger is its input, so the label is written into it — never while it is being typed in.
+        // Search's trigger is its input, so the label is written into it — never over a term being typed, and only in the mode
+        // that asked for it (KeepSearchInput), since a value arriving while unfocused would otherwise wipe a term just typed. A
+        // focused but empty field is no term either — the keyboard reached it before the value did — so the label lands selected there too.
         const searchInput = select.querySelector<HTMLInputElement>(`.${SearchInputClass}`);
 
         if (searchInput !== null) {
-            if (document.activeElement !== searchInput)
+            const focused = document.activeElement === searchInput;
+
+            if (select.classList.contains(ReplaceModeClass) && (!focused || searchInput.value.length === 0)) {
                 searchInput.value = matchedLabel ?? "";
+
+                if (focused)
+                    searchInput.select();
+            }
 
             // The query that narrowed the list is spent once a value is chosen.
             clearOptionsFilter(select);
@@ -243,6 +260,31 @@ export class SelectInteractionEngine {
         this.toggle(select);
     }
 
+    /**
+     * The keyboard arriving in a search that shows its choice rather than a query: the chosen text is written into the field and
+     * selected, so typing replaces it at once. The stylesheet shows the input only while it's focused; the list opens on the
+     * first keystroke, as for anything else typed here.
+     */
+    private handleSearchFocus(domEvent: Event): void {
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass))
+            return;
+
+        const input = domEvent.target;
+        const select = input.closest<HTMLElement>(`.${SelectClass}`);
+
+        if (select === null || select === this.openSelect || input.readOnly || !select.classList.contains(ReplaceModeClass))
+            return;
+
+        const value = select.getAttribute(SelectValueAttribute);
+
+        if (value === null)
+            return;
+
+        // The label rather than whatever query was last typed and left: a term nobody chose from is spent when the field is left.
+        input.value = optionLabel(optionsOf(select).find(option => option.getAttribute(ComponentKeyAttribute) === value) ?? null) ?? input.value;
+        input.select();
+    }
+
     private handleClick(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
@@ -308,7 +350,7 @@ export class SelectInteractionEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const option = domEvent.target.closest<HTMLElement>(`.${OptionClass}`);
+        const option = domEvent.target.closest<HTMLElement>(`.${OptionClass}`) ?? this.markedOption(domEvent);
 
         if (option === null)
             return;
@@ -320,6 +362,19 @@ export class SelectInteractionEngine {
 
         domEvent.preventDefault();
         this.choose(select, option);
+    }
+
+    /**
+     * A search keeps focus in its field: the arrows only move the mark, and Enter from the field chooses the marked option while
+     * the query still shows it. Space is a character of the query there, never a choice.
+     */
+    private markedOption(domEvent: KeyboardEvent): HTMLElement | null {
+        const select = this.openSelect;
+
+        if (domEvent.key !== "Enter" || select === null || !(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass) || !select.contains(domEvent.target))
+            return null;
+
+        return optionsOf(select).find(option => option.hasAttribute(ActiveAttribute) && !isOptionDisabled(option) && option.style.display !== "none") ?? null;
     }
 
     private toggle(select: HTMLElement | null): void {
@@ -371,13 +426,15 @@ export class SelectInteractionEngine {
         this.openSelect = null;
     }
 
-    /** Width-matched to the trigger, and flipped above it when the list has no room below. */
+    /** At least the trigger's width, on the side the author named, and flipped to the other side when the list has no room there. */
     private positionPopup(select: HTMLElement): void {
         const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
         const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
+        const token = select.getAttribute(SelectPlacementAttribute);
+        const placement = token !== null && isAnchoredPopupPlacement(token) ? token : "bottom-start";
 
         if (trigger !== null && popup !== null)
-            placeAnchoredPopup(trigger, popup, { placement: "bottom-start", gap: PopupGap, matchAnchorWidth: true });
+            placeAnchoredPopup(trigger, popup, { placement, gap: PopupGap, minAnchorWidth: true });
     }
 
     private initializeFocus(select: HTMLElement): void {

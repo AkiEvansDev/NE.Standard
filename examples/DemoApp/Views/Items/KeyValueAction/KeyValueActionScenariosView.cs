@@ -1,12 +1,16 @@
 using System;
 using DemoApp.Controllers.Items.KeyValueAction;
 using DemoApp.Views.Base;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.KeyValueAction;
@@ -17,10 +21,16 @@ namespace DemoApp.Views.Items.KeyValueAction;
 /// </summary>
 internal sealed class KeyValueActionScenariosView : DemoScenariosView, IUIViewDefinition
 {
+    /// <summary>The two rows of the note group name their own editor, since the two carry different kinds of message.</summary>
+    private const string LimitTemplate = "limit";
+    private const string OwnerTemplate = "owner";
+
     public static string ViewKey => "demo.items.key-value-action.scenarios";
 
     protected override string ComponentRoute => "/items/key-value-action";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Main, DemoViewKind.Examples, DemoViewKind.Scenarios];
+    private const string ErrorsId = "kva-elsewhere-errors";
+
     protected override string Header => "demo.items.key-value-action.header";
     protected override string HeaderDescription => "demo.items.key-value-action.description";
 
@@ -43,6 +53,7 @@ internal sealed class KeyValueActionScenariosView : DemoScenariosView, IUIViewDe
                 ),
                 CreateLocalEditGroup(),
                 CreateNoteGroup(),
+                CreateElsewhereGroup(),
                 CreateInputsGroup()
             ]
         ));
@@ -106,22 +117,67 @@ internal sealed class KeyValueActionScenariosView : DemoScenariosView, IUIViewDe
     }
 
     /// <summary>
-    /// A row whose editor carries a message from the controller: inside a row there is no line for it, so it is a mark at the
-    /// field's corner that speaks in a tooltip.
+    /// The two ways a row comes to have something to say, in the two rows of one list: the field's own rules, answered on every
+    /// keystroke, and a message the controller put on the draft, which arrives with the save's answer. Inside a row there is no
+    /// line for either, so both are a mark that speaks in a tooltip — at the field's corner while the row is open, and beside the
+    /// value once it closes.
     /// </summary>
     private static ContainerComponent CreateNoteGroup()
     {
         return DemoUI.CreateGroup(nameof(KeyValueActionScenariosController.NoteGroup), "A message in a row is a mark",
             content => content.AddChild(new KeyValueActionComponent()
                 .BindItems(nameof(KeyValueActionNoteGroupContext.Items), UIBindingScope.Relative)
-                .SetValueInputTemplate(new TextInputComponent()
+                .AddValueInputTemplate(LimitTemplate, new NumberInputComponent()
+                    .SetShowStepper()
+                    .SetStep(50)
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.Greater, 0, "A limit of nothing switches the service off.", UIValidationSeverity.Error)
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.LessOrEqual, 200, "Above the plan's 200; a change this size needs an owner's sign-off.", UIValidationSeverity.Warning)
+                )
+                .AddValueInputTemplate(OwnerTemplate, new TextInputComponent()
                     .BindValidation(nameof(NotedRowItem.Note), UIBindingScope.Relative)
                 )
                 .EnableEditing(nameof(KeyValueActionScenariosController.SaveNotedRow))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 140,
-            note: "The row opens already editing, with the message the controller put on the draft. Save a number over 200 and the mark stays; save one under it and the mark goes."
+            contentMinHeight: 200,
+            note: "The limit's two rules run on the `Change` trigger, so the mark answers each keystroke and only the graver of the two ever speaks: "
+                + "type 0 for the error, 500 for the warning, 150 for neither. The owner's mark is the controller's, written on the draft when the save reads it, "
+                + "and it stays beside the value after the row closes."
+        );
+    }
+
+    /// <summary>
+    /// Both fields send their words to the same text beside the list: the rows keep the severity on their edge alone, which is
+    /// the shape a settings list wants when the errors belong beside it rather than inside its rows.
+    /// </summary>
+    private static ContainerComponent CreateElsewhereGroup()
+    {
+        return DemoUI.CreateGroup(nameof(KeyValueActionScenariosController.ElsewhereGroup), "The words go to a text beside the list",
+            content => content
+                .AddChild(new KeyValueActionComponent()
+                    .BindItems(nameof(KeyValueActionElsewhereGroupContext.Items), UIBindingScope.Relative)
+                    .AddValueInputTemplate("limit", new NumberInputComponent()
+                        .SetShowStepper()
+                        .Validate(UIValidationTrigger.Change, UIComparisonOperator.Greater, 0, "A limit of nothing switches the service off.", UIValidationSeverity.Error)
+                        .ValidationInto(ErrorsId, ITextComponent.DescriptionProperty)
+                    )
+                    .AddValueInputTemplate("retries", new NumberInputComponent()
+                        .SetShowStepper()
+                        .Validate(UIValidationTrigger.Change, UIComparisonOperator.LessOrEqual, 5, "More than five retries is a queue, not a retry.", UIValidationSeverity.Warning)
+                        .ValidationInto(ErrorsId, ITextComponent.DescriptionProperty)
+                    )
+                    .EnableEditing(nameof(KeyValueActionScenariosController.SaveElsewhereRow))
+                    .SetPlacement(1, 1, 24, 1)
+                )
+                // A paragraph, not a text: its description keeps the line breaks, so each field's words stand on a line of their own.
+                .AddChild(new ParagraphComponent(ErrorsId)
+                    .SetDescription(" ")
+                    .SetDescriptionColor(UIThemeColor.Danger)
+                    .SetPlacement(1, 2, 24, 1)
+                ),
+            contentMinHeight: 160,
+            note: "Both rows name the same paragraph, and each keeps a line of it: type 0 in the limit and 9 in the retries, and both lines stand "
+                + "under the list; put one right and only its line goes. The row itself only reddens."
         );
     }
 

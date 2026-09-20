@@ -15,6 +15,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Benchmarks.Standard.UI.Web</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.Standard.UI.Web</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
     <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
@@ -63,6 +72,7 @@
   <ItemGroup>
     <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
     <None Include="Client\fonts\LICENSE.txt" Pack="true" PackagePath="\LICENSE-inter.txt" />
+    <None Include="Client\fonts\LICENSE-material-symbols.txt" Pack="true" PackagePath="\LICENSE-material-symbols.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,6 +80,7 @@
     <EmbeddedResource Include="$(WebClientJs)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.js" />
     <EmbeddedResource Include="$(WebClientBoot)" LogicalName="NE.Standard.UI.Web.Client.dist.ui-boot.js" />
     <EmbeddedResource Include="Client\fonts\InterVariable.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.InterVariable.woff2" />
+    <EmbeddedResource Include="Client\fonts\NEGlyphs.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.NEGlyphs.woff2" />
   </ItemGroup>
 
 </Project>

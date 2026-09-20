@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Inputs.Search;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Search;
@@ -20,6 +21,8 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
     private const string ServicesList = nameof(SearchExamplesController.ServicesList);
     private const string KeepTextList = nameof(SearchExamplesController.KeepTextList);
     private const string ReplaceTextList = nameof(SearchExamplesController.ReplaceTextList);
+    private const string MinLengthList = nameof(SearchExamplesController.MinLengthList);
+    private const string ManualList = nameof(SearchExamplesController.ManualList);
 
     public static string ViewKey => "demo.inputs.search.examples";
 
@@ -31,7 +34,7 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateCatalogueGroup()],
+            [CreateCatalogueGroup(), CreateAskingGroup()],
             [CreateSelectionGroup()]
         ));
     }
@@ -50,11 +53,43 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDebounceMilliseconds(200)
                     .SetShowClearButton()
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("Every keystroke asks the controller for a list; nothing is filtered on the client.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
+                .AddChild(UIText.Note("Every keystroke asks the controller for a list; nothing is filtered on the client."))
+            )
+        );
+    }
+
+    /// <summary>
+    /// When the term reaches the server at all: a floor under the term's length, and a box that waits to be asked.
+    /// </summary>
+    private static ContainerComponent CreateAskingGroup()
+    {
+        return DemoUI.CreateGroup(null, "When it asks the server",
+            content => content.AddChild(DemoUI.CreateStack()
+                .AddChild(CreateSearch(MinLengthList)
+                    .SetTitle("Not before three letters")
+                    .SetPlaceholder("Type \"pay\"")
+                    .SetPrefixIcon(DemoIcons.Search)
+                    .SetMinSearchLength(3)
+                    .SetDebounceMilliseconds(200)
+                    .SetShowClearButton()
                 )
+                .AddChild(DemoUI.CreateRow(24)
+                    .AddChild(CreateSearch(ManualList)
+                        .SetTitle("Only when asked")
+                        .SetPlaceholder("Type, then press Search")
+                        .SetPrefixIcon(DemoIcons.Search)
+                        .SetAutoSearch(false)
+                        .SetPlacement(1, 1, 18, 1)
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetTitle("Search")
+                        .SetIcon(DemoIcons.Search)
+                        .OnClickLiteral(nameof(SearchExamplesController.Search), new KeyValuePair<string, object?>("list", ManualList))
+                        .SetVerticalAlignment(UIAlignment.End)
+                        .SetPlacement(19, 1, 6, 1)
+                    )
+                )
+                .AddChild(UIText.Note("A floor on the term saves the server the keystrokes that could only match everything; with AutoSearch off nothing is asked until something asks it, and the button reads the same two-way SearchText the box would have sent."))
             )
         );
     }
@@ -76,11 +111,7 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPlaceholder("Try \"api\"")
                     .SetSelectionDisplayMode(UISearchSelectionDisplayMode.ReplaceWithSelectedItem)
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("Replaced, the closed field shows the whole option — icon, second line and badge — and turns back into a text field as soon as it is opened.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("Replaced, the closed field shows the whole option — icon, second line and badge — and turns back into a text field the moment the keyboard reaches it, the chosen text selected, so what is typed replaces it."))
             )
         );
     }

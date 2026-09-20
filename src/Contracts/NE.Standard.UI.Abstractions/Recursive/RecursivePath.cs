@@ -99,6 +99,20 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
     }
 
     /// <summary>
+    /// Returns the path's first <paramref name="count"/> segments; the path itself when that is all of them.
+    /// </summary>
+    public RecursivePath Take(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _segments.Length);
+
+        if (count == _segments.Length)
+            return this;
+
+        return count == 0 ? Empty : new RecursivePath(_segments[..count], ownsArray: true);
+    }
+
+    /// <summary>
     /// Converts this path to a template and parameter values.
     /// </summary>
     public (RecursivePathTemplate Template, object[] Parameters) ToTemplate()

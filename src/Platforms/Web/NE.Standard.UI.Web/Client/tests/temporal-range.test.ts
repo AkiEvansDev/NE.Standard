@@ -16,6 +16,13 @@ test("the first click sets the start and moves on to the end", () => {
     assert.equal(choice.complete, false);
 });
 
+test("a start chosen where none was keeps the time the day came with", () => {
+    const choice = chooseDay({ start: null, end: null }, "start", day(10, 14));
+
+    assert.equal(choice.start?.getHours(), 14);
+    assert.equal(choice.start?.getMinutes(), 30);
+});
+
 test("the second click sets the end and completes the period", () => {
     const choice = chooseDay({ start: day(10), end: null }, "end", day(14));
 

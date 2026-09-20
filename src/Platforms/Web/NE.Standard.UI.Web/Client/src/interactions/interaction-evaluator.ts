@@ -23,13 +23,13 @@ export function evaluateOperator(left: unknown, operator: WebInteractionOperator
         case "NotEqual":
             return String(left ?? "") !== String(right ?? "");
         case "Greater":
-            return Number(left) > Number(right);
+            return isOrdered(left, right, order => order > 0);
         case "GreaterOrEqual":
-            return Number(left) >= Number(right);
+            return isOrdered(left, right, order => order >= 0);
         case "Less":
-            return Number(left) < Number(right);
+            return isOrdered(left, right, order => order < 0);
         case "LessOrEqual":
-            return Number(left) <= Number(right);
+            return isOrdered(left, right, order => order <= 0);
         case "Like":
             return String(left ?? "").includes(String(right ?? ""));
         case "LikeIgnoreCase":
@@ -41,6 +41,22 @@ export function evaluateOperator(left: unknown, operator: WebInteractionOperator
         default:
             return false;
     }
+}
+
+/** Whether the pair stands in the order asked: as numbers, or — when neither text reads as a number — as ordinal text. */
+function isOrdered(left: unknown, right: unknown, asked: (order: number) => boolean): boolean {
+    const leftNumber = Number(left);
+    const rightNumber = Number(right);
+
+    if (!Number.isNaN(leftNumber) && !Number.isNaN(rightNumber))
+        return asked(leftNumber < rightNumber ? -1 : leftNumber > rightNumber ? 1 : 0);
+
+    // One side a number and the other not stays incomparable; two texts order as text, which is what dates in the wire's
+    // ISO shape need.
+    if (!Number.isNaN(leftNumber) || !Number.isNaN(rightNumber) || typeof left !== "string" || typeof right !== "string")
+        return false;
+
+    return asked(left < right ? -1 : left > right ? 1 : 0);
 }
 
 function evaluateRegex(left: unknown, right: unknown): boolean {

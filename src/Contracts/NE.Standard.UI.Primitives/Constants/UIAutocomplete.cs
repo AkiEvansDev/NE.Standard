@@ -1,12 +1,11 @@
 namespace NE.Standard.UI.Primitives.Constants;
 
 /// <summary>
-/// What a browser may fill a field with, in the browser's own words. The list is the platform's, not this framework's, so a token
-/// it does not name here is still a valid value for <c>Autocomplete</c>; these are the ones an application reaches for.
+/// Common browser-autocomplete values, in the browser's own vocabulary; the platform accepts values beyond this list too.
 /// </summary>
 /// <remarks>
-/// A password manager only offers to remember a sign-in when it can see which field is the name and which is the password, so a
-/// sign-in page names both: <see cref="Username"/> and <see cref="CurrentPassword"/>.
+/// A password manager remembers a sign-in only when it can tell the name field from the password field; name both:
+/// <see cref="Username"/> and <see cref="CurrentPassword"/>.
 /// </remarks>
 public static class UIAutocomplete
 {

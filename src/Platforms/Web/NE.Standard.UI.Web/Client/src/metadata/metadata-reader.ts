@@ -21,6 +21,8 @@ export function readWebUIMetadata(documentRoot: ParentNode = document): WebUIMet
         events: parsed.events ?? [],
         interactions: parsed.interactions ?? [],
         validations: parsed.validations ?? [],
+        validationTargets: parsed.validationTargets ?? [],
+        exposedProperties: parsed.exposedProperties ?? [],
         items: parsed.items ?? [],
         itemsFilterSort: parsed.itemsFilterSort ?? [],
         itemValues: parsed.itemValues ?? []

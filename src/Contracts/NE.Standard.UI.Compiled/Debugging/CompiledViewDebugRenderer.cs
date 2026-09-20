@@ -168,13 +168,8 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
         AppendBindingGroup(builder, view, nameof(CompiledUIBindingKind.ComponentCollection), collectionBindings);
     }
 
-    private static CompiledUIBinding[] GetBindingsByKind(CompiledView view, CompiledUIBindingKind kind)
-        => [.. view.Bindings.All
-                .Where(binding => binding.Kind == kind)
-                .OrderBy(static binding => GetIdPrefix(binding.Id.ToString()), StringComparer.Ordinal)
-                .ThenBy(static binding => GetIdNumber(binding.Id.ToString()))
-                .ThenBy(static binding => binding.Id.ToString(), StringComparer.Ordinal)
-        ];
+    private CompiledUIBinding[] GetBindingsByKind(CompiledView view, CompiledUIBindingKind kind)
+        => [.. SortById(view.Bindings.All.Where(binding => binding.Kind == kind), static binding => binding.Id)];
 
     private static string GetIdPrefix(string? id)
     {
@@ -482,6 +477,11 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
         {
             case CompiledUIActionArgumentKind.Literal:
                 _ = builder.Append("literal=");
+                AppendObject(builder, argument.Value);
+                break;
+
+            case CompiledUIActionArgumentKind.EventKey:
+                _ = builder.Append("eventKey=");
                 AppendObject(builder, argument.Value);
                 break;
 

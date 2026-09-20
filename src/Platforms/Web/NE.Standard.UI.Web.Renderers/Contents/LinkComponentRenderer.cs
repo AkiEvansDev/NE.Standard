@@ -28,8 +28,8 @@ public sealed class LinkComponentRenderer : WebComponentRendererBase
 
         RenderTooltip(context, root);
 
-        // In a child box, not on the anchor: the body writes TitleColor where it is drawn, and `inherit` on the
-        // anchor itself would replace the link's own hue with the page's.
+        // In a child box, not on the anchor: the body writes TitleColor there, and `inherit` on the anchor would replace the
+        // link's own hue with the page's.
         _ = root.Element("span", content =>
         {
             _ = content.Class("ui-link__content");

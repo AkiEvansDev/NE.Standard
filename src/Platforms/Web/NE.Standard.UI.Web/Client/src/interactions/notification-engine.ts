@@ -55,7 +55,6 @@ export class NotificationEngine {
         close.type = "button";
         close.className = CloseClass;
         close.setAttribute("aria-label", clientStrings.text("ui.notification.close"));
-        close.textContent = "×";
         close.addEventListener("click", () => this.dismiss(element));
 
         element.append(message, close);

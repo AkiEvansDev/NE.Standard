@@ -1,10 +1,9 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -149,11 +148,7 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetValue(new TimeOnly(2, 30))
                     .SetStepMinutes(15)
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("**Split them** while the two answers are independent — a birthday and a reminder time. **Keep them together** when one is meaningless without the other, or when the window runs past midnight.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("**Split them** while the two answers are independent — a birthday and a reminder time. **Keep them together** when one is meaningless without the other, or when the window runs past midnight."))
             )
         );
     }

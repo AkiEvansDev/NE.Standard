@@ -42,6 +42,7 @@ internal sealed class ColorInputMainView : DemoMainView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(ColorValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(ColorValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(ColorValueGroupContext.Size)}")
             .BindTextFormat($"{ValueGroup}.{nameof(ColorValueGroupContext.TextFormat)}")
             .BindAppearance($"{FieldGroup}.{nameof(ColorFieldGroupContext.Appearance)}")
             .BindVariant($"{FieldGroup}.{nameof(ColorFieldGroupContext.Variant)}")

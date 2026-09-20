@@ -3,6 +3,8 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace DemoApp.Views.Inputs.NumberInput;
 
@@ -110,23 +112,18 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
     }
 
     /// <summary>
-    /// What the field refuses: the ends of the range, and an answer that has to be given at all.
+    /// What the field says about a value: the ends it refuses outright, the answer it insists on, and two rules on one field of
+    /// which only the stronger ever speaks.
     /// </summary>
-    /// <remarks>Full width, three across: the three refusals are read against each other, not down a column.</remarks>
+    /// <remarks>Full width, three across: the three are read against each other, not down a column.</remarks>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "What it refuses",
+        return DemoUI.CreateGroup(null, "What it says about a value",
             content => content.AddChild(DemoUI.CreateRow(24)
                 .AddChild(CreateBounded("Both ends — the stepper stops, and so does the typing", new NumberInputComponent()
                     .SetTitle("Replicas")
                     .SetValue(8)
                     .SetRange(1, 64)
-                    .SetShowStepper()
-                ))
-                .AddChild(CreateBounded("One end only — nothing above it", new NumberInputComponent()
-                    .SetTitle("Concurrent uploads")
-                    .SetValue(1)
-                    .SetMin(1)
                     .SetShowStepper()
                 ))
                 .AddChild(CreateBounded("Empty is not an answer", new NumberInputComponent()
@@ -135,10 +132,20 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetShowStepper()
                     .Required("A replica count is required.")
                 ))
+                .AddChild(CreateBounded("Two rules, and the field says the graver one", new NumberInputComponent()
+                    .SetTitle("Monthly budget")
+                    .SetPrefixText("$")
+                    .SetValue(50)
+                    .SetStep(10)
+                    .SetShowStepper()
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 10, "Under $10 the plan cannot be billed at all.", UIValidationSeverity.Error)
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 100, "Under $100 the plan costs more to run than it takes.", UIValidationSeverity.Warning)
+                ))
                 .SetPlacement(1, 1, 24, 1)
             ),
             columns: 24,
-            note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too."
+            note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too. "
+                + "The budget carries two `Validate` rules on the `Change` trigger, so both are answered on every keystroke — type 5 and the error speaks, 50 and the warning does, 150 and neither."
         );
     }
 

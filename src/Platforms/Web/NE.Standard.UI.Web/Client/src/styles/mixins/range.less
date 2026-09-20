@@ -12,6 +12,9 @@
 // Not accent-color: the UA derives the track's rest and hover colour itself, which came out flecked and near-black under the pointer.
 .ui-range-input() {
     height: 1.25rem;
+    // The UA gives input[type=range] a 2px margin of its own, insetting the track from the column every other field fills and
+    // moving it out from under the thumb anchor that measures the track.
+    margin: 0;
     background: transparent;
     appearance: none;
     cursor: pointer;

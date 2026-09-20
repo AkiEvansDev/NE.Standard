@@ -1,5 +1,5 @@
-// A pointer dragging a handle — a grid splitter's bar, a table's column edge: the press takes the pointer, the moves are measured
-// from where it began, and the release lets go. One gesture for every handle; what the handle does with the distance is the engine's.
+// A pointer dragging a handle (a grid splitter's bar, a table's column edge): press takes the pointer, moves are measured from
+// where it began, release lets go. One gesture for every handle; what it does with the distance is the engine's.
 
 import { PointerFocusAttribute, SplittingAttribute } from "../addressing/dom-attributes";
 
@@ -7,12 +7,15 @@ export type PointerDragOptions<TContext> = {
     readonly root: ParentNode;
     /** The handle the press landed on, or null when the press is not a handle's. */
     readonly resolveHandle: (target: Element) => HTMLElement | null;
-    /** What the gesture works on, read afresh at the press; null refuses the press. */
-    readonly begin: (handle: HTMLElement) => TContext | null;
-    /** The pointer coordinate the gesture measures along. */
-    readonly coordinate: (context: TContext) => "clientX" | "clientY";
-    /** The distance from where the press began, on every move; every position is one answer, so a hundred moves drift by nothing. */
-    readonly move: (context: TContext, delta: number) => void;
+    /** What the gesture works on, read afresh at the press; null refuses the press. `point` is where the press landed, for a gesture measured by position rather than distance. */
+    readonly begin: (handle: HTMLElement, point: { readonly x: number; readonly y: number }) => TContext | null;
+    /** The pointer coordinate the gesture measures along; omitted when a gesture reads the pointer's own position instead of a delta. */
+    readonly coordinate?: (context: TContext) => "clientX" | "clientY";
+    /**
+     * The distance from where the press began along `coordinate`, zero when `coordinate` is omitted; each position is one answer,
+     * so moves don't drift. `point` is the pointer's own position, for a gesture measured against a rectangle, not an origin.
+     */
+    readonly move: (context: TContext, delta: number, point: { readonly x: number; readonly y: number }) => void;
     readonly end: (handle: HTMLElement, context: TContext) => void;
 };
 
@@ -20,6 +23,7 @@ type Drag<TContext> = {
     readonly handle: HTMLElement;
     readonly context: TContext;
     readonly origin: number;
+    readonly originPoint: { readonly x: number; readonly y: number };
     readonly pointerId: number;
 };
 
@@ -52,7 +56,7 @@ export class PointerDrag<TContext> {
         if (handle === null)
             return;
 
-        const context = this.options.begin(handle);
+        const context = this.options.begin(handle, { x: domEvent.clientX, y: domEvent.clientY });
 
         if (context === null)
             return;
@@ -68,12 +72,22 @@ export class PointerDrag<TContext> {
         }
 
         handle.setAttribute(SplittingAttribute, "");
-        // Focused so the arrows can carry on from where the drag ends, and marked as the pointer's doing: a focus given by script
-        // counts as the keyboard's to the browser, and the handle would stay lit after the release. A key or a blur takes the mark off.
-        handle.setAttribute(PointerFocusAttribute, "");
-        handle.focus({ preventScroll: true });
 
-        this.drag = { handle, context, origin: domEvent[this.options.coordinate(context)], pointerId: domEvent.pointerId };
+        // Focused so the arrows can carry on from where the drag ends, and marked as the pointer's doing, since a script-given focus
+        // reads as the keyboard's to the browser and would stay lit after release; removed on a key or blur, so a handle with no
+        // focus (a colour square) is never marked, or nothing would remove it.
+        if (handle.tabIndex >= 0) {
+            handle.setAttribute(PointerFocusAttribute, "");
+            handle.focus({ preventScroll: true });
+        }
+
+        this.drag = {
+            handle,
+            context,
+            origin: this.options.coordinate === undefined ? 0 : domEvent[this.options.coordinate(context)],
+            originPoint: { x: domEvent.clientX, y: domEvent.clientY },
+            pointerId: domEvent.pointerId
+        };
     }
 
     private handlePointerMove(domEvent: Event): void {
@@ -81,8 +95,9 @@ export class PointerDrag<TContext> {
             return;
 
         const { context, origin } = this.drag;
+        const delta = this.options.coordinate === undefined ? 0 : domEvent[this.options.coordinate(context)] - origin;
 
-        this.options.move(context, domEvent[this.options.coordinate(context)] - origin);
+        this.options.move(context, delta, { x: domEvent.clientX, y: domEvent.clientY });
     }
 
     private handlePointerEnd(domEvent: Event): void {
@@ -107,10 +122,10 @@ export class PointerDrag<TContext> {
 
         domEvent.preventDefault();
 
-        const { handle, context, pointerId } = this.drag;
+        const { handle, context, pointerId, originPoint } = this.drag;
 
         this.drag = null;
-        this.options.move(context, 0);
+        this.options.move(context, 0, originPoint);
         handle.removeAttribute(SplittingAttribute);
 
         try {

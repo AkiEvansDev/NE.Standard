@@ -35,8 +35,8 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
         ]
     };
 
-    // An editable row: the same three, plus the input the value becomes and the pair the action becomes, each laid into the cell it
-    // stands in for; the input's slot takes a typed variant the row names.
+    // An editable row: the same three, plus the value's input and the action's pair, each laid into its own cell; the input's
+    // slot takes a typed variant the row names.
     private static readonly WebRenderItemsCompositeMetadata EditableCompositeItem = new()
     {
         ItemClassName = RowClassName,

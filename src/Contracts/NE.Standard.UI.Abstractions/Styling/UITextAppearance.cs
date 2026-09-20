@@ -8,14 +8,13 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// Represents a text's typography: either a semantic <see cref="UITextType"/> role, or an explicit <see cref="Size"/> override.
 /// </summary>
 /// <remarks>
-/// When <see cref="Size"/> is set, it always wins over <see cref="Role"/> — mirroring how <see cref="UIThemeColor"/>'s
-/// explicit override wins over its semantic style.
+/// <see cref="Weight"/>, <see cref="LineHeight"/> and <see cref="LetterSpacing"/> are read only alongside an explicit <see cref="Size"/>.
 /// </remarks>
-/// <param name="Role">The semantic role the theme's typography sizes the text from; used only while <paramref name="Size"/> is unset.</param>
+/// <param name="Role">The semantic role sizing the text; used only while <paramref name="Size"/> is unset.</param>
 /// <param name="Size">An explicit size, in pixels, which wins over the role.</param>
-/// <param name="Weight">An explicit font weight; read only alongside an explicit size.</param>
-/// <param name="LineHeight">An explicit line height, in pixels; read only alongside an explicit size.</param>
-/// <param name="LetterSpacing">An explicit letter spacing, in pixels; read only alongside an explicit size.</param>
+/// <param name="Weight">An explicit font weight.</param>
+/// <param name="LineHeight">An explicit line height, in pixels.</param>
+/// <param name="LetterSpacing">An explicit letter spacing, in pixels.</param>
 public readonly record struct UITextAppearance(UITextType? Role, double? Size, int? Weight, double? LineHeight, double? LetterSpacing)
 {
     /// <summary>

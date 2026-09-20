@@ -1,7 +1,12 @@
-// A theme flag's own flourish: a small ripple from the point the pointer pressed, under a button, an action, or a menu item.
-// Opt-in and cheap — one listener, two variables and a class the animation's length — so it costs nothing where it is off.
+// A theme flag's flourish: a small ripple from the point the pointer pressed, under a button, an action, or a menu item.
+// Opt-in and cheap — one listener, two variables and a class — so it costs nothing where it is off.
+
+import { MarkedMenuEntrySelector } from "../addressing/dom-attributes";
 
 const TargetSelector = ".ui-button, .ui-action, .ui-menu-item";
+// A menu entry whose ::after is already its mark (a group's chevron, a check's tick) would have the ripple take that mark's
+// place, narrowing then widening the menu; those entries do not ripple.
+const MarkedSelector = MarkedMenuEntrySelector;
 const PressingClass = "ui-pressing";
 const XVariable = "--ui-press-x";
 const YVariable = "--ui-press-y";
@@ -29,7 +34,7 @@ export class PressRippleEngine {
 
         const target = domEvent.target.closest<HTMLElement>(TargetSelector);
 
-        if (target === null || target.matches(":disabled, .ui-disabled, [inert]"))
+        if (target === null || target.matches(":disabled, .ui-disabled, [inert]") || target.matches(MarkedSelector))
             return;
 
         const bounds = target.getBoundingClientRect();

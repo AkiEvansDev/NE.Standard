@@ -49,6 +49,7 @@ internal sealed class DateInputMainView : DemoMainView, IUIViewDefinition
             .BindMin($"{ValueGroup}.{nameof(DateValueGroupContext.Min)}")
             .BindMax($"{ValueGroup}.{nameof(DateValueGroupContext.Max)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(DateValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(DateValueGroupContext.Size)}")
             .BindDisplayFormat($"{FieldGroup}.{nameof(TemporalFieldGroupContext.DisplayFormat)}")
             .BindAppearance($"{FieldGroup}.{nameof(TemporalFieldGroupContext.Appearance)}")
             .BindPrefixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.PrefixIcon)}")

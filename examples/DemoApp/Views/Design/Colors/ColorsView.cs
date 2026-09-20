@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Design.Colors;
@@ -30,9 +31,7 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
         Color color = baseVariant.ToColor();
         UIThemeColor textColor = ContrastText(baseVariant.IsLight());
 
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(4)
+        return UILayout.Stack(4)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1), xl: UIGridPlacement.At(1, 1, 8, 1))
             .AddChild(new ContainerComponent()
                 .SetBackground(UIThemeColor.FromColorVariant(baseVariant))

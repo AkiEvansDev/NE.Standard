@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
@@ -117,9 +118,7 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(6))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(2)
+                .SetContent(UILayout.Stack(2)
                     .SetWidth(UILayoutLength.Absolute(260))
                     .AddChild(CreateGhostRow(DemoIcons.Edit, "Rename", null))
                     .AddChild(CreateGhostRow(DemoIcons.Copy, "Duplicate", "⌘D"))
@@ -154,9 +153,7 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
             // One column and one width for both, or how much of the offered width each takes cannot be seen.
             content => content.AddChild(new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(8)
+                .SetContent(UILayout.Stack(8)
                     .SetWidth(UILayoutLength.Absolute(300))
                     .AddChild(DemoUI.CreateCaption("ButtonComponent"))
                     .AddChild(new ButtonComponent()

@@ -78,8 +78,8 @@ public sealed class CompiledView
     public IReadOnlyList<string> Warnings { get; init; } = [];
 
     /// <summary>
-    /// One short hash over what a page's client holds of this compile — components, bindings, events and interactions by id — so a
-    /// page rendered from another compile of the same view is told apart from this one.
+    /// One short hash over what a page's client holds of this compile (components, bindings, events and interactions by id),
+    /// so pages from different compiles of the same view are told apart.
     /// </summary>
     public required string Fingerprint { get; init; }
 }

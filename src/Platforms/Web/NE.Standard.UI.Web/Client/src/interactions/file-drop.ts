@@ -1,6 +1,5 @@
-// A file dragged onto a field is chosen the way a picked one is. One listener set for every host that takes a drop — the file
-// input's row, the image input's surface: the host is marked while a file is over it, and the drop hands the files over, filtered
-// the way the native picker's `accept` would have, since a drop is not filtered by the dialog.
+// A file dragged onto a field is chosen the way a picked one is. One listener set for every host that takes a drop: the host is
+// marked while a file is over it, and the drop hands the files over filtered by `accept`, since the browser does not filter drops.
 
 export type FileDropTarget = {
     /** The component the mark goes on and the files go to. */
@@ -27,8 +26,7 @@ const LeaveGrace = 120;
 const RefusedMark = "refused";
 
 type DropState = {
-    /** The hosts wearing the mark: one at a time, since a file is over one place; the set is what takes it off a host the browser never
-     * reported a leave for — a drag carried from one field straight onto the next left the first one marked. */
+    /** The hosts wearing the mark: normally one at a time; the set also clears a host the browser never reported a leave for. */
     readonly marked: Set<HTMLElement>;
     /** The pending unmark a destination-less leave armed, or zero. */
     leaving: number;
@@ -60,8 +58,8 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
 
     const target = options.resolveTarget(domEvent.target);
 
-    // Not a file at all — dragging a tab, a row, a text selection — so this is nobody's drop to mark or prevent; a file over
-    // something that is not a host takes the mark off whichever host had it.
+    // Not a file at all (a tab, a row, a text selection) is nobody's drop to mark or prevent; a file over a non-host element
+    // clears whichever host was marked.
     if (target === null || !(domEvent.dataTransfer?.types.includes("Files") ?? false)) {
         if (target === null && domEvent.type === "dragover")
             unmarkAll(options, marked);
@@ -72,8 +70,8 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
     const { host } = target;
 
     if (domEvent.type === "dragleave") {
-        // Crossing into a child of the host is not leaving it. A leave with no destination is either such a hop — the next dragover
-        // takes the unmark back — or the file leaving the window, which nothing else reports for a drag the page never started.
+        // Crossing into a child of the host is not leaving it. A leave with no destination is either such a hop, undone by the
+        // next dragover, or the file leaving the window, which nothing else reports.
         if (!(domEvent.relatedTarget instanceof Node))
             state.leaving = window.setTimeout(() => unmarkAll(options, marked), LeaveGrace);
         else if (!host.contains(domEvent.relatedTarget))
@@ -85,8 +83,8 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
     domEvent.preventDefault();
 
     if (domEvent.type !== "drop") {
-        // A file the field would refuse anyway is refused while it is still in the air: the mark says so and the browser draws the
-        // "no drop" cursor, so the reader is not told green and then handed nothing.
+        // A file the field would refuse is marked refused while still in the air, so the browser's "no drop" cursor shows it
+        // rather than telling the reader green and handing them nothing.
         const refused = refusesDrag(target.accept, domEvent.dataTransfer);
 
         if (domEvent.dataTransfer !== null)
@@ -113,10 +111,8 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
 }
 
 /**
- * Whether the target would refuse everything the drag carries. A drag exposes each file's type and never its name, so this answers
- * only where the rule is written in types: a rule with an extension in it, or a browser that withholds the types until the drop, read
- * as "cannot tell" and the drag is let through to be judged on arrival. A file whose type the browser does not know is decidable all
- * the same — a rule of types has nothing for it to match, and `acceptsFile` refuses it on the drop for the very same reason.
+ * Whether the target would refuse everything the drag carries. A drag exposes only each file's type, never its name, so an
+ * extension rule can't be checked here and is let through to be judged by `acceptsFile` on the drop.
  */
 function refusesDrag(accept: string, transfer: DataTransfer | null): boolean {
     const rules = accept.split(",").map(entry => entry.trim().toLowerCase()).filter(entry => entry.length > 0);

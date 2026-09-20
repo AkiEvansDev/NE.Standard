@@ -78,11 +78,23 @@ public sealed class StandardUploadService : IUIUploadService
         ArgumentNullException.ThrowIfNull(fileIds);
 
         UIUploadedFile[] files = new UIUploadedFile[fileIds.Length];
+        var opened = 0;
 
-        for (var i = 0; i < fileIds.Length; i++)
+        try
         {
-            files[i] = await OpenAsync(handle, fileIds[i], progress: null, cancellationToken).ConfigureAwait(false);
-            progress?.Report((i + 1d) / fileIds.Length);
+            for (; opened < fileIds.Length; opened++)
+            {
+                files[opened] = await OpenAsync(handle, fileIds[opened], progress: null, cancellationToken).ConfigureAwait(false);
+                progress?.Report((opened + 1d) / fileIds.Length);
+            }
+        }
+        catch
+        {
+            // The caller never receives the array, so the streams already opened are this method's to close.
+            for (var i = 0; i < opened; i++)
+                await files[i].DisposeAsync().ConfigureAwait(false);
+
+            throw;
         }
 
         return files;

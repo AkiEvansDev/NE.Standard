@@ -97,7 +97,7 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     private const string SampleTooltip = "Waiting on two approvals";
 
     [RecursiveMember]
-    public partial UIBadgeType? Style { get; set; }
+    public partial UIBadgeType? Type { get; set; }
 
     [RecursiveMember]
     public partial UIThemeColor? Color { get; set; }
@@ -119,7 +119,7 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
 
     public BadgeGroupContext()
     {
-        AddOption(nameof(Style), CycleStyle, () => Style);
+        AddOption(nameof(Type), CycleType, () => Type);
         AddOption(nameof(Color), CycleColor, () => Color);
         AddOption(nameof(Icon), CycleIcon, () => Icon);
         AddOption(nameof(IconColor), CycleIconColor, () => IconColor);
@@ -129,10 +129,10 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
         AddTooltipOptions(SampleTooltip);
     }
 
-    public void CycleStyle()
-        => SetLastChange(nameof(Style), Style = CycleEnum(Style));
+    public void CycleType()
+        => SetLastChange(nameof(Type), Type = CycleEnum(Type));
 
-    // Color overrides Style: set, the pill carries that colour tinted rather than the style's own paint.
+    // Color overrides Type: set, the pill carries that colour tinted rather than the type's own paint.
     public void CycleColor()
         => SetLastChange(nameof(Color), Color = CycleValue(Color,
             UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning), null));

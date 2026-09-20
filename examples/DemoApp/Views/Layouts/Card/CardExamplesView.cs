@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Card;
@@ -51,9 +52,7 @@ internal sealed class CardExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetIcon(DemoImages.Avatar)
                 .SetBadgeText("Admin")
             )
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            .SetContent(UILayout.Stack(8)
                 .AddChild(new TextComponent().SetIcon(DemoIcons.Mail).SetTitle("robin@example.com").SetTitleType(UITextAppearance.Caption))
                 .AddChild(new TextComponent().SetIcon(DemoIcons.Clock).SetTitle("UTC+2 · usually online 9-17").SetTitleType(UITextAppearance.Caption))
             )

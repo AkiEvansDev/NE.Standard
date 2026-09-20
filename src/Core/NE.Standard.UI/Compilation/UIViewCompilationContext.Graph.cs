@@ -34,7 +34,12 @@ internal sealed partial class UIViewCompilationContext
         if (component is IContainerComponent container && container.HasChildren)
         {
             foreach (IVisualComponent child in container.Children)
+            {
+                if (container is IGridTracksComponent tracks && child is IGridSplitterComponent splitter)
+                    ValidateGridSplitter(tracks, splitter);
+
                 AddSlot(component, child, UIComponentSlotKind.Child, null);
+            }
         }
 
         if (component is IRegionContainerComponent regionContainer && regionContainer.HasRegions)
@@ -54,7 +59,7 @@ internal sealed partial class UIViewCompilationContext
             AddSlot(component, contextMenu, UIComponentSlotKind.ContextMenu, null);
     }
 
-    private void AddSlot(IVisualComponent owner, IVisualComponent root, UIComponentSlotKind kind, string? key)
+    private void AddSlot(IVisualComponent owner, IVisualComponent root, UIComponentSlotKind kind, string? key, string? keyProperty = null)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(root);
@@ -66,7 +71,8 @@ internal sealed partial class UIViewCompilationContext
             Kind = kind,
             OwnerComponentId = GetComponentId(owner.Id),
             RootComponentId = GetComponentId(root.Id),
-            Key = key
+            Key = key,
+            KeyProperty = keyProperty
         };
 
         if (!_slotsByOwnerComponentId.TryGetValue(owner.Id, out List<UIComponentSlot>? ownerSlots))
@@ -89,7 +95,13 @@ internal sealed partial class UIViewCompilationContext
         if (templated.HasTemplates)
         {
             foreach (KeyValuePair<string, IVisualComponent> template in templated.Templates)
-                AddSlot(owner, template.Value, UIComponentSlotKind.TemplateVariant, template.Key);
+            {
+                // A composite's variant carries the property its typed keys are read from: "node" and "node:folder" alike.
+                var colon = template.Key.IndexOf(':', StringComparison.Ordinal);
+                var baseKey = colon < 0 ? template.Key : template.Key[..colon];
+
+                AddSlot(owner, template.Value, UIComponentSlotKind.TemplateVariant, template.Key, templated.CompositeSlotKeyProperties.GetValueOrDefault(baseKey));
+            }
         }
 
         if (templated.HasEmptyTemplate)

@@ -143,6 +143,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = true)]
     public bool? ShowContextMenu { get; set; }
 
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = null)]
+    public string? ScrollGroup { get; set; }
+
     /// <summary>
     /// Sets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.
     /// </summary>
@@ -210,23 +214,23 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
-    /// Binds a component property to a recursive source path.
+    /// Binds a component property to a recursive source path; an <paramref name="optional"/> one expects sources without the path.
     /// </summary>
-    public TComponent Bind(UIProperty property, string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public TComponent Bind(UIProperty property, string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return Bind(property, RecursivePath.Parse(path), scope, mode);
+        return Bind(property, RecursivePath.Parse(path), scope, mode, optional);
     }
 
     /// <summary>
-    /// Binds a component property to a recursive source path.
+    /// Binds a component property to a recursive source path; an <paramref name="optional"/> one expects sources without the path.
     /// </summary>
-    public TComponent Bind(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public TComponent Bind(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
     {
         ArgumentNullException.ThrowIfNull(path);
         EnsureBindingAllowed(property, mode);
 
-        SetOrReplaceBinding(UIBinding.Property(property, path, scope, mode));
+        SetOrReplaceBinding(UIBinding.Property(property, path, scope, mode, optional));
         return Self;
     }
 

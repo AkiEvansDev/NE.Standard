@@ -7,6 +7,7 @@ using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -168,9 +169,7 @@ internal sealed class TabsExamplesView : DemoExamplesView, IUIViewDefinition
         ];
 
         return DemoUI.CreateGroup(null, "Against TabsView",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(460))
                 .AddChild(DemoUI.CreateCaption("Tabs — pages are regions the view wrote"))
                 .AddChild(new TabsComponent()

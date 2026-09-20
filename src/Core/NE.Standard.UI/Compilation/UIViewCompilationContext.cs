@@ -14,19 +14,7 @@ using NE.Standard.UI.Items;
 
 namespace NE.Standard.UI.Compilation;
 
-internal sealed class UIViewCompilationResult(
-    CompiledRegion[] regions,
-    CompiledDialog[] dialogs,
-    UIComponentNode[] nodes,
-    UIComponentState[] states,
-    CompiledUIBindingSource[] bindingSources,
-    CompiledUIBindingTemplate[] bindingTemplates,
-    CompiledUIContext[] contexts,
-    CompiledUIBinding[] bindings,
-    CompiledUIInteraction[] interactions,
-    CompiledUIEvent[] events,
-    CompiledUIValidationRule[] validations,
-    string[] warnings)
+internal sealed class UIViewCompilationResult(CompiledRegion[] regions, CompiledDialog[] dialogs, UIComponentNode[] nodes, UIComponentState[] states, CompiledUIBindingSource[] bindingSources, CompiledUIBindingTemplate[] bindingTemplates, CompiledUIContext[] contexts, CompiledUIBinding[] bindings, CompiledUIInteraction[] interactions, CompiledUIEvent[] events, CompiledUIValidationRule[] validations, KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets, string[] warnings)
 {
     public CompiledRegion[] Regions { get; } = regions;
     public CompiledDialog[] Dialogs { get; } = dialogs;
@@ -39,6 +27,7 @@ internal sealed class UIViewCompilationResult(
     public CompiledUIInteraction[] Interactions { get; } = interactions;
     public CompiledUIEvent[] Events { get; } = events;
     public CompiledUIValidationRule[] Validations { get; } = validations;
+    public KeyValuePair<UIComponentId, UIPropertyAddress>[] ValidationMessageTargets { get; } = validationMessageTargets;
     public string[] Warnings { get; } = warnings;
 }
 
@@ -104,6 +93,16 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             : throw new InvalidOperationException($"Component '{authoringComponentId}' was not found.");
     }
 
+    /// <summary>The component an authored reference names; AddComponent registers the id and the component together, so one lookup answers both.</summary>
+    private IVisualComponent GetComponent(string authoringComponentId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authoringComponentId);
+
+        return _components.TryGetValue(authoringComponentId, out IVisualComponent? component)
+            ? component
+            : throw new InvalidOperationException($"Component '{authoringComponentId}' was not found.");
+    }
+
     public void AddDialog(UIDialog dialog)
     {
         ArgumentNullException.ThrowIfNull(dialog);
@@ -118,6 +117,15 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             RootComponentId = GetComponentId(dialog.Content.Id),
             Surface = dialog.Surface,
             Placement = dialog.Placement,
+            Width = dialog.Width,
+            MinWidth = dialog.MinWidth,
+            MaxWidth = dialog.MaxWidth,
+            Height = dialog.Height,
+            MinHeight = dialog.MinHeight,
+            MaxHeight = dialog.MaxHeight,
+            HorizontalAlignment = dialog.HorizontalAlignment,
+            VerticalAlignment = dialog.VerticalAlignment,
+            Margin = dialog.Margin,
             Modal = dialog.Modal,
             CloseOnBackdrop = dialog.CloseOnBackdrop,
             CloseOnEscape = dialog.CloseOnEscape
@@ -153,6 +161,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         CompiledUIInteraction[] interactions = BuildInteractions();
         CompiledUIEvent[] events = BuildEvents(templatesByKey, componentContexts, rootPath);
         CompiledUIValidationRule[] validations = BuildValidations();
+        KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets = BuildValidationMessageTargets();
 
         return new UIViewCompilationResult(
             [.. _regions],
@@ -166,6 +175,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             interactions,
             events,
             validations,
+            validationMessageTargets,
             [.. _warnings]
         );
     }

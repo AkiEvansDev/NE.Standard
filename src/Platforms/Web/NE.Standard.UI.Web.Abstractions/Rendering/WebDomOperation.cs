@@ -21,9 +21,9 @@ public sealed class WebDomOperation
     public string? Value { get; init; }
 
     /// <summary>
-    /// Gets whether the target may be absent from a given instance: a part only some instances render, such as a period's second field.
+    /// Whether the target may be absent on a given instance — a part only some instances render, such as a period's second field.
     /// </summary>
-    /// <remarks>A property registers one operation list per component type, so a part that exists on some instances only is an optional target, not a second list.</remarks>
+    /// <remarks>A property registers one operation list per component type; a part missing on some instances is an optional target, not a second list.</remarks>
     public bool Optional { get; init; }
 
     public static WebDomOperation Text(string? target = null, string? converter = null)
@@ -150,9 +150,8 @@ public sealed class WebDomOperation
     }
 
     /// <summary>
-    /// An operation of a kind the framework does not know: one a package's client registered under <paramref name="kind"/>
-    /// through <c>registerDomOperation</c>, which gets the value and this operation's <paramref name="name"/> and
-    /// <paramref name="target"/> as any built-in one does.
+    /// An operation kind unknown to the framework, registered by a package's client under <paramref name="kind"/> via
+    /// <c>registerDomOperation</c>, which receives <paramref name="name"/> and <paramref name="target"/> like any built-in operation.
     /// </summary>
     public static WebDomOperation Custom(string kind, string? name = null, string? target = null, string? converter = null, bool optional = false)
     {

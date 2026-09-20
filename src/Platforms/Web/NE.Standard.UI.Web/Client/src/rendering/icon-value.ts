@@ -69,6 +69,38 @@ export function toCssUrl(source: string): string {
     return `url("${escaped}")`;
 }
 
+/** The box an icon value is drawn in, and the mark that says a glyph is there — `.ui-icon::before` stays hidden without it. */
+const iconClassName = "ui-icon";
+const iconAttribute = "data-ui-icon";
+
+/**
+ * Writes an icon value on an element the way `IconValueRenderer` does on the server: the `ui-icon` box, the glyph's class or
+ * picture, and the mark — for an element a package builds in the browser, a node's icon on a canvas.
+ */
+export function applyIconValue(element: Element, value: unknown): void {
+    const icon = String(value ?? "").trim();
+
+    element.classList.add(iconClassName);
+
+    if (icon.length === 0)
+        return;
+
+    element.setAttribute(iconAttribute, "");
+
+    const image = readIconSource(icon);
+
+    if (image === null) {
+        element.classList.add(toIconGlyphClassName(icon));
+        return;
+    }
+
+    if (element instanceof HTMLElement || element instanceof SVGElement)
+        element.style.setProperty("--ui-icon-url", toCssUrl(image.source));
+
+    if (!image.tinted)
+        element.classList.add(iconImageClassName);
+}
+
 /** The prefix a pack's per-glyph rule is written under. */
 const glyphClassPrefix = "ui-icon-glyph--";
 

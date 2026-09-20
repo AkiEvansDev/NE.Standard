@@ -10,14 +10,7 @@ namespace NE.Standard.UI.Web.Abstractions.Theming;
 /// <see cref="CultureInfo"/> and handed to the client alongside the value.
 /// </summary>
 /// <remarks>Text only: .NET stays the single source for month and day names, the client only assembles them.</remarks>
-public sealed record WebTemporalCulturePack(
-    IReadOnlyList<string> MonthNames,
-    IReadOnlyList<string> MonthGenitiveNames,
-    IReadOnlyList<string> AbbreviatedMonthNames,
-    IReadOnlyList<string> DayNames,
-    IReadOnlyList<string> AbbreviatedDayNames,
-    string AmDesignator,
-    string PmDesignator)
+public sealed record WebTemporalCulturePack(IReadOnlyList<string> MonthNames, IReadOnlyList<string> MonthGenitiveNames, IReadOnlyList<string> AbbreviatedMonthNames, IReadOnlyList<string> DayNames, IReadOnlyList<string> AbbreviatedDayNames, string AmDesignator, string PmDesignator)
 {
     /// <summary>
     /// Builds the pack for <paramref name="culture"/>; month arrays are trimmed to twelve, since .NET returns

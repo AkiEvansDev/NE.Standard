@@ -9,6 +9,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Flyout;
@@ -49,9 +50,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetIcon(DemoIcons.Outline(DemoIcons.Sliders))
                     .SetTitle("Filters")
                 )
-                .SetContent(CreatePanel(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(10)
+                .SetContent(CreatePanel(UILayout.Stack(10)
                     .AddChild(DemoUI.CreateCaption("Narrow the list"))
                     .AddChild(CreateRow(DemoIcons.Filter, "All environments"))
                     .AddChild(CreateRow(DemoIcons.Clock, "Last seven days"))
@@ -77,9 +76,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(null, "A detail beside a row",
             content => content.AddChild(new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(320))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(4)
+                .SetContent(UILayout.Stack(4)
                     .AddChild(CreateEntry("payments-api", "Deployed 4 minutes ago", withDetail: true))
                     .AddChild(CreateEntry("search-index", "Rolled back", withDetail: false))
                     .AddChild(CreateEntry("web-portal", "Waiting on review", withDetail: false))
@@ -106,9 +103,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
             // To the side: below is where the next row is.
             .SetFlyoutPlacement(UIPopupPlacement.RightStart)
             .SetAnchor(row)
-            .SetContent(CreatePanel(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            .SetContent(CreatePanel(UILayout.Stack(8)
                 .AddChild(DemoUI.CreateCaption("payments-api"))
                 .AddChild(CreateFact("Commit", "a079856"))
                 .AddChild(CreateFact("Duration", "4 m 12 s"))
@@ -130,9 +125,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateDismissGroup()
     {
         return DemoUI.CreateGroup(null, "When it goes away",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(14)
+            content => content.AddChild(UILayout.Stack(14)
                 .AddChild(DemoUI.CreateCaption("Both — a press outside, or Escape"))
                 .AddChild(new FlyoutComponent()
                     .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
@@ -158,9 +151,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetSize(UIButtonSize.Small)
                         .SetTitle("Stays open")
                     )
-                    .SetContent(CreatePanel(new StackPanelComponent()
-                        .SetOrientation(UIOrientation.Vertical)
-                        .SetSpacing(10)
+                    .SetContent(CreatePanel(UILayout.Stack(10)
                         .AddChild(new ParagraphComponent()
                             .SetDescription("Nothing outside this panel closes it — press the anchor again.")
                             .SetDescriptionType(UITextAppearance.Body)
@@ -178,9 +169,7 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateAgainstBuiltInGroup()
     {
         return DemoUI.CreateGroup(null, "Against the ones that already are one",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(14)
+            content => content.AddChild(UILayout.Stack(14)
                 .AddChild(DemoUI.CreateCaption("Select — a list of options, and a value bound to the chosen one"))
                 .AddChild(new SelectComponent()
                     .SetPlaceholder("Pick a region")
@@ -220,13 +209,8 @@ internal sealed class FlyoutExamplesView : DemoExamplesView, IUIViewDefinition
                 .AddChild(new FlyoutComponent()
                     .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
                     .SetHorizontalAlignment(UIAlignment.Start)
-                    .SetAnchor(new ButtonComponent()
-                        .SetType(UIButtonType.Outline)
-                        .SetTitle("Open a panel")
-                    )
-                    .SetContent(CreatePanel(new StackPanelComponent()
-                        .SetOrientation(UIOrientation.Vertical)
-                        .SetSpacing(8)
+                    .SetAnchor(UIButtons.Secondary("Open a panel"))
+                    .SetContent(CreatePanel(UILayout.Stack(8)
                         .AddChild(new ParagraphComponent()
                             .SetDescription("Whatever the page needs. No value, no keyboard model, no list — those are what the three above already brought with them.")
                             .SetDescriptionType(UITextAppearance.Body)

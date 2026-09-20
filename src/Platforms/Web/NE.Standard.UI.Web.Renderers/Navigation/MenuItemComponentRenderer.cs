@@ -75,11 +75,16 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             [WebDomOperation.Text(target: "." + ValueClass)]);
     }
 
-    /// <summary>A check's state: the class paints the mark, aria-checked says it; a check entry is a menuitemcheckbox to the reader.</summary>
+    /// <summary>
+    /// A check's state: the class paints the mark, aria-checked says it; a check entry is a menuitemcheckbox to the reader, and
+    /// only that role may carry aria-checked at all.
+    /// </summary>
     private static void RenderChecked(WebRenderContext context, IHtmlElementBuilder root, UIMenuItemKind? kind)
     {
-        if (kind == UIMenuItemKind.Check)
-            _ = root.Attribute("role", "menuitemcheckbox");
+        if (kind != UIMenuItemKind.Check)
+            return;
+
+        _ = root.Attribute("role", "menuitemcheckbox");
 
         _ = RenderProperty<bool?>(context, root, MenuItemComponent.CheckedProperty, static (target, value) =>
         {

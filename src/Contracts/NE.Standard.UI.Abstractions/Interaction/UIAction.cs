@@ -82,6 +82,16 @@ public sealed class UIAction
     }
 
     /// <summary>
+    /// Creates an action argument entry resolved from one key of the event's own chain, identified by its place
+    /// (for events with more than one key).
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgEventKey(string name, int index)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new KeyValuePair<string, UIActionArgument>(name, UIActionArgument.EventKey(index));
+    }
+
+    /// <summary>
     /// Creates an action argument entry resolved from a binding path relative to the root context.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgRoot(string name, string path)

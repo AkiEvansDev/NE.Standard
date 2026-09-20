@@ -5,6 +5,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -34,9 +35,7 @@ internal sealed class ExpanderScenariosView : DemoScenariosView, IUIViewDefiniti
     private static ContainerComponent CreateLoadGroup()
     {
         return DemoUI.CreateGroup(LoadGroup, "Read when it is first opened",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(10)
+            content => content.AddChild(UILayout.Stack(10)
                 .SetWidth(UILayoutLength.Absolute(420))
                 .AddChild(new ExpanderComponent()
                     .SetCollapsed()
@@ -80,9 +79,7 @@ internal sealed class ExpanderScenariosView : DemoScenariosView, IUIViewDefiniti
     private static ContainerComponent CreateEventGroup()
     {
         return DemoUI.CreateGroup(EventGroup, "Two events, one section",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(10)
+            content => content.AddChild(UILayout.Stack(10)
                 .SetWidth(UILayoutLength.Absolute(420))
                 .AddChild(new ExpanderComponent()
                     .SetCollapsed()

@@ -67,15 +67,7 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// Configures the built-in caption region.
     /// </summary>
     public T ConfigureDefaultCaption(Action<TabCaptionRegion> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (Caption is not TabCaptionRegion caption)
-            throw new InvalidOperationException($"Only {nameof(TabCaptionRegion)} caption is supported.");
-
-        configure(caption);
-        return Self;
-    }
+        => Self.ConfigureTemplate(Caption as TabCaptionRegion, configure, "caption");
 
     /// <summary>
     /// Sets the page this tab opens.

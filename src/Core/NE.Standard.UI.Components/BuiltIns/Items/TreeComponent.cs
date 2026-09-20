@@ -13,10 +13,10 @@ using NE.Standard.UI.Primitives.Constants;
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>
-/// A tree on the file list's model: thin rows with a glyph and a title, folded and unfolded by a chevron with the fold kept on
-/// the client, chosen like an items view's rows, opened by a double click or Enter, renamed in place, with a menu by kind.
-/// The nodes are a flat keyed list in walking order, each naming the node above it.
+/// A tree on the file list's model: thin rows with a glyph and title, folded by a chevron kept on the client, selected like an
+/// items view, opened by double click or Enter, renamed in place, with a menu by kind.
 /// </summary>
+/// <remarks>Nodes are a flat keyed list in walking order, each naming the node above it.</remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
@@ -55,8 +55,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public bool? RenameOnDoubleClick { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node can be dragged onto another: the drop writes the node's <c>DropTarget</c> and raises
-    /// <c>move</c>, and the controller moves the node or leaves it — nothing moves on the client.
+    /// Gets or sets whether a node can be dragged onto another: the drop writes <c>DropTarget</c> and raises <c>move</c>; the
+    /// controller moves the node, since nothing moves on the client.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Draggable { get; set; }
@@ -69,8 +69,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public bool? Removable { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node that can unfold draws its chevron; off, the rows keep no square for one and fold from the
-    /// keyboard or from a click on a node that refuses the choice.
+    /// Gets or sets whether a node that can unfold draws its chevron; off, folding still works from the keyboard or a click on
+    /// the node.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowFoldChevron { get; set; }
@@ -92,6 +92,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     protected TreeComponent(string? id = null) : base(id)
     {
         _ = SetRowTemplate(new DefaultRowTemplate());
+        _ = DeclareCompositeSlot(TemplateNames.Node, nameof(ITreeNodeModel.Kind));
         _ = SetTemplateVariantCore(TemplateNames.Node, new TreeNodeComponent(binds: true));
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
     }
@@ -100,15 +101,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// Configures the built-in node template — its glyph, its colours, the menu every node without a kind of its own opens.
     /// </summary>
     public T ConfigureDefaultNode(Action<TreeNodeComponent> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (NodeTemplate is not TreeNodeComponent template)
-            throw new InvalidOperationException($"Only {nameof(TreeNodeComponent)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(NodeTemplate, configure, "template");
 
     /// <summary>
     /// Sets the node template a node is drawn with when no variant matches its kind.
@@ -153,8 +146,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowOpen(command, arguments);
 
     /// <summary>
-    /// Registers the command run when a node that says it has children is unfolded before any are in the list, with the node's
-    /// key as an argument: the controller adds the children under it, or clears <c>HasChildren</c>.
+    /// Registers the command run when an unfold-capable node with no children yet is unfolded, with the node's key as an
+    /// argument; the controller adds children or clears <c>HasChildren</c>.
     /// </summary>
     public T OnNodeUnfoldWithItemKey(string command, string argumentName = "id")
         => OnNodeUnfold(command, UIAction.ArgCurrentItemKey(argumentName));
@@ -185,8 +178,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     }
 
     /// <summary>
-    /// Registers the command run after a drag wrote the node's <c>DropTarget</c>, with the dragged node's key as an argument;
-    /// the controller moves the node under the target, or refuses by doing nothing.
+    /// Registers the command run after a drag wrote <c>DropTarget</c>, with the dragged node's key as an argument; the
+    /// controller moves the node or refuses by doing nothing.
     /// </summary>
     public T OnNodeMoveWithItemKey(string command, string argumentName = "id")
         => OnNodeMove(command, UIAction.ArgCurrentItemKey(argumentName));

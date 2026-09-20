@@ -6,6 +6,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.BuiltIns.Templates;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -52,9 +53,7 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsViewComponent()
                     .SetItems(pages)
-                    .SetPageTemplate(new StackPanelComponent()
-                        .SetOrientation(UIOrientation.Vertical)
-                        .SetSpacing(8)
+                    .SetPageTemplate(UILayout.Stack(8)
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                         .AddChild(new TextComponent()
                             .SetIcon(DemoIcons.Outline(DemoIcons.Lock))

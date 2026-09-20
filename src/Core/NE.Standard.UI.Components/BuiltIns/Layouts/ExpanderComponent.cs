@@ -47,15 +47,7 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
     /// Configures the built-in default header region, throwing if a different header has been set.
     /// </summary>
     public T ConfigureDefaultHeader(Action<ExpanderHeaderRegion> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (Header is not ExpanderHeaderRegion header)
-            throw new InvalidOperationException($"Only {nameof(ExpanderHeaderRegion)} header is supported.");
-
-        configure(header);
-        return Self;
-    }
+        => Self.ConfigureTemplate(Header as ExpanderHeaderRegion, configure, "header");
 
     /// <summary>
     /// Sets <see cref="Expanded"/> to <see langword="true"/>.

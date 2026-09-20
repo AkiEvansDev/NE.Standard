@@ -45,6 +45,13 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     public partial bool HasMoreAfter { get; protected set; }
 
     /// <summary>
+    /// Gets what the source computed over the last query's items, by property, or <see langword="null"/> for none; a window
+    /// with aggregates replaces the old ones, one without leaves them.
+    /// </summary>
+    [RecursiveMember]
+    public partial IReadOnlyDictionary<string, object>? Aggregates { get; protected set; }
+
+    /// <summary>
     /// Reads a window and makes it the realized one. Called by the runtime when the client asks.
     /// </summary>
     public abstract Task LoadWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken = default);
@@ -82,6 +89,9 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
         ArgumentNullException.ThrowIfNull(window);
         window.Validate(request);
+
+        if (window.Aggregates is not null)
+            Aggregates = window.Aggregates;
 
         if (request.Mode == UIItemWindowMode.Extend && Items.Count > 0)
         {
@@ -185,8 +195,8 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     protected abstract Task<UIItemWindow<TItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Takes a property write from the client, returning whether it was accepted. Refuses everything by
-    /// default: a source that has nowhere to persist a change should not pretend it took one.
+    /// Takes a property write, returning whether it was accepted. Refuses by default: a source with nowhere to persist
+    /// shouldn't pretend it did.
     /// </summary>
     protected virtual Task<bool> TryWriteAsync(TItem item, string itemProperty, object? value, CancellationToken cancellationToken)
         => Task.FromResult(false);

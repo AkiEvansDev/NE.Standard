@@ -7,13 +7,12 @@ using NE.Standard.UI.Shell.Sessions;
 namespace NE.Standard.UI.Shell.Files;
 
 /// <summary>
-/// Answers the application's own protected content — a stored picture, an attachment — by key, for the session
-/// asking. The host serves it at <see cref="IUIContentAddressResolver.AddressOf"/>, so an <c>&lt;img&gt;</c> or a link can name it.
+/// Answers the application's own protected content (a stored picture, an attachment) by key, for the session asking;
+/// served at <see cref="IUIContentAddressResolver.AddressOf"/> so an <c>&lt;img&gt;</c> or link can name it.
 /// </summary>
 /// <remarks>
-/// The provider is the whole of the authorization: it sees who asks and what for, and answers <see langword="null"/>
-/// for anything that person may not have — the host then says "not found", never "forbidden", so a key's
-/// existence is not told to someone who may not read it.
+/// The provider is the whole authorization: answering <see langword="null"/> for anything the session may not have keeps
+/// the host at "not found", never "forbidden", so a key's existence is never disclosed.
 /// </remarks>
 public interface IUIContentProvider
 {
@@ -62,8 +61,8 @@ public sealed class UIContent : IAsyncDisposable, IDisposable
     public string? FileName { get; init; }
 
     /// <summary>
-    /// Gets whether the key always answers the same bytes, so the client may keep them: a content-addressed
-    /// or version-carrying key says <see langword="true"/>, a key whose content is replaced in place must not.
+    /// Gets whether the key always answers the same bytes, so the client may cache them: <see langword="true"/> for a
+    /// content-addressed or version-carrying key, false if its content can change in place.
     /// </summary>
     public bool Immutable { get; init; }
 

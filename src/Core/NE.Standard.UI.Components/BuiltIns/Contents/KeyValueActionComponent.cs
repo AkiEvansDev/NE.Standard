@@ -68,8 +68,8 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     public IButtonComponent? ActionTemplate => GetTemplateVariant(TemplateNames.Action) as IButtonComponent;
 
     /// <summary>
-    /// Gets whether rows can be edited in place: set by <see cref="EnableEditing"/>, read by the renderer to lay the input and
-    /// the save/cancel pair into every row.
+    /// Gets whether rows can be edited in place, set by <see cref="EnableEditing"/> and read by the renderer to lay the input
+    /// and save/cancel pair into each row.
     /// </summary>
     /// <remarks>Render-time only: it is how the list is built.</remarks>
     [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = false)]
@@ -97,6 +97,7 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         VerticalAlignment = UIAlignment.Start;
 
         _ = SetRowTemplate(new DefaultRowTemplate());
+        _ = DeclareCompositeSlot(TemplateNames.ValueInput, nameof(IKeyValueActionModel.InputTemplate));
         _ = SetKeyTemplate(new DefaultKeyTemplate(binds: true));
         _ = SetValueTemplate(new DefaultValueTemplate(binds: true));
         _ = SetActionTemplate(new DefaultActionTemplate(binds: true));
@@ -106,43 +107,19 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// Configures the default key template.
     /// </summary>
     public T ConfigureDefaultKeyTemplate(Action<DefaultKeyTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (KeyTemplate is not DefaultKeyTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultKeyTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(KeyTemplate as DefaultKeyTemplate, configure, "template");
 
     /// <summary>
     /// Configures the default value template.
     /// </summary>
     public T ConfigureDefaultValueTemplate(Action<DefaultValueTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (ValueTemplate is not DefaultValueTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultValueTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(ValueTemplate as DefaultValueTemplate, configure, "template");
 
     /// <summary>
     /// Configures the default action template.
     /// </summary>
     public T ConfigureDefaultActionTemplate(Action<DefaultActionTemplate> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (ActionTemplate is not DefaultActionTemplate template)
-            throw new InvalidOperationException($"Only {nameof(DefaultActionTemplate)} template is supported.");
-
-        configure(template);
-        return Self;
-    }
+        => Self.ConfigureTemplate(ActionTemplate as DefaultActionTemplate, configure, "template");
 
     /// <summary>
     /// Sets the key template.
@@ -182,8 +159,7 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         ArgumentNullException.ThrowIfNull(template);
 
-        // A field in a row is a filled box inside the row unless the author said otherwise — the settings editor's shape — set back by
-        // its own padding so its text starts where the value's did (the owner's call, 2026-09-07, after a ghost and a rule were tried).
+        // Fields default to filled, like the settings editor, with padding set back so the text aligns with the value's.
         if (template is IFieldInputComponent { Appearance: null } field)
             field.Appearance = UIInputAppearance.Filled;
 
@@ -192,11 +168,13 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     }
 
     /// <summary>
-    /// Lets a row become the input that edits its value. The pencil at the row's end opens it — through
-    /// <paramref name="editCommand"/> when one is given, so the controller seeds the draft, or on the client alone with the
-    /// value's text as the draft — and the pair that replaces it saves through <paramref name="saveCommand"/> (the row's
-    /// key as <c>id</c>) or cancels without a round trip. A text input stands in until a value-input template is set.
+    /// Lets a row become editable in place: a pencil button opens it, optionally seeding the draft through
+    /// <paramref name="editCommand"/>, and a save/cancel pair replaces it.
     /// </summary>
+    /// <remarks>
+    /// Saving goes through <paramref name="saveCommand"/> with the row's key as <c>id</c>; canceling needs no round trip; a
+    /// text input is the default until a value-input template is set.
+    /// </remarks>
     public T EnableEditing(string saveCommand, string? editCommand = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(saveCommand);

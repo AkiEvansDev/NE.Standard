@@ -9,7 +9,8 @@ public enum CompiledUIActionArgumentKind
 {
     Literal = 0,
     CurrentItemKey = 1,
-    Binding = 2
+    Binding = 2,
+    EventKey = 3
 }
 
 /// <summary>
@@ -28,7 +29,7 @@ public sealed class CompiledUIActionArgument
     public required CompiledUIActionArgumentKind Kind { get; init; }
 
     /// <summary>
-    /// Gets the literal value for literal arguments.
+    /// Gets the literal value for literal arguments, and the place in the event's key chain for an event key.
     /// </summary>
     public object? Value { get; init; }
 

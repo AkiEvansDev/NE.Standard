@@ -6,11 +6,8 @@ using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
-/// <summary>
-/// Writes the marks a row's abilities become (<see cref="IItemAbilitiesComponent"/>): one attribute per refusal, on the root of the
-/// component that is the row, patched live like any bound property. The marks the item itself carries at render are the same
-/// attributes, written on the row's wrapper by the items host.
-/// </summary>
+/// <summary>Writes the marks a row's abilities become (<see cref="IItemAbilitiesComponent"/>) as attributes on the row's root, patched live.</summary>
+/// <remarks>The item's own marks at render are the same attributes, written on the row's wrapper by the items host.</remarks>
 public static class ItemAbilitiesRenderer
 {
     /// <summary>Renders the five refusals as attributes on the root, each present only when the flag is false.</summary>

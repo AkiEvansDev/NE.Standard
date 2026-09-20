@@ -33,7 +33,10 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
             if (Controller is IUIContextController contextController)
                 Log.RuntimeResolutionFailed(contextController.Context.Logger, exception, kind, operation);
         }
-        catch { }
+        catch
+        {
+            // A logger that throws must not turn a failure already recovered from into a new one.
+        }
     }
 
     private static readonly UICommandResult DefaultRuntimeErrorCommand = UICommandResult.Fail("Runtime error.");
@@ -48,6 +51,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private bool _disposed;
     private bool _pendingFullResync;
     private int _fullResyncRequested;
+    private int _commandsInFlight;
 
     private readonly UIApplication _application;
 

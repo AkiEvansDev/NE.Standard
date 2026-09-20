@@ -1,3 +1,4 @@
+using DemoApp.Controllers.Actions;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
@@ -10,11 +11,14 @@ using NE.Standard.UI.Primitives.Styling;
 namespace DemoApp.Views.Actions;
 
 /// <summary>
-/// The places a split button is written: a primary action with its variants, a toolbar of menu buttons, and a field's end.
+/// The places a split button is written: a primary action with its variants, a toolbar of menu buttons, a field's end, and a
+/// menu whose entries are the controller's list.
 /// </summary>
-/// <remarks>Nothing here is bound: the pages exist to show the shapes, and a press has nowhere to report to.</remarks>
+/// <remarks>The first three groups are unbound shapes with nowhere to report to; the targets group is the bound one.</remarks>
 internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinition
 {
+    private const string TargetsGroup = nameof(SplitButtonExamplesController.TargetsGroup);
+
     public static string ViewKey => "demo.actions.split-button.examples";
 
     protected override string ComponentRoute => "/actions/split-button";
@@ -26,7 +30,7 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateVariantsGroup()],
-            [CreateToolbarGroup()]
+            [CreateToolbarGroup(), CreateTargetsGroup()]
         ));
 
         _ = container.AddChild(CreateFieldGroup());
@@ -111,6 +115,33 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
             .SetIcon(icon)
             .SetTitle(title)
             .SetItems(entries);
+
+    /// <summary>
+    /// The entries are the controller's: a bound list, a tick that moves to the target chosen last, and a target added while the
+    /// page is open — the menu follows each change the way any bound collection does.
+    /// </summary>
+    private static ContainerComponent CreateTargetsGroup()
+    {
+        return DemoUI.CreateGroup(TargetsGroup, "A list the controller keeps",
+            content => content.AddChild(DemoUI.CreateRow(16)
+                .AddChild(new SplitButtonComponent()
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
+                    .SetTitle("Deploy")
+                    .BindItems($"{TargetsGroup}.{nameof(SplitButtonTargetsGroupContext.Targets)}")
+                    .OnItemClickWithItemKey(nameof(SplitButtonExamplesController.DeployTo))
+                    .OnClick(nameof(SplitButtonExamplesController.Deploy))
+                )
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Add))
+                    .SetTitle("Add a target")
+                    .OnClick(nameof(SplitButtonExamplesController.AddTarget))
+                )
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            note: "The main part deploys to the ticked target; an entry deploys there and takes the tick. Add a target and open the menu again: the entry is there, the list being the controller's."
+        );
+    }
 
     /// <summary>
     /// A field's trailing action: a plain button, and a split button — the menu case with nothing more to build.

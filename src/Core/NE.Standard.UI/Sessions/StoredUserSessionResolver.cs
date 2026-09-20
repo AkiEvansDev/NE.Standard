@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Frozen;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Application;
@@ -45,7 +44,7 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
         // Not saved here: UIHost persists whatever a resolver returns.
         UserSessionState session = stored ?? new UserSessionState
         {
-            SessionId = CreateSessionId(),
+            SessionId = UserSessions.NewId(),
             Language = _application.Translator.DefaultLanguage,
             CreatedAtUtc = utcNow,
             LastSeenAtUtc = utcNow
@@ -78,14 +77,8 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
         if (stored is null)
             return null;
 
-        return stored.LastSeenAtUtc + _application.Sessions.IdleTimeout <= utcNow ? null : stored;
+        return stored.IsIdle(_application.Sessions.IdleTimeout, utcNow) ? null : stored;
     }
-
-    /// <summary>
-    /// Issues an unguessable session id — a predictable one is a session-fixation invitation.
-    /// </summary>
-    private static string CreateSessionId()
-        => Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
 
     /// <summary>
     /// Overlays the host's principal onto the session when the application has made claims the authority.

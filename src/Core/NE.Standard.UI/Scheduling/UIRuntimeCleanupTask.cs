@@ -20,8 +20,9 @@ internal sealed partial class UIRuntimeCleanupTask : RuntimeScheduledTask
     private readonly UIRuntimeStore _store;
     private readonly ILogger _logger;
     private readonly TimeSpan _retention;
+    private readonly TimeSpan _unclaimedRetention;
 
-    public UIRuntimeCleanupTask(UIRuntimeStore store, ILogger logger, TimeSpan interval, TimeSpan retention)
+    public UIRuntimeCleanupTask(UIRuntimeStore store, ILogger logger, TimeSpan interval, TimeSpan retention, TimeSpan unclaimedRetention)
         : base(new RuntimeScheduledTaskOptions { Interval = interval })
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -30,9 +31,13 @@ internal sealed partial class UIRuntimeCleanupTask : RuntimeScheduledTask
         if (retention < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(retention), retention, "Retention cannot be negative.");
 
+        if (unclaimedRetention < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(unclaimedRetention), unclaimedRetention, "Unclaimed retention cannot be negative.");
+
         _store = store;
         _logger = logger;
         _retention = retention;
+        _unclaimedRetention = unclaimedRetention;
     }
 
     public override async ValueTask ExecuteAsync(DateTime utcNow, CancellationToken cancellationToken)
@@ -43,7 +48,7 @@ internal sealed partial class UIRuntimeCleanupTask : RuntimeScheduledTask
         {
             // Logged rather than kept on the task: nothing holds the instance to read a property from.
             var removed = await _store
-                .CleanupAsync(utcNow, _retention)
+                .CleanupAsync(utcNow, _retention, _unclaimedRetention)
                 .ConfigureAwait(false);
 
             Log.ScheduledCleanupCompleted(_logger, removed);

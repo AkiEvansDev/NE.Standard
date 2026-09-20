@@ -14,4 +14,12 @@ public abstract partial class FieldInputComponentBase<TComponent, TValue>(string
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = UIInputAppearance.Filled)]
     public UIInputAppearance? Appearance { get; set; }
+
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
+    public UIInputSize? Size { get; set; }
+
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IFieldInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = UIInputTitlePlacement.Top)]
+    public UIInputTitlePlacement? TitlePlacement { get; set; }
 }

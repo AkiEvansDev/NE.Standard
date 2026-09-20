@@ -70,7 +70,6 @@ public static class WebClassNames
         {
             UITextWrapMode.NoWrap => "ui-text--nowrap",
             UITextWrapMode.Wrap => "ui-text--wrap",
-            UITextWrapMode.WrapEllipsis => "ui-text--wrap-ellipsis",
             _ => throw new UnreachableException()
         };
 
@@ -208,6 +207,15 @@ public static class WebClassNames
             UIInputAppearance.Outline => "ui-input--outline",
             UIInputAppearance.Underline => "ui-input--underline",
             UIInputAppearance.Ghost => "ui-input--ghost",
+            _ => throw new UnreachableException()
+        };
+
+    public static string InputSize(UIInputSize value)
+        => value switch
+        {
+            UIInputSize.Small => "ui-input--small",
+            UIInputSize.Medium => "ui-input--medium",
+            UIInputSize.Large => "ui-input--large",
             _ => throw new UnreachableException()
         };
 

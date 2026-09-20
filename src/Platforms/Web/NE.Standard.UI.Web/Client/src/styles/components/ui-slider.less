@@ -93,8 +93,9 @@
     display: inline-block;
 }
 
-// An anchor for the bubble, since a range input paints its own handle: --ui-slider-fraction and the thumb width track the handle's centre.
-@ui-slider-thumb: 1.1rem;
+// An anchor for the bubble, since a range input paints its own handle; --ui-slider-fraction and the thumb width track its
+// centre. A variable, not a constant, so a size change below moves the anchor with it.
+@ui-slider-thumb: var(--ui-slider-thumb, 1.1rem);
 
 .ui-slider__thumb-anchor {
     position: absolute;
@@ -138,8 +139,8 @@
     left: var(--ui-popup-arrow, 50%);
     width: 0.45rem;
     height: 0.45rem;
-    border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-    border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
+    border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: var(--ui-color-surface);
     transform: translate(-50%, -55%) rotate(45deg);
 }
@@ -147,8 +148,8 @@
     .ui-slider__bubble[data-ui-placement^="bottom"]::after {
         top: auto;
         bottom: 100%;
-        border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-        border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
+        border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
         border-right: none;
         border-bottom: none;
         transform: translate(-50%, 55%) rotate(45deg);
@@ -157,8 +158,8 @@
     .ui-slider__bubble[data-ui-placement^="left"]::after {
         top: var(--ui-popup-arrow, 50%);
         left: 100%;
-        border-top: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-        border-right: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
+        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
         border-bottom: none;
         border-left: none;
         transform: translate(-55%, -50%) rotate(45deg);
@@ -167,8 +168,8 @@
     .ui-slider__bubble[data-ui-placement^="right"]::after {
         top: var(--ui-popup-arrow, 50%);
         left: 0;
-        border-bottom: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
-        border-left: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
+        border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
         border-top: none;
         border-right: none;
         transform: translate(-45%, -50%) rotate(45deg);
@@ -201,3 +202,57 @@
     background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
 }
 
+// A size steps the track, the handle and the text ui-input.less sizes; the handle stays centred on the track by its own margin.
+.ui-slider.ui-input--small {
+    --ui-slider-thumb: 0.875rem;
+}
+
+    .ui-slider.ui-input--small .ui-slider__input {
+        height: 1rem;
+    }
+
+    .ui-slider.ui-input--small .ui-slider__input::-webkit-slider-runnable-track {
+        height: 0.25rem;
+    }
+
+    .ui-slider.ui-input--small .ui-slider__input::-moz-range-track {
+        height: 0.25rem;
+    }
+
+    .ui-slider.ui-input--small .ui-slider__input::-webkit-slider-thumb {
+        width: 0.875rem;
+        height: 0.875rem;
+        margin-top: -0.3125rem;
+    }
+
+    .ui-slider.ui-input--small .ui-slider__input::-moz-range-thumb {
+        width: 0.875rem;
+        height: 0.875rem;
+    }
+
+.ui-slider.ui-input--large {
+    --ui-slider-thumb: 1.375rem;
+}
+
+    .ui-slider.ui-input--large .ui-slider__input {
+        height: 1.5rem;
+    }
+
+    .ui-slider.ui-input--large .ui-slider__input::-webkit-slider-runnable-track {
+        height: 0.5rem;
+    }
+
+    .ui-slider.ui-input--large .ui-slider__input::-moz-range-track {
+        height: 0.5rem;
+    }
+
+    .ui-slider.ui-input--large .ui-slider__input::-webkit-slider-thumb {
+        width: 1.375rem;
+        height: 1.375rem;
+        margin-top: -0.4375rem;
+    }
+
+    .ui-slider.ui-input--large .ui-slider__input::-moz-range-thumb {
+        width: 1.375rem;
+        height: 1.375rem;
+    }

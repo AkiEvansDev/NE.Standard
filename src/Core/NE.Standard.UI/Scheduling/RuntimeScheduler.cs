@@ -21,6 +21,9 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
     {
         public required RuntimeScheduledTask Task { get; init; }
         public required DateTime NextRunUtc { get; set; }
+
+        /// <summary>The pass still in flight, so a slow one is skipped rather than run twice over itself.</summary>
+        public Task? Running { get; set; }
     }
 
     private readonly Lock _sync = new();
@@ -91,6 +94,10 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         try
         {
             await loop.ConfigureAwait(false);
+
+            // A pass already under way finishes: a half-written flush would leave its runtime's changes drained and unsent.
+            foreach (Task running in RunningTasks())
+                await running.ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
         finally
@@ -110,7 +117,7 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
 
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
-                await ExecuteDueAsync(DateTime.UtcNow, cancellationToken).ConfigureAwait(false);
+                ExecuteDue(DateTime.UtcNow, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -146,44 +153,79 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         }
     }
 
-    private async ValueTask ExecuteDueAsync(DateTime utcNow, CancellationToken cancellationToken)
+    /// <summary>
+    /// Starts every task that is due, without waiting for it.
+    /// </summary>
+    /// <remarks>
+    /// Tasks don't queue behind each other: the flush runs every 50 ms while sweeps run every minute over a whole store, so
+    /// serial waiting would let a slow sweep delay every session's flush. A task still running at its next turn is skipped
+    /// instead, so it never overlaps itself.
+    /// </remarks>
+    private void ExecuteDue(DateTime utcNow, CancellationToken cancellationToken)
     {
-        Entry[] due;
+        List<Entry>? due = null;
 
         lock (_sync)
         {
-            List<Entry> buffer = [];
-
             for (var i = 0; i < _entries.Count; i++)
             {
                 Entry entry = _entries[i];
 
-                if (entry.NextRunUtc <= utcNow)
-                {
-                    entry.NextRunUtc = utcNow + entry.Task.Options.Interval;
-                    buffer.Add(entry);
-                }
-            }
+                if (entry.NextRunUtc > utcNow)
+                    continue;
 
-            due = [.. buffer];
+                entry.NextRunUtc = utcNow + entry.Task.Options.Interval;
+
+                if (entry.Running is { IsCompleted: false })
+                    continue;
+
+                due ??= [];
+                due.Add(entry);
+            }
         }
 
-        for (var i = 0; i < due.Length; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        if (due is null)
+            return;
 
-            try
+        // Started outside the lock: a task's first stretch runs synchronously and takes locks of its own.
+        for (var i = 0; i < due.Count; i++)
+        {
+            Task running = RunTaskAsync(due[i].Task, utcNow, cancellationToken);
+
+            lock (_sync)
+                due[i].Running = running;
+        }
+    }
+
+    private async Task RunTaskAsync(RuntimeScheduledTask task, DateTime utcNow, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await task.ExecuteAsync(utcNow, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Log.RuntimeScheduledTaskFailed(_logger, exception, task.GetType().Name);
+        }
+    }
+
+    /// <summary>The passes still in flight, so a stop waits for them rather than tearing them off mid-write.</summary>
+    private Task[] RunningTasks()
+    {
+        lock (_sync)
+        {
+            List<Task> running = [];
+
+            for (var i = 0; i < _entries.Count; i++)
             {
-                await due[i].Task.ExecuteAsync(utcNow, cancellationToken).ConfigureAwait(false);
+                if (_entries[i].Running is Task task && !task.IsCompleted)
+                    running.Add(task);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                Log.RuntimeScheduledTaskFailed(_logger, exception, due[i].Task.GetType().Name);
-            }
+
+            return [.. running];
         }
     }
 

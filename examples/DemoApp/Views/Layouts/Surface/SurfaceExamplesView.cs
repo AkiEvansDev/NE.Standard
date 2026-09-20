@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Surface;
@@ -75,10 +76,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateStatsGroup()
     {
         return DemoUI.CreateGroup(null, "A strip of readings",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(12)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(CreateStat("47", "Deploys this week", UIColorStyle.Info))
                 .AddChild(CreateStat("2", "Rolled back", UIColorStyle.Danger))
                 .AddChild(CreateStat("99.94%", "Availability", UIColorStyle.Success))
@@ -105,10 +103,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateChoiceGroup()
     {
         return DemoUI.CreateGroup(null, "A tile you pick",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(12)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(CreateTile(DemoIcons.Upload, "Deploy now", "Straight to production, no gate.", chosen: false))
                 .AddChild(CreateTile(DemoIcons.Clock, "Schedule it", "Runs at the next release window.", chosen: true))
                 .AddChild(CreateTile(DemoIcons.Shield, "Stage only", "Stops after staging, waits for approval.", chosen: false))
@@ -143,9 +138,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(null, "A surface inside a surface",
             content => content.AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(10)
+                .SetContent(UILayout.Stack(10)
                     .AddChild(new TextComponent()
                         .SetTitle("Build 481")
                         .SetTitleType(UITextAppearance.Subtitle)
@@ -155,11 +148,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .AddChild(new SurfaceComponent()
                         .SetSurface(UISurfaceStyle.Background)
-                        .SetContent(new ParagraphComponent()
-                            .SetDescription("`dotnet test` — 452 passed, 0 failed. Artifacts uploaded to the staging registry.")
-                            .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                        )
+                        .SetContent(UIText.Note("`dotnet test` — 452 passed, 0 failed. Artifacts uploaded to the staging registry."))
                     )
                 )
                 .SetPlacement(1, 1, 24, 1)
@@ -176,9 +165,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(null, "Nothing here yet",
             content => content.AddChild(new SurfaceComponent()
                 .SetPadding(UIThickness.Uniform(28))
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetHorizontalAlignment(UIAlignment.Center)
                     .AddChild(new IconComponent()
                         .SetIcon(DemoIcons.Outline(DemoIcons.Search))
@@ -212,16 +199,11 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateAgainstCardGroup()
     {
         return DemoUI.CreateGroup(null, "Against a card",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(16)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(16)
                 .AddChild(DemoUI.CreateCaptionedItem("SurfaceComponent", new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(260))
-                    .SetContent(new StackPanelComponent()
-                        .SetOrientation(UIOrientation.Vertical)
-                        .SetSpacing(8)
+                    .SetContent(UILayout.Stack(8)
                         .AddChild(CreateSampleHeading())
                         .AddChild(CreateSampleBody())
                         .AddChild(CreateSampleFooter())

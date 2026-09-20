@@ -76,11 +76,9 @@ public static class EventNames
     public const string Search = "search";
 
     /// <summary>
-    /// Fires when a label is renamed in place.
+    /// Fires when a label is renamed in place; distinct from <see cref="Change"/> because a component may commit more than
+    /// one value that way, e.g. a tab's caption and position.
     /// </summary>
-    /// <remarks>
-    /// Distinct from <see cref="Change"/> because a component may commit more than one value that way, e.g. a tab's caption and position.
-    /// </remarks>
     public const string Rename = "rename";
 
     /// <summary>A tree node unfolded before its children are in the list; not <see cref="Expand"/>, which is a details element's toggle.</summary>

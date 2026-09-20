@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
@@ -11,9 +12,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A group of radio buttons that lets the user select a single option from a list.
 /// </summary>
-public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>
+public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
+    public UIInputSize? Size { get; set; }
+
     /// <summary>
     /// Gets or sets the layout orientation of the radio buttons.
     /// </summary>

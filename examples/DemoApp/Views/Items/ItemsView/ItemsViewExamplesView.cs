@@ -3,6 +3,7 @@ using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.ItemsView;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -10,6 +11,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
@@ -27,6 +29,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
 
     /// <summary>Ids of the two controls a list's rules name; a rule reads a component, not a value.</summary>
     private const string FilterId = "items-examples-filter";
+    private const string RegionId = "items-examples-region";
     private const string SortId = "items-examples-sort";
 
     public static string ViewKey => "demo.items.items-view.examples";
@@ -47,27 +50,61 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
     }
 
     /// <summary>
-    /// The ordinary list with a box over it, filtered in the browser against a collection it holds whole, as the viewer types.
+    /// The ordinary list with a box and a select over it, narrowed in the browser against a collection it holds whole: the
+    /// box as the viewer types, the select while it holds a region, and a row passes both or is hidden.
     /// </summary>
+    /// <remarks>The rows are the rich kind — a glyph, two lines and a badge at the end — since a list is rarely a column of names.</remarks>
     private static ContainerComponent CreateFilterGroup()
     {
-        return DemoUI.CreateGroup(null, "A list narrowed as you type",
+        return DemoUI.CreateGroup(null, "A list narrowed as you type, and by region",
             content => content
-                .AddChild(new TextInputComponent(FilterId)
-                    .SetPlaceholder("Filter services")
-                    .SetPrefixIcon(DemoIcons.Search)
-                    .SetDebounceMilliseconds(150)
-                    .SetMargin(UIThickness.All(0, 0, 0, 8))
-                    .SetPlacement(1, 1, 24, 1)
+                .AddChild(UILayout.Columns(12,
+                    new TextInputComponent(FilterId)
+                        .SetPlaceholder("Filter services")
+                        .SetPrefixIcon(DemoIcons.Search)
+                        .SetShowClearButton()
+                        .SetDebounceMilliseconds(150),
+                    new SelectComponent(RegionId)
+                        .SetPlaceholder("Any region")
+                        .SetShowClearButton()
+                        .SetOptions(
+                        [
+                            new OptionItem { Id = "Europe", Title = "Europe" },
+                            new OptionItem { Id = "Americas", Title = "Americas" },
+                            new OptionItem { Id = "Asia Pacific", Title = "Asia Pacific" }
+                        ])
                 )
+                .SetMargin(UIThickness.All(0, 0, 0, 8))
+                .SetPlacement(1, 1, 24, 1))
                 .AddChild(new ItemsViewComponent()
                     .SetItems(CreateServices(grouped: false))
                     .FilterBy(FilterId, IInputComponent.ValueProperty, nameof(TextItem.Title))
-                    .SetSpacing(8)
+                    .FilterBy(RegionId, IInputComponent.ValueProperty, nameof(DemoServiceItem.Region), UIComparisonOperator.Equal)
+                    .SetSpacing(4)
+                    .SetTemplate(CreateServiceRow())
+                    .ConfigureDefaultEmptyTemplate(template => _ = template
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Search))
+                        .SetTitle("No service matches")
+                        .SetDescription("Loosen the box or the region.")
+                    )
                     .SetPlacement(1, 2, 24, 1)
-                )
+                ),
+            note: "Two rules on one list, both in the browser; the inbox and the catalogue under Screens are the same list with more of them."
         );
     }
+
+    /// <summary>A row with everything a service has to say: the glyph, the name, the line under it, and its state at the end.</summary>
+    private static TextComponent CreateServiceRow()
+        => new TextComponent()
+            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+            .SetIconColor(UIThemeColor.Muted)
+            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+            .AsBody()
+            .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+            .SetDescriptionColor(UIThemeColor.Muted)
+            .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
+            .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+            .SetBadgePlacement(UITextBadgePlacement.Trailing);
 
     /// <summary>
     /// Chips under a switch: a sort rule can be gated on another component's value, like a filter, and the order comes back when it is off.
@@ -110,13 +147,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
             content => content.AddChild(new ItemsViewComponent()
                 .SetItems(CreateServices())
                 .SetSpacing(4)
-                .SetTemplate(new TextComponent()
-                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
-                    .SetTitleType(UITextAppearance.Body)
-                    .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-                    .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
-                    .SetBadgePlacement(UITextBadgePlacement.Trailing)
-                )
+                .SetTemplate(CreateServiceRow())
                 .SetPlacement(1, 1, 24, 1)
             )
         );
@@ -178,28 +209,39 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
             );
 
     /// <summary>
-    /// The other layout: the copies are placed against the same twenty-four columns a container uses.
+    /// The other layout: tiles that wrap, each a picture over two lines and a badge — the shelf's shape, at a group's width.
     /// </summary>
     private static ContainerComponent CreateTilesGroup()
     {
-        return DemoUI.CreateGroup(null, "Tiles on the grid",
+        return DemoUI.CreateGroup(null, "Tiles that wrap",
             content => content.AddChild(new ItemsViewComponent()
                 .SetItems(CreateReleases())
                 .SetLayoutType(UIItemsLayoutType.Wrap)
-                .SetSpacing(8)
+                .SetSpacing(12)
                 .SetTemplate(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Tinted)
-                    .SetBackground(UIThemeColor.Accent)
-                    .SetBorderColor(UIThemeColor.Accent)
-                    .SetContent(new TextComponent()
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
-                        .SetTitleType(UITextAppearance.Caption)
-                        .SetTextAlignment(UITextAlignment.Center)
-                    )
-                    .SetPlacement(1, 1, 6, 1)
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetWidth(UILayoutLength.Absolute(200))
+                    .SetPadding(UIThickness.Uniform(0))
+                    .SetContent(UILayout.Stack(0,
+                        new ImageComponent()
+                            .BindSource(nameof(DemoReleaseItem.Picture), UIBindingScope.Relative)
+                            .BindAltText(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .SetFit(UIImageFit.Cover)
+                            .SetHeight(UILayoutLength.Absolute(88))
+                            .SetCornerRadius(UICornerRadius.Top(8)),
+                        new TextComponent()
+                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .AsBody()
+                            .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                            .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
+                            .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                            .SetMargin(UIThickness.All(10, 8, 10, 10))
+                    ))
                 )
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            note: "A tile is a card's shape without a card's regions; the catalogue under Screens is a page of them."
         );
     }
 
@@ -245,9 +287,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
             .SetPadding(UIThickness.All(10, 8, 10, 8))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(6)
+            .SetContent(UILayout.Stack(6)
                 .AddChild(new TextComponent()
                     .BindTitle(nameof(DemoFeedItem.Title), UIBindingScope.Relative)
                     .SetTitleType(UITextAppearance.Caption)
@@ -301,17 +341,17 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
     private static TextItem CreateTeam(string id, string title, string icon)
         => new() { Id = id, Icon = icon, Title = title };
 
-    private static TextItem[] CreateReleases()
+    private static DemoReleaseItem[] CreateReleases()
         =>
         [
-            CreateRelease("r481", "481", "Raised the health gate to ten minutes.", "Live", UIBadgeType.Success),
-            CreateRelease("r480", "480", "Index rebuild moved off the deploy path.", "Rolled back", UIBadgeType.Warning),
-            CreateRelease("r479", "479", "Payments retries with jitter.", "Live", UIBadgeType.Success),
-            CreateRelease("r478", "478", "Search indexer on the new tokenizer.", "Live", UIBadgeType.Success),
-            CreateRelease("r477", "477", "Mail relay paused for the provider migration.", "Paused", UIBadgeType.Surface),
-            CreateRelease("r476", "476", "Report builder exports as CSV.", "Live", UIBadgeType.Success)
+            CreateRelease("r481", "481", "Raised the health gate to ten minutes.", "Live", UIBadgeType.Success, DemoImages.HarbourSky),
+            CreateRelease("r480", "480", "Index rebuild moved off the deploy path.", "Rolled back", UIBadgeType.Warning, DemoImages.SunsetRuins),
+            CreateRelease("r479", "479", "Payments retries with jitter.", "Live", UIBadgeType.Success, DemoImages.NightStreet),
+            CreateRelease("r478", "478", "Search indexer on the new tokenizer.", "Live", UIBadgeType.Success, DemoImages.MeteorShore),
+            CreateRelease("r477", "477", "Mail relay paused for the provider migration.", "Paused", UIBadgeType.Surface, DemoImages.HarbourSky),
+            CreateRelease("r476", "476", "Report builder exports as CSV.", "Live", UIBadgeType.Success, DemoImages.SunsetRuins)
         ];
 
-    private static TextItem CreateRelease(string id, string number, string note, string badge, UIBadgeType badgeStyle)
-        => new() { Id = id, Icon = DemoIcons.Upload, Title = $"Release {number}", Description = note, BadgeText = badge, BadgeStyle = badgeStyle };
+    private static DemoReleaseItem CreateRelease(string id, string number, string note, string badge, UIBadgeType badgeStyle, string picture)
+        => new() { Id = id, Icon = DemoIcons.Upload, Title = $"Release {number}", Description = note, BadgeText = badge, BadgeStyle = badgeStyle, Picture = picture };
 }

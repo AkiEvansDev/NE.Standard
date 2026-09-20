@@ -6,6 +6,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Select;
@@ -28,7 +29,7 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreatePlainGroup()],
-            [CreateRichGroup()]
+            [CreateRichGroup(), CreatePlacementGroup()]
         ));
 
         _ = container.AddChild(CreateTemplateGroup());
@@ -56,6 +57,34 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     }
 
     /// <summary>
+    /// A select at the far end of a row opens its list from its own end edge, so the list grows back over the row rather than off it;
+    /// a list wider than the field keeps its options whole.
+    /// </summary>
+    private static ContainerComponent CreatePlacementGroup()
+    {
+        return DemoUI.CreateGroup(null, "Where the list opens",
+            content => content.AddChild(DemoUI.CreateStack()
+                .AddChild(new SelectComponent()
+                    .SetTitle("From the end edge")
+                    .SetPopupPlacement(UIPopupPlacement.BottomEnd)
+                    .SetOptions(RegionOptions())
+                    .SetValue("eu-west-1")
+                    .SetWidth(UILayoutLength.Absolute(160))
+                    .SetHorizontalAlignment(UIAlignment.End)
+                )
+                .AddChild(new SelectComponent()
+                    .SetTitle("Small, above")
+                    .SetSize(UIInputSize.Small)
+                    .SetPopupPlacement(UIPopupPlacement.TopStart)
+                    .SetOptions(RegionOptions())
+                    .SetValue("eu-west-1")
+                    .SetWidth(UILayoutLength.Absolute(120))
+                )
+            )
+        );
+    }
+
+    /// <summary>
     /// The same control over options carrying every text surface, with no template of its own.
     /// </summary>
     private static ContainerComponent CreateRichGroup()
@@ -69,11 +98,7 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetValue("prod")
                     .SetShowClearButton()
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The trigger shows the chosen option through the list's own template — icon, second line and badge included.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("The trigger shows the chosen option through the list's own template — icon, second line and badge included."))
             )
         );
     }

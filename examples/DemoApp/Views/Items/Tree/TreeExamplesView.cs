@@ -3,12 +3,17 @@ using DemoApp.Views.Base;
 using NE.Colors;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
+using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.Tree;
@@ -19,7 +24,9 @@ namespace DemoApp.Views.Items.Tree;
 /// </summary>
 internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
 {
+    private const string FilesFilterId = "tree-examples-filter";
     private const string FilesGroup = nameof(TreeExamplesController.FilesGroup);
+    private const string MenuGroup = nameof(TreeExamplesController.MenuGroup);
     private const string LazyGroup = nameof(TreeExamplesController.LazyGroup);
     private const string SettingsGroup = nameof(TreeExamplesController.SettingsGroup);
 
@@ -34,7 +41,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateFilesGroup()],
-            [CreateSettingsGroup()]
+            [CreateSettingsGroup(), CreateMenuGroup()]
         ));
 
         _ = container.AddChild(CreateLazyGroup());
@@ -42,13 +49,28 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
 
     /// <summary>
     /// A folder and a file open different menus: the kind names the node template, and the template carries the menu. Enter
-    /// opens, a double click, F2 or the menu renames, a drag moves — and every change comes back through the controller.
+    /// opens, a double click, F2 or the menu renames, a drag moves — and every change comes back through the controller. A box
+    /// over the tree narrows it the way a list is narrowed, and the sort rules order every folder's children alike.
     /// </summary>
     private static ContainerComponent CreateFilesGroup()
     {
         return DemoUI.CreateGroup(FilesGroup, "A project's files",
-            content => content.AddChild(new TreeComponent(TreeExamplesController.FilesTreeId)
+            content => content
+                .AddChild(new TextInputComponent(FilesFilterId)
+                    .SetPlaceholder("Filter files")
+                    .SetPrefixIcon(DemoIcons.Search)
+                    .SetShowClearButton()
+                    .SetDebounceMilliseconds(150)
+                    .SetMargin(UIThickness.All(0, 0, 0, 8))
+                    .SetPlacement(1, 1, 24, 1)
+                )
+                .AddChild(new TreeComponent(TreeExamplesController.FilesTreeId)
                 .BindItems($"{FilesGroup}.{nameof(TreeFilesGroupContext.Items)}")
+                // A node stays while it or something under it matches, and its folders stand open for as long as the box holds a word.
+                .FilterBy(FilesFilterId, IInputComponent.ValueProperty, nameof(TreeNode.Title))
+                // One order for every folder's children: folders first, then by name — the same whatever a drag or a rename did.
+                .SortBy(nameof(TreeNode.Kind), UIItemsSortDirection.Descending)
+                .SortBy(nameof(TreeNode.Title), UIItemsSortDirection.Ascending, priority: 1)
                 // Many, so several nodes go together: Shift takes a range, Ctrl adds one, and a drag or Delete on a chosen node takes them all.
                 .SetSelectionMode(UISelectionMode.Many)
                 .SetRenamable(true)
@@ -72,9 +94,31 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
                 .OnNodeRenameWithItemKey(nameof(TreeExamplesController.RenameNode))
                 .OnNodeMoveWithItemKey(nameof(TreeExamplesController.MoveNode))
                 .OnNodeRemoveWithItemKey(nameof(TreeExamplesController.DeleteNode))
+                .SetPlacement(1, 2, 24, 1)
+            ),
+            note: "Type in the box and only the matching files stay, under the folders that hold them. Right-click a folder or a file for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. README.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where."
+        );
+    }
+
+    /// <summary>
+    /// The other way to a menu: the entries come with the node. One template, one menu bound to each node's own list, and the
+    /// press names the entry and the node it was opened on.
+    /// </summary>
+    private static ContainerComponent CreateMenuGroup()
+    {
+        return DemoUI.CreateGroup(MenuGroup, "A menu the node names",
+            content => content.AddChild(new TreeComponent()
+                .BindItems($"{MenuGroup}.{nameof(TreeMenuGroupContext.Items)}")
+                .ConfigureDefaultNode(node => node
+                    .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
+                    .SetContextMenu(new MenuComponent()
+                        .BindItems(nameof(DemoActionNode.Actions), UIBindingScope.Relative)
+                        .OnItemClick(nameof(TreeExamplesController.NodeMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
+                    )
+                )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Right-click a folder or a file for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. README.md is pinned: it is neither dragged nor removed."
+            note: "Right-click any node: Production cannot be deleted, a paused environment offers Resume, and the entry pressed reaches the controller with the node's key. Two nodes of one kind, two different menus — the list is the item's."
         );
     }
 
@@ -116,10 +160,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
                     .SetPlacement(1, 1, 24, 1)
                 )
-                .AddChild(new TextComponent()
-                    .SetTitle("Chosen")
-                    .SetTitleType(UITextAppearance.Overline)
-                    .SetTitleColor(UIThemeColor.Muted)
+                .AddChild(UIText.Label("Chosen")
                     .BindDescription($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.SelectedKey)}")
                     .SetMargin(UIThickness.All(0, 8, 0, 0))
                     .SetPlacement(1, 2, 24, 1)

@@ -1,4 +1,4 @@
-import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute } from "./dom-attributes";
+import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute, ensureElementId } from "./dom-attributes";
 import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters";
 
 export type ComponentResolveResult = {
@@ -6,6 +6,20 @@ export type ComponentResolveResult = {
     readonly componentId: number;
     readonly dynamicParameters: readonly unknown[];
 };
+
+/** The elements matching `selector` in the components given: each component itself when it matches, else the ones inside it. */
+export function componentParts(components: Iterable<Element>, selector: string): HTMLElement[] {
+    const parts: HTMLElement[] = [];
+
+    for (const component of components) {
+        if (component instanceof HTMLElement && component.matches(selector))
+            parts.push(component);
+        else
+            parts.push(...component.querySelectorAll<HTMLElement>(selector));
+    }
+
+    return parts;
+}
 
 export class DomRegistry {
     public readonly root: ParentNode;
@@ -63,18 +77,14 @@ export class DomRegistry {
         return this.findAllComponents(componentId, dynamicParameters)[0] ?? null;
     }
 
+    /** The element's own id, or one out of the page's single run of generated ids — what an `aria-` attribute points at. */
+    public ensureId(element: Element, prefix: string): string {
+        return ensureElementId(element, prefix);
+    }
+
     /** The elements matching `selector` that a component addresses: itself when it matches, else the ones inside it. */
     public findComponentParts(componentId: number, dynamicParameters: readonly unknown[], selector: string): HTMLElement[] {
-        const parts: HTMLElement[] = [];
-
-        for (const component of this.findAllComponents(componentId, dynamicParameters)) {
-            if (component instanceof HTMLElement && component.matches(selector))
-                parts.push(component);
-            else
-                parts.push(...component.querySelectorAll<HTMLElement>(selector));
-        }
-
-        return parts;
+        return componentParts(this.findAllComponents(componentId, dynamicParameters), selector);
     }
 
     public findAllComponents(componentId: number, dynamicParameters: readonly unknown[]): Element[] {

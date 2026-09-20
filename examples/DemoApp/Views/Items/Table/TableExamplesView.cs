@@ -3,6 +3,7 @@ using DemoApp.Controllers.Items.Table;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
@@ -10,7 +11,10 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.Table;
@@ -27,6 +31,7 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
 
     /// <summary>Id of the box the filtered table's rule names; a rule reads a component, not a value.</summary>
     private const string FilterId = "table-examples-filter";
+    private const string StatusId = "table-examples-status";
 
     public static string ViewKey => "demo.items.table.examples";
 
@@ -48,21 +53,35 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFilterGroup()
     {
-        return DemoUI.CreateGroup(null, "Narrowed as you type",
+        return DemoUI.CreateGroup(null, "Narrowed as you type, and by status",
             content => content
-                .AddChild(new TextInputComponent(FilterId)
-                    .SetPlaceholder("Filter services")
-                    .SetPrefixIcon(DemoIcons.Search)
-                    .SetDebounceMilliseconds(150)
-                    .SetMargin(UIThickness.All(0, 0, 0, 8))
-                    .SetPlacement(1, 1, 24, 1)
+                .AddChild(UILayout.Columns(12,
+                    new TextInputComponent(FilterId)
+                        .SetPlaceholder("Filter services")
+                        .SetPrefixIcon(DemoIcons.Search)
+                        .SetShowClearButton()
+                        .SetDebounceMilliseconds(150),
+                    new SelectComponent(StatusId)
+                        .SetPlaceholder("Any status")
+                        .SetShowClearButton()
+                        .SetOptions(
+                        [
+                            new OptionItem { Id = "Healthy", Title = "Healthy" },
+                            new OptionItem { Id = "Degraded", Title = "Degraded" },
+                            new OptionItem { Id = "Failing", Title = "Failing" },
+                            new OptionItem { Id = "Paused", Title = "Paused" }
+                        ])
                 )
+                .SetMargin(UIThickness.All(0, 0, 0, 8))
+                .SetPlacement(1, 1, 24, 1))
+                // Two rules, each active only while its control holds a value; a row passes both or is hidden.
                 .AddChild(CreateDeploymentsTable()
                     .FilterBy(FilterId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Service))
+                    .FilterBy(StatusId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Status), UIComparisonOperator.Equal)
                     .SetStriped(true)
                     .SetPlacement(1, 2, 24, 1)
                 ),
-            note: "All eight rows, because a filter is only worth a box when there are more rows than the reader wants to look through."
+            note: "All eight rows, because a filter is only worth a box when there are more rows than the reader wants to look through. The two rules are ANDed in the browser; the catalogue under Screens runs four of them and three sorts on one list."
         );
     }
 
@@ -74,9 +93,11 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateGroup(OpenGroup, "A row that opens",
             content => content.AddChild(CreateDeploymentsTable(rows: 5)
                 .SetRowHoverable(true)
+                .SetStriped(true)
                 .OnRowClickWithItemKey(nameof(TableExamplesController.OpenRow))
                 .SetPlacement(1, 1, 24, 1)
-            )
+            ),
+            note: "Striped as well, since that is the pair most tables are built from: the pointer's wash answers on a striped row too."
         );
     }
 

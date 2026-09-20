@@ -18,13 +18,13 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     private static readonly UITextAppearance DefaultTextType = UITextAppearance.Overline;
 
     /// <summary>
-    /// Gets or sets the badge's visual style — Primary, Accent, Info, Warning, Success, Danger, or Surface; default Primary.
+    /// Gets or sets the badge's visual kind — Primary, Accent, Info, Warning, Success, Danger, or Surface; default Primary.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIBadgeType.Primary)]
-    public UIBadgeType? Style { get; set; }
+    public UIBadgeType? Type { get; set; }
 
     /// <summary>
-    /// Overrides <see cref="Style"/> with an explicit color when set, e.g. a tag/category swatch.
+    /// Overrides <see cref="Type"/> with an explicit color when set, e.g. a tag/category swatch.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIThemeColor? Color { get; set; }

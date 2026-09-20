@@ -22,11 +22,8 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
 
         SurfaceChromeRenderer.RenderChrome(context, root);
 
-        _ = RenderProperty<bool?>(context, root, ExpanderComponent.ExpandedProperty, static (target, value) =>
-        {
-            if (value != false)
-                _ = target.Attribute("open");
-        }, [WebDomOperation.ToggleAttribute("open", condition: WebValueCondition.IsTrue)]);
+        // The compiled default is true, so a plain expander opens; a bound null is closed both here and on the client's toggle.
+        RenderFlagAttribute(context, root, ExpanderComponent.ExpandedProperty, "open");
 
         _ = root.Element("summary", header =>
         {

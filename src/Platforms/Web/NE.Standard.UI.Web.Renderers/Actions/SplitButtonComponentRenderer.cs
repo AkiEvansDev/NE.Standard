@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
@@ -6,14 +7,11 @@ using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>
-/// One button-shaped pill holding two presses — the label's, which is the component's own click, and the end's, which
-/// opens the menu rendered beside them — so the button chrome lands once, on the root, and the parts inherit it.
-/// </summary>
+/// <summary>A button-shaped pill with two presses: the label, which fires the component's own click, and the end, which opens the menu.</summary>
+/// <remarks>The button chrome lands once, on the root, and both parts inherit it.</remarks>
 public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 {
     /// <summary>The parts <c>split-button-engine.ts</c> presses and opens.</summary>
@@ -55,18 +53,9 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
             // A menu button's label opens the menu and nothing else: its click never reaches the component's own.
             if (menuButton)
-                DescribeMenuOpener(context, main);
+                DescribeMenuOpener(context, main, named: !HasTitle(context));
 
-            _ = main.Element("span", label =>
-            {
-                _ = label.Class("ui-button__content");
-
-                TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
-                {
-                    IncludeTextLayout = true,
-                    DefaultBadgePlacement = UITextBadgePlacement.Trailing
-                });
-            });
+            RenderButtonLabel(context, root, main);
         });
 
         _ = root.Element("button", toggle =>
@@ -74,7 +63,7 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
             _ = toggle.Class(ToggleClassName);
             _ = toggle.Attribute("type", "button");
 
-            DescribeMenuOpener(context, toggle);
+            DescribeMenuOpener(context, toggle, named: true);
 
             _ = toggle.Element("span", chevron => chevron.Class("ui-split-button__chevron"));
         });
@@ -101,10 +90,20 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
         return false;
     }
 
-    private static void DescribeMenuOpener(WebRenderContext context, IHtmlElementBuilder opener)
+    private static bool HasTitle(WebRenderContext context)
+    {
+        _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+
+        return !string.IsNullOrWhiteSpace(title);
+    }
+
+    // An aria-label outranks the words inside, so an opener that carries its own title is left to be called by it.
+    private static void DescribeMenuOpener(WebRenderContext context, IHtmlElementBuilder opener, bool named)
     {
         RenderPopupTrigger(opener, "menu");
-        _ = opener.Attribute("aria-label", context.Translate(UIStrings.SplitButtonMore));
         _ = opener.Attribute(WebAttributes.EventBoundary);
+
+        if (named)
+            _ = opener.Attribute("aria-label", context.Translate(UIStrings.SplitButtonMore));
     }
 }

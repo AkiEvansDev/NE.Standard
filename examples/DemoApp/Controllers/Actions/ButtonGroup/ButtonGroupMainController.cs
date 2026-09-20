@@ -3,7 +3,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
-namespace DemoApp.Controllers.Navigation.ButtonGroup;
+namespace DemoApp.Controllers.Actions.ButtonGroup;
 
 /// <summary>
 /// The strip's own rows: which segment is current, how big the strip is, what the current segment wears, and the

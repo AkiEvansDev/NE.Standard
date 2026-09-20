@@ -53,8 +53,13 @@ internal abstract partial class UIRuntimeBase
 
             if (existing is ServerCollectionChangeUIUpdate collectionUpdate)
             {
-                if (IsComponentInside(collectionUpdate.Component.Id, componentId) && IsDynamicParameterPrefix(dynamicParameters, collectionUpdate.Component.DynamicParameters))
+                // The same rule: a zero-parameter collection update is the view's own and survives the row it is not inside.
+                if (collectionUpdate.Component.DynamicParameters.Length > 0
+                    && IsComponentInside(collectionUpdate.Component.Id, componentId)
+                    && IsDynamicParameterPrefix(dynamicParameters, collectionUpdate.Component.DynamicParameters))
+                {
                     _pendingUpdates.RemoveAt(i);
+                }
             }
         }
     }

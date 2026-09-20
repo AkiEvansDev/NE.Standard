@@ -1,4 +1,3 @@
-using System;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -6,7 +5,7 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// <summary>
 /// Requests the UI client to focus a component.
 /// </summary>
-public sealed class FocusEffect : ClientEffect
+public sealed class FocusEffect(UIComponentReference target) : TargetedClientEffect(target)
 {
     /// <summary>
     /// Creates an effect that focuses the component identified by <paramref name="targetComponentId"/>.
@@ -15,37 +14,21 @@ public sealed class FocusEffect : ClientEffect
         : this(new UIComponentReference(targetComponentId, dynamicParameters))
     { }
 
-    /// <summary>
-    /// Creates an effect that focuses the given target component.
-    /// </summary>
-    public FocusEffect(UIComponentReference target)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(target.Id);
-        Target = target;
-    }
-
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Focus;
 
     /// <inheritdoc />
     public override bool CanRunInInteraction => true;
-
-    /// <summary>
-    /// Gets the target component reference.
-    /// </summary>
-    public UIComponentReference Target { get; }
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
         => new CompiledFocusEffect(resolver.ResolveComponent(Target));
 }
 
-internal sealed class CompiledFocusEffect(UIComponentAddress target) : ClientEffect
+internal sealed class CompiledFocusEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)
 {
     public override string Kind => ClientEffectKinds.Focus;
 
     /// <inheritdoc />
     public override bool CanRunInInteraction => true;
-
-    public UIComponentAddress Target { get; } = target;
 }

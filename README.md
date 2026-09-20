@@ -40,18 +40,25 @@ Everything else in the framework arrives as a dependency of those two.
 | [`NE.Standard.UI.Web.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Web.Abstractions) | the render contracts an add-on implements to render a component of its own. |
 | [`NE.Standard.UI.Web.Renderers.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers.Foundation) | the renderer base and the shared style, text and input helpers an add-on's own renderer builds on. |
 | [`NE.Standard.UI.Web.Renderers`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers) | the HTML renderers for the built-in components, over the foundation. |
-| [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components. Reserved and empty in this pre-release. |
+| [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components: a text in a role, a page's header band and sections, a stack and a row, a button per type, a field with its hint, a read-only key-value list, and one interaction from another component's value. Server-only, nothing new to render. |
 
 **Icons ship separately**, from [`NE.Standard.UI.Icons`](https://github.com/AkiEvansDev/NE.Standard.UI.Icons)
 — Lucide and Material Symbols, a name package and a web package each, MIT, on their own version. They are
 developed alongside the framework, so a set and the renderer it plugs into are never out of step. The demo
 uses the Material set.
 
-**Components can ship separately too.**
-[`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) is the first: a code
-editor with syntax highlighting, line numbers and find and replace, under the framework's own licence and on
-its own version. A component package is a component like the built-in ones — the same generator, the same
-binding, its own renderer against `NE.Standard.UI.Web.Abstractions`.
+**Components can ship separately too.** A component package is a component like the built-in ones — the same
+generator, the same binding, its own renderer against `NE.Standard.UI.Web.Abstractions` — under the framework's
+own licence and on its own version, each in a repository of its own:
+
+- [`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) — a code editor with
+  syntax highlighting, line numbers, several carets and find and replace.
+- [`NE.Standard.UI.DataGrid`](https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid) — a data grid over the
+  table: typed columns, editing in place, filters, paging, totals, pinned columns, a detail row and CSV export.
+- [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie and
+  scatter charts, a sparkline and a gauge, as SVG the browser keeps.
+- [`NE.Standard.UI.Graph`](https://github.com/AkiEvansDev/NE.Standard.UI.Graph) — a canvas of typed nodes, and
+  the layered graph of an application's own nodes or of its resources and crafts.
 
 The colour palette is [`NE.Colors`](https://www.nuget.org/packages/NE.Colors), a repository of its own because
 more than this framework needs it. It is MIT, and it arrives as a dependency of
@@ -79,7 +86,7 @@ internal sealed class CounterView : UIViewBase, IUIViewDefinition
             )
             .AddChild(new ButtonComponent()
                 .OnClick(nameof(CounterController.Increment))
-                .ConfigureDefaultContent(c => c.SetTitle("Add one"))
+                .SetTitle("Add one")
                 .SetPlacement(1, 2, 24, 1)
             );
 }
@@ -113,11 +120,12 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component has its pages, 106 routes in all.
-The demo's sign-in and authorization pages are being rebuilt and are not in it at the moment; the mechanism they
-showed is exercised by `examples/TeamRoom`, the mini application. Every component has a **Main** page — a preview beside every bindable property, each
-row stepping its value — plus, where they earn their keep, an **Examples** page for variants worth putting
-side by side and a **Scenarios** page for what needs a story rather than a property.
+`examples/DemoApp` is the reference application: every built-in component has its pages, 116 routes in all,
+with the sign-in, account, admin and forbidden pages showing what the security mechanism does; the mini
+application `examples/TeamRoom` exercises the same mechanism end to end. Every component has a **Main** page — a
+preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an
+**Examples** page for variants worth putting side by side and a **Scenarios** page for what needs a story rather
+than a property.
 
 ```
 dotnet run --project examples/DemoApp.Web    # http://localhost:5000

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
@@ -14,7 +15,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A search input that filters a bound list of options as the user types.
 /// </summary>
-public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id)
+public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id), IDebounceInputComponent
     where T : SearchComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
@@ -47,17 +48,6 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? AutoSearch { get; set; }
-
-    /// <summary>
-    /// Sets the delay, in milliseconds, before a search is triggered after the last keystroke.
-    /// </summary>
-    public T SetDebounceMilliseconds(int debounceMilliseconds)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(debounceMilliseconds);
-
-        DebounceMilliseconds = debounceMilliseconds;
-        return Self;
-    }
 
     /// <summary>
     /// Sets the minimum number of characters required before a search is triggered.

@@ -31,8 +31,8 @@ public partial class TreeNode : TextBaseItem, ITreeNodeModel
     public partial string? DropTarget { get; set; }
 
     /// <summary>
-    /// Writes a nested structure out as the flat list a tree takes: each node, then its children, with <see cref="ParentId"/> set on
-    /// the way down. <paramref name="toNode"/> makes the node, <paramref name="children"/> names what sits under a source.
+    /// Flattens a nested structure into the flat list a tree takes, each node followed by its children with <see cref="ParentId"/>
+    /// set. <paramref name="toNode"/> builds the node; <paramref name="children"/> gives what sits under a source.
     /// </summary>
     public static IReadOnlyList<TreeNode> Flatten<TSource>(IEnumerable<TSource> roots, Func<TSource, IEnumerable<TSource>?> children, Func<TSource, TreeNode> toNode)
     {

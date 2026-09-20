@@ -29,9 +29,24 @@ public abstract partial class SelectComponent<T, TItem> : OptionsInputComponentB
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
 
+    /// <summary>
+    /// Gets or sets where the list opens against the field — below its start edge by default, flipping when there's no room.
+    /// Decided once at render.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIPopupPlacement.BottomStart)]
+    public UIPopupPlacement? PopupPlacement { get; set; }
+
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = UIInputAppearance.Filled)]
     public UIInputAppearance? Appearance { get; set; }
+
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
+    public UIInputSize? Size { get; set; }
+
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IFieldInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = UIInputTitlePlacement.Top)]
+    public UIInputTitlePlacement? TitlePlacement { get; set; }
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IAffixedInputComponent), DefaultValue = null)]

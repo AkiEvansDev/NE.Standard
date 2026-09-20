@@ -1,19 +1,18 @@
-import { DomRegistry } from "../addressing/dom-registry";
-import { getIdValue } from "../metadata/metadata-index";
+import { componentParts } from "../addressing/dom-registry";
 import { formatTemporal, TemporalCulturePack } from "../rendering/temporal-format";
 import { clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
 import { restoreFocusTo } from "./popup-focus";
-import { resolveRovingTarget } from "./roving-focus";
+import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { PopupDismissal } from "./popup-dismissal";
 import {
     clampPushedValue, clampToRange, defaultMoment, EndValueInputClass, isEndPart, isRange, MaxAttribute, MinAttribute, orderPeriod,
     parseCanonical, PickerAttributes, readBound, readCulturePack, readFormat, readMode, readStep, readValue, readValueOf, RootClass,
     TemporalMode, TimeStep, TimeUnit, toCanonical, ValueInputClass, writeValueOf
 } from "./temporal-dom";
-import { chooseDay as choosePeriodDay, isWithinPeriod, PeriodEnd } from "./temporal-range";
+import { chooseDay as choosePeriodDay, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
 
 const FieldClass = "ui-temporal-input__field";
 const PopupClass = "ui-temporal-input__popup";
@@ -27,6 +26,11 @@ const PopupGap = 4;
 
 /** How long a clock column has to stand still before what it brought to the middle counts as chosen. */
 const ScrollSettleDelay = 140;
+
+/** How far a wheel turns for one reading of a clock column: a notch of a mouse wheel, or as much of a trackpad's glide. */
+const WheelNotch = 100;
+/** A wheel that reports lines rather than pixels turns three of them a notch. */
+const WheelLine = WheelNotch / 3;
 
 const ToggleAttribute = "data-ui-temporal-toggle";
 const FirstDayAttribute = "data-ui-temporal-first-day";
@@ -56,16 +60,20 @@ export type TemporalPickerEngineOptions = {
     readonly root?: ParentNode;
 
     readonly propertyPatchEngine?: PropertyPatchEngine;
-    readonly dom?: DomRegistry;
 };
 
 export class TemporalPickerEngine {
     private readonly options: TemporalPickerEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<HTMLElement, PickerState>();
+    // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
+    private readonly written = new WeakSet<HTMLInputElement>();
     private openPicker: HTMLElement | null = null;
 
-    private columnSettle = 0;
+    // One settle per clock column: a flick across two columns must commit both, not let the second cancel the first.
+    private readonly columnSettles = new Map<HTMLElement, number>();
+    // How far the wheel has turned over each unit's column since its last reading; by unit, since a choice draws the columns again.
+    private readonly wheelTurns = new Map<string, number>();
 
     public constructor(options: TemporalPickerEngineOptions = {}) {
         this.options = options;
@@ -73,14 +81,19 @@ export class TemporalPickerEngine {
 
         this.applyDisplay(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
+        // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            const componentId = getIdValue(change.reference.componentId);
-
             // Min/Max/DisplayFormat are live-patchable, and the picker's disabled cells are computed from them.
-            this.applyDisplay(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${RootClass}`) ?? []);
+            const pickers = componentParts(change.components, `.${RootClass}`);
+
+            this.applyDisplay(pickers);
+
+            // A value that arrived while the popup is up redraws it, as a pick of the reader's own does: the grid marks the new day.
+            if (this.openPicker !== null && pickers.includes(this.openPicker))
+                this.renderPopup(this.openPicker);
         });
 
-        // A patched attribute re-renders what is showing; the filter is the browser's, so nothing else reaches this.
+        // A patched attribute re-renders what is showing.
         observeComponents(this.root, `.${RootClass}`, { attributeFilter: [...PickerAttributes] }, pickers => {
             for (const picker of pickers) {
                 this.applyDisplay([picker]);
@@ -89,6 +102,11 @@ export class TemporalPickerEngine {
                     this.renderPopup(picker);
             }
         });
+
+        // A picker may arrive after the page started (a row the client builds, a cell's editor), so its field is written here, not
+        // by the markup it was drawn from. Its own observer writes no children, since rendering the popup replaces them and a
+        // handler that drew children here would wake itself forever.
+        observeComponents(this.root, `.${RootClass}`, { childList: true }, pickers => this.applyDisplay(pickers));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
@@ -104,12 +122,15 @@ export class TemporalPickerEngine {
         // A clock column is a dial: what a scroll brings to its middle is chosen. Capture, because scroll does not bubble.
         this.root.addEventListener("scroll", domEvent => this.handleColumnScroll(domEvent), true);
 
+        // The wheel over a column is taken whole: a notch is one reading. Left to the scroll it was a guess, since a short column
+        // (a half-hour step) has little travel, and the snap or a Min/Max bound could make the same turn choose or not at random.
+        this.root.addEventListener("wheel", domEvent => this.handleColumnWheel(domEvent), { capture: true, passive: false });
+
         // Capture, because blur does not bubble.
         this.root.addEventListener("blur", domEvent => this.handleFieldBlur(domEvent), true);
 
         // Waits for the click, not the press: choosing an hour re-renders the popup from inside that very click.
         new PopupDismissal({
-            root: this.root,
             openPopups: () => this.openPicker === null ? [] : [this.openPicker],
             close: () => this.close()
         });
@@ -122,8 +143,12 @@ export class TemporalPickerEngine {
             clampPushedValue(picker);
 
             for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
-                if (field === document.activeElement)
+                // What the reader is doing in the field is left alone (a text half typed, a text cleared) once the field has been
+                // written at all; a picker drawn and focused in the same breath (a cell's editor) reaches this still unwritten.
+                if (field === document.activeElement && this.written.has(field))
                     continue;
+
+                this.written.add(field);
 
                 const canonical = valueInputOf(picker, isEndPart(field))?.value ?? "";
                 const value = parseCanonical(canonical, readMode(picker));
@@ -309,11 +334,9 @@ export class TemporalPickerEngine {
         state.focusedDay = next;
         // A day picked from the fringe of the grid belongs to the month beside it, and the grid turns to that month.
         state.view = startOfMonth(next);
+        // Nothing closes here, in any mode: a day chosen is a value written, and the popup goes with Done or a press outside — a
+        // date-only picker behaves the same, and a mis-picked day is one more press from the right one.
         this.commit(picker, next);
-
-        // A date-only picker is finished once a day is chosen; a date-time one still needs its clock columns.
-        if (readMode(picker) === "date")
-            this.close();
     }
 
     /** One calendar for both ends: the first click is the start, the second the end, and the clock edits whichever was set last. */
@@ -330,12 +353,6 @@ export class TemporalPickerEngine {
         writeValueOf(picker, choice.end, true);
         writeValueOf(picker, choice.start, false);
         this.applyDisplay([picker]);
-
-        if (choice.complete && readMode(picker) === "date") {
-            this.close();
-            return;
-        }
-
         this.renderPopup(picker);
     }
 
@@ -401,7 +418,7 @@ export class TemporalPickerEngine {
             return;
         }
 
-        const moved = moveByKey(focused, domEvent.key);
+        const moved = moveByKey(focused, domEvent.key, readFirstDay(picker));
 
         if (moved === null)
             return;
@@ -424,8 +441,43 @@ export class TemporalPickerEngine {
         if (column === null || !this.openPicker.contains(column))
             return;
 
-        window.clearTimeout(this.columnSettle);
-        this.columnSettle = window.setTimeout(() => this.chooseCentredTime(column), ScrollSettleDelay);
+        window.clearTimeout(this.columnSettles.get(column));
+        this.columnSettles.set(column, window.setTimeout(() => {
+            this.columnSettles.delete(column);
+            this.chooseCentredTime(column);
+        }, ScrollSettleDelay));
+    }
+
+    private handleColumnWheel(domEvent: Event): void {
+        if (!(domEvent instanceof WheelEvent) || this.openPicker === null || domEvent.deltaY === 0 || !(domEvent.target instanceof Element))
+            return;
+
+        const column = domEvent.target.closest<HTMLElement>(`.${TimeColumnClass}`);
+        const unit = column?.getAttribute(UnitAttribute) ?? null;
+
+        if (column === null || unit === null || !this.openPicker.contains(column))
+            return;
+
+        domEvent.preventDefault();
+
+        const turn = domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? domEvent.deltaY : domEvent.deltaY * WheelLine;
+        const before = this.wheelTurns.get(unit) ?? 0;
+        // A turn the other way starts over: what was left of the last direction is not owed to this one.
+        const turned = (Math.sign(before) === Math.sign(turn) ? before : 0) + turn;
+        const steps = Math.trunc(turned / WheelNotch);
+
+        this.wheelTurns.set(unit, turned - (steps * WheelNotch));
+
+        if (steps === 0)
+            return;
+
+        // Only what can be chosen: a reading Min/Max rules out is stepped over rather than landed on.
+        const cells = [...column.querySelectorAll<HTMLButtonElement>(`.${TimeCellClass}`)].filter(cell => !cell.disabled);
+        const current = cells.findIndex(cell => cell.classList.contains(`${TimeCellClass}--selected`));
+        const next = cells[Math.min(cells.length - 1, Math.max(0, Math.max(0, current) + steps))];
+
+        if (next !== undefined && !next.classList.contains(`${TimeCellClass}--selected`))
+            this.chooseTime(this.openPicker, unit as TimeUnit, Number(next.getAttribute(CellValueAttribute)));
     }
 
     private chooseCentredTime(column: HTMLElement): void {
@@ -497,7 +549,11 @@ export class TemporalPickerEngine {
         const picker = this.openPicker;
         const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
 
-        window.clearTimeout(this.columnSettle);
+        for (const settle of this.columnSettles.values())
+            window.clearTimeout(settle);
+
+        this.columnSettles.clear();
+        this.wheelTurns.clear();
 
         // Before the popup hides: hiding it drops focus on the body, and then there is nothing to bring back — to the end being set.
         if (popup !== null)
@@ -560,7 +616,7 @@ export class TemporalPickerEngine {
         if (mode === "date-time")
             panes.append(renderTimePane(picker, value));
 
-        popup.append(panes, renderFooter(mode, range));
+        popup.append(panes, renderFooter(mode));
 
         applyRovingDay(popup, state, value, moveFocus);
         applyPeriodPreview(picker, state);
@@ -808,15 +864,14 @@ function restoreTimeFocus(popup: HTMLElement, unit: string | null): void {
     column?.querySelector<HTMLElement>(`.${TimeCellClass}--selected`)?.focus({ preventScroll: true });
 }
 
-function renderFooter(mode: TemporalMode, range: boolean): HTMLElement {
+function renderFooter(mode: TemporalMode): HTMLElement {
     const footer = element("div", `${RootClass}__popup-footer`);
 
     footer.append(navButton("now", clientStrings.text(mode === "date" ? "ui.picker.today" : "ui.picker.now")));
     footer.append(navButton("clear", clientStrings.text("ui.picker.clear")));
 
-    // A clock, or a period whose second click may never come, needs a way to say it is finished.
-    if (mode === "date-time" || range)
-        footer.append(navButton("done", clientStrings.text("ui.picker.done")));
+    // No choice closes the popup, so every picker has a way to say it is finished.
+    footer.append(navButton("done", clientStrings.text("ui.picker.done")));
 
     return footer;
 }
@@ -896,7 +951,7 @@ function applyRovingDay(popup: HTMLElement, state: PickerState, value: Date | nu
     if (focused === undefined)
         return;
 
-    focused.tabIndex = 0;
+    applyRovingTabIndex(cells, focused);
 
     // preventScroll: every cell is already visible, and scrolling would yank the page out from under the field.
     if (moveFocus)
@@ -996,7 +1051,10 @@ function readFirstDay(picker: HTMLElement): number {
     return Number.isInteger(firstDay) && firstDay >= 0 && firstDay <= 6 ? firstDay : 1;
 }
 
-function moveByKey(day: Date, key: string): Date | null {
+/** The day a key moves to; Home and End are the ends of the row as the grid lays it out, from the culture's first day of the week. */
+function moveByKey(day: Date, key: string, firstDay: number): Date | null {
+    const column = ((day.getDay() - firstDay) + 7) % 7;
+
     switch (key) {
         case "ArrowLeft": return addDays(day, -1);
         case "ArrowRight": return addDays(day, 1);
@@ -1004,14 +1062,10 @@ function moveByKey(day: Date, key: string): Date | null {
         case "ArrowDown": return addDays(day, 7);
         case "PageUp": return addMonths(day, -1);
         case "PageDown": return addMonths(day, 1);
-        case "Home": return addDays(day, -day.getDay());
-        case "End": return addDays(day, 6 - day.getDay());
+        case "Home": return addDays(day, -column);
+        case "End": return addDays(day, 6 - column);
         default: return null;
     }
-}
-
-function startOfDay(value: Date): Date {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
 function startOfMonth(value: Date): Date {

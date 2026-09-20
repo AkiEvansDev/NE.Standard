@@ -73,14 +73,14 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
                     .BindDescription(nameof(JobGroupContext.LastRun), UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
-                    .OnClickWithLoading(nameof(NotificationTestController.RunMigrationAsync))
+                    .OnClickShowingLoading(nameof(NotificationTestController.RunMigrationAsync))
                     .SetType(UIButtonType.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Run the migration")
                 )
             ),
             contentMinHeight: 140,
-            note: "An async command: the effect rides on the result, so nothing shows until the work has actually finished; OnClickWithLoading keeps the button waiting meanwhile."
+            note: "An async command: the effect rides on the result, so nothing shows until the work has actually finished; OnClickShowingLoading keeps the button waiting meanwhile."
         );
     }
 

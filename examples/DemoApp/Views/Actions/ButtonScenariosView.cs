@@ -7,6 +7,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -47,9 +48,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                 Key = ButtonScenariosController.ConfirmKey,
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
-                Content = new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(16)
+                Content = UILayout.Stack(16)
                     .AddChild(new ParagraphComponent()
                         .SetIcon(DemoIcons.Alert)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
@@ -94,13 +93,13 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
         return DemoUI.CreateGroup(LatencyGroup, "Three ways to say it is running",
             content => content.AddChild(DemoUI.CreateRow()
                 .AddChild(new ButtonComponent()
-                    .OnClickWithLoading(nameof(ButtonScenariosController.DeployAsync))
+                    .OnClickShowingLoading(nameof(ButtonScenariosController.DeployAsync))
                     .SetType(UIButtonType.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                     .SetTitle("Deploy")
                     .SetDescription("One call, two interactions, nothing bound")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetTooltip("OnClickWithLoading: InteractBeforeClick(Loading, true) and InteractAfterClick(Loading, false)")
+                    .SetTooltip("OnClickShowingLoading: InteractBeforeClick(Loading, true) and InteractAfterClick(Loading, false)")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.DeployBoundAsync))
@@ -195,7 +194,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
                     .BindText(nameof(ButtonDecisionGroupContext.Outcome), UIBindingScope.Relative)
-                    .BindStyle(nameof(ButtonDecisionGroupContext.OutcomeStyle), UIBindingScope.Relative)
+                    .BindType(nameof(ButtonDecisionGroupContext.OutcomeStyle), UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.ReopenRequest))
@@ -227,7 +226,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
                     .BindText(nameof(ButtonProgressGroupContext.Stage), UIBindingScope.Relative)
-                    .BindStyle(nameof(ButtonProgressGroupContext.StageStyle), UIBindingScope.Relative)
+                    .BindType(nameof(ButtonProgressGroupContext.StageStyle), UIBindingScope.Relative)
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),

@@ -24,16 +24,10 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
 
-        // The same attribute the plain variant uses, so one client engine drives both.
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabsSelected);
-        _ = RenderProperty<string?>(context, root, TabsViewComponent.SelectedKeyProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.TabsSelected, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")]);
+        TabsSelectionRenderer.RenderSelectedKey(context, root, TabsViewComponent.SelectedKeyProperty);
 
-        // The switches: the engine reads the attributes, the stylesheet the class. Removable refused for the whole strip means
-        // no caption shows a close and the strip keeps no room for one.
+        // The switches: the engine reads the attributes, the stylesheet the class. Removable refused for the whole strip means no
+        // caption shows a close, with no room reserved.
         RenderFlagAttribute(context, root, TabsViewComponent.RenamableProperty, WebAttributes.TabsRenamable);
         RenderFlagAttribute(context, root, TabsViewComponent.DraggableProperty, WebAttributes.TabsDraggable);
         RenderFlagAttribute(context, root, TabsViewComponent.RemovableProperty, WebAttributes.TabsUnremovable, WebValueCondition.IsFalse);

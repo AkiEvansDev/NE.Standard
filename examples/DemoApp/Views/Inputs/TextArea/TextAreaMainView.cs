@@ -41,6 +41,7 @@ internal sealed class TextAreaMainView : DemoMainView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(TextValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(TextValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(TextValueGroupContext.Size)}")
             .BindMaxLength($"{ValueGroup}.{nameof(TextValueGroupContext.MaxLength)}")
             .BindTrimInput($"{ValueGroup}.{nameof(TextValueGroupContext.TrimInput)}")
             .BindAppearance($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Appearance)}")

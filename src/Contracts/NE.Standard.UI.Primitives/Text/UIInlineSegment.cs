@@ -3,8 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 namespace NE.Standard.UI.Primitives.Text;
 
 /// <summary>
-/// One run of text with the styles and link that apply to it, a mark standing alone when <see cref="Icon"/> is set, or a
-/// fold when <see cref="Fold"/> is set — its caption, with the run's <see cref="Text"/> holding the folded markup unparsed.
+/// One run of text: styled/linked text, a standalone mark when <see cref="Icon"/> is set, or a fold when <see cref="Fold"/>
+/// is set (its caption; <see cref="Text"/> holds the unparsed folded markup).
 /// </summary>
 [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings", Justification = "The value is written verbatim as a link target and has already been checked by UIInlineMarkup.IsSafeUrl; it is routinely a fragment or a relative path, which Uri does not model without a base.")]
 [SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "Same as the constructor parameter above.")]

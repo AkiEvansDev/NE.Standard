@@ -42,6 +42,12 @@ export function resolveRovingTarget(request: RovingRequest): HTMLElement | null 
     return (request.loop ?? true) ? items[(next + items.length) % items.length] : null;
 }
 
+/** The arrowing as a package reaches it through the engine context. */
+export const rovingFocus = {
+    target: resolveRovingTarget,
+    applyTabIndex: applyRovingTabIndex
+};
+
 /** Leaves exactly one item in the tab order. */
 export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLElement | null): void {
     for (const item of items)

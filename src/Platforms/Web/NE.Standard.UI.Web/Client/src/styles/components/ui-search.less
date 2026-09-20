@@ -15,12 +15,13 @@
     display: none !important;
 }
 
-// Closed with a choice made, the input steps aside for the list's template; with nothing chosen it stays, or the field would show neither.
-.ui-search.ui-search-mode--replace[data-ui-select-value]:not(.ui-select--open) .ui-search__input {
+// Closed with a choice made and no focus, the input hides behind the list's template; with nothing chosen it stays, or the
+// field would show neither. Focus counts like an open list, since the framework can land the keyboard here directly (Tab, a grid cell editor).
+.ui-search.ui-search-mode--replace[data-ui-select-value]:not(.ui-select--open, :focus-within) .ui-search__input {
     .ui-visually-hidden();
 }
 
-// Open, it is a text field again: the picked-option template is hidden so it doesn't sit beside what's being typed.
-.ui-search.ui-search-mode--replace.ui-select--open .ui-select__trigger-content {
+// Open or focused, it is a text field again: the picked-option template is hidden so it doesn't sit beside what's being typed.
+.ui-search.ui-search-mode--replace:is(.ui-select--open, :focus-within) .ui-select__trigger-content {
     display: none !important;
 }

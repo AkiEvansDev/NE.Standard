@@ -1,13 +1,14 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Regions;
+using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
-/// A <see cref="SurfaceComponent{T}"/> with bands on it: an optional header — which may carry a control of
-/// its own at its far edge — and an optional footer. The fill, the edge and the click are the surface's.
+/// A <see cref="SurfaceComponent{T}"/> with optional header and footer bands; the header may carry a control at its far edge.
+/// Fill, edge and click come from the surface.
 /// </summary>
 /// <remarks>No header region until one is asked for, or the card draws an empty band above its content.</remarks>
 public abstract partial class CardComponent<T>(string? id = null) : SurfaceComponent<T>(id)
@@ -36,13 +37,7 @@ public abstract partial class CardComponent<T>(string? id = null) : SurfaceCompo
         if (Header is null)
             SetRegion(RegionNames.Header, new CardHeaderRegion());
 
-        ArgumentNullException.ThrowIfNull(configure);
-
-        if (Header is not CardHeaderRegion header)
-            throw new InvalidOperationException($"Only {nameof(CardHeaderRegion)} header is supported.");
-
-        configure(header);
-        return Self;
+        return Self.ConfigureTemplate(Header as CardHeaderRegion, configure, "header");
     }
 
     /// <summary>

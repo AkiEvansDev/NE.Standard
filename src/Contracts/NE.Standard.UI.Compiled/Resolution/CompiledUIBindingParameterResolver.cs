@@ -127,7 +127,7 @@ public static class CompiledUIBindingParameterResolver
                     UIComponentId expectedComponentId = dynamicParameterComponentIds[dynamicIndex++];
 
                     if (!componentId.Equals(expectedComponentId))
-                        throw new InvalidOperationException($"{owner} dynamic parameter #{i} component id mismatch. Expected '{componentId}', got '{expectedComponentId}'.");
+                        throw new InvalidOperationException($"{owner} dynamic parameter #{i} component id mismatch. Expected '{expectedComponentId}', got '{componentId}'.");
 
                     break;
 

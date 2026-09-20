@@ -36,11 +36,8 @@ public enum UIButtonType
     Link = 5,
 
     /// <summary>
-    /// A raised surface with no tint of its own — what a row in a list of destinations looks like, and the
-    /// variant <c>ActionComponent</c> starts on.
+    /// A raised surface with no tint of its own (what a destination-list row looks like, and <c>ActionComponent</c>'s starting
+    /// variant); distinct from <see cref="Ghost"/>, which draws nothing until touched.
     /// </summary>
-    /// <remarks>
-    /// Distinct from <see cref="Ghost"/>, which draws nothing until it is touched.
-    /// </remarks>
     Surface = 6,
 }

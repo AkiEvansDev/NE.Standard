@@ -28,10 +28,13 @@ public static class WebDomConverters
     public const string ItemsViewLayoutClass = "itemsViewLayoutClass";
     public const string ScrollXClass = "scrollXClass";
     public const string ScrollYClass = "scrollYClass";
+    /// <summary>A horizontal scroll mode as the host's viewport: <c>parent</c> when the mode scrolls, nothing when it is disabled.</summary>
+    public const string HostViewport = "hostViewport";
     public const string ScrollSnapClass = "scrollSnapClass";
     public const string ButtonSizeClass = "buttonSizeClass";
     public const string ButtonGroupSizeClass = "buttonGroupSizeClass";
     public const string InputAppearanceClass = "inputAppearanceClass";
+    public const string InputSizeClass = "inputSizeClass";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
     public const string ColorTextFormatAttribute = "colorTextFormatAttribute";
     public const string ColorInputVariantAttribute = "colorInputVariantAttribute";

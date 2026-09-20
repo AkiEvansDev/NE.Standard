@@ -1,5 +1,5 @@
 @import "../core/tokens.less";
-@import "../mixins/chevron.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/field.less";
 @import "../mixins/popup.less";
 @import "../mixins/interactive.less";
@@ -90,7 +90,7 @@
     height: auto;
     min-height: @ui-control-height;
     padding: 0 @ui-space-3;
-    border: var(--ui-border-width, 1.5px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     cursor: pointer;
 }
 
@@ -133,14 +133,14 @@
         opacity: 0.5;
     }
 
-// The chevron every opening field wears, turned while the panel is open; drawn, so no icon pack is needed.
+// The library's own pipette needs no icon pack; a picker opens rather than unfolds, so the mark doesn't rotate, instead taking the
+// text's ink while the panel is open.
 .ui-color-input__toggle::before {
-    .ui-chevron(0.7em);
-    .ui-chevron-down();
+    .ui-pipette-glyph(@ui-glyph-sm);
 }
 
-.ui-color-input__toggle[aria-expanded="true"]::before {
-    .ui-chevron-up();
+.ui-color-input__toggle[aria-expanded="true"] {
+    color: var(--ui-color-on-surface);
 }
 
 .ui-color-input__popup {

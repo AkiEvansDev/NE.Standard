@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <PackageId>NE.Standard.UI.Primitives</PackageId>
-    <Description>The bottom layer of the NE.Standard UI framework: the enums, attributes and value types everything above it is written in — UIThickness, UIResponsive&lt;T&gt;, the styling and binding vocabulary. No dependencies.</Description>
+    <Description>The bottom layer of the NE.Standard UI framework: the enums, attributes and constants everything above it is written in — the styling, binding, validation and access vocabulary, and the names of events, regions, templates and glyphs. No dependencies.</Description>
     <PackageTags>NE.Standard,UI,Contracts,Primitives</PackageTags>
   </PropertyGroup>
 

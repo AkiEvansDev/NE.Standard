@@ -1,6 +1,7 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Scroll;
@@ -15,9 +16,7 @@ internal static class ScrollDemo
             .SetMaxWidth(UILayoutLength.Absolute(maxWidth))
             .SetHorizontalAlignment(mine ? UIAlignment.End : UIAlignment.Start)
             .SetPadding(UIThickness.All(10, 8, 10, 8))
-            .SetContent(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(2)
+            .SetContent(UILayout.Stack(2)
                 .AddChild(new TextComponent()
                     .SetTitle(author)
                     .SetTitleType(UITextAppearance.Caption)

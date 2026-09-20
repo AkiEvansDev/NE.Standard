@@ -23,10 +23,9 @@ public sealed class UISessionOptions
     public string ClientKey { get; set; } = "ne.ui.session";
 
     /// <summary>
-    /// Gets or sets how long the client keeps the session id, counted from its last page load; <see langword="null"/>
-    /// keeps it only for the client's own lifetime, so a signed-in person is signed out once that ends. An
-    /// application that keeps sessions across its own restarts sets this to what it is willing to have a stored
-    /// session survive.
+    /// Gets or sets how long the client keeps the session id, from its last page load; <see langword="null"/> ties it to
+    /// the client's own lifetime, signing the person out when that ends. Set it to how long a stored session may survive
+    /// across app restarts.
     /// </summary>
     public TimeSpan? ClientKeyLifetime { get; set; }
 

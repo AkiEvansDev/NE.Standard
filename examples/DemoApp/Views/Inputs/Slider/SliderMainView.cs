@@ -42,6 +42,7 @@ internal sealed class SliderMainView : DemoMainView, IUIViewDefinition
             .BindMax($"{ValueGroup}.{nameof(SliderValueGroupContext.Max)}")
             .BindStep($"{ValueGroup}.{nameof(SliderValueGroupContext.Step)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(SliderValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(SliderValueGroupContext.Size)}")
             .BindOrientation($"{TrackGroup}.{nameof(SliderTrackGroupContext.Orientation)}")
             .BindShowValue($"{TrackGroup}.{nameof(SliderTrackGroupContext.ShowValue)}")
             .BindShowRange($"{TrackGroup}.{nameof(SliderTrackGroupContext.ShowRange)}")

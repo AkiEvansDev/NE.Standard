@@ -5,6 +5,7 @@ import { toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
 import { iconImageClassName, readIconSource, toCssUrl, toIconGlyphClassName, toIconSourceCss } from "./icon-value.ts";
+import { clampByte, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
 
 export type WebDomConverter = (value: unknown) => string | undefined;
@@ -48,7 +49,6 @@ const enumNames = new Map<string, string>([
     ["Justify", "justify"],
     ["NoWrap", "nowrap"],
     ["Wrap", "wrap"],
-    ["WrapEllipsis", "wrap-ellipsis"],
     ["Inline", "inline"],
     ["Trailing", "trailing"],
     ["Outline", "outline"],
@@ -121,7 +121,7 @@ export function toColorToken(value: unknown): string {
 const iconSizeTokens = ["small", "medium", "large"];
 const textTypeTokens = ["display", "title", "subtitle", "body", "caption", "overline"];
 const textAlignmentTokens = ["start", "center", "end", "justify"];
-const textWrapTokens = ["nowrap", "wrap", "wrap-ellipsis"];
+const textWrapTokens = ["nowrap", "wrap"];
 const styleVarNames = new Map<string, string>([
     ["primary", "--ui-color-primary"],
     ["accent", "--ui-color-accent"],
@@ -149,6 +149,7 @@ const styleVarNames = new Map<string, string>([
 const badgePlacementTokens = ["inline", "trailing"];
 const inputAppearanceTokens = ["filled", "outline", "underline", "ghost"];
 const buttonSizeTokens = ["small", "medium", "large"];
+const inputSizeTokens = ["small", "medium", "large"];
 const buttonTokens = ["primary", "accent", "danger", "outline", "ghost", "link", "surface"];
 const badgeTypeTokens = ["primary", "accent", "info", "warning", "success", "danger", "surface"];
 const themeTokens = ["light", "dark"];
@@ -208,8 +209,10 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["itemsViewLayoutClass", value => `ui-items-view--${toToken(value, itemsViewLayoutTokens)}`],
     ["scrollXClass", value => `ui-scroll-x--${toToken(value, scrollTokens)}`],
     ["scrollYClass", value => `ui-scroll-y--${toToken(value, scrollTokens)}`],
+    ["hostViewport", value => toHostViewport(value)],
     ["scrollSnapClass", value => `ui-scroll-snap--${toToken(value, scrollSnapTokens)}`],
     ["inputAppearanceClass", value => `ui-input--${toToken(value, inputAppearanceTokens)}`],
+    ["inputSizeClass", value => `ui-input--${toToken(value, inputSizeTokens)}`],
     ["buttonSizeClass", value => `ui-button--${toToken(value, buttonSizeTokens)}`],
     ["buttonGroupSizeClass", value => `ui-button-group--${toToken(value, buttonSizeTokens)}`],
     ["textInputTypeAttribute", value => toToken(value, textInputTypeTokens)],
@@ -351,6 +354,11 @@ function toToken(value: unknown, numericTokens?: readonly string[]): string {
     }
 
     return String(value ?? "");
+}
+
+/** A horizontal scroll mode as the host's viewport: the parent scrolls for a host that scrolls sideways, nobody for one that does not. */
+function toHostViewport(value: unknown): string | undefined {
+    return value === null || value === undefined || toToken(value, scrollTokens) === "disabled" ? undefined : "parent";
 }
 
 function toLayoutLength(value: unknown): string {
@@ -646,6 +654,17 @@ function toBadgeTextFit(value: unknown): string {
     return text.length > 0 && text.length <= 2 ? "compact" : "";
 }
 
+/** Writes a count the page computed into a badge a renderer drew: its text, and the fit the renderer's own patch would write. */
+export function writeBadgeCount(badge: Element, count: number): void {
+    const text = String(count);
+    const words = badge.querySelector(".ui-badge__text");
+
+    if (words !== null)
+        words.textContent = text;
+
+    badge.setAttribute("data-ui-badge-text", toBadgeTextFit(text));
+}
+
 function toTextAppearanceClass(value: unknown): string {
     if (value === null || value === undefined || typeof value !== "object") {
         return "";
@@ -894,11 +913,4 @@ function toVisibilityAttribute(value: unknown, tier: ResponsiveTier): string | u
     return token === "visible" ? undefined : token;
 }
 
-function clampByte(value: number): number {
-    return Math.min(255, Math.max(0, Math.round(value)));
-}
-
-function toHexByte(value: number): string {
-    return clampByte(value).toString(16).padStart(2, "0").toUpperCase();
-}
 

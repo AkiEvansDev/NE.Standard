@@ -37,8 +37,8 @@
     }
 }
 
-// A button that answers the pointer: neither disabled, nor loading, nor natively disabled. Every state rule of a button, and every
-// rule taking one back, spells the guard through this, so the two tie at one specificity.
+// A button that answers the pointer: neither disabled, loading, nor natively disabled. Every state rule, and every rule taking
+// one back, spells the guard through this, so the two tie at one specificity.
 @ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled)";
 
 // Takes .ui-reveal-hover() off an element reacting another way; the selector chain must match the ghost button's for equal specificity.

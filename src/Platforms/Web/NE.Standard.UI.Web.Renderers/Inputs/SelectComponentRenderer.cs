@@ -6,18 +6,19 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Items;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
-/// A trigger button plus a popup listbox rather than a native <c>&lt;select&gt;</c>, since an
-/// <c>&lt;option&gt;</c> holds plain text only and each option here draws its full item template; the statics
-/// below are shared with <c>SearchComponentRenderer</c>.
+/// A trigger button plus a popup listbox, not a native <c>&lt;select&gt;</c>, since <c>&lt;option&gt;</c> holds plain text only
+/// and each option draws its full item template.
 /// </summary>
 public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 {
@@ -39,7 +40,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
-        TextContentRendererBase.RenderInputHeader(context, root);
+        TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true);
         RenderAdornmentState(context, root);
 
         WebRenderValueKind valueKind = RenderSelectValue(context, root, out var currentValue, out CompiledUIBinding? valueBinding);
@@ -57,7 +58,10 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         RenderValidationMessage(context, root);
     }
 
-    /// <summary>Whether the clear button and the chevron show, as two classes on the root; both are always in the tree.</summary>
+    /// <summary>
+    /// Whether the clear button and the chevron show, as two classes on the root, both always in the tree; and where the list
+    /// opens, when that is not the default.
+    /// </summary>
     public static void RenderAdornmentState(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -74,6 +78,11 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             if (value == false)
                 _ = target.Class(NoChevronClassName);
         }, [WebDomOperation.ToggleClass(NoChevronClassName, condition: WebValueCondition.IsFalse)]);
+
+        _ = ResolveRenderValue(context, SelectComponent.PopupPlacementProperty, out UIPopupPlacement? placement, out _);
+
+        if (placement is UIPopupPlacement resolved && resolved != UIPopupPlacement.BottomStart)
+            _ = root.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(resolved));
     }
 
     /// <summary>
@@ -124,6 +133,8 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             RenderPopupTrigger(trigger, "listbox");
 
             NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, trigger);
+
+            TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
 

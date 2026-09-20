@@ -4,8 +4,8 @@ namespace NE.Standard.UI.Shell.Navigation;
 /// Which request is resolving the view: the one that opens it for the client, or a live connection attaching to it.
 /// </summary>
 /// <remarks>
-/// A page load on the web resolves the view twice — the page request, then the client's live connection — and both
-/// must be guarded, but a side effect belongs to exactly one of them. A platform with one step passes <see cref="Open"/>.
+/// A page load on the web resolves the view twice (the page request, then the client's live connection); both must be
+/// guarded, but a side effect belongs to only one. A platform with one step passes <see cref="Open"/>.
 /// </remarks>
 public enum UIViewRequestPhase
 {

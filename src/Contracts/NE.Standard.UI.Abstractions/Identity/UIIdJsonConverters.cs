@@ -41,74 +41,38 @@ internal static class UIIdJson
     }
 }
 
-public sealed class UIComponentIdJsonConverter : JsonConverter<UIComponentId>
+/// <summary>
+/// Reads and writes a compiled id as the bare number behind it.
+/// </summary>
+public class UIIdJsonConverter<TId>(Func<int, TId> create) : JsonConverter<TId>
+    where TId : struct, IUIId
 {
-    public override UIComponentId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
+    /// <inheritdoc/>
+    public override TId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => create(UIIdJson.Read(ref reader));
 
-    public override void Write(Utf8JsonWriter writer, UIComponentId value, JsonSerializerOptions options)
+    /// <inheritdoc/>
+    public override void Write(Utf8JsonWriter writer, TId value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         writer.WriteNumberValue(value.Value);
     }
 }
 
-public sealed class UIBindingIdJsonConverter : JsonConverter<UIBindingId>
-{
-    public override UIBindingId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIComponentIdJsonConverter() : UIIdJsonConverter<UIComponentId>(value => new UIComponentId(value));
 
-    public override void Write(Utf8JsonWriter writer, UIBindingId value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteNumberValue(value.Value);
-    }
-}
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIBindingIdJsonConverter() : UIIdJsonConverter<UIBindingId>(value => new UIBindingId(value));
 
-public sealed class UIBindingSourceIdJsonConverter : JsonConverter<UIBindingSourceId>
-{
-    public override UIBindingSourceId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIBindingSourceIdJsonConverter() : UIIdJsonConverter<UIBindingSourceId>(value => new UIBindingSourceId(value));
 
-    public override void Write(Utf8JsonWriter writer, UIBindingSourceId value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteNumberValue(value.Value);
-    }
-}
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIBindingTemplateIdJsonConverter() : UIIdJsonConverter<UIBindingTemplateId>(value => new UIBindingTemplateId(value));
 
-public sealed class UIBindingTemplateIdJsonConverter : JsonConverter<UIBindingTemplateId>
-{
-    public override UIBindingTemplateId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIEventIdJsonConverter() : UIIdJsonConverter<UIEventId>(value => new UIEventId(value));
 
-    public override void Write(Utf8JsonWriter writer, UIBindingTemplateId value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteNumberValue(value.Value);
-    }
-}
-
-public sealed class UIEventIdJsonConverter : JsonConverter<UIEventId>
-{
-    public override UIEventId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
-
-    public override void Write(Utf8JsonWriter writer, UIEventId value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteNumberValue(value.Value);
-    }
-}
-
-public sealed class UIContextIdJsonConverter : JsonConverter<UIContextId>
-{
-    public override UIContextId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(UIIdJson.Read(ref reader));
-
-    public override void Write(Utf8JsonWriter writer, UIContextId value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteNumberValue(value.Value);
-    }
-}
+/// <inheritdoc cref="UIIdJsonConverter{TId}"/>
+public sealed class UIContextIdJsonConverter() : UIIdJsonConverter<UIContextId>(value => new UIContextId(value));

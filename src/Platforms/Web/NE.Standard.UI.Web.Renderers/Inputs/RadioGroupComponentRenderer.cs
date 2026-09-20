@@ -32,6 +32,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderTooltip(context, root);
+        TextContentRendererBase.RenderInputSize(context, root);
         TextContentRendererBase.RenderInputHeader(context, root);
 
         _ = root.Attribute("role", "radiogroup");
@@ -55,9 +56,16 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
                 _ = target.Attribute(WebAttributes.RadioValue, value);
         }, [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")]);
 
-        WebRenderValueKind isReadOnlyKind = ResolveRenderValue(context, IInputComponent.IsReadOnlyProperty, out bool? isReadOnly, out _);
-        // Only a static IsReadOnly disables the inputs here; a bound one is applied by the sync engine.
-        var isReadOnlyStatic = isReadOnlyKind == WebRenderValueKind.Static && isReadOnly == true;
+        // The mark reaches every radio through RadioGroupSyncEngine, on a bound change and at first render; written here too, so a
+        // page read before the engine runs is already read-only.
+        _ = ResolveRenderValue(context, IInputComponent.IsReadOnlyProperty, out bool? isReadOnly, out _);
+        var readOnly = isReadOnly == true;
+
+        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(WebAttributes.RadioDisabled);
+        }, [WebDomOperation.ToggleAttribute(WebAttributes.RadioDisabled, target: "root", condition: WebValueCondition.IsTrue)]);
 
         NativeInputRendererBase.RenderFormId(context, root);
 
@@ -74,24 +82,22 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         if (valueBinding is not null)
             _ = root.Attribute(WebAttributes.RadioBindValueId, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
 
-        if (isReadOnlyStatic)
-            _ = root.Attribute(WebAttributes.RadioDisabled);
-
-        RenderOptions(context, root, groupName, valueKind, currentValue, valueBinding, isReadOnlyStatic);
+        RenderOptions(context, root, groupName, valueKind, currentValue, valueBinding, readOnly);
 
         RenderValidationMessage(context, root);
     }
 
-    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool isReadOnlyStatic)
+    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
+        // Before the option's text, as a checkbox's box is and as RadioGroupSyncEngine prepends it on a row the client builds.
         RenderItemsHost(context, root, "ui-radio-group__host", items, isBound, ItemClassName, itemElementName: "label",
-            appendItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, valueKind, currentValue, valueBinding, isReadOnlyStatic)
+            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, valueKind, currentValue, valueBinding, readOnly)
         );
     }
 
-    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool isReadOnlyStatic)
+    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
     {
         var optionId = item is IBindableItem bindableItem ? bindableItem.Id : null;
 
@@ -107,7 +113,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             if (valueKind == WebRenderValueKind.Static && optionId is not null && optionId == currentValue)
                 _ = input.Attribute("checked");
 
-            if (isReadOnlyStatic)
+            if (readOnly)
                 _ = input.Attribute("disabled");
 
             // Each radio carries the group's single Value binding, so a click reports back through the ordinary two-way channel.

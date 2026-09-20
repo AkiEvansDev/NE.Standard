@@ -107,12 +107,9 @@ public sealed record UIColorPalette
     public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
 
     /// <summary>
-    /// <see cref="Primary"/> as ink — the colour a word wears when it is that brand colour.
+    /// <see cref="Primary"/> as ink: the colour text, icons and badge-text take when using that brand colour, read against
+    /// the page rather than <see cref="OnPrimary"/>. Backgrounds and fills use <see cref="Primary"/> itself.
     /// </summary>
-    /// <remarks>
-    /// Read against the page rather than against <see cref="OnPrimary"/>: a text, icon, or badge-text role
-    /// resolves to the ink, while a background or a fill resolves to <see cref="Primary"/> itself.
-    /// </remarks>
     public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 3);
 
     /// <summary>

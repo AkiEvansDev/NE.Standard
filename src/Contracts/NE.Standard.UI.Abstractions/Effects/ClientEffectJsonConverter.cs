@@ -25,8 +25,10 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.DownloadFile] = typeof(DownloadFileEffect),
         [ClientEffectKinds.Scroll] = typeof(CompiledScrollEffect),
         [ClientEffectKinds.SetTheme] = typeof(SetThemeEffect),
-        [ClientEffectKinds.RenameTab] = typeof(CompiledRenameTabEffect),
-        [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect)
+        [ClientEffectKinds.RenameTab] = typeof(CompiledRenameEffect),
+        [ClientEffectKinds.RenameNode] = typeof(CompiledRenameEffect),
+        [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect),
+        [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

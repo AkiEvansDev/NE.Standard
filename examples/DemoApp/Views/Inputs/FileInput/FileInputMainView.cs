@@ -41,6 +41,7 @@ internal sealed class FileInputMainView : DemoMainView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(FileInputValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(FileInputValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(FileInputValueGroupContext.Size)}")
             .BindSelectionId($"{ValueGroup}.{nameof(FileInputValueGroupContext.SelectionId)}")
             .BindAccept($"{FileGroup}.{nameof(FileInputFileGroupContext.Accept)}")
             .BindMaxFileSize($"{FileGroup}.{nameof(FileInputFileGroupContext.MaxFileSize)}")

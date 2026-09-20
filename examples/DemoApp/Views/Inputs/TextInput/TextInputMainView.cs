@@ -41,6 +41,7 @@ internal sealed class TextInputMainView : DemoMainView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(TextValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(TextValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(TextValueGroupContext.Size)}")
             .BindMaxLength($"{ValueGroup}.{nameof(TextValueGroupContext.MaxLength)}")
             .BindTrimInput($"{ValueGroup}.{nameof(TextValueGroupContext.TrimInput)}")
             .BindShowClearButton($"{ValueGroup}.{nameof(TextInputValueGroupContext.ShowClearButton)}")

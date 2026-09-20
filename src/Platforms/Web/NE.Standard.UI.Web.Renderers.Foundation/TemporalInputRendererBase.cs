@@ -55,7 +55,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         WebTemporalCulturePack culture = RenderPickerMetadata(context, root, step, defaultDisplayFormat);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: true);
         RenderRow(context, root, culture, defaultDisplayFormat);
 
         if (HasPicker)
@@ -161,6 +161,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
+            RenderInputHeaderInside(context, root, row);
+
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
             _ = row.Element("input", input =>
@@ -186,6 +188,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             {
                 toggle = button;
                 _ = button.Attribute("tabindex", "-1");
+                _ = button.Attribute("aria-label", context.Translate(UIStrings.PickerOpen));
             });
         });
 
@@ -195,9 +198,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         IHtmlElementBuilder? endDisplayField = endField;
         IHtmlElementBuilder toggleButton = toggle!;
 
-        // One registration, every target: a property may only be rendered once per component, so this cannot be
-        // several RenderProperty calls. A patch reaches one element per target, so the two fields are two targets — and
-        // one list for the type, whether or not this instance is a period, so the end's target is optional.
+        // One registration, every target: a property renders once per component, so this can't be several RenderProperty calls;
+        // the end field's target is optional since not every instance is a period.
         _ = RenderProperty<bool?>(context, displayField, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
             if (value != true)

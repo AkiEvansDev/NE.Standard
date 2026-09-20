@@ -1,6 +1,6 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Extensions;
 
 namespace DemoApp.Views.Navigation.Tabs;
 
@@ -8,8 +8,6 @@ namespace DemoApp.Views.Navigation.Tabs;
 internal static class TabsDemo
 {
     public static StackPanelComponent CreatePage()
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(10)
+        => UILayout.Stack(10)
             .SetMargin(UIThickness.All(0, 12, 0, 0));
 }

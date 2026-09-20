@@ -55,10 +55,9 @@ export function parseShortcut(value: string | null | undefined): KeyboardShortcu
 }
 
 /**
- * Whether a key event is this shortcut. Modifiers must match exactly — Ctrl+S is not Ctrl+Shift+S — except that an authored
- * Ctrl also answers to Cmd on a Mac keyboard, where Ctrl is not the platform's own modifier; an authored Meta keeps meaning
- * only Meta. `isMac` defaults to the platform detected once for the page, and is a parameter so the rule stays testable
- * without touching `navigator`.
+ * Whether a key event is this shortcut. Modifiers must match exactly, except that an authored Ctrl also answers to Cmd on a
+ * Mac, where Ctrl is not the platform's own modifier; an authored Meta still means only Meta. `isMac` is a parameter, not
+ * read from `navigator`, so the rule stays testable.
  */
 export function matchesShortcut(shortcut: KeyboardShortcut, domEvent: KeyboardEvent, isMac: boolean = isMacPlatform()): boolean {
     if (domEvent.code !== shortcut.code || domEvent.shiftKey !== shortcut.shift || domEvent.altKey !== shortcut.alt)

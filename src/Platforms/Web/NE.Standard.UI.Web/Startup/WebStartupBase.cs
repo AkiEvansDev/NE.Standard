@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Updates;
@@ -28,6 +27,7 @@ public abstract class WebStartupBase<TStartup>
 
         _ = services.AddOptions<WebViewRenderCacheOptions>();
         _ = services.AddOptions<WebEndpointOptions>();
+        _ = services.AddOptions<WebValueOptions>();
         _ = services.AddOptions<WebResponseCompressionOptions>();
 
         ConfigureServices(services);
@@ -54,11 +54,7 @@ public abstract class WebStartupBase<TStartup>
                 static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
             );
 
-        _ = services.AddSignalR().AddJsonProtocol(options =>
-        {
-            WebWireJson.Apply(options.PayloadSerializerOptions);
-            options.PayloadSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
-        });
+        _ = services.AddSignalR().AddJsonProtocol(WebHubProtocol.Configure);
 
         services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
         services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
@@ -67,6 +63,9 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<IWebViewRenderCache, FileSystemWebViewRenderCache>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebViewRenderCacheStartupTask>());
 
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<WebValueStagingStore>();
+        services.TryAddSingleton<WebOutgoingValues>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
         services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();

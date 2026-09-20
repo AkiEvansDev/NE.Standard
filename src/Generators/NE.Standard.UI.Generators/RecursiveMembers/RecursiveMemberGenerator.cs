@@ -438,12 +438,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         _ = builder.AppendLine("    }");
     }
 
-    /// <summary>
-    /// Whether a declared type can hold a <c>RecursiveObservable</c> at runtime and needs generated descent for nested path get/set.
-    /// </summary>
-    /// <remarks>
-    /// Not "any reference type": emitting the pattern against an unrelated class fails to compile (CS8121).
-    /// </remarks>
+    /// <summary>Whether a declared type can hold a <c>RecursiveObservable</c> and needs generated descent; not "any reference type" — emitting the pattern against an unrelated class fails to compile (CS8121).</summary>
     private static bool CanHoldRecursiveObservable(ITypeSymbol type, INamedTypeSymbol recursiveObservableType)
         => type.InheritsFromOrEquals(recursiveObservableType) ||
            type.TypeKind == TypeKind.Interface ||

@@ -4,7 +4,7 @@
 @import "../mixins/surface-image.less";
 
 // The elements a child is *placed* in: a container plus the framework's regions (card bands, expander content), all on the same 24 columns.
-@ui-placement-hosts: ~".ui-container, .ui-surface, .ui-card__content, .ui-card__footer, .ui-card__header-content, .ui-expander__content, .ui-expander__header-text, .ui-collapsible-panel__content";
+@ui-placement-hosts: ~".ui-container, .ui-surface, .ui-card__content, .ui-card__footer, .ui-card__header-content, .ui-expander__content, .ui-expander__header-text, .ui-collapsible-panel__content, .ui-flyout__content, .ui-tabs__page, .ui-tab-item__page";
 
 .ui-container {
     display: grid;
@@ -15,8 +15,8 @@
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 
-    // The authored tracks are `--ui-columns`/`--ui-rows` (ContainerComponentRenderer); a splitter's division sits over them,
-    // one tier at a time (grid-splitter-engine.ts). Reset here, or a nested container would lay out on its parent's tracks.
+    // `--ui-columns`/`--ui-rows` are the authored tracks; a splitter's division sits over them. Reset here, or a nested
+    // container would lay out on its parent's tracks.
     --ui-columns: initial;
     --ui-rows: initial;
     .ui-responsive-reset(--ui-split-columns);

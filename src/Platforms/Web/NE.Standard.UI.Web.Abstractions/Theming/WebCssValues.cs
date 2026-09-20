@@ -114,8 +114,8 @@ public static class WebCssValues
     }
 
     /// <summary>
-    /// The track as the layout can hold it: a star's floor and a content track's floor or ceiling reach the
-    /// stylesheet; a fixed track's bounds and a star's ceiling are a splitter's clamp, carried on the container.
+    /// The track's CSS value for the grid layout. A fixed track's bounds and a star's ceiling are not written here — they
+    /// go to the splitter's clamp instead.
     /// </summary>
     public static string GridUnit(UIGridUnit unit)
         => unit.Unit switch
@@ -198,8 +198,8 @@ public static class WebCssValues
         => bold ? "600" : "400";
 
     /// <summary>
-    /// A font family name as a quoted CSS string, escaped so nothing in it can end the declaration early —
-    /// belt and braces alongside <c>UITypography.Validate</c>, which already refuses the characters that could.
+    /// A font family name as a quoted, escaped CSS string — belt and braces alongside <c>UITypography.Validate</c>, which
+    /// already refuses the risky characters.
     /// </summary>
     public static string FontFamily(string value)
     {

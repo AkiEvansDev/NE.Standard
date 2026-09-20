@@ -43,6 +43,7 @@ internal sealed class SelectMainView : DemoMainView, IUIViewDefinition
             .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
             .BindValue($"{ValueGroup}.{nameof(OptionValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(OptionValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(OptionValueGroupContext.Size)}")
             .BindAppearance($"{FieldGroup}.{nameof(SelectFieldGroupContext.Appearance)}")
             .BindPlaceholder($"{FieldGroup}.{nameof(SelectFieldGroupContext.Placeholder)}")
             .BindPrefixIcon($"{FieldGroup}.{nameof(SelectFieldGroupContext.PrefixIcon)}")

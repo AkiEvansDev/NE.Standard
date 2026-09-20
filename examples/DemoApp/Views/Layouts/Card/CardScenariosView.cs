@@ -9,6 +9,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -120,9 +121,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                     .SetTitle("Web Portal · #482")
                     .SetDescription("Click the card, the button, or right-click either")
                 )
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(10)
+                .SetContent(UILayout.Stack(10)
                     .AddChild(new ParagraphComponent()
                         .SetDescription("Selecting this sentence works too, which it did not while a card that was not clickable was made inert to keep its own click clean.")
                         .SetDescriptionType(UITextAppearance.Body)
@@ -148,10 +147,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateSelectionGroup()
     {
         return DemoUI.CreateGroup(SelectionGroup, "One of several",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(12)
-                .SetWrap(true)
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(CreateChoice(
                     CardSelectionGroupContext.NowId,
                     nameof(CardSelectionGroupContext.NowSurface),

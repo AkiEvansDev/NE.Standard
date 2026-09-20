@@ -1,7 +1,5 @@
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Regions;
 
@@ -20,9 +18,6 @@ public sealed class CardHeaderRegion : TextComponent<CardHeaderRegion>, IUICompo
     /// </summary>
     public CardHeaderRegion() : base()
     {
-        _ = SetIconAlignment(UITextIconAlignment.Content);
-        _ = SetTitleType(UITextAppearance.Title);
-        _ = SetDescriptionType(UITextAppearance.Caption);
-        _ = SetBadgePlacement(UITextBadgePlacement.Trailing);
+        _ = this.ApplyHeaderRegionDefaults();
     }
 }

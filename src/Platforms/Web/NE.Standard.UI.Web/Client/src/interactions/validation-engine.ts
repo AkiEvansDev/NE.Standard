@@ -1,7 +1,7 @@
-// Shows what a field has to say about its value: the client rules, the message a controller bound, and the
-// runtime's refusal of a value it could not take. The strongest of the three is what shows.
+// Shows what a field has to say about its value: client rules, a bound message, and the runtime's refusal of a value it
+// couldn't take. The strongest of the three is what shows.
 
-import { cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
+import { ComponentIdAttribute, cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { ValueReaderRegistry } from "../extensions/value-readers";
 import {
@@ -17,6 +17,7 @@ import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-pa
 import { UpdateProcessor } from "../updates/update-processor";
 import { observeComponents } from "./dom-mutations";
 import { evaluateOperator } from "./interaction-evaluator";
+import { pinTooltip, updateTooltip } from "./tooltip-engine";
 
 const ErrorClass = "ui-invalid";
 const WarningClass = "ui-validation--warning";
@@ -24,7 +25,13 @@ const InfoClass = "ui-validation--info";
 const MessageAttribute = "data-ui-validation-message";
 const MarkerClass = "ui-validation-message--marker";
 const TooltipAttribute = "data-ui-tooltip";
-const OwnTooltipAttribute = "data-ui-validation-tooltip";
+const PlacementAttribute = "data-ui-tooltip-placement";
+const MarkAttribute = "data-ui-tooltip-mark";
+// Right edge on the mark, above it: the mark sits at the corner of a field at the end of a cell, where a centred
+// tooltip would hang off the page.
+const MarkerPlacement = "top-end";
+const MarkerHostProperty = "--ui-validation-marker-host";
+const MirrorClass = "ui-validation-mark";
 const PresentationProperty = "--ui-validation-presentation";
 const SeverityColorProperty = "--ui-validation-color";
 const ValidationPropertyName = "Validation";
@@ -37,6 +44,12 @@ const SeverityClass: Readonly<Record<WebValidationSeverityName, string>> = { Err
 /** A field the server rendered a message on, which is how such a field is found before any patch names it. */
 const RenderedSelector = `.${ErrorClass}, .${WarningClass}, .${InfoClass}`;
 const SeverityColor: Readonly<Record<WebValidationSeverityName, string>> = { Error: "danger", Warning: "warning", Info: "info" };
+
+const MirrorSeverityClass: Readonly<Record<WebValidationSeverityName, string>> = {
+    Error: `${MirrorClass}--error`,
+    Warning: `${MirrorClass}--warning`,
+    Info: `${MirrorClass}--info`
+};
 
 export type ValidationEngineOptions = {
     readonly root?: ParentNode;
@@ -59,6 +72,10 @@ export class ValidationEngine {
     private readonly refusalByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly boundMessageByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly touchedElements = new WeakSet<Element>();
+    /** The copy of a field's mark that stands in the cell the field shares, one per field for as long as the field is in the page. */
+    private readonly markerMirrors = new WeakMap<HTMLElement, HTMLElement>();
+    /** The lines a shared message target holds: one per field that wrote there, in the order the fields first spoke. */
+    private readonly messageLines = new Map<string, Map<number, string>>();
 
     public constructor(options: ValidationEngineOptions) {
         this.options = options;
@@ -85,7 +102,7 @@ export class ValidationEngine {
             if (message === null || text.length === 0)
                 continue;
 
-            applyPresentation(element, message, { message: text, severity: renderedSeverity(element) });
+            applyPresentation(this.markerMirrors, element, message, { message: text, severity: renderedSeverity(element) });
         }
     }
 
@@ -161,7 +178,49 @@ export class ValidationEngine {
 
     /** Shows the strongest message the element has: the runtime's refusal, the controller's, or a failing rule's. */
     private applyCurrentState(componentId: number, element: Element): void {
-        applyValidationState(element, this.resolveDisplay(componentId, element));
+        const display = this.resolveDisplay(componentId, element);
+
+        applyValidationState(this.markerMirrors, element, display);
+        this.writeMessageElsewhere(componentId, display);
+    }
+
+    /**
+     * A field told to put its words in another component property writes them there and shows nothing of its own. Several fields
+     * may name one property; each holds a line of it, and the property reads them one under the other.
+     */
+    private writeMessageElsewhere(componentId: number, display: ValidationDisplay | undefined): void {
+        const target = this.options.metadata.getValidationTarget(componentId);
+
+        if (target === undefined)
+            return;
+
+        const key = `${getIdValue(target.message.componentId)}:${target.message.propertyId}`;
+        let lines = this.messageLines.get(key);
+
+        if (display !== undefined) {
+            if (lines === undefined) {
+                lines = new Map<number, string>();
+                this.messageLines.set(key, lines);
+            }
+
+            lines.set(componentId, display.message);
+        }
+        else {
+            if (lines === undefined || !lines.delete(componentId))
+                return;
+
+            if (lines.size === 0)
+                this.messageLines.delete(key);
+        }
+
+        // A field taken out of the page without putting itself right first leaves no line behind: the lines of fields no longer in the
+        // page go at the next write.
+        for (const field of [...lines.keys()]) {
+            if (this.root.querySelector(`[${ComponentIdAttribute}="${field}"]`) === null)
+                lines.delete(field);
+        }
+
+        this.options.propertyPatchEngine.applyPropertyValue(target.message, [], [...lines.values()].join("\n"), true);
     }
 
     private resolveDisplay(componentId: number, element: Element): ValidationDisplay | undefined {
@@ -309,7 +368,7 @@ function toSeverityName(value: unknown): WebValidationSeverityName {
     return name === "Unknown" ? "Error" : name;
 }
 
-function applyValidationState(element: Element, display: ValidationDisplay | undefined): void {
+function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, element: Element, display: ValidationDisplay | undefined): void {
     for (const className of Object.values(SeverityClass))
         element.classList.toggle(className, display !== undefined && SeverityClass[display.severity] === className);
 
@@ -326,36 +385,82 @@ function applyValidationState(element: Element, display: ValidationDisplay | und
         return;
 
     messageTarget.textContent = display?.message ?? "";
-    applyPresentation(htmlElement, messageTarget, display);
+    applyPresentation(mirrors, htmlElement, messageTarget, display);
 }
 
 /**
- * Where the stylesheet put the message — a line, or a mark in a cell of a grid — is read off the message's own variable once it is
- * shown; as a mark it speaks in a tooltip, on the mark and on the field itself where the field has no tooltip of its own.
+ * Where the stylesheet put the message (a line, or a mark in a grid cell) is read off the message's own variable once shown;
+ * as a mark it speaks in a tooltip, kept open for as long as the field holds focus.
  */
-function applyPresentation(root: HTMLElement, message: HTMLElement, display: ValidationDisplay | undefined): void {
-    const marker = display !== undefined && getComputedStyle(message).getPropertyValue(PresentationProperty).trim() === "marker";
+function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, message: HTMLElement, display: ValidationDisplay | undefined): void {
+    const style = getComputedStyle(message);
+    const marker = display !== undefined && style.getPropertyValue(PresentationProperty).trim() === "marker";
 
     message.classList.toggle(MarkerClass, marker);
 
-    if (marker) {
+    if (display !== undefined && marker) {
         message.setAttribute(TooltipAttribute, display.message);
+        message.setAttribute(PlacementAttribute, MarkerPlacement);
+        root.setAttribute(MarkAttribute, "");
+        applyMarkerMirror(mirrors, root, display, style.getPropertyValue(MarkerHostProperty).trim());
 
-        // The borrowed tooltip carries what was written, so a Tooltip the controller pushed over it is left alone here and below.
-        if (!root.hasAttribute(TooltipAttribute) || root.getAttribute(OwnTooltipAttribute) === root.getAttribute(TooltipAttribute)) {
-            root.setAttribute(TooltipAttribute, display.message);
-            root.setAttribute(OwnTooltipAttribute, display.message);
-        }
+        // A rule answered as the reader types puts the mark there while the field already holds focus, so no focus event is
+        // coming to open it: it speaks straight away and stays until the reader leaves.
+        if (root.contains(document.activeElement))
+            pinTooltip(message);
+        else
+            updateTooltip(message);
 
         return;
     }
 
     message.removeAttribute(TooltipAttribute);
+    message.removeAttribute(PlacementAttribute);
+    root.removeAttribute(MarkAttribute);
+    applyMarkerMirror(mirrors, root, undefined, "");
 
-    if (root.hasAttribute(OwnTooltipAttribute)) {
-        if (root.getAttribute(OwnTooltipAttribute) === root.getAttribute(TooltipAttribute))
-            root.removeAttribute(TooltipAttribute);
+    // The mark may be the one on screen: with nothing left to say it closes rather than standing over the field with a stale line.
+    updateTooltip(message);
+}
 
-        root.removeAttribute(OwnTooltipAttribute);
+/**
+ * A field that shares its cell with the value it edits (a key-value row's) goes with the row's editing flag; a copy of its
+ * mark stands in the cell the stylesheet names. Only one of the two cells is shown, so only one mark is.
+ */
+function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, display: ValidationDisplay | undefined, hostClassName: string): void {
+    const existing = mirrors.get(root);
+    const host = display === undefined || hostClassName.length === 0 ? null : findMarkerHost(root, hostClassName);
+
+    if (display === undefined || host === null) {
+        existing?.remove();
+        mirrors.delete(root);
+        return;
     }
+
+    const mirror = existing ?? document.createElement("span");
+
+    // The message is the mark's own text, hidden by the stylesheet the way the field's mark is: a reader on the value's line
+    // hears it there rather than from a field not on the page.
+    mirror.className = `${MirrorClass} ${MirrorSeverityClass[display.severity]}`;
+    mirror.textContent = display.message;
+    mirror.setAttribute(TooltipAttribute, display.message);
+    mirror.setAttribute(PlacementAttribute, MarkerPlacement);
+
+    if (mirror.parentElement !== host)
+        host.append(mirror);
+
+    mirrors.set(root, mirror);
+    updateTooltip(mirror);
+}
+
+/** The cell stands beside one of the field's own ancestors — a row of the same list — which is as far up as the search goes. */
+function findMarkerHost(root: HTMLElement, className: string): HTMLElement | null {
+    for (let node = root.parentElement; node !== null; node = node.parentElement) {
+        const host = node.querySelector<HTMLElement>(`:scope > .${className}`);
+
+        if (host !== null)
+            return host;
+    }
+
+    return null;
 }

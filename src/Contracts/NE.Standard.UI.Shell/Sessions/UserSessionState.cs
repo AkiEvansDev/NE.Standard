@@ -67,6 +67,10 @@ public sealed record UserSessionState
     /// </summary>
     public DateTime LastSeenAtUtc { get; init; }
 
+    /// <summary>Whether the session has sat unused for the idle timeout — the one reading of it, for every store and resolver.</summary>
+    public bool IsIdle(TimeSpan idleTimeout, DateTime utcNow)
+        => LastSeenAtUtc + idleTimeout <= utcNow;
+
     /// <summary>
     /// Validates the stored session.
     /// </summary>

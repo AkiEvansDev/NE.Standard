@@ -24,19 +24,6 @@ export class PropertyStateStore {
         return true;
     }
 
-    public delete(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[] = []): boolean {
-        return this.values.delete(this.createKey(reference, dynamicParameters));
-    }
-
-    public deleteComponent(componentId: number): void {
-        const prefix = `${componentId}:`;
-
-        for (const key of this.values.keys()) {
-            if (key.startsWith(prefix))
-                this.values.delete(key);
-        }
-    }
-
     public clear(): void {
         this.values.clear();
     }

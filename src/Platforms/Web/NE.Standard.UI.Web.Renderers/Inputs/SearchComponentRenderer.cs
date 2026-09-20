@@ -31,7 +31,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
-        TextContentRendererBase.RenderInputHeader(context, root);
+        TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true);
         SelectComponentRenderer.RenderAdornmentState(context, root);
 
         WebRenderValueKind valueKind = SelectComponentRenderer.RenderSelectValue(context, root, out var currentValue, out CompiledUIBinding? valueBinding);
@@ -66,6 +66,8 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
             // A click on this trigger may be the caret being placed in the text field, not a request to close.
             _ = trigger.Attribute(WebAttributes.SelectTriggerMode, "input");
+
+            TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
 

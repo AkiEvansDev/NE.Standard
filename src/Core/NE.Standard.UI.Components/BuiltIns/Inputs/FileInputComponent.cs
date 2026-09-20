@@ -1,4 +1,3 @@
-using System;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
@@ -10,7 +9,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A file input that lets the user select one or more files to upload.
 /// </summary>
-public abstract partial class FileInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent
+public abstract partial class FileInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
     where T : FileInputComponent<T>, IUIComponentDefinition
 {
     /// <inheritdoc/>
@@ -46,15 +45,6 @@ public abstract partial class FileInputComponent<T>(string? id = null) : Affixed
     [UIComponentProperty(DefaultValue = false)]
     public bool? Multiple { get; set; }
 
-    /// <summary>
-    /// Sets the maximum allowed file size, in bytes.
-    /// </summary>
-    public T SetMaxFileSize(long maxFileSize)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFileSize);
-        MaxFileSize = maxFileSize;
-        return Self;
-    }
 }
 
 /// <summary>

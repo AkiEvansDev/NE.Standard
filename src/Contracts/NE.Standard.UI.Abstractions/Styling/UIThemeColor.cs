@@ -7,11 +7,11 @@ namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>
 /// Represents a themed color: either a semantic <see cref="UIColorStyle"/> role, or an explicit
-/// <see cref="Light"/>/<see cref="Dark"/> override, which always wins when both are set.
+/// <see cref="Light"/>/<see cref="Dark"/> override, which wins when set.
 /// </summary>
 /// <param name="Style">The semantic role the palette resolves the colour from.</param>
-/// <param name="Light">An explicit colour for the light theme, which wins over the style.</param>
-/// <param name="Dark">An explicit colour for the dark theme, which wins over the style.</param>
+/// <param name="Light">An explicit colour for the light theme.</param>
+/// <param name="Dark">An explicit colour for the dark theme.</param>
 public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Light, ColorVariant? Dark)
 {
     /// <summary>
@@ -157,9 +157,6 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
     /// Reads the canonical wire form a client sends back: <c>@Role</c> for a semantic role, <c>#RRGGBBAA</c>
     /// for an explicit colour, or <c>Name/Adjustment/factor/opacity</c> for a palette variant.
     /// </summary>
-    /// <remarks>
-    /// The format a two-way binding sends back, coerced by the generated setter via <c>RecursiveValueCoercion</c>.
-    /// </remarks>
     public static bool TryParse(string? text, out UIThemeColor color)
     {
         color = default;
@@ -219,7 +216,10 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
         return true;
     }
 
-    /// <summary>The canonical wire form — what <see cref="TryParse"/> reads.</summary>
+    /// <summary>
+    /// The canonical wire form <see cref="TryParse"/> reads; a colour that differs between light and dark themes travels as
+    /// its light variant, since the wire carries only one colour.
+    /// </summary>
     public string ToCanonical()
     {
         if (Style is UIColorStyle style)

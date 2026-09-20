@@ -10,8 +10,10 @@
     --ui-selected-font-weight: initial;
 }
 
+// The wash is named too (--ui-row-wash): a cell that paints its own ground over the row's — a table's pinned column — paints the same wash.
 .ui-selected-ground(@default: var(--ui-wash-selected)) {
     background: var(--ui-selected-background, @default);
+    --ui-row-wash: var(--ui-selected-background, @default);
 }
 
 // The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback.
@@ -40,20 +42,19 @@
     .ui-selected-mark();
 }
 
-// A row under the pointer: --ui-wash-hover mixes into whatever is behind it, since the host may have no surface of its own. One
-// wash: a ghost button standing in the row answers with its ink, not a second wash over the row's.
+// A row under the pointer: --ui-wash-hover mixes into whatever is behind it, since the host may have no surface of its own.
+// One wash: a ghost button in the row answers with its ink, not a second wash over the row's.
 .ui-row-hover() {
     background-color: var(--ui-wash-hover);
+    --ui-row-wash: var(--ui-wash-hover);
 
     .ui-button--ghost {
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
 }
 
-// The keyboard's row, washed like the pointer's while the host itself holds the focus — except where one row to choose already
-// shows it: with a single choice the chosen row is the keyboard's, and a second mark read as a stray frame. The host root is what
-// the roving focus sits on, so `:focus` and not `:focus-within`: a click on a button inside some other row must not light a row
-// the reader chose a while ago.
+// The keyboard's row washes like the pointer's while the host holds focus, except with a single choice, whose chosen row
+// already is the keyboard's. `:focus`, not `:focus-within`, since a click in another row must not light a stale one.
 .ui-row-cursor(@host; @row) {
     @{host}:focus:not([data-ui-selection="one"]) > [data-ui-items-host] > @{row}[data-ui-row-focus] {
         .ui-row-hover();

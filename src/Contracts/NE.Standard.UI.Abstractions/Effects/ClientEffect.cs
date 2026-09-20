@@ -5,11 +5,9 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
-/// The effect kinds this framework ships; a kind is an open string, so a package can register its own.
+/// The effect kinds this framework ships; a kind is an open string, so a package may register its own, prefixed
+/// (e.g. <c>"acme.confetti"</c>) to avoid collisions.
 /// </summary>
-/// <remarks>
-/// Prefix a package's own kinds (e.g. <c>"acme.confetti"</c>) so they cannot collide with another package's.
-/// </remarks>
 public static class ClientEffectKinds
 {
     public const string Navigate = "Navigate";
@@ -27,14 +25,13 @@ public static class ClientEffectKinds
     public const string RenameTab = "RenameTab";
     public const string RenameNode = "RenameNode";
     public const string CopyToClipboard = "CopyToClipboard";
+    public const string DiscardForm = "DiscardForm";
 }
 
 /// <summary>
-/// Base type for effects that should be executed by the UI client after a command completes.
+/// Base type for effects the UI client runs after a command; a platform ignores kinds it doesn't implement, since a kind
+/// is a request, not a guarantee.
 /// </summary>
-/// <remarks>
-/// A platform runs the kinds it implements and ignores the rest with a log line; a kind is a request, not a guarantee.
-/// </remarks>
 [JsonConverter(typeof(ClientEffectJsonConverter))]
 public abstract class ClientEffect
 {
@@ -45,11 +42,8 @@ public abstract class ClientEffect
     public abstract string Kind { get; }
 
     /// <summary>
-    /// Whether a <c>UIInteraction</c> may raise this effect on its own, with no command behind it.
+    /// Whether a <c>UIInteraction</c> may raise this effect on its own, with no command or round trip behind it.
     /// </summary>
-    /// <remarks>
-    /// True only for an effect that completes entirely on the client, with no round trip behind it.
-    /// </remarks>
     public virtual bool CanRunInInteraction => false;
 
     /// <summary>

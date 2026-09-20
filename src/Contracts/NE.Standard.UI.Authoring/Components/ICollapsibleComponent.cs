@@ -25,8 +25,8 @@ public interface ICollapsibleComponent : IVisualComponent
     static UIProperty ShowCollapseToggleProperty { get; } = new UIProperty(nameof(ShowCollapseToggle));
 
     /// <summary>
-    /// Gets whether the component is unfolded: the authored start, and what a bound value moves it to; the viewer's own fold
-    /// stays in the client and may disagree with it afterwards.
+    /// Gets whether the component is unfolded (the authored start, or a bound value); the viewer's own fold stays client-side
+    /// and may later disagree.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     bool? Expanded { get; }

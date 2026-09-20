@@ -15,6 +15,10 @@ internal static class TypedConstantRenderer
         if (value.Kind == TypedConstantKind.Enum)
             return RenderEnumConstant(value);
 
+        // An array constant keeps its elements in Values; reading Value throws.
+        if (value.Kind == TypedConstantKind.Array)
+            return RenderArrayConstant(value);
+
         return value.Value switch
         {
             string text => SymbolDisplay.FormatLiteral(text, quote: true),
@@ -33,6 +37,19 @@ internal static class TypedConstantRenderer
             decimal m => m.ToString(CultureInfo.InvariantCulture) + "m",
             _ => value.Value?.ToString() ?? "null"
         };
+    }
+
+    private static string RenderArrayConstant(TypedConstant value)
+    {
+        var elementType = value.Type is IArrayTypeSymbol array
+            ? array.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            : "object";
+        var elements = new string[value.Values.Length];
+
+        for (var i = 0; i < elements.Length; i++)
+            elements[i] = Render(value.Values[i]);
+
+        return $"new {elementType}[] {{ {string.Join(", ", elements)} }}";
     }
 
     private static string RenderEnumConstant(TypedConstant value)

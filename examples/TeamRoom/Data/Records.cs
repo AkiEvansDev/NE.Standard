@@ -9,17 +9,7 @@ public static class AccountRoles
     public const string User = "user";
 }
 
-public sealed record AccountRecord(
-    string Id,
-    string Login,
-    string Nickname,
-    string Role,
-    bool IsBlocked,
-    string? AvatarMediaId,
-    string? BackgroundMediaId,
-    string? BackgroundFit,
-    DateTime CreatedUtc
-)
+public sealed record AccountRecord(string Id, string Login, string Nickname, string Role, bool IsBlocked, string? AvatarMediaId, string? BackgroundMediaId, string? BackgroundFit, DateTime CreatedUtc)
 {
     public bool IsAdmin => Role == AccountRoles.Admin;
 }

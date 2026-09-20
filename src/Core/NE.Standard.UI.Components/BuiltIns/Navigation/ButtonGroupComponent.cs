@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -12,18 +10,17 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
 /// <summary>
-/// A strip of segments pressed flush against each other, one of them current — the control a view's mode is
-/// switched with. Navigation, not an input: the segment chosen is a key, never a validated value.
+/// A strip of segments pressed flush together, one of them current — switches a view's mode. Navigation, not an input: the
+/// chosen segment is a key, never a validated value.
 /// </summary>
 /// <remarks>
-/// The segments are <see cref="IButtonModel"/>s (icon, title, tooltip, enabled) drawn by the button template as ghost
-/// buttons; the strip is the field's ground with a rule between the segments, and the current one is filled primary
-/// unless <c>SelectionStyle</c> says otherwise. Always horizontal.
+/// Segments are <see cref="IButtonModel"/>s drawn as ghost buttons on the field's ground, ruled between segments; the current
+/// one fills primary unless <c>SelectionStyle</c> says otherwise. Always horizontal.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent
+public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, IButtonTemplatedItemsComponent
     where T : ButtonGroupComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -51,46 +48,6 @@ public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IB
 
         _ = SetTemplate(new DefaultButtonTemplate(binds: true).SetType(UIButtonType.Ghost));
     }
-
-    /// <summary>
-    /// Registers a command run when a segment is pressed, beside the key being written back.
-    /// </summary>
-    public T OnItemClick(string command)
-    {
-        _ = RequiredTemplate.OnClick(command);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a command run when a segment is pressed, with UI action arguments.
-    /// </summary>
-    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.OnClick(command, arguments);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a click command invoked when an item is clicked, with literal argument values.
-    /// </summary>
-    public T OnItemClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-    {
-        _ = RequiredTemplate.OnClickLiteral(command, arguments);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers a click command that passes the clicked item as an argument.
-    /// </summary>
-    public T OnItemClickWithItem(string command, string argumentName = "item")
-        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
-
-    /// <summary>
-    /// Registers a command run when a segment is pressed, passing the segment's key as an argument.
-    /// </summary>
-    public T OnItemClickWithItemKey(string command, string argumentName = "id")
-        => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
-
 }
 
 /// <summary>

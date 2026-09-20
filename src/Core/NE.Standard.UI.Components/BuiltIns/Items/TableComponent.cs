@@ -10,17 +10,17 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>
-/// A table that shows the rows of a keyed collection under a header, one template per column. It filters and sorts by rule,
-/// chooses rows and scrolls the way an items view does; sorting by header, editing and paging are an add-on's.
+/// A table that shows the rows of a keyed collection under a header, one template per column, filtering and sorting by rule,
+/// selecting and scrolling like an items view. Sorting by header, editing and paging are an add-on's.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
+[UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
@@ -28,8 +28,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
     where T : TableComponent<T>, IUIComponentDefinition
 {
-    private const int DefaultWindowSize = 50;
-
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
 
     private readonly List<UITableColumn> _columns = [];
@@ -78,31 +76,12 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     [UIComponentProperty(DefaultValue = false)]
     public bool? ResizableColumns { get; set; }
 
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = UIItemsHostMode.Plain, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public UIItemsHostMode HostMode { get; private set; }
-
     /// <summary>
-    /// Gets or sets how many rows one window holds; not bindable, the client reads it once.
+    /// Gets or sets whether the viewer may drag a column by its caption to reorder it; the order stays client-side, like widths.
+    /// Pinned columns and a control's own column keep their place.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = DefaultWindowSize, GenerateBinder = false, IsBindable = false)]
-    public int WindowSize { get; set; } = DefaultWindowSize;
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public int? WindowOffset { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = null, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public int? WindowTotalCount { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public bool WindowHasMoreBefore { get; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IItemsHostComponent), DefaultValue = false, GenerateSetter = false, GenerateBinder = false, IsBindable = false)]
-    public bool WindowHasMoreAfter { get; }
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? ReorderableColumns { get; set; }
 
     /// <summary>
     /// Initializes a table with the built-in empty template and the row template every row is a copy of.
@@ -114,16 +93,57 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     }
 
     /// <summary>
-    /// Adds a column whose cells render <paramref name="template"/> against the row: bind it relatively to the row's properties.
-    /// The track is <see cref="UIGridUnit.Auto"/> unless given, and the key names the column's template variant.
+    /// Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties. Defaults to
+    /// <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the table
+    /// scrolls, and pinned columns must lead.
     /// </summary>
-    public T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null)
-        => AddColumn(new UITableColumn(key ?? (_columns.Count + 1).ToString(CultureInfo.InvariantCulture), caption, width ?? UIGridUnit.Auto(), alignment), template);
+    /// <remarks>Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column through the same verb.</remarks>
+    public virtual T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false)
+        => AddColumn(new UITableColumn(key ?? NextColumnKey(), caption, width ?? UIGridUnit.Auto(), alignment) { Pinned = pinned }, template);
+
+    /// <summary>The key a column gets when the author names none: its one-based position.</summary>
+    protected string NextColumnKey()
+        => (_columns.Count + 1).ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Adds a column a derived table built itself — a package's column, carrying more than a caption, a track and an alignment.
+    /// Hides the column keyed <paramref name="key"/> below viewport <paramref name="tier"/>; a viewer's chooser may still show it.
+    /// Applied after the column is added, so the adding verbs stay short.
     /// </summary>
-    protected T AddColumn(UITableColumn column, IVisualComponent template)
+    public T HideColumnBelow(string key, UIResponsiveTier tier)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        for (var i = 0; i < _columns.Count; i++)
+        {
+            if (string.Equals(_columns[i].Key, key, StringComparison.Ordinal))
+            {
+                ReplaceColumn(i, _columns[i] with { HideBelow = tier });
+                return Self;
+            }
+        }
+
+        throw new ArgumentException($"'{TypeKey}' has no column keyed '{key}'.", nameof(key));
+    }
+
+    /// <summary>Puts a column back in its place with more said about it — a package marking one filterable after the fact; the key and the template stay.</summary>
+    protected void ReplaceColumn(int index, UITableColumn column)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _columns.Count);
+
+        if (!string.Equals(_columns[index].Key, column.Key, StringComparison.Ordinal))
+            throw new ArgumentException($"A column keeps its key when it is put back; '{column.Key}' is not '{_columns[index].Key}'.", nameof(column));
+
+        column.Validate();
+        _columns[index] = column;
+    }
+
+    /// <summary>
+    /// Adds a column built by a derived table — one carrying more than a caption, track and alignment.
+    /// </summary>
+    /// <remarks>Every verb that adds a column ends here, so a derived table overriding it hears about all of them.</remarks>
+    protected virtual T AddColumn(UITableColumn column, IVisualComponent template)
     {
         ArgumentNullException.ThrowIfNull(column);
         ArgumentNullException.ThrowIfNull(template);
@@ -136,6 +156,10 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
                 throw new ArgumentException($"'{TypeKey}' already has a column keyed '{column.Key}'.", nameof(column));
         }
 
+        // A pinned column sticks at the sum of the pinned widths before it, which is only a sum while the pinned ones come first.
+        if (column.Pinned && _columns.Count > 0 && !_columns[^1].Pinned)
+            throw new ArgumentException($"'{TypeKey}' pins '{column.Key}' after an unpinned column; pinned columns lead the table.", nameof(column));
+
         _columns.Add(column);
 
         return SetTemplateVariantCore(column.TemplateKey, template);
@@ -144,7 +168,11 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <summary>
     /// Adds a column showing the row's text at <paramref name="propertyPath"/> — a string property, in the row's own words.
     /// </summary>
-    public T AddTextColumn(string caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null)
+    public virtual T AddTextColumn(string caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false)
+        => AddColumn(caption, CreateTextCell(propertyPath, alignment), width, alignment, key, pinned);
+
+    /// <summary>The cell a text column renders: the built-in text template, its title the row's property.</summary>
+    protected static DefaultTextTemplate CreateTextCell(string propertyPath, UITextAlignment? alignment)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyPath);
 
@@ -154,7 +182,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         if (alignment is UITextAlignment textAlignment)
             _ = cell.SetTextAlignment(textAlignment);
 
-        return AddColumn(caption, cell, width, alignment, key);
+        return cell;
     }
 
     /// <summary>
@@ -162,10 +190,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     public T Virtualized()
     {
-        if (HostMode == UIItemsHostMode.Windowed)
-            throw new InvalidOperationException("A windowed table already keeps only its window; it cannot be virtualized as well.");
-
-        HostMode = UIItemsHostMode.Virtualized;
+        HostMode = ItemsHostModes.Virtualize(HostMode);
         return Self;
     }
 
@@ -177,10 +202,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        if (HostMode == UIItemsHostMode.Virtualized)
-            throw new InvalidOperationException("A virtualized table holds its collection whole; a source hands over one window at a time instead.");
-
-        HostMode = UIItemsHostMode.Windowed;
+        HostMode = ItemsHostModes.Window(HostMode);
 
         return BindItems(path, scope);
     }

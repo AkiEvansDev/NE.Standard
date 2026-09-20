@@ -13,7 +13,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// A single-line text input for entering free-form text.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IRegionContainerComponent
+public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
@@ -77,33 +77,11 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public bool? ShowClearButton { get; set; }
 
     /// <summary>
-    /// Gets or sets what the browser may fill the field with, in the browser's own vocabulary (<see cref="UIAutocomplete"/>):
-    /// a password manager needs the sign-in pair named, and an address form fills itself only when its parts are.
+    /// Gets or sets what the browser may fill the field with, in its own vocabulary (<see cref="UIAutocomplete"/>) — e.g. naming
+    /// the sign-in pair for a password manager, or an address form's parts.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? Autocomplete { get; set; }
-
-    /// <summary>
-    /// Commits the value as the viewer types, this long after they pause.
-    /// </summary>
-    public T SetDebounceMilliseconds(int debounceMilliseconds)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(debounceMilliseconds);
-
-        DebounceMilliseconds = debounceMilliseconds;
-        return Self;
-    }
-
-    /// <summary>
-    /// Sets the maximum number of characters allowed.
-    /// </summary>
-    public T SetMaxLength(int maxLength)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLength);
-
-        MaxLength = maxLength;
-        return Self;
-    }
 
     /// <summary>
     /// Enables trimming leading and trailing whitespace from the input.

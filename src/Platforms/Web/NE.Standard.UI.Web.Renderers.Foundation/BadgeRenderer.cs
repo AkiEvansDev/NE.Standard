@@ -36,6 +36,9 @@ public sealed record WebBadgeRenderOptions
 /// <summary>Renders a badge — its style or raw colour, icon and text — into an element, whichever component owns it.</summary>
 public static class BadgeRenderer
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string IconShownAttribute = "data-ui-badge-icon";
+
     public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -80,12 +83,12 @@ public static class BadgeRenderer
             {
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    _ = badgeRoot.Attribute("data-ui-badge-icon");
+                    _ = badgeRoot.Attribute(IconShownAttribute);
                     IconValueRenderer.RenderIconValue(target, value);
                 }
             }, [
                 .. IconValueRenderer.Operations,
-                WebDomOperation.ToggleAttribute("data-ui-badge-icon", target: options.ContentStateTarget, condition: WebValueCondition.HasText)
+                WebDomOperation.ToggleAttribute(IconShownAttribute, target: options.ContentStateTarget, condition: WebValueCondition.HasText)
             ]);
         });
 
@@ -99,12 +102,12 @@ public static class BadgeRenderer
             {
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    _ = badgeRoot.Attribute("data-ui-badge-text", BadgeTextFit(value));
+                    _ = badgeRoot.Attribute(WebAttributes.BadgeText, BadgeTextFit(value));
                     _ = target.Text(value);
                 }
             }, [
                 WebDomOperation.Text(),
-                WebDomOperation.ToggleAttribute("data-ui-badge-text", target: options.ContentStateTarget, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit)
+                WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: options.ContentStateTarget, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit)
             ]);
         });
     }

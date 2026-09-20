@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ internal abstract partial class UIRuntimeBase
         => Controller.HasPendingChanges
             || _pendingUpdates.Count > 0
             || _dirtyItemWindows is { Count: > 0 }
-            || Interlocked.CompareExchange(ref _fullResyncRequested, 0, 0) == 1;
+            || Volatile.Read(ref _fullResyncRequested) == 1;
 
     /// <inheritdoc />
     public Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)
@@ -26,12 +27,28 @@ internal abstract partial class UIRuntimeBase
 
     private async Task<ServerChangeSet> FlushCoreAsync(bool force, bool publish, CancellationToken cancellationToken)
     {
+        ServerChangeSet changes = await DrainAsync(action: null, force, cancellationToken).ConfigureAwait(false);
+
+        return publish
+            ? await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false)
+            : changes;
+    }
+
+    /// <summary>
+    /// The one drain: an optional action under the state lock, then controller changes, stale windows and pending updates, with
+    /// window reloads appended outside the lock. Both flush and invoke go through it.
+    /// </summary>
+    private async Task<ServerChangeSet> DrainAsync(Func<CancellationToken, Task>? action, bool force, CancellationToken cancellationToken)
+    {
         ServerChangeSet changes;
         List<UIComponentId>? staleWindows;
 
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (action is not null)
+                await action(cancellationToken).ConfigureAwait(false);
+
             DrainControllerChangesNoLock();
 
             staleWindows = DrainDirtyItemWindowsNoLock();
@@ -42,10 +59,6 @@ internal abstract partial class UIRuntimeBase
             _ = _stateLock.Release();
         }
 
-        changes = await AppendItemWindowReloadsAsync(changes, staleWindows, cancellationToken).ConfigureAwait(false);
-
-        return publish
-            ? await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false)
-            : changes;
+        return await AppendItemWindowReloadsAsync(changes, staleWindows, cancellationToken).ConfigureAwait(false);
     }
 }

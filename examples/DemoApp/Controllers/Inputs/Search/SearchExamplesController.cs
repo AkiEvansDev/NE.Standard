@@ -64,7 +64,7 @@ internal sealed partial class SearchExamplesListContext : RecursiveObservable
 }
 
 /// <summary>
-/// The three boxes on the Search examples page, and the one command all of them search through.
+/// The five boxes on the Search examples page, and the one command all of them search through.
 /// </summary>
 internal sealed partial class SearchExamplesController() : DemoController
 {
@@ -77,9 +77,15 @@ internal sealed partial class SearchExamplesController() : DemoController
     [RecursiveMember]
     public partial SearchExamplesListContext ReplaceTextList { get; set; } = new();
 
+    [RecursiveMember]
+    public partial SearchExamplesListContext MinLengthList { get; set; } = new();
+
+    [RecursiveMember]
+    public partial SearchExamplesListContext ManualList { get; set; } = new();
+
     /// <summary>
     /// One command for every box, told which list to answer for by a literal argument; the term arrives through
-    /// the two-way bound <c>SearchText</c>.
+    /// the two-way bound <c>SearchText</c>, which is committed whether the box asked for the search or a button did.
     /// </summary>
     [UICommand]
     public void Search(string list)
@@ -94,6 +100,8 @@ internal sealed partial class SearchExamplesController() : DemoController
         {
             nameof(KeepTextList) => KeepTextList,
             nameof(ReplaceTextList) => ReplaceTextList,
+            nameof(MinLengthList) => MinLengthList,
+            nameof(ManualList) => ManualList,
             _ => ServicesList
         };
 }

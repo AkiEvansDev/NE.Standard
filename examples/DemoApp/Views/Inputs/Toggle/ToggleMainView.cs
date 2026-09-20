@@ -48,6 +48,7 @@ internal abstract class ToggleMainView : DemoMainView
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(ToggleValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(ToggleValueGroupContext.IsReadOnly)}")
+            .BindSize($"{ValueGroup}.{nameof(ToggleValueGroupContext.Size)}")
             .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
             .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
             .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")

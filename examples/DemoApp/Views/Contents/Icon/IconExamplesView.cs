@@ -3,6 +3,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Icon;
@@ -34,9 +35,7 @@ internal sealed class IconExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateAgainstPropertyGroup()
     {
         return DemoUI.CreateGroup(null, "A property, and a component",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(DemoUI.CreateCaption("As a text body's property"))
                 .AddChild(new TextComponent()
@@ -88,9 +87,7 @@ internal sealed class IconExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateScaleGroup()
     {
         return DemoUI.CreateGroup(null, "Beside text, and on its own",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .AddChild(DemoUI.CreateCaption("Size — the ladder that goes with text"))
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
@@ -127,9 +124,7 @@ internal sealed class IconExamplesView : DemoExamplesView, IUIViewDefinition
     private static ContainerComponent CreateMarkGroup()
     {
         return DemoUI.CreateGroup(null, "What the one string may hold",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(12)
+            content => content.AddChild(UILayout.Stack(12)
                 .AddChild(CreateReading("A glyph from the pack", DemoIcons.Outline(DemoIcons.Star), UIColorStyle.Default))
                 .AddChild(CreateReading("A picture, in its own colours", DemoImages.Logo, null))
                 .AddChild(CreateReading("The same picture, masked", DemoImages.Mask(DemoImages.Mark), UIColorStyle.Accent))
@@ -162,9 +157,7 @@ internal sealed class IconExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "A key to something else",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(8)
+                .SetContent(UILayout.Stack(8)
                     .AddChild(CreateLegendRow(DemoIcons.Check, UIColorStyle.Success, "Passed", "every gate answered"))
                     .AddChild(CreateLegendRow(DemoIcons.Clock, UIColorStyle.Warning, "Waiting", "a gate has not answered yet"))
                     .AddChild(CreateLegendRow(DemoIcons.Alert, UIColorStyle.Danger, "Refused", "a gate answered no"))

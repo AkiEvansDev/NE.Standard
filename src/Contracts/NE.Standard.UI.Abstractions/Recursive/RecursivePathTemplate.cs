@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -41,6 +42,11 @@ public sealed class RecursivePathTemplate
     /// Gets the empty path template.
     /// </summary>
     public static RecursivePathTemplate Empty { get; } = new(string.Empty, 0, []);
+
+    // Bounded: shapes come from the application's model, but a recursive model (a tree's Children under Children) has no last one.
+    private const int MaxCachedShapes = 4096;
+
+    private static readonly ConcurrentDictionary<RecursivePath, RecursivePathTemplate> TemplatesByShape = new(new PathShapeComparer());
 
     private readonly TemplatePart[] _parts;
 
@@ -220,25 +226,58 @@ public sealed class RecursivePathTemplate
         if (path.Count == 0)
             return (Empty, []);
 
-        List<TemplatePart> parts = [];
-        List<object> parameters = [];
-
-        foreach (PathSegment segment in path)
+        // Every path of one shape — the same properties, a key or an index wherever the other has one — has the same template,
+        // and a running view raises the same few shapes for ever: the template is built once and a lookup by path costs its
+        // parameters alone.
+        if (!TemplatesByShape.TryGetValue(path, out RecursivePathTemplate? template))
         {
-            switch (segment.Kind)
+            template = BuildFromPath(path);
+
+            if (TemplatesByShape.Count < MaxCachedShapes)
+                _ = TemplatesByShape.TryAdd(path, template);
+        }
+
+        return (template, ReadParameters(path, template.ParameterCount));
+    }
+
+    private static RecursivePathTemplate BuildFromPath(RecursivePath path)
+    {
+        ReadOnlySpan<PathSegment> segments = path.AsSpan();
+        TemplatePart[] parts = new TemplatePart[segments.Length];
+        var parameterCount = 0;
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            parts[i] = segments[i].Kind == PathSegmentKind.Property
+                ? TemplatePart.Fixed(segments[i])
+                : TemplatePart.Parameter(parameterCount++);
+        }
+
+        return Create(parts, parameterCount);
+    }
+
+    private static object[] ReadParameters(RecursivePath path, int parameterCount)
+    {
+        if (parameterCount == 0)
+            return [];
+
+        ReadOnlySpan<PathSegment> segments = path.AsSpan();
+        var parameters = new object[parameterCount];
+        var next = 0;
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            switch (segments[i].Kind)
             {
                 case PathSegmentKind.Property:
-                    parts.Add(TemplatePart.Fixed(segment));
                     break;
 
                 case PathSegmentKind.Index:
-                    parts.Add(TemplatePart.Parameter(parameters.Count));
-                    parameters.Add(segment.Index);
+                    parameters[next++] = segments[i].Index;
                     break;
 
                 case PathSegmentKind.Key:
-                    parts.Add(TemplatePart.Parameter(parameters.Count));
-                    parameters.Add(segment.Key);
+                    parameters[next++] = segments[i].Key;
                     break;
 
                 default:
@@ -246,7 +285,49 @@ public sealed class RecursivePathTemplate
             }
         }
 
-        return (Create([.. parts], parameters.Count), parameters.ToArray());
+        return parameters;
+    }
+
+    /// <summary>Two paths are one shape when they name the same properties and hold a key or an index in the same places.</summary>
+    private sealed class PathShapeComparer : IEqualityComparer<RecursivePath>
+    {
+        public bool Equals(RecursivePath? x, RecursivePath? y)
+        {
+            if (ReferenceEquals(x, y))
+                return true;
+
+            if (x is null || y is null)
+                return false;
+
+            ReadOnlySpan<PathSegment> left = x.AsSpan();
+            ReadOnlySpan<PathSegment> right = y.AsSpan();
+
+            if (left.Length != right.Length)
+                return false;
+
+            for (var i = 0; i < left.Length; i++)
+            {
+                var leftIsProperty = left[i].Kind == PathSegmentKind.Property;
+
+                if (leftIsProperty != (right[i].Kind == PathSegmentKind.Property))
+                    return false;
+
+                if (leftIsProperty && !string.Equals(left[i].Property, right[i].Property, StringComparison.Ordinal))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public int GetHashCode(RecursivePath obj)
+        {
+            HashCode hash = default;
+
+            foreach (PathSegment segment in obj.AsSpan())
+                hash.Add(segment.Kind == PathSegmentKind.Property ? segment.Property : null);
+
+            return hash.ToHashCode();
+        }
     }
 
     public override bool Equals(object? obj)

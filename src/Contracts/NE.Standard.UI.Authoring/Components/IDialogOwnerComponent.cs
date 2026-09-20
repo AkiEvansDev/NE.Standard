@@ -4,8 +4,8 @@ using NE.Standard.UI.Authoring.Views;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// A component carrying dialogs of its own — a package's editor opened from the client by key. The view collects them beside the
-/// ones it declares, so they render in the shell and open the same way.
+/// A component carrying dialogs of its own (e.g. a package's editor opened by key); the view collects them beside its own
+/// so they render the same way.
 /// </summary>
 public interface IDialogOwnerComponent
 {

@@ -24,14 +24,17 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
     }
 
     private readonly IHubContext<WebUIHub> _hub;
+    private readonly WebOutgoingValues _outgoing;
     private readonly ILogger<StandardWebUpdateSink> _logger;
 
-    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, ILogger<StandardWebUpdateSink> logger)
+    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, WebOutgoingValues outgoing, ILogger<StandardWebUpdateSink> logger)
     {
         ArgumentNullException.ThrowIfNull(hub);
+        ArgumentNullException.ThrowIfNull(outgoing);
         ArgumentNullException.ThrowIfNull(logger);
 
         _hub = hub;
+        _outgoing = outgoing;
         _logger = logger;
     }
 
@@ -51,7 +54,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         await _hub.Clients
             .Clients([.. instanceIds])
-            .SendAsync("ui.changes", changes, cancellationToken)
+            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds.Count), cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -67,7 +70,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         await _hub.Clients
             .Client(handle.Instance.Id)
-            .SendAsync("ui.commandResult", result, cancellationToken)
+            .SendAsync("ui.commandResult", _outgoing.Stage(result, handle.Session.SessionId, 1), cancellationToken)
             .ConfigureAwait(false);
     }
 }

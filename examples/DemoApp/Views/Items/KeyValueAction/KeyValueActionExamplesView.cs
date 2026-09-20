@@ -5,6 +5,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.KeyValueAction;
@@ -107,16 +108,12 @@ internal sealed class KeyValueActionExamplesView : DemoExamplesView, IUIViewDefi
                     .SetTitle("payments-api")
                     .SetDescription("What the deploy console reads off the service")
                 )
-                .SetContent(new KeyValueActionComponent()
-                    .SetShowActions(false)
-                    .SetBorderThickness(UIThickness.Uniform(0))
-                    .SetItems(
-                    [
-                        Row("region", "Region", "eu-west-1"),
-                        Row("replicas", "Replicas", "12"),
-                        Row("image", "Image", "payments-api:2.4.1"),
-                    ])
-                )
+                // UIDetails.List: no action column and no edge of its own, since a summary is read, not operated.
+                .SetContent(UIDetails.List(
+                    ("Region", "eu-west-1"),
+                    ("Replicas", "12"),
+                    ("Image", "payments-api:2.4.1")
+                ))
                 .SetPlacement(1, 1, 24, 1)
             ),
             note: "No edge of its own inside a card, and no action column: a summary is read, not operated."

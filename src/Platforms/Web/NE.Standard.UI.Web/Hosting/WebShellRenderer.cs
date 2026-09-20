@@ -14,6 +14,11 @@ namespace NE.Standard.UI.Web.Hosting;
 
 public static class WebShellRenderer
 {
+    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
+    private const string NotificationsAttribute = "data-ui-notifications";
+    private const string RootAttribute = "data-ui-root";
+    private const string ScrollContentAttribute = "data-ui-scroll-content";
+
     private static readonly JsonSerializerOptions MetadataJsonOptions = WebWireJson.CreateOptions();
 
     public static string Render(WebShellContext context)
@@ -34,7 +39,7 @@ public static class WebShellRenderer
     {
         _ = document.Attribute("lang", context.Language);
         _ = document.Attribute(WebAttributes.Theme, WebCssValues.RootThemeName(context.ThemeMode));
-        _ = document.Attribute("data-ui-notifications", context.NotificationPlacement.ToString().ToLowerInvariant());
+        _ = document.Attribute(NotificationsAttribute, context.NotificationPlacement.ToString().ToLowerInvariant());
 
         if (context.Theme.PressRipple)
             _ = document.Attribute(WebAttributes.PressRipple);
@@ -82,10 +87,10 @@ public static class WebShellRenderer
         _ = body.Element("div", root =>
         {
             _ = root.Attribute("id", context.RootElementId);
-            _ = root.Attribute("data-ui-root");
+            _ = root.Attribute(RootAttribute);
 
             if (context.ScrollContentOnly)
-                _ = root.Attribute("data-ui-scroll-content");
+                _ = root.Attribute(ScrollContentAttribute);
 
             _ = root.Raw(context.Content);
         });
@@ -119,7 +124,7 @@ public static class WebShellRenderer
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
-            _ = script.Attribute("data-ui-metadata");
+            _ = script.Attribute(WebAttributes.Metadata);
             _ = script.Raw(json);
         });
     }
@@ -132,7 +137,7 @@ public static class WebShellRenderer
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
-            _ = script.Attribute("data-ui-strings");
+            _ = script.Attribute(WebAttributes.Strings);
             _ = script.Raw(JsonSerializer.Serialize(context.Strings, MetadataJsonOptions));
         });
     }
@@ -149,7 +154,7 @@ public static class WebShellRenderer
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
-            _ = script.Attribute("data-ui-hydration");
+            _ = script.Attribute(WebAttributes.Hydration);
             _ = script.Raw(context.HydrationJson);
         });
     }
@@ -208,6 +213,7 @@ public static class WebShellRenderer
                     ("componentId", parameter.ComponentId?.Value),
                     ("value", parameter.Value)
                 ))),
+                ("optional", binding.Optional ? true : null),
                 ("fallbackValue", binding.FallbackValue)
             )),
             items = metadata.ItemsTemplates.Select(static itemsTemplate => Written(
@@ -227,7 +233,8 @@ public static class WebShellRenderer
                         ("wrapperElementName", slot.WrapperElementName),
                         ("wrapperClassName", slot.WrapperClassName),
                         ("wrapperRole", slot.WrapperRole),
-                        ("variantKeyPropertyName", slot.VariantKeyPropertyName)
+                        ("variantKeyPropertyName", slot.VariantKeyPropertyName),
+                        ("wrapperAttributes", slot.WrapperAttributes)
                     )))
                 ))
             )),
@@ -283,6 +290,20 @@ public static class WebShellRenderer
                 value = validation.Value,
                 severity = validation.Severity.ToString(),
                 message = validation.Message
+            }),
+            exposedProperties = metadata.ExposedProperties.Select(static property => new
+            {
+                componentId = property.ComponentId.Value,
+                propertyId = property.PropertyId
+            }),
+            validationTargets = metadata.ValidationTargets.Select(static target => new
+            {
+                componentId = target.ComponentId.Value,
+                message = new
+                {
+                    componentId = target.Message.ComponentId.Value,
+                    propertyId = target.Message.PropertyId
+                }
             }),
             itemValues = metadata.ItemValues.Select(static itemValues => new
             {

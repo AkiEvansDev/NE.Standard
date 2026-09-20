@@ -32,11 +32,7 @@ internal sealed class WebHydration
     /// </summary>
     public IWebRenderValues? Values { get; }
 
-    public static async Task<WebHydration> PrepareAsync(
-        IUIHost host,
-        UIViewResolution resolution,
-        WebCachedViewRender render,
-        CancellationToken cancellationToken)
+    public static async Task<WebHydration> PrepareAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(resolution);

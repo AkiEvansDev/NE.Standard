@@ -226,8 +226,8 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         if (buffer.Length == 0)
             return;
 
-        HashSet<T> uniqueItems = new(ReferenceEqualityComparer.Instance);
-        HashSet<string>? uniqueIds = _itemsById is null ? null : new(StringComparer.Ordinal);
+        HashSet<T> uniqueItems = new(buffer.Length, ReferenceEqualityComparer.Instance);
+        HashSet<string>? uniqueIds = _itemsById is null ? null : new(buffer.Length, StringComparer.Ordinal);
 
         for (var i = 0; i < buffer.Length; i++)
         {
@@ -271,12 +271,15 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             change = RecursiveChange.Add(RecursivePath.Empty, startIndex, buffer.Length, GetItemIdsNoLock(startIndex, buffer.Length));
         }
 
+        // One visited set for the range rather than one per item: a node belongs to a single owner, so no item's subtree reaches another's.
+        HashSet<RecursiveObservable> visited = new(buffer.Length, ReferenceEqualityComparer.Instance);
+
         for (var i = 0; i < buffer.Length; i++)
         {
             T item = buffer[i];
 
             item.AttachOwner(this);
-            item.SetNotifier(forwarders[i].Notify);
+            item.SetNotifier(forwarders[i].Notify, visited);
         }
 
         Notify(change);
@@ -318,10 +321,12 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             change = RecursiveChange.Reset(RecursivePath.Empty);
         }
 
+        HashSet<RecursiveObservable> visited = new(removedItems.Length, ReferenceEqualityComparer.Instance);
+
         for (var i = 0; i < removedItems.Length; i++)
         {
             removedItems[i].DetachOwner(this);
-            removedItems[i].ResetNotifier();
+            removedItems[i].ResetNotifier(visited);
         }
 
         Notify(change);

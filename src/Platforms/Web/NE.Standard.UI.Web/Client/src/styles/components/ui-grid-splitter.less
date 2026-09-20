@@ -2,9 +2,8 @@
 @import "../mixins/responsive.less";
 @import "../mixins/interactive.less";
 
-// A bar the viewer drags between two runs of tracks (grid-splitter-engine.ts moves them): the border between two panes
-// at rest, drawn like a separator, which thickens and lightens under the pointer, while it is held, and when it has the
-// keyboard — a border that brightens, not a control that lights up.
+// A bar the viewer drags between two runs of tracks (grid-splitter-engine.ts moves them): a border that thickens and
+// brightens under the pointer, while held, or keyboard-focused — brightening as a border, not lighting up as a control.
 .ui-grid-splitter {
     position: relative;
     display: block;
@@ -53,22 +52,23 @@
         transform: translateY(-50%);
     }
 
-// A press focuses the handle so the arrows can carry on from where the drag left it, and the browser then counts that focus as
-// the keyboard's; the mark the press left says otherwise, so the bar goes back to rest once the pointer leaves.
+// A press focuses the handle too, and the browser then treats that as keyboard focus; [data-ui-pointer-focus] overrides it,
+// so the bar returns to rest once the pointer leaves.
 .ui-grid-splitter:hover::before,
 .ui-grid-splitter:focus-visible:not([data-ui-pointer-focus])::before,
 .ui-grid-splitter[data-ui-splitting]::before {
     background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
 }
 
+// The same guard as the colour above, so width and colour return to rest together instead of drifting out of sync.
 .ui-grid-splitter.ui-orientation--vertical:hover::before,
-.ui-grid-splitter.ui-orientation--vertical:focus-visible::before,
+.ui-grid-splitter.ui-orientation--vertical:focus-visible:not([data-ui-pointer-focus])::before,
 .ui-grid-splitter.ui-orientation--vertical[data-ui-splitting]::before {
     width: 3px;
 }
 
 .ui-grid-splitter.ui-orientation--horizontal:hover::before,
-.ui-grid-splitter.ui-orientation--horizontal:focus-visible::before,
+.ui-grid-splitter.ui-orientation--horizontal:focus-visible:not([data-ui-pointer-focus])::before,
 .ui-grid-splitter.ui-orientation--horizontal[data-ui-splitting]::before {
     height: 3px;
 }

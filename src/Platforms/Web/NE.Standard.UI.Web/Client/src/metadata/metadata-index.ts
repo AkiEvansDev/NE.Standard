@@ -6,6 +6,9 @@ export type WebUIMetadata = {
     readonly events: readonly WebRenderEventMetadata[];
     readonly interactions: readonly WebRenderInteractionMetadata[];
     readonly validations: readonly WebRenderValidationMetadata[];
+    readonly validationTargets?: readonly WebRenderValidationMessageTargetMetadata[];
+    // The properties a package's client may set the way a push does: a part it keeps in step with its own state.
+    readonly exposedProperties?: readonly WebRenderPropertyReferenceMetadata[];
     readonly items: readonly WebRenderItemsTemplateMetadata[];
     readonly itemsFilterSort: readonly WebRenderItemsFilterSortMetadata[];
     readonly itemValues: readonly WebRenderItemValuesMetadata[];
@@ -16,6 +19,12 @@ export type WebRenderPropertyDefinitionMetadata = {
     readonly componentTypeKey: string;
     readonly propertyName: string;
     readonly operations: readonly WebDomOperation[];
+};
+
+/** A field that writes its validation words into another component property instead of showing them itself. */
+export type WebRenderValidationMessageTargetMetadata = {
+    readonly componentId: IdValue;
+    readonly message: WebRenderPropertyReferenceMetadata;
 };
 
 export type WebRenderPropertyReferenceMetadata = {
@@ -30,6 +39,8 @@ export type WebRenderBindingMetadata = WebRenderPropertyReferenceMetadata & {
     readonly mode?: WebBindingMode;
     readonly itemTemplate?: string | null;
     readonly itemTemplateParameters?: readonly WebRenderBindingParameterMetadata[] | null;
+    // An item without the property is expected — a built-in template bound to whatever items it is given — and is not worth a warning.
+    readonly optional?: boolean | null;
     // What the property falls back to when the item says nothing about it; only a row the client builds needs it.
     readonly fallbackValue?: unknown;
 };
@@ -69,6 +80,8 @@ export type WebRenderItemsCompositeSlotMetadata = {
     readonly wrapperRole?: string | null;
     // The item property naming a typed variant of the slot (`{variantKey}:{value}`); the slot's own variant when it names none.
     readonly variantKeyPropertyName?: string | null;
+    /** Attributes the wrapper carries, as the server's rows carry them. */
+    readonly wrapperAttributes?: Readonly<Record<string, string>> | null;
 };
 
 export type WebItemsSortDirectionName = "Ascending" | "Descending";
@@ -169,15 +182,6 @@ export type WebRenderValidationTargetMetadata = {
 export type WebValidationTriggerName = "Change" | "Blur" | "Submit";
 export type WebValidationTrigger = WebValidationTriggerName | number;
 
-export type WebColorStyleName =
-    | "Default" | "Primary" | "Accent" | "Background" | "Surface"
-    | "OnPrimary" | "OnAccent" | "OnBackground" | "OnSurface"
-    | "Info" | "Warning" | "Success" | "Danger"
-    | "OnInfo" | "OnWarning" | "OnSuccess" | "OnDanger"
-    | "Muted"
-    | "Selected" | "FocusRing" | "Border" | "Shadow" | "Overlay";
-export type WebColorStyle = WebColorStyleName | number;
-
 export type WebValidationSeverityName = "Error" | "Warning" | "Info";
 export type WebValidationSeverity = WebValidationSeverityName | number;
 
@@ -262,6 +266,8 @@ export type ServerValueUIUpdate = {
     readonly kind: UIUpdateKindValue;
     readonly address: UIPropertyAddress;
     readonly value?: unknown;
+    /** The token of a value staged beside the hub, fetched before the change set is applied; the value comes that way instead. */
+    readonly valueToken?: string;
 };
 
 export type ServerValidationUIUpdate = {
@@ -332,6 +338,7 @@ export type ClientEffectKindName =
     | "ScrollTo"
     | "Show"
     | "Hide"
+    | "Collapse"
     | "OpenDialog"
     | "CloseDialog"
     | "ShowNotification"
@@ -340,7 +347,8 @@ export type ClientEffectKindName =
     | "SetTheme"
     | "RenameTab"
     | "RenameNode"
-    | "CopyToClipboard";
+    | "CopyToClipboard"
+    | "DiscardForm";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -352,6 +360,7 @@ export const ClientEffectKinds = {
     ScrollTo: "ScrollTo",
     Show: "Show",
     Hide: "Hide",
+    Collapse: "Collapse",
     OpenDialog: "OpenDialog",
     CloseDialog: "CloseDialog",
     ShowNotification: "ShowNotification",
@@ -360,7 +369,8 @@ export const ClientEffectKinds = {
     SetTheme: "SetTheme",
     RenameTab: "RenameTab",
     RenameNode: "RenameNode",
-    CopyToClipboard: "CopyToClipboard"
+    CopyToClipboard: "CopyToClipboard",
+    DiscardForm: "DiscardForm"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -424,6 +434,11 @@ export type DownloadFileClientEffect = ClientEffect & {
     readonly fileName?: string;
 };
 
+/** Lets go of the edits a form's `OnSubmit` fields hold, so they show the server's values again. */
+export type DiscardFormClientEffect = ClientEffect & {
+    readonly formId?: string;
+};
+
 export type DialogClientEffect = ClientEffect & {
     readonly dialogKey?: string;
 };
@@ -473,6 +488,8 @@ export type WebUIValueChangeRequest = {
     readonly propertyName: string;
     readonly dynamicParameters: readonly unknown[];
     readonly value?: unknown;
+    /** The token of a value staged beside the hub, sent instead of `value` when the value is large. */
+    readonly valueToken?: string;
 };
 
 export type WebUIChangeSetRequest = {
@@ -491,6 +508,8 @@ export class MetadataIndex {
     private readonly itemsFilterSortByComponentId = new Map<number, WebRenderItemsFilterSortMetadata>();
     private readonly itemValuesByComponentId = new Map<number, WebRenderItemValuesMetadata>();
     private readonly validationsByComponentId = new Map<number, WebRenderValidationMetadata[]>();
+    private readonly validationTargetsByComponentId = new Map<number, WebRenderValidationMessageTargetMetadata>();
+    private readonly exposedProperties = new Map<string, WebRenderPropertyReferenceMetadata>();
 
     // A plain field rather than a parameter property: node's type stripping refuses one, and the tests import this module.
     public readonly metadata: WebUIMetadata;
@@ -515,6 +534,16 @@ export class MetadataIndex {
 
         for (const itemValues of metadata.itemValues ?? [])
             this.addItemValues(itemValues);
+
+        for (const target of metadata.validationTargets ?? [])
+            this.validationTargetsByComponentId.set(getIdValue(target.componentId), target);
+
+        for (const property of metadata.exposedProperties ?? []) {
+            const definition = this.getPropertyDefinition(property.propertyId);
+
+            if (definition !== undefined)
+                this.exposedProperties.set(`${getIdValue(property.componentId)}:${definition.propertyName}`, property);
+        }
 
         for (const validation of metadata.validations)
             this.addValidation(validation);
@@ -576,6 +605,16 @@ export class MetadataIndex {
 
     public getValidationsForComponent(componentId: number): readonly WebRenderValidationMetadata[] {
         return this.validationsByComponentId.get(componentId) ?? [];
+    }
+
+    /** Where this field sends its validation words, when it sends them somewhere other than itself. */
+    /** A property the component's renderer let a package's client set, by the component and the property's name. */
+    public getExposedProperty(componentId: number, propertyName: string): WebRenderPropertyReferenceMetadata | undefined {
+        return this.exposedProperties.get(`${componentId}:${propertyName}`);
+    }
+
+    public getValidationTarget(componentId: number): WebRenderValidationMessageTargetMetadata | undefined {
+        return this.validationTargetsByComponentId.get(componentId);
     }
 
     private addPropertyDefinition(property: WebRenderPropertyDefinitionMetadata): void {

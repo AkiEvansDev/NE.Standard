@@ -5,6 +5,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Indicators.Spinner;
@@ -38,9 +39,7 @@ internal sealed class SpinnerExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Beside a word",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(14)
+                .SetContent(UILayout.Stack(14)
                     .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(new SpinnerComponent()
                         .SetLabel("Reading the manifest")
@@ -94,9 +93,7 @@ internal sealed class SpinnerExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Against a control's own Loading",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(DemoUI.CreateCaption("The control says it"))
                     .AddChild(new ButtonComponent()
@@ -136,9 +133,7 @@ internal sealed class SpinnerExamplesView : DemoExamplesView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "Against an indeterminate bar",
             content => content.AddChild(new SurfaceComponent()
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Vertical)
-                    .SetSpacing(12)
+                .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(DemoUI.CreateCaption("Spinner — no total, and it does not imply one"))
                     .AddChild(new SpinnerComponent()

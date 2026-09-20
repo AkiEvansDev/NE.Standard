@@ -11,9 +11,9 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
     where T : TimeInputComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Validates that the minimum, maximum, and current time values are consistent with each other.
+    /// Validates that one end of the value or the period sits between the minimum and the maximum.
     /// </summary>
-    protected override void ValidateRange(TimeOnly? min, TimeOnly? max, TimeOnly? value)
+    protected override void ValidateEnd(TimeOnly? min, TimeOnly? max, TimeOnly? value)
         => ValidateOrderedRange(min, max, value, "time");
 
     /// <inheritdoc/>

@@ -12,6 +12,11 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     private readonly Lock _sync = new();
     private readonly Dictionary<UIRuntimeKey, UIRuntimeEntry> _entries = [];
     private readonly Dictionary<string, UIRuntimeKey> _instanceKeys = new(StringComparer.Ordinal);
+    // Reused by the flush pass so an empty interval allocates nothing; guarded by its own lock rather than the scheduler's
+    // one-at-a-time promise, since a second caller (e.g. a benchmark) could read a list mid-clear.
+    private readonly Lock _flushSync = new();
+    private readonly List<UIRuntimeEntry> _flushCandidates = [];
+    private readonly List<UIRuntimeEntry> _flushReady = [];
 
     public bool TryGet(UIRuntimeKey key, out IUIRuntime? runtime)
     {
@@ -42,6 +47,27 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
             }
 
             runtime = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The entry itself, when <paramref name="instanceId"/> is attached to it — for callers that need more than
+    /// the runtime, such as the per-entry session-activity throttle.
+    /// </summary>
+    public bool TryGetAttachedEntry(UIRuntimeKey key, string instanceId, out UIRuntimeEntry? entry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
+
+        lock (_sync)
+        {
+            if (_entries.TryGetValue(key, out UIRuntimeEntry? found) && found.HasInstance(instanceId))
+            {
+                entry = found;
+                return true;
+            }
+
+            entry = null;
             return false;
         }
     }
@@ -286,36 +312,66 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         }
     }
 
+    /// <summary>The runtimes with something to send, marked as flushed so the next interval skips them.</summary>
+    /// <remarks>
+    /// Checking a runtime's work reads its controller — application code — so this runs outside the store's lock, or a slow
+    /// controller would stall every attach. Candidates are copied into a store-owned buffer, so an empty interval allocates nothing.
+    /// </remarks>
     public IUIRuntime[] GetRuntimesReadyToFlush(DateTime utcNow)
+    {
+        lock (_flushSync)
+            return SelectRuntimesReadyToFlush(utcNow);
+    }
+
+    private IUIRuntime[] SelectRuntimesReadyToFlush(DateTime utcNow)
     {
         lock (_sync)
         {
-            if (_entries.Count == 0)
-                return [];
-
-            List<IUIRuntime> result = [];
+            _flushCandidates.Clear();
 
             foreach (UIRuntimeEntry entry in _entries.Values)
             {
-                if (!entry.ShouldFlush(utcNow))
-                    continue;
-
-                // An idle runtime is left unmarked, so the tick after work arrives picks it up instead of waiting a fresh interval.
-                if (!entry.Runtime.HasPendingWork)
-                    continue;
-
-                entry.MarkFlushed(utcNow);
-                result.Add(entry.Runtime);
+                if (entry.ShouldFlush(utcNow))
+                    _flushCandidates.Add(entry);
             }
-
-            return [.. result];
         }
+
+        if (_flushCandidates.Count == 0)
+            return [];
+
+        _flushReady.Clear();
+
+        for (var i = 0; i < _flushCandidates.Count; i++)
+        {
+            // An idle runtime is left unmarked, so the tick after work arrives picks it up instead of waiting a fresh interval.
+            if (_flushCandidates[i].Runtime.HasPendingWork)
+                _flushReady.Add(_flushCandidates[i]);
+        }
+
+        if (_flushReady.Count == 0)
+            return [];
+
+        IUIRuntime[] result = new IUIRuntime[_flushReady.Count];
+
+        lock (_sync)
+        {
+            for (var i = 0; i < _flushReady.Count; i++)
+            {
+                _flushReady[i].MarkFlushed(utcNow);
+                result[i] = _flushReady[i].Runtime;
+            }
+        }
+
+        return result;
     }
 
-    public async ValueTask<int> CleanupAsync(DateTime utcNow, TimeSpan retention)
+    public async ValueTask<int> CleanupAsync(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)
     {
         if (retention < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(retention), retention, "Retention cannot be negative.");
+
+        if (unclaimedRetention < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(unclaimedRetention), unclaimedRetention, "Unclaimed retention cannot be negative.");
 
         List<IUIRuntime> removed = [];
         List<UIRuntimeKey> removedKeys = [];
@@ -324,7 +380,7 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         {
             foreach (KeyValuePair<UIRuntimeKey, UIRuntimeEntry> pair in _entries)
             {
-                if (!pair.Value.ShouldCleanup(utcNow, retention))
+                if (!pair.Value.ShouldCleanup(utcNow, retention, unclaimedRetention))
                     continue;
 
                 removedKeys.Add(pair.Key);

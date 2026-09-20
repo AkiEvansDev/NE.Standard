@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using DemoApp.Controllers.Layouts.Scroll;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Extensions;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Scroll;
@@ -39,18 +41,12 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateChatGroup()
     {
         return DemoUI.CreateGroup(ChatGroup, "The same message arriving in two viewports",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            content => content.AddChild(UILayout.Stack(8)
                 .AddChild(DemoUI.CreateCaption("End — follows what arrives"))
                 .AddChild(CreateChat(anchored: true))
                 .AddChild(DemoUI.CreateCaption("None — stays where it was"))
                 .AddChild(CreateChat(anchored: false))
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("Scroll the anchored one up and send again: it stays where you left it, and takes the pin back when you return to the bottom.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("Scroll the anchored one up and send again: it stays where you left it, and takes the pin back when you return to the bottom."))
                 .SetPlacement(1, 1, 24, 1)
             ),
             controls => DemoUI.InitControls(controls, new Dictionary<string, string>
@@ -71,9 +67,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
             .SetBorderThickness(UIThickness.Uniform(1))
             .SetBorderColor(UIThemeColor.Border);
 
-        return viewport.AddChild(new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(10)
+        return viewport.AddChild(UILayout.Stack(10)
             .AddChild(ScrollDemo.CreateMessage("Robin", "The staging deploy is stuck on the health check again.", false, 280))
             .AddChild(ScrollDemo.CreateMessage("You", "Which replica?", true, 280))
             .AddChild(ScrollDemo.CreateMessage("Robin", "Two of eight, both in eu-west-1.", false, 280))
@@ -97,9 +91,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateBuildLogGroup()
     {
         return DemoUI.CreateGroup(LogGroup, "A job that is still running",
-            content => content.AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Vertical)
-                .SetSpacing(8)
+            content => content.AddChild(UILayout.Stack(8)
                 .AddChild(new ScrollContainerComponent()
                     .VerticalScrollOnly()
                     .AnchorToEnd()
@@ -113,11 +105,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription("The newest line stays in sight without the reader chasing it down the pane.")
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
+                .AddChild(UIText.Note("The newest line stays in sight without the reader chasing it down the pane."))
                 .SetPlacement(1, 1, 24, 1)
             ),
             controls => DemoUI.InitControls(controls, new Dictionary<string, string>

@@ -1,0 +1,12 @@
+{
+  "name": "@ne-standard/ui-web-glyphs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "material-symbols": "0.47.0",
+    "subset-font": "2.7.0"
+  }
+}
