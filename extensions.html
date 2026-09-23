@@ -1,0 +1,439 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Presets — NE.Standard</title>
+    <meta name="description" content="One-call shorthands over the built-in components for the page parts, form rows, button pairs, text roles and show-when rules a screen writes again and again.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li class="current"><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation sources, the session&#39;s language, [Translatable] properties, and the framework&#39;s own strings.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line.">Text</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A search input that filters a bound list of options as the user types.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value by dragging a handle along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Presets</h1>
+<p><code>NE.Standard.UI.Extensions</code> is a package of presets: static classes and extension methods that build the
+arrangements a screen writes over and over — a header band, a titled section, two fields on one line, a pair of
+buttons at a form's foot — out of the built-in components. It adds no component of its own. Each preset returns an
+ordinary <code>StackPanelComponent</code>, <code>ContainerComponent</code>, <code>ButtonComponent</code> or <code>TextComponent</code>, so everything they build
+is already rendered by the platform, and the package is server-only. A returned component takes the usual <code>Set*</code>,
+<code>Bind*</code> and <code>On*</code> calls after it, like any other.</p>
+<p>It is installed separately:</p>
+<pre><code class="language-bash">dotnet add package NE.Standard.UI.Extensions --prerelease
+</code></pre>
+<p>Like every package here it brings its namespace, <code>NE.Standard.UI.Extensions</code>, as a global using, so nothing below
+needs a <code>using</code> line; a project that sets <code>NEStandardUIImplicitUsings</code> to <code>false</code> writes its own.</p>
+<h2 id="a-screen-written-with-them">A screen written with them</h2>
+<p>The same form without presets is a tree of stack panels, spacings and placements. With them it reads as the page
+it describes: sections down a column, two fields to a line, the address folded away while a box is ticked, and the
+buttons at the foot.</p>
+<pre><code class="language-csharp">internal sealed class ShippingView : UIViewBase, IUIViewDefinition
+{
+    private const string FormId = &quot;shipping&quot;;
+    private const string SameAddressId = &quot;shipping-same-address&quot;;
+
+    public static string ViewKey =&gt; &quot;shipping&quot;;
+
+    protected override IVisualComponent? CreateHeader()
+        =&gt; UIPage.Header(&quot;Shipping&quot;, &quot;Where the parcel goes, and who signs for it.&quot;);
+
+    protected override IVisualComponent CreateContent()
+        =&gt; UILayout.Split(CreateForm(), CreateSummary(), sideSpan: 9);
+
+    private static StackPanelComponent CreateForm()
+        =&gt; UILayout.Stack(28,
+            UIPage.Section(&quot;Recipient&quot;, null,
+                UIForm.Row(
+                    new TextInputComponent().SetTitle(&quot;First name&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.FirstName)),
+                    new TextInputComponent().SetTitle(&quot;Last name&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.LastName))
+                )
+            ),
+            UIPage.Section(&quot;Invoice address&quot;, &quot;Only when it differs from the delivery address.&quot;,
+                new CheckboxComponent(SameAddressId)
+                    .SetTitle(&quot;Invoice goes to the delivery address&quot;)
+                    .BindValue(nameof(ShippingController.SameAddress)),
+                UILayout.Stack(16,
+                    new TextInputComponent().SetTitle(&quot;Street and number&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.Street)),
+                    UIForm.Row(
+                        new TextInputComponent().SetTitle(&quot;City&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.City)),
+                        new TextInputComponent().SetTitle(&quot;Postcode&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.Postcode))
+                    )
+                )
+                .ShownWhen(SameAddressId, false)
+            ),
+            UIButtons.Pair(
+                UIButtons.Ghost(&quot;Back&quot;),
+                UIButtons.Primary(&quot;Continue&quot;).OnSubmit(FormId, nameof(ShippingController.ContinueAsync))
+            )
+        );
+
+    private static CardComponent CreateSummary()
+        =&gt; UIPage.Card(&quot;Your order&quot;, &quot;Shipped within two working days.&quot;, UIDetails.List(
+            (&quot;Items&quot;, &quot;3&quot;),
+            (&quot;Weight&quot;, &quot;2.4 kg&quot;),
+            (&quot;Delivery&quot;, &quot;Standard&quot;)
+        ));
+}
+</code></pre>
+<p><code>examples/DemoApp/Views/Screens/CheckoutView.cs</code> in the repository is a full screen built this way.</p>
+<h2 id="uipage-the-regions-of-a-page"><code>UIPage</code> — the regions of a page</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Header(string title, string? description = null, params IVisualComponent[] trailing)</code></td>
+<td>The band a page is headed by: the title in the display role, a muted line under it, and whatever is passed as <code>trailing</code> (a theme switcher, the signed-in person, the page's buttons) at the far end. Returns a <code>ContainerComponent</code>, usually from <code>CreateHeader()</code>.</td>
+</tr>
+<tr>
+<td><code>Section(string title, string? description, params IVisualComponent[] content)</code></td>
+<td>A titled part of a page: the heading, an optional muted line, and the content below it. The heading and its note sit closer to each other than to the content.</td>
+</tr>
+<tr>
+<td><code>Card(string title, string? description, IVisualComponent content, string? icon = null)</code></td>
+<td>A <code>CardComponent</code> with its name (and optional line and icon) in the default header and one component as its content.</td>
+</tr>
+<tr>
+<td><code>Labelled(string label, IVisualComponent content)</code></td>
+<td>A component under an overline label: a value, a sample, a control with no title of its own.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">protected override IVisualComponent? CreateHeader()
+    =&gt; UIPage.Header(&quot;Projects&quot;, &quot;Everything the team is building.&quot;, new ThemeSwitcherComponent());
+</code></pre>
+<h2 id="uiform-the-parts-of-a-form-besides-its-fields"><code>UIForm</code> — the parts of a form besides its fields</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Field(IVisualComponent input, string hint)</code></td>
+<td>The input with a muted, wrapping hint under it: what may be typed, what it is for.</td>
+</tr>
+<tr>
+<td><code>Row(params IVisualComponent[] fields)</code></td>
+<td>Fields side by side in equal columns — a city and its postcode, a first and a last name.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">UIForm.Field(new TextAreaComponent()
+    .SetTitle(&quot;Invoice note&quot;)
+    .SetMaxLength(200)
+    .BindValue(nameof(CheckoutController.InvoiceNote)),
+    &quot;Printed on every invoice, two hundred characters at most.&quot;)
+</code></pre>
+<p><code>Row</code> divides the twenty-four columns of the placement grid evenly, so it takes two, three, four or six fields and
+throws for any other count.</p>
+<h2 id="uilayout-the-arrangements"><code>UILayout</code> — the arrangements</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Stack(double spacing = 12, params IVisualComponent[] children)</code></td>
+<td>Children down a column with the same spacing between each pair.</td>
+</tr>
+<tr>
+<td><code>Row(double spacing = 8, params IVisualComponent[] children)</code></td>
+<td>Children along a row, wrapping onto the next line when the row is too narrow.</td>
+</tr>
+<tr>
+<td><code>Columns(double spacing = 16, params IVisualComponent[] children)</code></td>
+<td>Children in equal columns — two, three, four or six of them; any other count throws.</td>
+</tr>
+<tr>
+<td><code>Split(IVisualComponent main, IVisualComponent side, int sideSpan = 8, double spacing = 24)</code></td>
+<td>A main part with a side part to its right, the side taking <code>sideSpan</code> of the twenty-four columns.</td>
+</tr>
+<tr>
+<td><code>Sidebar(IVisualComponent side, IVisualComponent main, int sideSpan = 8, double spacing = 24)</code></td>
+<td>The other way round: the side part first (a list, a tree, a filter rail), the main part beside it.</td>
+</tr>
+</tbody>
+</table>
+<p>The spacing comes first, so a stack with children always names it:</p>
+<pre><code class="language-csharp">UILayout.Sidebar(CreateFilters(), UILayout.Stack(16,
+    UIText.Title(&quot;Results&quot;),
+    CreateResults()
+), sideSpan: 6)
+</code></pre>
+<h2 id="uibuttons-a-button-in-its-type-and-the-rows-buttons-go-in"><code>UIButtons</code> — a button in its type, and the rows buttons go in</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Primary</code>, <code>Accent</code>, <code>Secondary</code>, <code>Ghost</code>, <code>Danger</code>, <code>Link</code> <code>(string title, string? icon = null)</code></td>
+<td>A <code>ButtonComponent</code> of that type — <code>Secondary</code> is the outlined one.</td>
+</tr>
+<tr>
+<td><code>Icon(string icon, string tooltip)</code></td>
+<td>An icon-only ghost button; the tooltip is its only name, so it is required.</td>
+</tr>
+<tr>
+<td><code>Pair(ButtonComponent secondary, ButtonComponent primary)</code></td>
+<td>The pair at a form's foot: the safe answer first, the committing one last, both pushed to the far edge.</td>
+</tr>
+<tr>
+<td><code>Toolbar(params ButtonComponent[] buttons)</code></td>
+<td>A row of buttons with a toolbar's tight spacing, from the near edge.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">UIButtons.Pair(
+    UIButtons.Ghost(&quot;Keep it&quot;),
+    UIButtons.Danger(&quot;Delete project&quot;).OnClick(nameof(ProjectController.DeleteAsync))
+)
+
+UIButtons.Toolbar(
+    UIButtons.Icon(MaterialIcons.Undo, &quot;Undo&quot;),
+    UIButtons.Icon(MaterialIcons.Delete, &quot;Delete&quot;)
+)
+</code></pre>
+<p>(<code>MaterialIcons</code> comes from the icon package; any icon name works.)</p>
+<h2 id="uitext-a-line-in-its-role"><code>UIText</code> — a line in its role</h2>
+<p><code>Display</code>, <code>Title</code>, <code>Subtitle</code>, <code>Body</code> and <code>Caption</code> take <code>(string title, string? description = null)</code> and return a
+<code>TextComponent</code> in that role. <code>Label(string label)</code> is the muted overline a thing is labelled by. <code>Paragraph(string text)</code> is prose that wraps, and <code>Note(string text)</code> a muted caption that wraps — the line under a heading that
+explains rather than names; both return a <code>ParagraphComponent</code>.</p>
+<p>The same roles exist as extension methods on any text component, for a text that is bound rather than written:
+<code>AsDisplay()</code>, <code>AsTitle()</code>, <code>AsSubtitle()</code>, <code>AsBody()</code>, <code>AsCaption()</code>, <code>AsOverline()</code>, and <code>Muted()</code>, which puts
+both lines in the muted colour.</p>
+<pre><code class="language-csharp">UILayout.Stack(4,
+    UIText.Title(&quot;Storage&quot;),
+    new TextComponent().AsCaption().Muted().BindTitle(nameof(AccountController.StorageLine))
+)
+</code></pre>
+<h2 id="uidetails-names-and-values-to-read"><code>UIDetails</code> — names and values to read</h2>
+<p><code>UIDetails.List(params (string Key, string Value)[] rows)</code> is a <code>KeyValueActionComponent</code> without the action
+column or a border of its own — an order's summary, a record's facts — for a card or a surface to hold. Rows are
+keyed by name, so a list that repeats a name throws.</p>
+<pre><code class="language-csharp">UIDetails.List((&quot;Plan&quot;, &quot;Standard&quot;), (&quot;Region&quot;, &quot;Europe West&quot;), (&quot;Billed&quot;, &quot;Monthly&quot;))
+</code></pre>
+<p>For values that change, bind the items instead and build each row with <code>UIDetails.Row(string id, string key, string value)</code>, which returns a <code>KeyValueActionItem</code> whose key is in the muted colour:</p>
+<pre><code class="language-csharp">// Controller
+public RecursiveCollection&lt;KeyValueActionItem&gt; Lines { get; } =
+[
+    UIDetails.Row(&quot;plan&quot;, &quot;Plan&quot;, string.Empty),
+    UIDetails.Row(&quot;region&quot;, &quot;Region&quot;, string.Empty)
+];
+
+// View
+UIDetails.List().BindItems(nameof(CheckoutController.Lines))
+</code></pre>
+<h2 id="shown-hidden-or-enabled-by-another-component">Shown, hidden or enabled by another component</h2>
+<p><code>ShownWhen</code>, <code>HiddenWhen</code> and <code>EnabledWhen</code> extend any component and watch the value of another one, named by
+its component id — so the source is created with an id (<code>new CheckboxComponent(SameAddressId)</code>). Each is one
+<code>Interact</code> (see <a href="interactions-and-effects.html">interactions and effects</a>), so the rule runs in the browser
+without a round trip to the server.</p>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Holds while</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ShownWhen(sourceId)</code> / <code>HiddenWhen(sourceId)</code> / <code>EnabledWhen(sourceId)</code></td>
+<td>The source has a value: a switch on, a box ticked, a select with a choice.</td>
+</tr>
+<tr>
+<td><code>...When(sourceId, object? value)</code></td>
+<td>The source's <code>Value</code> equals <code>value</code>.</td>
+</tr>
+<tr>
+<td><code>...When(sourceId, UIProperty source, UIComparisonOperator @operator, object? value)</code></td>
+<td>The named property of the source satisfies the comparison.</td>
+</tr>
+</tbody>
+</table>
+<p><code>ShownWhen</code> and <code>HiddenWhen</code> collapse the component when it is not shown; <code>EnabledWhen</code> disables it.</p>
+<pre><code class="language-csharp">UILayout.Stack(28,
+    new RadioGroupComponent(BilledId)
+        .SetTitle(&quot;Billed&quot;)
+        .SetOptions(
+        [
+            new OptionItem { Id = &quot;direct&quot;, Title = &quot;Directly&quot; },
+            new OptionItem { Id = &quot;reseller&quot;, Title = &quot;Through a reseller&quot; }
+        ])
+        .BindValue(nameof(SubscribeController.Billed)),
+    UIPage.Section(&quot;Company address&quot;, null, CreateAddress())
+        .HiddenWhen(BilledId, &quot;reseller&quot;),
+    new CheckboxComponent(TermsId)
+        .SetTitle(&quot;I accept the terms&quot;)
+        .BindValue(nameof(SubscribeController.TermsAccepted)),
+    UIButtons.Primary(&quot;Subscribe&quot;)
+        .EnabledWhen(TermsId)
+)
+</code></pre>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.0.0-rc.3</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
