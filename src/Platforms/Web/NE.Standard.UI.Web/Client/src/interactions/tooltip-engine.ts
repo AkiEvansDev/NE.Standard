@@ -52,6 +52,7 @@ export function startTooltips(root: ParentNode = document): void {
     host.addEventListener("focusin", onFocusIn, true);
     host.addEventListener("focusout", onFocusOut, true);
     host.addEventListener("keydown", onKeyDown, true);
+    host.addEventListener("scroll", dropOrphan, true);
 
     // A press outside makes the tooltip stale; a press inside it is the reader following a link.
     host.addEventListener("pointerdown", event => {
@@ -65,6 +66,8 @@ export function startTooltips(root: ParentNode = document): void {
 }
 
 function onPointerOver(event: Event): void {
+    dropOrphan();
+
     // Inside the tooltip itself: the reader is heading for a link in it, so the scheduled close is called off.
     if (isInsideTooltip(event.target)) {
         window.clearTimeout(hideTimer);
@@ -77,6 +80,18 @@ function onPointerOver(event: Event): void {
         return;
 
     schedule(target);
+}
+
+/**
+ * Closes a tooltip whose control the page redrew away: no pointerout comes for a removed element, so it would stand with a stale
+ * line until the next press.
+ */
+function dropOrphan(): void {
+    if (anchor === null || anchor.isConnected)
+        return;
+
+    pinned = null;
+    hide(true);
 }
 
 function onPointerOut(event: Event): void {
@@ -177,6 +192,10 @@ function show(target: Element, words?: string): void {
     window.clearTimeout(showTimer);
     window.clearTimeout(hideTimer);
 
+    // Taken over from another control without closing between (a focus, a pin, a package's words): that one stops naming it.
+    if (anchor !== null && anchor !== target)
+        anchor.removeAttribute("aria-describedby");
+
     const element = ensureTooltip();
 
     // Nothing in a tooltip can be pressed, so a fold in it is written open.
@@ -193,21 +212,21 @@ function show(target: Element, words?: string): void {
     placeAnchoredPopup(target, element, { placement: readPlacement(target), gap: AnchorGap, arrow: true });
 }
 
-/**
- * Shows a tooltip of the caller's own words against an element, whatever that element says for itself — what a package
- * drawing its own picture needs. No wait: the caller is answering a pointer already where it means to be.
- */
 // A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.
 function isOpen(target: Element): boolean {
     return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null;
 }
 
-export function showTooltipWith(target: Element, words: string): void {
+/**
+ * Shows a tooltip of the caller's own words against an element, whatever that element says for itself — what a package
+ * drawing its own picture needs. No wait: the caller is answering a pointer already where it means to be.
+ */
+function showTooltipWith(target: Element, words: string): void {
     show(target, words);
 }
 
 /** Closes the tooltip on screen at once, however it was opened. */
-export function closeTooltip(): void {
+function closeTooltip(): void {
     hide(true);
 }
 

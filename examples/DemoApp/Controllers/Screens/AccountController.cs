@@ -2,13 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Security;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
-using NE.Standard.UI.Shell.Sessions;
 
 namespace DemoApp.Controllers.Screens;
 
@@ -52,16 +45,16 @@ internal sealed partial class AccountController : UIControllerBase
     [UIAuthorize(Permissions = DemoAccounts.ViewReportsPermission)]
     public void ViewReport()
     {
-        ReportLine = $"The weekly report was opened at {DateTime.Now:HH:mm:ss}.";
+        ReportLine = $"The monthly revenue report was opened at {DateTime.Now:HH:mm:ss}.";
         AuditLines = DemoAuditLog.Read();
     }
 
-    /// <summary>Refused for the member: the runtime says so in a notification, and the audit log never sees the press.</summary>
+    /// <summary>Refused for the viewer: the runtime says so in a notification, and the audit log never sees the press.</summary>
     [UICommand]
     [UIAuthorize(Permissions = DemoAccounts.ExportReportsPermission)]
     public void ExportReport()
     {
-        ReportLine = $"The weekly report was exported at {DateTime.Now:HH:mm:ss}.";
+        ReportLine = $"The monthly revenue report was exported at {DateTime.Now:HH:mm:ss}.";
         AuditLines = DemoAuditLog.Read();
     }
 
@@ -69,7 +62,7 @@ internal sealed partial class AccountController : UIControllerBase
     public void RefreshAudit()
         => AuditLines = DemoAuditLog.Read();
 
-    /// <summary>A page a member may not open: the refusal is a forbidden page, not a sign-in.</summary>
+    /// <summary>A page a viewer may not open: the refusal is a forbidden page, not a sign-in.</summary>
     [UICommand]
     public UICommandResult OpenAdmin()
     {

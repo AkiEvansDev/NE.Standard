@@ -9,18 +9,83 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    protected ServerChangeSet DrainPendingUpdatesNoLock()
+    /// <summary>
+    /// Takes the queued updates a drain's change set carries. A runtime that sends as it drains takes the whole queue every turn;
+    /// one that batches leaves it to its flush, takes it whole for the flush, and gives an answer its caller's copy.
+    /// </summary>
+    private ServerChangeSet TakePendingUpdatesNoLock(DrainTarget target)
+    {
+        if (SendsWhatItDrains || target.Whole)
+            return DrainPendingUpdatesNoLock();
+
+        return target.AnswerFor is { } instanceId
+            ? AnswerPendingUpdatesNoLock(instanceId)
+            : ServerChangeSet.Empty;
+    }
+
+    /// <summary>
+    /// One caller's copy of the queue, without what it already holds. The queue keeps the updates for the flush to send every
+    /// other attached instance, and the caller's mark moves past them so the flush does not send it them again.
+    /// </summary>
+    private ServerChangeSet AnswerPendingUpdatesNoLock(string instanceId)
+    {
+        // Nobody else to send them to: taken whole, and the flush has nothing left to do.
+        if (!HasOtherAttachedInstance(instanceId))
+            return ChangesFor(instanceId, DrainPendingUpdatesNoLock());
+
+        if (_pendingUpdates.Count == 0)
+            return ServerChangeSet.Empty;
+
+        ServerChangeSet answer = ChangesFor(instanceId, CopyPendingUpdatesNoLock());
+
+        MarkAnswered(instanceId, _updateSequence);
+
+        return answer;
+    }
+
+    private ServerChangeSet DrainPendingUpdatesNoLock()
+    {
+        ServerChangeSet changes = CopyPendingUpdatesNoLock();
+
+        ClearPendingUpdatesNoLock();
+
+        return changes;
+    }
+
+    private ServerChangeSet CopyPendingUpdatesNoLock()
     {
         if (_pendingUpdates.Count == 0)
             return ServerChangeSet.Empty;
 
-        ServerUIUpdate[] updates = [.. _pendingUpdates];
-        ClearPendingUpdatesNoLock();
+        ServerUIUpdate[] updates = new ServerUIUpdate[_pendingUpdates.Count];
+        var sequences = new long[updates.Length];
 
-        ServerChangeSet changes = new() { Updates = updates };
+        for (var i = 0; i < updates.Length; i++)
+            (updates[i], sequences[i]) = _pendingUpdates[i];
+
+        ServerChangeSet changes = new() { Updates = updates, Sequences = sequences };
         changes.Validate();
 
         return changes;
+    }
+
+    /// <summary>Queues an update under the next number.</summary>
+    private void QueueUpdateNoLock(ServerUIUpdate update)
+        => _pendingUpdates.Add(new PendingUpdate(update, ++_updateSequence));
+
+    private readonly record struct PendingUpdate(ServerUIUpdate Update, long Sequence);
+
+    /// <summary>Who a drain's change set goes to, which decides what it takes from the queue.</summary>
+    private readonly record struct DrainTarget(bool Whole, string? AnswerFor)
+    {
+        /// <summary>Nobody in particular: a batching runtime leaves its queue to the flush.</summary>
+        public static DrainTarget Leave => default;
+
+        /// <summary>Every attached instance: the flush takes the whole queue.</summary>
+        public static DrainTarget Flush => new(Whole: true, AnswerFor: null);
+
+        /// <summary>One caller, whose answer carries its own copy of the queue.</summary>
+        public static DrainTarget Answer(string instanceId) => new(Whole: false, instanceId);
     }
 
     private void ClearPendingUpdatesNoLock()
@@ -60,7 +125,7 @@ internal abstract partial class UIRuntimeBase
                 break;
 
             default:
-                _pendingUpdates.Add(update);
+                QueueUpdateNoLock(update);
                 break;
         }
     }
@@ -124,6 +189,6 @@ internal abstract partial class UIRuntimeBase
         // A resync sends every value to every instance; a write held back from one would be held from nothing.
         _heldValues.Clear();
         _pendingFullResync = true;
-        _pendingUpdates.Add(new ServerFullResyncUIUpdate());
+        QueueUpdateNoLock(new ServerFullResyncUIUpdate());
     }
 }

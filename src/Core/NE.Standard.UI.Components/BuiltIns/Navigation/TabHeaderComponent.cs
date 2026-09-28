@@ -16,7 +16,7 @@ public abstract partial class TabHeaderComponent<T> : ButtonComponent<T>
     /// Gets or sets the key of the page this caption selects.
     /// </summary>
     /// <remarks>Render-time only: authored once by <c>TabsComponent.AddTab</c> and never patched.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? TabKey { get; set; }
 
     /// <summary>

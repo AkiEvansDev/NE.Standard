@@ -12,7 +12,7 @@ internal enum DemoViewKind
     Scenarios,
 
     /// <summary>
-    /// A page with no component of its own to give a Main page — a dialog, a toast, a context menu.
+    /// A page with no component of its own to give a Main page — the dialog and the notification.
     /// </summary>
     Test
 }

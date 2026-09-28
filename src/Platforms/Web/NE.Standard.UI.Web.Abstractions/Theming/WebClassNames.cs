@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Collections.Generic;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
@@ -31,7 +31,7 @@ public static class WebClassNames
             UIColorStyle.Border => "ui-color--border",
             UIColorStyle.Shadow => "ui-color--shadow",
             UIColorStyle.Overlay => "ui-color--overlay",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string IconSize(UIIconSize value)
@@ -40,7 +40,7 @@ public static class WebClassNames
             UIIconSize.Small => "ui-icon-size--small",
             UIIconSize.Medium => "ui-icon-size--medium",
             UIIconSize.Large => "ui-icon-size--large",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextType(UITextType value)
@@ -52,7 +52,7 @@ public static class WebClassNames
             UITextType.Body => "ui-text-type--body",
             UITextType.Caption => "ui-text-type--caption",
             UITextType.Overline => "ui-text-type--overline",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextAlignment(UITextAlignment value)
@@ -62,7 +62,7 @@ public static class WebClassNames
             UITextAlignment.Center => "ui-text--align-center",
             UITextAlignment.End => "ui-text--align-end",
             UITextAlignment.Justify => "ui-text--align-justify",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextWrap(UITextWrapMode value)
@@ -70,7 +70,7 @@ public static class WebClassNames
         {
             UITextWrapMode.NoWrap => "ui-text--nowrap",
             UITextWrapMode.Wrap => "ui-text--wrap",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextBadgePlacement(UITextBadgePlacement value)
@@ -78,7 +78,7 @@ public static class WebClassNames
         {
             UITextBadgePlacement.Inline => "ui-text__badge--inline",
             UITextBadgePlacement.Trailing => "ui-text__badge--trailing",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextIconAlignment(UITextIconAlignment value)
@@ -86,7 +86,7 @@ public static class WebClassNames
         {
             UITextIconAlignment.Title => "ui-text--icon-title",
             UITextIconAlignment.Content => "ui-text--icon-content",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextBadgeAlignment(UITextBadgeAlignment value)
@@ -94,7 +94,7 @@ public static class WebClassNames
         {
             UITextBadgeAlignment.Title => "ui-text--badge-title",
             UITextBadgeAlignment.Content => "ui-text--badge-content",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string BadgeStyle(UIBadgeType value)
@@ -107,7 +107,7 @@ public static class WebClassNames
             UIBadgeType.Success => "ui-badge-style--success",
             UIBadgeType.Danger => "ui-badge-style--danger",
             UIBadgeType.Surface => "ui-badge-style--surface",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string Side(UISide value)
@@ -117,7 +117,7 @@ public static class WebClassNames
             UISide.Right => "ui-side--right",
             UISide.Top => "ui-side--top",
             UISide.Bottom => "ui-side--bottom",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string GroupSeparator(UIGroupSeparator value)
@@ -126,7 +126,7 @@ public static class WebClassNames
             UIGroupSeparator.None => "ui-command-bar--separator-none",
             UIGroupSeparator.Gap => "ui-command-bar--separator-gap",
             UIGroupSeparator.Rule => "ui-command-bar--separator-rule",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string SurfaceStyle(UISurfaceStyle value)
@@ -135,7 +135,7 @@ public static class WebClassNames
             UISurfaceStyle.Background => "ui-surface--background",
             UISurfaceStyle.Raised => "ui-surface--raised",
             UISurfaceStyle.Tinted => "ui-surface--tinted",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string Orientation(UIOrientation value)
@@ -143,7 +143,7 @@ public static class WebClassNames
         {
             UIOrientation.Horizontal => "ui-orientation--horizontal",
             UIOrientation.Vertical => "ui-orientation--vertical",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ItemsViewLayout(UIItemsLayoutType value)
@@ -151,7 +151,7 @@ public static class WebClassNames
         {
             UIItemsLayoutType.Stack => "ui-items-view--stack",
             UIItemsLayoutType.Wrap => "ui-items-view--wrap",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ScrollX(UIScrollMode value)
@@ -160,7 +160,7 @@ public static class WebClassNames
             UIScrollMode.Disabled => "ui-scroll-x--disabled",
             UIScrollMode.Auto => "ui-scroll-x--auto",
             UIScrollMode.Always => "ui-scroll-x--always",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ScrollY(UIScrollMode value)
@@ -169,7 +169,7 @@ public static class WebClassNames
             UIScrollMode.Disabled => "ui-scroll-y--disabled",
             UIScrollMode.Auto => "ui-scroll-y--auto",
             UIScrollMode.Always => "ui-scroll-y--always",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ScrollSnap(UIScrollSnapMode value)
@@ -178,7 +178,7 @@ public static class WebClassNames
             UIScrollSnapMode.Disabled => "ui-scroll-snap--disabled",
             UIScrollSnapMode.Proximity => "ui-scroll-snap--proximity",
             UIScrollSnapMode.Mandatory => "ui-scroll-snap--mandatory",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ButtonSize(UIButtonSize value)
@@ -187,7 +187,7 @@ public static class WebClassNames
             UIButtonSize.Small => "ui-button--small",
             UIButtonSize.Medium => "ui-button--medium",
             UIButtonSize.Large => "ui-button--large",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>A button group's size, on the group rather than on its segments, which inherit it through the stylesheet.</summary>
@@ -197,7 +197,7 @@ public static class WebClassNames
             UIButtonSize.Small => "ui-button-group--small",
             UIButtonSize.Medium => "ui-button-group--medium",
             UIButtonSize.Large => "ui-button-group--large",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string InputAppearance(UIInputAppearance value)
@@ -207,7 +207,7 @@ public static class WebClassNames
             UIInputAppearance.Outline => "ui-input--outline",
             UIInputAppearance.Underline => "ui-input--underline",
             UIInputAppearance.Ghost => "ui-input--ghost",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string InputSize(UIInputSize value)
@@ -216,7 +216,7 @@ public static class WebClassNames
             UIInputSize.Small => "ui-input--small",
             UIInputSize.Medium => "ui-input--medium",
             UIInputSize.Large => "ui-input--large",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string TextInputType(UITextInputType value)
@@ -228,7 +228,7 @@ public static class WebClassNames
             UITextInputType.Search => "search",
             UITextInputType.Tel => "tel",
             UITextInputType.Url => "url",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ButtonClass(UIButtonType type)
@@ -241,7 +241,7 @@ public static class WebClassNames
             UIButtonType.Ghost => "ui-button--ghost",
             UIButtonType.Link => "ui-button--link",
             UIButtonType.Surface => "ui-button--surface",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>The three shapes an image input takes, on its root.</summary>
@@ -251,7 +251,7 @@ public static class WebClassNames
             UIImageInputShape.Picture => "ui-image-input--picture",
             UIImageInputShape.Avatar => "ui-image-input--avatar",
             UIImageInputShape.Inline => "ui-image-input--inline",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ImageFit(UIImageFit value)
@@ -261,7 +261,7 @@ public static class WebClassNames
             UIImageFit.Contain => "ui-image-fit--contain",
             UIImageFit.Cover => "ui-image-fit--cover",
             UIImageFit.None => "ui-image-fit--none",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string ProgressVariant(UIProgressVariant value)
@@ -269,7 +269,7 @@ public static class WebClassNames
         {
             UIProgressVariant.Linear => "ui-progress--linear",
             UIProgressVariant.Circular => "ui-progress--circular",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string SearchSelectionMode(UISearchSelectionDisplayMode value)
@@ -277,7 +277,7 @@ public static class WebClassNames
         {
             UISearchSelectionDisplayMode.KeepSearchInput => "ui-search-mode--keep",
             UISearchSelectionDisplayMode.ReplaceWithSelectedItem => "ui-search-mode--replace",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>
@@ -289,7 +289,7 @@ public static class WebClassNames
             UIVisibility.Visible => "visible",
             UIVisibility.Hidden => "hidden",
             UIVisibility.Collapsed => "collapsed",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>
@@ -310,9 +310,29 @@ public static class WebClassNames
             UIPopupPlacement.RightStart => "right-start",
             UIPopupPlacement.Right => "right",
             UIPopupPlacement.RightEnd => "right-end",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string FlyoutPlacement(UIPopupPlacement value)
         => "ui-flyout--" + PopupPlacement(value);
+
+    /// <summary>A tab menu's chosen entries as the space-separated tokens <c>data-ui-tabs-menu</c> carries, in flag order; empty for none.</summary>
+    public static string TabMenuEntries(UITabMenuEntries value)
+    {
+        List<string> tokens = new(4);
+
+        if (value.HasFlag(UITabMenuEntries.Rename))
+            tokens.Add("rename");
+
+        if (value.HasFlag(UITabMenuEntries.Pin))
+            tokens.Add("pin");
+
+        if (value.HasFlag(UITabMenuEntries.Close))
+            tokens.Add("close");
+
+        if (value.HasFlag(UITabMenuEntries.Delete))
+            tokens.Add("delete");
+
+        return string.Join(' ', tokens);
+    }
 }

@@ -27,6 +27,10 @@ export class DomRegistry {
     private readonly componentsById = new Map<number, Element[]>();
     private readonly staticComponentsById = new Map<number, Element>();
 
+    // A templated component's instances by the text of their row keys, built per id on its first keyed lookup: a filter over every
+    // instance would cost a list's length in ancestor walks for each row-scoped patch.
+    private readonly keyedComponentsById = new Map<number, Map<string, Element[]>>();
+
     private stale = false;
 
     public constructor(root: ParentNode) {
@@ -44,6 +48,7 @@ export class DomRegistry {
 
         this.componentsById.clear();
         this.staticComponentsById.clear();
+        this.keyedComponentsById.clear();
 
         const elements = this.root.querySelectorAll<Element>(ComponentSelector);
 
@@ -99,8 +104,53 @@ export class DomRegistry {
             return staticElement !== undefined ? [staticElement] : [...this.componentsById.get(componentId) ?? []];
         }
 
+        const indexed = this.keyedComponents(componentId).get(parameterPathKey(dynamicParameters)) ?? [];
+
+        // Checked against the page, since an engine may move a row without invalidating the index; a miss, or a hit that no
+        // longer holds, reads the instances as they stand.
+        if (indexed.length > 0 && indexed.every(candidate => matchesDynamicParameters(candidate, dynamicParameters)))
+            return [...indexed];
+
         const candidates = this.componentsById.get(componentId) ?? [];
-        return candidates.filter(candidate => matchesDynamicParameters(candidate, dynamicParameters));
+        const found = candidates.filter(candidate => matchesDynamicParameters(candidate, dynamicParameters));
+
+        if (indexed.length > 0)
+            this.keyedComponentsById.delete(componentId);
+
+        return found;
+    }
+
+    private keyedComponents(componentId: number): Map<string, Element[]> {
+        let keyed = this.keyedComponentsById.get(componentId);
+
+        if (keyed !== undefined)
+            return keyed;
+
+        keyed = new Map<string, Element[]>();
+
+        for (const candidate of this.componentsById.get(componentId) ?? []) {
+            const count = readParameterCount(candidate);
+
+            if (count === 0)
+                continue;
+
+            const parameters = collectDynamicParameters(candidate, count);
+
+            if (parameters.length !== count)
+                continue;
+
+            const key = parameterPathKey(parameters);
+            const bucket = keyed.get(key);
+
+            if (bucket === undefined)
+                keyed.set(key, [candidate]);
+            else
+                bucket.push(candidate);
+        }
+
+        this.keyedComponentsById.set(componentId, keyed);
+
+        return keyed;
     }
 
     public resolveNearestComponent(start: Element, predicate: (componentId: number, element: Element) => boolean): ComponentResolveResult | null {
@@ -143,6 +193,21 @@ export function findOwningComponentId(element: Element): number | null {
     const componentId = owner === null ? 0 : readComponentId(owner);
 
     return componentId > 0 ? componentId : null;
+}
+
+/** The component an element stands in, and the keys of the rows that component stands in — its address, as the server names it. */
+export function findOwningComponentAddress(element: Element): { readonly componentId: number; readonly dynamicParameters: readonly unknown[] } | null {
+    const owner = element.closest<Element>(ComponentSelector);
+    const componentId = owner === null ? 0 : readComponentId(owner);
+
+    return owner === null || componentId <= 0
+        ? null
+        : { componentId, dynamicParameters: collectDynamicParameters(owner, readParameterCount(owner)) };
+}
+
+// Parameters compare as text, as `matchesDynamicParameters` compares them: a key the server sends as a number is the DOM's digits.
+function parameterPathKey(parameters: readonly unknown[]): string {
+    return JSON.stringify(parameters.map(parameter => String(parameter ?? "")));
 }
 
 function isStaticComponentElement(element: Element): boolean {

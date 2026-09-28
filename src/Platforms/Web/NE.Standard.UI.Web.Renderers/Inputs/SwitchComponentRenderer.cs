@@ -19,6 +19,6 @@ public sealed class SwitchComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        CheckboxComponentRenderer.RenderCheckable(context, root, ClassName);
+        CheckboxComponentRenderer.RenderCheckable(context, root, ClassName, role: "switch");
     }
 }

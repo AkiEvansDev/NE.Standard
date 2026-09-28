@@ -5,7 +5,6 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Data;
-using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -111,23 +110,69 @@ internal sealed partial class UIViewCompilationContext
 
     /// <summary>
     /// Warns when a bound path names a property the controller's types don't have — a typo the component would otherwise show
-    /// silently.
+    /// silently. The path is the compiled one, from the controller down, so a relative or parent binding is checked as well.
     /// </summary>
-    /// <remarks>Skips type-less walks and item-scoped paths — both look unresolvable without being wrong, so flagging them would bury real typos.</remarks>
-    private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, UIBindingScope scope, CompiledPath path)
+    /// <remarks>
+    /// Skips type-less walks, and a property a type derived from the one reached declares: an item template chosen per item type
+    /// binds what only its own variant has.
+    /// </remarks>
+    private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, CompiledPath path)
     {
-        if (_controllerType is null || scope != UIBindingScope.Root || path.Source.Kind != CompiledUIBindingSourceKind.Controller)
+        if (_controllerType is null || path.Source.Kind != CompiledUIBindingSourceKind.Controller)
             return;
 
         _ = TryResolveControllerPathType(path.Template.Template, out var missingProperty, out Type? owner);
 
-        if (missingProperty is null || owner is null)
+        if (missingProperty is null || owner is null || IsDeclaredByDerivedType(owner, missingProperty))
             return;
 
         _warnings.Add(
             $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but " +
             $"'{owner.Name}' has no public property '{missingProperty}'. The binding resolves to nothing and the " +
             "component keeps the value it was authored with.");
+    }
+
+    private bool IsDeclaredByDerivedType(Type owner, string property)
+    {
+        if (owner.IsSealed || owner.IsValueType)
+            return false;
+
+        foreach (Type candidate in CandidateDerivedTypes(owner))
+        {
+            if (candidate != owner && owner.IsAssignableFrom(candidate) && candidate.GetProperty(property, BindingFlags.Public | BindingFlags.Instance) is not null)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The types a derived item type can come from: the item type's own assembly and the controller's.</summary>
+    private IEnumerable<Type> CandidateDerivedTypes(Type owner)
+    {
+        HashSet<Assembly> assemblies = [owner.Assembly];
+
+        if (_controllerType is not null)
+            _ = assemblies.Add(_controllerType.Assembly);
+
+        foreach (Assembly assembly in assemblies)
+        {
+            Type?[] types;
+
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException exception)
+            {
+                types = exception.Types;
+            }
+
+            foreach (Type? type in types)
+            {
+                if (type is not null)
+                    yield return type;
+            }
+        }
     }
 
     /// <summary>
@@ -171,7 +216,7 @@ internal sealed partial class UIViewCompilationContext
             if (current == typeof(object))
                 return null;
 
-            PropertyInfo? property = current.GetProperty(template[start..index], BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo? property = FindProperty(current, template[start..index]);
 
             if (property is null)
             {
@@ -184,6 +229,25 @@ internal sealed partial class UIViewCompilationContext
         }
 
         return current;
+    }
+
+    /// <summary>A public instance property of the type, looked up through an interface's base interfaces too, which reflection skips.</summary>
+    private static PropertyInfo? FindProperty(Type type, string name)
+    {
+        PropertyInfo? property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+
+        if (property is not null || !type.IsInterface)
+            return property;
+
+        foreach (Type contract in type.GetInterfaces())
+        {
+            property = contract.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+
+            if (property is not null)
+                return property;
+        }
+
+        return null;
     }
 
     private static Type? TryResolveElementType(Type collectionType)

@@ -34,6 +34,9 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
     private readonly ILogger _logger;
     private readonly int _maxQueued;
     private readonly CancellationTokenSource _stopping = new();
+
+    // Taken once: a drain already past its check reads it after Dispose, when the source's own Token would throw.
+    private readonly CancellationToken _stoppingToken;
     private bool _disposed;
 
     public UIUpdateDispatcher(Func<IUIUpdateSink> sinkFactory, ILogger logger, int maxQueued)
@@ -45,6 +48,7 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
         _sinkFactory = sinkFactory;
         _logger = logger;
         _maxQueued = maxQueued;
+        _stoppingToken = _stopping.Token;
     }
 
     /// <summary>Queues a change set for the runtime's attached clients and returns; the send happens on its own.</summary>
@@ -126,7 +130,7 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
                 IUIUpdateSink sink = _sinkFactory();
 
                 await UIChangeDelivery
-                    .SendAsync(sink, next.Handle, next.InstanceIds, next.Changes, _stopping.Token)
+                    .SendAsync(sink, runtime, next.Handle, next.InstanceIds, next.Changes, _stoppingToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
@@ -141,6 +145,23 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
                 // The queue keeps going: one client's failed send is not a reason to stop the ones behind it.
                 Log.SendFailed(_logger, exception, runtime.Handle.Instance.Id);
             }
+        }
+    }
+
+    /// <summary>How many change sets wait in every queue together, for the host's meter: a client falling behind shows here first.</summary>
+    internal int PendingCount
+    {
+        get
+        {
+            var pending = 0;
+
+            lock (_sync)
+            {
+                foreach (RuntimeQueue queue in _queues.Values)
+                    pending += queue.Pending.Count;
+            }
+
+            return pending;
         }
     }
 

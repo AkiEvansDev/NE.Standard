@@ -6,6 +6,7 @@ import {
     BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, SelectedAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute,
     UnselectableAttribute
 } from "../addressing/dom-attributes";
+import { HiddenClass } from "../items/items-empty-renderer";
 import { isRowDisabled } from "./row-cursor";
 import { writeSelectedKey } from "./selected-key";
 
@@ -46,7 +47,7 @@ export function gestureOf(domEvent: MouseEvent | KeyboardEvent): SelectionGestur
 }
 
 /** The keys the host's mode reads as chosen. */
-export function readSelectedKeys(root: HTMLElement): Set<string> {
+function readSelectedKeys(root: HTMLElement): Set<string> {
     switch (root.getAttribute(SelectionAttribute)) {
         case "one": {
             const key = root.getAttribute(SelectedKeyAttribute);
@@ -60,12 +61,23 @@ export function readSelectedKeys(root: HTMLElement): Set<string> {
     }
 }
 
-/** Marks the rows the keys name. */
+/** Marks the rows the keys name, for the stylesheet and, on a host that chooses, for the reader too. */
 export function markSelectedRows(root: HTMLElement, rows: readonly HTMLElement[]): void {
     const keys = readSelectedKeys(root);
+    const mode = root.getAttribute(SelectionAttribute);
+    // A host that chooses nothing says nothing about choosing: `aria-selected` on its rows would announce a choice it cannot make.
+    const choosing = mode === "one" || mode === "many";
 
-    for (const row of rows)
-        row.toggleAttribute(SelectedAttribute, keys.has(keyOf(row)));
+    for (const row of rows) {
+        const selected = keys.has(keyOf(row));
+
+        row.toggleAttribute(SelectedAttribute, selected);
+
+        if (choosing)
+            row.setAttribute("aria-selected", selected ? "true" : "false");
+        else
+            row.removeAttribute("aria-selected");
+    }
 }
 
 /** The chosen rows among the given ones, in their order. */
@@ -119,7 +131,7 @@ function chooseMany(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLEl
 }
 
 /** Writes the list, marks the rows and sends the list back where it is bound; an unchanged list is left alone. */
-export function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys: readonly string[]): void {
+function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys: readonly string[]): void {
     const host = hostOf(root);
 
     if (host === null)
@@ -175,7 +187,7 @@ function hostOf(root: HTMLElement): HTMLElement | null {
     return null;
 }
 
-export function keyOf(row: Element): string {
+function keyOf(row: Element): string {
     return row.getAttribute(ComponentKeyAttribute) ?? "";
 }
 
@@ -187,14 +199,17 @@ export type ItemSelection = {
     isSelected(row: Element): boolean;
     /** Adds the row to the chosen ones or takes it out, leaving the rest alone. */
     toggle(row: Element): void;
-    /** Takes or clears every row named, in one write; the rows not named keep whatever they were. */
+    /** Takes or clears every row named, in one write; the rows not named keep whatever they were. A row a filter hides is not taken. */
     setSelected(root: Element, rows: Iterable<Element>, selected: boolean): void;
+    /** The same by key, for rows a virtualized host has not drawn: every key named is taken or cleared in one write. */
+    setSelectedKeys(root: Element, keys: Iterable<string>, selected: boolean): void;
 };
 
 export const itemSelection: ItemSelection = {
     isSelected: row => row.hasAttribute(SelectedAttribute),
     toggle: toggleSelectedRow,
-    setSelected: setRowsSelected
+    setSelected: setRowsSelected,
+    setSelectedKeys: setKeysSelected
 };
 
 /** Adds the row to its host's chosen ones or takes it out, leaving the rest — the gesture a checkbox makes. */
@@ -206,14 +221,24 @@ function toggleSelectedRow(row: Element): void {
 }
 
 function setRowsSelected(root: Element, rows: Iterable<Element>, selected: boolean): void {
+    const keys: string[] = [];
+
+    for (const row of rows) {
+        // A row the host's filter hides is not one the viewer can see being chosen, whatever gesture named it (a select-all).
+        if (!row.classList.contains(HiddenClass))
+            keys.push(keyOf(row));
+    }
+
+    setKeysSelected(root, keys, selected);
+}
+
+function setKeysSelected(root: Element, keys: Iterable<string>, selected: boolean): void {
     if (!(root instanceof HTMLElement))
         return;
 
     const named = new Set<string>();
 
-    for (const row of rows) {
-        const key = keyOf(row);
-
+    for (const key of keys) {
         if (key.length > 0)
             named.add(key);
     }

@@ -73,6 +73,27 @@ public sealed class UIPersistenceOptions
     public int MaxQueuedChangeSets { get; set; } = 64;
 
     /// <summary>
+    /// Gets or sets how many runtimes one session may hold at once — its open pages, and the ones kept for a while after they
+    /// closed.
+    /// </summary>
+    /// <remarks>
+    /// A session at the limit gives up its longest-idle disconnected runtime for a new one, and is refused only when every one it
+    /// holds has a page connected — the bound on what a script opening pages under one session can make the server keep.
+    /// </remarks>
+    public int MaxRuntimesPerSession { get; set; } = 64;
+
+    /// <summary>
+    /// Gets or sets how many runtimes a page render built and no tab has presented yet one session may hold, within
+    /// <see cref="MaxRuntimesPerSession"/>.
+    /// </summary>
+    /// <remarks>
+    /// A browser has at most a few page loads in flight; a client that never attaches (a crawler, a prefetch, a script) leaves
+    /// one behind per load. Preparing one past this gives up the session's longest-idle unclaimed runtime, never one a tab has
+    /// presented and never one still rendering. At least one: a render always needs its own.
+    /// </remarks>
+    public int MaxUnclaimedRuntimesPerSession { get; set; } = 4;
+
+    /// <summary>
     /// Gets or sets how often disconnected runtime cleanup runs.
     /// </summary>
     /// <remarks>
@@ -97,6 +118,15 @@ public sealed class UIPersistenceOptions
 
         if (MaxParallelFlushes <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxParallelFlushes), MaxParallelFlushes, "Max parallel flushes must be greater than zero.");
+
+        if (MaxQueuedChangeSets <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxQueuedChangeSets), MaxQueuedChangeSets, "Max queued change sets must be greater than zero.");
+
+        if (MaxRuntimesPerSession <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxRuntimesPerSession), MaxRuntimesPerSession, "Max runtimes per session must be greater than zero.");
+
+        if (MaxUnclaimedRuntimesPerSession <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxUnclaimedRuntimesPerSession), MaxUnclaimedRuntimesPerSession, "Max unclaimed runtimes per session must be greater than zero.");
 
         if (CleanupInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(CleanupInterval), CleanupInterval, "Cleanup interval must be greater than zero.");

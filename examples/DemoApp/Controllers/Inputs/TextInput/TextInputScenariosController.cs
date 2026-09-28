@@ -1,17 +1,13 @@
 using System;
 using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Inputs.TextInput;
 
 internal sealed partial class TextInputChangeGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string? Value { get; set; } = "Payments API";
+    public partial string? Value { get; set; } = "Billing worker";
 
     public void RecordChange()
         => LogEvent($"change -> \"{Value}\"");
@@ -20,7 +16,7 @@ internal sealed partial class TextInputChangeGroupContext : DemoGroupContext
 internal sealed partial class TextInputTrimGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string? Value { get; set; } = "   Payments API   ";
+    public partial string? Value { get; set; } = "   Billing worker   ";
 
     /// <summary>
     /// Reports the length too, since trimming happens client-side before the value is sent.
@@ -36,13 +32,13 @@ internal sealed partial class TextInputFilterGroupContext : DemoGroupContext
 {
     private static readonly (string Id, string Title, string Description)[] Catalogue =
     [
-        ("payments", "Payments API", "Card and wallet charges"),
-        ("ledger", "Ledger", "Double-entry book of record"),
-        ("notifications", "Notifications", "Mail, push and in-app"),
-        ("search", "Search", "The catalogue index"),
-        ("identity", "Identity", "Sign-in and sessions"),
-        ("reports", "Reports", "Nightly aggregates"),
-        ("web-portal", "Web Portal", "The customer site"),
+        ("provisioner", "Provisioner", "Creates, resizes and deletes servers"),
+        ("api-gateway", "API gateway", "The public API customers script against"),
+        ("status-page", "Status page", "status.orvane.example"),
+        ("dns", "DNS", "Customers' domains and records"),
+        ("identity", "Identity", "Staff sign-in"),
+        ("metrics", "Metrics", "The readings the charts draw"),
+        ("panel", "Panel", "This admin panel"),
         ("billing", "Billing", "Invoices and dunning")
     ];
 
@@ -73,7 +69,7 @@ internal sealed partial class TextInputFilterGroupContext : DemoGroupContext
 
 internal sealed partial class TextInputSubmitGroupContext : DemoGroupContext
 {
-    private static readonly string[] TakenEmails = ["owner@example.com", "admin@example.com"];
+    private static readonly string[] TakenEmails = ["owner@orvane.example", "admin@orvane.example"];
 
     [RecursiveMember]
     public partial string? Email { get; set; }

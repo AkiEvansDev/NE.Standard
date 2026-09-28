@@ -1,30 +1,17 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// The order form in the filled style beside its summary: sections down the page, two fields to a line where two belong
-/// on one, a delivery chosen by word that folds the address away, and a billing block a box hides.
+/// The subscription form in the filled style beside its summary: sections down the page, two fields to a line where two
+/// belong on one, a region chosen by word, and an invoice address a box hides.
 /// </summary>
 internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
 {
     private const string FormId = "checkout";
-    private const string DeliveryId = "checkout-delivery";
     private const string SameBillingId = "checkout-same-billing";
+    private const string BilledId = "checkout-billed";
 
     public static string ViewKey => "demo.screens.checkout";
 
@@ -44,7 +31,45 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
 
     private static StackPanelComponent CreateForm()
         => UILayout.Stack(28,
-            UIPage.Section("Contact", "Where the receipt goes, and a number for the courier.",
+            UIPage.Section("Plan", "What each server is, and how many of them.",
+                UIForm.Row(
+                    new SelectComponent()
+                        .SetTitle("Plan")
+                        .SetOptions(
+                        [
+                            new OptionItem { Id = CheckoutController.StarterPlan, Title = "Starter", Description = "1 vCPU · 2 GB · 40 GB · €6" },
+                            new OptionItem { Id = CheckoutController.StandardPlan, Title = "Standard", Description = "2 vCPU · 4 GB · 80 GB · €18" },
+                            new OptionItem { Id = CheckoutController.ProPlan, Title = "Pro", Description = "4 vCPU · 16 GB · 240 GB · €64" },
+                            new OptionItem { Id = CheckoutController.DedicatedPlan, Title = "Dedicated", Description = "16 vCPU · 64 GB · 960 GB · €290" }
+                        ])
+                        .SetFormId(FormId)
+                        .BindValue(nameof(CheckoutController.Plan))
+                        .OnChange(nameof(CheckoutController.UpdateSummary)),
+                    new NumberInputComponent()
+                        .SetTitle("Servers")
+                        .SetMin(1)
+                        .SetMax(40)
+                        .SetAllowDecimals(false)
+                        .SetShowStepper()
+                        .SetFormId(FormId)
+                        .BindValue(nameof(CheckoutController.Servers))
+                        .OnChange(nameof(CheckoutController.UpdateSummary))
+                )
+            ),
+            UIPage.Section("Region", null,
+                new RadioGroupComponent()
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = CheckoutController.EuWest, Title = "Europe West", Description = "Amsterdam · eu-west" },
+                        new OptionItem { Id = CheckoutController.EuCentral, Title = "Europe Central", Description = "Frankfurt · eu-central" },
+                        new OptionItem { Id = CheckoutController.EuNorth, Title = "Europe North", Description = "Stockholm · eu-north" },
+                        new OptionItem { Id = CheckoutController.UsEast, Title = "US East", Description = "Ashburn · us-east" },
+                        new OptionItem { Id = CheckoutController.ApSouth, Title = "Asia South", Description = "Singapore · ap-south" }
+                    ])
+                    .BindValue(nameof(CheckoutController.Region))
+                    .OnChange(nameof(CheckoutController.UpdateSummary))
+            ),
+            UIPage.Section("Billing contact", "Where the invoices go, and a number for an outage.",
                 UIForm.Row(
                     new TextInputComponent()
                         .SetTitle("Email")
@@ -52,35 +77,34 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                         .SetAutocomplete(UIAutocomplete.Email)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Email))
-                        .Required("The receipt has to go somewhere.", UIValidationTrigger.Submit)
+                        .Required("The invoices have to go somewhere.", UIValidationTrigger.Submit)
                         .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                     new TextInputComponent()
                         .SetTitle("Phone")
                         .SetType(UITextInputType.Tel)
                         .SetAutocomplete(UIAutocomplete.Telephone)
-                        .SetPlaceholder("Only if the courier should call")
+                        .SetPlaceholder("Only if on-call should ring")
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Phone))
-                )
-            ),
-            UIPage.Section("Delivery", null,
-                new RadioGroupComponent(DeliveryId)
+                ),
+                new RadioGroupComponent(BilledId)
+                    .SetTitle("Billed")
+                    .SetOrientation(UIOrientation.Horizontal)
                     .SetOptions(
                     [
-                        new OptionItem { Id = CheckoutController.StandardDelivery, Title = "Standard", Description = "Three to five working days · € 4.90" },
-                        new OptionItem { Id = CheckoutController.ExpressDelivery, Title = "Express", Description = "Tomorrow before noon · € 12.00" },
-                        new OptionItem { Id = CheckoutController.PickupDelivery, Title = "Pick up in store", Description = "Ready in two hours · free" }
+                        new OptionItem { Id = CheckoutController.BilledDirectly, Title = "Directly" },
+                        new OptionItem { Id = CheckoutController.BilledThroughReseller, Title = "Through a reseller" }
                     ])
-                    .BindValue(nameof(CheckoutController.Delivery))
-                    .OnChange(nameof(CheckoutController.UpdateDelivery))
+                    .BindValue(nameof(CheckoutController.Billed))
             ),
-            // Folded away for a pick-up, in the browser: the rule reads the radio group's value.
-            UIPage.Section("Shipping address", null,
+            // Folded away when a reseller pays, in the browser: the rule reads the radio group's value.
+            UIPage.Section("Company address", null,
                 new TextInputComponent()
-                    .SetTitle("Full name")
-                    .SetAutocomplete(UIAutocomplete.Name)
+                    .SetTitle("Company")
+                    .SetPlaceholder("Bramble Studio")
+                    .SetAutocomplete(UIAutocomplete.Organization)
                     .SetFormId(FormId)
-                    .BindValue(nameof(CheckoutController.FullName)),
+                    .BindValue(nameof(CheckoutController.Company)),
                 new TextInputComponent()
                     .SetTitle("Street and number")
                     .SetAutocomplete(UIAutocomplete.AddressLine1)
@@ -104,16 +128,16 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     [
                         new OptionItem { Id = "nl", Title = "Netherlands" },
                         new OptionItem { Id = "de", Title = "Germany" },
-                        new OptionItem { Id = "be", Title = "Belgium" },
+                        new OptionItem { Id = "se", Title = "Sweden" },
                         new OptionItem { Id = "fr", Title = "France" }
                     ])
                     .SetFormId(FormId)
                     .BindValue(nameof(CheckoutController.Country))
             )
-            .HiddenWhen(DeliveryId, CheckoutController.PickupDelivery),
-            UIPage.Section("Billing", null,
+            .HiddenWhen(BilledId, CheckoutController.BilledThroughReseller),
+            UIPage.Section("Invoices", null,
                 new CheckboxComponent(SameBillingId)
-                    .SetTitle("Billing address is the same as the shipping one")
+                    .SetTitle("Invoices go to the company address")
                     .BindValue(nameof(CheckoutController.SameBilling)),
                 UILayout.Stack(16,
                     new TextInputComponent()
@@ -133,33 +157,29 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 )
                 .ShownWhen(SameBillingId, false)
             ),
-            UIPage.Section("For the recipient", null,
+            UIPage.Section("On the invoice", null,
                 UIForm.Field(new TextAreaComponent()
-                    .SetTitle("Gift message")
+                    .SetTitle("Invoice note")
                     .SetPlaceholder("Left blank, nothing is printed")
                     .SetRows(3)
                     .SetMaxLength(200)
                     .SetFormId(FormId)
-                    .BindValue(nameof(CheckoutController.GiftMessage)),
-                    "Printed on the packing slip, two hundred characters at most.")
+                    .BindValue(nameof(CheckoutController.InvoiceNote)),
+                    "Printed on every invoice, two hundred characters at most.")
             ),
             UIButtons.Pair(
-                UIButtons.Ghost("Back to basket"),
-                UIButtons.Primary("Place order")
+                UIButtons.Ghost("Back to plans"),
+                UIButtons.Primary("Subscribe")
                     .OnSubmit(FormId, nameof(CheckoutController.PlaceOrderAsync))
                     .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
                     .InteractAfterClick(IVisualComponent.LoadingProperty, false)
             )
         );
 
-    /// <summary>The order read rather than edited: the lines, the sums the server keeps, and the one field that talks to it.</summary>
+    /// <summary>The subscription read rather than edited: the lines, the sums the server keeps, and the one field that talks to it.</summary>
     private static CardComponent CreateSummary()
-        => UIPage.Card("Your order", "Three things, one parcel.", UILayout.Stack(12,
-            UIDetails.List(
-                ("Field notebook, A5 × 2", "€ 24.00"),
-                ("Brass pen", "€ 38.00"),
-                ("Ink, midnight", "€ 9.50")
-            ),
+        => UIPage.Card("Your subscription", "Billed monthly, VAT added below.", UILayout.Stack(12,
+            UIDetails.List().BindItems(nameof(CheckoutController.Lines)),
             new SeparatorComponent(),
             new TextInputComponent()
                 .SetPlaceholder("Promo code")
@@ -168,17 +188,16 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 .BindValue(nameof(CheckoutController.Promo))
                 .BindValidation(nameof(CheckoutController.PromoNotice)),
             new SeparatorComponent(),
-            CreateSumRow("Subtotal", "€ 71.50"),
-            CreateSumRow("Delivery", nameof(CheckoutController.DeliveryLine), bound: true),
-            CreateSumRow("Discount", nameof(CheckoutController.DiscountLine), bound: true).BindVisibility(nameof(CheckoutController.DiscountVisibility)),
-            CreateSumRow("Total", nameof(CheckoutController.TotalLine), bound: true, strong: true)
+            CreateSumRow("Subtotal", nameof(CheckoutController.SubtotalLine)),
+            CreateSumRow("Discount", nameof(CheckoutController.DiscountLine)).BindVisibility(nameof(CheckoutController.DiscountVisibility)),
+            CreateSumRow("VAT, 21%", nameof(CheckoutController.VatLine)),
+            CreateSumRow("Total a month", nameof(CheckoutController.TotalLine), strong: true)
         ), DemoIcons.Outline(DemoIcons.File))
             .SetVerticalAlignment(UIAlignment.Start);
 
-    private static ContainerComponent CreateSumRow(string label, string value, bool bound = false, bool strong = false)
+    private static ContainerComponent CreateSumRow(string label, string property, bool strong = false)
     {
-        TextComponent amount = new TextComponent().SetTextAlignment(UITextAlignment.End).AsBody();
-        _ = bound ? amount.BindTitle(value) : amount.SetTitle(value);
+        TextComponent amount = new TextComponent().SetTextAlignment(UITextAlignment.End).AsBody().BindTitle(property);
 
         return UILayout.Columns(8,
             strong ? UIText.Subtitle(label) : UIText.Body(label).Muted(),
@@ -201,5 +220,6 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     .AsTitle(),
                 UIText.Note(string.Empty).BindDescription(nameof(CheckoutController.PlacedLine)),
                 UIButtons.Toolbar(UIButtons.Secondary("Back to the catalogue"))
-            ));
+                )
+            );
 }

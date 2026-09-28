@@ -59,17 +59,21 @@ public sealed class RecursiveChange
     /// Creates a change of the given kind for the given path.
     /// </summary>
     public RecursiveChange(RecursiveChangeKind kind, RecursivePath path, int index = -1, int count = 0, int oldIndex = -1)
-        : this(kind, path, null, index, count, oldIndex, EmptyItemIds, EmptyItemIds)
+        : this(kind, path, index, count, oldIndex, EmptyItemIds, EmptyItemIds)
     { }
 
+    /// <summary>Validates a change a caller described and takes a copy of its item ids, which the caller may go on changing.</summary>
+    private RecursiveChange(RecursiveChangeKind kind, RecursivePath path, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds)
+        : this(kind, path, null, index, count, oldIndex, Copy(itemIds), Copy(oldItemIds))
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        Validate(kind, index, count, oldIndex, _itemIds, _oldItemIds);
+    }
+
+    /// <summary>Builds a change from parts already validated and owned, as a prepend does: it re-checks and re-copies nothing per hop.</summary>
     private RecursiveChange(RecursiveChangeKind kind, RecursivePath localPath, PrefixNode? prefix, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds)
     {
-        ArgumentNullException.ThrowIfNull(localPath);
-        ArgumentNullException.ThrowIfNull(itemIds);
-        ArgumentNullException.ThrowIfNull(oldItemIds);
-
-        Validate(kind, index, count, oldIndex, itemIds, oldItemIds);
-
         Kind = kind;
 
         _localPath = localPath;
@@ -79,8 +83,15 @@ public sealed class RecursiveChange
         Count = count;
         OldIndex = oldIndex;
 
-        _itemIds = itemIds.Length == 0 ? EmptyItemIds : [.. itemIds];
-        _oldItemIds = oldItemIds.Length == 0 ? EmptyItemIds : [.. oldItemIds];
+        _itemIds = itemIds;
+        _oldItemIds = oldItemIds;
+    }
+
+    private static string[] Copy(string[] itemIds)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+
+        return itemIds.Length == 0 ? EmptyItemIds : [.. itemIds];
     }
 
     private static void Validate(RecursiveChangeKind kind, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds)
@@ -217,25 +228,25 @@ public sealed class RecursiveChange
     /// Creates a change reporting that items were added to a collection at the given path.
     /// </summary>
     public static RecursiveChange Add(RecursivePath path, int index, int count, string[] itemIds)
-        => new(RecursiveChangeKind.Add, path, prefix: null, index, count, oldIndex: -1, itemIds, oldItemIds: EmptyItemIds);
+        => new(RecursiveChangeKind.Add, path, index, count, oldIndex: -1, itemIds, oldItemIds: EmptyItemIds);
 
     /// <summary>
     /// Creates a change reporting that items were removed from a collection at the given path.
     /// </summary>
     public static RecursiveChange Remove(RecursivePath path, int index, int count, string[] oldItemIds)
-        => new(RecursiveChangeKind.Remove, path, prefix: null, index, count, oldIndex: -1, itemIds: EmptyItemIds, oldItemIds);
+        => new(RecursiveChangeKind.Remove, path, index, count, oldIndex: -1, itemIds: EmptyItemIds, oldItemIds);
 
     /// <summary>
     /// Creates a change reporting that items were replaced in a collection at the given path.
     /// </summary>
     public static RecursiveChange Replace(RecursivePath path, int index, int count, string[] oldItemIds, string[] itemIds)
-        => new(RecursiveChangeKind.Replace, path, prefix: null, index, count, oldIndex: index, itemIds, oldItemIds);
+        => new(RecursiveChangeKind.Replace, path, index, count, oldIndex: index, itemIds, oldItemIds);
 
     /// <summary>
     /// Creates a change reporting that an item was moved within a collection at the given path.
     /// </summary>
     public static RecursiveChange Move(RecursivePath path, int oldIndex, int newIndex, int count, string[] itemIds)
-        => new(RecursiveChangeKind.Move, path, prefix: null, index: newIndex, count, oldIndex, itemIds, oldItemIds: EmptyItemIds);
+        => new(RecursiveChangeKind.Move, path, index: newIndex, count, oldIndex, itemIds, oldItemIds: EmptyItemIds);
 
     /// <summary>
     /// Creates a change reporting that the collection at the given path was reset.

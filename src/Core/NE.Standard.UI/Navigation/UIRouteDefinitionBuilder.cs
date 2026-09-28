@@ -319,10 +319,7 @@ public sealed class UIRouteDefinitionBuilder
 
     private static Func<CompiledView> CreateLazyGetter(UIViewFactory factory)
     {
-        Lazy<CompiledView> lazy = new(
-            factory.Compile,
-            LazyThreadSafetyMode.ExecutionAndPublication
-        );
+        Lazy<CompiledView> lazy = new(factory.Compile, LazyThreadSafetyMode.ExecutionAndPublication);
 
         return () => lazy.Value;
     }

@@ -1,12 +1,5 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.RadioGroup;
 
@@ -24,10 +17,7 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePlainGroup()],
-            [CreateOrientationGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreatePlainGroup()], [CreateOrientationGroup()]));
 
         _ = container.AddChild(CreateItemGroup());
     }
@@ -36,8 +26,8 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     /// <remarks>Across rather than down, since a group of short answers is a third of its column wide.</remarks>
     private static ContainerComponent CreatePlainGroup()
     {
-        return DemoUI.CreateGroup(null, "A list of answers",
-            content => content.AddChild(DemoUI.CreateRow(48)
+        return DemoUI.CreateExample("A list of answers",
+            UILayout.Row(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Deploy strategy")
                     .SetOptions(Strategies())
@@ -47,8 +37,6 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetTitle("Nothing chosen yet")
                     .SetOptions(Strategies())
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -57,21 +45,19 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateOrientationGroup()
     {
-        return DemoUI.CreateGroup(null, "Laid out down, or across",
-            content => content.AddChild(DemoUI.CreateRow(48)
+        return DemoUI.CreateExample("Laid out down, or across",
+            UILayout.Row(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Vertical — the default")
-                    .SetOptions(Sizes())
-                    .SetValue("m")
+                    .SetOptions(Plans())
+                    .SetValue("standard")
                 )
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Horizontal")
                     .SetOrientation(UIOrientation.Horizontal)
-                    .SetOptions(Sizes())
-                    .SetValue("m")
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    .SetOptions(Plans())
+                    .SetValue("standard")
+                ),
             note: "Horizontal is for answers of a word or two: a second line under one of them puts the row's baselines out."
         );
     }
@@ -82,15 +68,16 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     /// <remarks>The same three options both times, or the difference between the two rows cannot be read.</remarks>
     private static ContainerComponent CreateItemGroup()
     {
-        return DemoUI.CreateGroup(null, "More than a name",
-            content => content.AddChild(DemoUI.CreateRow(48)
-                .AddChild(DemoUI.CreateCaptionedItem("The default row — glyph, second line and badge", new RadioGroupComponent()
+        return DemoUI.CreateExample("More than a name",
+            UILayout.Row(48)
+                .AddChild(UIPage.Labelled("The default row — glyph, second line and badge", new RadioGroupComponent()
                     .SetTitle("Target environment")
                     .SetIcon(DemoIcons.Navigation)
-                    .SetOptions(Environments())
+                    .SetOptions(DemoSamples.Environments())
                     .SetValue("staging")
-                ))
-                .AddChild(DemoUI.CreateCaptionedItem("A template of your own, over the same options", new RadioGroupComponent()
+                    )
+                )
+                .AddChild(UIPage.Labelled("A template of your own, over the same options", new RadioGroupComponent()
                     .SetTitle("Target environment")
                     .SetIcon(DemoIcons.Navigation)
                     .SetTemplate(new TextComponent()
@@ -102,11 +89,10 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     )
-                    .SetOptions(Environments())
+                    .SetOptions(DemoSamples.Environments())
                     .SetValue("staging")
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    )
+                ),
             columns: 24,
             note: "The template binds what the item says and decides everything the item does not: the glyph's size, which line is quiet, where the badge sits."
         );
@@ -119,41 +105,10 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
             new() { Id = "recreate", Title = "Recreate" }
         ];
 
-    private static OptionItem[] Sizes()
+    private static OptionItem[] Plans()
         => [
-            new() { Id = "s", Title = "Small" },
-            new() { Id = "m", Title = "Medium" },
-            new() { Id = "l", Title = "Large" }
-        ];
-
-    private static OptionItem[] Environments()
-        => [
-            new()
-            {
-                Id = "prod",
-                Icon = DemoIcons.Shield,
-                Title = "Production",
-                Description = "eu-west-1 · 12 replicas",
-                BadgeText = "Locked",
-                BadgeStyle = UIBadgeType.Danger
-            },
-            new()
-            {
-                Id = "staging",
-                Icon = DemoIcons.BadgeCheck,
-                Title = "Staging",
-                Description = "eu-west-1 · 3 replicas",
-                BadgeText = "Open",
-                BadgeStyle = UIBadgeType.Success
-            },
-            new()
-            {
-                Id = "dev",
-                Icon = DemoIcons.Settings,
-                Title = "Development",
-                Description = "eu-central-1 · 1 replica",
-                BadgeText = "Rebuilt daily",
-                BadgeStyle = UIBadgeType.Info
-            }
+            new() { Id = "starter", Title = "Starter" },
+            new() { Id = "standard", Title = "Standard" },
+            new() { Id = "pro", Title = "Pro" }
         ];
 }

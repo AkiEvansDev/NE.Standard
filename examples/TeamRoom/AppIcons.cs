@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using NE.Standard.UI.Icons.Material;
 
 namespace TeamRoom;
 
@@ -36,7 +35,7 @@ public static class AppIcons
     public const string LightMode = MaterialIcons.LightMode;
     public const string DarkMode = MaterialIcons.DarkMode;
     public const string Close = MaterialIcons.Close;
-    public const string Check = MaterialIcons.Check;
+    public const string Newest = MaterialIcons.VerticalAlignBottom;
 
     public static string Outline(string icon)
         => MaterialIcons.Outlined(icon);

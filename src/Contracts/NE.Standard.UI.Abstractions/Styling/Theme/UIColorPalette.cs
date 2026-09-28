@@ -4,11 +4,11 @@ using NE.Colors;
 namespace NE.Standard.UI.Abstractions.Styling.Theme;
 
 /// <summary>
-/// Defines semantic color variants used by a UI theme mode.
+/// Defines semantic color variants used by a UI theme mode; a palette built with <c>new()</c> is the standard dark one.
 /// </summary>
 public sealed record UIColorPalette
 {
-    // Eight, far apart on the wheel and none the status colours, so a series is never read as a warning.
+    // Eight, far apart on the wheel; the Info and Success hues are among them, the warning and danger ones are not.
     private static readonly ColorVariant[] DefaultSeries =
     [
         new(ColorName.QuantumBlue),
@@ -49,12 +49,12 @@ public sealed record UIColorPalette
     /// <summary>
     /// The color intended to sit on top of <see cref="Primary"/>.
     /// </summary>
-    public ColorVariant OnPrimary { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnPrimary { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Accent"/>.
     /// </summary>
-    public ColorVariant OnAccent { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnAccent { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Background"/>.
@@ -69,48 +69,49 @@ public sealed record UIColorPalette
     /// <summary>
     /// The informational status color.
     /// </summary>
-    public ColorVariant Info { get; init; } = new(ColorName.QuantumBlue, ColorAdjustment.Tint, 1);
+    public ColorVariant Info { get; init; } = new(ColorName.QuantumBlue);
 
     /// <summary>
     /// The warning status color.
     /// </summary>
-    public ColorVariant Warning { get; init; } = new(ColorName.NebulaGold, ColorAdjustment.Tint, 1);
+    public ColorVariant Warning { get; init; } = new(ColorName.NebulaGold);
 
     /// <summary>
     /// The success status color.
     /// </summary>
-    public ColorVariant Success { get; init; } = new(ColorName.AuroraGreen, ColorAdjustment.Tint, 1);
+    public ColorVariant Success { get; init; } = new(ColorName.AuroraGreen);
 
     /// <summary>
     /// The danger/error status color.
     /// </summary>
-    public ColorVariant Danger { get; init; } = new(ColorName.StellarRed, ColorAdjustment.Tint, 1);
+    public ColorVariant Danger { get; init; } = new(ColorName.StellarRed);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Info"/>.
     /// </summary>
-    public ColorVariant OnInfo { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnInfo { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Warning"/>.
     /// </summary>
-    public ColorVariant OnWarning { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnWarning { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 9);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Success"/>.
     /// </summary>
-    public ColorVariant OnSuccess { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnSuccess { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Danger"/>.
     /// </summary>
-    public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
+    // The inks are lifted until each clears 4.5:1 on the dark page; Primary stays at Tint 2 since it's nearly always marked current some other way.
     /// <summary>
     /// <see cref="Primary"/> as ink: the colour text, icons and badge-text take when using that brand colour, read against
     /// the page rather than <see cref="OnPrimary"/>. Backgrounds and fills use <see cref="Primary"/> itself.
     /// </summary>
-    public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 3);
+    public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 2);
 
     /// <summary>
     /// <see cref="Accent"/> as ink — see <see cref="PrimaryInk"/>.
@@ -140,27 +141,27 @@ public sealed record UIColorPalette
     /// <summary>
     /// The color used to indicate a selected item or state.
     /// </summary>
-    public ColorVariant Selected { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 5, 48);
+    public ColorVariant Selected { get; init; } = new(ColorName.NovaPurple, ColorAdjustment.Tint, 3, 55);
 
     /// <summary>
     /// The color used for the focus indicator ring around focused elements.
     /// </summary>
-    public ColorVariant FocusRing { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 2);
+    public ColorVariant FocusRing { get; init; } = new(ColorName.NovaPurple);
 
     /// <summary>
     /// The default border color.
     /// </summary>
-    public ColorVariant Border { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 1);
+    public ColorVariant Border { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10, 24);
 
     /// <summary>
     /// The color used for drop shadows.
     /// </summary>
-    public ColorVariant Shadow { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 10);
+    public ColorVariant Shadow { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 120);
 
     /// <summary>
     /// The color used for modal/scrim overlay backgrounds.
     /// </summary>
-    public ColorVariant Overlay { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10, 100);
+    public ColorVariant Overlay { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 160);
 
     /// <summary>
     /// Opacity applied to disabled interactive elements, in the 0-255 range.

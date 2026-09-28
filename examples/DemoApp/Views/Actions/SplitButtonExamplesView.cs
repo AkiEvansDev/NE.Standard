@@ -1,12 +1,5 @@
 using DemoApp.Controllers.Actions;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -28,10 +21,7 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateVariantsGroup()],
-            [CreateToolbarGroup(), CreateTargetsGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateVariantsGroup()], [CreateToolbarGroup(), CreateTargetsGroup()]));
 
         _ = container.AddChild(CreateFieldGroup());
     }
@@ -41,25 +31,25 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateVariantsGroup()
     {
-        return DemoUI.CreateGroup(null, "An action and its variants",
-            content => content.AddChild(DemoUI.CreateRow(16)
+        return DemoUI.CreateExample("An action and its variants",
+            UILayout.Row(16)
                 .AddChild(new SplitButtonComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                     .SetTitle("Download")
                     .SetItems([
-                        new MenuItem { Id = "zip", Title = "As a ZIP archive" },
+                        new MenuItem { Id = "image", Title = "As a disk image" },
                         new MenuItem { Id = "tar", Title = "As a tarball" },
                         new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
-                        new MenuItem { Id = "clone", Title = "Copy the clone command", Icon = DemoIcons.Outline(DemoIcons.Copy) }
+                        new MenuItem { Id = "clone", Title = "Clone to another region", Icon = DemoIcons.Outline(DemoIcons.Copy) }
                     ])
                 )
                 .AddChild(new SplitButtonComponent()
                     .SetType(UIButtonType.Outline)
-                    .SetTitle("Run")
+                    .SetTitle("Restart")
                     .SetItems([
-                        new MenuItem { Id = "run-debug", Title = "Run with the debugger", Shortcut = "F5" },
-                        new MenuItem { Id = "run-profile", Title = "Run with the profiler" },
-                        new MenuItem { Id = "run-coverage", Title = "Run with coverage", Enabled = false }
+                        new MenuItem { Id = "restart-graceful", Title = "Restart gracefully", Shortcut = "F5" },
+                        new MenuItem { Id = "restart-hard", Title = "Restart hard" },
+                        new MenuItem { Id = "restart-maintenance", Title = "Restart into maintenance", Enabled = false }
                     ])
                 )
                 .AddChild(new SplitButtonComponent()
@@ -67,11 +57,10 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetSize(UIButtonSize.Small)
                     .SetTitle("Delete")
                     .SetItems([
-                        new MenuItem { Id = "delete-branch", Title = "Delete the branch too" },
-                        new MenuItem { Id = "delete-keep", Title = "Keep the branch" }
+                        new MenuItem { Id = "delete-all", Title = "Delete the snapshots too" },
+                        new MenuItem { Id = "delete-keep", Title = "Keep the last snapshot" }
                     ])
-                )
-            ),
+                ),
             note: "The label runs the ordinary case; the end opens the rest. A disabled entry stays in the list and takes no press."
         );
     }
@@ -81,40 +70,51 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateGroup(null, "A toolbar of menu buttons",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A toolbar of menu buttons",
+            new SurfaceComponent()
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
-                .SetContent(DemoUI.CreateRow(4)
-                    .AddChild(CreateMenuButton("New", DemoIcons.Outline(DemoIcons.File), [
-                        new MenuItem { Id = "new-file", Title = "File", Shortcut = "Ctrl+N" },
-                        new MenuItem { Id = "new-folder", Title = "Folder" },
-                        new MenuItem { Id = "new-project", Title = "Project…" }
-                    ]))
-                    .AddChild(CreateMenuButton("View", DemoIcons.Outline(DemoIcons.LayoutDashboard), [
-                        new MenuItem { Id = "view-heading", Title = "Panels", Kind = UIMenuItemKind.Header },
-                        new MenuItem { Id = "view-explorer", Title = "Explorer", Shortcut = "Ctrl+Shift+E" },
-                        new MenuItem { Id = "view-search", Title = "Search", Shortcut = "Ctrl+Shift+F" },
-                        new MenuItem { Id = "view-rule", Kind = UIMenuItemKind.Separator },
-                        new MenuItem { Id = "view-zen", Title = "Zen mode" }
-                    ]))
-                    .AddChild(CreateMenuButton("Share", DemoIcons.Outline(DemoIcons.Send), [
-                        new MenuItem { Id = "share-link", Title = "Copy a link", Icon = DemoIcons.Outline(DemoIcons.Link) },
-                        new MenuItem { Id = "share-mail", Title = "Send by mail", Icon = DemoIcons.Outline(DemoIcons.Mail) }
-                    ]))
-                )
-            ),
+                .SetContent(UILayout.Row(4)
+                    .AddChild(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.File))
+                        .SetTitle("New")
+                        .SetItems([
+                            new MenuItem { Id = "new-server", Title = "Server", Shortcut = "Ctrl+N" },
+                            new MenuItem { Id = "new-subscription", Title = "Subscription" },
+                            new MenuItem { Id = "new-certificate", Title = "Certificate…" }
+                        ])
+                    )
+                    .AddChild(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.LayoutDashboard))
+                        .SetTitle("View")
+                        .SetItems([
+                            new MenuItem { Id = "view-heading", Title = "Panels", Kind = UIMenuItemKind.Header },
+                            new MenuItem { Id = "view-servers", Title = "Servers", Shortcut = "Ctrl+Shift+S" },
+                            new MenuItem { Id = "view-regions", Title = "Regions", Shortcut = "Ctrl+Shift+R" },
+                            new MenuItem { Id = "view-rule", Kind = UIMenuItemKind.Separator },
+                            new MenuItem { Id = "view-invoices", Title = "Invoices" }
+                        ])
+                    )
+                    .AddChild(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Send))
+                        .SetTitle("Share")
+                        .SetItems([
+                            new MenuItem { Id = "share-link", Title = "Copy a link", Icon = DemoIcons.Outline(DemoIcons.Link) },
+                            new MenuItem { Id = "share-mail", Title = "Send by mail", Icon = DemoIcons.Outline(DemoIcons.Mail) }
+                        ])
+                    )
+                ),
             note: "In Menu mode the whole button is the opener and the divider goes; the chevron is the only sign of the list."
         );
     }
-
-    private static SplitButtonComponent CreateMenuButton(string title, string icon, MenuItem[] entries)
-        => new SplitButtonComponent()
-            .SetMode(UISplitButtonMode.Menu)
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetIcon(icon)
-            .SetTitle(title)
-            .SetItems(entries);
 
     /// <summary>
     /// The entries are the controller's: a bound list, a tick that moves to the target chosen last, and a target added while the
@@ -122,8 +122,8 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateTargetsGroup()
     {
-        return DemoUI.CreateGroup(TargetsGroup, "A list the controller keeps",
-            content => content.AddChild(DemoUI.CreateRow(16)
+        return DemoUI.CreateExample("A list the controller keeps",
+            UILayout.Row(16)
                 .AddChild(new SplitButtonComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                     .SetTitle("Deploy")
@@ -136,9 +136,8 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetIcon(DemoIcons.Outline(DemoIcons.Add))
                     .SetTitle("Add a target")
                     .OnClick(nameof(SplitButtonExamplesController.AddTarget))
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                ),
+            context: TargetsGroup,
             note: "The main part deploys to the ticked target; an entry deploys there and takes the tick. Add a target and open the menu again: the entry is there, the list being the controller's."
         );
     }
@@ -148,12 +147,12 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateFieldGroup()
     {
-        return DemoUI.CreateGroup(null, "At the end of a field",
-            content => content.AddChild(DemoUI.CreateRow(32)
+        return DemoUI.CreateExample("At the end of a field",
+            UILayout.Row(32)
                 .AddChild(new TextInputComponent()
                     .SetTitle("API key")
                     .SetWidth(UILayoutLength.Absolute(460))
-                    .SetValue("sk_live_4f9c…d21e")
+                    .SetValue("orv_live_4f9c…d21e")
                     .SetIsReadOnly(true)
                     .SetTrailingAction(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
@@ -164,7 +163,7 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                 .AddChild(new TextInputComponent()
                     .SetTitle("Assignee")
                     .SetWidth(UILayoutLength.Absolute(460))
-                    .SetValue("release-bot")
+                    .SetValue("Grace Kim")
                     .SetTrailingAction(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
                         .SetType(UIButtonType.Ghost)
@@ -176,9 +175,7 @@ internal sealed class SplitButtonExamplesView : DemoExamplesView, IUIViewDefinit
                             new MenuItem { Id = "clear", Title = "Unassign" }
                         ])
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                ),
             columns: 24,
             note: "The field lays the control in its row and dresses it as an adornment; the clipboard example on the TextInput page is the other one."
         );

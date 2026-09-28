@@ -8,18 +8,33 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 /// </summary>
 public abstract class RecursiveObservable
 {
-    private sealed class PropertyForwarder(RecursiveObservable owner, PathSegment segment)
+    private sealed class PropertyForwarder
     {
-        private readonly RecursiveObservable _owner = owner;
-        private readonly PathSegment _segment = segment;
+        private readonly RecursiveObservable _owner;
+        private readonly PathSegment _segment;
 
-        public void Notify(RecursiveChange change)
+        public PropertyForwarder(RecursiveObservable owner, PathSegment segment)
+        {
+            _owner = owner;
+            _segment = segment;
+            Notify = Forward;
+        }
+
+        /// <summary>The callback a child is handed, made once so a re-propagation allocates no delegate.</summary>
+        public Action<RecursiveChange> Notify { get; }
+
+        private void Forward(RecursiveChange change)
             => _owner.Notify(change.Prepend(_segment));
     }
 
     private readonly Dictionary<PathSegment, PropertyForwarder> _propertyForwarders = [];
     private Action<RecursiveChange>? _notifier;
-    private WeakReference<RecursiveObservable>? _owner;
+
+    // Strong on purpose: the notifier this node is handed already holds its owner, so a weak reference would only cost a handle.
+    private RecursiveObservable? _owner;
+
+    // Which place under the owner holds this node — a property's forwarder, or the collection itself for an item.
+    private object? _ownerSlot;
 
     /// <summary>
     /// Attempts to get a value by recursive path.
@@ -135,16 +150,36 @@ public abstract class RecursiveObservable
     protected internal virtual void PropagateNotifier(HashSet<RecursiveObservable> visited) { }
 
     /// <summary>
-    /// Attaches this object to a recursive owner.
+    /// Throws when this object may not be attached to <paramref name="owner"/> at <paramref name="slot"/>: it already belongs to
+    /// another owner, or to this one in another place. Called before anything changes, so a refused attach changes nothing.
     /// </summary>
-    protected internal void AttachOwner(RecursiveObservable owner)
+    protected internal void EnsureCanAttach(RecursiveObservable owner, object slot)
     {
         ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(slot);
 
-        if (_owner?.TryGetTarget(out RecursiveObservable? existing) == true && !ReferenceEquals(existing, owner))
+        if (_owner is null)
+            return;
+
+        if (!ReferenceEquals(_owner, owner))
             throw new InvalidOperationException("Recursive nodes must belong to a single owner. Shared nodes are not supported.");
 
-        _owner = new WeakReference<RecursiveObservable>(owner);
+        if (!ReferenceEquals(_ownerSlot, slot))
+            throw new InvalidOperationException("A recursive node cannot be held in two places under one owner. Shared nodes are not supported.");
+    }
+
+    /// <summary>
+    /// Attaches this object to a recursive owner at the given place; attaching it where it already is does nothing.
+    /// </summary>
+    protected internal void AttachOwner(RecursiveObservable owner, object slot)
+    {
+        if (ReferenceEquals(_owner, owner) && ReferenceEquals(_ownerSlot, slot))
+            return;
+
+        EnsureCanAttach(owner, slot);
+
+        _owner = owner;
+        _ownerSlot = slot;
     }
 
     /// <summary>
@@ -152,8 +187,11 @@ public abstract class RecursiveObservable
     /// </summary>
     protected internal void DetachOwner(RecursiveObservable owner)
     {
-        if (_owner?.TryGetTarget(out RecursiveObservable? existing) == true && ReferenceEquals(existing, owner))
-            _owner = null;
+        if (!ReferenceEquals(_owner, owner))
+            return;
+
+        _owner = null;
+        _ownerSlot = null;
     }
 
     /// <summary>
@@ -163,6 +201,10 @@ public abstract class RecursiveObservable
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
             return false;
+
+        // Checked before the old child lets go, so a node that belongs elsewhere leaves the property as it was.
+        if (value is RecursiveObservable candidate)
+            candidate.EnsureCanAttach(this, GetOrCreatePropertyForwarder(segment));
 
         if (field is RecursiveObservable oldChild)
         {
@@ -180,26 +222,6 @@ public abstract class RecursiveObservable
         return true;
     }
 
-    /// <summary>
-    /// Emits a set change for a recursive property.
-    /// </summary>
-    protected void NotifyPropertyChanged(PathSegment segment)
-        => Notify(RecursiveChange.Set(RecursivePath.Empty.Append(segment)));
-
-    /// <summary>
-    /// Attaches a recursive child and forwards its notifications through the specified segment.
-    /// </summary>
-    protected internal void AttachChild(PathSegment segment, RecursiveObservable child, HashSet<RecursiveObservable>? visited)
-    {
-        ArgumentNullException.ThrowIfNull(child);
-
-        child.AttachOwner(this);
-
-        PropertyForwarder forwarder = GetOrCreatePropertyForwarder(segment);
-
-        child.SetNotifier(forwarder.Notify, visited);
-    }
-
     private PropertyForwarder GetOrCreatePropertyForwarder(PathSegment segment)
     {
         // Locked: background commands and client writes can touch this dictionary from different threads; unsynchronized, it can
@@ -214,6 +236,25 @@ public abstract class RecursiveObservable
 
             return forwarder;
         }
+    }
+
+    /// <summary>
+    /// Emits a set change for a recursive property.
+    /// </summary>
+    protected void NotifyPropertyChanged(PathSegment segment)
+        => Notify(RecursiveChange.Set(RecursivePath.Empty.Append(segment)));
+
+    /// <summary>
+    /// Attaches a recursive child and forwards its notifications through the specified segment.
+    /// </summary>
+    protected internal void AttachChild(PathSegment segment, RecursiveObservable child, HashSet<RecursiveObservable>? visited)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+
+        PropertyForwarder forwarder = GetOrCreatePropertyForwarder(segment);
+
+        child.AttachOwner(this, forwarder);
+        child.SetNotifier(forwarder.Notify, visited);
     }
 
     /// <summary>

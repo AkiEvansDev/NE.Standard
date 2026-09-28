@@ -62,10 +62,15 @@ public abstract class WebStartupBase<TStartup>
 
         services.TryAddSingleton<IWebViewRenderCache, FileSystemWebViewRenderCache>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebViewRenderCacheStartupTask>());
+        services.TryAddSingleton<WebAssetCompression>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebAssetCompressionStartupTask>());
 
         services.TryAddSingleton(TimeProvider.System);
+        // The upload endpoint's count of bytes in flight per session; the value store keeps an allowance of its own.
+        services.TryAddSingleton<WebSessionAllowance>();
         services.TryAddSingleton<WebValueStagingStore>();
         services.TryAddSingleton<WebOutgoingValues>();
+        services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
         services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();

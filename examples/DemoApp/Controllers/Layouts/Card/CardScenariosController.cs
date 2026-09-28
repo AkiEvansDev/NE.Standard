@@ -3,8 +3,6 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.Card;
 
@@ -86,14 +84,6 @@ internal sealed partial class CardRefreshGroupContext : DemoGroupContext
     }
 }
 
-/// <summary>
-/// The hover group has no state of its own: the client decides what shows, the server only hears the press.
-/// </summary>
-internal sealed partial class CardHoverGroupContext : DemoGroupContext
-{
-    public void Report(string message) => LogEvent(message);
-}
-
 internal sealed partial class CardScenariosController() : DemoController
 {
     private int _reads;
@@ -101,8 +91,9 @@ internal sealed partial class CardScenariosController() : DemoController
     [RecursiveMember]
     public partial CardClickGroupContext ClickGroup { get; set; } = new();
 
+    // No state of its own: the client decides what shows, the server only hears the press.
     [RecursiveMember]
-    public partial CardHoverGroupContext HoverGroup { get; set; } = new();
+    public partial DemoGroupContext HoverGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial CardSelectionGroupContext SelectionGroup { get; set; } = new();
@@ -115,12 +106,12 @@ internal sealed partial class CardScenariosController() : DemoController
         => ClickGroup.ReportCard();
 
     [UICommand]
-    public void MergeRequest()
-        => HoverGroup.Report("Merged — and the pointer never left the card to do it");
+    public void ApproveChange()
+        => HoverGroup.LogEvent("Approved — and the pointer never left the card to do it");
 
     [UICommand]
-    public void ViewDiff()
-        => HoverGroup.Report("Opened the diff");
+    public void ViewPlan()
+        => HoverGroup.LogEvent("Opened the plan");
 
     [UICommand]
     public void RecordButtonClick()

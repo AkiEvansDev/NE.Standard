@@ -8,23 +8,18 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Runtime;
 
 /// <summary>
-/// Sends a change set to a runtime's attached instances, each without the values it already holds.
+/// Sends a change set to a runtime's attached instances, each as <see cref="IUIRuntime.ChangesFor"/> gives it: without what its
+/// snapshot or its own write already holds.
 /// </summary>
 internal static class UIChangeDelivery
 {
-    public static async Task SendAsync(IUIUpdateSink sink, UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, CancellationToken cancellationToken)
+    public static async Task SendAsync(IUIUpdateSink sink, IUIRuntime runtime, UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, CancellationToken cancellationToken)
     {
-        if (!changes.HasExceptions)
-        {
-            await sink.SendChangesAsync(handle, instanceIds, changes, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
         List<string>? unaffected = null;
 
         foreach (var instanceId in instanceIds)
         {
-            ServerChangeSet own = changes.For(instanceId);
+            ServerChangeSet own = runtime.ChangesFor(instanceId, changes);
 
             if (ReferenceEquals(own, changes))
                 (unaffected ??= []).Add(instanceId);

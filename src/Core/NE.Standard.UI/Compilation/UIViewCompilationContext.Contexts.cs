@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
-using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -21,32 +19,13 @@ internal sealed partial class UIViewCompilationContext
         {
             IVisualComponent component = _componentOrder[i];
 
-            ResolvedComponentContext baseContext = ResolveBaseComponentContext(
-                component,
-                sourcesByKey,
-                templatesByKey,
-                contextsByTemplateId,
-                result,
-                rootContext,
-                rootPath
-            );
+            ResolvedComponentContext baseContext = ResolveBaseComponentContext(component, sourcesByKey, templatesByKey, contextsByTemplateId, result, rootContext, rootPath);
 
-            if (component.Context is null)
-            {
-                result.Add(component.Id, baseContext);
-                continue;
-            }
+            // In before its explicit context is built: a Parent scope asks whether this component defines an item scope itself.
+            result.Add(component.Id, baseContext);
 
-            ResolvedComponentContext explicitContext = ApplyExplicitComponentContext(
-                component,
-                baseContext,
-                templatesByKey,
-                contextsByTemplateId,
-                result,
-                rootPath
-            );
-
-            result.Add(component.Id, explicitContext);
+            if (component.Context is not null)
+                result[component.Id] = ApplyExplicitComponentContext(component, baseContext, templatesByKey, contextsByTemplateId, result, rootPath);
         }
 
         return result;
@@ -182,34 +161,12 @@ internal sealed partial class UIViewCompilationContext
     private ResolvedComponentContext ApplyExplicitComponentContext(IVisualComponent component, ResolvedComponentContext baseContext, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<UIBindingTemplateId, CompiledUIContext> contextsByTemplateId, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
         UIBinding binding = component.Context!.Value;
-        CompiledPath fullPath = BuildContextPath(component, binding, baseContext, componentContexts, rootPath);
+
+        // The component's base context is registered already, so a Relative scope reads it and a Parent scope the one above it.
+        CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath);
         CompiledUIBindingTemplate compiledTemplate = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
         CompiledUIContext context = GetOrAddContext(contextsByTemplateId, compiledTemplate);
 
         return new ResolvedComponentContext(context, fullPath, baseContext.DefinesParameter);
     }
-
-    private CompiledPath BuildContextPath(IVisualComponent component, UIBinding binding, ResolvedComponentContext baseContext, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
-    {
-        CompiledPath scopeBase = binding.Scope switch
-        {
-            UIBindingScope.Root => rootPath,
-            UIBindingScope.Relative => baseContext.Path,
-            UIBindingScope.Parent => GetParentContextPath(component, componentContexts, rootPath),
-            _ => throw new UnreachableException()
-        };
-
-        return AppendPath(scopeBase, binding.Source);
-    }
-
-    private CompiledPath GetParentContextPath(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
-    {
-        // Not one visual hop: a plain child inherits its parent's context, so one step would land back on the level Relative already uses.
-        IVisualComponent? parent = TryGetEnclosingContextComponent(component, componentContexts);
-
-        return parent is not null && componentContexts.TryGetValue(parent.Id, out ResolvedComponentContext parentContext)
-            ? parentContext.Path
-            : rootPath;
-    }
-
 }

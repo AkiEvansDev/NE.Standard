@@ -1,17 +1,4 @@
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 using TeamRoom.Data;
 
@@ -63,7 +50,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                 .SetIcon(AppIcons.Outline(AppIcons.Shield))
                 .BindTitle(nameof(AccountRow.RoleTitle), UIBindingScope.Relative)
                 .SetHorizontalAlignment(UIAlignment.Start)
-                .OnClick(nameof(AccountsController.ToggleRole), UIAction.ArgCurrentItemKey("id"))
+                .OnClick(nameof(AccountsController.ToggleRoleAsync), UIAction.ArgCurrentItemKey("id"))
                 .SetPlacement(1, 1, 9, 1)
             )
             .AddChild(new ButtonComponent()
@@ -72,7 +59,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                 .SetIcon(AppIcons.Outline(AppIcons.Key))
                 .SetTitle("New password")
                 .SetHorizontalAlignment(UIAlignment.Start)
-                .OnClick(nameof(AccountsController.ResetPassword), UIAction.ArgCurrentItemKey("id"))
+                .OnClick(nameof(AccountsController.ResetPasswordAsync), UIAction.ArgCurrentItemKey("id"))
                 .SetPlacement(10, 1, 7, 1)
             )
             .AddChild(new ButtonComponent()
@@ -81,7 +68,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                 .SetIcon(AppIcons.Outline(AppIcons.Block))
                 .BindTitle(nameof(AccountRow.BlockTitle), UIBindingScope.Relative)
                 .SetHorizontalAlignment(UIAlignment.Start)
-                .OnClick(nameof(AccountsController.ToggleBlocked), UIAction.ArgCurrentItemKey("id"))
+                .OnClick(nameof(AccountsController.ToggleBlockedAsync), UIAction.ArgCurrentItemKey("id"))
                 .SetPlacement(17, 1, 5, 1)
             )
             .AddChild(new ButtonComponent()
@@ -100,6 +87,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
             new UIDialog
             {
                 Key = AccountsController.NewDialogKey,
+                Label = "New account",
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
@@ -116,11 +104,12 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                         ])
                         .BindValue(nameof(AccountsController.NewRole))
                     )
-                    .AddChild(CreateDialogButtons(nameof(AccountsController.Create), "Create", UIButtonType.Primary))
+                    .AddChild(CreateDialogButtons(nameof(AccountsController.CloseDialogs), nameof(AccountsController.Create), "Create"))
             },
             new UIDialog
             {
                 Key = AccountsController.PasswordDialogKey,
+                Label = "New password",
                 CloseOnBackdrop = false,
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
@@ -137,6 +126,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
             new UIDialog
             {
                 Key = AccountsController.DeleteDialogKey,
+                Label = "Delete account",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = new StackPanelComponent()
@@ -144,15 +134,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                     .SetSpacing(12)
                     .SetMinWidth(UILayoutLength.Absolute(340))
                     .AddChild(new TextComponent().SetTitle("Delete this account?").SetTitleType(UITextAppearance.Title).BindDescription(nameof(AccountsController.DeleteQuestion)))
-                    .AddChild(CreateDialogButtons(nameof(AccountsController.Delete), "Delete", UIButtonType.Danger))
+                    .AddChild(CreateDialogButtons(nameof(AccountsController.CloseDialogs), nameof(AccountsController.DeleteAsync), "Delete", UIButtonType.Danger))
             }
         ];
-
-    private static StackPanelComponent CreateDialogButtons(string command, string title, UIButtonType type)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(8)
-            .SetHorizontalAlignment(UIAlignment.End)
-            .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Cancel").OnClick(nameof(AccountsController.CloseDialogs)))
-            .AddChild(new ButtonComponent().SetType(type).SetTitle(title).OnClick(command));
 }

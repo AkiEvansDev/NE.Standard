@@ -16,23 +16,41 @@ public sealed class ItemContext(object? item)
 {
     private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> PropertyCache = new();
 
+    /// <summary>
+    /// Gets the item templates are resolved against.
+    /// </summary>
     public object? Item { get; } = item;
 
+    /// <summary>
+    /// Attempts to resolve a compiled binding template against the item and the enclosing scopes.
+    /// </summary>
     public bool TryResolveBindingTemplate(CompiledUIBindingTemplate template, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(scopes);
 
-        return TryResolveBindingTemplate(template.Template, parameters, scopes, out value);
+        return TryResolve(template.Template, template.PropertyNames, parameters, scopes, out value);
     }
 
+    /// <summary>
+    /// Attempts to resolve a binding template string against the item and the enclosing scopes.
+    /// </summary>
     public bool TryResolveBindingTemplate(string template, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(scopes);
 
+        return TryResolve(template, null, parameters, scopes, out value);
+    }
+
+    /// <summary>
+    /// The walk itself; <paramref name="propertyNames"/>, where a compiled template has them split already, spares a string per
+    /// property per row.
+    /// </summary>
+    private bool TryResolve(string template, string[]? propertyNames, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
+    {
         value = null;
         var current = Item;
 
@@ -44,6 +62,7 @@ public sealed class ItemContext(object? item)
 
         ReadOnlySpan<char> span = template.AsSpan();
         var parameterIndex = 0;
+        var nameIndex = 0;
         var i = 0;
         var expectSegment = true;
 
@@ -103,11 +122,15 @@ public sealed class ItemContext(object? item)
 
             if (currentValid)
             {
-                if (TryReadProperty(current, span[start..i].ToString(), out var read))
+                var name = propertyNames is null ? span[start..i].ToString() : propertyNames[nameIndex];
+
+                if (TryReadProperty(current, name, out var read))
                     current = read;
                 else
                     currentValid = false;
             }
+
+            nameIndex++;
 
             expectSegment = false;
         }
@@ -149,6 +172,9 @@ public sealed class ItemContext(object? item)
         return false;
     }
 
+    /// <summary>
+    /// Attempts to read one entry of a collection: by index from a list, by key from a dictionary or by item id from a sequence.
+    /// </summary>
     public static bool TryReadCollectionItem(object? source, object? parameter, out object? value)
     {
         value = null;
@@ -219,9 +245,15 @@ public sealed class ItemContext(object? item)
         return false;
     }
 
+    /// <summary>
+    /// Attempts to read a property of the item by name.
+    /// </summary>
     public bool TryReadProperty(string propertyName, out object? value)
         => TryReadProperty(Item, propertyName, out value);
 
+    /// <summary>
+    /// Attempts to read a property of any object by name: a dictionary entry, else a public instance property.
+    /// </summary>
     public static bool TryReadProperty(object? item, string propertyName, out object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);

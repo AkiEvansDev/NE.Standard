@@ -230,6 +230,9 @@
 .ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
     .ui-selected-ground();
     .ui-selected-ink();
+
+    // The variants' hover and press rules set a ground of their own, which would take the selected one away under the pointer.
+    .ui-reveal-hover-off({ .ui-selected-ground(); });
 }
 
 // No display of its own: the shared body is a grid, and overriding it here collapses a picture icon's width to zero.

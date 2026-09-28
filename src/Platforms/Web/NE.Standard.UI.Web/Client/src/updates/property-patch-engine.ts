@@ -1,10 +1,12 @@
 import { AddressResolver } from "../addressing/address-resolver";
-import { ValueBindingAttribute } from "../addressing/dom-attributes";
+import { ComponentKeyAttribute, ComponentSelector, ValueBindingAttribute } from "../addressing/dom-attributes";
+import { readComponentId } from "../addressing/dom-registry";
+import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
 import { clearElementValue } from "../extensions/value-readers";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
-import { logDebug, logWarn } from "../runtime/logger";
-import { PropertyStateStore } from "../state/property-state-store";
+import { logDebug, logError, logWarn } from "../runtime/logger";
+import { PropertyStateRow, PropertyStateStore } from "../state/property-state-store";
 import { DomOperationRegistry } from "./dom-operation-registry";
 
 export type PropertyValueChange = {
@@ -34,7 +36,7 @@ export class PropertyPatchEngine {
     ) {
     }
 
-    /** Names the elements a pushed value must not be written into: fields holding an edit their form has not sent (docs/VALUES.md §4). */
+    /** Names the elements a pushed value must not be written into: fields holding an edit the server has not taken yet (docs/VALUES.md §4). */
     public setHeldTargets(isHeld: (target: Element) => boolean): void {
         this.isHeld = isHeld;
     }
@@ -103,7 +105,7 @@ export class PropertyPatchEngine {
 
         // A restore changes no state, but a component that redraws from a value change has to hear the value it shows now; a
         // held one hears nothing until let go, or its editor would overwrite the reader's value with the pushed one.
-        if ((!this.state.set(reference, dynamicParameters, value) && !this.restoring) || held)
+        if ((!this.state.set(reference, dynamicParameters, value, rowsOf(resolvedAddresses[0]?.component)) && !this.restoring) || held)
             return;
 
         this.notifyValueChanged({
@@ -121,7 +123,7 @@ export class PropertyPatchEngine {
      * writer — without it, the server later pushing its old value would read as no change and never redraw.
      */
     public recordSentValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown): void {
-        this.state.set(reference, dynamicParameters, value);
+        this.state.set(reference, dynamicParameters, value, rowsOf(this.addressResolver.resolveProperties(reference, dynamicParameters)[0]?.component));
     }
 
     /**
@@ -174,7 +176,36 @@ export class PropertyPatchEngine {
     }
 
     private notifyValueChanged(change: PropertyValueChange): void {
-        for (const handler of this.valueChangeHandlers)
-            handler(change);
+        // One handler that throws is logged and passed over: the others still hear the change, and the patch still lands.
+        for (const handler of this.valueChangeHandlers) {
+            try {
+                handler(change);
+            }
+            catch (error) {
+                logError("a value-change handler failed.", { change, error });
+            }
+        }
     }
+}
+
+/**
+ * The rows an element stands in, innermost first: each keyed direct child of an items host, up to the page, named by the host's
+ * component and its own dynamic parameters exactly as a collection update addresses it; none for a static element.
+ */
+function rowsOf(element: Element | undefined): PropertyStateRow[] {
+    const rows: PropertyStateRow[] = [];
+    let row = element?.closest(`[${ComponentKeyAttribute}]`) ?? null;
+
+    while (row !== null) {
+        const owner = row.parentElement?.closest(ComponentSelector) ?? null;
+        const host = owner === null ? 0 : readComponentId(owner);
+        const key = row.getAttribute(ComponentKeyAttribute);
+
+        if (owner !== null && host > 0 && key !== null)
+            rows.push({ host, hostParameters: collectDynamicParameters(owner, readParameterCount(owner)), key });
+
+        row = row.parentElement?.closest(`[${ComponentKeyAttribute}]`) ?? null;
+    }
+
+    return rows;
 }

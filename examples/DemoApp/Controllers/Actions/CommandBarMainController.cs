@@ -1,5 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Actions;
 
@@ -20,5 +19,5 @@ internal sealed partial class CommandBarMainController() : DemoStandardControlle
     /// </summary>
     [UICommand]
     public void Press(string id)
-        => BarGroup.Report($"'{id}' pressed");
+        => BarGroup.LogEvent($"'{id}' pressed");
 }

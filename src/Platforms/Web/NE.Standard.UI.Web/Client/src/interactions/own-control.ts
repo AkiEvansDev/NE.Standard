@@ -8,7 +8,7 @@ export const PopupRoleSelector = "[role='listbox'], [role='menu'], [role='dialog
 // The box a field draws around its input and its marks: `@ui-input-field-state` in styles/mixins/field.less, which a new field shape joins too.
 const FieldBoxSelector = ".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger, .ui-field-box";
 
-export const OwnControlSelector = `button, a, input, select, textarea, label, [contenteditable=''], [contenteditable='true'], ${FieldBoxSelector}, ${PopupRoleSelector}`;
+const OwnControlSelector = `button, a, input, select, textarea, label, [contenteditable=''], [contenteditable='true'], ${FieldBoxSelector}, ${PopupRoleSelector}`;
 
 /** The control of the row's own the event landed on, or null when the press or the key is the row's. */
 export function ownControlOf(target: EventTarget | null, row: Element): Element | null {

@@ -1,23 +1,15 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Screens;
 
 /// <summary>
-/// A workspace's settings as they are kept: each field saves as the viewer leaves it, the switches save on the flip, the
+/// A staff member's settings as they are kept: each field saves as the viewer leaves it, the switches save on the flip, the
 /// security rows edit in place, and the danger zone only pretends.
 /// </summary>
 internal sealed partial class WorkspaceSettingsController : UIControllerBase
 {
-    public const string WorkspaceName = "northwind";
+    public const string AccountName = "windrift-labs";
     public const string PasswordRowId = "password";
     public const string RecoveryRowId = "recovery";
     public const string TwoFactorRowId = "two-factor";
@@ -25,17 +17,17 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
     private const string PasswordMask = "••••••••••";
 
     private readonly KeyValueActionItem _password = Row(PasswordRowId, "Password", PasswordMask, "password");
-    private readonly KeyValueActionItem _recovery = Row(RecoveryRowId, "Recovery email", "robin.h@example.org", null);
+    private readonly KeyValueActionItem _recovery = Row(RecoveryRowId, "Recovery email", "robin.hale@orvane.example", null);
     private readonly KeyValueActionItem _twoFactor = Row(TwoFactorRowId, "Two-factor authentication", "On", "two-factor");
 
     [RecursiveMember]
     public partial string? DisplayName { get; set; } = "Robin Hale";
 
     [RecursiveMember]
-    public partial string? Bio { get; set; } = "Keeps the deploy calendar and the coffee machine running.";
+    public partial string? Bio { get; set; } = "Keeps the release calendar and the maintenance windows.";
 
     [RecursiveMember]
-    public partial string? TimeZone { get; set; } = "europe-lisbon";
+    public partial string? TimeZone { get; set; } = "europe-amsterdam";
 
     [RecursiveMember]
     public partial string? Language { get; set; } = "en";
@@ -71,7 +63,7 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
     public RecursiveCollection<KeyValueActionItem> SecurityRows { get; } = [];
 
     [RecursiveMember]
-    public partial string DevicesLine { get; set; } = "3 devices, the newest a phone in Lisbon.";
+    public partial string DevicesLine { get; set; } = "3 devices, the newest a phone in Amsterdam.";
 
     [RecursiveMember]
     public partial string? DeleteConfirmation { get; set; }
@@ -135,10 +127,10 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
 
     /// <summary>The danger zone's press: the demo has nothing to delete, and says so.</summary>
     [UICommand]
-    public UICommandResult DeleteWorkspace()
+    public UICommandResult DeleteAccount()
     {
         DeleteConfirmation = null;
-        return Notify("This is a demo: the workspace stays. Anywhere else, it would be gone.", UIColorStyle.Warning);
+        return Notify("This is a demo: the account stays. Anywhere else, it would be gone.", UIColorStyle.Warning);
     }
 
     private KeyValueActionItem? Find(string id)

@@ -12,6 +12,13 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>Renders a <see cref="UIThemeColor"/> as a <c>ui-color--*</c> class or inline style; fit only for CSS <c>color</c>.</summary>
 public static class ThemeColorRenderer
 {
+    // Inline only for a variant: a style colour goes by class, whose rule is the ink, not the raw colour.
+    private static readonly WebDomOperation[] Operations =
+    [
+        WebDomOperation.Style("color", converter: WebDomConverters.ThemeColorInlineCss),
+        WebDomOperation.Class(converter: WebDomConverters.ThemeColorClass)
+    ];
+
     public static void RenderThemeColor(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -26,11 +33,7 @@ public static class ThemeColorRenderer
                 _ = t.Style("color", WebCssValues.ThemeColor(color));
             else if (color.Style is UIColorStyle style)
                 _ = t.Class(WebClassNames.Color(style));
-        }, [
-            // Inline only for a variant: a style colour goes by class, whose rule is the ink, not the raw colour.
-            WebDomOperation.Style("color", converter: WebDomConverters.ThemeColorInlineCss),
-            WebDomOperation.Class(converter: WebDomConverters.ThemeColorClass)
-        ]);
+        }, Operations);
     }
 
     /// <summary>

@@ -20,6 +20,10 @@ public static class WebRendererRegistryExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        // A second call adds nothing: the aliases are factories no TryAdd can recognise, and the registry refuses a key registered twice.
+        if (IsRegistered(services))
+            return services;
+
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ContainerComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, StackPanelComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, WrapPanelComponentRenderer>());
@@ -68,6 +72,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SwitchComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, RadioGroupComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SelectComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, MultiSelectComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SearchComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SliderComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DateInputComponentRenderer>());
@@ -87,6 +92,17 @@ public static class WebRendererRegistryExtensions
         AddDefaultTemplateAliases(services);
 
         return services;
+    }
+
+    private static bool IsRegistered(IServiceCollection services)
+    {
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(IWebComponentRenderer) && descriptor.ImplementationType == typeof(ContainerComponentRenderer))
+                return true;
+        }
+
+        return false;
     }
 
     // A default template is a distinct component type with no renderer of its own, only an alias onto an existing one.

@@ -8,6 +8,8 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 
 public sealed class ButtonComponentRenderer : ButtonRendererBase
 {
+    private static readonly WebDomOperation[] PressedOperations = [WebDomOperation.Attribute("aria-pressed")];
+
     public override string ComponentTypeKey => ButtonComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-button";
@@ -35,6 +37,6 @@ public sealed class ButtonComponentRenderer : ButtonRendererBase
 
         _ = RenderProperty<bool?>(context, root, ButtonComponent.PressedProperty, static (target, value) =>
             target.Attribute("aria-pressed", value == true ? "true" : "false"),
-        [WebDomOperation.Attribute("aria-pressed")]);
+        PressedOperations);
     }
 }

@@ -10,6 +10,9 @@ namespace NE.Standard.UI.Abstractions.Binding.Addresses;
 [JsonConverter(typeof(UIComponentAddressJsonConverter))]
 public readonly record struct UIComponentAddress
 {
+    /// <summary>
+    /// Creates an address from a compiled component id and the row keys it needs, outermost first.
+    /// </summary>
     public UIComponentAddress(UIComponentId componentId, object?[]? dynamicParameters = null)
     {
         if (componentId.IsEmpty)

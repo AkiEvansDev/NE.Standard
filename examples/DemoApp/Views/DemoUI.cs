@@ -1,18 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 using DemoApp.Controllers.Base;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views;
 
@@ -79,6 +72,7 @@ internal static class DemoUI
             ("/inputs/number-input", "demo.nav.inputs.number-input"),
             ("/inputs/search", "demo.nav.inputs.search"),
             ("/inputs/select", "demo.nav.inputs.select"),
+            ("/inputs/multi-select", "demo.nav.inputs.multi-select"),
             ("/inputs/file-input", "demo.nav.inputs.file-input"),
             ("/inputs/image-input", "demo.nav.inputs.image-input"),
             ("/inputs/date-input", "demo.nav.inputs.date-input"),
@@ -113,7 +107,7 @@ internal static class DemoUI
     ];
 
     /// <summary>
-    /// The page a route lands on; the sidebar lists only the entries whose kind is <see cref="DemoViewKind.Main"/>.
+    /// The page a route lands on; the sidebar lists the routes named here, each at its <see cref="DemoViewKind.Main"/> or <see cref="DemoViewKind.Test"/> page.
     /// </summary>
     internal static readonly Dictionary<string, DemoViewKind> LandingKinds = new(StringComparer.Ordinal)
     {
@@ -161,6 +155,7 @@ internal static class DemoUI
         ["/inputs/switch"] = DemoViewKind.Main,
         ["/inputs/radio-group"] = DemoViewKind.Main,
         ["/inputs/select"] = DemoViewKind.Main,
+        ["/inputs/multi-select"] = DemoViewKind.Main,
         ["/inputs/search"] = DemoViewKind.Main,
         ["/inputs/file-input"] = DemoViewKind.Main,
         ["/inputs/image-input"] = DemoViewKind.Main,
@@ -204,7 +199,7 @@ internal static class DemoUI
 
             foreach ((var componentRoute, var label) in links)
             {
-                if (!LandingKinds.TryGetValue(componentRoute, out DemoViewKind landing) || landing is not (DemoViewKind.Main or DemoViewKind.Test))
+                if (!LandingKinds.TryGetValue(componentRoute, out DemoViewKind landing))
                     continue;
 
                 section.Items.Add(CreateNavEntry(RouteFor(componentRoute, landing), label, currentComponentRoute, componentRoute));
@@ -232,9 +227,10 @@ internal static class DemoUI
         // The authored id is what the client keys the collapsed state and the open group by.
         return new ContainerComponent()
             .SetHorizontalAlignment(UIAlignment.Start)
-            .SetPadding(UIThickness.All(16, 0, 16, 24))
+            .SetPadding(UIThickness.All(16, 16, 16, 24))
             .AddChild(new MenuComponent(SidebarId)
                 .SetShowCollapseToggle(true)
+                .SetSearch()
                 .SetMinWidth(UILayoutLength.Absolute(180))
                 .SetItems([.. entries])
             );
@@ -337,18 +333,6 @@ internal static class DemoUI
     public static StackPanelComponent CreateStack(double spacing = 12)
         => UILayout.Stack(spacing).SetPlacement(1, 1, 24, 1);
 
-    /// <summary>A row of samples that wraps when the group is narrow.</summary>
-    public static StackPanelComponent CreateRow(double spacing = 12)
-        => UILayout.Row(spacing);
-
-    /// <summary>The overline caption a sample or a pane is named by.</summary>
-    public static TextComponent CreateCaption(string label)
-        => UIText.Label(label);
-
-    /// <summary>A sample under its caption, for the "against" groups that set two things side by side.</summary>
-    public static StackPanelComponent CreateCaptionedItem(string label, IVisualComponent sample)
-        => UIPage.Labelled(label, sample);
-
     /// <summary>
     /// The shell every demo page is built from, so a layout fix here lands on every demo route at once.
     /// </summary>
@@ -356,7 +340,7 @@ internal static class DemoUI
     /// <paramref name="initControls"/> and its 220px column are optional; <paramref name="contentMinHeight"/>
     /// reserves nothing unless a caller needs a fixed box; <paramref name="note"/> is the line under the title.
     /// </remarks>
-    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null)
+    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null)
     {
         var hasContext = !string.IsNullOrWhiteSpace(context);
         var hasNote = !string.IsNullOrWhiteSpace(note);
@@ -377,7 +361,9 @@ internal static class DemoUI
                 controls = null;
         }
 
+        // Beside the actions from the medium breakpoint up; under them on a phone, which has no room for a column of 220 pixels.
         var span = controls is null ? 24 : 23;
+        var contentRow = hasNote ? 3 : 2;
 
         // No outline of its own: the preview and the options list each draw their own.
         ContainerComponent group = new ContainerComponent()
@@ -396,14 +382,14 @@ internal static class DemoUI
                 .SetVerticalAlignment(UIAlignment.Start)
                 .SetDescriptionType(UITextAppearance.Caption)
                 .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
-                .SetPlacement(1, 1, span, 1);
+                .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1));
 
         // An auto row plus a spacer, not a fixed-height cell: two groups sharing a row must start level.
         ContainerComponent content = new ContainerComponent()
             .SetMinHeight(UILayoutLength.Absolute(contentMinHeight))
             .SetRow(1, UIGridUnit.Auto())
             .AddRow(UIGridUnit.Star())
-            .SetPlacement(1, hasNote ? 3 : 2, span, 1);
+            .SetPlacement(1, contentRow, 24, 1, md: UIGridPlacement.At(1, contentRow, span, 1));
 
         if (hasContext)
         {
@@ -415,9 +401,16 @@ internal static class DemoUI
 
         _ = group.AddChild(header);
 
+        // Over the title's own cell rather than a column of its own, which would take a twenty-fourth of the width from every group.
+        if (code is not null)
+        {
+            _ = header.SetMargin(UIThickness.All(0, 0, 40, 0));
+            _ = group.AddChild(CreateCodeFlyout(code).SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1)));
+        }
+
         // A note rather than a title: prose wraps, a title ends in an ellipsis.
         if (hasNote)
-            _ = group.AddChild(UIText.Note(note!).SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 2, span, 1));
+            _ = group.AddChild(UIText.Note(note!).SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(1, 2, span, 1)));
 
         _ = group.AddChild(content);
 
@@ -427,7 +420,7 @@ internal static class DemoUI
         // A captioned block rather than a bare column of ghost buttons, and no frame: each control draws its own.
         ContainerComponent panel = new ContainerComponent()
             .SetVerticalAlignment(UIAlignment.Start)
-            .SetMargin(UIThickness.All(12, 0, 0, 0))
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), md: UIThickness.All(12, 0, 0, 0)))
             .SetRow(1, UIGridUnit.Auto(min: 24))
             .AddRow(UIGridUnit.Auto())
             // The spacer keeps the frame the height of its rows rather than sharing the column's slack.
@@ -442,12 +435,155 @@ internal static class DemoUI
                 .AddChild(controls)
                 .SetPlacement(1, 2, 24, 1)
             )
-            .SetPlacement(24, 1, 1, 2);
+            .SetPlacement(1, contentRow + 1, 24, 1, md: UIGridPlacement.At(24, 1, 1, 2));
 
         return group
             .SetColumn(24, UIGridUnit.Absolute(220))
+            .AddRow(UIGridUnit.Auto())
             .AddChild(panel);
     }
+
+    /// <summary>
+    /// The <c>&lt;/&gt;</c> button in a group's corner and the popup it opens: the sample's source, read-only, with a copy button.
+    /// </summary>
+    private static FlyoutComponent CreateCodeFlyout(string expression)
+    {
+        var source = FormatSource(expression);
+        var lines = source.Count(static c => c == '\n') + 1;
+
+        return new FlyoutComponent()
+            .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
+            .SetHorizontalAlignment(UIAlignment.End)
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetAnchor(new ButtonComponent()
+                .SetType(UIButtonType.Ghost)
+                .SetSize(UIButtonSize.Small)
+                .SetIcon(DemoIcons.Outline(DemoIcons.Code))
+                .SetTooltip("Code")
+            )
+            .SetContent(new ContainerComponent()
+                .SetWidth(UILayoutLength.Absolute(640))
+                .AddChild(new CodeInputComponent()
+                    .SetLanguage(UICodeLanguages.CSharp)
+                    .SetValue(source)
+                    .SetIsReadOnly(true)
+                    .SetStatusBar(false)
+                    .SetSearch(false)
+                    .SetCompletions(false)
+                    // One row over the text's own: a long line brings a horizontal scrollbar, which would cover the last one.
+                    .SetRows(Math.Clamp(lines + 1, 3, 24))
+                    .SetPlacement(1, 1, 24, 1)
+                )
+                // A literal rather than the field's value: the text is fixed, and a literal needs no id unique across the page.
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetSize(UIButtonSize.Small)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                    .SetTooltip("Copy")
+                    .SetHorizontalAlignment(UIAlignment.End)
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    // Clear of the text's vertical scrollbar, which runs down the same edge once the source is longer than the box.
+                    .SetMargin(UIThickness.All(4, 4, 16, 4))
+                    .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal(source))
+                    .SetPlacement(1, 1, 24, 1)
+                )
+            );
+    }
+
+    /// <summary>
+    /// The captured argument as it would be written on its own: the first line flush left, the rest moved by as much.
+    /// </summary>
+    /// <remarks>
+    /// The compiler hands over the text with the call site's indentation on every line but the first, so the base is found from the
+    /// first line at the expression's own depth: a closing bracket stands on the base, a chained call one step (four spaces) in.
+    /// </remarks>
+    private static string FormatSource(string expression)
+    {
+        var lines = expression.Trim().Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var cut = BaseIndent(lines);
+        StringBuilder text = new(lines[0].TrimEnd());
+
+        for (var i = 1; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd();
+            var indent = line.Length - line.TrimStart().Length;
+            _ = text.Append('\n').Append(line[Math.Min(indent, cut)..]);
+        }
+
+        return text.ToString();
+    }
+
+    private static int BaseIndent(string[] lines)
+    {
+        var depth = CountDepth(lines[0], 0);
+        var fallback = int.MaxValue;
+
+        for (var i = 1; i < lines.Length; i++)
+        {
+            var body = lines[i].TrimStart();
+
+            if (body.Length == 0)
+                continue;
+
+            var indent = lines[i].Length - body.Length;
+            var closers = 0;
+
+            while (closers < body.Length && body[closers] is ')' or ']' or '}')
+                closers++;
+
+            if (depth - closers <= 0)
+                return closers > 0 ? indent : Math.Max(0, indent - 4);
+
+            fallback = Math.Min(fallback, indent);
+            depth = CountDepth(lines[i], depth);
+        }
+
+        return fallback == int.MaxValue ? 0 : Math.Max(0, fallback - 4);
+    }
+
+    /// <summary>
+    /// The bracket depth after a line, skipping string and character literals and a trailing line comment.
+    /// </summary>
+    private static int CountDepth(string line, int depth)
+    {
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+
+            if (c is '"' or '\'')
+            {
+                for (i++; i < line.Length && line[i] != c; i++)
+                {
+                    if (line[i] == '\\')
+                        i++;
+                }
+            }
+            else if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
+            {
+                break;
+            }
+            else if (c is '(' or '[' or '{')
+            {
+                depth++;
+            }
+            else if (c is ')' or ']' or '}')
+            {
+                depth--;
+            }
+        }
+
+        return depth;
+    }
+
+    /// <summary>
+    /// An Examples group around one sample, its source a press away in the title's corner.
+    /// </summary>
+    /// <remarks>
+    /// The source is the argument's own text, captured by the compiler, so the popup cannot drift from what runs; the price is that a
+    /// sample is one expression, and the sample data it takes is named in it rather than shown.
+    /// </remarks>
+    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, [CallerArgumentExpression(nameof(example))] string code = "")
+        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code);
 
     /// <summary>
     /// The preview half of a component's own page: the component under test, alone, inside a fixed frame.
@@ -473,7 +609,7 @@ internal static class DemoUI
         foreach ((var caption, Action<ContainerComponent> initContent) in panes)
         {
             if (caption is not null)
-                _ = stack.AddChild(CreateCaption(caption));
+                _ = stack.AddChild(UIText.Label(caption));
 
             ContainerComponent frame = new ContainerComponent()
                 .SetPadding(UIThickness.Uniform(12))

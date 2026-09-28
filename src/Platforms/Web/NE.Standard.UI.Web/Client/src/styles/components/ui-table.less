@@ -132,22 +132,24 @@
     display: block;
 }
 
+    // An offset rather than translate(-50%), which is not snapped to the pixel grid: the line, at rest or thickened, keeps a
+    // whole-pixel axis on the column's own 1px edge, the pixel just inside the cell.
     .ui-table__resizer::before {
         content: "";
         position: absolute;
+        --ui-table-resizer-line: 1px;
         top: 0;
         bottom: 0;
-        left: 50%;
-        width: 1px;
-        transform: translateX(-50%);
+        left: calc(50% - (var(--ui-table-resizer-line) + 1px) / 2);
+        width: var(--ui-table-resizer-line);
         background: transparent;
-        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease;
+        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease, left @ui-motion-fast @ui-motion-ease;
     }
 
     .ui-table__resizer:hover::before,
     .ui-table__resizer:focus-visible:not([data-ui-pointer-focus])::before,
     .ui-table__resizer[data-ui-splitting]::before {
-        width: 3px;
+        --ui-table-resizer-line: 3px;
         background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
     }
 
@@ -231,7 +233,7 @@
     .ui-row-hover();
 }
 
-.ui-row-cursor(~".ui-table", ~".ui-table__row");
+.ui-row-cursor(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ");
 
 .ui-table__cell {
     display: flex;
@@ -344,12 +346,40 @@
     border-right: 1px solid var(--ui-color-border);
 }
 
+// A column past the generated 64 keeps its source place after them rather than taking order 0 beside the first column, until
+// the columns engine writes its viewer order on the cell itself. Before the per-index rules, which it ties with.
+[data-ui-table-column] {
+    order: 999;
+}
+
 .ui-table-column-rules-all(0);
+
+// A column past the generated 64: the columns engine marks its cells hidden or last directly, since no per-index rule names it.
+// The rules above stay for the first 64, which the boot patch paints before the runtime runs.
+.ui-table [data-ui-table-cell-hidden] {
+    visibility: hidden;
+    padding: 0 !important;
+    border: 0 !important;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ui-table [data-ui-table-cell-hidden]::after {
+    display: none;
+}
+
+.ui-table--column-lines [data-ui-table-cell-last] {
+    border-right: 0;
+}
+
+.ui-table--resizable [data-ui-table-cell-last] > .ui-table__resizer {
+    display: none;
+}
 
 // The viewer's order applies only to cells: anything else a row holds (e.g. a package's detail band) is placed after them
 // all, or auto-placement would land it in the row's own line instead.
 .ui-table__row > :not(.ui-table__cell) {
-    order: 64;
+    order: 1000;
 }
 
 // A draggable caption shows a grab cursor, dims while dragging, and the drop line sits at the edge of the column it would

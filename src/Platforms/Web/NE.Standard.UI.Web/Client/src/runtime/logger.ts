@@ -42,6 +42,22 @@ export function logDebug(message: string, data?: unknown): void {
         logTo(console.debug, message, data);
 }
 
+/** Whether debug lines reach the console; a measurement taken only for one reads this first. */
+export function isDebugEnabled(): boolean {
+    return Order[level] <= Order.debug;
+}
+
+/** Says at the debug level how long something took since `started`, a `performance.now()` reading. */
+export function logElapsed(message: string, started: number, data?: unknown): void {
+    if (Order[level] <= Order.debug)
+        logTo(console.debug, `${message} in ${formatMilliseconds(performance.now() - started)}.`, data);
+}
+
+/** A duration as the debug lines write it: `12.3 ms`. */
+export function formatMilliseconds(milliseconds: number): string {
+    return `${milliseconds.toFixed(1)} ms`;
+}
+
 /** One warning per subject: a fault that would otherwise repeat for every gesture on a broken element says itself once. */
 export class OnceWarner {
     private readonly warned = new WeakSet<object>();

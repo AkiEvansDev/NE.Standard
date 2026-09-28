@@ -5,13 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Files;
 
 namespace DemoApp.Controllers.Items.KeyValueAction;
 
@@ -20,7 +13,7 @@ internal sealed partial class KeyValueActionArgumentGroupContext : DemoGroupCont
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
     [
-        CreateItem("owner", "Owner", "platform-team"),
+        CreateItem("owner", "Owner", "Robin Hale"),
         CreateItem("created", "Created", "2026-04-02"),
         CreateItem("visibility", "Visibility", "internal"),
     ];
@@ -79,7 +72,7 @@ internal sealed partial class KeyValueActionEditGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
     [
-        CreateItem(NameId, "Display name", "Payments API", inputTemplate: null),
+        CreateItem(NameId, "Display name", "Billing", inputTemplate: null),
         CreateItem(RetriesId, "Retries", "3", inputTemplate: "number"),
         CreateItem(AlertsId, "Alerts", "on", inputTemplate: "switch"),
         new AvatarRowItem
@@ -135,6 +128,13 @@ internal sealed partial class KeyValueActionEditGroupContext : DemoGroupContext
 
     public AvatarRowItem Avatar => (AvatarRowItem)Find(AvatarId);
 
+    /// <summary>A picked file the row will not show: the pick is dropped and the line says why.</summary>
+    public void RefuseAvatar(string message)
+    {
+        Avatar.SelectionId = null;
+        LogEvent(message);
+    }
+
     public void ShowAvatar(string fileName, string source)
     {
         AvatarRowItem row = Avatar;
@@ -178,7 +178,7 @@ internal sealed partial class KeyValueActionInputsGroupContext : DemoGroupContex
 {
     private readonly Dictionary<string, object?> _drafts = new(StringComparer.Ordinal)
     {
-        ["text"] = "Payments API",
+        ["text"] = "Billing",
         ["number"] = 3m,
         ["switch"] = true,
         ["checkbox"] = false,
@@ -273,13 +273,13 @@ internal sealed partial class KeyValueActionLocalEditGroupContext : DemoGroupCon
         {
             Id = "alias",
             Key = new TextItem { Title = "Alias", TitleColor = UIThemeColor.Muted },
-            Value = new TextItem { Title = "payments" }
+            Value = new TextItem { Title = "billing" }
         },
         new()
         {
             Id = "region",
             Key = new TextItem { Title = "Region", TitleColor = UIThemeColor.Muted },
-            Value = new TextItem { Title = "eu-west-1" }
+            Value = new TextItem { Title = "eu-west" }
         }
     ];
 
@@ -342,7 +342,7 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
     private const string OwnerId = "owner";
 
     // A rule the reader cannot satisfy is a rule that says nothing, so the note names the shape it wants.
-    private const string OwnerNote = "A team cannot sign a change off: name a person, as an address — sam@example.com.";
+    private const string OwnerNote = "A team cannot sign a change off: name a person, as an address — sam@orvane.example.";
 
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
@@ -361,8 +361,8 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
         {
             Id = OwnerId,
             Key = new TextItem { Title = "Owner", TitleColor = UIThemeColor.Muted },
-            Value = new TextItem { Title = "platform-team" },
-            EditValue = "platform-team",
+            Value = new TextItem { Title = "on-call" },
+            EditValue = "on-call",
             InputTemplate = OwnerId,
             Note = UIValidationMessage.Warning(OwnerNote)
         }
@@ -449,6 +449,12 @@ internal sealed partial class KeyValueActionScenariosController() : DemoControll
         if (selection.Files.Length == 0)
         {
             EditGroup.Save(id);
+            return;
+        }
+
+        if (!DemoImages.IsInlinePicture(selection.Files[0].ContentType, selection.Files[0].Size))
+        {
+            EditGroup.RefuseAvatar("avatar not saved: a PNG, JPEG, GIF or WebP picture of at most 2 MB");
             return;
         }
 

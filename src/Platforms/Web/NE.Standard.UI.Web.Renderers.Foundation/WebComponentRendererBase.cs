@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -25,6 +26,86 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public abstract class WebComponentRendererBase : IWebComponentRenderer
 {
     private const string VisualComponentPropertyOwnerTypeKey = "standard.visual";
+
+    // Every rendered component registers these same lists, so they are built once rather than per component.
+    private static readonly WebDomOperation[] ThemeOperations = [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)];
+
+    private static readonly WebDomOperation[] VisibilityOperations =
+    [
+        WebDomOperation.Attribute(WebAttributes.Visibility, converter: WebDomConverters.VisibilityBaseAttribute),
+        WebDomOperation.Attribute(WebAttributes.VisibilitySm, converter: WebDomConverters.VisibilitySmAttribute),
+        WebDomOperation.Attribute(WebAttributes.VisibilityMd, converter: WebDomConverters.VisibilityMdAttribute),
+        WebDomOperation.Attribute(WebAttributes.VisibilityXl, converter: WebDomConverters.VisibilityXlAttribute),
+        WebDomOperation.Attribute(WebAttributes.VisibilityXxl, converter: WebDomConverters.VisibilityXxlAttribute)
+    ];
+
+    private static readonly WebDomOperation[] EnabledOperations =
+    [
+        WebDomOperation.ToggleClass("ui-disabled", condition: WebValueCondition.IsFalse),
+        WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsFalse)
+    ];
+
+    private static readonly WebDomOperation[] LoadingOperations =
+    [
+        WebDomOperation.ToggleClass("ui-loading"),
+        WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsTrue)
+    ];
+
+    private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
+    private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup)];
+    private static readonly WebDomOperation[] HorizontalAlignmentOperations = [WebDomOperation.Style("--ui-align-h", converter: WebDomConverters.AlignmentCss)];
+
+    private static readonly WebDomOperation[] VerticalAlignmentOperations =
+    [
+        WebDomOperation.Style("--ui-align-v", converter: WebDomConverters.AlignmentCss),
+        WebDomOperation.Style("--ui-align-v-stretch-fallback", converter: WebDomConverters.AlignmentStretchFallbackCss)
+    ];
+
+    private static readonly WebDomOperation[] ZIndexOperations = [WebDomOperation.Style("z-index", target: "root")];
+
+    private static readonly WebDomOperation[] PlacementOperations =
+    [
+        WebDomOperation.Style("--ui-placement-column", converter: WebDomConverters.GridPlacementBaseColumnCss),
+        WebDomOperation.Style("--ui-placement-row", converter: WebDomConverters.GridPlacementBaseRowCss),
+        WebDomOperation.Style("--ui-placement-column-span", converter: WebDomConverters.GridPlacementBaseColumnSpanCss),
+        WebDomOperation.Style("--ui-placement-row-span", converter: WebDomConverters.GridPlacementBaseRowSpanCss),
+        WebDomOperation.Style("--ui-placement-sm-column", converter: WebDomConverters.GridPlacementSmColumnCss),
+        WebDomOperation.Style("--ui-placement-sm-row", converter: WebDomConverters.GridPlacementSmRowCss),
+        WebDomOperation.Style("--ui-placement-sm-column-span", converter: WebDomConverters.GridPlacementSmColumnSpanCss),
+        WebDomOperation.Style("--ui-placement-sm-row-span", converter: WebDomConverters.GridPlacementSmRowSpanCss),
+        WebDomOperation.Style("--ui-placement-md-column", converter: WebDomConverters.GridPlacementMdColumnCss),
+        WebDomOperation.Style("--ui-placement-md-row", converter: WebDomConverters.GridPlacementMdRowCss),
+        WebDomOperation.Style("--ui-placement-md-column-span", converter: WebDomConverters.GridPlacementMdColumnSpanCss),
+        WebDomOperation.Style("--ui-placement-md-row-span", converter: WebDomConverters.GridPlacementMdRowSpanCss),
+        WebDomOperation.Style("--ui-placement-xl-column", converter: WebDomConverters.GridPlacementXlColumnCss),
+        WebDomOperation.Style("--ui-placement-xl-row", converter: WebDomConverters.GridPlacementXlRowCss),
+        WebDomOperation.Style("--ui-placement-xl-column-span", converter: WebDomConverters.GridPlacementXlColumnSpanCss),
+        WebDomOperation.Style("--ui-placement-xl-row-span", converter: WebDomConverters.GridPlacementXlRowSpanCss),
+        WebDomOperation.Style("--ui-placement-xxl-column", converter: WebDomConverters.GridPlacementXxlColumnCss),
+        WebDomOperation.Style("--ui-placement-xxl-row", converter: WebDomConverters.GridPlacementXxlRowCss),
+        WebDomOperation.Style("--ui-placement-xxl-column-span", converter: WebDomConverters.GridPlacementXxlColumnSpanCss),
+        WebDomOperation.Style("--ui-placement-xxl-row-span", converter: WebDomConverters.GridPlacementXxlRowSpanCss)
+    ];
+
+    private static readonly WebDomOperation[] TooltipOperations = [WebDomOperation.Attribute(WebAttributes.Tooltip)];
+    private static readonly WebDomOperation[] TooltipPlacementOperations = [WebDomOperation.Attribute(WebAttributes.TooltipPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
+    private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
+    private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label")];
+
+    // The four custom properties one placement tier writes, named once per tier.
+    private static readonly PlacementTierNames BasePlacement = new("--ui-placement");
+    private static readonly PlacementTierNames SmPlacement = new("--ui-placement-sm");
+    private static readonly PlacementTierNames MdPlacement = new("--ui-placement-md");
+    private static readonly PlacementTierNames XlPlacement = new("--ui-placement-xl");
+    private static readonly PlacementTierNames XxlPlacement = new("--ui-placement-xxl");
+
+    // A binding attribute's and a patch mark's name per property name, since kebab-casing builds a string each time.
+    private static readonly ConcurrentDictionary<string, string> BindingAttributeNames = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, string> IntoAttributeNames = new(StringComparer.Ordinal);
+
+    // A flag's one operation per name and condition: a table alone renders seven of them per instance.
+    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), WebDomOperation[]> FlagAttributeOperations = new();
+    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), WebDomOperation[]> FlagClassOperations = new();
 
     public abstract string ComponentTypeKey { get; }
 
@@ -53,23 +134,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(html);
 
-        UIComponentNode node = context.Node;
-
-        // A presentation copy carries no identity, only appearance.
-        if (!context.IsPresentationCopy)
-        {
-            _ = html.Attribute(WebAttributes.Id, node.ComponentId.Value.ToString(CultureInfo.InvariantCulture));
-            _ = html.Attribute(WebAttributes.Context, node.ContextId.Value.ToString(CultureInfo.InvariantCulture));
-        }
-
-        // Only an authored name: it is the one identifier that survives a recompilation, so persisted state keys by it.
-        if (node.HasAuthoredId && !context.IsPresentationCopy)
-            _ = html.Attribute(WebAttributes.Name, node.AuthoringId);
-
-        // Gated on ContextParameterCount, not DefinesContextParameter: a component that only inherits an item scope
-        // still needs this to stay addressable by DomRegistry.findComponent.
-        if (node.ContextParameterCount > 0 && !context.IsPresentationCopy)
-            _ = html.Attribute(WebAttributes.Pc, node.ContextParameterCount.ToString(CultureInfo.InvariantCulture));
+        ApplyIdentity(context, html);
 
         // Every property below is written twice — static markup and a WebDomOperation list — and both must produce
         // identical output, so the client's converters mirror WebCssValues/WebClassNames name for name.
@@ -77,7 +142,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (value is UIThemeMode mode)
                 _ = target.Attribute(WebAttributes.Theme, WebCssValues.ThemeName(mode));
-        }, [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)]);
+        }, ThemeOperations);
         // One attribute per tier rather than a class, so the Show/Hide/Collapse effects and a bound Visibility
         // resolve through the same mechanism instead of fighting over the element.
         _ = RenderProperty<UIResponsive<UIVisibility>?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.VisibilityProperty, static (target, value) =>
@@ -99,52 +164,40 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             tier = responsive.Xxl ?? tier;
             RenderVisibilityTier(target, WebAttributes.VisibilityXxl, tier);
-        }, [
-            WebDomOperation.Attribute(WebAttributes.Visibility, converter: WebDomConverters.VisibilityBaseAttribute),
-            WebDomOperation.Attribute(WebAttributes.VisibilitySm, converter: WebDomConverters.VisibilitySmAttribute),
-            WebDomOperation.Attribute(WebAttributes.VisibilityMd, converter: WebDomConverters.VisibilityMdAttribute),
-            WebDomOperation.Attribute(WebAttributes.VisibilityXl, converter: WebDomConverters.VisibilityXlAttribute),
-            WebDomOperation.Attribute(WebAttributes.VisibilityXxl, converter: WebDomConverters.VisibilityXxlAttribute)
-        ]);
+        }, VisibilityOperations);
 
         // The class is the look, `inert` the fact: a class cannot take the keyboard away, and `inert` covers the whole subtree.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.EnabledProperty, static (target, value) =>
         {
             if (value == false)
                 _ = target.Class("ui-disabled").Attribute("inert");
-        }, [
-            WebDomOperation.ToggleClass("ui-disabled", condition: WebValueCondition.IsFalse),
-            WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsFalse)
-        ]);
+        }, EnabledOperations);
 
         // Loading keeps its own colour but still takes `inert`; the client refcounts that attribute across this and Enabled.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.LoadingProperty, static (target, value) =>
         {
             if (value == true)
                 _ = target.Class("ui-loading").Attribute("inert");
-        }, [
-            WebDomOperation.ToggleClass("ui-loading"),
-            WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsTrue)
-        ]);
+        }, LoadingOperations);
 
         // Off, the menu stays in the tree and the engine refuses the right-click; on a host with rows, every row's.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ShowContextMenuProperty, static (target, value) =>
         {
             if (value == false)
                 _ = target.Attribute(WebAttributes.NoContextMenu);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)]);
+        }, ShowContextMenuOperations);
 
         _ = RenderProperty<string?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ScrollGroupProperty, static (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.ScrollGroup, value.Trim());
-        }, [WebDomOperation.Attribute(WebAttributes.ScrollGroup)]);
+        }, ScrollGroupOperations);
 
         _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
         {
             if (value is UIAlignment alignment)
                 _ = target.Style("--ui-align-h", WebCssValues.Alignment(alignment));
-        }, [WebDomOperation.Style("--ui-align-h", converter: WebDomConverters.AlignmentCss)]);
+        }, HorizontalAlignmentOperations);
 
         // Stretch needs a fallback: in a grid track with no height to stretch into the item would collapse.
         _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.VerticalAlignmentProperty, static (target, value) =>
@@ -156,10 +209,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 if (alignment == UIAlignment.Stretch)
                     _ = target.Style("--ui-align-v-stretch-fallback", "start");
             }
-        }, [
-            WebDomOperation.Style("--ui-align-v", converter: WebDomConverters.AlignmentCss),
-            WebDomOperation.Style("--ui-align-v-stretch-fallback", converter: WebDomConverters.AlignmentStretchFallbackCss)
-        ]);
+        }, VerticalAlignmentOperations);
 
         ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, "--ui-width");
         ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, "--ui-min-width");
@@ -172,11 +222,32 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (value is int zIndex && zIndex != 0)
                 _ = target.Style("z-index", zIndex.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Style("z-index", target: "root")]);
+        }, ZIndexOperations);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MarginProperty, "--ui-margin");
 
         ApplyPlacement(context, html);
+    }
+
+    /// <summary>The attributes the client finds a component by; a presentation copy carries no identity, only appearance.</summary>
+    private static void ApplyIdentity(WebRenderContext context, IHtmlElementBuilder html)
+    {
+        if (context.IsPresentationCopy)
+            return;
+
+        UIComponentNode node = context.Node;
+
+        _ = html.Attribute(WebAttributes.Id, node.ComponentId.Value.ToString(CultureInfo.InvariantCulture));
+        _ = html.Attribute(WebAttributes.Context, node.ContextId.Value.ToString(CultureInfo.InvariantCulture));
+
+        // Only an authored name: it is the one identifier that survives a recompilation, so persisted state keys by it.
+        if (node.HasAuthoredId)
+            _ = html.Attribute(WebAttributes.Name, node.AuthoringId);
+
+        // Gated on ContextParameterCount, not DefinesContextParameter: a component that only inherits an item scope
+        // still needs this to stay addressable by DomRegistry.findComponent.
+        if (node.ContextParameterCount > 0)
+            _ = html.Attribute(WebAttributes.Pc, node.ContextParameterCount.ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>Renders the right-click menu inside its owner rather than portaled, so <c>closest()</c> paths keep working.</summary>
@@ -213,7 +284,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             // An entry with no command of its own must not hand its click to the owner's.
             _ = host.Attribute(WebAttributes.EventBoundary);
 
-            context.Renderer.RenderComponent(context.ForHtml(host), slot.RootComponentId);
+            // Marked, not inferred from the slot: a named menu is a region of its owner like any other, and its entries are still menu items.
+            context.Renderer.RenderComponent(context.AsPopupMenu(host), slot.RootComponentId);
         });
     }
 
@@ -233,64 +305,67 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             if (value is not UIResponsive<UIGridPlacement> responsive)
                 return;
 
-            WritePlacementTier(target, "--ui-placement", responsive.Base);
+            WritePlacementTier(target, BasePlacement, responsive.Base);
 
             if (responsive.Sm is UIGridPlacement sm)
-                WritePlacementTier(target, "--ui-placement-sm", sm);
+                WritePlacementTier(target, SmPlacement, sm);
 
             if (responsive.Md is UIGridPlacement md)
-                WritePlacementTier(target, "--ui-placement-md", md);
+                WritePlacementTier(target, MdPlacement, md);
 
             if (responsive.Xl is UIGridPlacement xl)
-                WritePlacementTier(target, "--ui-placement-xl", xl);
+                WritePlacementTier(target, XlPlacement, xl);
 
             if (responsive.Xxl is UIGridPlacement xxl)
-                WritePlacementTier(target, "--ui-placement-xxl", xxl);
-        }, [
-            WebDomOperation.Style("--ui-placement-column", converter: WebDomConverters.GridPlacementBaseColumnCss),
-            WebDomOperation.Style("--ui-placement-row", converter: WebDomConverters.GridPlacementBaseRowCss),
-            WebDomOperation.Style("--ui-placement-column-span", converter: WebDomConverters.GridPlacementBaseColumnSpanCss),
-            WebDomOperation.Style("--ui-placement-row-span", converter: WebDomConverters.GridPlacementBaseRowSpanCss),
-            WebDomOperation.Style("--ui-placement-sm-column", converter: WebDomConverters.GridPlacementSmColumnCss),
-            WebDomOperation.Style("--ui-placement-sm-row", converter: WebDomConverters.GridPlacementSmRowCss),
-            WebDomOperation.Style("--ui-placement-sm-column-span", converter: WebDomConverters.GridPlacementSmColumnSpanCss),
-            WebDomOperation.Style("--ui-placement-sm-row-span", converter: WebDomConverters.GridPlacementSmRowSpanCss),
-            WebDomOperation.Style("--ui-placement-md-column", converter: WebDomConverters.GridPlacementMdColumnCss),
-            WebDomOperation.Style("--ui-placement-md-row", converter: WebDomConverters.GridPlacementMdRowCss),
-            WebDomOperation.Style("--ui-placement-md-column-span", converter: WebDomConverters.GridPlacementMdColumnSpanCss),
-            WebDomOperation.Style("--ui-placement-md-row-span", converter: WebDomConverters.GridPlacementMdRowSpanCss),
-            WebDomOperation.Style("--ui-placement-xl-column", converter: WebDomConverters.GridPlacementXlColumnCss),
-            WebDomOperation.Style("--ui-placement-xl-row", converter: WebDomConverters.GridPlacementXlRowCss),
-            WebDomOperation.Style("--ui-placement-xl-column-span", converter: WebDomConverters.GridPlacementXlColumnSpanCss),
-            WebDomOperation.Style("--ui-placement-xl-row-span", converter: WebDomConverters.GridPlacementXlRowSpanCss),
-            WebDomOperation.Style("--ui-placement-xxl-column", converter: WebDomConverters.GridPlacementXxlColumnCss),
-            WebDomOperation.Style("--ui-placement-xxl-row", converter: WebDomConverters.GridPlacementXxlRowCss),
-            WebDomOperation.Style("--ui-placement-xxl-column-span", converter: WebDomConverters.GridPlacementXxlColumnSpanCss),
-            WebDomOperation.Style("--ui-placement-xxl-row-span", converter: WebDomConverters.GridPlacementXxlRowSpanCss)
-        ]);
+                WritePlacementTier(target, XxlPlacement, xxl);
+        }, PlacementOperations);
     }
 
-    private static void WritePlacementTier(IHtmlElementBuilder target, string prefix, UIGridPlacement placement)
+    private static void WritePlacementTier(IHtmlElementBuilder target, PlacementTierNames names, UIGridPlacement placement)
     {
-        _ = target.Style(prefix + "-column", placement.Column.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(prefix + "-row", placement.Row.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(prefix + "-column-span", placement.ColumnSpan.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(prefix + "-row-span", placement.RowSpan.ToString(CultureInfo.InvariantCulture));
+        _ = target.Style(names.Column, placement.Column.ToString(CultureInfo.InvariantCulture));
+        _ = target.Style(names.Row, placement.Row.ToString(CultureInfo.InvariantCulture));
+        _ = target.Style(names.ColumnSpan, placement.ColumnSpan.ToString(CultureInfo.InvariantCulture));
+        _ = target.Style(names.RowSpan, placement.RowSpan.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private sealed class PlacementTierNames(string prefix)
+    {
+        public string Column { get; } = prefix + "-column";
+
+        public string Row { get; } = prefix + "-row";
+
+        public string ColumnSpan { get; } = prefix + "-column-span";
+
+        public string RowSpan { get; } = prefix + "-row-span";
     }
 
     private static void ApplyMetadata(WebRenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        CompiledView view = context.ViewResolution.View;
         if (context.IsPresentationCopy)
             return;
 
+        CompiledView view = context.ViewResolution.View;
         UIComponentId componentId = context.Node.ComponentId;
 
         context.Metadata.AddEvents(view.Events.GetByComponent(componentId));
         context.Metadata.AddInteractions(view.Interactions.GetByComponent(componentId));
         context.Metadata.AddValidations(view.Validations.GetByComponent(componentId));
+    }
+
+    /// <summary>
+    /// Makes an element drawn by another renderer stand as <see cref="WebRenderContext.Node"/> — its identity and its events,
+    /// interactions and validations, as a rendered component carries them; nothing for a presentation copy.
+    /// </summary>
+    protected static void StampComponent(WebRenderContext context, IHtmlElementBuilder html)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(html);
+
+        ApplyIdentity(context, html);
+        ApplyMetadata(context);
     }
 
     public static void RenderChildren(WebRenderContext context, IHtmlElementBuilder html)
@@ -384,7 +459,27 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         });
     }
 
-    /// <summary>Writes the tooltip markup and placement attributes <c>TooltipEngine</c> reads.</summary>
+    /// <summary>
+    /// Writes an <see cref="IAccessibleNameComponent"/>'s authored name as <paramref name="target"/>'s <c>aria-label</c>, over whatever
+    /// named it before; nothing where the component sets none.
+    /// </summary>
+    public static void RenderAccessibleName(WebRenderContext context, IHtmlElementBuilder target)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(target);
+
+        // Registered only where it is set or bound: most controls are named by their words and carry no such property at all.
+        if (ResolveRenderValue(context, IAccessibleNameComponent.AccessibleNameProperty, out string? _, out _) == WebRenderValueKind.Missing)
+            return;
+
+        _ = RenderProperty<string?>(context, target, IAccessibleNameComponent.AccessibleNameProperty, static (element, value) =>
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _ = element.Attribute("aria-label", value);
+        }, AccessibleNameOperations);
+    }
+
+    /// <summary>Writes the tooltip markup and placement attributes <c>tooltip-engine.ts</c> reads.</summary>
     public static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target)
         => RenderTooltip(context, target, ITooltipComponent.TooltipProperty, ITooltipComponent.TooltipPlacementProperty);
 
@@ -398,14 +493,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = element.Attribute(WebAttributes.Tooltip, value);
-        }, [WebDomOperation.Attribute(WebAttributes.Tooltip)]);
+        }, TooltipOperations);
 
         // Written even for the default, so a bound and an unbound tooltip carry the same attribute.
         _ = RenderProperty<UIPopupPlacement?>(context, target, placementProperty, static (element, value) =>
         {
             if (value is UIPopupPlacement placement)
                 _ = element.Attribute(WebAttributes.TooltipPlacement, WebClassNames.PopupPlacement(placement));
-        }, [WebDomOperation.Attribute(WebAttributes.TooltipPlacement, converter: WebDomConverters.PopupPlacementAttribute)]);
+        }, TooltipPlacementOperations);
     }
 
     /// <summary>
@@ -447,9 +542,28 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             _ = line.Class("ui-validation-message");
             _ = line.Attribute(WebAttributes.ValidationMessage);
 
+            // Read out when the words change, and named by the field it describes where the render can give it an id.
+            if (ValidationMessageId(context) is string id)
+                _ = line.Attribute("id", id);
+
+            _ = line.Attribute("aria-live", "polite");
+
             if (validation is { } text)
                 _ = line.Text(text.Message);
         });
+    }
+
+    /// <summary>
+    /// The id a field's validation line carries; null where the component may stand on the page more than once — a row, a template
+    /// the client clones — since an id must be unique.
+    /// </summary>
+    protected static string? ValidationMessageId(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return context.Node.ContextParameterCount == 0 && !context.IsPresentationCopy && !context.IsTemplate
+            ? string.Create(CultureInfo.InvariantCulture, $"ui-{context.Node.ComponentId.Value}-validation")
+            : null;
     }
 
     private static string ValidationClass(UIValidationSeverity severity)
@@ -486,7 +600,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (value == whenTrue)
                 _ = element.Attribute(attribute);
-        }, [WebDomOperation.ToggleAttribute(attribute, target: "root", condition: condition)]);
+        }, FlagAttributeOperations.GetOrAdd((attribute, condition), static key => [WebDomOperation.ToggleAttribute(key.Name, target: "root", condition: key.Condition)]));
     }
 
     /// <summary>A boolean property as a modifier class on the target, worn when the condition holds; a bound one flips live.</summary>
@@ -498,7 +612,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (value == whenTrue)
                 _ = element.Class(className);
-        }, [WebDomOperation.ToggleClass(className, condition: condition)]);
+        }, FlagClassOperations.GetOrAdd((className, condition), static key => [WebDomOperation.ToggleClass(key.Name, condition: key.Condition)]));
     }
 
     public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
@@ -570,7 +684,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             return;
 
         if (context.ViewResolution.View.Validations.IsMessageTarget(address) || context.Metadata.IsExposed(address))
-            _ = target.Attribute(WebAttributes.IntoPrefix + WebNaming.ToKebabCase(address.Property.Name));
+            _ = target.Attribute(IntoAttributeNames.GetOrAdd(address.Property.Name, static name => WebAttributes.IntoPrefix + WebNaming.ToKebabCase(name)));
     }
 
     /// <summary>Registers a property for value tracking only, with no DOM effect of its own.</summary>
@@ -578,12 +692,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        return RenderProperty<T>(context, target, context.Node.TypeKey, property, static (_, _) => { }, [WebDomOperation.Data()]);
+        return RenderProperty<T>(context, target, context.Node.TypeKey, property, static (_, _) => { }, DataOperations);
     }
 
     /// <inheritdoc cref="RenderValue{T}(WebRenderContext, IHtmlElementBuilder, UIProperty)"/>
     protected static WebRenderValueKind RenderValue<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property)
-        => RenderProperty<T>(context, target, propertyOwnerTypeKey, property, static (_, _) => { }, [WebDomOperation.Data()]);
+        => RenderProperty<T>(context, target, propertyOwnerTypeKey, property, static (_, _) => { }, DataOperations);
 
     /// <summary>A property's render-time value, or <paramref name="fallback"/> where it is missing, bound with no value yet, or null.</summary>
     protected static T ReadRenderValue<T>(WebRenderContext context, UIProperty property, T fallback)
@@ -653,13 +767,25 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (source.Kind != CompiledUIBindingSourceKind.ComponentItems)
             return false;
 
-        CompiledUIBindingTemplate template = view.Templates.GetRequired(binding.TemplateId);
+        return TryReadItemScopeValue(context, binding, out value);
+    }
+
+    /// <summary>
+    /// A bound value read off the items in scope, innermost first — an author-declared item's, or a bound row's own for a binding
+    /// with a Dynamic parameter.
+    /// </summary>
+    private static bool TryReadItemScopeValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
+    {
+        value = null;
+
+        if (context.Parameters.Count == 0)
+            return false;
+
+        CompiledUIBindingTemplate template = context.ViewResolution.View.Templates.GetRequired(binding.TemplateId);
 
         for (var i = context.Parameters.Count - 1; i >= 0; i--)
         {
-            UIDynamicParameterScope scope = context.Parameters[i];
-
-            if (new ItemContext(scope.Item).TryResolveBindingTemplate(template, binding.Parameters, context.Parameters, out value))
+            if (new ItemContext(context.Parameters[i].Item).TryResolveBindingTemplate(template, binding.Parameters, context.Parameters, out value))
             {
                 // An item saying nothing about a property is not an item saying "nothing": fall back to the template's literal.
                 value ??= binding.TargetFallbackValue;
@@ -709,28 +835,6 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         return true;
     }
 
-    /// <summary>A bound row's own value from the item in scope; only valid for a binding with a Dynamic parameter.</summary>
-    private static bool TryReadItemScopeValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
-    {
-        value = null;
-
-        if (context.Parameters.Count == 0)
-            return false;
-
-        CompiledUIBindingTemplate template = context.ViewResolution.View.Templates.GetRequired(binding.TemplateId);
-
-        for (var i = context.Parameters.Count - 1; i >= 0; i--)
-        {
-            if (new ItemContext(context.Parameters[i].Item).TryResolveBindingTemplate(template, binding.Parameters, context.Parameters, out value))
-            {
-                value ??= binding.TargetFallbackValue;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool HasDynamicParameter(CompiledUIBinding binding)
     {
         for (var i = 0; i < binding.Parameters.Length; i++)
@@ -766,6 +870,16 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentNullException.ThrowIfNull(context);
 
         return WebCultures.Resolve(context.ViewResolution.Session.Language);
+    }
+
+    /// <summary>The culture a formatted input writes its value in: its own <c>Culture</c>, else the page's — the session's language.</summary>
+    protected static CultureInfo ResolveInputCulture(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _ = ResolveRenderValue(context, IFormattedInputComponent.CultureProperty, out string? culture, out _);
+
+        return string.IsNullOrWhiteSpace(culture) ? ResolveCulture(context) : WebCultures.Resolve(culture);
     }
 
     /// <summary>The items of an items component, and whether they are left to the client to render.</summary>
@@ -844,7 +958,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
 
-        return WebAttributes.BindingPrefix + WebNaming.ToKebabCase(property.Name);
+        return BindingAttributeNames.GetOrAdd(property.Name, static name => WebAttributes.BindingPrefix + WebNaming.ToKebabCase(name));
     }
 
     private static T? CastRenderedValue<T>(object? source, UIProperty property)

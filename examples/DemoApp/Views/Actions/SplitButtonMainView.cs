@@ -1,14 +1,6 @@
 using DemoApp.Controllers.Actions;
 using DemoApp.Controllers.Base;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -43,11 +35,11 @@ internal sealed class SplitButtonMainView : DemoMainView, IUIViewDefinition
         SplitButtonComponent button = DemoButtonBindings.Bind(new SplitButtonComponent(), ButtonGroup, ContentGroup, LayoutGroup, BadgeGroup, BorderGroup)
             .SetMode(mode)
             .SetItems(CreateEntries())
-            .OnItemClickWithItemKey(nameof(SplitButtonMainController.MergeAs));
+            .OnItemClickWithItemKey(nameof(SplitButtonMainController.RestartAs));
 
         // A menu button's own click never runs, and the renderer refuses one: only the split pane carries it.
         if (mode == UISplitButtonMode.Split)
-            _ = button.OnClick(nameof(SplitButtonMainController.Merge));
+            _ = button.OnClick(nameof(SplitButtonMainController.Restart));
 
         return UILayout.Stack(12)
             .AddChild(button)
@@ -62,10 +54,10 @@ internal sealed class SplitButtonMainView : DemoMainView, IUIViewDefinition
     private static MenuItem[] CreateEntries()
         =>
         [
-            new() { Id = "merge-commit", Title = "Create a merge commit", Icon = DemoIcons.Outline(DemoIcons.Check) },
-            new() { Id = "rebase", Title = "Rebase and merge", Icon = DemoIcons.Outline(DemoIcons.History) },
+            new() { Id = "restart-hard", Title = "Restart hard", Icon = DemoIcons.Outline(DemoIcons.Check) },
+            new() { Id = "stop", Title = "Stop the server", Icon = DemoIcons.Outline(DemoIcons.History) },
             new() { Id = "rule", Kind = UIMenuItemKind.Separator },
-            new() { Id = "draft", Title = "Convert to draft", Icon = DemoIcons.Outline(DemoIcons.Edit), Enabled = false }
+            new() { Id = "maintenance", Title = "Move to maintenance", Icon = DemoIcons.Outline(DemoIcons.Edit), Enabled = false }
         ];
 
     protected override ContainerComponent CreateOptions()

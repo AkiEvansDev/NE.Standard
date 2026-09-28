@@ -12,12 +12,17 @@ export type ClientStringKey =
     | "ui.picker.hours"
     | "ui.picker.minutes"
     | "ui.picker.seconds"
+    | "ui.picker.meridiem"
     | "ui.notification.close"
     | "ui.file.uploading"
     | "ui.file.count"
     | "ui.file.failed"
+    | "ui.file.oversized"
     | "ui.image.remove"
-    | "ui.tree.loading";
+    | "ui.select.remove"
+    | "ui.tree.loading"
+    | "ui.connection.lost"
+    | "ui.connection.reload";
 
 const StringsSelector = "script[type='application/json'][data-ui-strings]";
 

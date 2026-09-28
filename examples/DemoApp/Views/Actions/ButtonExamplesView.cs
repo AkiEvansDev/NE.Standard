@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -27,58 +20,16 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
         _ = container.AddChild(CreateToolbarGroup());
         _ = container.AddChild(CreateTogglesGroup());
 
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePairsGroup(), CreateFormGroup()],
-            [CreateHostsGroup(), CreateChoiceGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreatePairsGroup(), CreateFormGroup()], [CreateHostsGroup(), CreateChoiceGroup()]));
     }
-
-    /// <summary>
-    /// A type says which button of the pair to press: one filled per group, the rest bare.
-    /// </summary>
-    private static ContainerComponent CreatePairsGroup()
-    {
-        return DemoUI.CreateGroup(null, "A pair, and which one is filled",
-            // On a panel at one width: the rule only reads when the three pairs share a right edge.
-            content => content.AddChild(new SurfaceComponent()
-                .SetHorizontalAlignment(UIAlignment.Start)
-                .SetContent(UILayout.Stack(16)
-                .SetWidth(UILayoutLength.Absolute(340))
-                .AddChild(CreatePair(
-                    "Saving something",
-                    UIButtons.Ghost("Cancel"),
-                    UIButtons.Primary("Save changes")))
-                .AddChild(CreatePair(
-                    "Throwing something away",
-                    UIButtons.Ghost("Keep it"),
-                    UIButtons.Danger("Delete workspace", DemoIcons.Outline(DemoIcons.Alert))
-                ))
-                .AddChild(CreatePair(
-                    "Two ways on, one of them the usual one",
-                    UIButtons.Secondary("Use a password"),
-                    UIButtons.Primary("Sign in with SSO", DemoIcons.Outline(DemoIcons.Lock))
-                ))
-                .AddChild(CreatePair(
-                    "Leaving with something unsaved",
-                    UIButtons.Ghost("Discard"),
-                    UIButtons.Primary("Keep editing")))
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "The pair at a form's foot is UIButtons.Pair: the safe answer first, the committing one last, at the far edge. The sign-up and the checkout under Screens end in one."
-        );
-    }
-
-    private static StackPanelComponent CreatePair(string caption, ButtonComponent secondary, ButtonComponent primary)
-        => UIPage.Labelled(caption, UIButtons.Pair(secondary, primary));
 
     /// <summary>
     /// A row of icon-only buttons is a toolbar; the tooltip is the only name each control has.
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateGroup(null, "A toolbar",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A toolbar",
+            new SurfaceComponent()
                 // A toolbar is as wide as its tools; stretched, it would be a band with icons at one end.
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(6))
@@ -91,9 +42,8 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                     UIButtons.Icon(DemoIcons.Outline(DemoIcons.Alert), "Delete")
                         .SetType(UIButtonType.Danger)
                         .SetMargin(UIThickness.All(16, 0, 0, 0))
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    )
+                ),
             columns: 24,
             note: "A bar across the top of what it acts on, so it is drawn across the page rather than in a column; the inbox under Screens wears one over the open message."
         );
@@ -104,16 +54,44 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTogglesGroup()
     {
-        return DemoUI.CreateGroup(null, "Toggles that stay down",
-            content => content.AddChild(UILayout.Row(4,
+        return DemoUI.CreateExample("Toggles that stay down",
+            UILayout.Row(4,
                 UIButtons.Ghost("Unread", DemoIcons.Outline(DemoIcons.Mail)).SetPressed(true),
                 UIButtons.Ghost("Starred", DemoIcons.Outline(DemoIcons.Star)).SetPressed(false),
                 UIButtons.Ghost("Has files", DemoIcons.Outline(DemoIcons.File)).SetPressed(false)
-            )
-                .SetPlacement(1, 1, 24, 1)
             ),
             columns: 24,
             note: "Pressed turns a button into a toggle: it wears the selected ground while it is down, a press flips it, and bound two-way the state goes back to the controller."
+        );
+    }
+
+    /// <summary>
+    /// A type says which button of the pair to press: one filled per group, the rest bare.
+    /// </summary>
+    private static ContainerComponent CreatePairsGroup()
+    {
+        return DemoUI.CreateExample("A pair, and which one is filled",
+            // On a panel at one width: the rule only reads when the three pairs share a right edge.
+            new SurfaceComponent()
+                .SetHorizontalAlignment(UIAlignment.Start)
+                .SetContent(UILayout.Stack(16)
+                    .SetWidth(UILayoutLength.Absolute(340))
+                    .AddChild(UIPage.Labelled("Saving something", UIButtons.Pair(UIButtons.Ghost("Cancel"), UIButtons.Primary("Save changes"))))
+                    .AddChild(UIPage.Labelled("Throwing something away", UIButtons.Pair(
+                        UIButtons.Ghost("Keep it"),
+                        UIButtons.Danger("Delete server", DemoIcons.Outline(DemoIcons.Alert))
+                            )
+                        )
+                    )
+                    .AddChild(UIPage.Labelled("Two ways on, one of them the usual one", UIButtons.Pair(
+                        UIButtons.Secondary("Use a password"),
+                        UIButtons.Primary("Sign in with SSO", DemoIcons.Outline(DemoIcons.Lock))
+                            )
+                        )
+                    )
+                    .AddChild(UIPage.Labelled("Leaving with something unsaved", UIButtons.Pair(UIButtons.Ghost("Discard"), UIButtons.Primary("Keep editing"))))
+                ),
+            note: "The pair at a form's foot is UIButtons.Pair: the safe answer first, the committing one last, at the far edge. The sign-up and the checkout under Screens end in one."
         );
     }
 
@@ -122,12 +100,12 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateGroup(null, "Filling the thing it is in",
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("Filling the thing it is in",
+            new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(300))
                 .ConfigureDefaultHeader(header => header
                     .SetTitle("Sign in")
-                    .SetDescription("Continue to the deploy console")
+                    .SetDescription("Continue to the admin panel")
                 )
                 .SetContent(UILayout.Stack(8)
                     .AddChild(new ButtonComponent()
@@ -148,55 +126,18 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetTitle("I cannot sign in")
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    /// <summary>
-    /// The one case a button needs its whole text body: a choice between things that each need a sentence.
-    /// </summary>
-    private static ContainerComponent CreateChoiceGroup()
-    {
-        return DemoUI.CreateGroup(null, "A label with something to say",
-            content => content.AddChild(UILayout.Stack(8)
-                .SetWidth(UILayoutLength.Absolute(380))
-                .AddChild(CreatePlan(DemoIcons.Check, "Standard", "Two environments, artifacts kept for 30 days.", "Current", UIBadgeType.Surface)
-                    .SetType(UIButtonType.Outline)
-                )
-                // Surface, not a status colour: a badge sits on the control's fill and has to read on any ground.
-                .AddChild(CreatePlan(DemoIcons.Star, "Team", "Ten environments, review gates and audit export.", "Recommended", UIBadgeType.Surface)
-                    .SetType(UIButtonType.Primary)
-                )
-                .AddChild(CreatePlan(DemoIcons.Shield, "Enterprise", "Dedicated runners, SSO and a private registry.", "Talk to us", UIBadgeType.Info)
-                    .SetType(UIButtonType.Outline)
-                )
-                .SetPlacement(1, 1, 24, 1)
-            )
-        );
-    }
-
-    private static ButtonComponent CreatePlan(string icon, string title, string description, string badge, UIBadgeType badgeStyle)
-        => new ButtonComponent()
-            .SetHorizontalAlignment(UIAlignment.Stretch)
-            .SetTextAlignment(UITextAlignment.Start)
-            .SetIcon(DemoIcons.Outline(icon))
-            .SetTitle(title)
-            .SetDescription(description)
-            .SetDescriptionType(UITextAppearance.Caption)
-            .SetBadgeText(badge)
-            .SetBadgeStyle(badgeStyle)
-            .SetBadgePlacement(UITextBadgePlacement.Trailing);
 
     /// <summary>
     /// The three places a button is put rather than laid out: a card's header band, its footer, and a row's end.
     /// </summary>
     private static ContainerComponent CreateHostsGroup()
     {
-        return DemoUI.CreateGroup(null, "Where a button is put",
-            content => content.AddChild(UILayout.Stack(12)
+        return DemoUI.CreateExample("Where a button is put",
+            UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(420))
-                .AddChild(DemoUI.CreateCaption("In a card — its header band and its footer"))
+                .AddChild(UIText.Label("In a card — its header band and its footer"))
                 .AddChild(new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.FileText)
@@ -217,11 +158,10 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(8)
                         .AddChild(UIButtons.Primary("Approve"))
-                        .AddChild(UIButtons.Ghost("View diff"))
+                        .AddChild(UIButtons.Ghost("View notes"))
                     )
                 )
-                // Small, so the button keeps the row's height instead of setting it.
-                .AddChild(DemoUI.CreateCaption("At the end of a row")
+                .AddChild(UIText.Label("At the end of a row")
                     .SetMargin(UIThickness.All(0, 8, 0, 0))
                 )
                 .AddChild(new SurfaceComponent()
@@ -230,10 +170,11 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                         .AddChild(new TextComponent()
                             .SetIcon(DemoIcons.Bell)
                             .SetTitle("Deploy notifications")
-                            .SetDescription("Sent to #releases")
+                            .SetDescription("Mailed to on-call")
                             .SetVerticalAlignment(UIAlignment.Center)
                             .SetPlacement(1, 1, 23, 1)
                         )
+                        // Small, so the button keeps the row's height instead of setting it.
                         .AddChild(new ButtonComponent()
                             .SetType(UIButtonType.Outline)
                             .SetSize(UIButtonSize.Small)
@@ -243,8 +184,51 @@ internal sealed class ButtonExamplesView : DemoExamplesView, IUIViewDefinition
                         )
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
+        );
+    }
+
+    /// <summary>
+    /// The one case a button needs its whole text body: a choice between things that each need a sentence.
+    /// </summary>
+    private static ContainerComponent CreateChoiceGroup()
+    {
+        return DemoUI.CreateExample("A label with something to say",
+            UILayout.Stack(8)
+                .SetWidth(UILayoutLength.Absolute(380))
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Outline)
+                    .SetHorizontalAlignment(UIAlignment.Stretch)
+                    .SetTextAlignment(UITextAlignment.Start)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Check))
+                    .SetTitle("Standard")
+                    .SetDescription("2 vCPU, 4 GB memory, 80 GB disk, €18 a seat.")
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetBadgeText("Current")
+                    .SetBadgeStyle(UIBadgeType.Surface)
+                )
+                // Surface, not a status colour: a badge sits on the control's fill and has to read on any ground.
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Primary)
+                    .SetHorizontalAlignment(UIAlignment.Stretch)
+                    .SetTextAlignment(UITextAlignment.Start)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Star))
+                    .SetTitle("Pro")
+                    .SetDescription("4 vCPU, 16 GB memory, 240 GB disk, €64 a seat.")
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetBadgeText("Recommended")
+                    .SetBadgeStyle(UIBadgeType.Surface)
+                )
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Outline)
+                    .SetHorizontalAlignment(UIAlignment.Stretch)
+                    .SetTextAlignment(UITextAlignment.Start)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
+                    .SetTitle("Dedicated")
+                    .SetDescription("16 vCPU, 64 GB memory, 960 GB disk, €290 a seat.")
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetBadgeText("Talk to us")
+                    .SetBadgeStyle(UIBadgeType.Info)
+                )
         );
     }
 }

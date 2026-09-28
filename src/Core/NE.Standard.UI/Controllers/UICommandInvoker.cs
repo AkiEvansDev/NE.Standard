@@ -103,12 +103,7 @@ internal sealed class UICommandInvoker
 
         Expression body = WrapReturn(call, method.ReturnType);
 
-        Expression<Func<object, object?[], CancellationToken, Task<UICommandResult>>> lambda = Expression.Lambda<Func<object, object?[], CancellationToken, Task<UICommandResult>>>(
-            body,
-            controllerParameter,
-            argumentsParameter,
-            cancellationTokenParameter
-        );
+        Expression<Func<object, object?[], CancellationToken, Task<UICommandResult>>> lambda = Expression.Lambda<Func<object, object?[], CancellationToken, Task<UICommandResult>>>(body, controllerParameter, argumentsParameter, cancellationTokenParameter);
 
         return lambda.Compile();
     }
@@ -274,8 +269,14 @@ internal sealed class UICommandInvoker
         var mask = 0UL;
 
         foreach (var defined in Enum.GetValues(enumType))
-            mask |= Convert.ToUInt64(defined, CultureInfo.InvariantCulture);
+            mask |= ToBits(defined);
 
-        return (Convert.ToUInt64(value, CultureInfo.InvariantCulture) & ~mask) == 0;
+        return (ToBits(value) & ~mask) == 0;
     }
+
+    // Signed underlying types are widened through long, or a negative member would overflow the conversion to ulong.
+    private static ulong ToBits(object value)
+        => Type.GetTypeCode(value.GetType().IsEnum ? Enum.GetUnderlyingType(value.GetType()) : value.GetType()) is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64
+            ? unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture))
+            : Convert.ToUInt64(value, CultureInfo.InvariantCulture);
 }

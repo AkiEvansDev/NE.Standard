@@ -3,8 +3,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Files;
 
 namespace DemoApp.Controllers.Inputs.FileInput;
 
@@ -71,7 +69,6 @@ internal sealed partial class FileInputFileGroupContext : AffixedFieldGroupConte
 
     public void ToggleMultiple()
         => SetLastChange(nameof(Multiple), Multiple = !Multiple);
-
 }
 
 /// <summary>
@@ -156,9 +153,7 @@ internal sealed partial class FileInputMainController() : DemoStandardController
                 .GetSelectionAsync(Context.Handle, selectionId, cancellationToken)
                 .ConfigureAwait(false);
 
-            UploadGroup.Report(selection.Files.Length == 0
-                ? "(empty selection)"
-                : string.Join(", ", selection.Files.Select(file => $"{file.FileName} · {file.Size} B")));
+            UploadGroup.Report(selection.Files.Length == 0 ? "(empty selection)" : string.Join(", ", selection.Files.Select(file => $"{file.FileName} · {file.Size} B")));
         }
         catch (InvalidOperationException error)
         {

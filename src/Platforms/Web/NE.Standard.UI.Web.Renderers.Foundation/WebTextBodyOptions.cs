@@ -15,4 +15,7 @@ public readonly record struct WebTextBodyOptions
 
     /// <summary>Drawn beside the title and before the badge: an input's required marker.</summary>
     public Action<IHtmlElementBuilder>? Trailing { get; init; }
+
+    /// <summary>Whether the title is a field's caption, which a live title change also writes into the field's accessible name.</summary>
+    public bool NamesField { get; init; }
 }

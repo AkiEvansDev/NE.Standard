@@ -7,6 +7,9 @@ namespace NE.Standard.UI.Abstractions.Binding.Addresses;
 /// </summary>
 public readonly record struct UIComponentReference
 {
+    /// <summary>
+    /// Creates a reference from an authoring component id and the row keys it needs, outermost first.
+    /// </summary>
     public UIComponentReference(string componentId, object?[]? dynamicParameters = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(componentId);

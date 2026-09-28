@@ -8,10 +8,11 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// Base class for inputs whose value is one option from a bound list, providing the option collection API and item template.
+/// Base class for inputs whose value is chosen from a bound list of options, providing the option collection API and item template.
 /// </summary>
-public abstract partial class OptionsInputComponentBase<TComponent, TItem>(string? id = null) : InputTemplatedComponentBase<TComponent, TItem, string?, ITextComponent>(id)
-    where TComponent : OptionsInputComponentBase<TComponent, TItem>, IUIComponentDefinition
+/// <remarks>The value is whatever the input makes of the options: one key for a select, a list of keys for a multi-select.</remarks>
+public abstract partial class OptionsInputComponentBase<TComponent, TItem, TValue>(string? id = null) : InputTemplatedComponentBase<TComponent, TItem, TValue, ITextComponent>(id)
+    where TComponent : OptionsInputComponentBase<TComponent, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
     /// <summary>
@@ -52,3 +53,11 @@ public abstract partial class OptionsInputComponentBase<TComponent, TItem>(strin
     public TComponent BindOptions(RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
         => BindItems(path, scope, mode);
 }
+
+/// <summary>
+/// Base class for inputs whose value is one option from a bound list — the option's key.
+/// </summary>
+public abstract class OptionsInputComponentBase<TComponent, TItem>(string? id = null) : OptionsInputComponentBase<TComponent, TItem, string?>(id)
+    where TComponent : OptionsInputComponentBase<TComponent, TItem>, IUIComponentDefinition
+    where TItem : class, IOptionModel
+{ }

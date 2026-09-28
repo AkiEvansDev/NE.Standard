@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -26,10 +19,7 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChild(CreateSettingsGroup());
 
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateMenuGroup()],
-            [CreateAgainstButtonGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateMenuGroup()], [CreateAgainstButtonGroup()]));
     }
 
     /// <summary>
@@ -37,75 +27,90 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSettingsGroup()
     {
-        // The sections run across rather than down: three columns of rows is a settings screen, one column is a list.
-        return DemoUI.CreateGroup(null, "A settings screen",
-            content => content.AddChild(DemoUI.CreateRow(32)
-                .AddChild(CreateSection("Account",
-                    new ActionComponent()
+        return DemoUI.CreateExample("A settings screen",
+            // The sections run across rather than down: three columns of rows is a settings screen, one column is a list.
+            UILayout.Row(32)
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetSpacing(4)
+                    .AddChild(new TextComponent()
+                        .SetTitle("Account")
+                        .SetTitleType(UITextAppearance.Overline)
+                        .SetTitleColor(UIThemeColor.Muted)
+                        .SetMargin(UIThickness.All(0, 0, 0, 4))
+                    )
+                    .AddChild(new ActionComponent()
                         // The same Icon property carrying a picture instead of a glyph name.
                         .SetIcon(DemoImages.Avatar)
                         .SetTitle("Profile")
-                        .SetDescription("Robin Hale · Client runtime")
-                        .SetTrailingText("Signed in"),
-                    new ActionComponent()
+                        .SetDescription("Robin Hale · Admin")
+                        .SetTrailingText("Signed in")
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Lock)
                         .SetTitle("Password")
                         .SetDescription("Last changed 8 months ago")
-                        .SetTrailingText("Change"),
-                    new ActionComponent()
+                        .SetTrailingText("Change")
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription("A second step from a new device")
                         .SetBadgeText("Recommended")
                         .SetBadgeStyle(UIBadgeType.Warning)
-                ))
-                .AddChild(CreateSection("Notifications",
-                    new ActionComponent()
+                    )
+                )
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetSpacing(4)
+                    .AddChild(new TextComponent()
+                        .SetTitle("Notifications")
+                        .SetTitleType(UITextAppearance.Overline)
+                        .SetTitleColor(UIThemeColor.Muted)
+                        .SetMargin(UIThickness.All(0, 0, 0, 4))
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Bell)
                         .SetTitle("Deploys")
-                        .SetTrailingText("On"),
-                    new ActionComponent()
+                        .SetTrailingText("On")
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Mail)
                         .SetTitle("Weekly digest")
-                        .SetTrailingText("Off"),
-                    new ActionComponent()
+                        .SetTrailingText("Off")
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.ExternalLink)
-                        .SetTitle("Slack integration")
-                        .SetDescription("Opens Slack in a new tab")
+                        .SetTitle("Status page")
+                        .SetDescription("Opens status.orvane.example")
                         // A named glyph replaces the built-in chevron, saying the row leaves the application.
                         .SetTrailingIcon(DemoIcons.ExternalLink)
-                ))
-                .AddChild(CreateSection("Danger zone",
-                    new ActionComponent()
+                    )
+                )
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetSpacing(4)
+                    .AddChild(new TextComponent()
+                        .SetTitle("Danger zone")
+                        .SetTitleType(UITextAppearance.Overline)
+                        .SetTitleColor(UIThemeColor.Muted)
+                        .SetMargin(UIThickness.All(0, 0, 0, 4))
+                    )
+                    .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Alert)
                         .SetType(UIButtonType.Danger)
-                        .SetTitle("Delete this workspace")
+                        .SetTitle("Delete this server")
                         .SetDescription("Cannot be undone")
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    )
+                ),
             columns: 24
         );
-    }
-
-    private static StackPanelComponent CreateSection(string caption, params ActionComponent[] rows)
-    {
-        StackPanelComponent section = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetWidth(UILayoutLength.Absolute(380))
-            .SetSpacing(4)
-            .AddChild(new TextComponent()
-                .SetTitle(caption)
-                .SetTitleType(UITextAppearance.Overline)
-                .SetTitleColor(UIThemeColor.Muted)
-                .SetMargin(UIThickness.All(0, 0, 0, 4))
-            );
-
-        foreach (ActionComponent row in rows)
-            _ = section.AddChild(row);
-
-        return section;
     }
 
     /// <summary>
@@ -113,69 +118,80 @@ internal sealed class ActionExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateMenuGroup()
     {
-        return DemoUI.CreateGroup(null, "Inside something that is already a panel",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Inside something that is already a panel",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(6))
                 .SetContent(UILayout.Stack(2)
                     .SetWidth(UILayoutLength.Absolute(260))
-                    .AddChild(CreateGhostRow(DemoIcons.Edit, "Rename", null))
-                    .AddChild(CreateGhostRow(DemoIcons.Copy, "Duplicate", "⌘D"))
-                    .AddChild(CreateGhostRow(DemoIcons.Download, "Export", null))
+                    // No chevron: in a popover it would promise a submenu, and TrailingIcon cannot say that (unset draws it).
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Edit))
+                        .SetTitle("Rename")
+                    )
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTitle("Duplicate")
+                        .SetTrailingText("⌘D")
+                    )
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Download))
+                        .SetTitle("Export")
+                    )
                     // Not Type.Danger: the row keeps its ghost ground and colours only its own label.
-                    .AddChild(CreateGhostRow(DemoIcons.Alert, "Delete", null)
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
+                        .SetTitle("Delete")
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    // No chevron: in a popover it would promise a submenu, and TrailingIcon cannot say that (unset draws it).
-    private static ActionComponent CreateGhostRow(string icon, string title, string? trailing)
-        => new ActionComponent()
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetShowChevron(false)
-            .SetIcon(DemoIcons.Outline(icon))
-            .SetTitle(title)
-            .SetTrailingText(trailing);
 
     /// <summary>
     /// The pair, running the same command: a button takes the room its word needs, a row fills the width it is given.
     /// </summary>
     private static ContainerComponent CreateAgainstButtonGroup()
     {
-        return DemoUI.CreateGroup(null, "Against a button",
+        return DemoUI.CreateExample("Against a button",
             // One column and one width for both, or how much of the offered width each takes cannot be seen.
-            content => content.AddChild(new SurfaceComponent()
+            new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(UILayout.Stack(8)
                     .SetWidth(UILayoutLength.Absolute(300))
-                    .AddChild(DemoUI.CreateCaption("ButtonComponent"))
+                    .AddChild(UIText.Label("ButtonComponent"))
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Outline)
                         // Asked for: a button centres itself, and the two only compare from the same edge.
                         .SetHorizontalAlignment(UIAlignment.Start)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Bell))
                         .SetTitle("Notifications")
-                        .SetDescription("Sent to #releases")
+                        .SetDescription("Mailed to on-call")
                         .SetDescriptionType(UITextAppearance.Caption)
                     )
                     .AddChild(new SeparatorComponent())
-                    .AddChild(DemoUI.CreateCaption("ActionComponent"))
+                    .AddChild(UIText.Label("ActionComponent"))
                     .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Bell)
                         .SetTitle("Notifications")
-                        .SetDescription("Sent to #releases")
+                        .SetDescription("Mailed to on-call")
                         .SetTrailingText("On")
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 }

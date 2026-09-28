@@ -1,9 +1,11 @@
 using System;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -41,6 +43,47 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private const string PrefixIconShownAttribute = "data-ui-input-prefix-icon";
     private const string SuffixIconShownAttribute = "data-ui-input-suffix-icon";
 
+    // On the element a field's caption names (RenderFieldLabel): what a live title change rewrites the aria-label of.
+    private const string LabelledAttribute = "data-ui-labelled";
+
+    // A text body is drawn per row, so its operation lists are built once rather than per body.
+    private static readonly WebDomOperation[] TextAlignmentOperations = [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)];
+    private static readonly WebDomOperation[] SelectableOperations = [WebDomOperation.ToggleClass($"{TextClassPrefix}--selectable")];
+    private static readonly WebDomOperation[] BadgePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementClass)];
+    private static readonly WebDomOperation[] AffixTextOperations = [WebDomOperation.Text()];
+    private static readonly WebDomOperation[] InputAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
+    private static readonly WebDomOperation[] InputSizeOperations = [WebDomOperation.Class(converter: WebDomConverters.InputSizeClass)];
+    private static readonly WebDomOperation[] PrefixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(PrefixIconShownAttribute, target: "root", condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] WrapModeOperations = [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)];
+    private static readonly WebDomOperation[] MaxLinesOperations = [WebDomOperation.Style(MaxLinesVariable), WebDomOperation.ToggleClass(MaxLinesClassName, condition: WebValueCondition.HasValue)];
+    private static readonly WebDomOperation[] QuoteLineOperations = [WebDomOperation.ToggleClass(QuoteClassName, condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] QuoteLineColorOperations = [WebDomOperation.Style(QuoteColorVariable, converter: WebDomConverters.ThemeColorCss)];
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] TitleOperations = [WebDomOperation.Text(), WebDomOperation.ToggleAttribute(TitleShownAttribute, target: "root", condition: WebValueCondition.HasText)];
+
+    // Optional: a field that names nothing of its own (a package's editor, a picture button) carries no mark.
+    private static readonly WebDomOperation[] FieldTitleOperations =
+    [
+        .. TitleOperations,
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = $"[{LabelledAttribute}]", Optional = true }
+    ];
+    private static readonly WebDomOperation[] DescriptionOperations = [WebDomOperation.Markup(), WebDomOperation.ToggleAttribute(DescriptionShownAttribute, target: "root", condition: WebValueCondition.HasText)];
+
+    private static readonly WebBadgeRenderOptions TextBadgeOptions = new()
+    {
+        StyleProperty = ITextBaseComponent.BadgeStyleProperty,
+        ColorProperty = ITextBaseComponent.BadgeColorProperty,
+        IconProperty = ITextBaseComponent.BadgeIconProperty,
+        IconColorProperty = ITextBaseComponent.BadgeIconColorProperty,
+        IconSizeProperty = ITextBaseComponent.BadgeIconSizeProperty,
+        TextProperty = ITextBaseComponent.BadgeTextProperty,
+        TextTypeProperty = ITextBaseComponent.BadgeTextTypeProperty,
+        TooltipProperty = ITextBaseComponent.BadgeTooltipProperty,
+        TooltipPlacementProperty = ITextBaseComponent.BadgeTooltipPlacementProperty,
+        ContentStateTarget = $".{TextClassPrefix}__badge"
+    };
+
     /// <summary>
     /// Renders the whole text body into <paramref name="container"/>; <paramref name="root"/> must be the root carrying the patch hooks.
     /// </summary>
@@ -70,7 +113,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             {
                 _ = header.Class($"{TextClassPrefix}__header");
 
-                _ = header.Element("span", title => RenderTitle(context, root, title));
+                _ = header.Element("span", title => RenderTitle(context, root, title, options.NamesField));
 
                 options.Trailing?.Invoke(header);
 
@@ -99,13 +142,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             if (value is UITextAlignment alignment)
                 _ = target.Class(WebClassNames.TextAlignment(alignment));
-        }, [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)]);
+        }, TextAlignmentOperations);
 
         _ = RenderProperty<bool?>(context, container, ITextBaseComponent.SelectableProperty, static (target, value) =>
         {
             if (value is true)
                 _ = target.Class($"{TextClassPrefix}--selectable");
-        }, [WebDomOperation.ToggleClass($"{TextClassPrefix}--selectable")]);
+        }, SelectableOperations);
     }
 
     private static void RenderTextBadge(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder badge, UITextBadgePlacement? fallback)
@@ -117,25 +160,10 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             _ = RenderProperty<UITextBadgePlacement?>(context, badge, ITextBaseComponent.BadgePlacementProperty, (target, value)
                 => _ = target.Class(WebClassNames.TextBadgePlacement(value ?? placement))
-            , [
-                WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementClass)
-            ]);
+            , BadgePlacementOperations);
         }
 
-        BadgeRenderer.RenderBadge(context, root, badge,
-            new WebBadgeRenderOptions
-            {
-                StyleProperty = ITextBaseComponent.BadgeStyleProperty,
-                ColorProperty = ITextBaseComponent.BadgeColorProperty,
-                IconProperty = ITextBaseComponent.BadgeIconProperty,
-                IconColorProperty = ITextBaseComponent.BadgeIconColorProperty,
-                IconSizeProperty = ITextBaseComponent.BadgeIconSizeProperty,
-                TextProperty = ITextBaseComponent.BadgeTextProperty,
-                TextTypeProperty = ITextBaseComponent.BadgeTextTypeProperty,
-                TooltipProperty = ITextBaseComponent.BadgeTooltipProperty,
-                TooltipPlacementProperty = ITextBaseComponent.BadgeTooltipPlacementProperty,
-                ContentStateTarget = $".{TextClassPrefix}__badge"
-            });
+        BadgeRenderer.RenderBadge(context, root, badge, TextBadgeOptions);
     }
 
     /// <summary>
@@ -146,10 +174,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
-
-        // The accessible half of the marker the header draws.
-        if (HasRequiredValidation(context))
-            _ = root.Attribute("aria-required", "true");
 
         if (titleCanGoInside && IsTitleInside(context))
         {
@@ -176,9 +200,43 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             RenderTextBody(context, root, header, new WebTextBodyOptions
             {
                 DefaultBadgePlacement = UITextBadgePlacement.Trailing,
-                Trailing = marker => RenderRequiredMarker(context, marker, $"{InputClassPrefix}__required")
+                Trailing = marker => RenderRequiredMarker(context, marker, $"{InputClassPrefix}__required"),
+                NamesField = true
             });
         });
+    }
+
+    /// <summary>
+    /// Makes <paramref name="field"/> the control the caption names — or the component's <c>AccessibleName</c>, where it sets one: its
+    /// accessible name, whether it is required, the validation line
+    /// that describes it, and invalid where the render already knows the value was refused. For the element a screen reader lands on —
+    /// the native field, a picker's trigger, the group a period's two fields stand in.
+    /// </summary>
+    /// <remarks>The caption drawn beside a field is not its label for a screen reader: most fields' roots are not a label element.</remarks>
+    public static void RenderFieldLabel(WebRenderContext context, IHtmlElementBuilder field)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(field);
+
+        _ = field.Attribute(LabelledAttribute);
+
+        _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+
+        if (!string.IsNullOrWhiteSpace(title))
+            _ = field.Attribute("aria-label", title);
+
+        RenderAccessibleName(context, field);
+
+        if (HasRequiredValidation(context))
+            _ = field.Attribute("aria-required", "true");
+
+        if (ValidationMessageId(context) is string messageId)
+            _ = field.Attribute("aria-describedby", messageId);
+
+        _ = ResolveRenderValue(context, IInputComponent.ValidationProperty, out UIValidationMessage? validation, out _);
+
+        if (validation is { Severity: UIValidationSeverity.Error })
+            _ = field.Attribute("aria-invalid", "true");
     }
 
     /// <summary>
@@ -210,7 +268,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Text(value);
-        }, [WebDomOperation.Text()]);
+        }, AffixTextOperations);
     }
 
     /// <summary>How the field surface is drawn, as a modifier on the component root.</summary>
@@ -223,7 +281,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             if (value is UIInputAppearance appearance)
                 _ = target.Class(WebClassNames.InputAppearance(appearance));
-        }, [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)]);
+        }, InputAppearanceOperations);
 
         RenderInputSize(context, root);
     }
@@ -238,7 +296,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             if (value is UIInputSize size)
                 _ = target.Class(WebClassNames.InputSize(size));
-        }, [WebDomOperation.Class(converter: WebDomConverters.InputSizeClass)]);
+        }, InputSizeOperations);
     }
 
     /// <summary>A glyph beside the text inside the field; icon name only, the field decides size and colour.</summary>
@@ -256,6 +314,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         UIProperty property = suffix ? IAffixedInputComponent.SuffixIconProperty : IAffixedInputComponent.PrefixIconProperty;
         var attribute = suffix ? SuffixIconShownAttribute : PrefixIconShownAttribute;
+        WebDomOperation[] operations = suffix ? SuffixIconOperations : PrefixIconOperations;
 
         _ = RenderProperty<string?>(context, icon, property, (target, value) =>
         {
@@ -264,10 +323,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 _ = root.Attribute(attribute);
                 IconValueRenderer.RenderIconValue(target, value);
             }
-        }, [
-            .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(attribute, target: "root", condition: WebValueCondition.HasText)
-        ]);
+        }, operations);
     }
 
     /// <summary>
@@ -317,25 +373,25 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         {
             if (value is UITextWrapMode wrapMode)
                 _ = target.Class(WebClassNames.TextWrap(wrapMode));
-        }, [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)]);
+        }, WrapModeOperations);
 
         _ = RenderProperty<int?>(context, root, IParagraphComponent.MaxLinesProperty, static (target, value) =>
         {
             if (value is int maxLines && maxLines > 0)
                 _ = target.Style(MaxLinesVariable, maxLines.ToString(CultureInfo.InvariantCulture)).Class(MaxLinesClassName);
-        }, [WebDomOperation.Style(MaxLinesVariable), WebDomOperation.ToggleClass(MaxLinesClassName, condition: WebValueCondition.HasValue)]);
+        }, MaxLinesOperations);
 
         _ = RenderProperty<bool?>(context, root, IParagraphComponent.ShowQuoteLineProperty, static (target, value) =>
         {
             if (value == true)
                 _ = target.Class(QuoteClassName);
-        }, [WebDomOperation.ToggleClass(QuoteClassName, condition: WebValueCondition.IsTrue)]);
+        }, QuoteLineOperations);
 
         _ = RenderProperty<UIThemeColor?>(context, root, IParagraphComponent.QuoteLineColorProperty, static (target, value) =>
         {
-            if (value is UIThemeColor color)
-                _ = target.Style(QuoteColorVariable, WebCssValues.ThemeColor(color));
-        }, [WebDomOperation.Style(QuoteColorVariable, converter: WebDomConverters.ThemeColorCss)]);
+            if (value is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
+                _ = target.Style(QuoteColorVariable, css);
+        }, QuoteLineColorOperations);
     }
 
     private const string MaxLinesClassName = "ui-text--max-lines";
@@ -361,13 +417,10 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 _ = root.Attribute(IconOnlyButtonAttribute);
                 IconValueRenderer.RenderIconValue(target, value);
             }
-        }, [
-            .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.HasText)
-        ]);
+        }, IconOperations);
     }
 
-    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title)
+    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title, bool namesField = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -375,7 +428,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         _ = title.Class($"{TextClassPrefix}__title");
 
-        // No type of its own: the body already wears TitleType (RenderTextContent); a role class here would block inherited
+        // No type of its own: the body already wears TitleType (RenderTextBody); a role class here would block inherited
         // values like a button's step or a tab's weight from reaching the title.
         _ = RenderProperty<string?>(context, title, ITextBaseComponent.TitleProperty, (target, value) =>
         {
@@ -384,10 +437,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 _ = root.Attribute(TitleShownAttribute);
                 _ = target.Text(value);
             }
-        }, [
-            WebDomOperation.Text(),
-            WebDomOperation.ToggleAttribute(TitleShownAttribute, target: "root", condition: WebValueCondition.HasText)
-        ]);
+        }, namesField ? FieldTitleOperations : TitleOperations);
     }
 
     /// <summary>Applies <c>TitleColor</c> to <paramref name="titleScope"/>, which must contain the icon so the glyph inherits it.</summary>
@@ -414,9 +464,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 _ = root.Attribute(DescriptionShownAttribute);
                 InlineMarkupRenderer.Render(target, value);
             }
-        }, [
-            WebDomOperation.Markup(),
-            WebDomOperation.ToggleAttribute(DescriptionShownAttribute, target: "root", condition: WebValueCondition.HasText)
-        ]);
+        }, DescriptionOperations);
     }
 }

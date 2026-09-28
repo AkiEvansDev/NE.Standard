@@ -1,8 +1,5 @@
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.Scroll;
 
@@ -49,12 +46,12 @@ internal sealed partial class ChatGroupContext : DemoGroupContext
 /// <summary>
 /// The other end-anchored case: output from a job that has not finished, a line per append.
 /// </summary>
-internal sealed partial class BuildLogGroupContext : DemoGroupContext
+internal sealed partial class ProvisioningLogGroupContext : DemoGroupContext
 {
     private static readonly string[] Steps =
     [
-        "restoring packages", "building NE.Standard.UI", "building NE.Standard.UI.Web",
-        "running 514 tests", "packing artifacts", "uploading to the staging registry"
+        "ordering api-eu-west-1", "creating disk 80 GB", "writing the image",
+        "booting", "running the health check", "health check passed"
     ];
 
     private int _line = Seed;
@@ -91,7 +88,7 @@ internal sealed partial class ScrollScenariosController() : DemoController
     public partial ChatGroupContext ChatGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial BuildLogGroupContext LogGroup { get; set; } = new();
+    public partial ProvisioningLogGroupContext LogGroup { get; set; } = new();
 
     [UICommand]
     public void SendMessage()

@@ -94,10 +94,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
             }
         }
 
-        template = string.Create(
-            CultureInfo.InvariantCulture,
-            $"repeat({units.Count}, {WebCssValues.GridUnit(first)})"
-        );
+        template = string.Create(CultureInfo.InvariantCulture, $"repeat({units.Count}, {WebCssValues.GridUnit(first)})");
 
         return true;
     }

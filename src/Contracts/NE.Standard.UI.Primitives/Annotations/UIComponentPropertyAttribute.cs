@@ -45,7 +45,7 @@ public sealed class UIComponentPropertyAttribute : Attribute
     public bool GenerateSetter { get; init; } = true;
 
     /// <summary>
-    /// Gets or sets whether a fluent binding setter should be generated.
+    /// Gets or sets whether a fluent binding setter should be generated; left unset, the generator follows <see cref="IsBindable"/>.
     /// </summary>
     public bool GenerateBinder { get; init; } = true;
 

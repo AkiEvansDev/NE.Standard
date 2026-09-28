@@ -1,6 +1,7 @@
 import { ResolvedPropertyAddress } from "../addressing/address-resolver";
 import { isNullishValue, toDomString } from "../extensions/value-readers";
 import { getDomOperationKind, getValueCondition, WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index";
+import { isIconClassName } from "../rendering/icon-value";
 import { applyInlineMarkup } from "../rendering/inline-markup";
 import { logWarn } from "../runtime/logger";
 
@@ -21,6 +22,11 @@ export type DomOperationRegistration = {
 };
 
 const classOperationState = new WeakMap<Element, Map<string, string>>();
+
+// A class the server's render wrote is not in the state above until the client writes one itself, so the first write would leave it
+// standing beside the new one. A converter whose classes are a family names it here, and its first write clears the member the page
+// arrived with: an icon that turned from a picture into a glyph kept the picture's class, and the glyph never showed.
+const classFamilies = new Map<string, (className: string) => boolean>([["iconClass", isIconClassName]]);
 const attributeOperationState = new WeakMap<Element, Map<string, Set<string>>>();
 
 export class DomOperationRegistry {
@@ -90,7 +96,7 @@ export class DomOperationRegistry {
             const enabled = !isNullishValue(context.value) && evaluateCondition(context.value, context.operation.condition ?? "None");
             const className = enabled ? toDomString(context.convertedValue).trim() : "";
 
-            replaceTrackedClass(context.target, createClassOperationKey(context), className);
+            replaceTrackedClass(context.target, createClassOperationKey(context), className, classFamilies.get(context.operation.converter ?? ""));
         });
 
         this.register("ToggleClass", context => {
@@ -186,7 +192,7 @@ function toggleTrackedAttribute(element: Element, key: string, name: string, ena
     }
 }
 
-function replaceTrackedClass(element: Element, key: string, nextClass: string): void {
+function replaceTrackedClass(element: Element, key: string, nextClass: string, family?: (className: string) => boolean): void {
     let state = classOperationState.get(element);
 
     if (state === undefined) {
@@ -195,6 +201,13 @@ function replaceTrackedClass(element: Element, key: string, nextClass: string): 
     }
 
     const previousClass = state.get(key);
+
+    if (previousClass === undefined && family !== undefined) {
+        for (const className of Array.from(element.classList)) {
+            if (className !== nextClass && family(className))
+                element.classList.remove(className);
+        }
+    }
 
     // The same class again would be a remove and an add: two mutations and a restyle to end where it began.
     if (previousClass === nextClass) {

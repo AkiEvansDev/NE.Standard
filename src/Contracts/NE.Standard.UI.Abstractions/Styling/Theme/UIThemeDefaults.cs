@@ -63,48 +63,9 @@ public static class UIThemeDefaults
     };
 
     /// <summary>
-    /// Gets the standard dark color palette.
+    /// Gets the standard dark color palette: the palette's own defaults.
     /// </summary>
-    public static UIColorPalette DarkPalette => new()
-    {
-        Primary = new(ColorName.AstralTeal),
-        Accent = new(ColorName.NovaPurple),
-
-        Background = new(ColorName.IronFog, ColorAdjustment.Shade, 8),
-        Surface = new(ColorName.IronFog, ColorAdjustment.Shade, 7),
-
-        OnPrimary = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
-        OnAccent = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
-        OnBackground = new(ColorName.IronFog, ColorAdjustment.Tint, 9),
-        OnSurface = new(ColorName.IronFog, ColorAdjustment.Tint, 7),
-
-        Info = new(ColorName.QuantumBlue),
-        Warning = new(ColorName.NebulaGold),
-        Success = new(ColorName.AuroraGreen),
-        Danger = new(ColorName.StellarRed),
-
-        OnInfo = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
-        OnWarning = new(ColorName.IronFog, ColorAdjustment.Shade, 9),
-        OnSuccess = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
-        OnDanger = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
-
-        // Lifted until each clears 4.5:1 on the dark page; Primary stays at Tint 2 since it's nearly always marked current some other way.
-        PrimaryInk = new(ColorName.AstralTeal, ColorAdjustment.Tint, 2),
-        AccentInk = new(ColorName.NovaPurple, ColorAdjustment.Tint, 3),
-        InfoInk = new(ColorName.QuantumBlue, ColorAdjustment.Tint, 3),
-        WarningInk = new(ColorName.NebulaGold),
-        SuccessInk = new(ColorName.AuroraGreen, ColorAdjustment.Tint, 2),
-        DangerInk = new(ColorName.StellarRed, ColorAdjustment.Tint, 3),
-
-        Selected = new(ColorName.NovaPurple, ColorAdjustment.Tint, 3, 55),
-        FocusRing = new(ColorName.NovaPurple),
-
-        Border = new(ColorName.IronFog, ColorAdjustment.Tint, 10, 24),
-        Shadow = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 120),
-        Overlay = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 160),
-
-        DisabledOpacity = 145
-    };
+    public static UIColorPalette DarkPalette => new();
 
     /// <summary>
     /// Gets the standard typography tokens.

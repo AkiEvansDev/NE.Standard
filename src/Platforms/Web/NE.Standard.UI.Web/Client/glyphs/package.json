@@ -6,7 +6,7 @@
     "build": "node build.mjs"
   },
   "devDependencies": {
-    "material-symbols": "0.47.0",
-    "subset-font": "2.7.0"
+    "material-symbols": "0.47.5",
+    "subset-font": "2.9.0"
   }
 }

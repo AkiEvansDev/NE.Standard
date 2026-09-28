@@ -1,13 +1,4 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
+using System.Collections.Generic;
 using TeamRoom.Controllers;
 
 namespace TeamRoom.Views;
@@ -60,11 +51,6 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
                 .SetPlaceholder("Pick or drop a picture")
                 .BindSelectionId(nameof(PictureRow.SelectionId), UIBindingScope.Relative)
             )
-            .AddValueInputTemplate("password", new TextInputComponent()
-                .SetType(UITextInputType.Password)
-                .SetAppearance(UIInputAppearance.Ghost)
-                .SetPlaceholder("A new password")
-            )
             .AddValueInputTemplate("fit", new SelectComponent()
                 .SetOptions([
                     new OptionItem { Id = nameof(UIImageFit.Cover), Title = "Cover" },
@@ -74,6 +60,36 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
                 ])
             )
             .EnableEditing(nameof(SettingsController.SaveRowAsync), nameof(SettingsController.OpenRow));
+
+    /// <summary>The password's own dialog: the current one and the new one, each named for the browser's password manager.</summary>
+    protected override IReadOnlyList<UIDialog> CreateDialogs()
+        =>
+        [
+            new UIDialog
+            {
+                Key = SettingsController.PasswordDialogKey,
+                Label = "Change password",
+                CloseOnBackdrop = false,
+                Content = new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetSpacing(12)
+                    .SetMinWidth(UILayoutLength.Absolute(360))
+                    .AddChild(new TextComponent().SetTitle("Change the password").SetTitleType(UITextAppearance.Title).SetDescription("Your other sessions are signed out."))
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("Current password")
+                        .SetType(UITextInputType.Password)
+                        .SetAutocomplete(UIAutocomplete.CurrentPassword)
+                        .BindValue(nameof(SettingsController.CurrentPassword))
+                    )
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("New password")
+                        .SetType(UITextInputType.Password)
+                        .SetAutocomplete(UIAutocomplete.NewPassword)
+                        .BindValue(nameof(SettingsController.NewPassword))
+                    )
+                    .AddChild(CreateDialogButtons(nameof(SettingsController.ClosePasswordDialog), nameof(SettingsController.ChangePasswordAsync), "Change"))
+            }
+        ];
 
     /// <summary>Drawn the way the chat's feed draws it: the same property on the same kind of surface.</summary>
     private static SurfaceComponent CreatePreview()

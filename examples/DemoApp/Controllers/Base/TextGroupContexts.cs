@@ -1,7 +1,4 @@
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Base;
 
@@ -11,10 +8,10 @@ namespace DemoApp.Controllers.Base;
 /// <remarks>A page whose host draws no description passes none, and the three description rows are not added.</remarks>
 internal sealed partial class TextContentGroupContext : TooltipGroupContext
 {
-    private const string SampleTooltip = "Shown on hover **and** on focus — see [the docs](https://example.com/docs).";
+    private const string SampleTooltip = "Shown on hover **and** on focus — see [the docs](https://docs.orvane.example).";
 
     // Carries prose that looks like markup and is not, plus a mark, so the row exercises the icon patch path.
-    private const string MarkupDescription = "![" + DemoIcons.Alert + "] **Blocks** the pipeline — *3 * 4* retries against `retryCount`, see ~~deploy_log~~ [the run](https://example.com/runs/482).";
+    private const string MarkupDescription = "![" + DemoIcons.Alert + "] **Blocks** the provisioning run — *3 * 4* retries against `retryCount`, see ~~deploy_log~~ [the run](https://orvane.example/runs/482).";
 
     private readonly string _sampleTitle;
     private readonly string? _sampleDescription;
@@ -46,7 +43,7 @@ internal sealed partial class TextContentGroupContext : TooltipGroupContext
     [RecursiveMember]
     public partial UIThemeColor? DescriptionColor { get; set; }
 
-    public TextContentGroupContext(string sampleTitle = "Require review before deploy", string? sampleDescription = null)
+    public TextContentGroupContext(string sampleTitle = "Snapshot before every resize", string? sampleDescription = null)
     {
         _sampleTitle = sampleTitle;
         _sampleDescription = sampleDescription;
@@ -127,8 +124,7 @@ internal sealed partial class TextContentGroupContext : TooltipGroupContext
     public void CycleDescriptionColor()
     {
         CheckDescription();
-        SetLastChange(nameof(DescriptionColor), DescriptionColor = CycleValue(DescriptionColor,
-            null, UIThemeColor.Muted, UIThemeColor.FromStyle(UIColorStyle.Default), UIThemeColor.FromStyle(UIColorStyle.Primary)));
+        SetLastChange(nameof(DescriptionColor), DescriptionColor = CycleValue(DescriptionColor, null, UIThemeColor.Muted, UIThemeColor.FromStyle(UIColorStyle.Default), UIThemeColor.FromStyle(UIColorStyle.Primary)));
     }
 
     private void CheckDescription()
@@ -194,8 +190,7 @@ internal sealed partial class ParagraphLayoutGroupContext : TextLayoutGroupConte
     public void CycleQuoteLineColor()
     {
         ShowQuoteLine = true;
-        SetLastChange(nameof(QuoteLineColor), QuoteLineColor = CycleValue(QuoteLineColor,
-            null, UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning)));
+        SetLastChange(nameof(QuoteLineColor), QuoteLineColor = CycleValue(QuoteLineColor, null, UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning)));
     }
 
     public void CycleWrapMode()
@@ -269,8 +264,7 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
 
     // Set, it wins over BadgeStyle above.
     public void CycleBadgeColor()
-        => SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor,
-            null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
+        => SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor, null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
 
     public void CycleBadgeIcon()
         => SetLastChange(nameof(BadgeIcon), BadgeIcon = CycleIconValue(BadgeIcon, DemoIcons.Clock));
@@ -347,8 +341,7 @@ internal sealed partial class BorderGroupContext : DemoGroupContext
     }
 
     public void CycleBorderThickness()
-        => SetLastChange(nameof(BorderThickness), BorderThickness = CycleValue(BorderThickness,
-            UIThickness.Uniform(1), UIThickness.Uniform(2), UIThickness.Uniform(4), UIThickness.Uniform(0), null));
+        => SetLastChange(nameof(BorderThickness), BorderThickness = CycleValue(BorderThickness, UIThickness.Uniform(1), UIThickness.Uniform(2), UIThickness.Uniform(4), UIThickness.Uniform(0), null));
 
     public void CycleBorderRadius()
     {

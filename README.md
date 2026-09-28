@@ -15,20 +15,23 @@ Documentation: [akievansdev.github.io/NE.Standard](https://akievansdev.github.io
 
 ## Install
 
-**This is a pre-release.** Every package goes out on one repository version and they are only ever installed
-at matching versions, so `--prerelease` is needed until the first stable release.
+Every package goes out on one repository version and they are only ever installed at matching versions. Until
+2.0.0 the public surface may still move between versions; each changelog marks what breaks.
 
 ```
-dotnet add package NE.Standard.UI.Web --prerelease
-dotnet add package NE.Standard.UI.Web.Renderers --prerelease
+dotnet add package NE.Standard.UI.Web
+dotnet add package NE.Standard.UI.Web.Renderers
 ```
 
-Everything else in the framework arrives as a dependency of those two.
+The rest of the table arrives as a dependency of those two — the generators that write a controller's observable
+members included — except `NE.Standard.UI.Extensions`, the presets, a separate install for an application that
+wants them. Each package
+brings the namespaces an application writes against as global usings, so the code below needs no `using` line.
 
 | Package | |
 |---|---|
-| [`NE.Standard.UI.Primitives`](https://www.nuget.org/packages/NE.Standard.UI.Primitives) | the bottom layer: enums, attributes and value types — `UIThickness`, `UIResponsive<T>`, the styling and binding vocabulary. No dependencies. |
-| [`NE.Standard.UI.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Abstractions) | the binding and addressing model, `RecursiveObservable`, the items and interaction contracts, the `ClientEffect` vocabulary. |
+| [`NE.Standard.UI.Primitives`](https://www.nuget.org/packages/NE.Standard.UI.Primitives) | the bottom layer: enums, attributes and constants — `UIAlignment`, `UIOrientation`, the styling and binding vocabulary. No dependencies. |
+| [`NE.Standard.UI.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Abstractions) | the binding and addressing model, `RecursiveObservable`, the styling value types (`UIThickness`, `UIResponsive<T>`), the items and interaction contracts, the `ClientEffect` vocabulary. |
 | [`NE.Standard.UI.Authoring`](https://www.nuget.org/packages/NE.Standard.UI.Authoring) | what an author writes against: the component, view and controller base contracts. |
 | [`NE.Standard.UI.Compiled`](https://www.nuget.org/packages/NE.Standard.UI.Compiled) | the compiler's output: `CompiledView`, its indexes and the resolution over them. |
 | [`NE.Standard.UI.Shell`](https://www.nuget.org/packages/NE.Standard.UI.Shell) | hosting and runtime contracts: `IUIHost`, `IUIRuntime`, `IUIUpdateSink`, sessions, services. |
@@ -43,13 +46,14 @@ Everything else in the framework arrives as a dependency of those two.
 | [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components: a text in a role, a page's header band and sections, a stack and a row, a button per type, a field with its hint, a read-only key-value list, and one interaction from another component's value. Server-only, nothing new to render. |
 
 **Icons ship separately**, from [`NE.Standard.UI.Icons`](https://github.com/AkiEvansDev/NE.Standard.UI.Icons)
-— Lucide and Material Symbols, a name package and a web package each, MIT, on their own version. They are
-developed alongside the framework, so a set and the renderer it plugs into are never out of step. The demo
-uses the Material set.
+— Material Symbols, a name package and a web package, MIT, released together with the framework on the same
+version. They are developed alongside the framework, so the set and the renderer it plugs into are never out of
+step.
 
 **Components can ship separately too.** A component package is a component like the built-in ones — the same
-generator, the same binding, its own renderer against `NE.Standard.UI.Web.Abstractions` — under the framework's
-own licence and on its own version, each in a repository of its own:
+generator, the same binding, its own renderer on `NE.Standard.UI.Web.Renderers.Foundation` (the data grid, which
+extends the table, on `NE.Standard.UI.Web.Renderers`) — under the framework's own licence, released together with
+it on the same version, each in a repository of its own:
 
 - [`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) — a code editor with
   syntax highlighting, line numbers, several carets and find and replace.
@@ -58,7 +62,8 @@ own licence and on its own version, each in a repository of its own:
 - [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie and
   scatter charts, a sparkline and a gauge, as SVG the browser keeps.
 - [`NE.Standard.UI.Graph`](https://github.com/AkiEvansDev/NE.Standard.UI.Graph) — a canvas of typed nodes, and
-  the layered graph of an application's own nodes or of its resources and crafts.
+  the layered graph of an application's own nodes or of its resources and crafts; a calculator's node kinds come
+  ready made in `NE.Standard.UI.Graph.Calculator`, picture kinds in `NE.Standard.UI.Graph.Image`.
 
 The colour palette is [`NE.Colors`](https://www.nuget.org/packages/NE.Colors), a repository of its own because
 more than this framework needs it. It is MIT, and it arrives as a dependency of
@@ -79,15 +84,11 @@ internal sealed class CounterView : UIViewBase, IUIViewDefinition
 
     protected override IVisualComponent CreateContent()
         => new ContainerComponent()
-            .SetPadding(new UIThickness(16))
-            .AddChild(new TextComponent()
-                .BindTitle(nameof(CounterController.Count))
-                .SetPlacement(1, 1, 24, 1)
-            )
+            .SetPadding(UIThickness.Uniform(16))
+            .AddChild(new TextComponent().BindTitle(nameof(CounterController.Count)))
             .AddChild(new ButtonComponent()
                 .OnClick(nameof(CounterController.Increment))
                 .SetTitle("Add one")
-                .SetPlacement(1, 2, 24, 1)
             );
 }
 ```
@@ -114,16 +115,18 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services);
 
 WebApplication app = builder.Build();
+app.UseStaticFiles();
+app.UseRouting();
 await app.MapStandardUIWebAsync();
 await app.RunAsync();
 ```
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component has its pages, 116 routes in all,
+`examples/DemoApp` is the reference application: every built-in component has its pages, 118 routes in all,
 with the sign-in, account, admin and forbidden pages showing what the security mechanism does; the mini
-application `examples/TeamRoom` exercises the same mechanism end to end. Every component has a **Main** page — a
-preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an
+application `examples/TeamRoom` exercises the same mechanism end to end. Every component but the dialog and the
+notification, which have a test page each, has a **Main** page — a preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an
 **Examples** page for variants worth putting side by side and a **Scenarios** page for what needs a story rather
 than a property.
 
@@ -151,4 +154,4 @@ appears here with the next release.
 
 **The Prosperity Public License 3.0.0** — free for noncommercial use, with a thirty-day trial for commercial
 use. Personal projects, research, education, charities and public institutions are not commercial use. See
-[LICENSE.md](LICENSE.md); it is one page.
+[LICENSE.md](https://github.com/AkiEvansDev/NE.Standard/blob/main/LICENSE.md); it is one page.

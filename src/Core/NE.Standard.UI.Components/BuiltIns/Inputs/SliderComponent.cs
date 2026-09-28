@@ -55,6 +55,17 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     public bool? ShowRange { get; set; }
 
     /// <summary>
+    /// Sets the value, which may not fall outside <see cref="Min"/>/<see cref="Max"/>; whichever of the three is set last is checked
+    /// against the others.
+    /// </summary>
+    public new T SetValue(decimal? value)
+    {
+        OrderedRange.Validate(Min, Max, value, "value");
+        Value = value;
+        return Self;
+    }
+
+    /// <summary>
     /// Sets the minimum selectable value.
     /// </summary>
     public T SetMin(decimal min)
@@ -77,8 +88,6 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// </summary>
     public T SetStep(decimal step)
     {
-        OrderedRange.Validate(Min, Max, Value, "value");
-
         if (step <= 0)
             throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
 

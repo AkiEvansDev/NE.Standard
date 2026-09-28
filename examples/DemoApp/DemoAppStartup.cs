@@ -13,6 +13,7 @@ using DemoApp.Controllers.Indicators.Spinner;
 using DemoApp.Controllers.Inputs.ColorInput;
 using DemoApp.Controllers.Inputs.FileInput;
 using DemoApp.Controllers.Inputs.ImageInput;
+using DemoApp.Controllers.Inputs.MultiSelect;
 using DemoApp.Controllers.Inputs.NumberInput;
 using DemoApp.Controllers.Inputs.RadioGroup;
 using DemoApp.Controllers.Inputs.Search;
@@ -58,6 +59,7 @@ using DemoApp.Views.Indicators.Spinner;
 using DemoApp.Views.Inputs.ColorInput;
 using DemoApp.Views.Inputs.FileInput;
 using DemoApp.Views.Inputs.ImageInput;
+using DemoApp.Views.Inputs.MultiSelect;
 using DemoApp.Views.Inputs.NumberInput;
 using DemoApp.Views.Inputs.RadioGroup;
 using DemoApp.Views.Inputs.Search;
@@ -87,8 +89,6 @@ using DemoApp.Views.Navigation.Tabs;
 using DemoApp.Views.Navigation.TabsView;
 using DemoApp.Views.Overlays;
 using DemoApp.Views.Screens;
-using NE.Standard.UI.Application;
-using NE.Standard.UI.Startup;
 
 namespace DemoApp;
 
@@ -200,6 +200,8 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<ColorInputExamplesView>("/inputs/color-input/examples");
         _ = application.Route<SelectMainView, SelectMainController>("/inputs/select");
         _ = application.Route<SelectExamplesView>("/inputs/select/examples");
+        _ = application.Route<MultiSelectMainView, MultiSelectMainController>("/inputs/multi-select");
+        _ = application.Route<MultiSelectExamplesView>("/inputs/multi-select/examples");
         _ = application.Route<SearchMainView, SearchMainController>("/inputs/search");
         _ = application.Route<SearchExamplesView, SearchExamplesController>("/inputs/search/examples");
         _ = application.Route<FileInputMainView, FileInputMainController>("/inputs/file-input");

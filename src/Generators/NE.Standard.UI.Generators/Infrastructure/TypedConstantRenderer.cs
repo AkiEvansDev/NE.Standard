@@ -19,6 +19,10 @@ internal static class TypedConstantRenderer
         if (value.Kind == TypedConstantKind.Array)
             return RenderArrayConstant(value);
 
+        // A type argument holds the symbol; its display name alone would read as a type where a value is expected.
+        if (value.Kind == TypedConstantKind.Type)
+            return value.Value is ITypeSymbol type ? "typeof(" + type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + ")" : "null";
+
         return value.Value switch
         {
             string text => SymbolDisplay.FormatLiteral(text, quote: true),
@@ -32,12 +36,25 @@ internal static class TypedConstantRenderer
             uint ui32 => ui32.ToString(CultureInfo.InvariantCulture) + "U",
             long i64 => i64.ToString(CultureInfo.InvariantCulture) + "L",
             ulong ui64 => ui64.ToString(CultureInfo.InvariantCulture) + "UL",
-            double d => d.ToString("R", CultureInfo.InvariantCulture) + "d",
-            float f => f.ToString("R", CultureInfo.InvariantCulture) + "f",
+            double d => RenderDouble(d),
+            float f => RenderSingle(f),
             decimal m => m.ToString(CultureInfo.InvariantCulture) + "m",
             _ => value.Value?.ToString() ?? "null"
         };
     }
+
+    // The non-finite values have no literal; "NaNd" would not compile.
+    private static string RenderDouble(double value)
+        => double.IsNaN(value) ? "double.NaN"
+            : double.IsPositiveInfinity(value) ? "double.PositiveInfinity"
+            : double.IsNegativeInfinity(value) ? "double.NegativeInfinity"
+            : value.ToString("R", CultureInfo.InvariantCulture) + "d";
+
+    private static string RenderSingle(float value)
+        => float.IsNaN(value) ? "float.NaN"
+            : float.IsPositiveInfinity(value) ? "float.PositiveInfinity"
+            : float.IsNegativeInfinity(value) ? "float.NegativeInfinity"
+            : value.ToString("R", CultureInfo.InvariantCulture) + "f";
 
     private static string RenderArrayConstant(TypedConstant value)
     {
@@ -93,8 +110,9 @@ internal static class TypedConstantRenderer
     {
         SpecialType underlyingType = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.System_Int32;
 
+        // The number in parentheses: "(E)-1" parses as a subtraction.
         return underlyingType is SpecialType.System_Byte or SpecialType.System_UInt16 or SpecialType.System_UInt32 or SpecialType.System_UInt64
-            ? "(" + enumTypeName + ")" + Convert.ToUInt64(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture)
-            : "(" + enumTypeName + ")" + Convert.ToInt64(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+            ? "(" + enumTypeName + ")(" + Convert.ToUInt64(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture) + ")"
+            : "(" + enumTypeName + ")(" + Convert.ToInt64(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture) + ")";
     }
 }

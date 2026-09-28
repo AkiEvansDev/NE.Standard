@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { iconImageClassName, readIconSource, toIconGlyphClassName, toIconSourceCss } from "../src/rendering/icon-value.ts";
+import { iconImageClassName, isIconClassName, readIconSource, toIconGlyphClassName, toIconSourceCss } from "../src/rendering/icon-value.ts";
 
 type CorpusCase = { readonly name: string; readonly value: string; readonly class: string; readonly url: string };
 
@@ -31,3 +31,14 @@ for (const testCase of corpus.cases) {
         assert.equal(toIconSourceCss(testCase.value), testCase.url);
     });
 }
+
+// Every class the converter writes is one of the family its first live write clears, and nothing else is.
+test("icon value: every class the converter writes is in the icon family", () => {
+    for (const testCase of corpus.cases) {
+        if (testCase.class.length > 0)
+            assert.ok(isIconClassName(testCase.class), testCase.name);
+    }
+
+    assert.equal(isIconClassName("ui-icon"), false);
+    assert.equal(isIconClassName("ui-color--muted"), false);
+});

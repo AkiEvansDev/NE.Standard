@@ -17,12 +17,16 @@
     color: var(--ui-color-border);
 }
 
+    // Placed by an offset rather than translate(-50%): a transformed box is not snapped to the pixel grid, and a 1px line in an
+    // 8px handle landed on x=3.5 as a faint 2px smear. The offset keeps the rest and the hover line on one whole-pixel axis.
     .ui-grid-splitter::before {
         content: "";
         position: absolute;
+        --ui-grid-splitter-line: 1px;
+        --ui-grid-splitter-offset: calc(50% - (var(--ui-grid-splitter-line) + 1px) / 2);
         background: currentColor;
         border-radius: 999px;
-        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease, height @ui-motion-fast @ui-motion-ease;
+        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease, height @ui-motion-fast @ui-motion-ease, left @ui-motion-fast @ui-motion-ease, top @ui-motion-fast @ui-motion-ease;
     }
 
 // The hit area is the track it sizes: wide enough to catch, and the line sits in the middle of it.
@@ -34,9 +38,8 @@
     .ui-grid-splitter.ui-orientation--vertical::before {
         top: 0;
         bottom: 0;
-        left: 50%;
-        width: 1px;
-        transform: translateX(-50%);
+        left: var(--ui-grid-splitter-offset);
+        width: var(--ui-grid-splitter-line);
     }
 
 .ui-grid-splitter.ui-orientation--horizontal {
@@ -47,9 +50,8 @@
     .ui-grid-splitter.ui-orientation--horizontal::before {
         left: 0;
         right: 0;
-        top: 50%;
-        height: 1px;
-        transform: translateY(-50%);
+        top: var(--ui-grid-splitter-offset);
+        height: var(--ui-grid-splitter-line);
     }
 
 // A press focuses the handle too, and the browser then treats that as keyboard focus; [data-ui-pointer-focus] overrides it,
@@ -64,11 +66,11 @@
 .ui-grid-splitter.ui-orientation--vertical:hover::before,
 .ui-grid-splitter.ui-orientation--vertical:focus-visible:not([data-ui-pointer-focus])::before,
 .ui-grid-splitter.ui-orientation--vertical[data-ui-splitting]::before {
-    width: 3px;
+    --ui-grid-splitter-line: 3px;
 }
 
 .ui-grid-splitter.ui-orientation--horizontal:hover::before,
 .ui-grid-splitter.ui-orientation--horizontal:focus-visible:not([data-ui-pointer-focus])::before,
 .ui-grid-splitter.ui-orientation--horizontal[data-ui-splitting]::before {
-    height: 3px;
+    --ui-grid-splitter-line: 3px;
 }

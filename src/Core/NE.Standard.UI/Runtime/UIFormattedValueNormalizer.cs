@@ -51,6 +51,10 @@ internal static class UIFormattedValueNormalizer
         if (string.IsNullOrWhiteSpace(format) && ReferenceEquals(cultureInfo, CultureInfo.InvariantCulture))
             return UIFormattedValueNormalization.Untouched;
 
+        // Before the temporal parse too: under de-DE the lenient date parse would read the client's "1234.5" as a day.
+        if (!IsTemporalFormat(format) && TryParseCanonicalNumber(text, out normalized))
+            return UIFormattedValueNormalization.Normalized;
+
         if (TryParseTemporal(text, format, cultureInfo, out normalized))
             return UIFormattedValueNormalization.Normalized;
 
@@ -74,6 +78,31 @@ internal static class UIFormattedValueNormalizer
         {
             return CultureInfo.InvariantCulture;
         }
+    }
+
+    private static bool IsTemporalFormat(string? format)
+        => !string.IsNullOrWhiteSpace(format) && (HasDateParts(format) || HasTimeParts(format));
+
+    /// <summary>
+    /// Parses a number the client sent in its own invariant canonical form — read before the component's culture, as
+    /// <see cref="TryParseCanonical"/> reads a date.
+    /// </summary>
+    /// <remarks>
+    /// The culture first would misread it: under <c>de-DE</c> the '.' of <c>1234.5</c> is a group separator. The canonical form
+    /// carries no group separator, so text written with one still falls to the culture.
+    /// </remarks>
+    private static bool TryParseCanonicalNumber(string text, out object? normalized)
+    {
+        const NumberStyles Canonical = NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
+
+        if (decimal.TryParse(text, Canonical, CultureInfo.InvariantCulture, out var number))
+        {
+            normalized = number.ToString(CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        normalized = null;
+        return false;
     }
 
     /// <summary>

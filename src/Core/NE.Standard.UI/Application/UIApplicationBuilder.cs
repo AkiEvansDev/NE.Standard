@@ -157,6 +157,9 @@ public sealed class UIApplicationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Configures the runtimes: their lifetime and retention, the flush and cleanup schedules, and the caps on what a session holds.
+    /// </summary>
     public UIApplicationBuilder ConfigurePersistence(Action<UIPersistenceOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
@@ -452,6 +455,8 @@ public sealed class UIApplicationBuilder
             FlushSchedulerInterval = source.FlushSchedulerInterval,
             MaxParallelFlushes = source.MaxParallelFlushes,
             MaxQueuedChangeSets = source.MaxQueuedChangeSets,
+            MaxRuntimesPerSession = source.MaxRuntimesPerSession,
+            MaxUnclaimedRuntimesPerSession = source.MaxUnclaimedRuntimesPerSession,
             CleanupInterval = source.CleanupInterval
         };
 
@@ -505,6 +510,7 @@ public sealed class UIApplicationBuilder
         => new()
         {
             IdleTimeout = source.IdleTimeout,
+            UnclaimedIdleTimeout = source.UnclaimedIdleTimeout,
             CleanupInterval = source.CleanupInterval,
             ClientKey = source.ClientKey,
             ClientKeyLifetime = source.ClientKeyLifetime
@@ -516,6 +522,8 @@ public sealed class UIApplicationBuilder
         {
             MaxFileSize = source.MaxFileSize,
             MaxFilesPerSelection = source.MaxFilesPerSelection,
+            MaxUploadBytesPerSession = source.MaxUploadBytesPerSession,
+            MaxUploadBytesTotal = source.MaxUploadBytesTotal,
             UploadRetention = source.UploadRetention,
             DownloadRetention = source.DownloadRetention,
             CleanupInterval = source.CleanupInterval,

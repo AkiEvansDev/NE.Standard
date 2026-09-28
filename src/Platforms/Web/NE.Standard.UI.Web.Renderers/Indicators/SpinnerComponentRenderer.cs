@@ -20,6 +20,9 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        // A status: the words beside the ring are read out when the spinner appears or they change.
+        _ = root.Attribute("role", "status");
+
         _ = root.Element("span", ring =>
         {
             _ = ring.Class("ui-spinner__ring");

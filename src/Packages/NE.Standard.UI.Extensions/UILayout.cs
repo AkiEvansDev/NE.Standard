@@ -8,7 +8,9 @@ namespace NE.Standard.UI.Extensions;
 
 /// <summary>
 /// The arrangements a page writes again and again: things down a column, things along a row, things in equal columns, and
-/// a main part with a side part.
+/// a main part with a side part. What stands side by side stands one under another where there is no room for it: two or three
+/// equal columns below the medium breakpoint (a phone), four or six and a side part below the extra-large one (a tablet, a
+/// laptop with a sidebar), where a third of the width is too narrow to read.
 /// </summary>
 public static class UILayout
 {
@@ -49,8 +51,10 @@ public static class UILayout
         var span = 24 / children.Length;
         ContainerComponent columns = new();
 
+        var wide = children.Length > 3;
+
         for (var i = 0; i < children.Length; i++)
-            _ = columns.AddChild(Cell(children[i], (i * span) + 1, span, i == 0 ? 0 : spacing));
+            _ = columns.AddChild(Cell(children[i], i, (i * span) + 1, span, spacing, wide));
 
         return columns;
     }
@@ -67,8 +71,8 @@ public static class UILayout
         ArgumentOutOfRangeException.ThrowIfGreaterThan(sideSpan, 23);
 
         return new ContainerComponent()
-            .AddChild(Cell(main, 1, 24 - sideSpan, 0))
-            .AddChild(Cell(side, 25 - sideSpan, sideSpan, spacing));
+            .AddChild(Cell(main, 0, 1, 24 - sideSpan, spacing, wide: true))
+            .AddChild(Cell(side, 1, 25 - sideSpan, sideSpan, spacing, wide: true));
     }
 
     /// <summary>
@@ -83,17 +87,25 @@ public static class UILayout
         ArgumentOutOfRangeException.ThrowIfGreaterThan(sideSpan, 23);
 
         return new ContainerComponent()
-            .AddChild(Cell(side, 1, sideSpan, 0))
-            .AddChild(Cell(main, sideSpan + 1, 24 - sideSpan, spacing));
+            .AddChild(Cell(side, 0, 1, sideSpan, spacing, wide: true))
+            .AddChild(Cell(main, 1, sideSpan + 1, 24 - sideSpan, spacing, wide: true));
     }
 
-    // A cell, not a placement on the child (which may be any component); the grid has no gap of its own, so column air is
-    // the cell's left margin.
-    private static StackPanelComponent Cell(IVisualComponent child, int column, int span, double leading)
-        => new StackPanelComponent()
+    // A cell, not a placement on the child (which may be any component); the grid has no gap of its own, so the air between
+    // cells is a cell's margin — above it while the cells stand one under another, before it once they stand side by side.
+    private static StackPanelComponent Cell(IVisualComponent child, int index, int column, int span, double spacing, bool wide)
+    {
+        var air = index == 0 ? 0 : spacing;
+        UIThickness under = UIThickness.All(0, air, 0, 0);
+        UIThickness beside = UIThickness.All(air, 0, 0, 0);
+        UIGridPlacement stacked = UIGridPlacement.At(1, index + 1, 24, 1);
+        UIGridPlacement placed = UIGridPlacement.At(column, 1, span, 1);
+
+        return new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
             .SetVerticalAlignment(UIAlignment.Start)
-            .SetMargin(UIThickness.All(leading, 0, 0, 0))
-            .SetPlacement(column, 1, span, 1)
+            .SetMargin(wide ? UIResponsive<UIThickness>.Create(under, xl: beside) : UIResponsive<UIThickness>.Create(under, md: beside))
+            .SetPlacement(wide ? UIResponsive<UIGridPlacement>.Create(stacked, xl: placed) : UIResponsive<UIGridPlacement>.Create(stacked, md: placed))
             .AddChild(child);
+    }
 }

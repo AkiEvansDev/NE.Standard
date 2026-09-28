@@ -3,16 +3,16 @@
 import { parseWrittenMoment, TemporalCulturePack, writtenMomentDate } from "../rendering/temporal-format";
 
 export const RootClass = "ui-temporal-input";
-export const ValueInputClass = "ui-temporal-input__value-input";
+const ValueInputClass = "ui-temporal-input__value-input";
 /** The period's end, beside the start's hidden input; the two are told apart by the end attribute below. */
-export const EndValueInputClass = "ui-temporal-input__end-value-input";
+const EndValueInputClass = "ui-temporal-input__end-value-input";
 
 /** On a root editing a period; on the part — a field, a clock, a hidden input — that holds the period's end. */
-export const RangeAttribute = "data-ui-temporal-range";
-export const EndAttribute = "data-ui-temporal-end";
+const RangeAttribute = "data-ui-temporal-range";
+const EndAttribute = "data-ui-temporal-end";
 
 const ModeAttribute = "data-ui-temporal-mode";
-export const FormatAttribute = "data-ui-temporal-format";
+const FormatAttribute = "data-ui-temporal-format";
 const DefaultFormatAttribute = "data-ui-temporal-default-format";
 export const MinAttribute = "data-ui-temporal-min";
 export const MaxAttribute = "data-ui-temporal-max";
@@ -96,7 +96,8 @@ export function readValueOf(root: HTMLElement, end: boolean): Date | null {
     return valueInput === null ? null : parseCanonical(valueInput.value, readMode(root));
 }
 
-function valueInputOf(root: HTMLElement, end: boolean): HTMLInputElement | null {
+/** The hidden input holding the start, or the end of a period. */
+export function valueInputOf(root: HTMLElement, end: boolean): HTMLInputElement | null {
     return root.querySelector<HTMLInputElement>(`.${end ? EndValueInputClass : ValueInputClass}`);
 }
 
@@ -104,12 +105,10 @@ export function readBound(root: HTMLElement, attribute: string): Date | null {
     return parseCanonical(root.getAttribute(attribute) ?? "", readMode(root));
 }
 
-/** Writes through the hidden input and a synthetic "change", the same two-way path a typed value takes. */
-export function writeValue(root: HTMLElement, value: Date | null): void {
-    writeValueOf(root, value, false);
-}
-
-/** Writes the start, or the end when `end` is set; nothing is written where the value already stands. */
+/**
+ * Writes the start, or the end when `end` is set, through the hidden input and a synthetic "change" — the same two-way path a
+ * typed value takes; nothing is written where the value already stands.
+ */
 export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean): void {
     const valueInput = valueInputOf(root, end);
 
@@ -177,7 +176,7 @@ export function clampToRange(root: HTMLElement, moment: Date): Date {
     return moment;
 }
 
-export function clampToStep(root: HTMLElement, moment: Date): Date {
+function clampToStep(root: HTMLElement, moment: Date): Date {
     const step = readStep(root);
     const snapped = new Date(moment);
 

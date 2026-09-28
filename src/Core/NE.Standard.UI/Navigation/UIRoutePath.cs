@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+
 namespace NE.Standard.UI.Navigation;
 
 /// <summary>
@@ -23,4 +26,16 @@ public static class UIRoutePath
             ? route.TrimEnd('/')
             : route;
     }
+
+    /// <summary>
+    /// Whether an address is a path of this site — what a return address read off a query string must be before a command
+    /// navigates to it. <c>//host</c> and <c>/\host</c> start with a slash too, and a browser reads both as another site.
+    /// </summary>
+    /// <remarks>
+    /// A control character is refused anywhere: a browser drops a tab or a line break from a URL, so <c>/\t/host</c> is
+    /// <c>//host</c> by the time it navigates. The client refuses a <c>NavigateEffect</c> to anything else as well
+    /// (<c>isLocalRoute</c> in <c>url-safety.ts</c>).
+    /// </remarks>
+    public static bool IsLocal([NotNullWhen(true)] string? route)
+        => route is { Length: > 0 } && route[0] == '/' && (route.Length == 1 || (route[1] != '/' && route[1] != '\\')) && !route.Any(char.IsControl);
 }

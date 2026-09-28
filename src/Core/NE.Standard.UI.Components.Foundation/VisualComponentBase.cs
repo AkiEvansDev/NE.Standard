@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
@@ -214,27 +213,33 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
-    /// Binds a component property to a recursive source path; an <paramref name="optional"/> one expects sources without the path.
+    /// Binds a component property to a recursive source path, in the property's own default mode unless one is named; an
+    /// <paramref name="optional"/> one expects sources without the path.
     /// </summary>
-    public TComponent Bind(UIProperty property, string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
+    public TComponent Bind(UIProperty property, string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode? mode = null, bool optional = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         return Bind(property, RecursivePath.Parse(path), scope, mode, optional);
     }
 
     /// <summary>
-    /// Binds a component property to a recursive source path; an <paramref name="optional"/> one expects sources without the path.
+    /// Binds a component property to a recursive source path, in the property's own default mode unless one is named; an
+    /// <paramref name="optional"/> one expects sources without the path.
     /// </summary>
-    public TComponent Bind(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
+    public TComponent Bind(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode? mode = null, bool optional = false)
     {
         ArgumentNullException.ThrowIfNull(path);
-        EnsureBindingAllowed(property, mode);
 
-        SetOrReplaceBinding(UIBinding.Property(property, path, scope, mode, optional));
+        UIPropertyDefinition definition = GetBindableDefinition(property);
+        UIBindingMode resolved = mode ?? definition.DefaultBindingMode;
+
+        EnsureModeSupported(property, definition, resolved);
+
+        SetOrReplaceBinding(UIBinding.Property(property, path, scope, resolved, optional));
         return Self;
     }
 
-    private void EnsureBindingAllowed(UIProperty property, UIBindingMode mode)
+    private UIPropertyDefinition GetBindableDefinition(UIProperty property)
     {
         EnsurePropertiesRegistered();
 
@@ -244,9 +249,17 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         if (!definition.IsBindable)
             throw new InvalidOperationException($"Property '{property.Name}' on component type '{typeof(TComponent).Name}' does not support binding.");
 
+        return definition;
+    }
+
+    private static void EnsureModeSupported(UIProperty property, UIPropertyDefinition definition, UIBindingMode mode)
+    {
         if (!mode.IsSupportedBy(definition.BindingCapabilities))
             throw new InvalidOperationException($"Binding mode '{mode}' is not supported for property '{property.Name}' on component type '{typeof(TComponent).Name}'.");
     }
+
+    private void EnsureBindingAllowed(UIProperty property, UIBindingMode mode)
+        => EnsureModeSupported(property, GetBindableDefinition(property), mode);
 
     /// <summary>
     /// Fills the property register for this component type, once.
@@ -257,14 +270,7 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         if (_propertiesRegistered)
             return;
 
-        List<Type> hierarchy = [];
-
-        for (Type? current = typeof(TComponent); current is not null && current != typeof(object); current = current.BaseType)
-            hierarchy.Add(current);
-
-        for (var i = hierarchy.Count - 1; i >= 0; i--)
-            RuntimeHelpers.RunClassConstructor(hierarchy[i].TypeHandle);
-
+        UIPropertyRegister.EnsureRegistered(typeof(TComponent));
         _propertiesRegistered = true;
     }
 

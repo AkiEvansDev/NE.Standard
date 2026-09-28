@@ -17,7 +17,7 @@ public abstract class DefaultGroupTemplate<TTemplate> : SeparatorComponent<TTemp
     protected DefaultGroupTemplate(bool binds = false) : base()
     {
         if (binds)
-            _ = Bind(LabelProperty, nameof(IBindableGroup.Group), UIBindingScope.Relative);
+            _ = Bind(LabelProperty, nameof(IBindableGroup.Group), UIBindingScope.Relative, optional: true);
     }
 }
 

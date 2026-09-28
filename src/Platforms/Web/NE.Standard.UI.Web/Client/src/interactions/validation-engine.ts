@@ -1,7 +1,7 @@
 // Shows what a field has to say about its value: client rules, a bound message, and the runtime's refusal of a value it
 // couldn't take. The strongest of the three is what shows.
 
-import { ComponentIdAttribute, cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
+import { cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { ValueReaderRegistry } from "../extensions/value-readers";
 import {
@@ -17,6 +17,7 @@ import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-pa
 import { UpdateProcessor } from "../updates/update-processor";
 import { observeComponents } from "./dom-mutations";
 import { evaluateOperator } from "./interaction-evaluator";
+import { PopupRoleSelector } from "./own-control";
 import { pinTooltip, updateTooltip } from "./tooltip-engine";
 
 const ErrorClass = "ui-invalid";
@@ -35,6 +36,8 @@ const MirrorClass = "ui-validation-mark";
 const PresentationProperty = "--ui-validation-presentation";
 const SeverityColorProperty = "--ui-validation-color";
 const ValidationPropertyName = "Validation";
+/** The native controls a field reads its value through, which carry `aria-invalid` for the reader; a popup's own fields are not the field. */
+const FieldControlSelector = "input:not([type='hidden']), textarea, select, .ui-select__trigger[role='combobox'], [role='spinbutton']";
 
 /** Highest first, which is the order two messages on one field are settled in. */
 const SeverityRank: Readonly<Record<WebValidationSeverityName, number>> = { Error: 0, Warning: 1, Info: 2 };
@@ -74,8 +77,11 @@ export class ValidationEngine {
     private readonly touchedElements = new WeakSet<Element>();
     /** The copy of a field's mark that stands in the cell the field shares, one per field for as long as the field is in the page. */
     private readonly markerMirrors = new WeakMap<HTMLElement, HTMLElement>();
-    /** The lines a shared message target holds: one per field that wrote there, in the order the fields first spoke. */
-    private readonly messageLines = new Map<string, Map<number, string>>();
+    /**
+     * The lines a shared message target holds: one per rendered field that wrote there, in the order the fields first spoke — by
+     * element, since a field in an item template has one component id across all its rows.
+     */
+    private readonly messageLines = new Map<string, Map<Element, string>>();
 
     public constructor(options: ValidationEngineOptions) {
         this.options = options;
@@ -96,6 +102,8 @@ export class ValidationEngine {
 
     private applyRenderedMessages(elements: Iterable<HTMLElement>): void {
         for (const element of elements) {
+            markInvalid(element, renderedSeverity(element) === "Error");
+
             const message = element.querySelector<HTMLElement>(`:scope > [${MessageAttribute}]`);
             const text = message?.textContent ?? "";
 
@@ -181,14 +189,14 @@ export class ValidationEngine {
         const display = this.resolveDisplay(componentId, element);
 
         applyValidationState(this.markerMirrors, element, display);
-        this.writeMessageElsewhere(componentId, display);
+        this.writeMessageElsewhere(componentId, element, display);
     }
 
     /**
      * A field told to put its words in another component property writes them there and shows nothing of its own. Several fields
      * may name one property; each holds a line of it, and the property reads them one under the other.
      */
-    private writeMessageElsewhere(componentId: number, display: ValidationDisplay | undefined): void {
+    private writeMessageElsewhere(componentId: number, element: Element, display: ValidationDisplay | undefined): void {
         const target = this.options.metadata.getValidationTarget(componentId);
 
         if (target === undefined)
@@ -199,14 +207,14 @@ export class ValidationEngine {
 
         if (display !== undefined) {
             if (lines === undefined) {
-                lines = new Map<number, string>();
+                lines = new Map<Element, string>();
                 this.messageLines.set(key, lines);
             }
 
-            lines.set(componentId, display.message);
+            lines.set(element, display.message);
         }
         else {
-            if (lines === undefined || !lines.delete(componentId))
+            if (lines === undefined || !lines.delete(element))
                 return;
 
             if (lines.size === 0)
@@ -216,7 +224,7 @@ export class ValidationEngine {
         // A field taken out of the page without putting itself right first leaves no line behind: the lines of fields no longer in the
         // page go at the next write.
         for (const field of [...lines.keys()]) {
-            if (this.root.querySelector(`[${ComponentIdAttribute}="${field}"]`) === null)
+            if (!field.isConnected)
                 lines.delete(field);
         }
 
@@ -372,6 +380,8 @@ function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, elemen
     for (const className of Object.values(SeverityClass))
         element.classList.toggle(className, display !== undefined && SeverityClass[display.severity] === className);
 
+    markInvalid(element, display?.severity === "Error");
+
     const htmlElement = element as HTMLElement;
 
     if (display === undefined)
@@ -386,6 +396,21 @@ function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, elemen
 
     messageTarget.textContent = display?.message ?? "";
     applyPresentation(mirrors, htmlElement, messageTarget, display);
+}
+
+/** Says on the field's native controls what `ui-invalid` says to the eye: only an error, since a warning leaves the value acceptable. */
+function markInvalid(element: Element, invalid: boolean): void {
+    for (const control of element.querySelectorAll(FieldControlSelector)) {
+        const popup = control.closest(PopupRoleSelector);
+
+        if (popup !== null && element.contains(popup))
+            continue;
+
+        if (invalid)
+            control.setAttribute("aria-invalid", "true");
+        else
+            control.removeAttribute("aria-invalid");
+    }
 }
 
 /**

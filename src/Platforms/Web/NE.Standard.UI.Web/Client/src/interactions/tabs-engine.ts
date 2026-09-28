@@ -1,12 +1,12 @@
 // Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
 import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
-import { observeComponents } from "./dom-mutations";
+import { happenedInside, observeComponents } from "./dom-mutations";
 import { isLaidOut } from "./element-visibility";
 import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
-import { OverflowButtonClass, StripOverflowMenu, fitStrip } from "./strip-overflow";
+import { OverflowButtonClass, StripFitter } from "./strip-overflow";
 
 const RootClass = "ui-tabs";
 const HeaderClass = "ui-tab-header";
@@ -25,23 +25,18 @@ export type TabsEngineOptions = {
 
 export class TabsEngine {
     private readonly root: ParentNode;
-    private readonly overflow: StripOverflowMenu;
-
-    // The strip is fitted again whenever its width changes; a strip is observed once, on first sight.
-    private readonly resizes = typeof ResizeObserver === "function"
-        ? new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const root = entry.target.closest<HTMLElement>(`.${RootClass}`);
-
-                if (root !== null)
-                    this.apply(root);
-            }
-        })
-        : null;
+    private readonly fitter: StripFitter;
 
     public constructor(options: TabsEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.overflow = new StripOverflowMenu((root, key) => this.select(root, key));
+        this.fitter = new StripFitter({
+            rootClass: RootClass,
+            overflowingClass: OverflowingModifier,
+            wrapsClass: NoOverflowModifier,
+            hiddenClass: OverflowedModifier,
+            refit: root => this.apply(root),
+            pick: (root, key) => this.pickFromOverflow(root, key)
+        });
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
@@ -49,11 +44,12 @@ export class TabsEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
         // A server patch writes the same attribute a click does, as does a caption hidden or shown; a tabs view that arrives whole
-        // (a row the client built) had its attribute written before it joined the document, so it's applied on arrival.
+        // (a row the client built) had its attribute written before it joined the document, so it's applied on arrival. What happens
+        // inside a page is the page's own: a table patched there must not re-measure the strip with a forced layout on every push.
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes] },
+            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${PageAttribute}]`, `.${RootClass}`) },
             roots => this.applyAll(roots)
         );
     }
@@ -104,51 +100,26 @@ export class TabsEngine {
         const strip = root.querySelector<HTMLElement>(`:scope > .${StripClass}`);
         const button = strip?.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`) ?? null;
 
-        if (strip === null || button === null)
-            return;
+        if (strip !== null && button !== null)
+            this.fitter.fit(root, { room: strip, button, captions: headers, selected });
+    }
 
-        // A strip without the "…" list wraps its captions instead: every caption stays on the strip.
-        if (root.classList.contains(NoOverflowModifier)) {
-            for (const header of headers)
-                header.classList.remove(OverflowedModifier);
-
-            root.classList.remove(OverflowingModifier);
-            return;
-        }
-
-        this.resizes?.observe(strip);
-
-        // Shown for the measurement, so a control that was hidden has a width; taken off again when everything fits.
-        root.classList.add(OverflowingModifier);
-
-        const overflowing = fitStrip({
-            captions: headers,
-            selected,
-            width: strip.clientWidth,
-            buttonWidth: button.getBoundingClientRect().width,
-            hiddenClass: OverflowedModifier
-        });
-
-        root.classList.toggle(OverflowingModifier, overflowing);
-
-        if (!overflowing && this.overflow.isOpenFor(root))
-            this.overflow.close();
+    /** A tab picked from the list is the current one, fitted onto the strip first, and the keyboard carries on from its caption. */
+    private pickFromOverflow(root: HTMLElement, key: string): void {
+        this.select(root, key);
+        this.ownHeaders(root).find(header => (header.getAttribute(TabKeyAttribute) ?? "") === key)?.focus({ preventScroll: true });
     }
 
     private toggleOverflow(root: HTMLElement, button: HTMLElement): void {
-        if (this.overflow.isOpenFor(root)) {
-            this.overflow.close();
-            return;
-        }
+        this.fitter.toggleList(root, button, () => {
+            const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
 
-        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
-        const entries = this.ownHeaders(root).filter(isLaidOut).map(header => {
-            const key = header.getAttribute(TabKeyAttribute) ?? "";
+            return this.ownHeaders(root).filter(isLaidOut).map(header => {
+                const key = header.getAttribute(TabKeyAttribute) ?? "";
 
-            return { key, title: header.textContent?.trim() ?? key, current: key === selected };
+                return { key, title: header.textContent?.trim() ?? key, current: key === selected };
+            });
         });
-
-        this.overflow.open(button, root, entries);
     }
 
     private handleClick(domEvent: Event): void {

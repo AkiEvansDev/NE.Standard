@@ -1,20 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Data;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Data;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
-using NE.Standard.UI.Shell.Files;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -50,6 +38,10 @@ public sealed partial class MessageItem : RecursiveObservable, IBindableItem
 
     [RecursiveMember(false)]
     public required string Id { get; init; }
+
+    /// <summary>Whose it is, so a change of name or picture reaches the rows already in the window.</summary>
+    [RecursiveMember(false)]
+    public string AuthorId { get; init; } = string.Empty;
 
     [RecursiveMember]
     public partial string Author { get; set; } = string.Empty;
@@ -97,13 +89,19 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
     private ChatService? _chat;
     private string _conversationId = string.Empty;
     private Func<MessageRecord, MessageItem>? _shape;
+    private Action<long>? _read;
 
-    public void Attach(ChatService chat, string conversationId, Func<MessageRecord, MessageItem> shape)
+    /// <summary>Reads the conversation; <paramref name="read"/> is told the newest message when a window reaches it.</summary>
+    public void Attach(ChatService chat, string conversationId, Func<MessageRecord, MessageItem> shape, Action<long> read)
     {
         _chat = chat;
         _conversationId = conversationId;
         _shape = shape;
+        _read = read;
     }
+
+    /// <summary>Whether the source reads a conversation: the account may read the one the page is on.</summary>
+    public bool IsAttached => _chat is not null;
 
     /// <summary>Whether the window the reader holds has this message.</summary>
     public bool Holds(string key)
@@ -166,6 +164,10 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
         for (var i = 0; i < page.Count; i++)
             items[i] = _shape(page[i]);
 
+        // Only a window that reaches the end: one read ahead of the viewer in the middle of the feed is not read by them yet.
+        if (page.Count > 0 && start + items.Length >= total)
+            _read?.Invoke(page[^1].Id);
+
         return Task.FromResult(new UIItemWindow<MessageItem>(items)
         {
             Offset = start,
@@ -198,8 +200,15 @@ public sealed partial class ChatController : TeamRoomController
     public const string EditAction = "edit";
     public const string DeleteAction = "delete";
     private const int WindowSize = 40;
+    private const string DeletedAccount = "(deleted account)";
 
     private string _conversationId = ChatService.GeneralRoomId;
+
+    /// <summary>The search hit the window was last opened on, so a reconnect with the same address does not pull the reader back to it.</summary>
+    private long? _jumpedTo;
+
+    // The newest message a window read while someone looked marked read, so a read of older messages writes nothing.
+    private long _readThrough;
     private readonly Dictionary<string, AccountRecord?> _people = new(StringComparer.Ordinal);
 
     [RecursiveMember(false)]
@@ -284,6 +293,7 @@ public sealed partial class ChatController : TeamRoomController
 
         ApplyBackground();
         LoadConversations();
+        LoadPeople();
 
         if (!ChatStore.IsMember(_conversationId, AccountId))
         {
@@ -292,9 +302,33 @@ public sealed partial class ChatController : TeamRoomController
             return;
         }
 
-        Messages.Attach(ChatStore, _conversationId, Shape);
+        Messages.Attach(ChatStore, _conversationId, Shape, ReadThrough);
 
-        await Messages.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.End, WindowSize), cancellationToken).ConfigureAwait(false);
+        _jumpedTo = JumpTarget(Context.Handle.Instance.Navigation);
+
+        await Messages.LoadWindowAsync(_jumpedTo is long messageId ? WindowEndingOn(messageId) : new UIItemWindowRequest(UIItemAnchor.End, WindowSize), cancellationToken).ConfigureAwait(false);
+
+        // Not read yet: a render may prepare this page for nobody; the attach, when someone looks, marks it.
+        RefreshUnread();
+    }
+
+    /// <summary>
+    /// Someone opened the page: what it shows is read now, including what arrived while nobody looked. A kept runtime navigated to
+    /// again from a search hit moves its window to the hit first.
+    /// </summary>
+    protected override async Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        if (!Messages.IsAttached)
+            return;
+
+        if (JumpTarget(navigation) is long messageId && messageId != _jumpedTo)
+        {
+            _jumpedTo = messageId;
+
+            await Messages.LoadWindowAsync(WindowEndingOn(messageId), cancellationToken).ConfigureAwait(false);
+        }
 
         MarkRead();
         RefreshUnread();
@@ -331,7 +365,11 @@ public sealed partial class ChatController : TeamRoomController
                 Subtitle = conversation.Kind == ConversationKinds.Room ? "A room everyone is in" : "A conversation between the two of you";
             }
         }
+    }
 
+    /// <summary>Who a direct conversation can be started with; it changes only when an account does.</summary>
+    private void LoadPeople()
+    {
         People.Clear();
 
         foreach (AccountRecord account in AccountStore.ListActive())
@@ -341,6 +379,26 @@ public sealed partial class ChatController : TeamRoomController
         }
     }
 
+    /// <summary>The message a search hit opened the page on, when the address names one of this conversation's.</summary>
+    private long? JumpTarget(UINavigationRequest navigation)
+        => navigation.TryGetParameter(AppRoutes.MessageParameter, out var requested)
+            && long.TryParse(requested, NumberStyles.Integer, CultureInfo.InvariantCulture, out var messageId)
+            && ChatStore.FindMessage(messageId) is { } message
+            && message.ConversationId == _conversationId
+                ? messageId
+                : null;
+
+    /// <summary>
+    /// A window whose last row is the message: the feed is anchored to its end, so that row is the one in view. Near the start the
+    /// window is shorter rather than running past the message.
+    /// </summary>
+    private UIItemWindowRequest WindowEndingOn(long messageId)
+    {
+        var index = ChatStore.IndexOf(_conversationId, messageId);
+
+        return new(UIItemAnchor.At(Math.Max(0, index - WindowSize + 1)), Math.Min(WindowSize, index + 1));
+    }
+
     private MessageItem Shape(MessageRecord message)
     {
         AccountRecord? author = Person(message.AuthorId);
@@ -348,8 +406,9 @@ public sealed partial class ChatController : TeamRoomController
         MessageItem item = new()
         {
             Id = message.Id.ToString(CultureInfo.InvariantCulture),
-            Author = author?.Nickname ?? "(deleted account)",
-            Avatar = author?.AvatarMediaId is null ? null : MediaStore.AddressOf(author.AvatarMediaId),
+            AuthorId = message.AuthorId,
+            Author = author?.Nickname ?? DeletedAccount,
+            Avatar = AvatarOf(author),
             Time = message.SentUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture) + (message.EditedUtc is null ? string.Empty : " · edited"),
             Text = message.Text,
             Side = message.AuthorId == AccountId ? MessageItem.MineSide : MessageItem.TheirsSide,
@@ -379,6 +438,9 @@ public sealed partial class ChatController : TeamRoomController
         return account;
     }
 
+    private string? AvatarOf(AccountRecord? author)
+        => author?.AvatarMediaId is null ? null : MediaStore.AddressOf(author.AvatarMediaId);
+
     private static string SizeText(long size)
         => size switch
         {
@@ -400,22 +462,49 @@ public sealed partial class ChatController : TeamRoomController
         Events.Publish(new MessagesRead(AccountId));
     }
 
+    /// <summary>
+    /// The newest message reached by a window read while someone looks: opened on an older message, the feed is read once the
+    /// reader scrolls down to its end, not only as far as the window the page opened with.
+    /// </summary>
+    private void ReadThrough(long messageId)
+    {
+        if (!HasViewers || messageId <= _readThrough)
+            return;
+
+        _readThrough = messageId;
+        ChatStore.MarkRead(_conversationId, AccountId, messageId);
+        Events.Publish(new MessagesRead(AccountId));
+    }
+
     protected override void OnAppEvent(AppEvent appEvent)
     {
         switch (appEvent)
         {
-            // Another runtime's message — another person's, or this account's from another page — lands in the feed.
-            case MessagePosted posted when posted.ConversationId == _conversationId && !ReferenceEquals(posted.Origin, this):
+            // Another runtime's message — another person's, or this account's from another page — lands in the feed, and the
+            // conversation moves to the top of the list.
+            case MessagePosted posted when posted.ConversationId == _conversationId && posted.Reaches(AccountId) && !ReferenceEquals(posted.Origin, this):
                 Push(() =>
                 {
                     if (ChatStore.FindMessage(posted.MessageId) is { } message)
                     {
                         Messages.Receive(message);
-                        MarkRead();
-                        // The base counted before this page marked the message read; count again, or a "1" would sit on the sidebar until the next event.
-                        RefreshUnread();
+
+                        // Read only while someone looks: a runtime kept after its tab left marks nothing, and the next attach marks what
+                        // the page shows then.
+                        if (HasViewers)
+                        {
+                            MarkRead();
+                            // The base counted before this page marked the message read; count again, or a "1" would sit on the sidebar until the next event.
+                            RefreshUnread();
+                        }
                     }
+
+                    LoadConversations();
                 });
+                break;
+
+            case MessagePosted posted when posted.Reaches(AccountId):
+                Push(LoadConversations);
                 break;
 
             case MessageChanged changed when changed.ConversationId == _conversationId && !ReferenceEquals(changed.Origin, this):
@@ -427,10 +516,18 @@ public sealed partial class ChatController : TeamRoomController
                 break;
 
             case MessageDeleted deleted when deleted.ConversationId == _conversationId && !ReferenceEquals(deleted.Origin, this):
-                Push(() => Messages.Drop(deleted.MessageId));
+                Push(() =>
+                {
+                    Messages.Drop(deleted.MessageId);
+                    LoadConversations();
+                });
                 break;
 
-            case MessagePosted or ConversationsChanged:
+            case MessageDeleted deleted when deleted.Reaches(AccountId):
+                Push(LoadConversations);
+                break;
+
+            case ConversationsChanged changed when changed.Reaches(AccountId):
                 Push(LoadConversations);
                 break;
 
@@ -443,12 +540,29 @@ public sealed partial class ChatController : TeamRoomController
                     if (changed.AccountId == AccountId)
                         ApplyBackground();
 
+                    RefreshAuthor(changed.AccountId);
                     LoadConversations();
+                    LoadPeople();
                 });
                 break;
 
             default:
                 break;
+        }
+    }
+
+    /// <summary>The rows already in the window carry the author's name and picture; a change of either is written into them.</summary>
+    private void RefreshAuthor(string accountId)
+    {
+        AccountRecord? author = Person(accountId);
+
+        foreach (MessageItem item in Messages.Items)
+        {
+            if (item.AuthorId != accountId)
+                continue;
+
+            item.Author = author?.Nickname ?? DeletedAccount;
+            item.Avatar = AvatarOf(author);
         }
     }
 
@@ -459,9 +573,10 @@ public sealed partial class ChatController : TeamRoomController
             return Refuse("This conversation is not yours.");
 
         var text = Draft.Trim();
-        List<(string MediaId, string FileName, string ContentType, long Size)> attachments = [];
 
         // The pictures first, then the files: the order the panel shows them.
+        List<UIUploadFile> files = [];
+
         List<string?> selectionIds = [.. PictureSelectionIds ?? [], AttachmentSelectionId];
 
         foreach (var selectionId in selectionIds)
@@ -470,28 +585,45 @@ public sealed partial class ChatController : TeamRoomController
                 continue;
 
             UIUploadSelection selection = await Context.Uploads.GetSelectionAsync(Context.Handle, selectionId, cancellationToken).ConfigureAwait(false);
+            files.AddRange(selection.Files);
+        }
 
-            foreach (UIUploadFile file in selection.Files)
+        if (AttachmentLimitError(files) is { } limitError)
+            return Refuse(limitError);
+
+        List<(string MediaId, string FileName, string ContentType, long Size)> attachments = [];
+        MessageRecord? message = null;
+
+        try
+        {
+            foreach (UIUploadFile file in files)
             {
                 UIUploadedFile upload = await Context.Uploads.OpenAsync(Context.Handle, file.FileId, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 await using (upload.ConfigureAwait(false))
                 {
-                    using MemoryStream buffer = new();
-                    await upload.Content.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-
                     var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
-                    var mediaId = MediaStore.Store(AccountId, MediaPurposes.Attachment, contentType, buffer.ToArray(), file.FileName);
+                    var mediaId = await MediaStore.StoreAsync(AccountId, MediaPurposes.Attachment, contentType, upload.Content, file.Size, file.FileName, cancellationToken).ConfigureAwait(false);
 
                     attachments.Add((mediaId, file.FileName, contentType, file.Size));
                 }
             }
+
+            if (text.Length == 0 && attachments.Count == 0)
+                return UICommandResult.Ok();
+
+            message = ChatStore.Send(_conversationId, AccountId, text, attachments, origin: this);
         }
-
-        if (text.Length == 0 && attachments.Count == 0)
-            return UICommandResult.Ok();
-
-        MessageRecord message = ChatStore.Send(_conversationId, AccountId, text, attachments, origin: this);
+        finally
+        {
+            // Each file commits on its own, so one stored before a later one failed would stay counted against the quota with no
+            // message to delete it by.
+            if (message is null)
+            {
+                foreach ((var mediaId, _, _, _) in attachments)
+                    MediaStore.Delete(mediaId);
+            }
+        }
 
         Draft = string.Empty;
         AttachmentSelectionId = null;
@@ -502,6 +634,25 @@ public sealed partial class ChatController : TeamRoomController
         Messages.Receive(message);
 
         return UICommandResult.Ok([new CloseDialogEffect(AttachDialogKey)]);
+    }
+
+    /// <summary>What keeps the files from being sent — one too large, or the account's share used up — or null.</summary>
+    private string? AttachmentLimitError(List<UIUploadFile> files)
+    {
+        long total = 0;
+
+        foreach (UIUploadFile file in files)
+        {
+            if (file.Size > MediaService.MaxAttachmentBytes)
+                return $"{file.FileName} is larger than {SizeText(MediaService.MaxAttachmentBytes)}.";
+
+            total += file.Size;
+        }
+
+        if (total > 0 && MediaStore.UsedBy(AccountId, MediaPurposes.Attachment) + total > MediaService.MaxAttachmentBytesPerAccount)
+            return $"Your attachments would pass {SizeText(MediaService.MaxAttachmentBytesPerAccount)}; delete older messages with files first.";
+
+        return null;
     }
 
     [UICommand]
@@ -627,7 +778,7 @@ public sealed partial class ChatController : TeamRoomController
             {
                 Id = hit.MessageId.ToString(CultureInfo.InvariantCulture),
                 ConversationId = hit.ConversationId,
-                Where = $"{Person(hit.AuthorId)?.Nickname ?? "(deleted account)"} · {hit.ConversationTitle} · {hit.SentUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)}",
+                Where = $"{Person(hit.AuthorId)?.Nickname ?? DeletedAccount} · {hit.ConversationTitle} · {hit.SentUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)}",
                 Text = hit.Text
             });
         }
@@ -667,7 +818,7 @@ public sealed partial class ChatController : TeamRoomController
             return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest
             {
                 Route = AppRoutes.Chat,
-                Parameters = new Dictionary<string, object?> { [AppRoutes.ConversationParameter] = hit.ConversationId, ["m"] = id }
+                Parameters = new Dictionary<string, object?> { [AppRoutes.ConversationParameter] = hit.ConversationId, [AppRoutes.MessageParameter] = id }
             })]);
         }
 

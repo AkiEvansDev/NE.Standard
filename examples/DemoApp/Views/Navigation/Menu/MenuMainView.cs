@@ -1,10 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.Menu;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
 
 namespace DemoApp.Views.Navigation.Menu;
 

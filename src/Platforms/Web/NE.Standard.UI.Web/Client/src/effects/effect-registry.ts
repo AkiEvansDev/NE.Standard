@@ -11,7 +11,6 @@ import {
     CopyToClipboardClientEffect,
     DialogClientEffect,
     DownloadFileClientEffect,
-    NavigateClientEffect,
     NotificationClientEffect,
     ScrollClientEffect,
     ScrollToClientEffect,
@@ -24,8 +23,10 @@ import {
     getScrollToBehavior,
     getScrollToBlock,
     getThemeMode
-} from "../metadata/metadata-index";
-import { logWarn } from "../runtime/logger";
+} from "../metadata/metadata-index.ts";
+import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
+import { logError, logWarn } from "../runtime/logger";
+import { buildNavigationUrl } from "./navigation-url";
 
 export type EffectContext = {
     readonly effect: ClientEffect;
@@ -90,15 +91,27 @@ export class EffectRegistry {
             return;
         }
 
-        handler(context);
+        // One effect that throws is logged and passed over, so the effects after it in the same answer still run.
+        try {
+            handler(context);
+        }
+        catch (error) {
+            logError(`the ${kind} effect failed.`, { effect: context.effect, error });
+        }
     }
 
     private registerDefaults(): void {
         this.register("Navigate", context => {
-            const url = buildNavigationUrl(context.effect as NavigateClientEffect);
+            const url = buildNavigationUrl(context.effect);
 
             if (url === null) {
                 logWarn("navigate effect carries no route.", context.effect);
+                return;
+            }
+
+            // A route of this site, never an address elsewhere: a return address read off a query string reaches here as it is.
+            if (!isLocalRoute(url)) {
+                logWarn("navigate effect names no route of this site; not followed.", context.effect);
                 return;
             }
 
@@ -221,6 +234,12 @@ export class EffectRegistry {
 
             if (effect.requestPath === undefined || effect.requestPath.length === 0) {
                 logWarn("download effect carries no path.", context.effect);
+                return;
+            }
+
+            // Any address an application serves a file from, another host's included, but never a script to run.
+            if (!isSafeLink(effect.requestPath)) {
+                logWarn("download effect refused: the path's scheme is not one a link may carry.", context.effect);
                 return;
             }
 
@@ -402,36 +421,4 @@ function copyBySelection(text: string): boolean {
     finally {
         holder.remove();
     }
-}
-
-function buildNavigationUrl(effect: NavigateClientEffect): string | null {
-    const route = effect.request?.route;
-
-    if (route === undefined || route === null || route.length === 0)
-        return null;
-
-    const parameters = effect.request?.parameters;
-
-    if (parameters === undefined || parameters === null)
-        return route;
-
-    const query = new URLSearchParams();
-
-    for (const [key, value] of Object.entries(parameters)) {
-        if (value === null || value === undefined)
-            continue;
-
-        if (Array.isArray(value)) {
-            for (const item of value)
-                query.append(key, String(item));
-
-            continue;
-        }
-
-        query.append(key, String(value));
-    }
-
-    const search = query.toString();
-
-    return search.length === 0 ? route : `${route}?${search}`;
 }

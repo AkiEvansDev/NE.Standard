@@ -21,6 +21,14 @@ export type InlineRenames = {
     open(options: InlineRenameOptions): boolean;
 };
 
+// On every rename field, whatever class its caller dresses it in: what an engine asks before it takes the field's Enter or Escape.
+const RenameFieldAttribute = "data-ui-rename-field";
+
+/** Whether a key or press landed in an open rename field, whose Enter and Escape are its own. */
+export function isInRenameField(target: EventTarget | null): boolean {
+    return target instanceof Element && target.closest(`[${RenameFieldAttribute}]`) !== null;
+}
+
 /** Opens the field; answers false when one is already open in the container. */
 export function openInlineRename(options: InlineRenameOptions): boolean {
     const { container, title } = options;
@@ -32,6 +40,7 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
 
     input.type = "text";
     input.className = options.className;
+    input.setAttribute(RenameFieldAttribute, "");
     input.value = options.value;
 
     // In the title's own type and place, so nothing moves under a rename.

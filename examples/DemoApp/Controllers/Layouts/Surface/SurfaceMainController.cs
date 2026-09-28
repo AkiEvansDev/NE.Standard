@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.Card;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Layouts.Surface;
 

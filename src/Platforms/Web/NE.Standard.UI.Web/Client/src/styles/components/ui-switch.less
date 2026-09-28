@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/focus.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
@@ -19,21 +20,29 @@
     border-radius: 999px;
 }
 
+// The input is hidden, so the ring it would wear goes on the track it stands for.
+.ui-switch__input:focus-visible ~ .ui-switch__box {
+    .ui-focus-ring();
+}
+
 .ui-switch__input:checked ~ .ui-switch__box {
     background: var(--ui-color-primary);
     border-color: var(--ui-color-primary);
 }
 
+// Whole pixels at the root size (0.75rem is 12px, 0.1875rem 3px), centred by auto margins rather than translate(-50%): a
+// 12.8px knob moved half a pixel by a transform, which the pixel grid does not snap, rendered with a soft edge.
 .ui-switch__box::after {
     content: "";
     position: absolute;
-    top: 50%;
-    left: 0.2rem;
-    width: 0.8rem;
-    height: 0.8rem;
+    top: 0;
+    bottom: 0;
+    left: 0.1875rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin: auto 0;
     border-radius: 999px;
     background: var(--ui-color-border);
-    transform: translateY(-50%);
     transition: left @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
@@ -41,7 +50,7 @@
 // the border pair to — a flat value overshoots the room the two borders leave for the knob's travel.
 .ui-switch__input:checked ~ .ui-switch__box::after {
     background: var(--ui-color-on-primary);
-    left: calc(100% - 0.2rem - 0.8rem);
+    left: calc(100% - 0.1875rem - 0.75rem);
 }
 
 // A size steps the track and the knob with the text ui-input.less sizes; the knob's travel is written again for its own width.
@@ -51,13 +60,13 @@
 }
 
     .ui-switch.ui-input--small > .ui-switch__box::after {
-        left: 0.15rem;
-        width: 0.6rem;
-        height: 0.6rem;
+        left: 0.125rem;
+        width: 0.625rem;
+        height: 0.625rem;
     }
 
     .ui-switch.ui-input--small > .ui-switch__input:checked ~ .ui-switch__box::after {
-        left: calc(100% - 0.15rem - 0.6rem);
+        left: calc(100% - 0.125rem - 0.625rem);
     }
 
 .ui-switch.ui-input--large > .ui-switch__box {
@@ -66,13 +75,13 @@
 }
 
     .ui-switch.ui-input--large > .ui-switch__box::after {
-        left: 0.25rem;
+        left: 0.1875rem;
         width: 1rem;
         height: 1rem;
     }
 
     .ui-switch.ui-input--large > .ui-switch__input:checked ~ .ui-switch__box::after {
-        left: calc(100% - 0.25rem - 1rem);
+        left: calc(100% - 0.1875rem - 1rem);
     }
 
 .ui-switch__required {

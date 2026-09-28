@@ -27,7 +27,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// Gets or sets which of the three shapes the control takes.
     /// </summary>
     /// <remarks>Render-time only: the shape is how the control is built.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIImageInputShape.Picture)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIImageInputShape.Picture)]
     public UIImageInputShape? Shape { get; set; }
 
     /// <summary>
@@ -44,7 +44,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// Gets or sets whether several pictures are taken at once, each shown as a square the viewer can remove.
     /// </summary>
     /// <remarks>Render-time only: a shelf is a different build from a picture. Read together with <see cref="UIImageInputShape.Picture"/>.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool? Multiple { get; set; }
 
     /// <summary>

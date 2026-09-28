@@ -1,11 +1,6 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Commands;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -15,7 +10,7 @@ namespace TeamRoom.Controllers;
 /// The one anonymous page: where a session gains an identity. Sign-in ends in a navigation, which is what rotates the session id.
 /// </summary>
 [UIAllowAnonymous]
-public sealed partial class SignInController(AccountService accounts) : UIControllerBase
+public sealed partial class SignInController(AccountService accounts, QuickSignIn quickSignIn) : UIControllerBase
 {
     private string _returnUrl = AppRoutes.Files;
 
@@ -25,16 +20,27 @@ public sealed partial class SignInController(AccountService accounts) : UIContro
     [RecursiveMember]
     public partial string Password { get; set; } = string.Empty;
 
+    /// <summary>Whether the page offers the demo's test accounts, a button each.</summary>
+    [RecursiveMember]
+    public partial UIVisibility QuickSignInVisibility { get; set; } = UIVisibility.Collapsed;
+
     /// <summary>Why the door stayed shut, said on the password field.</summary>
     [RecursiveMember]
     public partial UIValidationMessage? Notice { get; set; }
 
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
-        UINavigationRequest navigation = Context.Handle.Instance.Navigation;
+        QuickSignInVisibility = quickSignIn.Enabled ? UIVisibility.Visible : UIVisibility.Collapsed;
 
-        if (navigation.TryGetParameter("returnUrl", out var route) && route.StartsWith('/'))
-            _returnUrl = route;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Read on every attach, not once: a kept runtime is found again by a refusal that names another way back.</summary>
+    protected override Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        _returnUrl = navigation.TryGetParameter("returnUrl", out var route) && UIRoutePath.IsLocal(route) ? route : AppRoutes.Files;
 
         if (navigation.TryGetParameter("reason", out var reason) && reason == "blocked")
             Notice = UIValidationMessage.Error("This account is no longer allowed in.");
@@ -45,21 +51,56 @@ public sealed partial class SignInController(AccountService accounts) : UIContro
     [UICommand]
     public async Task<UICommandResult> SignInAsync(CancellationToken cancellationToken)
     {
-        AccountRecord? account = accounts.Verify(Login, Password);
+        AccountRecord? account = accounts.Verify(Login, Password, out var throttled);
 
         Password = string.Empty;
 
         if (account is null)
         {
-            Notice = UIValidationMessage.Error("Unknown login or password.");
+            Notice = UIValidationMessage.Error(throttled ? AccountService.TooManyAttempts : "Unknown login or password.");
 
             return UICommandResult.Ok();
         }
 
+        return await EnterAsync(account, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<UICommandResult> EnterAsync(AccountRecord account, CancellationToken cancellationToken)
+    {
         Notice = null;
 
         await Context.SignInAsync(account.Id, new System.Collections.Generic.HashSet<string> { account.Role }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = _returnUrl })]);
+    }
+
+    [UICommand]
+    public Task<UICommandResult> SignInAsAdminAsync(CancellationToken cancellationToken)
+        => QuickEnterAsync("admin", cancellationToken);
+
+    [UICommand]
+    public Task<UICommandResult> SignInAsRobinAsync(CancellationToken cancellationToken)
+        => QuickEnterAsync("robin", cancellationToken);
+
+    [UICommand]
+    public Task<UICommandResult> SignInAsSamAsync(CancellationToken cancellationToken)
+        => QuickEnterAsync("sam", cancellationToken);
+
+    /// <summary>A test account entered without its password — refused outright unless the host turned the shortcut on.</summary>
+    private async Task<UICommandResult> QuickEnterAsync(string login, CancellationToken cancellationToken)
+    {
+        if (!quickSignIn.Enabled)
+            return UICommandResult.Fail("Quick sign-in is off.");
+
+        AccountRecord? account = accounts.FindByLogin(login);
+
+        if (account is not { IsBlocked: false })
+        {
+            Notice = UIValidationMessage.Error("That test account is missing or blocked.");
+
+            return UICommandResult.Ok();
+        }
+
+        return await EnterAsync(account, cancellationToken).ConfigureAwait(false);
     }
 }

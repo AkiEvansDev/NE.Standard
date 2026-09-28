@@ -4,38 +4,38 @@ using Microsoft.CodeAnalysis;
 
 namespace NE.Standard.UI.Generators.Infrastructure;
 
+/// <summary>
+/// Writes the partial declarations generated members go into.
+/// </summary>
+/// <remarks>
+/// Type parameter constraints are never repeated: a partial part may leave them out, while a repeated one has to agree with the
+/// author's exactly, down to nullability and anti-constraints this writer would have to spell out.
+/// </remarks>
 internal static class TypeDeclarationWriter
 {
-    public static void WriteContainingTypesStart(StringBuilder builder, INamedTypeSymbol type)
+    /// <summary>The partial declarations from the outermost containing type down to the type itself.</summary>
+    public static EquatableArray<string> GetDeclarations(INamedTypeSymbol type)
     {
-        Stack<INamedTypeSymbol> stack = new();
+        List<string> declarations = [];
 
-        for (INamedTypeSymbol? current = type.ContainingType; current is not null; current = current.ContainingType)
-            stack.Push(current);
+        for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
+            declarations.Add(GetDeclaration(current));
 
-        while (stack.Count > 0)
-        {
-            INamedTypeSymbol current = stack.Pop();
+        declarations.Reverse();
 
-            _ = builder
-                .Append("partial ")
-                .Append(GetTypeKindKeyword(current))
-                .Append(' ')
-                .Append(current.Name)
-                .Append(GetTypeParameters(current))
-                .AppendLine();
-
-            AppendTypeConstraints(builder, current);
-            _ = builder.AppendLine("{");
-        }
+        return declarations.ToEquatableArray();
     }
 
+    private static string GetDeclaration(INamedTypeSymbol type)
+        => "partial " + GetTypeKindKeyword(type) + " " + type.Name + GetTypeParameters(type);
+
+    /// <summary>The keyword the author's declaration uses; every part of a partial type must use the same one, a record's included.</summary>
     private static string GetTypeKindKeyword(INamedTypeSymbol type)
         => type.TypeKind switch
         {
-            TypeKind.Struct => "struct",
+            TypeKind.Struct => type.IsRecord ? "record struct" : "struct",
             TypeKind.Interface => "interface",
-            _ => "class"
+            _ => type.IsRecord ? "record" : "class"
         };
 
     private static string GetTypeParameters(INamedTypeSymbol type)
@@ -60,58 +60,20 @@ internal static class TypeDeclarationWriter
         return builder.ToString();
     }
 
-    private static void AppendTypeConstraints(StringBuilder builder, INamedTypeSymbol type)
+    public static void WriteTypeStart(StringBuilder builder, EquatableArray<string> declarations)
     {
-        foreach (ITypeParameterSymbol parameter in type.TypeParameters)
+        foreach (var declaration in declarations)
         {
-            List<string> constraints = [];
-
-            if (parameter.HasNotNullConstraint)
-                constraints.Add("notnull");
-
-            if (parameter.HasReferenceTypeConstraint)
-                constraints.Add("class");
-
-            if (parameter.HasUnmanagedTypeConstraint)
-                constraints.Add("unmanaged");
-            else if (parameter.HasValueTypeConstraint)
-                constraints.Add("struct");
-
-            foreach (ITypeSymbol constraintType in parameter.ConstraintTypes)
-                constraints.Add(constraintType.ToDisplayString(SymbolDisplayFormats.GlobalNonNullableType));
-
-            if (parameter.HasConstructorConstraint)
-                constraints.Add("new()");
-
-            if (constraints.Count == 0)
-                continue;
-
             _ = builder
-                .Append("    where ")
-                .Append(parameter.Name)
-                .Append(" : ")
-                .AppendLine(string.Join(", ", constraints));
+                .AppendLine(declaration)
+                .AppendLine("{");
         }
     }
 
-    public static void WriteContainingTypesEnd(StringBuilder builder, INamedTypeSymbol type)
+    public static void WriteTypeEnd(StringBuilder builder, EquatableArray<string> declarations)
     {
-        for (INamedTypeSymbol? current = type.ContainingType; current is not null; current = current.ContainingType)
+        for (var i = 0; i < declarations.Count; i++)
             _ = builder.AppendLine("}");
-    }
-
-    public static void WritePartialTypeStart(StringBuilder builder, INamedTypeSymbol type)
-    {
-        _ = builder
-            .Append("partial ")
-            .Append(GetTypeKindKeyword(type))
-            .Append(' ')
-            .Append(type.Name)
-            .Append(GetTypeParameters(type))
-            .AppendLine();
-
-        AppendTypeConstraints(builder, type);
-        _ = builder.AppendLine("{");
     }
 
     /// <summary>

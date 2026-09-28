@@ -5,13 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Data;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Data;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Items.ItemsView;
 
@@ -47,6 +40,9 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
 {
     public const int TotalRows = 100_000;
 
+    /// <summary>The last query's matches: a scroll through a filtered list asks for window after window of the same query.</summary>
+    private MatchedRows? _matched;
+
     protected override Task<UIItemWindow<DemoRowItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
     {
         // The rows the query leaves, or null for the whole hundred thousand, which is never materialized.
@@ -81,13 +77,20 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
     }
 
     /// <summary>
-    /// Applies the query the host's rules resolved to, which the client could not since it holds only a window.
+    /// Applies the query the host's rules resolved to, which the client could not since it holds only a window; the matches are
+    /// kept until the query changes.
     /// </summary>
     /// <remarks>A scan, because these rows are generated; a source over a database would translate the terms instead.</remarks>
-    private static int[]? Match(UIItemsQuery query)
+    private int[]? Match(UIItemsQuery query)
     {
         if (query.Filters.Length == 0)
             return null;
+
+        var key = KeyOf(query);
+
+        // One reference read: two window reads racing each other see either the old matches or the new, never half of each.
+        if (_matched is { } matched && matched.Key == key)
+            return matched.Rows;
 
         List<int> matches = [];
 
@@ -97,7 +100,20 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
                 matches.Add(index);
         }
 
-        return [.. matches];
+        _matched = new MatchedRows(key, [.. matches]);
+
+        return _matched.Rows;
+    }
+
+    /// <summary>What the scan reads of a query: each term's property and value.</summary>
+    private static string KeyOf(UIItemsQuery query)
+    {
+        var parts = new string[query.Filters.Length];
+
+        for (var i = 0; i < parts.Length; i++)
+            parts[i] = $"{query.Filters[i].ItemProperty}\u001f{Convert.ToString(query.Filters[i].Value, CultureInfo.InvariantCulture)}";
+
+        return string.Join('\u001e', parts);
     }
 
     private static bool Matches(int index, UIItemsQuery query)
@@ -117,12 +133,20 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
         return true;
     }
 
+    /// <summary>Where a row stands in the list the reader sees; the matches are in order, and a row the filter left out stands where it would be.</summary>
     private static int PositionOf(int[]? matches, string key)
     {
         var index = DemoRowItem.ParseIndex(key);
 
-        return matches is null ? index : Array.IndexOf(matches, index);
+        if (matches is null)
+            return index;
+
+        var position = Array.BinarySearch(matches, index);
+
+        return position >= 0 ? position : ~position;
     }
+
+    private sealed record MatchedRows(string Key, int[] Rows);
 }
 
 internal sealed partial class DemoChatMessage(string id, string author, string text) : RecursiveObservable, IBindableItem
@@ -199,12 +223,6 @@ internal sealed class DemoChatSource : UIItemSourceBase<DemoChatMessage>
         => _history.FindIndex(message => string.Equals(message.Id, key, StringComparison.Ordinal));
 }
 
-internal sealed partial class WindowGroupContext : DemoGroupContext
-{
-    public void Report(string message)
-        => LogEvent(message);
-}
-
 internal sealed partial class ItemsViewScenariosController() : DemoController
 {
     /// <summary>
@@ -221,13 +239,13 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
     public partial string RowsFilter { get; set; } = string.Empty;
 
     [RecursiveMember]
-    public partial WindowGroupContext RowsGroup { get; set; } = new();
+    public partial DemoGroupContext RowsGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial WindowGroupContext ChatGroup { get; set; } = new();
+    public partial DemoGroupContext ChatGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial WindowGroupContext LocalGroup { get; set; } = new();
+    public partial DemoGroupContext LocalGroup { get; set; } = new();
 
     [RecursiveMember(false)]
     public DemoRowsSource Rows { get; } = new();
@@ -255,7 +273,7 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At(50_000), 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.Report($"Jumped to offset {Rows.Offset} of {Rows.TotalCount}.");
+        RowsGroup.LogEvent($"Jumped to offset {Rows.Offset} of {Rows.TotalCount}.");
     }
 
     [UICommand]
@@ -263,7 +281,7 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.Report($"Back at offset {Rows.Offset}.");
+        RowsGroup.LogEvent($"Back at offset {Rows.Offset}.");
     }
 
     [UICommand]
@@ -271,7 +289,7 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
     {
         LocalRows.Add(new DemoRowItem(LocalRows.Count));
 
-        LocalGroup.Report($"{LocalRows.Count} rows held, and as many laid out as fit.");
+        LocalGroup.LogEvent($"{LocalRows.Count} rows held, and as many laid out as fit.");
     }
 
     /// <summary>
@@ -284,7 +302,7 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
 
         DemoChatMessage message = Chat.Receive("Server", $"Pushed message #{_received}.");
 
-        ChatGroup.Report($"Received '{message.Text}'");
+        ChatGroup.LogEvent($"Received '{message.Text}'");
     }
 
     [UICommand]

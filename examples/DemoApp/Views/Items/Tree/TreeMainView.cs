@@ -2,10 +2,6 @@ using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.Tree;
 using DemoApp.Views.Base;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 
 namespace DemoApp.Views.Items.Tree;
 
@@ -29,10 +25,10 @@ internal sealed class TreeMainView : DemoMainView, IUIViewDefinition
 
     // The tree is named, so the fold a viewer chooses is kept in the browser between visits.
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("project-files")
+        => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("bucket-objects")
             .BindItems($"{NodesGroup}.{nameof(TreeNodesGroupContext.Items)}")
             // A folder's glyph in the warm yellow of a file list; a file keeps the primary ink.
-            .AddNodeKind(DemoProjectTree.FolderKind, node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
+            .AddNodeKind(DemoStorageTree.FolderKind, node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
             .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
             .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")

@@ -307,11 +307,14 @@
 }
 
 // A mixin, since -webkit- and -moz- pseudo-elements cannot share a selector: a browser drops the whole rule over one it does not know.
+// The checker is the surface's own ink, not white: white over the light theme's raised ground was invisible.
+@ui-color-input-checker: ~"color-mix(in srgb, var(--ui-color-on-surface) 15%, transparent)";
+
 .ui-color-input-opacity-track() {
     background-image:
         linear-gradient(to right, transparent, var(--ui-color-input-solid, transparent)),
-        linear-gradient(45deg, rgba(255, 255, 255, 0.22) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.22) 75%),
-        linear-gradient(45deg, rgba(255, 255, 255, 0.22) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.22) 75%);
+        linear-gradient(45deg, @ui-color-input-checker 25%, transparent 25%, transparent 75%, @ui-color-input-checker 75%),
+        linear-gradient(45deg, @ui-color-input-checker 25%, transparent 25%, transparent 75%, @ui-color-input-checker 75%);
     background-size: var(--ui-color-input-opacity-fill, 100%) 100%, 6px 6px, 6px 6px;
     background-position: left center, 0 0, 3px 3px;
     background-repeat: no-repeat, repeat, repeat;

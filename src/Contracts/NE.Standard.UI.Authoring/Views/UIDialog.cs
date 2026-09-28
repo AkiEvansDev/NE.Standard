@@ -96,6 +96,11 @@ public sealed class UIDialog
     public bool CloseOnEscape { get; init; } = true;
 
     /// <summary>
+    /// Gets the name a screen reader announces for the dialog, translated for the page's language; unset, the dialog is unnamed.
+    /// </summary>
+    public string? Label { get; init; }
+
+    /// <summary>
     /// Registers a command invoked when the viewer dismisses the dialog (Escape or a backdrop click); a server-requested close
     /// raises nothing.
     /// </summary>

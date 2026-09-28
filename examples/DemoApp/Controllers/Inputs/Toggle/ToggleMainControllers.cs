@@ -1,5 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Inputs.Toggle;
 
@@ -38,6 +37,6 @@ internal abstract partial class ToggleMainController(string sampleTitle, string 
         => BorderGroup.CycleOption(id);
 }
 
-internal sealed partial class CheckboxMainController() : ToggleMainController("Require review before deploy", "Every merge waits for a second pair of eyes.");
+internal sealed partial class CheckboxMainController() : ToggleMainController("Take automatic backups", "Every server is snapshotted each night.");
 
-internal sealed partial class SwitchMainController() : ToggleMainController("Ship on merge", "A green build goes straight to production.");
+internal sealed partial class SwitchMainController() : ToggleMainController("Restart on a failed health check", "A server that stops answering is restarted.");

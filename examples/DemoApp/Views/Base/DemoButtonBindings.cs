@@ -1,6 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Actions;
 
 namespace DemoApp.Views.Base;
 

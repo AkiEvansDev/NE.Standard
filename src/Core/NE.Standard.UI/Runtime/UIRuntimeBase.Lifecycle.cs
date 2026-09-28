@@ -43,13 +43,7 @@ internal abstract partial class UIRuntimeBase
             }
             catch (Exception exception)
             {
-                _ = await HandleRuntimeExceptionAsync(
-                    exception,
-                    "Initialize",
-                    commandRequest: null,
-                    clientChangeSet: null,
-                    cancellationToken
-                ).ConfigureAwait(false);
+                _ = await HandleRuntimeExceptionAsync(exception, "Initialize", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
                 throw;
             }

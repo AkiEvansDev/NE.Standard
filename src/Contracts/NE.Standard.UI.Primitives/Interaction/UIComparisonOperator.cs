@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Primitives.Interaction;
 public enum UIComparisonOperator
 {
     /// <summary>
-    /// The value must be present (not null, empty, or whitespace).
+    /// The value must be present: not null, not <see langword="false"/>, and not empty or whitespace text.
     /// </summary>
     Required = 0,
 

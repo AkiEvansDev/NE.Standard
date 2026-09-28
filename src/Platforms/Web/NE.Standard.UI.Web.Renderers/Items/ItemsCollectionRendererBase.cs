@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
@@ -100,14 +101,45 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         });
     }
 
-    /// <summary>Marks a rendered row as chosen when its key is among the chosen ones.</summary>
-    protected static void MarkSelected(IHtmlElementBuilder row, object? item, HashSet<string> selected)
+    /// <summary>
+    /// Marks a rendered row as chosen when its key is among the chosen ones; <paramref name="announce"/> says it to a screen reader
+    /// too, for a row whose role carries a selection (an option, a grid's row, a tree item).
+    /// </summary>
+    protected static void MarkSelected(IHtmlElementBuilder row, object? item, HashSet<string> selected, bool announce = false)
     {
         ArgumentNullException.ThrowIfNull(row);
         ArgumentNullException.ThrowIfNull(selected);
 
-        if (item is IBindableItem { Id: { } id } && selected.Contains(id))
+        var chosen = item is IBindableItem { Id: { } id } && selected.Contains(id);
+
+        if (chosen)
             _ = row.Attribute(WebAttributes.Selected);
+
+        if (announce)
+            _ = row.Attribute("aria-selected", chosen ? "true" : "false");
+    }
+
+    /// <summary>The selection mode the render knows: the authored one, or this session's where it is bound; null where neither is known.</summary>
+    protected static UISelectionMode? ResolveSelectionMode(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _ = ResolveRenderValue(context, ISelectableItemsComponent.SelectionModeProperty, out UISelectionMode? mode, out _);
+
+        return mode;
+    }
+
+    /// <summary>Whether rows can be chosen, and so announce their selection; several at once also marks the host multi-selectable.</summary>
+    protected static bool RenderSelectableRole(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+
+        UISelectionMode? mode = ResolveSelectionMode(context);
+
+        if (mode == UISelectionMode.Many)
+            _ = root.Attribute("aria-multiselectable", "true");
+
+        return mode is UISelectionMode.One or UISelectionMode.Many;
     }
 
     /// <summary>
@@ -141,7 +173,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         HashSet<string> keys = new(StringComparer.Ordinal);
 
-        _ = ResolveRenderValue(context, ISelectableItemsComponent.SelectionModeProperty, out UISelectionMode? mode, out _);
+        UISelectionMode? mode = ResolveSelectionMode(context);
 
         if (mode == UISelectionMode.One)
         {
@@ -271,7 +303,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = root.Element("template", template =>
             {
                 _ = template.Attribute(WebAttributes.Template, DefaultTemplateName);
-                context.Renderer.RenderComponent(context.ForHtml(template), defaultTemplate.RootComponentId);
+                context.Renderer.RenderComponent(context.AsTemplate(template), defaultTemplate.RootComponentId);
             });
         }
 
@@ -287,7 +319,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = root.Element("template", template =>
             {
                 _ = template.Attribute(WebAttributes.Template, variant.Key);
-                context.Renderer.RenderComponent(context.ForHtml(template), variant.RootComponentId);
+                context.Renderer.RenderComponent(context.AsTemplate(template), variant.RootComponentId);
             });
         }
 
@@ -296,7 +328,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = root.Element("template", template =>
             {
                 _ = template.Attribute(WebAttributes.EmptyTemplate);
-                context.Renderer.RenderComponent(context.ForHtml(template), emptyTemplate.RootComponentId);
+                context.Renderer.RenderComponent(context.AsTemplate(template), emptyTemplate.RootComponentId);
             });
         }
 
@@ -305,7 +337,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = root.Element("template", template =>
             {
                 _ = template.Attribute(WebAttributes.GroupTemplate);
-                context.Renderer.RenderComponent(context.ForHtml(template), groupTemplate.RootComponentId);
+                context.Renderer.RenderComponent(context.AsTemplate(template), groupTemplate.RootComponentId);
             });
         }
     }
@@ -328,15 +360,18 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         });
     }
 
-    /// <summary>Registers the template metadata a client-rendered bound item is rebuilt from, wrapper and composite included.</summary>
-    protected static void RegisterItemsTemplateMetadata(WebRenderContext context, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null, string? rowDecorator = null)
+    /// <summary>
+    /// Registers the template metadata a client-rendered bound item is rebuilt from: wrapper and composite, the role a wrapper carries,
+    /// and whether a row says whether it is chosen.
+    /// </summary>
+    protected static void RegisterItemsTemplateMetadata(WebRenderContext context, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null, string? rowDecorator = null, string? itemWrapperRole = null, bool announcesSelection = false)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         var templateKeyPropertyName = ResolveStaticStringProperty(context, ITemplatedComponent.TemplateKeyPropertyProperty);
         var fallbackTemplateKey = ResolveStaticStringProperty(context, ITemplatedComponent.FallbackTemplateKeyProperty);
 
-        context.Metadata.RegisterItemsTemplate(context.Node.ComponentId, templateKeyPropertyName, fallbackTemplateKey, itemWrapperElementName, itemWrapperClassName, composite, rowDecorator);
+        context.Metadata.RegisterItemsTemplate(context.Node.ComponentId, templateKeyPropertyName, fallbackTemplateKey, itemWrapperElementName, itemWrapperClassName, composite, rowDecorator, itemWrapperRole, announcesSelection);
     }
 
     /// <summary>Registers filter/sort metadata from a static <c>ItemsView</c>; a bound one arrives as a live update instead.</summary>
@@ -476,14 +511,29 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
                 values.Add(new WebRenderItemValue { Key = bindableItem.Id, Item = items[i] });
         }
 
-        context.Metadata.RegisterItemValues(context.Node.ComponentId, values);
+        // Addressed by the rows the host stands in: a list inside every row of another is one host per row, each with its own values.
+        context.Metadata.RegisterItemValues(new UIComponentAddress(context.Node.ComponentId, ResolveDynamicParameters(context)), values);
     }
 
-    /// <summary>Whether these rows are the session's own; those are already in the change set, so metadata skips them.</summary>
+    /// <summary>
+    /// Whether these rows are the session's own — a collection on the controller — which the change set already carries, so metadata
+    /// skips them. A list bound into an author-declared row is not: nothing but the metadata brings its values.
+    /// </summary>
     private static bool IsSessionItems(WebRenderContext context)
-        => context.Values is not null
-        && context.ViewResolution.View.State.TryGetValue(context.Node.ComponentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? propertyValue)
-        && propertyValue is { IsBind: true };
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        if (context.Values is null
+            || !view.State.TryGetValue(context.Node.ComponentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? propertyValue)
+            || propertyValue is not { IsBind: true, BindingId: UIBindingId bindingId })
+        {
+            return false;
+        }
+
+        CompiledUIBinding binding = view.Bindings.GetRequired(bindingId);
+
+        return view.Sources.GetRequired(binding.SourceId).Kind == CompiledUIBindingSourceKind.Controller;
+    }
 
     private static bool HasItemsViewRules(WebRenderContext context)
     {
@@ -631,30 +681,17 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(item);
         ArgumentException.ThrowIfNullOrWhiteSpace(variantKey);
 
-        CompiledView view = context.ViewResolution.View;
-
-        if (!view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, variantKey))
+        if (ForStampedSlot(context, existingRoot, item, variantKey) is not WebRenderContext slotContext)
             return;
 
-        UIComponentNode node = view.Graph.GetRequired(slot.RootComponentId);
-        UIDynamicParameterScope parameter = CreateParameterScope(slot.RootComponentId, item);
-
-        _ = existingRoot.Attribute(WebAttributes.Id, node.ComponentId.Value.ToString(CultureInfo.InvariantCulture));
-        _ = existingRoot.Attribute(WebAttributes.Context, node.ContextId.Value.ToString(CultureInfo.InvariantCulture));
+        StampComponent(slotContext, existingRoot);
 
         // A stamped element sets no `--ui-align-*` of its own, so it would inherit the owning list's alignment;
         // stretch is the only value that leaves the item's own layout alone.
         _ = existingRoot.Style("align-self", "stretch");
         _ = existingRoot.Style("justify-self", "stretch");
 
-        if (node.ContextParameterCount > 0)
-            _ = existingRoot.Attribute(WebAttributes.Pc, node.ContextParameterCount.ToString(CultureInfo.InvariantCulture));
-
-        ApplyItemParameterAttributes(existingRoot, parameter, item);
-
-        context.Metadata.AddEvents(view.Events.GetByComponent(node.ComponentId));
-        context.Metadata.AddInteractions(view.Interactions.GetByComponent(node.ComponentId));
-        context.Metadata.AddValidations(view.Validations.GetByComponent(node.ComponentId));
+        ApplyItemParameterAttributes(existingRoot, slotContext.Parameters[^1], item);
     }
 
     private static void ApplyItemParameterAttributes(IHtmlElementBuilder itemRoot, UIDynamicParameterScope parameter, object? item)

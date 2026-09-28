@@ -3,16 +3,6 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
-using NE.Standard.UI.Shell.Sessions;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -24,12 +14,6 @@ namespace TeamRoom.Controllers;
 /// </summary>
 public abstract partial class TeamRoomController : UIControllerBase
 {
-    private static partial class Log
-    {
-        [LoggerMessage(Level = LogLevel.Debug, Message = "A pushed change did not reach the runtime: {Reason}")]
-        public static partial void PushFailed(ILogger logger, string reason);
-    }
-
     private IDisposable? _subscription;
     private MenuItem? _chatEntry;
 
@@ -102,6 +86,7 @@ public abstract partial class TeamRoomController : UIControllerBase
         AdminVisibility = account.IsAdmin ? UIVisibility.Visible : UIVisibility.Collapsed;
     }
 
+    /// <summary>The sidebar: built again when the role changes, since the administrators' entry comes and goes with it.</summary>
     private void BuildNavigation()
     {
         Navigation.Clear();
@@ -138,12 +123,24 @@ public abstract partial class TeamRoomController : UIControllerBase
     protected virtual Task OnAccountReadyAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
-    /// <summary>On the publisher's thread: the base keeps the sidebar and the account current, the page adds its own.</summary>
+    /// <summary>
+    /// On the publisher's thread: decides whether the event concerns this account and queues the work, which runs later on this
+    /// runtime; the base keeps the sidebar and the account current, the page adds its own.
+    /// </summary>
+    /// <remarks>
+    /// A block or a deletion needs nothing here: <see cref="IUISessions"/> ends the account's sessions, which sends their pages to
+    /// sign in and ends their runtimes, this one included.
+    /// </remarks>
     private void Receive(AppEvent appEvent)
     {
         switch (appEvent)
         {
-            case MessagePosted or ConversationsChanged:
+            // The author's own message moves nobody's count but the readers'.
+            case MessagePosted posted when posted.AuthorId != AccountId && posted.Reaches(AccountId):
+                Push(RefreshUnread);
+                break;
+
+            case MessageDeleted deleted when deleted.Reaches(AccountId):
                 Push(RefreshUnread);
                 break;
 
@@ -151,10 +148,10 @@ public abstract partial class TeamRoomController : UIControllerBase
                 Push(RefreshUnread);
                 break;
 
-            case AccountChanged changed when changed.AccountId == AccountId:
+            case AccountChanged { Kind: AccountChangeKind.Profile } changed when changed.AccountId == AccountId:
                 Push(() =>
                 {
-                    if (changed.Kind == AccountChangeKind.Profile && AccountStore.Find(AccountId) is { } account)
+                    if (AccountStore.Find(AccountId) is { } account)
                     {
                         Apply(account);
                         BuildNavigation();
@@ -169,29 +166,41 @@ public abstract partial class TeamRoomController : UIControllerBase
         OnAppEvent(appEvent);
     }
 
-    /// <summary>The page's share of an event; called on the publisher's thread, so a page answers through <see cref="Push"/>.</summary>
+    /// <summary>The page's share of an event; called on the publisher's thread, so a page answers through <see cref="Push(Action)"/>.</summary>
     protected virtual void OnAppEvent(AppEvent appEvent) { }
 
-    /// <summary>Applies a change to this runtime from outside a command: the framework flushes it to every tab attached.</summary>
+    /// <summary>
+    /// Applies a change to this runtime from outside a command: posted through <c>Context.Runtime.Post</c>, which runs it on the
+    /// thread pool after every earlier post, and flushed by the framework to every tab attached.
+    /// </summary>
     protected void Push(Action action)
     {
         ArgumentNullException.ThrowIfNull(action);
 
-        _ = PushAsync(action);
+        Push(_ =>
+        {
+            action();
+            return Task.CompletedTask;
+        });
     }
 
-    private async Task PushAsync(Action action)
+    /// <summary>
+    /// The asynchronous form of <see cref="Push(Action)"/>, for work that reads a window. Posts run in the order they were made,
+    /// so a message deleted just after it was posted is never dropped before it is appended.
+    /// </summary>
+    protected void Push(Func<CancellationToken, Task> action)
     {
-        try
-        {
-            _ = await Context.Runtime.InvokeAsync(action).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException error)
-        {
-            // A runtime that stopped between the event and the push: nothing to show it to.
-            Log.PushFailed(Context.Logger, error.Message);
-        }
+        ArgumentNullException.ThrowIfNull(action);
+
+        Context.Runtime.Post(action);
     }
+
+    /// <summary>
+    /// Sends this page elsewhere from outside a command, after whatever was pushed before it — every tab of it, since the
+    /// runtime is shared by the client's tabs.
+    /// </summary>
+    protected void Go(string route)
+        => Push(cancellationToken => Context.SendEffectsToAllAsync([new NavigateEffect(new UINavigationRequest { Route = route })], cancellationToken));
 
     protected static UICommandResult Notify(string message, UIColorStyle severity = UIColorStyle.Info)
         => UICommandResult.Ok([new ShowNotificationEffect(message, severity)]);
@@ -199,10 +208,17 @@ public abstract partial class TeamRoomController : UIControllerBase
     protected static UICommandResult Refuse(string message)
         => UICommandResult.Ok([new ShowNotificationEffect(message, UIColorStyle.Danger)]);
 
+    /// <summary>
+    /// Signs out: the framework ends the session everywhere and sends every other page to sign in, the tabs sharing this runtime
+    /// included. This runtime stays to finish the answer, and until its retention runs out; it stops hearing events meanwhile.
+    /// </summary>
     [UICommand]
     public async Task<UICommandResult> SignOutAsync(CancellationToken cancellationToken)
     {
         await Context.SignOutAsync(cancellationToken).ConfigureAwait(false);
+
+        _subscription?.Dispose();
+        _subscription = null;
 
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = AppRoutes.SignIn })]);
     }

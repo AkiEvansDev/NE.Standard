@@ -42,9 +42,16 @@
     display: none;
     // line-height: 1 keeps the text tight to its glyphs so the badge's flex centring splits the leading evenly around it.
     line-height: 1;
+    // Trimmed to the capitals and the baseline, the box is the figures' own ink and the centring is theirs: Chrome rounds a face's
+    // ascent and descent to whole pixels before it lays a line out, which set a 10px line in a 15px circle half a pixel low.
+    text-box: trim-both cap alphabetic;
     // The same for the horizontal: a spaced type carries its step after the last glyph too, which reads as a wider end padding.
     margin-inline-end: calc(-1 * var(--ui-letter-spacing, 0px));
     .ui-text-nowrap();
+    // The trimmed box is the capitals' height and a round figure overshoots it: clipped across only, the ellipsis stays and the
+    // top of a 6 or a 0 is not shaved off.
+    overflow: visible;
+    overflow-x: clip;
 }
 
 .ui-badge[data-ui-badge-icon] > .ui-badge__icon {

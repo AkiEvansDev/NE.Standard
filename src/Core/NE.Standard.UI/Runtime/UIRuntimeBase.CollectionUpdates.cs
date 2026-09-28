@@ -333,13 +333,13 @@ internal abstract partial class UIRuntimeBase
         for (var i = 0; i < result.Length; i++)
         {
             var newIndex = change.Index + i;
-            var item = TryGetControllerValue(collectionPath.AppendIndex(newIndex));
 
             result[i] = new ServerCollectionMoveChange
             {
                 OldIndex = change.OldIndex + i,
                 NewIndex = newIndex,
-                Key = GetItemKey(change, i, old: false) ?? TryGetItemKey(item)
+                // Read back by position only when the change recorded no key: by flush time a later change may have moved the row.
+                Key = GetItemKey(change, i, old: false) ?? TryGetItemKey(TryGetControllerValue(collectionPath.AppendIndex(newIndex)))
             };
         }
 

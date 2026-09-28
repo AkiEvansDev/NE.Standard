@@ -1,5 +1,5 @@
 import { EventDispatchContext, RegisteredEvent } from "./event-descriptor";
-import { UICommandRequest, toSerializedIdValue } from "../metadata/metadata-index";
+import { UICommandRequest, getIdValue } from "../metadata/metadata-index";
 
 export class EventRequestFactory {
     public create(registration: RegisteredEvent, context: EventDispatchContext): UICommandRequest | null {
@@ -10,7 +10,7 @@ export class EventRequestFactory {
             return null;
 
         return {
-            eventId: toSerializedIdValue(context.metadata.eventId),
+            eventId: getIdValue(context.metadata.eventId),
             dynamicParameters: [...context.dynamicParameters]
         };
     }

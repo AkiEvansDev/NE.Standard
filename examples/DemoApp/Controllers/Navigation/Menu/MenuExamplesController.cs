@@ -1,10 +1,5 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Navigation.Menu;
 
@@ -33,9 +28,6 @@ internal sealed partial class MenuListGroupContext(IEnumerable<MenuItem> entries
 
         LogEvent($"'{id}' is the current page");
     }
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 internal sealed partial class DemoDeployItem : RecursiveObservable, IBindableItem
@@ -55,9 +47,9 @@ internal sealed partial class ContextMenuGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<DemoDeployItem> Deploys { get; } =
     [
-        new() { Id = "481", Title = "Web Portal · #481" },
-        new() { Id = "482", Title = "Web Portal · #482" },
-        new() { Id = "483", Title = "Payments API · #483" }
+        new() { Id = "481", Title = "Panel · #481" },
+        new() { Id = "482", Title = "Panel · #482" },
+        new() { Id = "483", Title = "Billing · #483" }
     ];
 
     public void Record(string action, string target)
@@ -71,22 +63,21 @@ internal sealed partial class ContextMenuGroupContext : DemoGroupContext
 internal sealed partial class FiltersGroupContext : DemoGroupContext
 {
     private const string StatusId = "status";
-    private const string EnvironmentId = "environment";
+    private const string RegionId = "region";
     private const string GroupId = "group";
     private const string SortId = "sort";
-    private const string PrStatusId = "pr-status";
-    private const string AllEnvironmentsId = "environment-all";
+    private const string UsageId = "usage";
+    private const string AllRegionsId = "region-all";
 
     [RecursiveMember(false)]
     public RecursiveCollection<MenuItem> Entries { get; } =
     [
-        Select(StatusId, "Status", "Active", ("status-active", "Active", true), ("status-archived", "Archived", false)),
-        Select(EnvironmentId, "Environment", "All", (AllEnvironmentsId, "All environments", true), ("environment-cloud", "Cloud", false),
-            ("environment-remote", "Remote Control", false), ("environment-slack", "Slack", false)),
-        Select(GroupId, "Group by", "None", ("group-none", "None", true), ("group-repository", "Repository", false), ("group-owner", "Owner", false)),
+        Select(StatusId, "Status", "Running", ("status-running", "Running", true), ("status-stopped", "Stopped", false)),
+        Select(RegionId, "Region", "All", (AllRegionsId, "All regions", true), ("region-eu-west", "Europe West", false), ("region-eu-central", "Europe Central", false), ("region-us-east", "US East", false)),
+        Select(GroupId, "Group by", "None", ("group-none", "None", true), ("group-plan", "Plan", false), ("group-region", "Region", false)),
         Select(SortId, "Sort by", "Last activity", ("sort-activity", "Last activity", true), ("sort-name", "Name", false), ("sort-created", "Created", false)),
         new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
-        new MenuItem { Id = PrStatusId, Kind = UIMenuItemKind.Check, Title = "Show PR status", Checked = true }
+        new MenuItem { Id = UsageId, Kind = UIMenuItemKind.Check, Title = "Show usage", Checked = true }
     ];
 
     private static MenuItem Select(string id, string title, string value, params (string Id, string Title, bool Checked)[] choices)
@@ -99,7 +90,7 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
         return select;
     }
 
-    /// <summary>A click on any entry: a check turns, a choice under a select is taken — alone, or beside the others for the environment.</summary>
+    /// <summary>A click on any entry: a check turns, a choice under a select is taken — alone, or beside the others for the region.</summary>
     public void Apply(string id)
     {
         foreach (MenuItem entry in Entries)
@@ -116,8 +107,8 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
                 if (choice.Id != id)
                     continue;
 
-                if (entry.Id == EnvironmentId)
-                    ToggleEnvironment(entry, choice);
+                if (entry.Id == RegionId)
+                    ToggleRegion(entry, choice);
                 else
                     ChooseOne(entry, choice);
 
@@ -135,10 +126,10 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
         select.Value = choice.Title;
     }
 
-    /// <summary>"All environments" stands for every other choice: taking it clears them, taking any of them clears it.</summary>
-    private static void ToggleEnvironment(MenuItem select, MenuItem choice)
+    /// <summary>"All regions" stands for every other choice: taking it clears them, taking any of them clears it.</summary>
+    private static void ToggleRegion(MenuItem select, MenuItem choice)
     {
-        var all = choice.Id == AllEnvironmentsId;
+        var all = choice.Id == AllRegionsId;
 
         choice.Checked = choice.Checked != true;
 
@@ -146,7 +137,7 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
         {
             if (all && !ReferenceEquals(other, choice))
                 other.Checked = false;
-            else if (!all && other.Id == AllEnvironmentsId)
+            else if (!all && other.Id == AllRegionsId)
                 other.Checked = false;
         }
 
@@ -154,14 +145,14 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
 
         foreach (MenuItem other in select.Items)
         {
-            if (other.Checked == true && other.Id != AllEnvironmentsId)
+            if (other.Checked == true && other.Id != AllRegionsId)
                 chosen.Add(other.Title ?? other.Id);
         }
 
         if (chosen.Count == 0)
         {
             foreach (MenuItem other in select.Items)
-                other.Checked = other.Id == AllEnvironmentsId;
+                other.Checked = other.Id == AllRegionsId;
         }
 
         select.Value = chosen.Count == 0 ? "All" : chosen.Count == 1 ? chosen[0] : $"{chosen.Count} chosen";
@@ -243,13 +234,13 @@ internal sealed partial class MenuExamplesController() : DemoController
     [RecursiveMember]
     public partial MenuListGroupContext CommandsGroup { get; set; } = new(
     [
-        new MenuItem { Id = "file", Kind = UIMenuItemKind.Header, Title = "File" },
-        new MenuItem { Id = "save", Title = "Save", Icon = DemoIcons.Outline(DemoIcons.Check), Shortcut = "Ctrl+S" },
+        new MenuItem { Id = "server", Kind = UIMenuItemKind.Header, Title = "Server" },
+        new MenuItem { Id = "snapshot", Title = "Take a snapshot", Icon = DemoIcons.Outline(DemoIcons.History), Shortcut = "Ctrl+S" },
         new MenuItem { Id = "rename", Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit), Shortcut = "F2" },
-        new MenuItem { Id = "export", Title = "Export", Icon = DemoIcons.Outline(DemoIcons.Download), Shortcut = "Ctrl+Shift+E" },
+        new MenuItem { Id = "export", Title = "Download the config", Icon = DemoIcons.Outline(DemoIcons.Download), Shortcut = "Ctrl+Shift+E" },
         new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
         new MenuItem { Id = "delete", Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close), Shortcut = "Delete" },
-        new MenuItem { Id = "archive", Title = "Archive", Icon = DemoIcons.Outline(DemoIcons.History), Enabled = false }
+        new MenuItem { Id = "resize", Title = "Resize", Icon = DemoIcons.Outline(DemoIcons.Sliders), Enabled = false }
     ]);
 
     [RecursiveMember]
@@ -271,7 +262,7 @@ internal sealed partial class MenuExamplesController() : DemoController
     /// </summary>
     [UICommand]
     public void Run(string id)
-        => CommandsGroup.Report($"'{id}' ran");
+        => CommandsGroup.LogEvent($"'{id}' ran");
 
     /// <summary>
     /// A check's click or a select's choice: the entry's own key, which the context turns into the mark or the value.

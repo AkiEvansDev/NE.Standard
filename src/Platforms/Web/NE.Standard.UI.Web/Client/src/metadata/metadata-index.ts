@@ -1,4 +1,5 @@
-export type IdValue = number | { value: number };
+/** A compiled id, a bare number on the wire. */
+export type IdValue = number;
 
 export type WebUIMetadata = {
     readonly propertyDefinitions: readonly WebRenderPropertyDefinitionMetadata[];
@@ -60,6 +61,10 @@ export type WebRenderItemsTemplateMetadata = {
     readonly fallbackTemplateKey?: string | null;
     readonly itemWrapperElementName?: string | null;
     readonly itemWrapperClassName?: string | null;
+    // The role the wrapper carries (an option, a list item), so a row the client builds reads as the server's do.
+    readonly itemWrapperRole?: string | null;
+    // Whether a row says whether it is chosen: a row the client builds starts unchosen, the selection engine marks the chosen.
+    readonly announcesSelection?: boolean | null;
     readonly composite?: WebRenderItemsCompositeMetadata | null;
     // The decorator a row the client builds goes through after its template, by kind (`row-decorators.ts`).
     readonly rowDecorator?: string | null;
@@ -114,6 +119,8 @@ export type WebRenderItemsFilterSortMetadata = {
 /** The values behind a server-rendered items host, which the client holds no copy of. */
 export type WebRenderItemValuesMetadata = {
     readonly componentId: IdValue;
+    // The keys of the rows the host stands in, outermost first: a list inside every row of another has values per row.
+    readonly dynamicParameters?: readonly unknown[] | null;
     readonly items: readonly WebRenderItemValue[];
 };
 
@@ -136,7 +143,7 @@ export type WebRenderEventMetadata = {
     readonly dynamicParameterComponentIds?: readonly IdValue[];
 };
 
-export type WebRenderEventAddress = {
+type WebRenderEventAddress = {
     readonly componentId: IdValue;
     readonly eventName: string;
 };
@@ -174,7 +181,7 @@ export type WebInteractionOperatorName =
     | "LikeIgnoreCase";
 export type WebInteractionOperator = WebInteractionOperatorName | number;
 
-export type WebRenderValidationTargetMetadata = {
+type WebRenderValidationTargetMetadata = {
     readonly componentId: IdValue;
     readonly propertyId: string;
 };
@@ -206,7 +213,7 @@ export type WebDomOperation = {
     readonly optional?: boolean | null;
 };
 
-export type WebDomOperationKindName =
+type WebDomOperationKindName =
     | "Text"
     | "Attribute"
     | "RemoveAttribute"
@@ -228,15 +235,14 @@ export type WebValueConditionName =
     | "IsFalse";
 export type WebValueCondition = WebValueConditionName | number;
 
-export type UIComponentAddress = {
+type UIComponentAddress = {
     readonly id: IdValue;
     readonly dynamicParameters?: readonly unknown[];
 };
 
 export type UIPropertyAddress = {
     readonly component: UIComponentAddress;
-    // A bare name; the object form is what an older server wrote.
-    readonly property: string | { readonly name: string };
+    readonly property: string;
 };
 
 export type ServerChangeSet = {
@@ -249,11 +255,7 @@ export type UIUpdateKindName =
     | "FullResync"
     | "Validation";
 
-export type UIUpdateKindValue = UIUpdateKindName | number;
-
-export type SerializedIdValue = {
-    readonly value: number;
-};
+type UIUpdateKindValue = UIUpdateKindName | number;
 
 export type ServerUIUpdate =
     | ServerValueUIUpdate
@@ -306,28 +308,33 @@ export type ServerCollectionChangeUIUpdate = {
     readonly moves?: readonly ServerCollectionMoveChange[];
 };
 
-export type ServerFullResyncUIUpdate = {
+type ServerFullResyncUIUpdate = {
     readonly kind: UIUpdateKindValue;
 };
 
-export type UnknownServerUIUpdate = {
+type UnknownServerUIUpdate = {
     readonly kind: UIUpdateKindValue;
     readonly [key: string]: unknown;
 };
 
 export type UICommandRequest = {
-    readonly eventId: SerializedIdValue;
+    readonly eventId: IdValue;
     readonly dynamicParameters: readonly unknown[];
+    // Echoed on a background command's pushed result; the dispatcher gives one to every request it sends.
+    readonly requestId?: number;
 };
 
 export type UICommandExecutionResult = {
     readonly command?: UICommandResult;
     readonly changes?: ServerChangeSet;
+    // A background command answers only that it was accepted, and pushes its result carrying the request's id.
+    readonly accepted?: boolean;
+    readonly requestId?: number;
 };
 
-export type UICommandResult = {
+type UICommandResult = {
     readonly success?: boolean;
-    readonly message?: string | null;
+    readonly error?: string | null;
     readonly effects?: readonly ClientEffect[];
     readonly [key: string]: unknown;
 };
@@ -381,7 +388,7 @@ export type ScrollPositionName = "Start" | "End" | "Offset" | "PageBack" | "Page
 
 export type ScrollAxisName = "Horizontal" | "Vertical";
 
-export type ClientEffectTarget = {
+type ClientEffectTarget = {
     readonly id?: IdValue;
     readonly dynamicParameters?: readonly unknown[];
 };
@@ -506,7 +513,7 @@ export class MetadataIndex {
     private readonly eventComponentIdsByName = new Map<string, Set<number>>();
     private readonly itemsTemplatesByComponentId = new Map<number, WebRenderItemsTemplateMetadata>();
     private readonly itemsFilterSortByComponentId = new Map<number, WebRenderItemsFilterSortMetadata>();
-    private readonly itemValuesByComponentId = new Map<number, WebRenderItemValuesMetadata>();
+    private readonly itemValuesByAddress = new Map<string, WebRenderItemValuesMetadata>();
     private readonly validationsByComponentId = new Map<number, WebRenderValidationMetadata[]>();
     private readonly validationTargetsByComponentId = new Map<number, WebRenderValidationMessageTargetMetadata>();
     private readonly exposedProperties = new Map<string, WebRenderPropertyReferenceMetadata>();
@@ -599,20 +606,21 @@ export class MetadataIndex {
         return this.itemsFilterSortByComponentId.get(componentId);
     }
 
-    public getItemValues(componentId: number): readonly WebRenderItemValue[] {
-        return this.itemValuesByComponentId.get(componentId)?.items ?? [];
+    /** The values behind one server-rendered host, by its address: the component and the keys of the rows it stands in. */
+    public getItemValues(componentId: number, dynamicParameters: readonly unknown[] = []): readonly WebRenderItemValue[] {
+        return this.itemValuesByAddress.get(itemValuesKey(componentId, dynamicParameters))?.items ?? [];
     }
 
     public getValidationsForComponent(componentId: number): readonly WebRenderValidationMetadata[] {
         return this.validationsByComponentId.get(componentId) ?? [];
     }
 
-    /** Where this field sends its validation words, when it sends them somewhere other than itself. */
     /** A property the component's renderer let a package's client set, by the component and the property's name. */
     public getExposedProperty(componentId: number, propertyName: string): WebRenderPropertyReferenceMetadata | undefined {
         return this.exposedProperties.get(`${componentId}:${propertyName}`);
     }
 
+    /** Where this field sends its validation words, when it sends them somewhere other than itself. */
     public getValidationTarget(componentId: number): WebRenderValidationMessageTargetMetadata | undefined {
         return this.validationTargetsByComponentId.get(componentId);
     }
@@ -682,7 +690,7 @@ export class MetadataIndex {
         const componentId = getIdValue(itemValues.componentId);
 
         if (componentId > 0)
-            this.itemValuesByComponentId.set(componentId, itemValues);
+            this.itemValuesByAddress.set(itemValuesKey(componentId, itemValues.dynamicParameters ?? []), itemValues);
     }
 
     private addValidation(validation: WebRenderValidationMetadata): void {
@@ -764,19 +772,14 @@ export function getCollectionUpdateAction(value: CollectionUpdateAction | null |
     return resolveEnumName(value, ["Insert", "Remove", "Move", "Replace", "Reset"] as const);
 }
 
+/** The number behind an id the server may have left out: 0, the empty id, when it did. */
 export function getIdValue(value: IdValue | null | undefined): number {
-    if (typeof value === "number")
-        return value;
-
-    return value?.value ?? 0;
+    return value ?? 0;
 }
 
 /** The name behind a property key, however the server wrote it. */
 export function getPropertyKeyName(value: UIPropertyAddress["property"] | null | undefined): string {
-    if (typeof value === "string")
-        return value;
-
-    return value?.name ?? "";
+    return typeof value === "string" ? value : "";
 }
 
 export function getUpdateKind(update: ServerUIUpdate): UIUpdateKindName | "Unknown" {
@@ -808,24 +811,23 @@ export function getScrollAxis(value: ScrollAxisName | number | null | undefined)
     return resolveEnumName(value, ["Horizontal", "Vertical"] as const);
 }
 
-export function toSerializedIdValue(value: IdValue | null | undefined): SerializedIdValue {
-    return {
-        value: getIdValue(value)
-    };
-}
-
 export function normalizeEventName(value: string | null | undefined): string {
     return value?.trim().toLowerCase() ?? "";
 }
 
-export function normalizePropertyName(value: string | null | undefined): string {
+function normalizePropertyName(value: string | null | undefined): string {
     return value?.trim() ?? "";
 }
 
-export function createComponentPropertyKey(componentId: number, propertyKey: string): string {
+function createComponentPropertyKey(componentId: number, propertyKey: string): string {
     return `${componentId}:${normalizePropertyName(propertyKey)}`;
 }
 
 function createComponentEventKey(componentId: number, eventName: string): string {
     return `${componentId}:${normalizeEventName(eventName)}`;
+}
+
+// Parameters compare as text, as dom-registry's parameterPathKey compares them; spelled here so this module stays free of DOM imports.
+function itemValuesKey(componentId: number, dynamicParameters: readonly unknown[]): string {
+    return `${componentId}:${JSON.stringify(dynamicParameters.map(parameter => String(parameter ?? "")))}`;
 }

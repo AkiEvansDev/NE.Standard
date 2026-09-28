@@ -1,7 +1,8 @@
 namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
-/// Configures the ASP.NET authorization applied to the framework's own two endpoints — the SignalR hub and the catch-all shell route.
+/// Configures the framework's own endpoints: the ASP.NET authorization on the SignalR hub and the catch-all shell route, and
+/// how the files it serves answer a browser that opens them directly.
 /// </summary>
 public sealed class WebEndpointOptions
 {
@@ -14,4 +15,11 @@ public sealed class WebEndpointOptions
     /// Gets or sets the authorization policy name to require; the default policy when unset.
     /// </summary>
     public string? AuthorizationPolicy { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether content and downloads are served inert: a <c>Content-Security-Policy</c> that runs nothing, and a
+    /// type a browser would render as a document (HTML, XML, SVG) sent as an attachment. On by default; an application that
+    /// deliberately serves active content turns it off.
+    /// </summary>
+    public bool InertContent { get; set; } = true;
 }

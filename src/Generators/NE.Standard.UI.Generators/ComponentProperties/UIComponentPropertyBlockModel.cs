@@ -1,9 +1,8 @@
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
+using NE.Standard.UI.Generators.Infrastructure;
 
 namespace NE.Standard.UI.Generators.ComponentProperties;
 
 /// <summary>
-/// A component type and the contracts whose annotated property blocks it carries.
+/// A component type with the properties its <c>[UIComponentPropertyBlock]</c> contracts contribute, and what reading them reported.
 /// </summary>
-internal sealed record UIComponentPropertyBlockModel(INamedTypeSymbol Type, ImmutableArray<INamedTypeSymbol> Contracts);
+internal sealed record UIComponentPropertyBlockModel(UIComponentTypeModel Owner, EquatableArray<UIComponentPropertyModel> Properties, EquatableArray<DiagnosticInfo> Diagnostics);

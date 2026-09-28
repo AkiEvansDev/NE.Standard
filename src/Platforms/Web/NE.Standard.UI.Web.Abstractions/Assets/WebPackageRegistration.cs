@@ -34,7 +34,7 @@ public static class WebPackageRegistration
         return registration;
     }
 
-    /// <summary>Strips a pack's own prefix (<c>lu-</c>, <c>ms-</c>) so a glyph table stays keyed by the pack's own name.</summary>
+    /// <summary>Strips a pack's own prefix (Material's <c>ms-</c>) so a glyph table stays keyed by the pack's own name.</summary>
     public static string NormalizeIconName(string name, string prefix)
         => name.StartsWith(prefix, StringComparison.Ordinal) ? name[prefix.Length..] : name;
 }

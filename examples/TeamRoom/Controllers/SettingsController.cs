@@ -1,15 +1,7 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
-using NE.Standard.UI.Shell.Files;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -23,7 +15,8 @@ public sealed partial class PictureRow : KeyValueActionItem
 }
 
 /// <summary>
-/// The account's own page as a list of rows, each edited in place: the picture, the name, the password, the chat's background and its fit.
+/// The account's own page as a list of rows, each edited in place — the picture, the name, the chat's background and its fit — and
+/// the password, changed in a dialog that asks for the current one first.
 /// </summary>
 public sealed partial class SettingsController : TeamRoomController
 {
@@ -32,6 +25,7 @@ public sealed partial class SettingsController : TeamRoomController
     public const string PasswordRowId = "password";
     public const string BackgroundRowId = "background";
     public const string FitRowId = "fit";
+    public const string PasswordDialogKey = "settings-password";
 
     private const long MaxPictureBytes = 8 * 1024 * 1024;
     private const string PasswordMask = "••••••••";
@@ -46,7 +40,7 @@ public sealed partial class SettingsController : TeamRoomController
 
     private readonly PictureRow _picture = Row<PictureRow>(PictureRowId, "Picture", "avatar");
     private readonly KeyValueActionItem _name = Row<KeyValueActionItem>(NameRowId, "Name", inputTemplate: null);
-    private readonly KeyValueActionItem _password = Row<KeyValueActionItem>(PasswordRowId, "Password", "password");
+    private readonly KeyValueActionItem _password = Row<KeyValueActionItem>(PasswordRowId, "Password", inputTemplate: null);
     private readonly PictureRow _background = Row<PictureRow>(BackgroundRowId, "Chat background", "picture");
     private readonly KeyValueActionItem _fit = Row<KeyValueActionItem>(FitRowId, "Background fit", "fit");
 
@@ -66,6 +60,12 @@ public sealed partial class SettingsController : TeamRoomController
     /// <summary>The line in the empty preview; a picture speaks for itself.</summary>
     [RecursiveMember]
     public partial UIVisibility PreviewCaptionVisibility { get; set; } = UIVisibility.Visible;
+
+    [RecursiveMember]
+    public partial string CurrentPassword { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial string NewPassword { get; set; } = string.Empty;
 
     private static TRow Row<TRow>(string id, string key, string? inputTemplate)
         where TRow : KeyValueActionItem, new()
@@ -130,25 +130,37 @@ public sealed partial class SettingsController : TeamRoomController
     private static TextItem Text(KeyValueActionItem row)
         => (TextItem)row.Value;
 
-    /// <summary>The pencil: the draft is seeded from what the row shows, and the row turns into its editor.</summary>
+    /// <summary>
+    /// The pencil: the draft is seeded from what the row shows, and the row turns into its editor. The password's pencil opens
+    /// its dialog instead, since a change needs the current password beside the new one.
+    /// </summary>
     [UICommand]
-    public void OpenRow(string id)
+    public UICommandResult OpenRow(string id)
     {
+        if (id == PasswordRowId)
+        {
+            CurrentPassword = string.Empty;
+            NewPassword = string.Empty;
+
+            return UICommandResult.Ok([new OpenDialogEffect(PasswordDialogKey)]);
+        }
+
         KeyValueActionItem? row = Find(id);
 
         if (row is null)
-            return;
+            return UICommandResult.Ok();
 
         row.EditValue = id switch
         {
             NameRowId => Account.Nickname,
-            PasswordRowId => string.Empty,
             FitRowId => Account.BackgroundFit ?? nameof(UIImageFit.Cover),
             PictureRowId => AvatarSource,
             BackgroundRowId => BackgroundSource,
             _ => null
         };
         row.ShowInput = true;
+
+        return UICommandResult.Ok();
     }
 
     private KeyValueActionItem? Find(string id)
@@ -176,7 +188,6 @@ public sealed partial class SettingsController : TeamRoomController
         var error = id switch
         {
             NameRowId => AccountStore.Rename(AccountId, draft),
-            PasswordRowId => AccountStore.SetOwnPassword(AccountId, draft),
             FitRowId => ChooseFit(draft),
             PictureRowId => await TakePictureAsync(_picture, MediaPurposes.Avatar, cancellationToken).ConfigureAwait(false),
             BackgroundRowId => await TakePictureAsync(_background, MediaPurposes.Background, cancellationToken).ConfigureAwait(false),
@@ -188,9 +199,6 @@ public sealed partial class SettingsController : TeamRoomController
 
         row.ShowInput = false;
         row.EditValue = null;
-
-        if (id == PasswordRowId)
-            return Notify("Your password is changed.", UIColorStyle.Success);
 
         // The account changed under the base's hands: it re-reads on the event, this page re-reads the rows now.
         if (AccountStore.Find(AccountId) is { } account)
@@ -238,12 +246,7 @@ public sealed partial class SettingsController : TeamRoomController
         string mediaId;
 
         await using (upload.ConfigureAwait(false))
-        {
-            using MemoryStream buffer = new();
-            await upload.Content.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-
-            mediaId = MediaStore.Store(AccountId, purpose, file.ContentType!, buffer.ToArray(), file.FileName);
-        }
+            mediaId = await MediaStore.StoreAsync(AccountId, purpose, file.ContentType!, upload.Content, file.Size, file.FileName, cancellationToken).ConfigureAwait(false);
 
         if (purpose == MediaPurposes.Avatar)
         {
@@ -270,6 +273,33 @@ public sealed partial class SettingsController : TeamRoomController
 
         if (previous is not null && previous != mediaId)
             MediaStore.Delete(previous);
+    }
+
+    /// <summary>The dialog's Save: the current password first, then the new one; every other session of the account is signed out.</summary>
+    [UICommand]
+    public async Task<UICommandResult> ChangePasswordAsync(CancellationToken cancellationToken)
+    {
+        var error = await AccountStore.ChangePasswordAsync(AccountId, CurrentPassword, NewPassword, Context.Handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
+
+        CurrentPassword = string.Empty;
+        NewPassword = string.Empty;
+
+        if (error is not null)
+            return Refuse(error);
+
+        return UICommandResult.Ok([
+            new CloseDialogEffect(PasswordDialogKey),
+            new ShowNotificationEffect("Your password is changed; your other sessions are signed out.", UIColorStyle.Success)
+        ]);
+    }
+
+    [UICommand]
+    public UICommandResult ClosePasswordDialog()
+    {
+        CurrentPassword = string.Empty;
+        NewPassword = string.Empty;
+
+        return UICommandResult.Ok([new CloseDialogEffect(PasswordDialogKey)]);
     }
 
     [UICommand]

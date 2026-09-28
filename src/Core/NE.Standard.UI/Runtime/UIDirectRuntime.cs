@@ -16,7 +16,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
-internal sealed partial class UIDirectRuntime : UIRuntimeBase
+internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application) : UIRuntimeBase(handle, view, controller, clientServices, application)
 {
     private static partial class Log
     {
@@ -24,22 +24,29 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         public static partial void DirectChangePublishingFailed(ILogger logger, Exception exception, string instanceId);
     }
 
+    // What the pump's queue may hold. It grows only while the pump is held up — a send to a client that stopped reading — and
+    // past this the page is resynced whole instead, as the dispatcher does for a batch runtime's queue.
+    private const int MaxQueuedChanges = 16_384;
+
     private readonly ConcurrentQueue<RecursiveChange> _directChanges = new();
     private readonly SemaphoreSlim _directSignal = new(0);
     private readonly CancellationTokenSource _directCancellation = new();
 
+    private int _directQueued;
+    private int _pumpSignaled;
+
     private Task? _directPump;
 
-    public UIDirectRuntime(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application)
-        : base(handle, view, controller, application)
+    protected override bool SendsWhatItDrains => true;
+
+    protected override bool TakesChangesOnPump => true;
+
+    // The pump's queue as well: a write it has not reached is in the state already. Woken after, so the other instances are sent it.
+    protected override void QueueUntakenControllerChangesNoLock()
     {
-        clientServices.Validate();
-
-        UpdateConnectionSnapshot(RuntimeConnection.FromClientServices(handle, clientServices));
+        QueueExternalChangesNoLock(DrainDirectChanges());
+        SignalPump();
     }
-
-    protected override ServerChangeSet DrainPendingUpdatesForRuntimeModeNoLock(bool force)
-        => DrainPendingUpdatesNoLock();
 
     protected override void OnStartedNoLock()
     {
@@ -54,12 +61,25 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
         if (_directCancellation.IsCancellationRequested)
             return;
 
+        if (Interlocked.Increment(ref _directQueued) > MaxQueuedChanges)
+        {
+            // Dropped rather than held: the resync reads the whole state, this change included.
+            _ = Interlocked.Decrement(ref _directQueued);
+            ((IUIRuntimeAccess)this).RequestFullResync();
+            return;
+        }
+
         _directChanges.Enqueue(change);
         SignalPump();
     }
 
     private void SignalPump()
     {
+        // One wake covers every change queued before the pump takes the queue; a release per change would wake it once per
+        // change, to find the queue empty every time after the first.
+        if (Interlocked.Exchange(ref _pumpSignaled, 1) != 0)
+            return;
+
         try
         {
             _ = _directSignal.Release();
@@ -86,8 +106,11 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             {
                 await _directSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                // Called with no changes too: a wake can be a resync request alone, which the publish answers and an empty drain skips.
-                _ = await PublishExternalControllerChangesAsync(DrainDirectChanges(), cancellationToken).ConfigureAwait(false);
+                // Lowered before the queue is taken: a change queued from here on raises it again and wakes the pump once more.
+                _ = Interlocked.Exchange(ref _pumpSignaled, 0);
+
+                // Taken under the state lock, and on every wake: a resync request or what a snapshot queued can come with no change.
+                _ = await PublishExternalControllerChangesAsync(DrainDirectChanges, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -113,6 +136,8 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
 
         while (_directChanges.TryDequeue(out RecursiveChange? change))
             changes.Add(change);
+
+        _ = Interlocked.Add(ref _directQueued, -changes.Count);
 
         return [.. changes];
     }
@@ -145,11 +170,9 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             return changes;
 
         RuntimeConnection connection = Connection;
-        UIClientServices clientServices = connection.ClientServices
-            ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
 
         await UIChangeDelivery
-            .SendAsync(clientServices.Updates, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
+            .SendAsync(connection.ClientServices.Updates, this, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
             .ConfigureAwait(false);
 
         return changes;
@@ -163,13 +186,7 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
 
         ArgumentNullException.ThrowIfNull(invoker);
 
-        UIClientServices clientServices = Connection.ClientServices
-            ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
-
-        // The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.
-        await clientServices.Updates
-            .SendCommandResultAsync(invoker, result, cancellationToken)
-            .ConfigureAwait(false);
+        await PushCommandResultAsync(invoker, result, cancellationToken).ConfigureAwait(false);
 
         if (result.Command.Effects.Length == 0)
             return result;
@@ -180,29 +197,6 @@ internal sealed partial class UIDirectRuntime : UIRuntimeBase
             Command = new UICommandResult(result.Command.Success, effects: null, result.Command.Error),
             Changes = result.Changes
         };
-    }
-
-    protected override async Task<ServerChangeSet> ProcessCommandChangesAsync(ServerChangeSet changes, CancellationToken cancellationToken)
-    {
-        if (changes.IsEmpty)
-            return ServerChangeSet.Empty;
-
-        RuntimeConnection connection = Connection;
-        UIClientServices clientServices = connection.ClientServices
-            ?? throw new InvalidOperationException("Direct runtime client services are not attached.");
-
-        await UIChangeDelivery
-            .SendAsync(clientServices.Updates, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
-            .ConfigureAwait(false);
-
-        return ServerChangeSet.Empty;
-    }
-
-    public override void UpdateConnection(UIHandle handle, UIClientServices clientServices)
-    {
-        clientServices.Validate();
-
-        base.UpdateConnection(handle, clientServices);
     }
 
     protected override void DisposeRuntimeResources()

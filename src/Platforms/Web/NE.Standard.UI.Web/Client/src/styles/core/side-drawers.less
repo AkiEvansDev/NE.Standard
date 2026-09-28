@@ -1,0 +1,106 @@
+@import "./tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
+@import "../mixins/elevation.less";
+
+// UIViewOptions.SideDrawers: on a narrow screen the sides leave the page's columns and slide over the content from their edges, each
+// opened by its button in the header (side-drawer-engine.ts). On a wide one the buttons and the backdrop are not there at all.
+
+@ui-drawer-width: 20rem;
+
+.ui-shell__drawer-toggle,
+.ui-shell__drawer-backdrop {
+    display: none;
+}
+
+@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+    // One column: the header, the content and the footer take the page's width whatever the shell's layout gave the sides.
+    [data-ui-root][data-ui-side-drawers] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+        [data-ui-root][data-ui-side-drawers] > :is([data-ui-region="header"], [data-ui-region="content"], [data-ui-region="footer"]) {
+            grid-column: 1;
+        }
+
+        [data-ui-root][data-ui-side-drawers] > :is([data-ui-region="left-side"], [data-ui-region="right-side"]) {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            width: min(@ui-drawer-width, 85vw);
+            overflow: auto;
+            background: var(--ui-color-surface);
+            .ui-elevation-3();
+            visibility: hidden;
+            transition: transform @ui-motion-fast @ui-motion-ease, visibility 0s linear @ui-motion-fast;
+        }
+
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"] {
+            left: 0;
+            transform: translateX(-100%);
+        }
+
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region="right-side"] {
+            right: 0;
+            transform: translateX(100%);
+        }
+
+        [data-ui-root][data-ui-drawer-open="left-side"] > [data-ui-region="left-side"],
+        [data-ui-root][data-ui-drawer-open="right-side"] > [data-ui-region="right-side"] {
+            visibility: visible;
+            transform: none;
+            transition: transform @ui-motion-fast @ui-motion-ease;
+        }
+
+    // The band that carries the buttons lays them in a row with what it holds: the left one before it, the right one after.
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region]:has(> .ui-shell__drawer-toggle) {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region]:has(> .ui-shell__drawer-toggle) > [data-ui-id] {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+    .ui-shell__drawer-toggle {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        margin: @ui-space-3 0 0 @ui-space-2;
+        border: 0;
+        border-radius: var(--ui-radius-button);
+        background: none;
+        color: var(--ui-color-on-background);
+        cursor: pointer;
+        .ui-reveal-hover();
+    }
+
+        .ui-shell__drawer-toggle::before {
+            .ui-burger-glyph(@ui-glyph-md);
+        }
+
+        .ui-shell__drawer-toggle[data-ui-drawer-toggle="right-side"] {
+            margin: @ui-space-3 @ui-space-2 0 0;
+        }
+
+    .ui-shell__drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 49;
+        // The dialog's overlay token, so a theme that darkens one darkens both.
+        background: var(--ui-color-overlay, rgb(0 0 0 / 45%));
+    }
+
+        [data-ui-root]:not([data-ui-drawer-open]) > .ui-shell__drawer-backdrop {
+            display: none;
+        }
+
+        [data-ui-root][data-ui-drawer-open] > .ui-shell__drawer-backdrop {
+            display: block;
+        }
+}

@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Separator;
 
@@ -23,96 +16,205 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.contents.separator.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSectionsGroup(), CreateRowGroup()],
-            [CreateAgainstSpaceGroup(), CreateLabelledGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateSectionsGroup(), CreateRowGroup()], [CreateAgainstSpaceGroup(), CreateLabelledGroup()]));
 
     /// <summary>
     /// Down a column, which is what it is for: a menu, a settings panel, a form of several parts.
     /// </summary>
     private static ContainerComponent CreateSectionsGroup()
     {
-        return DemoUI.CreateGroup(null, "Between two parts of a column",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Between two parts of a column",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetWidth(UILayoutLength.Absolute(260))
                 .SetPadding(UIThickness.Uniform(6))
                 .SetContent(UILayout.Stack(2)
-                    .AddChild(CreateRow(DemoIcons.Edit, "Rename"))
-                    .AddChild(CreateRow(DemoIcons.Copy, "Duplicate"))
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Edit))
+                        .SetTitle("Rename")
+                    )
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTitle("Duplicate")
+                    )
                     .AddChild(new SeparatorComponent())
-                    .AddChild(CreateRow(DemoIcons.Download, "Export"))
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Download))
+                        .SetTitle("Export")
+                    )
                     .AddChild(new SeparatorComponent())
-                    .AddChild(CreateRow(DemoIcons.Alert, "Delete")
+                    .AddChild(new ActionComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
+                        .SetTitle("Delete")
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    private static ActionComponent CreateRow(string icon, string title)
-        => new ActionComponent()
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetShowChevron(false)
-            .SetIcon(DemoIcons.Outline(icon))
-            .SetTitle(title);
 
     /// <summary>
     /// Across a row: a strip of readings, with a hairline saying each number is its own.
     /// </summary>
     private static ContainerComponent CreateRowGroup()
     {
-        return DemoUI.CreateGroup(null, "Between two things on a row",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Between two things on a row",
+            new SurfaceComponent()
                 .SetContent(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
+                    .SetWrap(true)
                     .SetSpacing(16)
-                    .AddChild(CreateReading("47", "Deploys"))
+                    .AddChild(new TextComponent()
+                        .SetTitle("47")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Deploys")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
                     // A vertical rule has no content to take a height from, so it is given one.
                     .AddChild(new SeparatorComponent()
                         .SetOrientation(UIOrientation.Vertical)
                         .SetHeight(UILayoutLength.Absolute(38))
                     )
-                    .AddChild(CreateReading("2", "Rolled back"))
+                    .AddChild(new TextComponent()
+                        .SetTitle("2")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Rolled back")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
                     .AddChild(new SeparatorComponent()
                         .SetOrientation(UIOrientation.Vertical)
                         .SetHeight(UILayoutLength.Absolute(38))
                     )
-                    .AddChild(CreateReading("99.94%", "Availability"))
+                    .AddChild(new TextComponent()
+                        .SetTitle("99.94%")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Availability")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
-    private static TextComponent CreateReading(string value, string label)
-        => new TextComponent()
-            .SetTitle(value)
-            .SetTitleType(UITextAppearance.Subtitle)
-            .SetDescription(label)
-            .SetDescriptionType(UITextAppearance.Caption)
-            .SetDescriptionColor(UIThemeColor.Muted);
+    /// <summary>
+    /// The case against: space already groups, so a rule earns its ink only where there is no room to spend on space.
+    /// </summary>
+    private static ContainerComponent CreateAgainstSpaceGroup()
+    {
+        return DemoUI.CreateExample("Against the space that would do it",
+            UILayout.Row(16)
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetSpacing(8)
+                    .SetWidth(UILayoutLength.Absolute(230))
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    .AddChild(new TextComponent()
+                        .SetTitle("With rules")
+                        .SetTitleType(UITextAppearance.Overline)
+                        .SetTitleColor(UIThemeColor.Muted)
+                        .SetMargin(UIThickness.All(0, 0, 0, 4))
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Daily backups")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("At 03:00, region time")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Notify on failure")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("To on-call")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new SeparatorComponent())
+                    .AddChild(new TextComponent()
+                        .SetTitle("Retention")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("Thirty days")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Public IPv4")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("One per server")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetSpacing(6)
+                    .SetWidth(UILayoutLength.Absolute(230))
+                    .SetVerticalAlignment(UIAlignment.Start)
+                    .AddChild(new TextComponent()
+                        .SetTitle("With space")
+                        .SetTitleType(UITextAppearance.Overline)
+                        .SetTitleColor(UIThemeColor.Muted)
+                        .SetMargin(UIThickness.All(0, 0, 0, 4))
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Daily backups")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("At 03:00, region time")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Notify on failure")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("To on-call")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new ContainerComponent().SetHeight(UILayoutLength.Absolute(18)))
+                    .AddChild(new TextComponent()
+                        .SetTitle("Retention")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("Thirty days")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("Public IPv4")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetDescription("One per server")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+        );
+    }
 
     /// <summary>
     /// The rule carrying a word, which makes it a heading: the line runs to both edges and the caption sits in the break.
     /// </summary>
     private static ContainerComponent CreateLabelledGroup()
     {
-        return DemoUI.CreateGroup(null, "A rule with a word in it",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A rule with a word in it",
+            new SurfaceComponent()
                 .SetContent(UILayout.Stack(12)
                     .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(new TextComponent()
-                        .SetTitle("Payments API")
+                        .SetTitle("Billing")
                         .SetTitleType(UITextAppearance.Body)
-                        .SetDescription("Two environments, eight replicas")
+                        .SetDescription("Two regions, eight replicas")
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
@@ -127,55 +229,6 @@ internal sealed class SeparatorExamplesView : DemoExamplesView, IUIViewDefinitio
                         .SetHorizontalAlignment(UIAlignment.Start)
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    /// <summary>
-    /// The case against: space already groups, so a rule earns its ink only where there is no room to spend on space.
-    /// </summary>
-    private static ContainerComponent CreateAgainstSpaceGroup()
-    {
-        return DemoUI.CreateGroup(null, "Against the space that would do it",
-            content => content.AddChild(UILayout.Row(16)
-                .AddChild(CreateGrouping("With rules", ruled: true))
-                .AddChild(CreateGrouping("With space", ruled: false))
-                .SetPlacement(1, 1, 24, 1)
-            )
-        );
-    }
-
-    private static StackPanelComponent CreateGrouping(string caption, bool ruled)
-    {
-        StackPanelComponent stack = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(ruled ? 8 : 6)
-            .SetWidth(UILayoutLength.Absolute(230))
-            .SetVerticalAlignment(UIAlignment.Start)
-            .AddChild(new TextComponent()
-                .SetTitle(caption)
-                .SetTitleType(UITextAppearance.Overline)
-                .SetTitleColor(UIThemeColor.Muted)
-                .SetMargin(UIThickness.All(0, 0, 0, 4))
-            )
-            .AddChild(CreateSetting("Require review", "Before every deploy"))
-            .AddChild(CreateSetting("Notify on failure", "To #releases"));
-
-        _ = ruled
-            ? stack.AddChild(new SeparatorComponent())
-            : stack.AddChild(new ContainerComponent().SetHeight(UILayoutLength.Absolute(18)));
-
-        return stack
-            .AddChild(CreateSetting("Retention", "Thirty days"))
-            .AddChild(CreateSetting("Replicas", "One per zone"));
-    }
-
-    private static TextComponent CreateSetting(string title, string description)
-        => new TextComponent()
-            .SetTitle(title)
-            .SetTitleType(UITextAppearance.Body)
-            .SetDescription(description)
-            .SetDescriptionType(UITextAppearance.Caption)
-            .SetDescriptionColor(UIThemeColor.Muted);
 }

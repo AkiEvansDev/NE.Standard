@@ -1,9 +1,3 @@
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -50,10 +44,7 @@ internal sealed partial class TabsGroupContext : DemoGroupContext
 
     // A tab's own look is a semibold caption over a primary line; the cycle takes the weight off, then recolours the line.
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            new UISelectionStyle(null, null, null, null, Bold: false),
-            UISelectionStyle.Marked(UISelectionMark.Bottom, UIThemeColor.Accent),
-            new UISelectionStyle(null, UIThemeColor.FromStyle(UIColorStyle.Primary), null, null, Bold: true)));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, new UISelectionStyle(null, null, null, null, Bold: false), UISelectionStyle.Marked(UISelectionMark.Bottom, UIThemeColor.Accent), new UISelectionStyle(null, UIThemeColor.FromStyle(UIColorStyle.Primary), null, null, Bold: true)));
 
     // Off, the captions past the strip's room wrap onto the next line instead of going behind the "…" list.
     public void ToggleShowOverflow()
@@ -88,10 +79,6 @@ internal sealed partial class DemoDocumentItem : TabItem
     /// <summary>The part of the name a rename may not lose.</summary>
     [RecursiveMember(false)]
     public string Extension { get; init; } = string.Empty;
-
-    /// <summary>The tab's own menu, one per document: the pin entry says what pressing it does, so its word follows <c>Pinned</c>.</summary>
-    [RecursiveMember(false)]
-    public RecursiveCollection<MenuItem> Actions { get; } = [];
 }
 
 /// <summary>
@@ -101,18 +88,21 @@ internal sealed partial class DemoDocumentItem : TabItem
 /// <remarks>The collection is the controller's, because the page's second section acts on one of its items.</remarks>
 internal sealed partial class TabsViewGroupContext : DemoGroupContext
 {
-    public const string ReadmeKey = "readme";
-    public const string ProgramKey = "program";
-    public const string SettingsKey = "settings";
+    public const string IncidentKey = "incident";
+    public const string HealthKey = "health";
+    public const string ServerKey = "server";
 
     [RecursiveMember]
-    public partial string? SelectedKey { get; set; } = ReadmeKey;
+    public partial string? SelectedKey { get; set; } = IncidentKey;
 
     [RecursiveMember]
     public partial bool Renamable { get; set; } = true;
 
     [RecursiveMember]
     public partial bool Draggable { get; set; } = true;
+
+    [RecursiveMember]
+    public partial UITabMenuEntries TabMenuEntries { get; set; } = UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close;
 
     [RecursiveMember]
     public partial bool Removable { get; set; } = true;
@@ -125,18 +115,27 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
         AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
+        AddOption(nameof(TabMenuEntries), CycleTabMenuEntries, () => TabMenuEntries);
         AddOption(nameof(Removable), ToggleRemovable, () => Removable);
         AddOption(nameof(ShowOverflow), ToggleShowOverflow, () => ShowOverflow);
     }
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, ReadmeKey, ProgramKey, SettingsKey));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, IncidentKey, HealthKey, ServerKey));
 
     public void ToggleRenamable()
         => SetLastChange(nameof(Renamable), Renamable = !Renamable);
 
     public void ToggleDraggable()
         => SetLastChange(nameof(Draggable), Draggable = !Draggable);
+
+    // The sets an application would choose; None leaves a caption's right press to the browser, a tab already pinned stays so.
+    public void CycleTabMenuEntries()
+        => SetLastChange(nameof(TabMenuEntries), TabMenuEntries = CycleValue(TabMenuEntries, UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close, UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Delete, UITabMenuEntries.Rename, UITabMenuEntries.Delete, UITabMenuEntries.None));
+
+    /// <summary>A tab's close or the menu's remove entry, heard and answered by keeping the tab: the page's documents stay three.</summary>
+    public void ReportRemove(string title)
+        => LogEvent($"asked to remove {title}; kept");
 
     // Off, no tab shows a close and the strip keeps no room for one.
     public void ToggleRemovable()

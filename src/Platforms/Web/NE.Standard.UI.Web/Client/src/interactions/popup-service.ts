@@ -10,7 +10,7 @@ export type PopupOptions = AnchoredPopupOptions & {
 };
 
 /** What opening a popup hands back. */
-export type PopupHandle = {
+type PopupHandle = {
     /** Re-measures the popup against its anchor — for content that changed size in a way a `ResizeObserver` would not catch. */
     reposition(): void;
     /** Closes the popup; does not run `onDismiss`, since the caller already knows why. */
@@ -31,11 +31,30 @@ const open = new Map<HTMLElement, TrackedPopup>();
 // Closes on the press, not the click that follows: a package's popup here is a list to choose from, not a field to select
 // text in. The anchor counts as inside, since its own click is the toggle.
 new PopupDismissal({
-    openPopups: () => open.keys(),
+    openPopups: () => connectedPopups(),
     close: (popup, reason) => dismiss(popup, reason),
-    isInside: (popup, path) => path.includes(popup) || path.includes(open.get(popup)!.anchor),
+    // Read afresh per popup: an `onDismiss` run for one may already have closed another in the same press.
+    isInside: (popup, path) => {
+        const tracked = open.get(popup);
+
+        return path.includes(popup) || (tracked !== undefined && path.includes(tracked.anchor));
+    },
     onPress: true
 });
+
+/** The popups still in the page; one a package threw away without closing is forgotten quietly, its owner having moved on. */
+function connectedPopups(): HTMLElement[] {
+    const connected: HTMLElement[] = [];
+
+    for (const popup of [...open.keys()]) {
+        if (popup.isConnected)
+            connected.push(popup);
+        else
+            stopTracking(popup);
+    }
+
+    return connected;
+}
 
 function dismiss(popup: HTMLElement, reason: PopupDismissReason): void {
     const tracked = open.get(popup);

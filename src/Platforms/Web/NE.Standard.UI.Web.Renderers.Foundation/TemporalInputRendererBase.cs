@@ -71,7 +71,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     }
 
     /// <summary>
-    /// Writes what the client needs to build the grid; <c>Step</c>, <c>FirstDayOfWeek</c> and <c>Culture</c> ignore a binding.
+    /// Writes what the client needs to build the grid; <c>Step</c>, <c>FirstDayOfWeek</c> and <c>Culture</c> ignore a binding, and no
+    /// <c>Culture</c> is the page's own.
     /// </summary>
     private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat)
     {
@@ -108,8 +109,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         var firstDay = firstDayOfWeek is UIDayOfWeek day ? ((int)day + 1) % 7 : 1;
         _ = root.Attribute(WebAttributes.TemporalFirstDay, firstDay.ToString(CultureInfo.InvariantCulture));
 
-        _ = ResolveRenderValue(context, IFormattedInputComponent.CultureProperty, out string? cultureName, out _);
-        WebTemporalCulturePack culture = WebTemporalCulturePack.FromCulture(WebCultures.Resolve(cultureName));
+        WebTemporalCulturePack culture = WebTemporalCulturePack.FromCulture(ResolveInputCulture(context));
 
         _ = root.Attribute(WebAttributes.TemporalMonths, Join(culture.MonthNames));
         _ = root.Attribute(WebAttributes.TemporalMonthsGenitive, Join(culture.MonthGenitiveNames));
@@ -158,6 +158,13 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         _ = root.Element("span", row =>
         {
             _ = row.Class($"{SharedClassName}__row");
+
+            // A period's two fields are one answer to one caption: the row is the group the caption names.
+            if (isRange)
+            {
+                _ = row.Attribute("role", "group");
+                RenderFieldLabel(context, row);
+            }
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
@@ -229,12 +236,23 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         _ = input.Attribute("autocomplete", "off");
         _ = input.Attribute("placeholder", format);
 
-        // A period's two fields are told apart by name, since their caption names the period rather than either end.
+        RenderPartLabel(context, input, end);
+    }
+
+    /// <summary>Names the part a value is entered in: a period's start or end by its own word, a single value by the field's caption.</summary>
+    protected static void RenderPartLabel(WebRenderContext context, IHtmlElementBuilder part, bool end)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(part);
+
+        // A period's two parts are told apart by name, since their caption names the period rather than either end.
         if (IsRange(context))
-            _ = input.Attribute("aria-label", context.Translate(end ? UIStrings.PickerEnd : UIStrings.PickerStart));
+            _ = part.Attribute("aria-label", context.Translate(end ? UIStrings.PickerEnd : UIStrings.PickerStart));
+        else
+            RenderFieldLabel(context, part);
 
         if (end)
-            _ = input.Attribute(WebAttributes.TemporalEnd);
+            _ = part.Attribute(WebAttributes.TemporalEnd);
     }
 
     /// <summary>The dash between a period's two fields: drawn text, so the row reads "from – to" without an icon pack.</summary>

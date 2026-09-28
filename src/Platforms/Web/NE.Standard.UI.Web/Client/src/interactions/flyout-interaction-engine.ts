@@ -27,6 +27,10 @@ export class FlyoutInteractionEngine {
     /** Where focus was when each flyout opened, so closing it puts the viewer back where they were. */
     private readonly returnFocus = new WeakMap<HTMLElement, HTMLElement>();
 
+    // The flyouts seen open, so focus moves in once, as one opens: a class changing inside an open one must not pull focus back
+    // from wherever the viewer took it.
+    private readonly seenOpen = new WeakSet<HTMLElement>();
+
     public constructor(options: FlyoutInteractionEngineOptions = {}) {
         this.root = options.root ?? document;
 
@@ -64,12 +68,21 @@ export class FlyoutInteractionEngine {
 
         if (!open) {
             releaseAnchoredPopup(content);
-            restoreFocusTo(this.returnFocus.get(flyout), flyout);
+
+            if (this.seenOpen.has(flyout))
+                restoreFocusTo(this.returnFocus.get(flyout), flyout);
+
+            this.seenOpen.delete(flyout);
             this.returnFocus.delete(flyout);
             return;
         }
 
         placeAnchoredPopup(resolveAnchorBox(anchor) ?? flyout, content, { placement: readPlacement(flyout), gap: ContentGap });
+
+        if (this.seenOpen.has(flyout))
+            return;
+
+        this.seenOpen.add(flyout);
 
         // Not a focus trap: a popover lets Tab leave, and `handleFocusOut` closes it behind the viewer.
         const previous = moveFocusInto(content);

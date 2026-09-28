@@ -111,23 +111,34 @@ public sealed class WebAssetDescriptor
     {
         var filePath = ResolveFilePath();
 
+        // A missing file's version follows its name, hashed stably: string.GetHashCode differs every start and on every node.
         return File.Exists(filePath)
             ? File.GetLastWriteTimeUtc(filePath).Ticks.ToString(CultureInfo.InvariantCulture)
-            : Source.GetHashCode(StringComparison.Ordinal).ToString(CultureInfo.InvariantCulture);
+            : BinaryPrimitives.ReadUInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(Source))).ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>The public URL with the version on it, which is what a page links and what makes the response cacheable for good.</summary>
     public string ResolveVersionedPublicPath()
     {
+        // Kept once the version cannot change, which is every source but a file on disk; every page links every asset.
+        if (_versionedPublicPath is { } held)
+            return held;
+
         Validate();
 
         var path = !string.IsNullOrWhiteSpace(PublicPath) ? PublicPath : Source;
         var version = ResolveVersion();
-
-        return path.Contains('?', StringComparison.Ordinal)
+        var versioned = path.Contains('?', StringComparison.Ordinal)
             ? string.Create(CultureInfo.InvariantCulture, $"{path}&v={version}")
             : string.Create(CultureInfo.InvariantCulture, $"{path}?v={version}");
+
+        if (SourceKind != UIWebAssetSourceKind.File || !string.IsNullOrWhiteSpace(Version))
+            _versionedPublicPath = versioned;
+
+        return versioned;
     }
+
+    private string? _versionedPublicPath;
 
     public string ResolveFilePath()
     {
@@ -140,9 +151,8 @@ public sealed class WebAssetDescriptor
 
     private Stream OpenEmbeddedResource()
     {
-        Assembly assembly = !string.IsNullOrWhiteSpace(ResourceAssemblyName)
-            ? Assembly.Load(new AssemblyName(ResourceAssemblyName))
-            : typeof(WebAssetDescriptor).Assembly;
+        // Validate has required the assembly's name for an embedded resource.
+        Assembly assembly = Assembly.Load(new AssemblyName(ResourceAssemblyName!));
 
         Stream? stream = assembly.GetManifestResourceStream(Source);
 

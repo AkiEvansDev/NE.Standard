@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
@@ -39,6 +40,17 @@ public static class BadgeRenderer
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string IconShownAttribute = "data-ui-badge-icon";
 
+    private static readonly WebDomOperation[] StyleOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeStyleClass)];
+
+    private static readonly WebDomOperation[] ColorOperations =
+    [
+        WebDomOperation.Style("color", converter: WebDomConverters.ThemeColorCss),
+        WebDomOperation.ToggleClass("ui-badge--tinted", condition: WebValueCondition.HasValue)
+    ];
+
+    // The content-state marks land on the badge's own element, which differs by host: per target, built once.
+    private static readonly ConcurrentDictionary<string, BadgeStateOperations> StateOperations = new(StringComparer.Ordinal);
+
     public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -52,7 +64,7 @@ public static class BadgeRenderer
         {
             if (value is UIBadgeType style)
                 _ = target.Class(WebClassNames.BadgeStyle(style));
-        }, [WebDomOperation.Class(converter: WebDomConverters.BadgeStyleClass)]);
+        }, StyleOperations);
 
         if (options.ColorProperty is UIProperty colorProperty)
         {
@@ -63,14 +75,13 @@ public static class BadgeRenderer
                     _ = target.Style("color", css);
                     _ = target.Class("ui-badge--tinted");
                 }
-            }, [
-                WebDomOperation.Style("color", converter: WebDomConverters.ThemeColorCss),
-                WebDomOperation.ToggleClass("ui-badge--tinted", condition: WebValueCondition.HasValue)
-            ]);
+            }, ColorOperations);
         }
 
         // On the badge, not only its text, so an icon with no size of its own inherits the text's height.
         TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TextTypeProperty);
+
+        BadgeStateOperations state = StateOperations.GetOrAdd(options.ContentStateTarget, static target => new BadgeStateOperations(target));
 
         _ = badgeRoot.Element("span", icon =>
         {
@@ -86,10 +97,7 @@ public static class BadgeRenderer
                     _ = badgeRoot.Attribute(IconShownAttribute);
                     IconValueRenderer.RenderIconValue(target, value);
                 }
-            }, [
-                .. IconValueRenderer.Operations,
-                WebDomOperation.ToggleAttribute(IconShownAttribute, target: options.ContentStateTarget, condition: WebValueCondition.HasText)
-            ]);
+            }, state.Icon);
         });
 
         _ = badgeRoot.Element("span", content =>
@@ -105,11 +113,19 @@ public static class BadgeRenderer
                     _ = badgeRoot.Attribute(WebAttributes.BadgeText, BadgeTextFit(value));
                     _ = target.Text(value);
                 }
-            }, [
-                WebDomOperation.Text(),
-                WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: options.ContentStateTarget, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit)
-            ]);
+            }, state.Text);
         });
+    }
+
+    private sealed class BadgeStateOperations(string target)
+    {
+        public WebDomOperation[] Icon { get; } = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.HasText)];
+
+        public WebDomOperation[] Text { get; } =
+        [
+            WebDomOperation.Text(),
+            WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit)
+        ];
     }
 
     // Up to two characters fits a circle without touching its edge; mirrored by `badgeTextFit` in web-dom-converters.ts.

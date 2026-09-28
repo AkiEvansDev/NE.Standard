@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -19,26 +20,40 @@ public static class UIPage
     {
         ArgumentNullException.ThrowIfNull(trailing);
 
+        // A paragraph rather than a text: on a phone the line under the title runs on to three lines rather than ending in an
+        // ellipsis after a few words, and no further, so the page's content is not pushed off the screen.
+        ParagraphComponent heading = new ParagraphComponent()
+            .SetTitle(title)
+            .SetMaxLines(3)
+            .AsDisplay()
+            .SetTitleColor(UIThemeColor.OnBackground)
+            .SetDescriptionType(UITextAppearance.Body)
+            .SetDescriptionColor(UIThemeColor.Muted)
+            .SetPlacement(1, 1, trailing.Length == 0 ? 24 : 23, 1);
+
+        if (description is not null)
+            _ = heading.SetDescription(description);
+
         ContainerComponent header = new ContainerComponent()
             .SetPadding(UIThickness.All(24, 20, 24, 4))
-            .AddChild(UIText.Display(title, description)
-                .SetTitleColor(UIThemeColor.OnBackground)
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetDescriptionColor(UIThemeColor.Muted)
-                .SetPlacement(1, 1, trailing.Length == 0 ? 24 : 16, 1)
-            );
+            .AddChild(heading);
 
         if (trailing.Length == 0)
             return header;
 
-        return header.AddChild(new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(12)
-            .SetHorizontalAlignment(UIAlignment.End)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .AddChildren(trailing)
-            .SetPlacement(17, 1, 8, 1)
-        );
+        // The last column as wide as what stands in it, so the title keeps the rest — on a phone a third of the band given to one
+        // switch left the title a few letters and an ellipsis.
+        return header
+            .SetColumn(24, UIGridUnit.Auto())
+            .AddChild(new StackPanelComponent()
+                .SetOrientation(UIOrientation.Horizontal)
+                .SetSpacing(12)
+                .SetMargin(UIThickness.All(12, 0, 0, 0))
+                .SetHorizontalAlignment(UIAlignment.End)
+                .SetVerticalAlignment(UIAlignment.Start)
+                .AddChildren(trailing)
+                .SetPlacement(24, 1, 1, 1)
+            );
     }
 
     /// <summary>

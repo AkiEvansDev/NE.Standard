@@ -1,11 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 
 namespace TeamRoom.Views;
@@ -53,10 +45,35 @@ public sealed class SignInView : UIViewBase, IUIViewDefinition
                     )
                     .AddChild(new ButtonComponent()
                         .SetTitle("Sign in")
-                                                .SetHorizontalAlignment(UIAlignment.Stretch)
+                        .SetHorizontalAlignment(UIAlignment.Stretch)
                         .OnSubmit(FormId, nameof(SignInController.SignInAsync))
+                    )
+                    // The demo's test accounts, a press each, shown only where the host turned the shortcut on (Development).
+                    .AddChild(new StackPanelComponent()
+                        .SetOrientation(UIOrientation.Vertical)
+                        .SetSpacing(8)
+                        .BindVisibility(nameof(SignInController.QuickSignInVisibility))
+                        .AddChild(new TextComponent()
+                            .SetTitle("Demo accounts")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                        )
+                        .AddChild(new StackPanelComponent()
+                            .SetOrientation(UIOrientation.Horizontal)
+                            .SetSpacing(8)
+                            .AddChild(QuickButton("Admin", nameof(SignInController.SignInAsAdminAsync)))
+                            .AddChild(QuickButton("Robin", nameof(SignInController.SignInAsRobinAsync)))
+                            .AddChild(QuickButton("Sam", nameof(SignInController.SignInAsSamAsync)))
+                        )
                     )
                 )
                 .SetPlacement(1, 1, 24, 1)
             );
+
+    private static ButtonComponent QuickButton(string title, string command)
+        => new ButtonComponent()
+            .SetTitle(title)
+            .SetType(UIButtonType.Outline)
+            .SetSize(UIButtonSize.Small)
+            .OnClick(command);
 }

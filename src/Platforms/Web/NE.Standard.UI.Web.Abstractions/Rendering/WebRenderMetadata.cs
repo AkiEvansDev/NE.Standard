@@ -13,10 +13,14 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 public sealed class WebRenderMetadata
 {
-    private readonly HashSet<string> _bindingKeys = [];
-    private readonly HashSet<string> _eventKeys = [];
-    private readonly HashSet<string> _validationKeys = [];
+    // Keyed by value, not by a formatted string: a row the second render paints registers its bindings and events again, and the
+    // repeat must cost a lookup, not an allocation.
+    private readonly HashSet<UIBindingId> _bindingKeys = [];
+    private readonly HashSet<(UIEventId Event, UIComponentId Component, string EventName)> _eventKeys = [];
+    private readonly HashSet<(UIComponentId Component, string PropertyId, UIValidationTrigger Trigger, UIComparisonOperator Operator, UIValidationSeverity Severity)> _validationKeys = [];
     private readonly HashSet<string> _usedPropertyDefinitionIds = [];
+    private readonly HashSet<UIComponentId> _itemsTemplateComponents = [];
+    private readonly HashSet<UIComponentId> _itemsFilterSortComponents = [];
     private readonly Dictionary<(string OwnerTypeKey, string PropertyName), string> _propertyDefinitionIds = [];
     private readonly Dictionary<string, WebRenderPropertyDefinitionMetadata> _propertyDefinitionsById = [];
     private readonly Dictionary<UIPropertyAddress, string> _renderedPropertyIds = [];
@@ -121,6 +125,10 @@ public sealed class WebRenderMetadata
 
         _ = _usedPropertyDefinitionIds.Add(propertyId);
 
+        // A binding id names one compiled binding, so a repeat would build the same metadata only to drop it.
+        if (!_bindingKeys.Add(binding.Id))
+            return;
+
         string? itemTemplate = null;
         IReadOnlyList<WebRenderBindingParameterMetadata>? itemTemplateParameters = null;
 
@@ -149,18 +157,20 @@ public sealed class WebRenderMetadata
 
         metadata.Validate();
 
-        var key = string.Create(CultureInfo.InvariantCulture, $"{binding.Id.Value}");
-
-        if (!_bindingKeys.Add(key))
-            return;
-
         _bindings.Add(metadata);
     }
 
-    public void RegisterItemsTemplate(UIComponentId componentId, string? templateKeyPropertyName, string? fallbackTemplateKey, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null, string? rowDecorator = null)
+    /// <summary>
+    /// Registers how a client-built item of an items component is made; once per component, since a list inside a row renders once
+    /// per row and would repeat the entry each time.
+    /// </summary>
+    public void RegisterItemsTemplate(UIComponentId componentId, string? templateKeyPropertyName, string? fallbackTemplateKey, string? itemWrapperElementName = null, string? itemWrapperClassName = null, WebRenderItemsCompositeMetadata? composite = null, string? rowDecorator = null, string? itemWrapperRole = null, bool announcesSelection = false)
     {
         if (componentId.IsEmpty)
             throw new ArgumentException("Component id must not be empty.", nameof(componentId));
+
+        if (!_itemsTemplateComponents.Add(componentId))
+            return;
 
         WebRenderItemsTemplateMetadata metadata = new()
         {
@@ -169,6 +179,8 @@ public sealed class WebRenderMetadata
             FallbackTemplateKey = fallbackTemplateKey,
             ItemWrapperElementName = itemWrapperElementName,
             ItemWrapperClassName = itemWrapperClassName,
+            ItemWrapperRole = itemWrapperRole,
+            AnnouncesSelection = announcesSelection,
             Composite = composite,
             RowDecorator = rowDecorator
         };
@@ -179,13 +191,11 @@ public sealed class WebRenderMetadata
     }
 
     /// <summary>
-    /// Registers the values behind a server-rendered items host — see <see cref="WebRenderItemValuesMetadata"/>.
+    /// Registers the values behind one server-rendered items host, addressed as the client finds it — see
+    /// <see cref="WebRenderItemValuesMetadata"/>.
     /// </summary>
-    public void RegisterItemValues(UIComponentId componentId, IReadOnlyList<WebRenderItemValue> items)
+    public void RegisterItemValues(UIComponentAddress host, IReadOnlyList<WebRenderItemValue> items)
     {
-        if (componentId.IsEmpty)
-            throw new ArgumentException("Component id must not be empty.", nameof(componentId));
-
         ArgumentNullException.ThrowIfNull(items);
 
         if (items.Count == 0)
@@ -193,7 +203,8 @@ public sealed class WebRenderMetadata
 
         WebRenderItemValuesMetadata metadata = new()
         {
-            ComponentId = componentId,
+            ComponentId = host.Id,
+            DynamicParameters = host.DynamicParameters,
             Items = items
         };
 
@@ -209,7 +220,8 @@ public sealed class WebRenderMetadata
 
         ArgumentNullException.ThrowIfNull(itemsView);
 
-        if (itemsView.Filters.Length == 0 && itemsView.Sorts.Length == 0)
+        // Once per component, as the template: the rules are the component's, whichever row it was rendered in.
+        if ((itemsView.Filters.Length == 0 && itemsView.Sorts.Length == 0) || !_itemsFilterSortComponents.Add(componentId))
             return;
 
         List<WebRenderItemsFilterMetadata> filters = new(itemsView.Filters.Length);
@@ -268,6 +280,10 @@ public sealed class WebRenderMetadata
 
             ArgumentNullException.ThrowIfNull(compiledEvent);
 
+            // Checked before anything is built: an event id names one compiled event, so a repeat carries nothing new.
+            if (!_eventKeys.Add((compiledEvent.Id, compiledEvent.Address.ComponentId, compiledEvent.Address.EventName)))
+                continue;
+
             WebRenderEventMetadata metadata = new()
             {
                 EventId = compiledEvent.Id,
@@ -276,14 +292,6 @@ public sealed class WebRenderMetadata
             };
 
             metadata.Validate();
-
-            var key = string.Create(
-                CultureInfo.InvariantCulture,
-                $"{metadata.EventId.Value}:{metadata.Address.ComponentId.Value}:{metadata.Address.EventName}"
-            );
-
-            if (!_eventKeys.Add(key))
-                continue;
 
             _events.Add(metadata);
         }
@@ -296,7 +304,7 @@ public sealed class WebRenderMetadata
         if (address.Component.Id.IsEmpty)
             throw new ArgumentException("Property component id must not be empty.", nameof(address));
 
-        if (!_propertyDefinitionIds.ContainsValue(propertyId))
+        if (!_propertyDefinitionsById.ContainsKey(propertyId))
             throw new InvalidOperationException($"Property definition '{propertyId}' is not registered.");
 
         if (_renderedPropertyIds.TryGetValue(address, out var existingPropertyId))
@@ -391,12 +399,7 @@ public sealed class WebRenderMetadata
 
             metadata.Validate();
 
-            var key = string.Create(
-                CultureInfo.InvariantCulture,
-                $"{metadata.Target.ComponentId.Value}:{metadata.Target.PropertyId}:{metadata.Trigger}:{metadata.Operator}:{metadata.Severity}"
-            );
-
-            if (!_validationKeys.Add(key))
+            if (!_validationKeys.Add((metadata.Target.ComponentId, metadata.Target.PropertyId, metadata.Trigger, metadata.Operator, metadata.Severity)))
                 continue;
 
             _validations.Add(metadata);

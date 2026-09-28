@@ -16,6 +16,7 @@ using NE.Standard.UI.Data;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Data;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -43,11 +44,17 @@ internal abstract partial class UIRuntimeBase
     private HashSet<UIComponentId>? _dirtyItemWindows;
 
     /// <inheritdoc />
-    public async Task<ServerChangeSet> RequestItemWindowAsync(UIItemWindowClientRequest request, CancellationToken cancellationToken = default)
+    /// <remarks>Answers the connection the runtime answers for outside a command.</remarks>
+    public Task<ServerChangeSet> RequestItemWindowAsync(UIItemWindowClientRequest request, CancellationToken cancellationToken = default)
+        => RequestItemWindowAsync(Connection.Handle, request, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<ServerChangeSet> RequestItemWindowAsync(UIHandle requester, UIItemWindowClientRequest request, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
         EnsureStarted();
 
+        ArgumentNullException.ThrowIfNull(requester);
         ArgumentNullException.ThrowIfNull(request);
         request.Validate();
 
@@ -72,7 +79,7 @@ internal abstract partial class UIRuntimeBase
                 .LoadWindowAsync(new UIItemWindowRequest(request.Anchor, request.Count, request.Mode, query), cancellationToken)
                 .ConfigureAwait(false);
 
-            return await FlushCoreAsync(force: true, publish: true, cancellationToken).ConfigureAwait(false);
+            return await AnswerAsync(requester.Instance.Id, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -80,15 +87,9 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            _ = await HandleRuntimeExceptionAsync(
-                exception,
-                "RequestItemWindow",
-                commandRequest: null,
-                clientChangeSet: null,
-                cancellationToken
-            ).ConfigureAwait(false);
+            _ = await HandleRuntimeExceptionAsync(exception, "RequestItemWindow", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
-            return await FlushCoreAsync(force: true, publish: true, cancellationToken).ConfigureAwait(false);
+            return await AnswerAsync(requester.Instance.Id, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -352,15 +353,16 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// Appends what re-reading the invalidated windows produced to a change set about to travel.
     /// </summary>
-    private async Task<ServerChangeSet> AppendItemWindowReloadsAsync(ServerChangeSet changes, List<UIComponentId>? staleWindows, CancellationToken cancellationToken)
+    private async Task<ServerChangeSet> AppendItemWindowReloadsAsync(ServerChangeSet changes, List<UIComponentId>? staleWindows, DrainTarget target, CancellationToken cancellationToken)
         => staleWindows is null
             ? changes
-            : AppendUpdates(changes, await ReloadItemWindowsAsync(staleWindows, cancellationToken).ConfigureAwait(false));
+            : AppendUpdates(changes, await ReloadItemWindowsAsync(staleWindows, target, cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Reads each invalidated window again from the start, since a changed filter makes the previous offset meaningless.
+    /// Reads each invalidated window again from the start, since a changed filter makes the previous offset meaningless, and takes
+    /// what that queued for the same caller the drain that found them stale was for.
     /// </summary>
-    private async Task<ServerChangeSet> ReloadItemWindowsAsync(List<UIComponentId> components, CancellationToken cancellationToken)
+    private async Task<ServerChangeSet> ReloadItemWindowsAsync(List<UIComponentId> components, DrainTarget target, CancellationToken cancellationToken)
     {
         for (var i = 0; i < components.Count; i++)
         {
@@ -398,13 +400,7 @@ internal abstract partial class UIRuntimeBase
             }
             catch (Exception exception)
             {
-                _ = await HandleRuntimeExceptionAsync(
-                    exception,
-                    "ReloadItemWindow",
-                    commandRequest: null,
-                    clientChangeSet: null,
-                    cancellationToken
-                ).ConfigureAwait(false);
+                _ = await HandleRuntimeExceptionAsync(exception, "ReloadItemWindow", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -413,7 +409,7 @@ internal abstract partial class UIRuntimeBase
         {
             DrainControllerChangesNoLock();
 
-            return DrainPendingUpdatesForRuntimeModeNoLock(force: true);
+            return TakePendingUpdatesNoLock(target);
         }
         finally
         {
@@ -462,9 +458,9 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Hands each held-aside write to its source, pushing back the item's actual value when the source refuses it.
+    /// Hands each held-aside write to its source, answering with the item's actual value for each write the source refuses.
     /// </summary>
-    private async Task<ServerChangeSet> ApplySourceWritesAsync(List<PendingSourceWrite> writes, CancellationToken cancellationToken)
+    private async Task<List<ServerUIUpdate>?> ApplySourceWritesAsync(List<PendingSourceWrite> writes, CancellationToken cancellationToken)
     {
         List<ServerUIUpdate>? refusals = null;
 
@@ -494,10 +490,6 @@ internal abstract partial class UIRuntimeBase
             }
         }
 
-        ServerChangeSet changes = await FlushCoreAsync(force: true, publish: false, cancellationToken).ConfigureAwait(false);
-
-        return refusals is null
-            ? changes
-            : AppendUpdates(changes, refusals);
+        return refusals;
     }
 }

@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -39,8 +35,7 @@ internal sealed partial class ContainerGroupContext : DemoGroupContext
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(8), UIThickness.Uniform(24), null));
 
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
     // Only says anything once a child is wider than its columns, which one of the preview's tiles is.
     public void CycleBackgroundImage()

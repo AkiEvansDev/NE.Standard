@@ -58,6 +58,15 @@ public sealed record UserSessionState
     public bool PendingIdRotation { get; init; }
 
     /// <summary>
+    /// Gets whether no client has used the session yet: a page render issued it, and no tab has attached nor anything been
+    /// written into it. Such a session lives only <see cref="UISessionOptions.UnclaimedIdleTimeout"/>.
+    /// </summary>
+    /// <remarks>
+    /// Unset means claimed, so a store that does not keep the flag keeps every session for the full idle timeout.
+    /// </remarks>
+    public bool IsUnclaimed { get; init; }
+
+    /// <summary>
     /// Gets when the session was created.
     /// </summary>
     public DateTime CreatedAtUtc { get; init; }
@@ -67,9 +76,16 @@ public sealed record UserSessionState
     /// </summary>
     public DateTime LastSeenAtUtc { get; init; }
 
-    /// <summary>Whether the session has sat unused for the idle timeout — the one reading of it, for every store and resolver.</summary>
-    public bool IsIdle(TimeSpan idleTimeout, DateTime utcNow)
-        => LastSeenAtUtc + idleTimeout <= utcNow;
+    /// <summary>
+    /// Whether the session has sat unused past its idle timeout — the unclaimed one while no client has used it — which is the
+    /// one reading of it, for every store and resolver.
+    /// </summary>
+    public bool IsIdle(UISessionOptions options, DateTime utcNow)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return LastSeenAtUtc + (IsUnclaimed ? options.UnclaimedIdleTimeout : options.IdleTimeout) <= utcNow;
+    }
 
     /// <summary>
     /// Validates the stored session.

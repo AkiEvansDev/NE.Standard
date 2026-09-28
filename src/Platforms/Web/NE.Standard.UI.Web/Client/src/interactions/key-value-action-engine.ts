@@ -89,20 +89,16 @@ export class KeyValueActionEngine {
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
-        if (
-            domEvent.defaultPrevented ||
-            domEvent.isComposing ||
-            !(domEvent.target instanceof Element) ||
-            (domEvent.key !== "Enter" && domEvent.key !== "Escape")
-        )
+        if (domEvent.defaultPrevented || domEvent.isComposing || !(domEvent.target instanceof Element) || (domEvent.key !== "Enter" && domEvent.key !== "Escape"))
             return;
 
         // The key is the row's from its editor and from its save and cancel pair alike; Enter on the pair is the button's own press.
-        const cell = domEvent.target.closest<HTMLElement>(`.${ValueInputClass}, .${EditActionClass}`);
-        const row = cell?.closest<HTMLElement>(`.${RowClass}`) ?? null;
+        const editing = editingCellOf(domEvent.target);
 
-        if (cell === null || row === null || !row.hasAttribute(RowEditingAttribute) || (domEvent.key === "Enter" && cell.classList.contains(EditActionClass)))
+        if (editing === null || (domEvent.key === "Enter" && editing.cell.classList.contains(EditActionClass)))
             return;
+
+        const { cell, row } = editing;
 
         // A popup the field opened (a select's list, a picker) owns both keys until it closes, whether the key lands in the popup
         // or the field that opened it; Enter in a multi-line field is just a line break.
@@ -126,4 +122,20 @@ export class KeyValueActionEngine {
 
         target.click();
     }
+}
+
+/** Whether a key landed in a key-value row's open editor, whose Enter and Escape are the row's save and cancel. */
+export function isInEditingRow(target: EventTarget | null): boolean {
+    return editingCellOf(target) !== null;
+}
+
+/** The editor cell a key landed in (the field, or its save and cancel pair) and its row, while the row is editing. */
+function editingCellOf(target: EventTarget | null): { readonly cell: HTMLElement; readonly row: HTMLElement } | null {
+    if (!(target instanceof Element))
+        return null;
+
+    const cell = target.closest<HTMLElement>(`.${ValueInputClass}, .${EditActionClass}`);
+    const row = cell?.closest<HTMLElement>(`.${RowClass}`) ?? null;
+
+    return cell === null || row === null || !row.hasAttribute(RowEditingAttribute) ? null : { cell, row };
 }

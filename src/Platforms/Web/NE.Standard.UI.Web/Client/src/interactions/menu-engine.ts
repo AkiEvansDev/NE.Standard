@@ -5,7 +5,7 @@ import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { KeyboardShortcut, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut";
 import { logWarn } from "../runtime/logger";
-import { MenuItemKindAttribute } from "../addressing/dom-attributes";
+import { MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes";
 
 const RootClass = "ui-menu";
 const ItemClass = "ui-menu-item";
@@ -13,8 +13,6 @@ const SelectedModifier = "ui-menu-item--selected";
 const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
-
-const NonInteractiveSelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 
 const ShortcutAttribute = "data-ui-menu-shortcut";
 
@@ -38,7 +36,7 @@ export class MenuEngine {
 
         // The arrows are a menu's own, taken before anything else sees them; a shortcut waits for the bubble, so a field that
         // takes the chord itself (a code field's Ctrl+S) has already prevented it.
-        this.root.addEventListener("keydown", domEvent => this.handleNavigationKeydown(domEvent), true);
+        this.root.addEventListener("keydown", domEvent => this.handleEntryKeydown(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
 
@@ -55,7 +53,8 @@ export class MenuEngine {
                     this.scheduleTabStops();
             });
 
-            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [ShortcutAttribute] });
+            // The search's mark too: an entry it hides can't stay the one Tab lands on.
+            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [ShortcutAttribute, MenuUnmatchedAttribute] });
         }
     }
 
@@ -81,7 +80,7 @@ export class MenuEngine {
                 continue;
 
             // The current entry, so Tab lands where the user already is rather than at the top of the list.
-            const current = items.find(item => item.classList.contains(SelectedModifier))
+            const current = items.find(item => item.classList.contains(SelectedModifier) && isRovingCandidate(item))
                 ?? items.find(isRovingCandidate)
                 ?? items[0];
 
@@ -89,8 +88,8 @@ export class MenuEngine {
         }
     }
 
-    /** Arrow/Home/End inside a menu. */
-    private handleNavigationKeydown(domEvent: Event): void {
+    /** Enter or Space presses the entry the caret is on; Arrow/Home/End walk the menu. */
+    private handleEntryKeydown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing || !(domEvent.target instanceof Element))
             return;
 
@@ -99,6 +98,11 @@ export class MenuEngine {
 
         if (item === null || menu === null)
             return;
+
+        if (domEvent.key === "Enter" || domEvent.key === " ") {
+            pressEntry(domEvent, item);
+            return;
+        }
 
         const items = this.ownItems(menu);
 
@@ -168,7 +172,7 @@ export class MenuEngine {
         this.shortcutsStale = false;
 
         for (const element of this.root.querySelectorAll<HTMLElement>(`[${ShortcutAttribute}]`)) {
-            // A context menu lives in a row template, so its shortcut text only labels a key bound elsewhere.
+            // A context menu's entry acts on what the menu was opened on, which a shortcut has none of: its text only labels a key bound elsewhere.
             if (element.closest(`.${ContextMenuClass}`) !== null)
                 continue;
 
@@ -201,11 +205,27 @@ export class MenuEngine {
 
     /** This menu's own entries, excluding a nested menu's and the kinds that are not controls. */
     private ownItems(menu: HTMLElement): HTMLElement[] {
-        return ownDescendants(menu, `.${ItemClass}:not(${NonInteractiveSelector})`, `.${RootClass}`);
+        return ownDescendants(menu, `.${ItemClass}:not(${PassiveMenuEntrySelector})`, `.${RootClass}`);
     }
 }
 
-/** Whether an unmodified press belongs to text the user is editing. */
+/**
+ * The keyboard's press on an entry. An entry is a link, and one without an address has no press of its own for Enter or Space, so
+ * the click is raised here; one with an address is the browser's to follow on Enter.
+ */
+function pressEntry(domEvent: KeyboardEvent, entry: HTMLElement): void {
+    if (domEvent.target !== entry || domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey || entry.matches(PassiveMenuEntrySelector) || !isRovingCandidate(entry))
+        return;
+
+    if (entry.hasAttribute("href") && domEvent.key === "Enter")
+        return;
+
+    domEvent.preventDefault();
+
+    if (!domEvent.repeat)
+        entry.click();
+}
+
 /** Whether a mutation happened in a menu or brought one: only then are the tab stops worth laying out again. */
 function touchesMenu(mutation: MutationRecord): boolean {
     const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
@@ -221,6 +241,7 @@ function touchesMenu(mutation: MutationRecord): boolean {
     return false;
 }
 
+/** Whether an unmodified press belongs to text the user is editing. */
 function isTypingTarget(domEvent: KeyboardEvent): boolean {
     if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
         return false;

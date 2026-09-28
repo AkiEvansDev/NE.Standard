@@ -6,6 +6,7 @@ import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, Selecte
 import { observeComponents } from "./dom-mutations";
 import { ownControlOf } from "./own-control";
 import { ownDescendants } from "./own-descendants";
+import { isRovingKey } from "./roving-focus";
 import { dispatchRowEvent, focusedRow, isRowDisabled, resolveRowTarget, setRowFocus } from "./row-cursor";
 import {
     chooseRow, ensureAnchor, gestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector
@@ -13,6 +14,9 @@ import {
 
 // The two whose keyboard is this engine's; the tree's is its own.
 const KeyboardRootSelector = ".ui-items-view, .ui-table";
+
+// The keys besides the arrows this engine answers; any other passes without the rows being read.
+const ActionKeys = new Set([" ", "Enter", "Delete"]);
 
 export type ItemsSelectionEngineOptions = {
     readonly root?: ParentNode;
@@ -108,15 +112,21 @@ export class ItemsSelectionEngine {
         if (item !== null && ownControlOf(domEvent.target, item) !== null)
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(KeyboardRootSelector);
+        // The nearest host of any kind: a tree inside a list's row walks its own rows, and must not have its arrows taken by the list.
+        const root = domEvent.target.closest<HTMLElement>(RootSelector);
 
-        if (root === null || root.matches(".ui-disabled"))
+        if (root === null || !root.matches(KeyboardRootSelector) || root.matches(".ui-disabled"))
+            return;
+
+        // A horizontal list walks with Left and Right as well as Up and Down; a table only up and down.
+        const axis = root.matches(".ui-orientation--horizontal") ? "both" : "vertical";
+
+        if (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, axis))
             return;
 
         const rows = this.ownItems(root);
         const current = focusedRow(rows);
-        // A horizontal list walks with Left and Right as well as Up and Down; a table only up and down.
-        const next = resolveRowTarget(domEvent.key, rows, current, root.matches(".ui-orientation--horizontal") ? "both" : "vertical");
+        const next = resolveRowTarget(domEvent.key, rows, current, axis);
 
         if (next !== null) {
             domEvent.preventDefault();

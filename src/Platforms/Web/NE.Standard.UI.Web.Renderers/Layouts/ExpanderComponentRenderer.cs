@@ -41,11 +41,7 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
             {
                 _ = chevron.Class("ui-expander__chevron");
 
-                _ = RenderProperty<bool?>(context, chevron, ExpanderComponent.ShowChevronProperty, static (target, value) =>
-                {
-                    if (value == false)
-                        _ = target.Class("ui-hidden");
-                }, [WebDomOperation.ToggleClass("ui-hidden", condition: WebValueCondition.IsFalse)]);
+                RenderFlagClass(context, chevron, ExpanderComponent.ShowChevronProperty, "ui-hidden", WebValueCondition.IsFalse);
             });
         });
 

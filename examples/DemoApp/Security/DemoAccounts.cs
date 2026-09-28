@@ -14,14 +14,14 @@ internal sealed record DemoAccount(string UserName, string Password, FrozenSet<s
 internal static class DemoAccounts
 {
     public const string AdminRole = "admin";
-    public const string MemberRole = "member";
+    public const string ViewerRole = "viewer";
     public const string ViewReportsPermission = "reports.view";
     public const string ExportReportsPermission = "reports.export";
 
     private static readonly DemoAccount[] All =
     [
-        new("admin", "admin", Set(AdminRole, MemberRole), Set(ViewReportsPermission, ExportReportsPermission)),
-        new("member", "member", Set(MemberRole), Set(ViewReportsPermission))
+        new("robin", "robin", Set(AdminRole, ViewerRole), Set(ViewReportsPermission, ExportReportsPermission)),
+        new("mika", "mika", Set(ViewerRole), Set(ViewReportsPermission))
     ];
 
     public static DemoAccount? Find(string? userName, string? password)

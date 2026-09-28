@@ -59,3 +59,20 @@ test("a staged value is fetched into its update, and the token is gone", async (
         globalThis.fetch = original;
     }
 });
+
+test("a staged value that never arrives fails once its time is up, rather than holding every change set behind it", async () => {
+    const original = globalThis.fetch;
+
+    globalThis.fetch = ((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+    })) as typeof fetch;
+
+    try {
+        const changes = { updates: [{ kind: "Value", address: {}, valueToken: "abc" }] };
+
+        await assert.rejects(fetchStagedValuesAsync(changes as never, 10));
+    }
+    finally {
+        globalThis.fetch = original;
+    }
+});

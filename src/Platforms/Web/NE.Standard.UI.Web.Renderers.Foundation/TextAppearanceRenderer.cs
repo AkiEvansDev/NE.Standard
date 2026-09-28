@@ -12,6 +12,15 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>Renders a <see cref="UITextAppearance"/> as a text-role class, or inline font styles when a size is set.</summary>
 public static class TextAppearanceRenderer
 {
+    private static readonly WebDomOperation[] Operations =
+    [
+        WebDomOperation.Class(converter: WebDomConverters.TextAppearanceClass),
+        WebDomOperation.Style("font-size", converter: WebDomConverters.TextAppearanceFontSizeCss),
+        WebDomOperation.Style("font-weight", converter: WebDomConverters.TextAppearanceFontWeightCss),
+        WebDomOperation.Style("line-height", converter: WebDomConverters.TextAppearanceLineHeightCss),
+        WebDomOperation.Style("letter-spacing", converter: WebDomConverters.TextAppearanceLetterSpacingCss)
+    ];
+
     public static void RenderTextAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -39,12 +48,6 @@ public static class TextAppearanceRenderer
             {
                 _ = t.Class(WebClassNames.TextType(role));
             }
-        }, [
-            WebDomOperation.Class(converter: WebDomConverters.TextAppearanceClass),
-            WebDomOperation.Style("font-size", converter: WebDomConverters.TextAppearanceFontSizeCss),
-            WebDomOperation.Style("font-weight", converter: WebDomConverters.TextAppearanceFontWeightCss),
-            WebDomOperation.Style("line-height", converter: WebDomConverters.TextAppearanceLineHeightCss),
-            WebDomOperation.Style("letter-spacing", converter: WebDomConverters.TextAppearanceLetterSpacingCss)
-        ]);
+        }, Operations);
     }
 }

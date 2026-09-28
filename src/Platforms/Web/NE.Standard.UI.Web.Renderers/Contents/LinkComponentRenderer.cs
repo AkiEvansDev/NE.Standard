@@ -9,6 +9,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class LinkComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] UrlOperations = [WebDomOperation.Attribute("href", converter: WebDomConverters.SafeUrl)];
+
     public override string ComponentTypeKey => LinkComponent.ComponentTypeKey;
 
     protected override string ElementName => "a";
@@ -24,7 +26,7 @@ public sealed class LinkComponentRenderer : WebComponentRendererBase
         {
             if (WebUrlSafety.IsSafeLink(value))
                 _ = target.Attribute("href", value);
-        }, [WebDomOperation.Attribute("href", converter: WebDomConverters.SafeUrl)]);
+        }, UrlOperations);
 
         RenderTooltip(context, root);
 

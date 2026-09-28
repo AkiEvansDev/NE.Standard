@@ -1,15 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Actions;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -26,6 +17,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private const string ConfirmGroup = nameof(ButtonScenariosController.ConfirmGroup);
     private const string ReportGroup = nameof(ButtonScenariosController.ReportGroup);
     private const string EffectGroup = nameof(ButtonScenariosController.EffectGroup);
+    private const string BackgroundGroup = nameof(ButtonScenariosController.BackgroundGroup);
 
     // Authored ids, because one button names the other in a cross-component interaction.
     private const string ApproveId = "decision-approve";
@@ -46,15 +38,16 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
             new UIDialog
             {
                 Key = ButtonScenariosController.ConfirmKey,
+                Label = "Confirm",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = UILayout.Stack(16)
                     .AddChild(new ParagraphComponent()
                         .SetIcon(DemoIcons.Alert)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
-                        .SetTitle("Delete this workspace?")
+                        .SetTitle("Delete this server?")
                         .SetTitleType(UITextAppearance.Title)
-                        .SetDescription("Everything in **payments-staging** goes with it — builds, artifacts and the deploy history. This cannot be undone.")
+                        .SetDescription("Everything on **web-eu-central-3** goes with it — its disk, its snapshots and its backups. This cannot be undone.")
                         .SetWidth(UILayoutLength.Absolute(360))
                     )
                     // The safe answer comes first, where a reader's muscle memory expects "Cancel".
@@ -71,7 +64,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                             .OnClick(nameof(ButtonScenariosController.ConfirmDelete))
                             .SetType(UIButtonType.Danger)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
-                            .SetTitle("Delete workspace")
+                            .SetTitle("Delete server")
                         )
                     )
             }
@@ -81,8 +74,9 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateLatencyGroup(), CreateDecisionGroup(), CreateConfirmGroup(), CreateEffectGroup()],
-            [CreateGuardGroup(), CreateProgressGroup(), CreateFailureGroup()]
-        ));
+            [CreateGuardGroup(), CreateProgressGroup(), CreateBackgroundGroup(), CreateFailureGroup()]
+            )
+        );
     }
 
     /// <summary>
@@ -91,7 +85,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateLatencyGroup()
     {
         return DemoUI.CreateGroup(LatencyGroup, "Three ways to say it is running",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClickShowingLoading(nameof(ButtonScenariosController.DeployAsync))
                     .SetType(UIButtonType.Primary)
@@ -131,7 +125,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateGuardGroup()
     {
         return DemoUI.CreateGroup(GuardGroup, "Pressed twice",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.ChargeGuardedAsync))
                     .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
@@ -172,7 +166,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateDecisionGroup()
     {
         return DemoUI.CreateGroup(DecisionGroup, "Two buttons, one decision",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent(ApproveId)
                     .OnClick(nameof(ButtonScenariosController.ApproveAsync))
                     .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
@@ -204,7 +198,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "One press turns both of them off before it leaves the browser, which a server-side flag could not: it would arrive a round trip after the second press."
+            note: "One press turns both of them off before it leaves the browser, which a server-side flag could not do in time. The rule itself is still the server's: each command checks that the request is open, so a second press that gets through changes nothing."
         );
     }
 
@@ -214,14 +208,14 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateProgressGroup()
     {
         return DemoUI.CreateGroup(ProgressGroup, "Progress, while it is still running",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
-                    .OnClick(nameof(ButtonScenariosController.RunPipelineAsync))
+                    .OnClick(nameof(ButtonScenariosController.ProvisionAsync))
                     // Bound only: the spinner reports the server's progress, not the round trip.
                     .BindLoading(nameof(ButtonProgressGroupContext.Busy), UIBindingScope.Relative)
                     .SetType(UIButtonType.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
-                    .SetTitle("Run pipeline")
+                    .SetTitle("Provision")
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
@@ -235,23 +229,59 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     }
 
     /// <summary>
+    /// A background command: answered at once, its result pushed when it ends, so the tab is not held while it runs.
+    /// </summary>
+    private static ContainerComponent CreateBackgroundGroup()
+    {
+        return DemoUI.CreateGroup(BackgroundGroup, "A long job that leaves the page free",
+            content => content.AddChild(UILayout.Stack(12)
+                .AddChild(UILayout.Row(12)
+                    .AddChild(new ButtonComponent()
+                        .OnClickShowingLoading(nameof(ButtonScenariosController.BackUpAsync))
+                        .SetType(UIButtonType.Primary)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Download))
+                        .SetTitle("Back up")
+                        .SetTooltip("[UICommand(ConcurrencyMode = Background)] — six seconds, and the spinner ends when its pushed result arrives")
+                    )
+                    .AddChild(new ButtonComponent()
+                        .OnClick(nameof(ButtonScenariosController.CancelBackup))
+                        .SetType(UIButtonType.Ghost)
+                        .SetTitle("Cancel")
+                    )
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Note for the log")
+                    .BindValue(nameof(ButtonBackgroundGroupContext.Note), UIBindingScope.Relative)
+                )
+                .AddChild(new TextComponent()
+                    .SetTitle("The server holds")
+                    .AsBody()
+                    .BindDescription(nameof(ButtonBackgroundGroupContext.Note), UIBindingScope.Relative)
+                )
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            note: "Press Back up, then type a note and leave the field: the line under it is the server's copy, and it changes while the backup still runs. Cancel reaches the backup the same way."
+        );
+    }
+
+    /// <summary>
     /// A question the button asks first; the dialog is the view's, opened by an effect the button knows nothing of.
     /// </summary>
     private static ContainerComponent CreateConfirmGroup()
     {
         return DemoUI.CreateGroup(ConfirmGroup, "Something that cannot be undone",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.AskToDelete))
                     .BindEnabled(nameof(ButtonConfirmGroupContext.Present), UIBindingScope.Relative)
                     .SetType(UIButtonType.Danger)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
-                    .SetTitle("Delete workspace")
-                    .BindDescription(nameof(ButtonConfirmGroupContext.Workspace), UIBindingScope.Relative)
+                    .SetTitle("Delete server")
+                    .BindDescription(nameof(ButtonConfirmGroupContext.Server), UIBindingScope.Relative)
                     .SetDescriptionType(UITextAppearance.Caption)
                 )
                 .AddChild(new ButtonComponent()
-                    .OnClick(nameof(ButtonScenariosController.RestoreWorkspace))
+                    .OnClick(nameof(ButtonScenariosController.RestoreServer))
                     .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
                     .SetTitle("Put it back")
@@ -268,7 +298,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateFailureGroup()
     {
         return DemoUI.CreateGroup(ReportGroup, "When it fails",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.FailUnhandled))
                     .SetType(UIButtonType.Outline)
@@ -295,7 +325,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
     private static ContainerComponent CreateEffectGroup()
     {
         return DemoUI.CreateGroup(EffectGroup, "Answering with something other than state",
-            content => content.AddChild(DemoUI.CreateRow()
+            content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(ButtonScenariosController.GoToExamples))
                     .SetType(UIButtonType.Outline)

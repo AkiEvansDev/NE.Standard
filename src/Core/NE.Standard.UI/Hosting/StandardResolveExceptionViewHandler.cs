@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Security;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Navigation;
@@ -77,14 +78,14 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
 
             if (forbiddenRoute is not null
                 && !RouteEquals(context.Route?.Route, forbiddenRoute)
-                && TryBuildRedirect(forbiddenRoute, "deniedUrl", context.Navigation.Route, out request))
+                && TryBuildRedirect(forbiddenRoute, "deniedUrl", UINavigationAddress.Format(context.Navigation), out request))
             {
                 return true;
             }
         }
 
         if (!RouteEquals(context.Route?.Route, signInRoute)
-            && TryBuildRedirect(signInRoute, "returnUrl", context.Navigation.Route, out request))
+            && TryBuildRedirect(signInRoute, "returnUrl", UINavigationAddress.Format(context.Navigation), out request))
         {
             return true;
         }

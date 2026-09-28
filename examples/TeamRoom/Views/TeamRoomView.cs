@@ -1,12 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 
 namespace TeamRoom.Views;
@@ -83,4 +74,13 @@ public abstract class TeamRoomView : UIViewBase
             .AddChild(CreatePage());
 
     protected abstract IVisualComponent CreatePage();
+
+    /// <summary>A dialog's closing row: Cancel on <paramref name="cancelCommand"/>, then the dialog's own action.</summary>
+    protected static StackPanelComponent CreateDialogButtons(string cancelCommand, string command, string title, UIButtonType type = UIButtonType.Primary)
+        => new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(8)
+            .SetHorizontalAlignment(UIAlignment.End)
+            .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Cancel").OnClick(cancelCommand))
+            .AddChild(new ButtonComponent().SetType(type).SetTitle(title).OnClick(command));
 }

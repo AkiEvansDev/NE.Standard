@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 
@@ -18,13 +19,19 @@ internal sealed partial class DefaultErrorController : UIControllerBase
 
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
-        if (Context.Handle.Instance.Navigation.Parameters?.TryGetValue("message", out var value) == true
-            && value is string message
-            && !string.IsNullOrWhiteSpace(message))
-        {
-            Message = message;
-        }
-
+        ShowMessageOf(Context.Handle.Instance.Navigation);
         return Task.CompletedTask;
     }
+
+    // A later failure in the same tab finds this runtime again, and only this hook hears the navigation it arrived with.
+    protected override Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ShowMessageOf(navigation);
+        return Task.CompletedTask;
+    }
+
+    private void ShowMessageOf(UINavigationRequest navigation)
+        => Message = navigation.Parameters?.TryGetValue("message", out var value) == true && value is string message && !string.IsNullOrWhiteSpace(message)
+            ? message
+            : DefaultMessage;
 }

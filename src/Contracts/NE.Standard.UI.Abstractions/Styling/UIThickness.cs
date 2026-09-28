@@ -27,7 +27,7 @@ public readonly record struct UIThickness(double Left, double Top, double Right,
         => new(horizontal, vertical, horizontal, vertical);
 
     /// <summary>
-    /// Validates that all thickness values are non-negative.
+    /// Validates that all sides are non-negative: the rule a padding and a border thickness take, while a margin may be negative.
     /// </summary>
     public void Validate()
     {

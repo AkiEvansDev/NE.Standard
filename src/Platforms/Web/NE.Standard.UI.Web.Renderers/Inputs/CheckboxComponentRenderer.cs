@@ -20,9 +20,10 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
 
     /// <summary>
     /// Renders the label/hidden-input/box/text-body shell shared by a checkbox and a switch; <c>BadgePlacement</c> is not honoured,
-    /// since an inline-flex toggle has no free space in its row.
+    /// since an inline-flex toggle has no free space in its row. <paramref name="role"/> is what the native box is to a screen reader
+    /// when it is not a checkbox — a switch.
     /// </summary>
-    public static void RenderCheckable(WebRenderContext context, IHtmlElementBuilder root, string classPrefix)
+    public static void RenderCheckable(WebRenderContext context, IHtmlElementBuilder root, string classPrefix, string? role = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -36,10 +37,16 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
             _ = input.Class($"{classPrefix}__input");
             _ = input.Attribute("type", "checkbox");
 
+            if (role is not null)
+                _ = input.Attribute("role", role);
+
             NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, input);
 
             NativeInputRendererBase.RenderFormId(context, input);
             NativeInputRendererBase.RenderFieldName(context, input);
+
+            // Its own name rather than the wrapping label's text, which also holds the required mark and the validation line.
+            RenderFieldLabel(context, input);
 
             _ = RenderProperty<bool?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
             {
@@ -59,7 +66,8 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
         _ = root.Element("span", label => RenderTextBody(context, root, label, new WebTextBodyOptions
         {
             IncludeTextLayout = true,
-            Trailing = header => RenderRequiredMarker(context, header, $"{classPrefix}__required")
+            Trailing = header => RenderRequiredMarker(context, header, $"{classPrefix}__required"),
+            NamesField = true
         }));
 
         RenderValidationMessage(context, root);

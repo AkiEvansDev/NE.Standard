@@ -52,7 +52,7 @@ internal static class UIComponentPropertyDiagnostics
     public static readonly DiagnosticDescriptor InvalidSelfType = new(
         id: "NEUI006",
         title: "Cannot resolve component self type",
-        messageFormat: "Component type '{0}' must either be generic or directly usable as the PropertyRegister component type",
+        messageFormat: "Component type '{0}' must be non-generic, or have a type parameter constrained to itself or named T or TComponent, to be the type its setters return",
         category: "NE.Standard.UI",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
@@ -61,7 +61,7 @@ internal static class UIComponentPropertyDiagnostics
     public static readonly DiagnosticDescriptor PropertyMustBeSettable = new(
         id: "NEUI007",
         title: "Property must be settable",
-        messageFormat: "Property '{0}' must have a setter to generate Set{0}",
+        messageFormat: "Property '{0}' must have a set accessor, not an init one, to generate Set{0}",
         category: "NE.Standard.UI",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
@@ -125,6 +125,15 @@ internal static class UIComponentPropertyDiagnostics
         id: "NEUI015",
         title: "Manual property does not match the block it overrides",
         messageFormat: "Property '{0}' on '{1}' is typed '{2}' but the '{3}' block declares it as '{4}'",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor BlockDefaultNotFound = new(
+        id: "NEUI016",
+        title: "A property default names no block property",
+        messageFormat: "[UIComponentPropertyDefault] names '{0}', which no property block generates onto '{1}'",
         category: "NE.Standard.UI",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true

@@ -14,10 +14,10 @@ internal sealed class WebViewRenderCacheStartupTask(IWebViewRenderCache cache, I
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (!_options.Value.ClearOnStartup)
-            return;
-
-        await _cache.ClearAsync(cancellationToken).ConfigureAwait(false);
+        if (_options.Value.ClearOnStartup)
+            await _cache.ClearAsync(cancellationToken).ConfigureAwait(false);
+        else if (_cache is FileSystemWebViewRenderCache files)
+            await files.SweepAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

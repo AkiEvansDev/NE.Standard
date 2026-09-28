@@ -53,6 +53,37 @@
     align-self: flex-start;
 }
 
+// Content set beside the switch stands in one row with it: the content takes the room, the switch keeps its edge. Collapsed, the
+// row is the switch alone; while the fold slides the content stays, clipped with the rest.
+.ui-collapsible__bar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: @ui-space-2;
+    min-width: 0;
+}
+
+.ui-collapsible__bar-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ui-side--right > .ui-collapsible__bar {
+    flex-direction: row-reverse;
+}
+
+.ui-side--top > .ui-collapsible__bar {
+    order: 1;
+}
+
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible__bar > .ui-collapsible__bar-content {
+    display: none;
+}
+
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) > .ui-collapsible__bar {
+    justify-content: center;
+}
+
 // While collapsible-engine.ts slides the fold, the open layout stays and the edge clips it; the collapsed rules below wait for the end.
 // The authored minimum is let go for the slide, or it would hold the edge where it was.
 .ui-collapsible[data-ui-folding] {

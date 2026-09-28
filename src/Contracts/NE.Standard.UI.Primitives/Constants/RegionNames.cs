@@ -49,4 +49,14 @@ public static class RegionNames
     /// The control a field carries at the end of its row — a copy, a generate, a look-up, or a menu of them.
     /// </summary>
     public const string TrailingAction = "trailing-action";
+
+    /// <summary>
+    /// What a collapsible control carries beside its collapse toggle, in one row with it — a search, a title — seen only while open.
+    /// </summary>
+    public const string ToggleContent = "toggle-content";
+
+    /// <summary>
+    /// The menu a tabs view opens on a tab's caption: its own entries with the application's among them.
+    /// </summary>
+    public const string TabMenu = "tab-menu";
 }

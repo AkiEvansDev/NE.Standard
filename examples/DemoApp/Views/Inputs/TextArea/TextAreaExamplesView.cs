@@ -1,12 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.TextArea;
 
@@ -15,7 +7,7 @@ namespace DemoApp.Views.Inputs.TextArea;
 /// </summary>
 internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
 {
-    private const string Incident = "The scheduler stopped acknowledging heartbeats at 09:14 UTC. Three regions failed over cleanly; eu-west-1 held its lease for another ninety seconds and served stale reads for the duration.";
+    private const string Incident = "The scheduler stopped acknowledging heartbeats at 09:14 UTC. Three regions failed over cleanly; eu-west held its lease for another ninety seconds and served stale reads for the duration.";
 
     public static string ViewKey => "demo.inputs.text-area.examples";
 
@@ -26,10 +18,7 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFormGroup()],
-            [CreateCommentGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateFormGroup()], [CreateCommentGroup()]));
 
         _ = container.AddChild(CreateHeightGroup());
     }
@@ -37,8 +26,8 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
     /// <summary>The ordinary case: a labelled box of prose, and the same box with nothing in it yet.</summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateGroup(null, "Where it is used",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Where it is used",
+            UILayout.Stack(12)
                 .AddChild(new TextAreaComponent()
                     .SetTitle("Incident summary")
                     .SetIcon(DemoIcons.FileText)
@@ -50,7 +39,6 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPlaceholder("One per line — owner, then what they are doing about it.")
                     .SetRows(3)
                 )
-            )
         );
     }
 
@@ -59,8 +47,8 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCommentGroup()
     {
-        return DemoUI.CreateGroup(null, "A box that is sent",
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("A box that is sent",
+            new CardComponent()
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.MessageSquare)
                     .SetTitle("Add a comment")
@@ -71,7 +59,7 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetRows(3)
                     .SetMaxLength(280)
                 )
-                .SetFooter(DemoUI.CreateRow(8)
+                .SetFooter(UILayout.Row(8)
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Primary)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Send))
@@ -79,8 +67,6 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .AddChild(UIButtons.Ghost("Discard"))
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -90,23 +76,31 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
     /// <remarks>Side by side, because the pair is a choice — stacked, three boxes of prose read as one long form.</remarks>
     private static ContainerComponent CreateHeightGroup()
     {
-        return DemoUI.CreateGroup(null, "How tall it starts, and who may change it",
-            content => content.AddChild(DemoUI.CreateRow(24)
-                .AddChild(CreateSized("Two rows, fixed — a line in a dense form", 2, UITextAreaResizeMode.None, "A note nobody should turn into an essay."))
-                .AddChild(CreateSized("Four rows, the reader may pull it taller", 4, UITextAreaResizeMode.Vertical, Incident))
-                .AddChild(CreateSized("Six rows — the writing is the page", 6, UITextAreaResizeMode.Vertical, Incident))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+        return DemoUI.CreateExample("How tall it starts, and who may change it",
+            UILayout.Row(24)
+                .AddChild(UIPage.Labelled("Two rows, fixed — a line in a dense form", new TextAreaComponent()
+                    .SetWidth(UILayoutLength.Absolute(340))
+                    .SetValue("A note nobody should turn into an essay.")
+                    .SetRows(2)
+                    .SetResize(UITextAreaResizeMode.None)
+                    )
+                )
+                .AddChild(UIPage.Labelled("Four rows, the reader may pull it taller", new TextAreaComponent()
+                    .SetWidth(UILayoutLength.Absolute(340))
+                    .SetValue(Incident)
+                    .SetRows(4)
+                    .SetResize(UITextAreaResizeMode.Vertical)
+                    )
+                )
+                .AddChild(UIPage.Labelled("Six rows — the writing is the page", new TextAreaComponent()
+                    .SetWidth(UILayoutLength.Absolute(340))
+                    .SetValue(Incident)
+                    .SetRows(6)
+                    .SetResize(UITextAreaResizeMode.Vertical)
+                    )
+                ),
             columns: 24,
             note: "`Rows` is the height the box is drawn at, not where it stays; `Vertical` is the only resize a column survives, since the other two let the box push its neighbours out."
         );
     }
-
-    private static StackPanelComponent CreateSized(string caption, int rows, UITextAreaResizeMode resize, string value)
-        => DemoUI.CreateCaptionedItem(caption, new TextAreaComponent()
-            .SetWidth(UILayoutLength.Absolute(340))
-            .SetValue(value)
-            .SetRows(rows)
-            .SetResize(resize)
-        );
 }

@@ -11,6 +11,12 @@ const StagePath = "/_ne/values";
  */
 export const LargeValueBytes = 8 * 1024;
 
+/**
+ * How long a staged value's trip may take before it is given up. Every change set after a staged one waits for it, and the
+ * values after a staged one wait for its post, so one that hangs would stall the page with no error.
+ */
+const StagedValueTimeoutMilliseconds = 30_000;
+
 /** The value's JSON as bytes when it is too large to travel inline, or null when it goes inline. */
 export function largeValueBody(value: unknown): Uint8Array | null {
     const json = JSON.stringify(value);
@@ -31,7 +37,7 @@ export function hasStagedValues(changes: ServerChangeSet | undefined): boolean {
 }
 
 /** The change set with every staged value fetched into its update; the same change set when it names none. */
-export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefined): Promise<ServerChangeSet | undefined> {
+export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefined, timeoutMilliseconds = StagedValueTimeoutMilliseconds): Promise<ServerChangeSet | undefined> {
     if (changes === undefined || !hasStagedValues(changes))
         return changes;
 
@@ -42,7 +48,7 @@ export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefine
         if (typeof token !== "string")
             return update;
 
-        const response = await fetch(`${StagePath}/${encodeURIComponent(token)}`, { credentials: "same-origin" });
+        const response = await fetch(`${StagePath}/${encodeURIComponent(token)}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
 
         if (!response.ok)
             throw new Error(`Fetching a staged value failed with status ${response.status}.`);
@@ -61,7 +67,8 @@ export async function stageValueAsync(body: Uint8Array): Promise<string> {
         method: "POST",
         body: body as BufferSource,
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin"
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(StagedValueTimeoutMilliseconds)
     });
 
     if (!response.ok)

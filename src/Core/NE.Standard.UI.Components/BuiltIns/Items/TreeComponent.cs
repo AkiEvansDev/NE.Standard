@@ -18,6 +18,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// </summary>
 /// <remarks>Nodes are a flat keyed list in walking order, each naming the node above it.</remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
@@ -28,13 +29,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
 {
     private const double DefaultIndent = 16;
 
+    // A tree is a list in a panel and draws no edge of its own.
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(0);
-
-    /// <summary>
-    /// Gets or sets the border thickness; a tree is a list in a panel and draws no edge of its own by default.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IBorderedComponent), DefaultValueMember = nameof(DefaultBorderThickness))]
-    public UIThickness? BorderThickness { get; set; }
 
     /// <summary>
     /// Gets or sets how far each level steps in from the one above, in pixels.

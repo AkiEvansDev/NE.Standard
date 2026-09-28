@@ -19,6 +19,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// selecting and scrolling like an items view. Sorting by header, editing and paging are an add-on's.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
@@ -28,21 +29,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
     where T : TableComponent<T>, IUIComponentDefinition
 {
+    // The table draws an edge where the contract leaves the stylesheet's own.
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
 
     private readonly List<UITableColumn> _columns = [];
 
     /// <summary>
-    /// Gets or sets the border thickness; the table draws an edge by default.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IBorderedComponent), DefaultValueMember = nameof(DefaultBorderThickness))]
-    public UIThickness? BorderThickness { get; set; }
-
-    /// <summary>
     /// Gets the columns in order; each one's cell template is the table's template variant keyed by the column.
     /// </summary>
     /// <remarks>Render-time only: the columns are how the table is built.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UITableColumn> Columns => _columns;
 
     /// <summary>
@@ -68,7 +64,6 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowRowSeparators { get; set; }
-
 
     /// <summary>
     /// Gets or sets whether the viewer may drag a column's edge in the header to resize it; the widths stay on the client.

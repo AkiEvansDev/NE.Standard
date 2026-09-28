@@ -74,6 +74,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
+                RenderFieldLabel(context, input);
 
                 _ = RenderProperty<string?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
                 {

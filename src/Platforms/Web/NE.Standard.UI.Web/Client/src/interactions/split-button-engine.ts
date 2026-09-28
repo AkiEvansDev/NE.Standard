@@ -1,7 +1,7 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under the button, dismissed
 // like every popup, and closed by the chosen entry.
 
-import { MenuItemKindAttribute, SplitModeAttribute } from "../addressing/dom-attributes";
+import { MarkedMenuEntrySelector, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { PopupDismissal } from "./popup-dismissal";
 import { moveFocusInto, restoreFocusTo } from "./popup-focus";
@@ -83,7 +83,7 @@ export class SplitButtonEngine {
         if (menu === null || entry === null || !menu.contains(entry))
             return;
 
-        if (entry.matches(`[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"], [${MenuItemKindAttribute}="check"]`) || entry.parentElement?.hasAttribute("data-ui-menu-group") === true)
+        if (entry.matches(`${PassiveMenuEntrySelector}, ${MarkedMenuEntrySelector}`))
             return;
 
         this.close();

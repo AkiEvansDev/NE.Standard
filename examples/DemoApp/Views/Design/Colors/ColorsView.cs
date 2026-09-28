@@ -1,12 +1,6 @@
 using System;
 using System.Drawing;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Design.Colors;
 
@@ -47,7 +41,8 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
                     .AddChild(CreateSwatchLabel(name.ToString(), UITextAppearance.Body, textColor))
                     .AddChild(CreateSwatchLabel(baseVariant.ToHex()[..7], UITextAppearance.Caption, textColor))
                     .AddChild(CreateSwatchLabel($"rgb({color.R}, {color.G}, {color.B})", UITextAppearance.Caption, textColor))
-                ))
+                )
+            )
             .AddChild(CreateAdjustmentRow("Shade", name, ColorAdjustment.Shade, "S"))
             .AddChild(CreateAdjustmentRow("Tint", name, ColorAdjustment.Tint, "T"));
     }
@@ -102,7 +97,8 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
                     .SetVerticalAlignment(UIAlignment.Center)
                     .SetTextAlignment(UITextAlignment.Center)
                     .SetPlacement(1, 1, 24, 1)
-                ));
+                )
+            );
         }
 
         return row;

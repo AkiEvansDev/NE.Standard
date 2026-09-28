@@ -12,6 +12,14 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>Shared attribute rendering for components that render as a single native <c>&lt;input&gt;</c>.</summary>
 public static class NativeInputRendererBase
 {
+    private static readonly WebDomOperation[] FormIdOperations = [WebDomOperation.Attribute(WebAttributes.FormId)];
+    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
+    private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] ReadOnlyAsDisabledOperations = [WebDomOperation.ToggleAttribute("disabled", condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] MaxFileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileMaxSize)];
+    private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept")];
+    private static readonly WebDomOperation[] SelectionOperations = [WebDomOperation.Property("value")];
+
     public static void RenderFormId(WebRenderContext context, IHtmlElementBuilder input)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -21,7 +29,7 @@ public static class NativeInputRendererBase
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.FormId, value);
-        }, [WebDomOperation.Attribute(WebAttributes.FormId)]);
+        }, FormIdOperations);
     }
 
     /// <summary>Writes the <c>name</c> a native field carries; <paramref name="part"/> separates several fields of one component.</summary>
@@ -52,7 +60,7 @@ public static class NativeInputRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute("placeholder", value);
-        }, [WebDomOperation.Attribute("placeholder")]);
+        }, PlaceholderOperations);
     }
 
     public static void RenderIsReadOnly(WebRenderContext context, IHtmlElementBuilder input)
@@ -64,7 +72,7 @@ public static class NativeInputRendererBase
         {
             if (value == true)
                 _ = target.Attribute("readonly");
-        }, [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue)]);
+        }, ReadOnlyOperations);
     }
 
     /// <summary>The hidden input a composed control keeps its value in, named for the form like a native field.</summary>
@@ -101,7 +109,7 @@ public static class NativeInputRendererBase
         {
             if (value > 0)
                 _ = target.Attribute(WebAttributes.FileMaxSize, value.Value.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.FileMaxSize)]);
+        }, MaxFileSizeOperations);
     }
 
     /// <summary>The native file picker, present but hidden: only a real file input opens the OS dialog, and a control's own press is what is used.</summary>
@@ -125,7 +133,7 @@ public static class NativeInputRendererBase
             {
                 if (!string.IsNullOrWhiteSpace(value))
                     _ = target.Attribute("accept", value);
-            }, [WebDomOperation.Attribute("accept")]);
+            }, AcceptOperations);
 
             configure?.Invoke(native);
         });
@@ -155,7 +163,7 @@ public static class NativeInputRendererBase
             {
                 if (!string.IsNullOrEmpty(value))
                     _ = target.Attribute("value", value);
-            }, [WebDomOperation.Property("value")]);
+            }, SelectionOperations);
 
             if (selectionBinding is not null)
                 _ = selection.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
@@ -175,6 +183,6 @@ public static class NativeInputRendererBase
         {
             if (value == true)
                 _ = target.Attribute("disabled");
-        }, [WebDomOperation.ToggleAttribute("disabled", condition: WebValueCondition.IsTrue)]);
+        }, ReadOnlyAsDisabledOperations);
     }
 }

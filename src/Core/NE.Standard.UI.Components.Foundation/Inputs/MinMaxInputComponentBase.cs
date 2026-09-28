@@ -1,4 +1,3 @@
-using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 
@@ -26,7 +25,7 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// Gets or sets the format string used to parse/format the value.
     /// </summary>
     /// <remarks>Render-time only: the runtime reads it once off the compiled state while normalizing what the user typed.</remarks>
-    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? Format { get; set; }
 
     /// <summary>
@@ -39,15 +38,26 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// Gets or sets the culture used to parse/format the value.
     /// </summary>
     /// <remarks>Render-time only: it resolves a culture pack server-side that no client-side converter could reproduce.</remarks>
-    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? Culture { get; set; }
 
     /// <summary>
     /// Gets or sets the message shown when what the user typed does not match <see cref="Format"/>.
     /// </summary>
     /// <remarks>Not translatable and unbindable: the runtime reads it once off the compiled state while rejecting a value.</remarks>
-    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? FormatMessage { get; set; }
+
+    /// <summary>
+    /// Sets the value, which may not fall outside <see cref="Min"/>/<see cref="Max"/>; whichever of the three is set last is checked
+    /// against the others.
+    /// </summary>
+    public new TComponent SetValue(TValue? value)
+    {
+        ValidateRange(Min, Max, value);
+        Value = value;
+        return Self;
+    }
 
     /// <summary>
     /// Sets the minimum allowed value.
@@ -84,11 +94,4 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// Validates the configured value range.
     /// </summary>
     protected abstract void ValidateRange(TValue? min, TValue? max, TValue? value);
-
-    /// <summary>
-    /// The range check every ordered value shares, differing only in the noun its message carries.
-    /// </summary>
-    protected static void ValidateOrderedRange<T>(T? min, T? max, T? value, string noun)
-        where T : struct, IComparable<T>
-        => OrderedRange.Validate(min, max, value, noun);
 }

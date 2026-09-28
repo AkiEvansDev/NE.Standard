@@ -1,6 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.TextInput;
 
@@ -33,7 +31,7 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
         => SetLastChange(nameof(Type), Type = CycleEnum(Type));
 
     public void TogglePrefixText()
-        => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, "https://example.com"));
+        => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, "https://orvane.example"));
 
     public void ToggleSuffixText()
         => SetLastChange(nameof(SuffixText), SuffixText = CycleValue(SuffixText, null, "seconds"));

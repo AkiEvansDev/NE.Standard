@@ -1,4 +1,5 @@
-import { WindowSpacerAttribute } from "../addressing/dom-attributes";
+// With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
+import { WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 
 export const TopSpacer = "top";
 export const BottomSpacer = "bottom";
@@ -22,10 +23,10 @@ export function ensureSpacer(host: Element, position: string, height: number): v
 
     // Put back at its end every time, not only when created: a collection insert appends past an existing spacer.
     if (position === TopSpacer) {
-        if (host.firstChild !== spacer)
-            host.insertBefore(spacer, host.firstChild);
+        if (host.firstElementChild !== spacer)
+            host.insertBefore(spacer, host.firstElementChild);
     }
-    else if (host.lastChild !== spacer) {
+    else if (host.lastElementChild !== spacer) {
         host.appendChild(spacer);
     }
 

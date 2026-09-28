@@ -8,8 +8,8 @@ namespace NE.Standard.UI.Abstractions.Styling;
 /// <summary>
 /// Represents a layout length value.
 /// </summary>
-/// <param name="Kind">Whether the length is absolute, a share of the free space, or the content's own.</param>
-/// <param name="Value">The length in the kind's own terms; ignored by the kinds that carry none.</param>
+/// <param name="Kind">Whether the length is absolute, the whole of what the parent gives, or the content's own.</param>
+/// <param name="Value">The length in pixels for <see cref="UILayoutLengthKind.Absolute"/>; <c>-1</c> for the kinds that carry none.</param>
 public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Value)
 {
     /// <summary>

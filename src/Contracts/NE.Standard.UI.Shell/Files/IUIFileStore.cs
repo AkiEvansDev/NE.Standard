@@ -21,6 +21,13 @@ public interface IUIFileStore
     Task<UIUploadFile> SaveUploadAsync(string sessionId, string selectionId, string fileName, string? contentType, Stream content, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// How many bytes of uploads the session holds now — what <c>UIFileOptions.MaxUploadBytesPerSession</c> is checked against.
+    /// A store that does not count answers zero, and the per-session limit then holds nothing back.
+    /// </summary>
+    Task<long> GetUploadedBytesAsync(string sessionId, CancellationToken cancellationToken = default)
+        => Task.FromResult(0L);
+
+    /// <summary>
     /// Reads back the metadata of a stored selection, or an empty list when the session has no such selection.
     /// </summary>
     Task<IReadOnlyList<UIUploadFile>> GetSelectionAsync(string sessionId, string selectionId, CancellationToken cancellationToken = default);
@@ -47,9 +54,19 @@ public interface IUIFileStore
     Task<UIStagedDownload?> TakeDownloadAsync(string sessionId, string token, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Removes every file of a selection — what an upload that failed part-way had already saved.
+    /// </summary>
+    Task RemoveSelectionAsync(string sessionId, string selectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Removes everything held for a session — called when the session goes away.
     /// </summary>
     Task RemoveSessionAsync(string sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves everything held for a session to the id it was replaced by at sign-in, so a file picked before signing in stays the reader's.
+    /// </summary>
+    Task MoveSessionAsync(string fromSessionId, string toSessionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Removes staged content older than the given retention, returning how many entries went.

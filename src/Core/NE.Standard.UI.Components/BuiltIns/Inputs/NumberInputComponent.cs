@@ -114,8 +114,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
 
     private static void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value, bool? allowDecimals, bool? allowNegative)
     {
-        // The value itself is not held to the range here: a field is typed into, and the runtime's normalizer judges what arrives.
-        OrderedRange.Validate(min, max, value: null, "value");
+        OrderedRange.Validate(min, max, value, "value");
 
         if (step.HasValue)
         {
@@ -138,17 +137,8 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Value cannot be negative when negative values are not allowed.");
         }
 
-        if (value.HasValue)
-        {
-            if (min.HasValue && value.Value < min.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Value cannot be less than the minimum value.");
-
-            if (max.HasValue && value.Value > max.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Value cannot be greater than the maximum value.");
-
-            if (allowDecimals.HasValue && allowDecimals == false && decimal.Truncate(value.Value) != value.Value)
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a whole number when decimals are not allowed.");
-        }
+        if (value.HasValue && allowDecimals.HasValue && allowDecimals == false && decimal.Truncate(value.Value) != value.Value)
+            throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a whole number when decimals are not allowed.");
     }
 }
 

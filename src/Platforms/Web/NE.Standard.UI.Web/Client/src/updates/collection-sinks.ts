@@ -6,7 +6,7 @@ import { getCollectionUpdateAction } from "../metadata/metadata-index.ts";
 // points from them, a canvas its nodes. The sink gets every change the items machinery would otherwise turn into rows.
 
 /** One item of a change: its key, where it sits in the source order, and the value the server sent. */
-export type CollectionChangeItem = {
+type CollectionChangeItem = {
     readonly key: string | null;
     /** On a replace: the key the item had before, when it changed. */
     readonly oldKey: string | null;
@@ -14,7 +14,7 @@ export type CollectionChangeItem = {
     readonly item: unknown;
 };
 
-export type CollectionChangeMove = {
+type CollectionChangeMove = {
     readonly key: string | null;
     readonly oldIndex: number | null;
     readonly newIndex: number | null;
@@ -43,10 +43,6 @@ export class CollectionSinkRegistry {
 
     public register(registration: CollectionSinkRegistration): void {
         this.handlers.set(registration.kind, registration.handler);
-    }
-
-    public has(kind: string): boolean {
-        return this.handlers.has(kind);
     }
 
     /** Hands the change to the sink of its kind; false when none is registered. */

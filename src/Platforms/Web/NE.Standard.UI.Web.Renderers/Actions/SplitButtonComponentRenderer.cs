@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -40,10 +39,6 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
         _ = ResolveRenderValue(context, SplitButtonComponent.ModeProperty, out UISplitButtonMode? mode, out _);
         var menuButton = mode == UISplitButtonMode.Menu;
 
-        // A menu button's own click never runs; refused here so the mistake is loud rather than a command that silently never fires.
-        if (menuButton && HasOwnClick(context))
-            throw new InvalidOperationException($"'{context.Node.ComponentId}' is a Menu-mode split button with its own click command, which would never run; register the command on the entries with OnItemClick.");
-
         _ = root.Attribute(WebAttributes.SplitMode, menuButton ? "menu" : "split");
 
         _ = root.Element("button", main =>
@@ -77,17 +72,6 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
             RenderRegion(context, menu, RegionNames.Menu);
         });
-    }
-
-    private static bool HasOwnClick(WebRenderContext context)
-    {
-        foreach (CompiledUIEvent compiledEvent in context.ViewResolution.View.Events.GetByComponent(context.Node.ComponentId))
-        {
-            if (compiledEvent.Address.EventName == EventNames.Click)
-                return true;
-        }
-
-        return false;
     }
 
     private static bool HasTitle(WebRenderContext context)

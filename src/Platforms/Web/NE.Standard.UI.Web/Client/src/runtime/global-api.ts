@@ -10,7 +10,7 @@ import type { PluginEngine, WebUIRuntime } from "./web-ui-runtime";
 export type WebUIPluginEventRegistration<TEvent extends Event = Event> =
     Omit<EventRegistration<TEvent>, "name">;
 
-export type WebUIPluginConverter = ValueConverterRegistration | ((value: unknown) => unknown);
+type WebUIPluginConverter = ValueConverterRegistration | ((value: unknown) => unknown);
 
 type PendingEventRegistration = {
     readonly name: string;
@@ -31,7 +31,11 @@ type PendingStringsRegistration = Readonly<Record<string, string>>;
 
 type PendingEngineRegistration = PluginEngine;
 
+/** The plugin contract's version (`ContractVersion` in plugin/ne-standard-ui.d.ts); plugin-api-check.ts holds the two equal. */
+const PluginContractVersion = 1;
+
 export type NEStandardUIGlobalApi = {
+    readonly contractVersion: typeof PluginContractVersion;
     runtime?: WebUIRuntime;
     registerEvent<TEvent extends Event = Event>(name: string, registration?: WebUIPluginEventRegistration<TEvent>): void;
     registerConverter(name: string, converter: WebUIPluginConverter): void;
@@ -54,6 +58,7 @@ export type NEStandardUIGlobalApi = {
 };
 
 declare global {
+    // oxlint-disable-next-line typescript/consistent-type-definitions -- only an interface merges into lib.dom's Window
     interface Window {
         __neStandardUIRuntime?: WebUIRuntime;
         NEStandardUI?: Partial<NEStandardUIGlobalApi>;
@@ -85,6 +90,7 @@ function ensureGlobalApi(): NEStandardUIGlobalApi {
 
     const api: NEStandardUIGlobalApi = {
         ...existing,
+        contractVersion: PluginContractVersion,
         __pendingEvents: pendingEvents,
         __pendingConverters: pendingConverters,
         __pendingDomOperations: pendingDomOperations,

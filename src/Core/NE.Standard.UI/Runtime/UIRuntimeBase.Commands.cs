@@ -1,13 +1,18 @@
 using System;
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Primitives.Styling;
@@ -33,6 +38,24 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(request);
         request.Validate();
 
+        // Counted from the start, so a runtime taken away meanwhile (an eviction, a PerPage tab moving on) waits for it: the
+        // last command out disposes it.
+        _ = Interlocked.Increment(ref _commandsInFlight);
+        try
+        {
+            // A runtime asked to go takes no new command; the ones already running keep it until they finish.
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
+
+            return await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await LeaveCommandAsync().ConfigureAwait(false);
+        }
+    }
+
+    private async Task<UICommandExecutionResult> ProcessEventInFlightAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken)
+    {
         // Held for the whole run: a command's effects (focus, scroll) belong to the tab that raised it, not whichever attached last.
         using IDisposable invocation = BeginInvocation(invoker);
 
@@ -50,56 +73,32 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(
-                exception,
-                "ResolveCommand",
-                request,
-                clientChangeSet: null,
-                cancellationToken
-            ).ConfigureAwait(false);
+            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, "ResolveCommand", request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
-            ServerChangeSet changes = await FlushCoreAsync(force: true, publish: false, cancellationToken).ConfigureAwait(false);
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
 
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = ResolveCommandResult(error, exception),
-                Changes = changes.For(invoker.Instance.Id)
+                Changes = changes
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
 
         if (metadata.ConcurrencyMode == UICommandConcurrencyMode.Background)
-        {
-            _ = Interlocked.Increment(ref _commandsInFlight);
-            try
-            {
-                return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessBackgroundCommand", cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                _ = Interlocked.Decrement(ref _commandsInFlight);
-            }
-        }
+            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessBackgroundCommand", detach: request.RequestId is not null, cancellationToken).ConfigureAwait(false);
 
-        _ = Interlocked.Increment(ref _commandsInFlight);
+        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessExclusiveCommand", cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                _ = _exclusiveCommandLock.Release();
-            }
+            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessExclusiveCommand", detach: false, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            _ = Interlocked.Decrement(ref _commandsInFlight);
+            _ = _exclusiveCommandLock.Release();
         }
     }
 
-    private async Task<UICommandExecutionResult> ProcessEventCoreAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, string operation, CancellationToken cancellationToken)
+    private async Task<UICommandExecutionResult> ProcessEventCoreAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, string operation, bool detach, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, object?> arguments;
 
@@ -121,65 +120,23 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(
-                exception,
-                "BuildCommandArguments",
-                request,
-                clientChangeSet: null,
-                cancellationToken
-            ).ConfigureAwait(false);
+            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, "BuildCommandArguments", request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
-            ServerChangeSet changes = await FlushCoreAsync(force: true, publish: false, cancellationToken).ConfigureAwait(false);
-            changes = await ProcessCommandChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
 
             return await PublishCommandResultAsync(new UICommandExecutionResult
             {
                 Command = ResolveCommandResult(error, exception),
-                Changes = changes.For(invoker.Instance.Id)
+                Changes = changes
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
 
-        try
-        {
-            UICommandResult commandResult = await Controller
-                .ExecuteCommandAsync(compiledEvent.Command, arguments, cancellationToken)
-                .ConfigureAwait(false);
+        if (detach)
+            return Detach(invoker, request, compiledEvent, arguments, operation, cancellationToken);
 
-            commandResult = WithFailureNotification(ResolveRuntimeCommandResult(commandResult), exception: null);
-            commandResult.Validate();
+        UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken).ConfigureAwait(false);
 
-            ServerChangeSet changes = await FlushCoreAsync(force: true, publish: false, cancellationToken).ConfigureAwait(false);
-            changes = await ProcessCommandChangesAsync(changes, cancellationToken).ConfigureAwait(false);
-
-            return await PublishCommandResultAsync(new UICommandExecutionResult
-            {
-                Command = commandResult,
-                Changes = changes.For(invoker.Instance.Id)
-            }, invoker, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(
-                exception,
-                operation,
-                request,
-                clientChangeSet: null,
-                cancellationToken
-            ).ConfigureAwait(false);
-
-            ServerChangeSet changes = await FlushCoreAsync(force: true, publish: false, cancellationToken).ConfigureAwait(false);
-            changes = await ProcessCommandChangesAsync(changes, cancellationToken).ConfigureAwait(false);
-
-            return await PublishCommandResultAsync(new UICommandExecutionResult
-            {
-                Command = ResolveCommandResult(error, exception),
-                Changes = changes.For(invoker.Instance.Id)
-            }, invoker, cancellationToken).ConfigureAwait(false);
-        }
+        return await PublishCommandResultAsync(result, invoker, cancellationToken).ConfigureAwait(false);
     }
 
     // Read once per argument by the command and dropped: a plain dictionary, not a frozen one whose build would never pay back.
@@ -192,16 +149,17 @@ internal abstract partial class UIRuntimeBase
             return FrozenDictionary<string, object?>.Empty;
 
         Dictionary<string, object?> result = new(compiledEvent.Arguments.Length, StringComparer.Ordinal);
+        List<UIComponentId> scopes = EventScopes(compiledEvent);
 
         for (var i = 0; i < compiledEvent.Arguments.Length; i++)
         {
             CompiledUIActionArgument argument = compiledEvent.Arguments[i];
-            CompiledUIActionArgumentResolution resolution = CompiledUIActionArgumentResolver.Resolve(argument, View.Sources, View.Templates, dynamicParameters);
+            CompiledUIActionArgumentResolution resolution = CompiledUIActionArgumentResolver.Resolve(argument, View.Sources, View.Templates, dynamicParameters, scopes);
 
             var value = resolution.Argument.Kind switch
             {
                 CompiledUIActionArgumentKind.Literal => resolution.LiteralValue,
-                CompiledUIActionArgumentKind.Binding => Controller.GetRecursiveValue(resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.")),
+                CompiledUIActionArgumentKind.Binding => ResolveBindingValue(argument, resolution),
                 CompiledUIActionArgumentKind.CurrentItemKey => ResolveCurrentItemKey(argument, resolution),
                 CompiledUIActionArgumentKind.EventKey => ResolveEventKey(argument, dynamicParameters),
                 _ => throw new UnreachableException()
@@ -211,6 +169,60 @@ internal abstract partial class UIRuntimeBase
         }
 
         return result;
+    }
+
+    /// <summary>The item scopes the event's component stands in, outermost first: which scope each key of the event's chain belongs to.</summary>
+    private List<UIComponentId> EventScopes(CompiledUIEvent compiledEvent)
+    {
+        List<UIComponentId> scopes = [];
+
+        for (UIComponentNode? node = View.Graph.TryGet(compiledEvent.Address.ComponentId, out UIComponentNode? own) ? own : null; node is not null; node = node.ParentId is UIComponentId parent && View.Graph.TryGet(parent, out UIComponentNode? above) ? above : null)
+        {
+            if (node.DefinesContextParameter)
+                scopes.Add(node.ComponentId);
+        }
+
+        scopes.Reverse();
+
+        return scopes;
+    }
+
+    /// <summary>A bound argument's value: off the controller, or off the component for a row of a static items view.</summary>
+    private object? ResolveBindingValue(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
+    {
+        RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
+
+        return resolution.Source is { Kind: CompiledUIBindingSourceKind.ComponentItems } source
+            ? ReadComponentItemsValue(argument, source, path)
+            : Controller.GetRecursiveValue(path);
+    }
+
+    /// <summary>The row of a static items view the path's key names, then the rest of the path on it; the rows live on the component, not the controller.</summary>
+    private object? ReadComponentItemsValue(CompiledUIActionArgument argument, CompiledUIBindingSource source, RecursivePath path)
+    {
+        if (source.ComponentId is UIComponentId componentId
+            && path.Count > 0
+            && path[0].Kind == PathSegmentKind.Key
+            && View.State.TryGetValue(componentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? items)
+            && !items.IsBind
+            && items.Value is IEnumerable rows)
+        {
+            foreach (var row in rows)
+            {
+                if (row is not IBindableItem item || !string.Equals(item.Id, path[0].Key, StringComparison.Ordinal))
+                    continue;
+
+                if (path.Count == 1)
+                    return row;
+
+                if (row is RecursiveObservable observable && observable.TryGetRecursiveValue(path.Skip(1), out var value))
+                    return value;
+
+                break;
+            }
+        }
+
+        throw new InvalidOperationException($"Argument '{argument.Name}' addresses no row its items view holds.");
     }
 
     /// <summary>
@@ -255,6 +267,164 @@ internal abstract partial class UIRuntimeBase
         };
 
         return at >= 0 && at < dynamicParameters.Length ? dynamicParameters[at] : null;
+    }
+
+    /// <summary>
+    /// Starts a background command without waiting for it and answers that it was accepted; the run pushes its own result.
+    /// </summary>
+    /// <remarks>
+    /// A connection runs one hub call at a time, so a command awaited on the invoke would hold back every value, window and
+    /// command of its tab until it ends — a Cancel button included. The run starts here, in the invoke's flow, so the command
+    /// reads the state its tab pressed it on before its first await, as an awaited one does. It keeps the invoke's token, which
+    /// the hub ties to the connection: a closed connection cancels it, and a runtime asked to go waits for it.
+    /// </remarks>
+    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    {
+        // The run holds the runtime as a command of its own, taken before the invoke lets go of its hold.
+        _ = Interlocked.Increment(ref _commandsInFlight);
+
+        return new UICommandExecutionResult
+        {
+            Command = AcceptedCommand,
+            Changes = ServerChangeSet.Empty,
+            Accepted = true,
+            Completion = RunDetachedAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken)
+        };
+    }
+
+    /// <summary>
+    /// Runs an accepted command to its end and pushes its result to the tab that raised it, answering whether it succeeded;
+    /// never faults, so nothing it throws goes unobserved.
+    /// </summary>
+    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    {
+        var succeeded = false;
+        var pushed = false;
+
+        try
+        {
+            using IDisposable invocation = BeginInvocation(invoker);
+
+            UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken).ConfigureAwait(false);
+            succeeded = result.Command.Success;
+
+            await PushCommandResultAsync(invoker, new UICommandExecutionResult
+            {
+                Command = result.Command,
+                Changes = result.Changes,
+                RequestId = request.RequestId
+            }, cancellationToken).ConfigureAwait(false);
+
+            pushed = true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The connection closed under it: there is no one left to answer.
+        }
+        catch (Exception exception)
+        {
+            TryLogDetachedCommandFailure(operation, exception);
+
+            if (!pushed)
+                await TryPushDetachedFailureAsync(invoker, request, operation, exception, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            try
+            {
+                await LeaveCommandAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                TryLogDetachedCommandFailure(operation, exception);
+            }
+        }
+
+        return succeeded;
+    }
+
+    /// <summary>
+    /// Runs the command and gathers what it changed for the invoker; a failure goes through the controller's exception handler
+    /// and comes back as a failed result.
+    /// </summary>
+    private async Task<UICommandExecutionResult> ExecuteCommandAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            UICommandResult commandResult = await Controller
+                .ExecuteCommandAsync(compiledEvent.Command, arguments, cancellationToken)
+                .ConfigureAwait(false);
+
+            commandResult = WithFailureNotification(ResolveRuntimeCommandResult(commandResult), exception: null);
+            commandResult.Validate();
+
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+
+            return new UICommandExecutionResult
+            {
+                Command = commandResult,
+                Changes = changes
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, operation, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+
+            return new UICommandExecutionResult
+            {
+                Command = ResolveCommandResult(error, exception),
+                Changes = changes
+            };
+        }
+    }
+
+    /// <summary>
+    /// Sends a command's result to the tab that raised it, through the sink every pushed result takes.
+    /// </summary>
+    /// <remarks>
+    /// The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.
+    /// </remarks>
+    protected Task PushCommandResultAsync(UIHandle invoker, UICommandExecutionResult result, CancellationToken cancellationToken)
+        => Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
+
+    private void TryLogDetachedCommandFailure(string operation, Exception exception)
+    {
+        try
+        {
+            if (Controller is IUIContextController contextController)
+                Log.DetachedCommandFailed(contextController.Context.Logger, exception, operation);
+        }
+        catch
+        {
+            // A logger that throws must not turn a failure already recovered from into a new one.
+        }
+    }
+
+    /// <summary>
+    /// Answers a tab whose accepted command failed past its own result — a throwing exception handler, a result the sink
+    /// refused — since the tab otherwise waits on it, and holds its button, until the connection drops.
+    /// </summary>
+    private async Task TryPushDetachedFailureAsync(UIHandle invoker, UICommandRequest request, string operation, Exception exception, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await PushCommandResultAsync(invoker, new UICommandExecutionResult
+            {
+                Command = WithFailureNotification(DefaultRuntimeErrorCommand, exception),
+                Changes = ServerChangeSet.Empty,
+                RequestId = request.RequestId
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception pushFailure)
+        {
+            TryLogDetachedCommandFailure(operation, pushFailure);
+        }
     }
 
     private UICommandResult ResolveCommandResult(RuntimeExceptionResult result, Exception exception)
@@ -306,5 +476,14 @@ internal abstract partial class UIRuntimeBase
         return _application.ErrorHandling.IncludeExceptionDetail
             ? exception.Message
             : _application.ErrorHandling.CommandFailedMessage;
+    }
+
+    /// <summary>
+    /// Lets go of one command's hold on the runtime; the last one out disposes a runtime asked to go meanwhile.
+    /// </summary>
+    private async ValueTask LeaveCommandAsync()
+    {
+        if (Interlocked.Decrement(ref _commandsInFlight) == 0 && Volatile.Read(ref _disposeRequested) != 0 && TryClaimDispose())
+            await DisposeNowAsync().ConfigureAwait(false);
     }
 }

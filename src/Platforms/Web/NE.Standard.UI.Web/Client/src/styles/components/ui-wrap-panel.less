@@ -29,13 +29,13 @@
     align-self: var(--ui-align-v, flex-start);
 }
 
+// With no span the calc is invalid at computed-value time, so the basis takes its initial auto, the content's width.
 .ui-wrap-panel > [data-ui-id] {
     .ui-responsive-reset-infix(--ui-placement, column-span);
     --ui-wrap-panel-span: var(--ui-placement-column-span);
 
     flex-grow: 0;
     flex-shrink: 0;
-    flex-basis: auto;
     flex-basis: calc((100% - 23 * var(--ui-wrap-panel-gap, 0px)) / 24 * var(--ui-wrap-panel-span) + (var(--ui-wrap-panel-span) - 1) * var(--ui-wrap-panel-gap, 0px));
 }
 

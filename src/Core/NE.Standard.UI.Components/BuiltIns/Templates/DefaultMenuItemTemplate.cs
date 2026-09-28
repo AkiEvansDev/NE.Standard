@@ -16,7 +16,7 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
     /// <summary>
     /// Initializes a new menu entry template, optionally binding its label to the item at <paramref name="itemPath"/>.
     /// </summary>
-    protected DefaultMenuItemTemplate(string? itemPath = null, bool binds = true) : base()
+    protected DefaultMenuItemTemplate(string? itemPath = null, bool binds = false) : base()
     {
         if (!string.IsNullOrWhiteSpace(itemPath))
             _ = BindContext(itemPath, UIBindingScope.Relative);

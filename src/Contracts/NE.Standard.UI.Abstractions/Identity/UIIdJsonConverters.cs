@@ -5,40 +5,17 @@ using System.Text.Json.Serialization;
 namespace NE.Standard.UI.Abstractions.Identity;
 
 /// <summary>
-/// Reads the number behind a compiled id, however it was written.
+/// Reads the bare number a compiled id travels as; a missing id is zero.
 /// </summary>
 internal static class UIIdJson
 {
     public static int Read(ref Utf8JsonReader reader)
-    {
-        if (reader.TokenType == JsonTokenType.Number)
-            return reader.GetInt32();
-
-        if (reader.TokenType == JsonTokenType.Null)
-            return 0;
-
-        if (reader.TokenType != JsonTokenType.StartObject)
-            throw new JsonException("A compiled id must be a number.");
-
-        var value = 0;
-
-        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        => reader.TokenType switch
         {
-            if (reader.TokenType != JsonTokenType.PropertyName)
-                continue;
-
-            var isValue = reader.ValueTextEquals("value") || reader.ValueTextEquals("Value");
-
-            _ = reader.Read();
-
-            if (isValue && reader.TokenType == JsonTokenType.Number)
-                value = reader.GetInt32();
-            else if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
-                reader.Skip();
-        }
-
-        return value;
-    }
+            JsonTokenType.Number => reader.GetInt32(),
+            JsonTokenType.Null => 0,
+            _ => throw new JsonException("A compiled id must be a number.")
+        };
 }
 
 /// <summary>

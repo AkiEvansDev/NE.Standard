@@ -72,9 +72,10 @@
     .ui-selected-ink();
 }
 
-    // Beats .ui-button--ghost's reveal-hover, which would wash the current entry out; restates the selected wash rather than deepening it.
-    .ui-menu-item--selected:hover {
-        .ui-selected-ground();
+    // Restated at the ghost button's hover specificity (this file comes after ui-button.less, so the tie is ours): a plain
+    // `:hover` lost to it and the current entry turned the neutral wash under the pointer.
+    .ui-menu-item--selected {
+        .ui-reveal-hover-off({ .ui-selected-ground(); });
     }
 
 // The current entry is square all round, its mark a straight line on the edge the sidebar hangs off, unless the author moved
@@ -346,4 +347,29 @@
 .ui-split-button__menu:has(> .ui-menu.ui-surface--tinted),
 .ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {
     background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+}
+
+// The search beside the switch fills the width the entries give the menu and asks for none of its own: an input's own width is
+// twenty characters whatever the menu holds, which would widen a sidebar for a field.
+// It starts where an entry's glyph does, past the entry's 1px button border and its padding, so it stands in the entries' column.
+.ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content {
+    width: 0;
+    padding-inline-start: calc(1px + @ui-space-2);
+}
+
+    // A small field's glyph is a size under an entry's; centred in a box an entry's glyph wide, it sits on the glyphs below it
+    // and the field's text on their titles.
+    .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-input__affix-icon--prefix {
+        justify-content: center;
+        inline-size: var(--ui-text-body-font-size);
+    }
+
+    // An empty search has nothing to clear; SetSearch always gives the field a placeholder, so its showing means empty.
+    .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input:has(.ui-text-input__field:placeholder-shown) .ui-text-input__clear {
+        display: none;
+    }
+
+// An entry the menu's search leaves out (menu-search-engine.ts): its own mark, so a filter rule's never meets it.
+.ui-menu__item[data-ui-menu-unmatched] {
+    display: none;
 }

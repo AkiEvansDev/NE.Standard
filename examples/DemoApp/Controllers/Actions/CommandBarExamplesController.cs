@@ -1,9 +1,5 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Actions;
 
@@ -15,9 +11,6 @@ internal sealed partial class CommandListGroupContext(IEnumerable<ButtonItem> co
 {
     [RecursiveMember(false)]
     public RecursiveCollection<ButtonItem> Commands { get; } = [.. commands];
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 /// <summary>
@@ -70,9 +63,6 @@ internal sealed partial class DeployActionsGroupContext : DemoGroupContext
 
         LogEvent("Deploy succeeded — Promote is back");
     }
-
-    public void Report(string message)
-        => LogEvent(message);
 
     private bool HasAction(string id)
     {
@@ -135,19 +125,19 @@ internal sealed partial class CommandBarExamplesController() : DemoController
 
     [UICommand]
     public void PressToolbar(string id)
-        => ToolbarGroup.Report($"'{id}' pressed");
+        => ToolbarGroup.LogEvent($"'{id}' pressed");
 
     [UICommand]
     public void PressFooter(string id)
-        => FooterGroup.Report($"'{id}' pressed");
+        => FooterGroup.LogEvent($"'{id}' pressed");
 
     [UICommand]
     public void PressRail(string id)
-        => RailGroup.Report($"'{id}' pressed");
+        => RailGroup.LogEvent($"'{id}' pressed");
 
     [UICommand]
     public void PressDeployAction(string id)
-        => DeployGroup.Report($"'{id}' pressed");
+        => DeployGroup.LogEvent($"'{id}' pressed");
 
     [UICommand]
     public void FailDeploy()

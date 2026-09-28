@@ -9,7 +9,9 @@ namespace TeamRoom.Data;
 /// </summary>
 /// <remarks>
 /// The services call the driver synchronously on purpose: Microsoft.Data.Sqlite's async methods run synchronously anyway, and
-/// every query here is a few rows out of a local file.
+/// every query here is a few rows out of a local file. The file keeps pictures and attachments, so it is set up to give disk
+/// back: incremental auto-vacuum, which <see cref="ReclaimSpace"/> runs after media is deleted, and a WAL cut back after each
+/// checkpoint rather than left at the size of the largest upload.
 /// </remarks>
 public sealed class AppDatabase
 {
@@ -21,17 +23,21 @@ public sealed class AppDatabase
 
         _ = Directory.CreateDirectory(dataDirectory);
 
-        Path = System.IO.Path.Combine(dataDirectory, "teamroom.db");
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = Path, Cache = SqliteCacheMode.Shared }.ToString();
+        _connectionString = new SqliteConnectionStringBuilder { DataSource = Path.Combine(dataDirectory, "teamroom.db") }.ToString();
     }
 
-    /// <summary>Where the file is, for the startup log.</summary>
-    public string Path { get; }
+    /// <summary>The WAL is cut back to 16 MB after a checkpoint; SQLite otherwise keeps it at its largest, a whole upload's size.</summary>
+    private const string JournalSizeLimit = "PRAGMA journal_size_limit = 16777216";
 
     public SqliteConnection Open()
     {
         SqliteConnection connection = new(_connectionString);
         connection.Open();
+
+        // A per-connection setting, and a pooled connection may be a fresh one: set on every open, one statement with no I/O.
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = JournalSizeLimit;
+        _ = command.ExecuteNonQuery();
 
         return connection;
     }
@@ -40,6 +46,9 @@ public sealed class AppDatabase
     public void EnsureCreated()
     {
         using SqliteConnection connection = Open();
+
+        EnsureIncrementalVacuum(connection);
+
         using SqliteCommand command = connection.CreateCommand();
 
         command.CommandText = """
@@ -105,6 +114,8 @@ public sealed class AppDatabase
 
             CREATE INDEX IF NOT EXISTS attachments_by_message ON attachments (message_id);
 
+            CREATE INDEX IF NOT EXISTS attachments_by_media ON attachments (media_id);
+
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
                 language TEXT NOT NULL,
@@ -115,8 +126,11 @@ public sealed class AppDatabase
                 permissions TEXT NOT NULL,
                 pending_rotation INTEGER NOT NULL,
                 created_utc TEXT NOT NULL,
-                last_seen_utc TEXT NOT NULL
+                last_seen_utc TEXT NOT NULL,
+                is_unclaimed INTEGER NOT NULL DEFAULT 0
             );
+
+            CREATE INDEX IF NOT EXISTS sessions_by_user ON sessions (user_id);
 
             CREATE TABLE IF NOT EXISTS media (
                 id TEXT PRIMARY KEY,
@@ -128,12 +142,43 @@ public sealed class AppDatabase
                 created_utc TEXT NOT NULL,
                 file_name TEXT NULL
             );
+
+            CREATE INDEX IF NOT EXISTS media_by_owner ON media (owner_id, purpose);
             """;
 
         _ = command.ExecuteNonQuery();
 
         AddColumnIfMissing(connection, "media", "file_name TEXT NULL");
         AddColumnIfMissing(connection, "messages", "edited_utc TEXT NULL");
+        AddColumnIfMissing(connection, "sessions", "is_unclaimed INTEGER NOT NULL DEFAULT 0");
+    }
+
+    /// <summary>
+    /// Turns incremental auto-vacuum on. A new file takes it before its first table; an older one needs the one <c>VACUUM</c>
+    /// that rewrites it, run here once.
+    /// </summary>
+    private static void EnsureIncrementalVacuum(SqliteConnection connection)
+    {
+        using SqliteCommand read = connection.CreateCommand();
+        read.CommandText = "PRAGMA auto_vacuum";
+
+        // 2 is INCREMENTAL.
+        if (read.ExecuteScalar() is long mode && mode == 2)
+            return;
+
+        using SqliteCommand set = connection.CreateCommand();
+        set.CommandText = "PRAGMA auto_vacuum = INCREMENTAL; VACUUM;";
+        _ = set.ExecuteNonQuery();
+    }
+
+    /// <summary>Gives the pages freed by deleted media back to the disk; without it the file stays at its largest.</summary>
+    public static void ReclaimSpace(SqliteConnection connection)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "PRAGMA incremental_vacuum";
+        _ = command.ExecuteNonQuery();
     }
 
     /// <summary>A column added after the table first shipped; a file created before it is brought along.</summary>

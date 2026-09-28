@@ -87,6 +87,9 @@ public static class WebDomConverters
 
     public const string PopupPlacementAttribute = "popupPlacementAttribute";
 
+    /// <summary>A tab menu's chosen entries as the tokens <c>WebClassNames.TabMenuEntries</c> writes; none removes the attribute.</summary>
+    public const string TabMenuEntriesAttribute = "tabMenuEntriesAttribute";
+
     public const string ResponsiveLayoutLengthBaseCss = "responsiveLayoutLengthBaseCss";
     public const string ResponsiveLayoutLengthSmCss = "responsiveLayoutLengthSmCss";
     public const string ResponsiveLayoutLengthMdCss = "responsiveLayoutLengthMdCss";

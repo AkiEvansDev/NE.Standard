@@ -1,9 +1,6 @@
 using DemoApp.Controllers.Actions;
 using DemoApp.Controllers.Base;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation;
 
 namespace DemoApp.Views.Actions;

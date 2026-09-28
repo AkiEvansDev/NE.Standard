@@ -38,6 +38,17 @@ form.ui-text-input__row {
     display: none;
 }
 
+// A field the reader cannot change has nothing to clear either, whatever ShowClearButton says.
+.ui-text-input.ui-disabled .ui-text-input__clear,
+.ui-text-input:has(.ui-text-input__field:is([readonly], :disabled)) .ui-text-input__clear {
+    display: none;
+}
+
+// A search-type field carries the framework's clear, as every field does; the browser's own cancel would be a second cross beside it.
+.ui-text-input input::-webkit-search-cancel-button {
+    display: none;
+}
+
 .ui-text-input__clear {
     .ui-field-adornment();
     .ui-cross-glyph(@ui-glyph-sm);
@@ -83,4 +94,3 @@ form.ui-text-input__row {
         color: var(--ui-text-muted);
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
-

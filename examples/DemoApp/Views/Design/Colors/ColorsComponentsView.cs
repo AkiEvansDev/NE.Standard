@@ -1,11 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Indicators;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
@@ -53,23 +45,23 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
         => new CardComponent()
             .ConfigureDefaultHeader(h => h
                 .SetTitle("Release notes")
-                .SetDescription("Version 2.4 — July 2026")
+                .SetDescription("Panel release 483 — July 2026")
             )
             .SetContent(new TextComponent()
-                .SetDescription("Grouped items, template variants and per-component theme overrides are now available to every view.")
+                .SetDescription("Servers filter by region, invoices download as one PDF a month, and every server shows its plan.")
                 .SetDescriptionType(UITextAppearance.Body)
             );
 
     private static CardComponent CreateStatusCard()
         => new CardComponent()
             .ConfigureDefaultHeader(h => h
-                .SetTitle("Nightly build")
+                .SetTitle("Nightly backups")
                 .SetIcon(DemoIcons.Refresh)
                 .SetBadgeText("Running")
             )
             .SetContent(UILayout.Stack(12)
                 .AddChild(new TextComponent()
-                    .SetTitle("Test suite 419/419, packaging in progress.")
+                    .SetTitle("419 of 612 servers snapshotted, uploads in progress.")
                     .SetTitleType(UITextAppearance.Body)
                     .SetDescription("Started 12 minutes ago")
                     .SetDescriptionType(UITextAppearance.Caption)
@@ -84,11 +76,11 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
     private static CardComponent CreateActionsCard()
         => new CardComponent()
             .ConfigureDefaultHeader(h => h
-                .SetTitle("Invite your team")
-                .SetDescription("Share this workspace")
+                .SetTitle("Invite staff")
+                .SetDescription("Share this panel")
             )
             .SetContent(new TextComponent()
-                .SetDescription("Members can view every board and edit the ones you assign to them.")
+                .SetDescription("Billing can see invoices, Viewer can see servers, and an Admin can change both.")
                 .SetDescriptionType(UITextAppearance.Body)
             )
             .SetFooter(new StackPanelComponent()

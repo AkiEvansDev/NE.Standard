@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -25,8 +29,22 @@ internal sealed partial class UIViewCompilationContext
         _componentOrder.Add(component);
         _parentByComponentId.Add(component.Id, parentId);
 
-        EnsurePropertyDefinitionsInitialized(component);
+        UIPropertyRegister.EnsureRegistered(component.GetType());
+        ValidateSplitButton(component);
         AddComponentContent(component);
+    }
+
+    // A menu button's whole face opens the menu, so a click of its own would never run: refused here rather than left to fail silently.
+    private static void ValidateSplitButton(IVisualComponent component)
+    {
+        if (component is not ISplitButtonComponent { Mode: UISplitButtonMode.Menu })
+            return;
+
+        foreach (UIEvent uiEvent in component.Events)
+        {
+            if (string.Equals(uiEvent.Name, EventNames.Click, StringComparison.Ordinal))
+                throw new InvalidOperationException($"'{component.Id}' is a Menu-mode split button with its own click command, which would never run; register the command on the entries with OnItemClick.");
+        }
     }
 
     private void AddComponentContent(IVisualComponent component)

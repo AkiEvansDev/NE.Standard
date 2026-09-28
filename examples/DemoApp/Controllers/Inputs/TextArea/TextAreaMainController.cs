@@ -1,6 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.TextArea;
 
@@ -36,7 +34,7 @@ internal sealed partial class TextAreaFieldGroupContext : FieldChromeGroupContex
 internal sealed partial class TextAreaMainController() : DemoStandardController
 {
     [RecursiveMember]
-    public partial TextAreaValueGroupContext ValueGroup { get; set; } = new("Rolls the new checkout flow out behind a flag.", "Reverts the timeout change from 2.3.");
+    public partial TextAreaValueGroupContext ValueGroup { get; set; } = new("Rolls the new plan-upgrade flow out behind a flag.", "Reverts the timeout change from 2.3.");
 
     [RecursiveMember]
     public partial TextAreaFieldGroupContext FieldGroup { get; set; } = new();

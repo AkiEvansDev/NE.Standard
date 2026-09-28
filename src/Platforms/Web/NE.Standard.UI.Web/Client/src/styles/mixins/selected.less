@@ -54,9 +54,10 @@
 }
 
 // The keyboard's row washes like the pointer's while the host holds focus, except with a single choice, whose chosen row
-// already is the keyboard's. `:focus`, not `:focus-within`, since a click in another row must not light a stale one.
-.ui-row-cursor(@host; @row) {
-    @{host}:focus:not([data-ui-selection="one"]) > [data-ui-items-host] > @{row}[data-ui-row-focus] {
+// already is the keyboard's. `:focus`, not `:focus-within`, since a click in another row must not light a stale one. `@via` is
+// the child path from the host to its items host where that is not a direct child (a table's scrolling box), ending in " > ".
+.ui-row-cursor(@host; @row; @via: ~"") {
+    @{host}:focus:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus] {
         .ui-row-hover();
     }
 }

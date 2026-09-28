@@ -1,35 +1,19 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Items;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// A shelf narrowed in the browser. The list is served whole; a search box, a category, a price ceiling and a stock switch
-/// are four filter rules on it, a select carries three sort rules of which one is active, and only a press on a tile
+/// Server offers narrowed in the browser. The list is served whole; a search box, a role, a price ceiling and a region
+/// switch are four filter rules on it, a select carries three sort rules of which one is active, and only a press on a tile
 /// reaches the server.
 /// </summary>
 internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
 {
     private const string SearchId = "catalogue-search";
-    private const string CategoryId = "catalogue-category";
+    private const string RoleId = "catalogue-role";
     private const string PriceId = "catalogue-price";
-    private const string StockId = "catalogue-stock";
+    private const string AvailableId = "catalogue-available";
     private const string SortId = "catalogue-sort";
 
     public static string ViewKey => "demo.screens.catalogue";
@@ -43,39 +27,41 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.All(0, 8, 0, 0))
             .SetPlacement(1, 1, 24, 1);
 
-    /// <summary>The controls the rules read, on one band; the basket at its far end is the one thing bound to the server.</summary>
+    /// <summary>The controls the rules read, on one band; the order at its far end is the one thing bound to the server.</summary>
     private static SurfaceComponent CreateFilters()
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Tinted)
             .SetPadding(UIThickness.All(16, 12, 16, 12))
             .SetContent(UILayout.Row(16,
                 new TextInputComponent(SearchId)
-                    .SetPlaceholder("Search the shelf")
+                    .SetPlaceholder("Search the offers")
                     .SetPrefixIcon(DemoIcons.Search)
                     .SetShowClearButton()
                     .SetDebounceMilliseconds(150)
                     .SetWidth(UILayoutLength.Absolute(240)),
-                new SelectComponent(CategoryId)
-                    .SetPlaceholder("Any category")
+                new SelectComponent(RoleId)
+                    .SetPlaceholder("Any role")
                     .SetShowClearButton()
                     .SetOptions(
                     [
-                        new OptionItem { Id = CatalogueController.Notebooks, Title = "Notebooks" },
-                        new OptionItem { Id = CatalogueController.Pens, Title = "Pens" },
-                        new OptionItem { Id = CatalogueController.Ink, Title = "Ink" },
-                        new OptionItem { Id = CatalogueController.Paper, Title = "Paper" }
+                        new OptionItem { Id = CatalogueController.Api, Title = "API" },
+                        new OptionItem { Id = CatalogueController.Web, Title = "Web" },
+                        new OptionItem { Id = CatalogueController.Db, Title = "Database" },
+                        new OptionItem { Id = CatalogueController.Cache, Title = "Cache" },
+                        new OptionItem { Id = CatalogueController.Queue, Title = "Queue" },
+                        new OptionItem { Id = CatalogueController.Storage, Title = "Storage" }
                     ])
                     .SetWidth(UILayoutLength.Absolute(180)),
                 new SliderComponent(PriceId)
-                    .SetTitle("Up to")
+                    .SetTitle("Up to €/mo")
                     .SetMin(0)
-                    .SetMax(60)
-                    .SetStep(5)
-                    .SetValue(60)
+                    .SetMax(290)
+                    .SetStep(10)
+                    .SetValue(290)
                     .SetShowValue(true)
                     .SetWidth(UILayoutLength.Absolute(200)),
-                new SwitchComponent(StockId)
-                    .SetTitle("In stock only")
+                new SwitchComponent(AvailableId)
+                    .SetTitle("In eu-north only")
                     .SetVerticalAlignment(UIAlignment.Center),
                 new SelectComponent(SortId)
                     .SetValue("name")
@@ -88,27 +74,28 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(160)),
                 new TextComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
-                    .SetTitle("Basket")
+                    .SetTitle("Order")
                     .AsBody()
-                    .BindBadgeText(nameof(CatalogueController.BasketLine))
+                    .BindBadgeText(nameof(CatalogueController.OrderLine))
                     .SetBadgeStyle(UIBadgeType.Primary)
                     .SetVerticalAlignment(UIAlignment.Center)
-            ));
+                )
+            );
 
     /// <summary>
-    /// Four filters and three sorts on one list. A filter is active while its control holds a value; the stock rule while
+    /// Four filters and three sorts on one list. A filter is active while its control holds a value; the region rule while
     /// the switch is on; each sort while the select says so. The price rule reads the slider as a ceiling.
     /// </summary>
     private static ItemsViewComponent CreateShelf()
         => new ItemsViewComponent()
-            .BindItems(nameof(CatalogueController.Products))
-            .FilterBy(SearchId, IInputComponent.ValueProperty, nameof(DemoProductItem.Title))
-            .FilterBy(CategoryId, IInputComponent.ValueProperty, nameof(DemoProductItem.Category), UIComparisonOperator.Equal)
-            .FilterBy(PriceId, IInputComponent.ValueProperty, nameof(DemoProductItem.Price), UIComparisonOperator.LessOrEqual)
-            .FilterBy(StockId, IInputComponent.ValueProperty, nameof(DemoProductItem.InStock), UIComparisonOperator.Equal, UIComparisonOperator.Equal, true)
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoProductItem.Title), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "name")
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoProductItem.Price), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "price-asc")
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoProductItem.Price), UIItemsSortDirection.Descending, UIComparisonOperator.Equal, "price-desc")
+            .BindItems(nameof(CatalogueController.Offers))
+            .FilterBy(SearchId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title))
+            .FilterBy(RoleId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Role), UIComparisonOperator.Equal)
+            .FilterBy(PriceId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIComparisonOperator.LessOrEqual)
+            .FilterBy(AvailableId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Available), UIComparisonOperator.Equal, UIComparisonOperator.Equal, true)
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "name")
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "price-asc")
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Descending, UIComparisonOperator.Equal, "price-desc")
             .SetLayoutType(UIItemsLayoutType.Wrap)
             .SetSpacing(16)
             // The page scrolls, not the shelf: a host that scrolls by itself draws a bar beside its empty state.
@@ -116,7 +103,7 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             .SetTemplate(CreateTile())
             .ConfigureDefaultEmptyTemplate(template => _ = template
                 .SetIcon(DemoIcons.Outline(DemoIcons.Search))
-                .SetTitle("Nothing on the shelf matches")
+                .SetTitle("No offer matches")
                 .SetDescription("Loosen a filter or two.")
             );
 
@@ -127,36 +114,37 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.Uniform(0))
             .SetContent(UILayout.Stack(0,
                 new ImageComponent()
-                    .BindSource(nameof(DemoProductItem.Image), UIBindingScope.Relative)
-                    .BindAltText(nameof(DemoProductItem.Title), UIBindingScope.Relative)
+                    .BindSource(nameof(DemoOfferItem.Image), UIBindingScope.Relative)
+                    .BindAltText(nameof(DemoOfferItem.Title), UIBindingScope.Relative)
                     .SetFit(UIImageFit.Cover)
                     .SetHeight(UILayoutLength.Absolute(132))
                     .SetCornerRadius(UICornerRadius.Top(8)),
                 UILayout.Stack(10,
                     new TextComponent()
-                        .BindTitle(nameof(DemoProductItem.Title), UIBindingScope.Relative)
+                        .BindTitle(nameof(DemoOfferItem.Title), UIBindingScope.Relative)
                         .AsSubtitle()
-                        .BindDescription(nameof(DemoProductItem.Description), UIBindingScope.Relative)
+                        .BindDescription(nameof(DemoOfferItem.Description), UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted),
                     // The badge sits by the price, where there is room; beside the title it would cost the title its end.
                     UILayout.Split(
                         new TextComponent()
-                            .BindTitle(nameof(DemoProductItem.PriceLine), UIBindingScope.Relative)
+                            .BindTitle(nameof(DemoOfferItem.PriceLine), UIBindingScope.Relative)
                             .AsSubtitle()
-                            .BindBadgeText(nameof(DemoProductItem.BadgeText), UIBindingScope.Relative)
-                            .BindBadgeStyle(nameof(DemoProductItem.BadgeStyle), UIBindingScope.Relative)
+                            .BindBadgeText(nameof(DemoOfferItem.BadgeText), UIBindingScope.Relative)
+                            .BindBadgeStyle(nameof(DemoOfferItem.BadgeStyle), UIBindingScope.Relative)
                             .SetVerticalAlignment(UIAlignment.Center),
                         new ButtonComponent()
                             .SetType(UIButtonType.Outline)
                             .SetSize(UIButtonSize.Small)
                             .SetTitle("Add")
                             .SetHorizontalAlignment(UIAlignment.End)
-                            .BindEnabled(nameof(DemoProductItem.InStock), UIBindingScope.Relative)
-                            .OnClick(nameof(CatalogueController.AddToBasket), UIAction.ArgCurrentItemKey("id")),
+                            .BindEnabled(nameof(DemoOfferItem.Available), UIBindingScope.Relative)
+                            .OnClick(nameof(CatalogueController.AddToOrder), UIAction.ArgCurrentItemKey("id")),
                         sideSpan: 7,
                         spacing: 8
                     )
                 )
                 .SetPadding(UIThickness.All(12, 10, 12, 12))
-            ));
+                )
+            );
 }

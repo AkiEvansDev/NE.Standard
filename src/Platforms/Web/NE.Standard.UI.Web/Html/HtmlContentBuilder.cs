@@ -40,6 +40,15 @@ public sealed class HtmlContentBuilder : IHtmlBuilder, IHtmlContent
         return this;
     }
 
+    public IHtmlBuilder Content(IHtmlContent content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        _children.Add(content);
+
+        return this;
+    }
+
     public void WriteTo(TextWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);

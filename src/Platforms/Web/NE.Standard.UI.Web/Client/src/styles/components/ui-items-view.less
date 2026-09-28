@@ -67,13 +67,13 @@
 
 @ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";
 
-// With no span the calc is invalid and the basis falls back to auto — the content's width; the gap is subtracted the way the wrap panel does.
+// With no span the calc is invalid at computed-value time and the basis takes its initial auto, the content's width; the gap is
+// subtracted the way the wrap panel does.
 :is(@{ui-wrap-items}) {
     --ui-items-view-span: var(--ui-placement-column-span);
 
     flex-grow: 0;
     flex-shrink: 0;
-    flex-basis: auto;
     flex-basis: calc((100% - 23 * var(--ui-items-view-gap, 0px)) / 24 * var(--ui-items-view-span) + (var(--ui-items-view-span) - 1) * var(--ui-items-view-gap, 0px));
 }
 
@@ -185,7 +185,12 @@
 .ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > .ui-items-view__item,
 .ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > .ui-items-view__item {
     width: 100%;
-    // A row's own inset, so the selected wash and the hover have something to stand in.
+}
+
+// A row's own inset, so the selected wash and the hover have something to stand in — only where a row takes either: a list of a
+// form's fields would otherwise stand indented from the fields around it.
+.ui-items-view--stack.ui-orientation--vertical:is([data-ui-selection="one"], [data-ui-selection="many"], .ui-items-view--row-hover) > .ui-items-view__host > .ui-items-view__item,
+.ui-items-view--stack.ui-orientation--vertical:is([data-ui-selection="one"], [data-ui-selection="many"], .ui-items-view--row-hover) > [data-ui-items-host] > .ui-items-view__item {
     padding: @ui-space-1 @ui-space-2;
 }
 

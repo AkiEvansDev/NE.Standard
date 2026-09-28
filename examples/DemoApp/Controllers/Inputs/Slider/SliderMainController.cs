@@ -1,6 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.Slider;
 

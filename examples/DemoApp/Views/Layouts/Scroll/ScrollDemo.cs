@@ -1,9 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Views.Layouts.Scroll;
 
 /// <summary>The chat bubble both Scroll pages fill their panes with.</summary>

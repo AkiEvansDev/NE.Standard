@@ -20,18 +20,25 @@ public static class UIStrings
     public const string PickerHours = "ui.picker.hours";
     public const string PickerMinutes = "ui.picker.minutes";
     public const string PickerSeconds = "ui.picker.seconds";
+    public const string PickerMeridiem = "ui.picker.meridiem";
     public const string PickerStart = "ui.picker.start";
     public const string PickerEnd = "ui.picker.end";
     public const string NotificationClose = "ui.notification.close";
     public const string TabsMore = "ui.tabs.more";
     public const string TabClose = "ui.tab.close";
+    public const string TabRename = "ui.tab.rename";
+    public const string TabPin = "ui.tab.pin";
+    public const string TabUnpin = "ui.tab.unpin";
+    public const string TabDelete = "ui.tab.delete";
     public const string SelectClear = "ui.select.clear";
     public const string SelectPlaceholder = "ui.select.placeholder";
+    public const string SelectRemove = "ui.select.remove";
     public const string InputClear = "ui.input.clear";
     public const string BreadcrumbsLabel = "ui.breadcrumbs.label";
     public const string FileUploading = "ui.file.uploading";
     public const string FileCount = "ui.file.count";
     public const string FileFailed = "ui.file.failed";
+    public const string FileOversized = "ui.file.oversized";
     public const string ColorPicker = "ui.color.picker";
     public const string ColorPalette = "ui.color.palette";
     public const string ColorHex = "ui.color.hex";
@@ -54,6 +61,8 @@ public static class UIStrings
     public const string TableResizeColumn = "ui.table.resize";
     public const string TreeToggle = "ui.tree.toggle";
     public const string CollapseToggle = "ui.collapse.toggle";
+    public const string SideOpen = "ui.side.open";
+    public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
     public const string NotFoundTitle = "ui.notfound.title";
     public const string NotFoundDescription = "ui.notfound.description";
@@ -62,6 +71,8 @@ public static class UIStrings
     public const string CommandRefused = "ui.command.refused";
     public const string CommandFailed = "ui.command.failed";
     public const string TreeLoading = "ui.tree.loading";
+    public const string ConnectionLost = "ui.connection.lost";
+    public const string ConnectionReload = "ui.connection.reload";
 
     /// <summary>
     /// The English text by key. A <c>{name}</c> in a value is a placeholder the writer fills.
@@ -77,18 +88,25 @@ public static class UIStrings
         [PickerHours] = "Hours",
         [PickerMinutes] = "Minutes",
         [PickerSeconds] = "Seconds",
+        [PickerMeridiem] = "AM/PM",
         [PickerStart] = "Start",
         [PickerEnd] = "End",
         [NotificationClose] = "Close",
         [TabsMore] = "More tabs",
         [TabClose] = "Close",
+        [TabRename] = "Rename",
+        [TabPin] = "Pin",
+        [TabUnpin] = "Unpin",
+        [TabDelete] = "Delete",
         [SelectClear] = "Clear selection",
         [SelectPlaceholder] = "Select…",
+        [SelectRemove] = "Remove {label}",
         [InputClear] = "Clear",
         [BreadcrumbsLabel] = "Breadcrumb",
         [FileUploading] = "Uploading… {percent}%",
         [FileCount] = "{count} files",
         [FileFailed] = "Upload failed.",
+        [FileOversized] = "The file is too large.",
         [ColorPicker] = "Picker",
         [ColorPalette] = "Palette",
         [ColorHex] = "Hex",
@@ -111,6 +129,8 @@ public static class UIStrings
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",
         [CollapseToggle] = "Expand or collapse",
+        [SideOpen] = "Open the side panel",
+        [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
         [NotFoundTitle] = "404",
         [NotFoundDescription] = "The page you are looking for does not exist.",
@@ -118,7 +138,9 @@ public static class UIStrings
         [ErrorMessage] = "Something went wrong. Please try again.",
         [CommandRefused] = "You are not allowed to do that.",
         [CommandFailed] = "Something went wrong. Please try again.",
-        [TreeLoading] = "Loading…"
+        [TreeLoading] = "Loading…",
+        [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
+        [ConnectionReload] = "Reload"
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

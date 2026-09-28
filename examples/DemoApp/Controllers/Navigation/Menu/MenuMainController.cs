@@ -1,5 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Navigation.Menu;
 
@@ -20,5 +19,5 @@ internal sealed partial class MenuMainController() : DemoStandardController
     /// </summary>
     [UICommand]
     public void Choose(string id)
-        => MenuGroup.Report($"'{id}' chosen");
+        => MenuGroup.LogEvent($"'{id}' chosen");
 }

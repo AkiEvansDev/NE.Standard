@@ -34,7 +34,8 @@ public sealed class UIContentRequest
     public required UserSessionState Session { get; init; }
 
     /// <summary>
-    /// Gets the key, decoded — exactly what <see cref="IUIContentAddressResolver.AddressOf"/> was given.
+    /// Gets the key, decoded from the requested URL: what <see cref="IUIContentAddressResolver.AddressOf"/> was given for a genuine
+    /// address, but any text a client typed for a forged one — untrusted, so a provider never maps it to a file path unchecked.
     /// </summary>
     public required string Key { get; init; }
 }

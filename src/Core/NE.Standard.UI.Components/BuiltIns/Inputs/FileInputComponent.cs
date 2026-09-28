@@ -44,7 +44,6 @@ public abstract partial class FileInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Multiple { get; set; }
-
 }
 
 /// <summary>

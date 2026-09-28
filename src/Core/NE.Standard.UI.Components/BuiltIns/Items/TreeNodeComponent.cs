@@ -75,9 +75,9 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
         _ = Bind(ParentIdProperty, nameof(ITreeNodeModel.ParentId), UIBindingScope.Relative);
         _ = Bind(HasChildrenProperty, nameof(ITreeNodeModel.HasChildren), UIBindingScope.Relative);
         _ = Bind(ExpandedProperty, nameof(ITreeNodeModel.Expanded), UIBindingScope.Relative);
-        // Two-way like a tab's caption: shows the new name at once, and Bind is one-way by default so this needs spelling out.
-        _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative, UIBindingMode.TwoWay);
-        _ = Bind(DropTargetProperty, nameof(ITreeNodeModel.DropTarget), UIBindingScope.Relative, UIBindingMode.TwoWay);
+        // Two-way, as both properties declare, like a tab's caption: a rename shows the new name at once.
+        _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative);
+        _ = Bind(DropTargetProperty, nameof(ITreeNodeModel.DropTarget), UIBindingScope.Relative);
     }
 }
 

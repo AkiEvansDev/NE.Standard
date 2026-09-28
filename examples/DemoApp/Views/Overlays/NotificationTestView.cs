@@ -1,11 +1,5 @@
 using DemoApp.Controllers.Overlays;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Overlays;
 
@@ -23,12 +17,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     public static string ViewKey => "demo.overlays.notification.test";
 
     /// <summary>The demo's shell, plus the top corner for the toasts: placement is the view's, so this page is the one that shows the other corner.</summary>
-    public override UIViewOptions Options => new()
-    {
-        StickyHeader = true,
-        ScrollContentOnly = true,
-        NotificationPlacement = UINotificationPlacement.Top
-    };
+    public override UIViewOptions Options => base.Options with { NotificationPlacement = UINotificationPlacement.Top };
 
     protected override string ComponentRoute => "/overlays/notification";
     protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Test];
@@ -36,12 +25,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     protected override string HeaderDescription => "demo.overlays.notification.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateDeployGroup(), CreateStackGroup()],
-            [CreateJobGroup(), CreateWrapGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateDeployGroup(), CreateStackGroup()], [CreateJobGroup(), CreateWrapGroup()]));
 
     /// <summary>Each target keeps the line its last deploy left; the toast is the moment, the line is the record.</summary>
     private static ContainerComponent CreateDeployGroup()
@@ -54,13 +38,13 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(DeployGroupContext.Production), UIBindingScope.Relative)
                 )
-                .AddChild(DemoUI.CreateRow(8)
+                .AddChild(UILayout.Row(8)
                     .AddChild(CreateButton("Deploy to staging", nameof(NotificationTestController.DeployStaging), UIButtonType.Primary))
                     .AddChild(CreateButton("Deploy to production", nameof(NotificationTestController.DeployProduction), UIButtonType.Outline))
                 )
             ),
             contentMinHeight: 160,
-            note: "Production takes every other build: the odd ones fail their health check, and a warning and a failure come in one result."
+            note: "Production takes every other release: the odd ones fail their health check, and a warning and a failure come in one result."
         );
     }
 
@@ -92,7 +76,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(StackGroupContext.Pushed), UIBindingScope.Relative)
                 )
-                .AddChild(DemoUI.CreateRow(8)
+                .AddChild(UILayout.Row(8)
                     .AddChild(CreateButton("Three in one result", nameof(NotificationTestController.NotifyThree), UIButtonType.Outline))
                     .AddChild(CreateButton("One more", nameof(NotificationTestController.NotifyOneMore), UIButtonType.Outline))
                 )

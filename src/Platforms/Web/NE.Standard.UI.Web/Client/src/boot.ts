@@ -47,7 +47,7 @@
     const done = new WeakSet<Element>();
     const pending = new Set<Element>();
 
-    /** Applies the element's patches; answers whether every target was there to take them. */
+    /** Applies the element's patches; answers whether they are finished with, which a patch naming its targets by selector never is while parsing. */
     function apply(element: Element): boolean {
         const patches = patchesByName.get(element.getAttribute(NameAttribute) ?? "");
 
@@ -60,10 +60,10 @@
             // Every element the selector names, not the first: a tree's fold marks many rows with one patch.
             const targets = patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
-            if (targets.length === 0) {
+            // A selector's targets may still be arriving — the parser hands a long tree over in chunks — so it is never done
+            // before the document is: the rows parsed after the first match would otherwise paint unpatched.
+            if (patch.selector !== undefined || targets.length === 0)
                 complete = false;
-                continue;
-            }
 
             // A patch is the viewer's own past write read back out of storage, but the parser still trusts it sight unseen —
             // the same allowlist a compromised or hand-edited entry cannot widen.
@@ -72,15 +72,18 @@
                     if (!isAllowedAttributeName(name))
                         continue;
 
-                    if (value === null)
-                        target.removeAttribute(name);
+                    // Guarded, since a pending patch is applied again on every batch the parser hands over.
+                    if (value === null) {
+                        if (target.hasAttribute(name))
+                            target.removeAttribute(name);
+                    }
                     else if (target.getAttribute(name) !== value)
                         target.setAttribute(name, value);
                 }
 
                 if (target instanceof HTMLElement) {
                     for (const [property, value] of Object.entries(patch.styles ?? {})) {
-                        if (property.startsWith("--"))
+                        if (property.startsWith("--") && target.style.getPropertyValue(property) !== value)
                             target.style.setProperty(property, value);
                     }
                 }

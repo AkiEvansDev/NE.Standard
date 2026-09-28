@@ -1,12 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.Tabs;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
 
 namespace DemoApp.Views.Navigation.Tabs;
 
@@ -64,8 +58,8 @@ internal sealed class TabsMainView : DemoMainView, IUIViewDefinition
     /// <summary>The facts of a deploy: what went out, where, and when.</summary>
     private static StackPanelComponent CreateOverviewPage()
         => TabsDemo.CreatePage()
-            .AddChild(CreateReading("Environment", "production · eu-west-1"))
-            .AddChild(CreateReading("Version", "2.14.0 (build 481)"))
+            .AddChild(CreateReading("Environment", "production · eu-west"))
+            .AddChild(CreateReading("Release", "#481 of billing"))
             .AddChild(CreateReading("Started", "Today at 12:04 by Robin Hale"))
             .AddChild(CreateReading("State", "Healthy — 12 of 12 replicas ready"));
 
@@ -81,7 +75,7 @@ internal sealed class TabsMainView : DemoMainView, IUIViewDefinition
         => TabsDemo.CreatePage()
             .AddChild(CreateEvent("12:31", "Replica 7 restarted after a failed readiness probe."))
             .AddChild(CreateEvent("12:19", "Traffic shifted to 100 %."))
-            .AddChild(CreateEvent("12:04", "Rollout started from build #481."));
+            .AddChild(CreateEvent("12:04", "Rollout started from release #481."));
 
     private static TextComponent CreateEvent(string time, string text)
         => new TextComponent()
@@ -95,7 +89,7 @@ internal sealed class TabsMainView : DemoMainView, IUIViewDefinition
     private static StackPanelComponent CreateSettingsPage()
         => TabsDemo.CreatePage()
             .AddChild(new SwitchComponent().SetTitle("Roll back on a failed probe").SetValue(true))
-            .AddChild(new SwitchComponent().SetTitle("Notify #releases"))
+            .AddChild(new SwitchComponent().SetTitle("Notify the admin on call"))
             .AddChild(new TextInputComponent().SetTitle("Probe path").SetValue("/healthz"));
 
     protected override ContainerComponent CreateOptions()

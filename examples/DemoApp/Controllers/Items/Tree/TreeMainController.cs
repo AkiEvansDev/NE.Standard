@@ -1,18 +1,13 @@
 using System.Collections.Generic;
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Items.Tree;
 
 /// <summary>
-/// The nodes the tree pages start from: a small project's files, folders first, in walking order.
+/// The nodes the tree pages start from: two object-storage buckets and what they hold, folders first, in walking order.
 /// </summary>
-internal static class DemoProjectTree
+internal static class DemoStorageTree
 {
     public const string FolderKind = "folder";
     public const string FileKind = "file";
@@ -26,18 +21,18 @@ internal static class DemoProjectTree
     public static List<TreeNode> Create()
         =>
         [
-            Folder("src", "src", null),
-            Folder("src-controllers", "Controllers", "src"),
-            File("home-controller", "HomeController.cs", "src-controllers"),
-            File("orders-controller", "OrdersController.cs", "src-controllers"),
-            Folder("src-views", "Views", "src", expanded: false),
-            File("home-view", "HomeView.cs", "src-views"),
-            File("orders-view", "OrdersView.cs", "src-views"),
-            File("program", "Program.cs", "src"),
-            Folder("tests", "tests", null, expanded: false),
-            File("orders-tests", "OrdersTests.cs", "tests"),
+            Folder("backups", "backups-eu-west", null),
+            Folder("backups-db", "db-eu-west-1", "backups"),
+            File("db-snapshot-21", "snapshot-0921.tar.gz", "backups-db"),
+            File("db-snapshot-22", "snapshot-0922.tar.gz", "backups-db"),
+            Folder("backups-api", "api-eu-west-1", "backups", expanded: false),
+            File("api-snapshot-21", "snapshot-0921.tar.gz", "backups-api"),
+            File("api-snapshot-22", "snapshot-0922.tar.gz", "backups-api"),
+            File("manifest", "manifest.json", "backups"),
+            Folder("status", "status-page", null, expanded: false),
+            File("status-html", "status.html", "status"),
             // Pinned: neither dragged nor removed, whatever the tree allows; a heading elsewhere refuses the choice the same way.
-            new() { Id = "readme", Title = "README.md", Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText), CanDrag = false, CanRemove = false },
+            new() { Id = "incident-report", Title = "incident-report.md", Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText), CanDrag = false, CanRemove = false },
         ];
 }
 
@@ -74,7 +69,7 @@ internal sealed partial class TreeGroupContext : DemoGroupContext
     public partial UISelectionMode? SelectionMode { get; set; } = UISelectionMode.One;
 
     [RecursiveMember]
-    public partial string? SelectedKey { get; set; } = "program";
+    public partial string? SelectedKey { get; set; } = "manifest";
 
     [RecursiveMember]
     public partial IReadOnlyList<string>? SelectedKeys { get; set; }
@@ -132,17 +127,13 @@ internal sealed partial class TreeGroupContext : DemoGroupContext
         => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "program", "home-controller"));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "manifest", "db-snapshot-21"));
 
     public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["home-controller", "orders-controller"], ["readme"]));
+        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["db-snapshot-21", "db-snapshot-22"], ["incident-report"]));
 
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            UISelectionStyle.Marked(UISelectionMark.Left),
-            UISelectionStyle.Ground(UIThemeColor.Accent),
-            new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)
-        ));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
 }
 
 /// <summary>
@@ -153,17 +144,17 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
     private int _added;
 
     [RecursiveMember(false)]
-    public RecursiveCollection<TreeNode> Items { get; } = [.. DemoProjectTree.Create()];
+    public RecursiveCollection<TreeNode> Items { get; } = [.. DemoStorageTree.Create()];
 
     public TreeNodesGroupContext()
     {
-        AddOption("Add a file to src", AddFile, () => Items.Count);
+        AddOption("Add a snapshot to backups", AddFile, () => Items.Count);
         AddOption("Remove the last node", RemoveLast, () => Items.Count);
         AddOption("Rename the last node", RenameLast, () => Items.Count == 0 ? null : Items[^1].Title);
     }
 
     /// <summary>
-    /// A new file goes in after the last node under src, so the list stays in walking order.
+    /// A new snapshot goes in after the last node under the backups bucket, so the list stays in walking order.
     /// </summary>
     public void AddFile()
     {
@@ -172,11 +163,11 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
 
         for (var i = 0; i < Items.Count; i++)
         {
-            if (Items[i].Id == "src" || IsUnder(Items[i], "src"))
+            if (Items[i].Id == "backups" || IsUnder(Items[i], "backups"))
                 index = i + 1;
         }
 
-        Items.Insert(index, DemoProjectTree.File(id, string.Create(CultureInfo.InvariantCulture, $"File{_added}.cs"), "src"));
+        Items.Insert(index, DemoStorageTree.File(id, string.Create(CultureInfo.InvariantCulture, $"snapshot-{_added}.tar.gz"), "backups"));
     }
 
     private bool IsUnder(TreeNode node, string ancestorId)

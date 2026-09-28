@@ -1,0 +1,16 @@
+{
+  // The other half of `npm run lint`: an export nothing imports, a file nothing reaches, a dependency nothing uses.
+  // A package never imports these modules; it reaches the runtime through the global API, whose contract is
+  // plugin/ne-standard-ui.d.ts, so an export here is public only if something here imports it.
+  "entry": [
+    "src/ui.ts",
+    "src/boot.ts",
+    // Holds the runtime's types to the plugin contract; compiled by the type check, imported by nothing.
+    "src/runtime/plugin-api-check.ts",
+    "tests/**/*.test.ts",
+    "scripts/*.mjs"
+  ],
+  "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/*.mjs", "*.ts"],
+  // The plugin contract's module, declared by plugin/ne-standard-ui.d.ts rather than installed.
+  "ignoreDependencies": ["ne-standard-ui"]
+}

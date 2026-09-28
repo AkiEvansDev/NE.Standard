@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Assets;
+using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -17,9 +19,15 @@ public sealed class WebShellContext
 
     public string Language { get; init; } = "en";
 
+    /// <summary>Gets the document's title — the view's, translated for the page's language — or none.</summary>
+    public string? Title { get; init; }
+
     public string RootElementId { get; init; } = "ui-root";
 
-    public string Content { get; init; } = string.Empty;
+    /// <summary>
+    /// Gets the page's own markup, written into the document where it stands — a render's tree, never copied into a string first.
+    /// </summary>
+    public IHtmlContent? Content { get; init; }
 
     /// <summary>
     /// Gets the corner this page's notifications stack in.
@@ -27,9 +35,24 @@ public sealed class WebShellContext
     public UINotificationPlacement NotificationPlacement { get; init; } = UINotificationPlacement.Bottom;
 
     /// <summary>
+    /// Gets the width, in pixels, this page's notifications take.
+    /// </summary>
+    public double NotificationWidth { get; init; } = UIViewOptions.Default.NotificationWidth;
+
+    /// <summary>
     /// Gets whether the root keeps the viewport's height and only the content region scrolls.
     /// </summary>
     public bool ScrollContentOnly { get; init; }
+
+    /// <summary>
+    /// Gets which regions run the page's full length.
+    /// </summary>
+    public UIShellLayout ShellLayout { get; init; }
+
+    /// <summary>
+    /// Gets whether the sides slide over the content as drawers on a narrow screen.
+    /// </summary>
+    public bool SideDrawers { get; init; }
 
     public WebRenderMetadata? Metadata { get; init; }
 
@@ -41,7 +64,19 @@ public sealed class WebShellContext
     public IReadOnlyDictionary<string, string>? Strings { get; init; }
 
     /// <summary>
+    /// Gets <see cref="Strings"/> already serialized, as <see cref="WebShellRenderer.SerializeStrings"/> writes them; set, it is
+    /// used instead, so a host keeps one per language rather than serializing them on every page.
+    /// </summary>
+    public string? StringsJson { get; init; }
+
+    /// <summary>
     /// Gets the values this page was rendered with, for the client to apply before its first paint — see <see cref="WebHydration"/>.
     /// </summary>
     public string? HydrationJson { get; init; }
+
+    /// <summary>
+    /// Gets the navigation the page was rendered for when it stands in for the one asked for — a sign-in, not-found or error
+    /// page shown at the address that led there; null on a page that is what was asked for.
+    /// </summary>
+    public UINavigationRequest? StandInNavigation { get; init; }
 }

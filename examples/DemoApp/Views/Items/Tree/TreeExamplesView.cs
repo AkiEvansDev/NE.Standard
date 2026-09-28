@@ -1,25 +1,11 @@
 using DemoApp.Controllers.Items.Tree;
 using DemoApp.Views.Base;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Items;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.Tree;
 
 /// <summary>
-/// What a tree is used for, one screen per job: a project's files with a menu per kind, folders filled in as they open, and a
+/// What a tree is used for, one screen per job: a bucket's objects with a menu per kind, folders filled in as they open, and a
 /// settings tree whose chosen node is the page's state.
 /// </summary>
 internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
@@ -39,10 +25,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFilesGroup()],
-            [CreateSettingsGroup(), CreateMenuGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateFilesGroup()], [CreateSettingsGroup(), CreateMenuGroup()]));
 
         _ = container.AddChild(CreateLazyGroup());
     }
@@ -54,94 +37,57 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFilesGroup()
     {
-        return DemoUI.CreateGroup(FilesGroup, "A project's files",
-            content => content
+        return DemoUI.CreateExample("A bucket's objects",
+            UILayout.Stack(0)
                 .AddChild(new TextInputComponent(FilesFilterId)
-                    .SetPlaceholder("Filter files")
+                    .SetPlaceholder("Filter objects")
                     .SetPrefixIcon(DemoIcons.Search)
                     .SetShowClearButton()
                     .SetDebounceMilliseconds(150)
                     .SetMargin(UIThickness.All(0, 0, 0, 8))
-                    .SetPlacement(1, 1, 24, 1)
                 )
                 .AddChild(new TreeComponent(TreeExamplesController.FilesTreeId)
-                .BindItems($"{FilesGroup}.{nameof(TreeFilesGroupContext.Items)}")
-                // A node stays while it or something under it matches, and its folders stand open for as long as the box holds a word.
-                .FilterBy(FilesFilterId, IInputComponent.ValueProperty, nameof(TreeNode.Title))
-                // One order for every folder's children: folders first, then by name — the same whatever a drag or a rename did.
-                .SortBy(nameof(TreeNode.Kind), UIItemsSortDirection.Descending)
-                .SortBy(nameof(TreeNode.Title), UIItemsSortDirection.Ascending, priority: 1)
-                // Many, so several nodes go together: Shift takes a range, Ctrl adds one, and a drag or Delete on a chosen node takes them all.
-                .SetSelectionMode(UISelectionMode.Many)
-                .SetRenamable(true)
-                .SetRenameOnDoubleClick(true)
-                .SetDraggable(true)
-                .AddNodeKind(DemoProjectTree.FolderKind, node => node
-                    .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
-                    .SetContextMenu(CreateMenu(
-                        new MenuItem { Id = TreeFilesGroupContext.NewFileAction, Title = "New file", Icon = DemoIcons.Outline(DemoIcons.File) },
-                        new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                        new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
-                    ))
-                )
-                .AddNodeKind(DemoProjectTree.FileKind, node => node
-                    .SetContextMenu(CreateMenu(
-                        new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                        new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
-                    ))
-                )
-                .OnNodeOpenWithItemKey(nameof(TreeExamplesController.OpenNode))
-                .OnNodeRenameWithItemKey(nameof(TreeExamplesController.RenameNode))
-                .OnNodeMoveWithItemKey(nameof(TreeExamplesController.MoveNode))
-                .OnNodeRemoveWithItemKey(nameof(TreeExamplesController.DeleteNode))
-                .SetPlacement(1, 2, 24, 1)
-            ),
-            note: "Type in the box and only the matching files stay, under the folders that hold them. Right-click a folder or a file for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. README.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where."
-        );
-    }
-
-    /// <summary>
-    /// The other way to a menu: the entries come with the node. One template, one menu bound to each node's own list, and the
-    /// press names the entry and the node it was opened on.
-    /// </summary>
-    private static ContainerComponent CreateMenuGroup()
-    {
-        return DemoUI.CreateGroup(MenuGroup, "A menu the node names",
-            content => content.AddChild(new TreeComponent()
-                .BindItems($"{MenuGroup}.{nameof(TreeMenuGroupContext.Items)}")
-                .ConfigureDefaultNode(node => node
-                    .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
-                    .SetContextMenu(new MenuComponent()
-                        .BindItems(nameof(DemoActionNode.Actions), UIBindingScope.Relative)
-                        .OnItemClick(nameof(TreeExamplesController.NodeMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
+                    .BindItems($"{FilesGroup}.{nameof(TreeFilesGroupContext.Items)}")
+                    // A node stays while it or something under it matches, and its folders stand open for as long as the box holds a word.
+                    .FilterBy(FilesFilterId, IInputComponent.ValueProperty, nameof(TreeNode.Title))
+                    // One order for every folder's children: folders first, then by name — the same whatever a drag or a rename did.
+                    .SortBy(nameof(TreeNode.Kind), UIItemsSortDirection.Descending)
+                    .SortBy(nameof(TreeNode.Title), UIItemsSortDirection.Ascending, priority: 1)
+                    // Many, so several nodes go together: Shift takes a range, Ctrl adds one, and a drag or Delete on a chosen node takes them all.
+                    .SetSelectionMode(UISelectionMode.Many)
+                    .SetRenamable(true)
+                    .SetRenameOnDoubleClick(true)
+                    .SetDraggable(true)
+                    .AddNodeKind(DemoStorageTree.FolderKind, node => node
+                        .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
+                        // The menu's entry names the action; the node the menu was opened on is the entry's parent scope.
+                        .SetContextMenu(new MenuComponent()
+                            .SetItems(
+                            [
+                                new MenuItem { Id = TreeFilesGroupContext.NewFileAction, Title = "New object", Icon = DemoIcons.Outline(DemoIcons.File) },
+                                new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
+                                new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
+                            ])
+                            .OnItemClick(nameof(TreeExamplesController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
+                        )
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "Right-click any node: Production cannot be deleted, a paused environment offers Resume, and the entry pressed reaches the controller with the node's key. Two nodes of one kind, two different menus — the list is the item's."
-        );
-    }
-
-    /// <summary>The menu's entry names the action; the node the menu was opened on is the entry's parent scope.</summary>
-    private static MenuComponent CreateMenu(params MenuItem[] entries)
-        => new MenuComponent()
-            .SetItems(entries)
-            .OnItemClick(nameof(TreeExamplesController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)));
-
-    /// <summary>
-    /// A folder that says it has children and holds none asks the controller when it is opened; the children go in under it.
-    /// </summary>
-    private static ContainerComponent CreateLazyGroup()
-    {
-        return DemoUI.CreateGroup(LazyGroup, "Filled in as it opens",
-            content => content.AddChild(new TreeComponent()
-                .BindItems($"{LazyGroup}.{nameof(TreeLazyGroupContext.Items)}")
-                .ConfigureDefaultNode(node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
-                .OnNodeUnfoldWithItemKey(nameof(TreeExamplesController.LoadChildren))
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            columns: 24,
-            note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same."
+                    .AddNodeKind(DemoStorageTree.FileKind, node => node
+                        .SetContextMenu(new MenuComponent()
+                            .SetItems(
+                            [
+                                new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
+                                new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
+                            ])
+                            .OnItemClick(nameof(TreeExamplesController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
+                        )
+                    )
+                    .OnNodeOpenWithItemKey(nameof(TreeExamplesController.OpenNode))
+                    .OnNodeRenameWithItemKey(nameof(TreeExamplesController.RenameNode))
+                    .OnNodeMoveWithItemKey(nameof(TreeExamplesController.MoveNode))
+                    .OnNodeRemoveWithItemKey(nameof(TreeExamplesController.DeleteNode))
+                ),
+            note: "Type in the box and only the matching objects stay, under the folders that hold them. Right-click a folder or an object for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. incident-report.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where.",
+            context: FilesGroup
         );
     }
 
@@ -151,20 +97,55 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSettingsGroup()
     {
-        return DemoUI.CreateGroup(null, "Settings as a tree",
-            content => content
+        return DemoUI.CreateExample("Settings as a tree",
+            UILayout.Stack(0)
                 .AddChild(new TreeComponent()
                     .BindItems($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.Items)}")
                     .SetSelectionMode(UISelectionMode.One)
                     .BindSelectedKey($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.SelectedKey)}")
                     .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
-                    .SetPlacement(1, 1, 24, 1)
                 )
                 .AddChild(UIText.Label("Chosen")
                     .BindDescription($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.SelectedKey)}")
                     .SetMargin(UIThickness.All(0, 8, 0, 0))
-                    .SetPlacement(1, 2, 24, 1)
                 )
+        );
+    }
+
+    /// <summary>
+    /// The other way to a menu: the entries come with the node. One template, one menu bound to each node's own list, and the
+    /// press names the entry and the node it was opened on.
+    /// </summary>
+    private static ContainerComponent CreateMenuGroup()
+    {
+        return DemoUI.CreateExample("A menu the node names",
+            new TreeComponent()
+                .BindItems($"{MenuGroup}.{nameof(TreeMenuGroupContext.Items)}")
+                .ConfigureDefaultNode(node => node
+                    .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
+                    .SetContextMenu(new MenuComponent()
+                        .BindItems(nameof(DemoActionNode.Actions), UIBindingScope.Relative)
+                        .OnItemClick(nameof(TreeExamplesController.NodeMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
+                    )
+                ),
+            note: "Right-click any node: Production cannot be deleted, a paused environment offers Resume, and the entry pressed reaches the controller with the node's key. Two nodes of one kind, two different menus — the list is the item's.",
+            context: MenuGroup
+        );
+    }
+
+    /// <summary>
+    /// A folder that says it has children and holds none asks the controller when it is opened; the children go in under it.
+    /// </summary>
+    private static ContainerComponent CreateLazyGroup()
+    {
+        return DemoUI.CreateExample("Filled in as it opens",
+            new TreeComponent()
+                .BindItems($"{LazyGroup}.{nameof(TreeLazyGroupContext.Items)}")
+                .ConfigureDefaultNode(node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
+                .OnNodeUnfoldWithItemKey(nameof(TreeExamplesController.LoadChildren)),
+            columns: 24,
+            note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same.",
+            context: LazyGroup
         );
     }
 }

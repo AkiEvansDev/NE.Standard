@@ -18,11 +18,11 @@ namespace NE.Standard.UI.Web.Rendering;
 
 internal sealed class WebViewRenderer : IWebViewRenderer
 {
-    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
-    private const string RegionAttribute = "data-ui-region";
+    // Read by the stylesheet alone, so named constants here rather than in WebAttributes, which holds what the client script reads.
     private const string StickyAttribute = "data-ui-sticky";
     private const string DialogPlacementAttribute = "data-ui-dialog-placement";
     private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
+    private const string DrawerToggleClass = "ui-shell__drawer-toggle";
 
     private readonly IWebRendererRegistry _renderers;
     private readonly ITranslator _translator;
@@ -68,6 +68,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         ArgumentNullException.ThrowIfNull(metadata);
 
         CompiledView view = viewResolution.View;
+        // The band that carries the drawers' buttons: the header, or the content where a page has none.
+        var toggles = view.Options.SideDrawers ? ToggleHost(view) : null;
 
         for (var i = 0; i < view.Regions.Length; i++)
         {
@@ -75,34 +77,71 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
             _ = html.Element("section", section =>
             {
-                _ = section.Attribute(RegionAttribute, region.Key);
+                _ = section.Attribute(WebAttributes.Region, region.Key);
 
                 // On the region rather than on the root: sticking is a property of this band of the page.
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
                     _ = section.Attribute(StickyAttribute);
 
-                UIComponentNode root = view.Graph.GetRequired(region.RootComponentId);
+                var carriesToggles = string.Equals(region.Key, toggles, StringComparison.Ordinal);
 
-                WebRenderContext context = new()
-                {
-                    ViewResolution = viewResolution,
-                    Node = root,
-                    Parameters = [],
-                    Html = section,
-                    Renderer = this,
-                    Metadata = metadata,
-                    Translator = _translator,
-                    Theme = _theme,
-                    Values = values
-                };
+                if (carriesToggles && HasRegion(view, RegionNames.LeftSide))
+                    RenderDrawerToggle(section, RegionNames.LeftSide, viewResolution);
 
-                context.Validate();
+                RenderRoot(viewResolution, region.RootComponentId, section, metadata, values);
 
-                IWebComponentRenderer renderer = _renderers.GetRequired(root.TypeKey);
-
-                renderer.Render(context);
+                if (carriesToggles && HasRegion(view, RegionNames.RightSide))
+                    RenderDrawerToggle(section, RegionNames.RightSide, viewResolution);
             });
         }
+    }
+
+    private static string? ToggleHost(CompiledView view)
+        => !HasRegion(view, RegionNames.LeftSide) && !HasRegion(view, RegionNames.RightSide) ? null
+            : HasRegion(view, RegionNames.Header) ? RegionNames.Header
+            : RegionNames.Content;
+
+    private static bool HasRegion(CompiledView view, string key)
+    {
+        foreach (CompiledRegion region in view.Regions)
+        {
+            if (string.Equals(region.Key, key, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The button that opens one side as a drawer; the stylesheet shows it only on a narrow screen, and draws its burger.</summary>
+    private void RenderDrawerToggle(IHtmlElementBuilder section, string side, UIViewResolution resolution)
+        => _ = section.Element("button", toggle => toggle
+            .Class(DrawerToggleClass)
+            .Attribute("type", "button")
+            .Attribute(WebAttributes.DrawerToggle, side)
+            .Attribute("aria-expanded", "false")
+            .Attribute("aria-label", _translator.Translate(resolution.Session.Language, UIStrings.SideOpen) ?? UIStrings.English[UIStrings.SideOpen]));
+
+    /// <summary>Renders the component a region or a dialog holds at its root, outside any item.</summary>
+    private void RenderRoot(UIViewResolution viewResolution, UIComponentId rootId, IHtmlElementBuilder html, WebRenderMetadata metadata, IWebRenderValues? values)
+    {
+        UIComponentNode root = viewResolution.View.Graph.GetRequired(rootId);
+
+        WebRenderContext context = new()
+        {
+            ViewResolution = viewResolution,
+            Node = root,
+            Parameters = [],
+            Html = html,
+            Renderer = this,
+            Metadata = metadata,
+            Translator = _translator,
+            Theme = _theme,
+            Values = values
+        };
+
+        context.Validate();
+
+        _renderers.GetRequired(root.TypeKey).Render(context);
     }
 
     /// <summary>The width a centred panel with no width of its own is capped at, from the Sm tier up; below it the panel is the screen less a margin.</summary>
@@ -155,6 +194,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         .Attribute("role", "dialog")
                         .Attribute("tabindex", "-1");
 
+                    if (!string.IsNullOrWhiteSpace(dialog.Label))
+                        _ = surface.Attribute("aria-label", _translator.Translate(viewResolution.Session.Language, dialog.Label) ?? dialog.Label);
+
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.
                     if (dialog.Surface != UISurfaceStyle.Raised)
                         _ = surface.Attribute(DialogSurfaceAttribute, dialog.Surface.ToString().ToLowerInvariant());
@@ -165,26 +207,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     if (dialog.Modal)
                         _ = surface.Attribute("aria-modal", "true");
 
-                    UIComponentNode root = view.Graph.GetRequired(dialog.RootComponentId);
-
-                    WebRenderContext context = new()
-                    {
-                        ViewResolution = viewResolution,
-                        Node = root,
-                        Parameters = [],
-                        Html = surface,
-                        Renderer = this,
-                        Metadata = metadata,
-                        Translator = _translator,
-                        Theme = _theme,
-                        Values = values
-                    };
-
-                    context.Validate();
-
-                    IWebComponentRenderer renderer = _renderers.GetRequired(root.TypeKey);
-
-                    renderer.Render(context);
+                    RenderRoot(viewResolution, dialog.RootComponentId, surface, metadata, values);
                 });
             });
         }

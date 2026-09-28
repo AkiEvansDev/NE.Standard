@@ -2,12 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Navigation;
-using NE.Standard.UI.Shell.Sessions;
 using TeamRoom.Services;
 
 namespace TeamRoom.Security;
@@ -16,7 +11,7 @@ namespace TeamRoom.Security;
 /// A session says who signed in; the account says whether they still may. Every page request and every command is held
 /// against the account as it is now, so a block or a deletion reaches an open tab on its next move, not at its next sign-in.
 /// </summary>
-public sealed class AccountStateFilter(AccountService accounts) : IUIViewFilter, IUICommandFilter
+public sealed class AccountStateFilter(AccountService accounts, IUISessions sessions) : IUIViewFilter, IUICommandFilter
 {
     public async Task InvokeAsync(UIViewFilterContext context, Func<Task> next)
     {
@@ -25,7 +20,7 @@ public sealed class AccountStateFilter(AccountService accounts) : IUIViewFilter,
 
         if (context.Session.IsAuthenticated && !IsActive(context.Session.UserId))
         {
-            await SignOutAsync(context.Services, context.Session.SessionId, CancellationToken.None).ConfigureAwait(false);
+            await sessions.EndSessionAsync(context.Session.SessionId, cancellationToken: CancellationToken.None).ConfigureAwait(false);
             context.Redirect(new UINavigationRequest { Route = AppRoutes.SignIn, Parameters = new Dictionary<string, object?> { ["reason"] = "blocked" } });
 
             return;
@@ -41,7 +36,8 @@ public sealed class AccountStateFilter(AccountService accounts) : IUIViewFilter,
 
         if (context.Handle.Session.IsAuthenticated && !IsActive(context.Handle.Session.UserId))
         {
-            await SignOutAsync(context.Services, context.Handle.Session.SessionId, CancellationToken.None).ConfigureAwait(false);
+            // The asking page stays to carry the navigation to sign-in; the session's other pages are sent there by the framework.
+            await sessions.EndSessionAsync(context.Handle.Session.SessionId, context.Handle, CancellationToken.None).ConfigureAwait(false);
             context.Result = UICommandResult.Fail("This account is no longer allowed in.", [new NavigateEffect(new UINavigationRequest { Route = AppRoutes.SignIn })]);
 
             return;
@@ -52,7 +48,4 @@ public sealed class AccountStateFilter(AccountService accounts) : IUIViewFilter,
 
     private bool IsActive(string? accountId)
         => accountId is not null && accounts.Find(accountId) is { IsBlocked: false };
-
-    private static ValueTask SignOutAsync(IServiceProvider services, string sessionId, CancellationToken cancellationToken)
-        => services.GetRequiredService<IUserSessionStore>().RemoveAsync(sessionId, cancellationToken);
 }

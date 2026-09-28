@@ -1,16 +1,3 @@
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.CodeInput;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 using TeamRoom.Data;
 
@@ -76,13 +63,15 @@ public sealed class FilesView : TeamRoomView, IUIViewDefinition
                         new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
                         new MenuItem { Id = FilesController.RenameAction, Title = "Rename", Icon = AppIcons.Outline(AppIcons.Rename) },
                         new MenuItem { Id = FilesController.DeleteAction, Title = "Delete", Icon = AppIcons.Outline(AppIcons.Delete) }
-                    ))
+                        )
+                    )
                 )
                 .AddNodeKind(NodeKinds.File, static node => node
                     .SetContextMenu(CreateNodeMenu(
                         new MenuItem { Id = FilesController.RenameAction, Title = "Rename", Icon = AppIcons.Outline(AppIcons.Rename) },
                         new MenuItem { Id = FilesController.DeleteAction, Title = "Delete", Icon = AppIcons.Outline(AppIcons.Delete) }
-                    ))
+                        )
+                    )
                 )
                 .OnNodeOpenWithItemKey(nameof(FilesController.OpenNode))
                 .OnNodeRenameWithItemKey(nameof(FilesController.RenameNode))

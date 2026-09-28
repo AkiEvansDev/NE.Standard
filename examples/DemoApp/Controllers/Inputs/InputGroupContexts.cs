@@ -1,9 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs;
 
@@ -127,7 +126,7 @@ internal partial class TextValueGroupContext : InputValueGroupContext
     public partial bool TrimInput { get; set; }
 
     // The two sample strings are the page's, because what reads well differs by field.
-    public TextValueGroupContext(string sample = "Payments API", string alternate = "Web Portal")
+    public TextValueGroupContext(string sample = "Billing worker", string alternate = "Panel")
     {
         _sample = sample;
         _alternate = alternate;
@@ -208,7 +207,7 @@ internal sealed partial class ToggleValueGroupContext : InputValueGroupContext
 internal sealed partial class OptionValueGroupContext : InputValueGroupContext
 {
     [RecursiveMember]
-    public partial string? Value { get; set; } = "eu-west-1";
+    public partial string? Value { get; set; } = "eu-west";
 
     public OptionValueGroupContext()
     {
@@ -218,7 +217,46 @@ internal sealed partial class OptionValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, "eu-west-1", "us-east-1", "ap-south-1", null));
+        => SetLastChange(nameof(Value), Value = CycleValue(Value, "eu-west", "us-east", "ap-south", null));
+}
+
+/// <summary>
+/// The value a list of options holds when several can be chosen — their keys in the order chosen — and how many it takes at most.
+/// </summary>
+internal sealed partial class OptionKeysValueGroupContext : InputValueGroupContext
+{
+    private static readonly string[][] ValueSteps = [["eu-west", "ap-south"], ["us-east"], []];
+
+    [RecursiveMember]
+    public partial IReadOnlyList<string>? Value { get; set; } = ValueSteps[0];
+
+    [RecursiveMember]
+    public partial int? MaxSelected { get; set; }
+
+    public OptionKeysValueGroupContext()
+    {
+        AddOption(nameof(Value), CycleValue, () => Value is null ? null : string.Join(", ", Value));
+        AddOption(nameof(MaxSelected), CycleMaxSelected, () => MaxSelected);
+        AddSizeOption();
+        AddReadOnlyOption();
+    }
+
+    public void CycleValue()
+        => SetLastChange(nameof(Value), Value = NextValue(Value));
+
+    // By what a step holds, not by reference: a list the field writes back is a new one.
+    private static string[]? NextValue(IReadOnlyList<string>? current)
+    {
+        if (current is null)
+            return ValueSteps[0];
+
+        var index = Array.FindIndex(ValueSteps, step => step.SequenceEqual(current));
+
+        return index < 0 ? ValueSteps[0] : index + 1 < ValueSteps.Length ? ValueSteps[index + 1] : null;
+    }
+
+    public void CycleMaxSelected()
+        => SetLastChange(nameof(MaxSelected), MaxSelected = CycleValue(MaxSelected, null, 2, 1));
 }
 
 /// <summary>
@@ -231,9 +269,9 @@ internal partial class OptionListGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<OptionItem> Options { get; } =
     [
-        CreateOption("eu-west-1", "Ireland", "Europe", "3 zones · 12 ms from Dublin"),
-        CreateOption("us-east-1", "N. Virginia", "Americas", "6 zones · the cheapest of the three"),
-        CreateOption("ap-south-1", "Mumbai", "Asia Pacific", "3 zones · no cold storage yet"),
+        CreateOption("eu-west", "Amsterdam", "Europe", "Europe West · the first, opened 2019"),
+        CreateOption("us-east", "Ashburn", "Americas", "US East · opened 2021"),
+        CreateOption("ap-south", "Singapore", "Asia Pacific", "Asia South · the newest, opened 2024"),
     ];
 
     public OptionListGroupContext()
@@ -288,9 +326,9 @@ internal partial class OptionListGroupContext : DemoGroupContext
     private static string GroupOf(string? id)
         => id switch
         {
-            "eu-west-1" => "Europe",
-            "us-east-1" => "Americas",
-            "ap-south-1" => "Asia Pacific",
+            "eu-west" => "Europe",
+            "us-east" => "Americas",
+            "ap-south" => "Asia Pacific",
             _ => "Added"
         };
 }

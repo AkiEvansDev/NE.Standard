@@ -1,12 +1,6 @@
 using System;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Design.Colors;
 
@@ -133,7 +127,8 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     .SetTitle(onVariant.ToHex())
                     .SetTitleType(UITextAppearance.Caption)
                     .SetTitleColor(onColor)
-                ));
+                )
+            );
     }
 
     /// <summary>
@@ -168,6 +163,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(12)
+                .SetWrap(true)
                 .AddChild(CreateInkSample("Light", UIThemeDefaults.LightPalette, role))
                 .AddChild(CreateInkSample("Dark", UIThemeDefaults.DarkPalette, role))
             );
@@ -226,6 +222,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(12)
+                .SetWrap(true)
                 .AddChild(CreateSwatch("Light", light.ToHex(), UIThemeColor.FromColorVariant(light)))
                 .AddChild(CreateSwatch("Dark", dark.ToHex(), UIThemeColor.FromColorVariant(dark)))
             );

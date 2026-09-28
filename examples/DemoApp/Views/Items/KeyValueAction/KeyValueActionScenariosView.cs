@@ -1,17 +1,6 @@
 using System;
 using DemoApp.Controllers.Items.KeyValueAction;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.KeyValueAction;
 
@@ -56,7 +45,8 @@ internal sealed class KeyValueActionScenariosView : DemoScenariosView, IUIViewDe
                 CreateElsewhereGroup(),
                 CreateInputsGroup()
             ]
-        ));
+            )
+        );
     }
 
     /// <summary>
@@ -106,6 +96,7 @@ internal sealed class KeyValueActionScenariosView : DemoScenariosView, IUIViewDe
                 .AddValueInputTemplate("switch", new SwitchComponent())
                 .AddValueInputTemplate("avatar", new ImageInputComponent()
                     .SetShape(UIImageInputShape.Avatar)
+                    .SetMaxFileSize(DemoImages.MaxInlinePictureBytes)
                     .BindSelectionId(nameof(AvatarRowItem.SelectionId), UIBindingScope.Relative)
                 )
                 .EnableEditing(nameof(KeyValueActionScenariosController.SaveRowAsync), nameof(KeyValueActionScenariosController.OpenRow))

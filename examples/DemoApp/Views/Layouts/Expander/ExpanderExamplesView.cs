@@ -1,12 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Expander;
 
@@ -25,62 +17,57 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     protected override string HeaderDescription => "demo.layouts.expander.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFaqGroup(), CreateListGroup()],
-            [CreateAccordionGroup(), CreateAdvancedGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateFaqGroup(), CreateListGroup()], [CreateAccordionGroup(), CreateAdvancedGroup()]));
 
     /// <summary>
     /// The plain case: the header is a native summary, so it opens and closes with the connection down.
     /// </summary>
     private static ContainerComponent CreateFaqGroup()
     {
-        return DemoUI.CreateGroup(null, "Questions and answers",
-            content => content.AddChild(UILayout.Stack(8)
+        return DemoUI.CreateExample("Questions and answers",
+            UILayout.Stack(8)
                 .SetWidth(UILayoutLength.Absolute(420))
-                .AddChild(CreateQuestion(
-                    "How does rendering work?",
-                    "Views are compiled into a component graph on the server; the browser receives incremental DOM operations over SignalR and posts UI events back through the same hub.",
-                    expanded: true
-                ))
-                .AddChild(CreateQuestion(
-                    "Do I write any JavaScript?",
-                    "No — pages are authored entirely in C# with a fluent API. The embedded TypeScript client is an implementation detail of the web platform.",
-                    expanded: false
-                ))
-                .AddChild(CreateQuestion(
-                    "What happens on reconnect?",
-                    "The connection re-attaches to the live runtime instance and the client resynchronizes its state from the server.",
-                    expanded: false
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(true)
+                    .ConfigureDefaultHeader(header => header.SetTitle("Can I change plan later?"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("Yes — move between Starter, Standard, Pro and Dedicated from the panel at any time; the next invoice is prorated to the day of the change.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(false)
+                    .ConfigureDefaultHeader(header => header.SetTitle("Where is my data stored?"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("In the region the server was created in — Amsterdam, Frankfurt, Stockholm, Ashburn or Singapore. It never leaves that region unless you move it.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(false)
+                    .ConfigureDefaultHeader(header => header.SetTitle("How are backups kept?"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("Every server is snapshotted each night, and the snapshots are kept in object storage in the same region for 30 days.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
         );
     }
-
-    private static ExpanderComponent CreateQuestion(string question, string answer, bool expanded)
-        => new ExpanderComponent()
-            .SetExpanded(expanded)
-            .ConfigureDefaultHeader(header => header.SetTitle(question))
-            .SetContent(new ParagraphComponent()
-                .SetDescription(answer)
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetDescriptionColor(UIThemeColor.Muted)
-            );
 
     /// <summary>
     /// The part of a form nobody touches, closed down to one line of chrome.
     /// </summary>
     private static ContainerComponent CreateAdvancedGroup()
     {
-        return DemoUI.CreateGroup(null, "The part of a form nobody touches",
-            content => content.AddChild(UILayout.Stack(12)
+        return DemoUI.CreateExample("The part of a form nobody touches",
+            UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(380))
                 .AddChild(new TextInputComponent()
                     .SetTitle("Service name")
-                    .SetValue("Payments API")
+                    .SetValue("Billing")
                 )
                 .AddChild(new ExpanderComponent()
                     .SetCollapsed()
@@ -107,8 +94,6 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Save")
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -117,14 +102,36 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAccordionGroup()
     {
-        return DemoUI.CreateGroup(null, "One open at a time",
-            content => content.AddChild(new AccordionComponent()
+        return DemoUI.CreateExample("One open at a time",
+            new AccordionComponent()
                 .SetWidth(UILayoutLength.Absolute(380))
-                .AddChild(CreateQuestion("Storage", "Artifacts are kept for 30 days and replicated once per availability zone.", expanded: true))
-                .AddChild(CreateQuestion("Quotas", "Standard tier, bursting to twice the quota for up to an hour a day.", expanded: false))
-                .AddChild(CreateQuestion("Access", "Internal by default; a public endpoint needs an owner's approval.", expanded: false))
-                .SetPlacement(1, 1, 24, 1)
-            )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(true)
+                    .ConfigureDefaultHeader(header => header.SetTitle("Disk"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("80 GB on the Standard plan, replicated once within the region.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(false)
+                    .ConfigureDefaultHeader(header => header.SetTitle("Plan"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("Standard: 2 vCPU and 4 GB of memory, €18 a month for each seat.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(false)
+                    .ConfigureDefaultHeader(header => header.SetTitle("Snapshots"))
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("Kept for 30 days; restoring one over a running server needs an admin.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
         );
     }
 
@@ -133,20 +140,20 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateListGroup()
     {
-        return DemoUI.CreateGroup(null, "A list that reads closed",
-            content => content.AddChild(UILayout.Stack(8)
+        return DemoUI.CreateExample("A list that reads closed",
+            UILayout.Stack(8)
                 .SetWidth(UILayoutLength.Absolute(400))
                 .AddChild(new ExpanderComponent()
                     .SetExpanded(true)
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Star)
-                        .SetTitle("Release 2.4")
-                        .SetDescription("July 2026")
+                        .SetTitle("Release 483")
+                        .SetDescription("Panel · July 2026")
                         .SetBadgeText("Latest")
                         .SetBadgeStyle(UIBadgeType.Success)
                     )
                     .SetContent(new ParagraphComponent()
-                        .SetDescription("Per-component theme overrides, live template-variant switching, and a redesigned colour reference.")
+                        .SetDescription("Servers filter by region, invoices download as one PDF a month, and every server shows its plan beside its status.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
                 )
@@ -154,16 +161,14 @@ internal sealed class ExpanderExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetCollapsed()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.History)
-                        .SetTitle("Release 2.3")
-                        .SetDescription("June 2026")
+                        .SetTitle("Release 482")
+                        .SetDescription("Panel · June 2026")
                     )
                     .SetContent(new ParagraphComponent()
-                        .SetDescription("Grouped items, empty templates and the items filter/sort pipeline.")
+                        .SetDescription("Change requests, the plan comparison and Europe North in every list.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 }

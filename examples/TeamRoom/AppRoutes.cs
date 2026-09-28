@@ -15,6 +15,9 @@ public static class AppRoutes
     /// <summary>The query parameter that names the conversation a chat page shows — part of the route's identity.</summary>
     public const string ConversationParameter = "c";
 
+    /// <summary>The query parameter a search hit opens a conversation with: the message to show. Not part of the identity.</summary>
+    public const string MessageParameter = "m";
+
     public static string ChatFor(string conversationId)
         => $"{Chat}?{ConversationParameter}={System.Uri.EscapeDataString(conversationId)}";
 }

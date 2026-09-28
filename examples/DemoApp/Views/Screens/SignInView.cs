@@ -1,15 +1,5 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
@@ -49,8 +39,8 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
                         .BindValidation(nameof(SignInController.Notice))
                         .Required("A password is required.", UIValidationTrigger.Submit),
                     UIButtons.Toolbar(
-                        UIButtons.Ghost("Use admin", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(SignInController.UseAdmin)),
-                        UIButtons.Ghost("Use member", DemoIcons.Outline(DemoIcons.User)).OnClick(nameof(SignInController.UseMember))
+                        UIButtons.Ghost("Use Robin, an admin", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(SignInController.UseAdmin)),
+                        UIButtons.Ghost("Use Mika, a viewer", DemoIcons.Outline(DemoIcons.User)).OnClick(nameof(SignInController.UseViewer))
                     ),
                     UIButtons.Primary("Sign in")
                         .SetHorizontalAlignment(UIAlignment.Stretch)

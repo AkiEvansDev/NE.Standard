@@ -8,6 +8,9 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// </summary>
 public static class OrderedRange
 {
+    /// <summary>
+    /// Throws when the minimum exceeds the maximum, or the value falls outside them; an unset bound or value checks nothing.
+    /// </summary>
     public static void Validate<T>(T? min, T? max, T? value, string noun)
         where T : struct, IComparable<T>
     {

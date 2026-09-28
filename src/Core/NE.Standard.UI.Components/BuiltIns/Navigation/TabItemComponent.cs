@@ -52,7 +52,11 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// Gets or sets whether the tab is pinned: drawn with a pin, without its close control, and left where it is by a drag. Whether a
     /// close from elsewhere is refused is the controller's answer.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
+    /// <remarks>Two-way: the strip's tab menu pins and unpins, writing the new state back as a drag writes the order.</remarks>
+    [UIComponentProperty(
+        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
+        DefaultBindingMode = UIBindingMode.TwoWay,
+        DefaultValue = false)]
     public bool? Pinned { get; set; }
 
     /// <summary>

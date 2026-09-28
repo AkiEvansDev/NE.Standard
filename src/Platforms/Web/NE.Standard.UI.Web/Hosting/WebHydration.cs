@@ -14,7 +14,7 @@ namespace NE.Standard.UI.Web.Hosting;
 /// </summary>
 internal sealed class WebHydration
 {
-    private static readonly JsonSerializerOptions JsonOptions = CreateOptions();
+    private static readonly JsonSerializerOptions JsonOptions = WebWireJson.CreateOptions();
 
     public static WebHydration None { get; } = new(null, null);
 
@@ -85,14 +85,5 @@ internal sealed class WebHydration
             JsonSerializer.Serialize(new { pageId, view, changes }, JsonOptions),
             WebRenderValues.Create(changes)
         );
-    }
-
-    private static JsonSerializerOptions CreateOptions()
-    {
-        JsonSerializerOptions options = new();
-
-        WebWireJson.Apply(options);
-
-        return options;
     }
 }

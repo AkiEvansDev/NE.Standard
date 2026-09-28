@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -12,38 +14,69 @@ namespace NE.Standard.UI.Web.Hosting;
 /// </summary>
 /// <remarks>
 /// In memory, since a value lives only between staging and the fetch/update that names it — both of which reach the server that
-/// staged it, per SignalR's sticky sessions.
+/// staged it, per SignalR's sticky sessions. A client's value is kept as the JSON it arrived as and read when it is taken: the
+/// bytes are what the allowance counts, and the object graph they read into is several times larger.
 /// </remarks>
 internal sealed class WebValueStagingStore
 {
     private readonly ConcurrentDictionary<string, IncomingValue> _incoming = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OutgoingValue> _outgoing = new(StringComparer.Ordinal);
+    private readonly WebSessionAllowance _allowance = new();
     private readonly TimeProvider _time;
+    private readonly JsonSerializerOptions _json;
     private readonly TimeSpan _retention;
+    private readonly long _maxPerSession;
+    private readonly long _maxTotal;
 
-    public WebValueStagingStore(IOptions<WebValueOptions> options, TimeProvider time)
+    /// <summary>How many values are staged now, both ways, for the web meter.</summary>
+    public int Count => _incoming.Count + _outgoing.Count;
+
+    /// <summary>How many bytes the staged values hold now, both ways, for the web meter.</summary>
+    public long Size
     {
-        ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(time);
+        get
+        {
+            long size = 0;
 
-        _time = time;
-        _retention = options.Value.StagingRetention;
+            foreach (KeyValuePair<string, IncomingValue> entry in _incoming)
+                size += entry.Value.Bytes;
+
+            foreach (KeyValuePair<string, OutgoingValue> entry in _outgoing)
+                size += entry.Value.Json.Length;
+
+            return size;
+        }
     }
 
-    /// <summary>Stages a value a client uploaded and returns the token its hub update redeems.</summary>
-    public string Stage(string sessionId, object? value)
+    public WebValueStagingStore(IOptions<WebValueOptions> options, IOptions<JsonHubProtocolOptions> hubProtocol, TimeProvider time)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(hubProtocol);
+        ArgumentNullException.ThrowIfNull(time);
+
+        options.Value.Validate();
+
+        _time = time;
+        // The hub's own options, converters included, so the runtime cannot tell a staged value from one that came inline.
+        _json = hubProtocol.Value.PayloadSerializerOptions;
+        _retention = options.Value.StagingRetention;
+        _maxPerSession = options.Value.MaxStagedBytesPerSession;
+        _maxTotal = options.Value.MaxStagedBytesTotal ?? 0;
+    }
+
+    /// <summary>
+    /// Opens the claim a client's value is read under: its bytes count against the session's
+    /// <see cref="WebValueOptions.MaxStagedBytesPerSession"/> and <see cref="WebValueOptions.MaxStagedBytesTotal"/> as they
+    /// arrive, and stay counted while the value is staged.
+    /// </summary>
+    public WebSessionAllowance.Claim Open(string sessionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        DateTimeOffset now = _time.GetUtcNow();
+        // Swept first, so a session whose values expired is not held back by them.
+        RemoveExpired(_time.GetUtcNow());
 
-        RemoveExpired(now);
-
-        var token = Guid.NewGuid().ToString("N");
-
-        _incoming[token] = new IncomingValue(sessionId, value, now + _retention);
-
-        return token;
+        return _allowance.Open(sessionId, _maxPerSession, _maxTotal);
     }
 
     // Swept on the way in, not by a timer: the store only grows when something is staged.
@@ -51,8 +84,8 @@ internal sealed class WebValueStagingStore
     {
         foreach (KeyValuePair<string, IncomingValue> entry in _incoming)
         {
-            if (entry.Value.ExpiresAt <= now)
-                _ = _incoming.TryRemove(entry.Key, out _);
+            if (entry.Value.ExpiresAt <= now && _incoming.TryRemove(entry.Key, out IncomingValue removed))
+                _allowance.Release(removed.SessionId, removed.Bytes);
         }
 
         foreach (KeyValuePair<string, OutgoingValue> entry in _outgoing)
@@ -61,6 +94,28 @@ internal sealed class WebValueStagingStore
                 _ = _outgoing.TryRemove(entry.Key, out _);
         }
     }
+
+    /// <summary>
+    /// Stages the JSON of a value a client uploaded under <paramref name="claim"/>, and returns the token its hub update redeems.
+    /// </summary>
+    public string Stage(WebSessionAllowance.Claim claim, ReadOnlyMemory<byte> json)
+    {
+        ArgumentNullException.ThrowIfNull(claim);
+
+        DateTimeOffset now = _time.GetUtcNow();
+
+        RemoveExpired(now);
+
+        var token = Guid.NewGuid().ToString("N");
+
+        _incoming[token] = new IncomingValue(claim.SessionId, json, now + _retention, claim.Keep());
+
+        return token;
+    }
+
+    /// <summary>Whether this refusal on <see cref="WebValueOptions.MaxStagedBytesTotal"/> is the first of its burst, the one to report.</summary>
+    public bool ReportTotalReached()
+        => _allowance.ReportTotalReached();
 
     /// <summary>
     /// Whether a token can be taken by the session now: staged by it, not expired. A batch checks every token before taking any,
@@ -96,10 +151,12 @@ internal sealed class WebValueStagingStore
         if (!_incoming.TryRemove(token, out staged))
             return false;
 
+        _allowance.Release(staged.SessionId, staged.Bytes);
+
         if (staged.ExpiresAt <= _time.GetUtcNow())
             return false;
 
-        value = staged.Value;
+        value = JsonSerializer.Deserialize<object?>(staged.Json.Span, _json);
         return true;
     }
 
@@ -148,7 +205,7 @@ internal sealed class WebValueStagingStore
         return true;
     }
 
-    private readonly record struct IncomingValue(string SessionId, object? Value, DateTimeOffset ExpiresAt);
+    private readonly record struct IncomingValue(string SessionId, ReadOnlyMemory<byte> Json, DateTimeOffset ExpiresAt, long Bytes);
 
     private sealed class OutgoingValue(string sessionId, byte[] json, DateTimeOffset expiresAt, int readers)
     {

@@ -1,8 +1,13 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -45,7 +50,16 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (nested == true)
             _ = root.Class(NestedClassName);
 
+        _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
+
+        if (search == true)
+            _ = root.Attribute(WebAttributes.MenuSearch);
+
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, MenuComponent.SpacingProperty, "--ui-menu-spacing");
+
+        // A right-click menu's host already is the menu; a split button's list and a popup's submenu are one of their own.
+        if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))
+            _ = root.Attribute("role", "menu");
 
         CollapsibleChromeRenderer.RenderCollapsible(context, root);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
@@ -56,6 +70,48 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         RegisterItemsFilterSortMetadata(context);
 
         RenderItems(context, root);
+    }
+
+    /// <summary>
+    /// Whether the menu opens as a popup — a right-click menu (the render says so), a split button's list, or a submenu of one — rather
+    /// than standing on the page as a sidebar or a bar; only a popup's entries are menu items to a screen reader.
+    /// </summary>
+    internal static bool IsPopupMenu(WebRenderContext context, UIComponentNode menu)
+        => context.IsPopupMenu || IsSplitButtonList(context.ViewResolution.View, menu);
+
+    /// <summary>A split button's list, or a submenu of one: the slot says so, since a split button renders its list as a plain region.</summary>
+    private static bool IsSplitButtonList(CompiledView view, UIComponentNode menu)
+    {
+        if (OwnerSlot(view, menu) is not (UIComponentNode owner, UIComponentSlot slot))
+            return false;
+
+        return (slot.Kind == UIComponentSlotKind.Region && owner.TypeKey == SplitButtonComponent.ComponentTypeKey && slot.Key == RegionNames.Menu)
+            || (slot.Kind == UIComponentSlotKind.TemplateVariant && owner.TypeKey == MenuComponent.ComponentTypeKey && IsSplitButtonList(view, owner));
+    }
+
+    /// <summary>The menu a right-click menu's host holds directly, rather than an entry's submenu inside it.</summary>
+    private static bool IsContextMenuRoot(WebRenderContext context)
+    {
+        if (!context.IsPopupMenu)
+            return false;
+
+        return OwnerSlot(context.ViewResolution.View, context.Node) is not (UIComponentNode owner, UIComponentSlot slot)
+            || slot.Kind != UIComponentSlotKind.TemplateVariant
+            || owner.TypeKey != MenuComponent.ComponentTypeKey;
+    }
+
+    private static (UIComponentNode Owner, UIComponentSlot Slot)? OwnerSlot(CompiledView view, UIComponentNode node)
+    {
+        if (node.ParentId is not UIComponentId parentId || !view.Graph.TryGet(parentId, out UIComponentNode? owner))
+            return null;
+
+        foreach (UIComponentSlot slot in owner.Slots)
+        {
+            if (slot.RootComponentId == node.ComponentId)
+                return (owner, slot);
+        }
+
+        return null;
     }
 
     /// <summary>Renders the entries into an inner host element, which the client's descendant-only host lookup requires.</summary>

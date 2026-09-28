@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -15,16 +16,17 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Scheduled UI screen flush failed for '{InstanceId}'.")]
         public static partial void ScheduledFlushFailed(ILogger logger, Exception exception, string instanceId);
 
-        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Scheduled UI flush drained {RuntimeCount} runtime(s): {SentChangeSetCount} change set(s) queued, {FailedRuntimeCount} failed.")]
-        public static partial void ScheduledFlushCompleted(ILogger logger, int runtimeCount, int sentChangeSetCount, int failedRuntimeCount);
+        [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Scheduled UI flush drained {RuntimeCount} runtime(s) in {ElapsedMs:F1} ms: {SentChangeSetCount} change set(s) queued, {FailedRuntimeCount} failed.")]
+        public static partial void ScheduledFlushCompleted(ILogger logger, int runtimeCount, double elapsedMs, int sentChangeSetCount, int failedRuntimeCount);
     }
 
     private readonly UIRuntimeStore _runtimeStore;
     private readonly UIUpdateDispatcher _dispatcher;
     private readonly ILogger _logger;
+    private readonly UIMetrics? _metrics;
     private readonly int _maxParallelFlushes;
 
-    public UIFlushTask(UIRuntimeStore runtimeStore, UIUpdateDispatcher dispatcher, ILogger logger, TimeSpan interval, int maxParallelFlushes)
+    public UIFlushTask(UIRuntimeStore runtimeStore, UIUpdateDispatcher dispatcher, ILogger logger, TimeSpan interval, int maxParallelFlushes, UIMetrics? metrics = null)
         : base(new RuntimeScheduledTaskOptions { Interval = interval })
     {
         ArgumentNullException.ThrowIfNull(runtimeStore);
@@ -35,12 +37,19 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         _runtimeStore = runtimeStore;
         _dispatcher = dispatcher;
         _logger = logger;
+        _metrics = metrics;
         _maxParallelFlushes = maxParallelFlushes;
     }
 
     public override async ValueTask ExecuteAsync(DateTime utcNow, CancellationToken cancellationToken)
     {
         IUIRuntime[] runtimes = _runtimeStore.GetRuntimesReadyToFlush(utcNow);
+
+        // An interval with nothing to send is not a pass worth timing; the histogram would fill with zeros.
+        if (runtimes.Length == 0)
+            return;
+
+        var started = Stopwatch.GetTimestamp();
 
         var queuedChangeSetCount = 0;
         var failedRuntimeCount = 0;
@@ -95,9 +104,12 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
             // Logged rather than kept on the task since nothing holds the instance; logged only when the pass did something.
             var queued = Volatile.Read(ref queuedChangeSetCount);
             var failed = Volatile.Read(ref failedRuntimeCount);
+            TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
 
             if (queued > 0 || failed > 0)
-                Log.ScheduledFlushCompleted(_logger, runtimes.Length, queued, failed);
+                Log.ScheduledFlushCompleted(_logger, runtimes.Length, elapsed.TotalMilliseconds, queued, failed);
+
+            _metrics?.FlushCompleted(elapsed, failed);
         }
     }
 }

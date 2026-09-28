@@ -1,23 +1,16 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Screens;
 
 /// <summary>
 /// The account form's state and the one thing only the server can say about it: whether the address is already taken.
 /// </summary>
-/// <remarks>The switch, the reveal and every client rule cost no round trip; this is what is left.</remarks>
+/// <remarks>The switch, the reveal and every client rule cost no round trip; the server repeats the rules it relies on.</remarks>
 internal sealed partial class SignUpController : UIControllerBase
 {
-    private static readonly string[] TakenEmails = ["robin@example.com", "sam@example.com"];
+    private static readonly string[] TakenEmails = ["ops@bramble.example", "it@saltmarsh.example"];
 
     [RecursiveMember]
     public partial string? FullName { get; set; }
@@ -32,13 +25,13 @@ internal sealed partial class SignUpController : UIControllerBase
     public partial string? Password { get; set; }
 
     [RecursiveMember]
-    public partial bool? ForTeam { get; set; }
+    public partial bool? ForCompany { get; set; }
 
     [RecursiveMember]
-    public partial string? TeamName { get; set; }
+    public partial string? CompanyName { get; set; }
 
     [RecursiveMember]
-    public partial string? TeamSize { get; set; }
+    public partial string? Country { get; set; }
 
     [RecursiveMember]
     public partial bool? AcceptsTerms { get; set; }
@@ -56,6 +49,10 @@ internal sealed partial class SignUpController : UIControllerBase
     [UICommand]
     public async Task CreateAccountAsync(CancellationToken cancellationToken)
     {
+        // The field rules are the browser's feedback; the server keeps its own, since a submit can reach it without the form.
+        if (string.IsNullOrWhiteSpace(FullName) || string.IsNullOrWhiteSpace(Email) || (Password?.Length ?? 0) < 8 || AcceptsTerms != true)
+            return;
+
         await Task.Delay(700, cancellationToken).ConfigureAwait(false);
 
         var email = Email?.Trim() ?? string.Empty;
@@ -67,9 +64,9 @@ internal sealed partial class SignUpController : UIControllerBase
         }
 
         EmailNotice = null;
-        DoneLine = ForTeam == true && !string.IsNullOrWhiteSpace(TeamName)
-            ? $"We sent a link to {email}. Your team's room, {TeamName.Trim()}, is ready once you open it."
-            : $"We sent a link to {email}. Open it and you are in.";
+        DoneLine = ForCompany == true && !string.IsNullOrWhiteSpace(CompanyName)
+            ? $"We sent a link to {email}. Open it, and {CompanyName.Trim()}'s account is ready for its first server."
+            : $"We sent a link to {email}. Open it, and your account is ready for its first server.";
         FormVisibility = UIVisibility.Collapsed;
         DoneVisibility = UIVisibility.Visible;
     }
@@ -92,9 +89,9 @@ internal sealed partial class SignUpController : UIControllerBase
         Email = null;
         EmailNotice = null;
         Password = null;
-        ForTeam = false;
-        TeamName = null;
-        TeamSize = null;
+        ForCompany = false;
+        CompanyName = null;
+        Country = null;
         AcceptsTerms = false;
         DoneVisibility = UIVisibility.Collapsed;
         FormVisibility = UIVisibility.Visible;

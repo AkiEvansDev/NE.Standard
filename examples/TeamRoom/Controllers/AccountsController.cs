@@ -1,12 +1,6 @@
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -44,7 +38,7 @@ public sealed partial class AccountRow : RecursiveObservable, IBindableItem
 }
 
 /// <summary>
-/// The administrators' page: who is in, with which role, and the four things done to an account — a new one, a role, a block, a fresh password.
+/// The administrators' page: who is in, with which role, and the five things done to an account — a new one, a role, a block, a fresh password, a deletion.
 /// </summary>
 [UIAuthorize(AccountRoles.Admin)]
 public sealed partial class AccountsController : TeamRoomController
@@ -106,8 +100,32 @@ public sealed partial class AccountsController : TeamRoomController
 
     protected override void OnAppEvent(AppEvent appEvent)
     {
-        if (appEvent is AccountChanged)
-            Push(LoadRows);
+        if (appEvent is not AccountChanged changed)
+            return;
+
+        // Queued behind the base's own re-read of the account, so a demotion of this administrator is already applied here: its
+        // commands on this page are refused from now on, and the page does not stay to say so.
+        Push(() =>
+        {
+            if (changed.AccountId == AccountId && !IsAdmin)
+            {
+                ClearAdministration();
+                Go(AppRoutes.Files);
+            }
+            else
+            {
+                LoadRows();
+            }
+        });
+    }
+
+    /// <summary>What only an administrator may see goes with the role.</summary>
+    private void ClearAdministration()
+    {
+        Rows.Clear();
+        PasswordNotice = string.Empty;
+        DeleteQuestion = string.Empty;
+        _pendingDeleteId = null;
     }
 
     [UICommand]
@@ -134,8 +152,9 @@ public sealed partial class AccountsController : TeamRoomController
         return UICommandResult.Ok([new CloseDialogEffect(NewDialogKey), new ShowNotificationEffect($"'{NewLogin.Trim()}' can sign in now.", UIColorStyle.Success)]);
     }
 
+    /// <summary>The account's sessions take the new role at once: its open pages are checked against it from their next command.</summary>
     [UICommand]
-    public UICommandResult ToggleRole(string id)
+    public async Task<UICommandResult> ToggleRoleAsync(string id, CancellationToken cancellationToken)
     {
         AccountRecord? account = AccountStore.Find(id);
 
@@ -145,7 +164,7 @@ public sealed partial class AccountsController : TeamRoomController
         if (account.Id == AccountId)
             return Refuse("Your own role is another administrator's to change.");
 
-        var error = AccountStore.SetRole(id, account.IsAdmin ? AccountRoles.User : AccountRoles.Admin);
+        var error = await AccountStore.SetRoleAsync(id, account.IsAdmin ? AccountRoles.User : AccountRoles.Admin, cancellationToken).ConfigureAwait(false);
 
         if (error is not null)
             return Refuse(error);
@@ -156,7 +175,7 @@ public sealed partial class AccountsController : TeamRoomController
     }
 
     [UICommand]
-    public UICommandResult ToggleBlocked(string id)
+    public async Task<UICommandResult> ToggleBlockedAsync(string id, CancellationToken cancellationToken)
     {
         AccountRecord? account = AccountStore.Find(id);
 
@@ -166,26 +185,30 @@ public sealed partial class AccountsController : TeamRoomController
         if (account.Id == AccountId)
             return Refuse("You cannot block yourself.");
 
-        var error = AccountStore.SetBlocked(id, !account.IsBlocked);
+        var error = await AccountStore.SetBlockedAsync(id, !account.IsBlocked, cancellationToken).ConfigureAwait(false);
 
         if (error is not null)
             return Refuse(error);
 
         LoadRows();
 
-        return account.IsBlocked ? Notify($"{account.Nickname} can sign in again.", UIColorStyle.Success) : Notify($"{account.Nickname} is blocked; open pages close on their next move.", UIColorStyle.Warning);
+        return account.IsBlocked ? Notify($"{account.Nickname} can sign in again.", UIColorStyle.Success) : Notify($"{account.Nickname} is blocked and signed out everywhere.", UIColorStyle.Warning);
     }
 
     /// <summary>A fresh password, shown once in a dialog: the administrator passes it on, the application never shows it again.</summary>
     [UICommand]
-    public UICommandResult ResetPassword(string id)
+    public async Task<UICommandResult> ResetPasswordAsync(string id, CancellationToken cancellationToken)
     {
         AccountRecord? account = AccountStore.Find(id);
 
         if (account is null)
             return UICommandResult.Ok();
 
-        var password = AccountStore.ResetPassword(id);
+        // A reset ends every session of the account, the asking page's among them, and the new password would never be seen.
+        if (account.Id == AccountId)
+            return Refuse("Change your own password in Settings.");
+
+        var password = await AccountStore.ResetPasswordAsync(id, cancellationToken).ConfigureAwait(false);
 
         PasswordNotice = $"{account.Nickname} ({account.Login}) signs in with: {password}";
 
@@ -210,13 +233,15 @@ public sealed partial class AccountsController : TeamRoomController
     }
 
     [UICommand]
-    public UICommandResult Delete()
+    public async Task<UICommandResult> DeleteAsync(CancellationToken cancellationToken)
     {
         if (_pendingDeleteId is null)
             return UICommandResult.Ok([new CloseDialogEffect(DeleteDialogKey)]);
 
-        var error = AccountStore.Delete(_pendingDeleteId);
+        var pendingDeleteId = _pendingDeleteId;
         _pendingDeleteId = null;
+
+        var error = await AccountStore.DeleteAsync(pendingDeleteId, cancellationToken).ConfigureAwait(false);
 
         if (error is not null)
             return UICommandResult.Ok([new CloseDialogEffect(DeleteDialogKey), new ShowNotificationEffect(error, UIColorStyle.Danger)]);
@@ -226,7 +251,13 @@ public sealed partial class AccountsController : TeamRoomController
         return UICommandResult.Ok([new CloseDialogEffect(DeleteDialogKey)]);
     }
 
+    /// <summary>Closes whichever dialog is up; a password that was shown once is not kept to be shown again on the next load.</summary>
     [UICommand]
-    public static UICommandResult CloseDialogs()
-        => UICommandResult.Ok([new CloseDialogEffect(NewDialogKey), new CloseDialogEffect(PasswordDialogKey), new CloseDialogEffect(DeleteDialogKey)]);
+    public UICommandResult CloseDialogs()
+    {
+        PasswordNotice = string.Empty;
+        NewPassword = string.Empty;
+
+        return UICommandResult.Ok([new CloseDialogEffect(NewDialogKey), new CloseDialogEffect(PasswordDialogKey), new CloseDialogEffect(DeleteDialogKey)]);
+    }
 }

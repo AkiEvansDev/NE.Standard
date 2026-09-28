@@ -1,5 +1,7 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -18,6 +20,8 @@ public static class CollapsibleChromeRenderer
     public const string ContentClassName = "ui-collapsible__content";
 
     private const string ToggleClassName = "ui-collapsible__toggle";
+    private const string BarClassName = "ui-collapsible__bar";
+    private const string BarContentClassName = "ui-collapsible__bar-content";
     private const string CollapsedAttribute = WebAttributes.Collapsed;
     private const string ToggleAttribute = WebAttributes.CollapseToggle;
 
@@ -39,20 +43,37 @@ public static class CollapsibleChromeRenderer
                 _ = target.Attribute(CollapsedAttribute);
         }, [WebDomOperation.ToggleAttribute(CollapsedAttribute, condition: WebValueCondition.IsFalse)]);
 
-        RenderToggle(context, root);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? show, out _);
+
+        // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child, as ever.
+        if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent))
+        {
+            if (show == true)
+                RenderToggle(context, root);
+
+            return;
+        }
+
+        _ = root.Element("div", bar =>
+        {
+            _ = bar.Class(BarClassName);
+            _ = bar.Element("div", content =>
+            {
+                _ = content.Class(BarContentClassName);
+                WebComponentRendererBase.RenderRegion(context, content, RegionNames.ToggleContent);
+            });
+
+            if (show == true)
+                RenderToggle(context, bar);
+        });
     }
 
     /// <summary>Renders the collapse toggle; its burger is drawn in CSS, as a host need install no icon pack.</summary>
-    private static void RenderToggle(WebRenderContext context, IHtmlElementBuilder root)
+    private static void RenderToggle(WebRenderContext context, IHtmlElementBuilder parent)
     {
-        _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? show, out _);
-
-        if (show != true)
-            return;
-
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ExpandedProperty, out bool? expanded, out _);
 
-        _ = root.Element("button", toggle =>
+        _ = parent.Element("button", toggle =>
         {
             _ = toggle.Class(ToggleClassName);
             _ = toggle.Attribute("type", "button");

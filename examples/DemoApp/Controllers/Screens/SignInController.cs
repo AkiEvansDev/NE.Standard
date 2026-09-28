@@ -1,12 +1,7 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Security;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Screens;
 
@@ -18,7 +13,10 @@ namespace DemoApp.Controllers.Screens;
 [UIAllowAnonymous]
 internal sealed partial class SignInController : UIControllerBase
 {
-    private string _returnUrl = "/screens/account";
+    private const string DefaultReturnUrl = "/screens/account";
+    private const string DefaultReasonLine = "Two staff accounts exist: robin, an admin, and mika, a viewer, each with its own password. Pick one below or type it.";
+
+    private string _returnUrl = DefaultReturnUrl;
 
     [RecursiveMember]
     public partial string? UserName { get; set; }
@@ -32,14 +30,22 @@ internal sealed partial class SignInController : UIControllerBase
 
     /// <summary>What brought the visitor here, when a page did.</summary>
     [RecursiveMember]
-    public partial string ReasonLine { get; set; } = "Two accounts exist: admin and member, each with its own password. Pick one below or type it.";
+    public partial string ReasonLine { get; set; } = DefaultReasonLine;
 
-    protected override Task OnInitializeAsync(CancellationToken cancellationToken)
+    /// <summary>Read on every attach, not once: a kept runtime is found again by a refusal that names another way back.</summary>
+    protected override Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
     {
-        if (Context.Handle.Instance.Navigation.TryGetParameter("returnUrl", out var route) && route.StartsWith('/'))
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        if (navigation.TryGetParameter("returnUrl", out var route) && UIRoutePath.IsLocal(route))
         {
             _returnUrl = route;
             ReasonLine = $"{route} needs a signed-in session. Sign in and you go back there.";
+        }
+        else
+        {
+            _returnUrl = DefaultReturnUrl;
+            ReasonLine = DefaultReasonLine;
         }
 
         return Task.CompletedTask;
@@ -66,11 +72,11 @@ internal sealed partial class SignInController : UIControllerBase
 
     [UICommand]
     public void UseAdmin()
-        => Fill("admin");
+        => Fill("robin");
 
     [UICommand]
-    public void UseMember()
-        => Fill("member");
+    public void UseViewer()
+        => Fill("mika");
 
     private void Fill(string userName)
     {

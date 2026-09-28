@@ -35,3 +35,19 @@ for (const testCase of corpus.cases) {
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");
 });
+
+test("inline markup: marks left open cost a single pass", () => {
+    const started = performance.now();
+
+    for (const input of ["[".repeat(200_000), "[a](".repeat(50_000), "**a ".repeat(50_000), "[a]{".repeat(50_000)])
+        parseInlineMarkup(input);
+
+    // Linear: a few milliseconds each. The quadratic scan this guards against took minutes on the same inputs.
+    assert.ok(performance.now() - started < 5_000);
+});
+
+test("inline markup: folds nested past the cap read as text instead of recursing", () => {
+    const depth = 20_000;
+
+    assert.ok(inlineMarkupToPlainText(`${"[a]{".repeat(depth)}x${"}".repeat(depth)}`).endsWith("x" + "}".repeat(depth - 8)));
+});

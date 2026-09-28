@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Contents.Badge;
 
@@ -23,20 +16,15 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
     protected override string HeaderDescription => "demo.contents.badge.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateCarriedGroup(), CreateCountGroup()],
-            [CreateStatusGroup(), CreateCategoryGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateCarriedGroup(), CreateCountGroup()], [CreateStatusGroup(), CreateCategoryGroup()]));
 
     /// <summary>
     /// The badge as a property of something else: a <c>BadgeText</c> laid out with the words it qualifies.
     /// </summary>
     private static ContainerComponent CreateCarriedGroup()
     {
-        return DemoUI.CreateGroup(null, "Carried by something else",
-            content => content.AddChild(UILayout.Stack(12)
+        return DemoUI.CreateExample("Carried by something else",
+            UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(400))
                 .AddChild(new CardComponent()
                     .ConfigureDefaultHeader(header => header
@@ -61,12 +49,13 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                 .AddChild(new ActionComponent()
                     .SetIcon(DemoIcons.Bell)
                     .SetTitle("Notifications")
-                    .SetDescription("Sent to #releases")
+                    .SetDescription("Mailed to on-call")
                     .SetBadgeText("3 new")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
+                    .SetWrap(true)
                     .SetSpacing(8)
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Outline)
@@ -82,8 +71,6 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -92,117 +79,209 @@ internal sealed class BadgeExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStatusGroup()
     {
-        return DemoUI.CreateGroup(null, "A value, and what it means",
+        return DemoUI.CreateExample("A value, and what it means",
             // On a panel: the pills only read as one column of verdicts sharing a right edge and a ground.
-            content => content.AddChild(new SurfaceComponent()
+            new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(UILayout.Stack(4)
                     .SetWidth(UILayoutLength.Absolute(360))
-                    .AddChild(CreateReading("Error rate", "0.4%", "Normal", UIBadgeType.Success))
-                    .AddChild(CreateReading("p95 latency", "412 ms", "Watch", UIBadgeType.Warning))
-                    .AddChild(CreateReading("Queue depth", "18 400", "Over", UIBadgeType.Danger))
-                    .AddChild(CreateReading("Certificate", "expires in 3 days", "Renew", UIBadgeType.Warning))
-                    .AddChild(CreateReading("Last deploy", "4 minutes ago", "Healthy", UIBadgeType.Success))
+                    .AddChild(new ContainerComponent()
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetTitle("Error rate")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetDescription("0.4%")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Success)
+                            .SetText("Normal")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    .AddChild(new ContainerComponent()
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetTitle("p95 latency")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetDescription("412 ms")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Warning)
+                            .SetText("Watch")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    .AddChild(new ContainerComponent()
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetTitle("Queue depth")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetDescription("18 400")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Danger)
+                            .SetText("Over")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    .AddChild(new ContainerComponent()
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetTitle("Certificate")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetDescription("expires in 3 days")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Warning)
+                            .SetText("Renew")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    .AddChild(new ContainerComponent()
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetTitle("Last deploy")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetDescription("4 minutes ago")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Success)
+                            .SetText("Healthy")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    private static ContainerComponent CreateReading(string name, string value, string state, UIBadgeType type)
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(0, 6, 0, 6))
-            .SetColumn(24, UIGridUnit.Auto())
-            .AddChild(new TextComponent()
-                .SetTitle(name)
-                .SetTitleType(UITextAppearance.Caption)
-                .SetDescription(value)
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetPlacement(1, 1, 23, 1)
-            )
-            .AddChild(new BadgeComponent()
-                .SetType(type)
-                .SetText(state)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetHorizontalAlignment(UIAlignment.End)
-                .SetPlacement(24, 1, 1, 1)
-            );
 
     /// <summary>
     /// A count with nothing to be a property of; with no text the pill is drawn as a circle.
     /// </summary>
     private static ContainerComponent CreateCountGroup()
     {
-        return DemoUI.CreateGroup(null, "A count on its own",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A count on its own",
+            new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(8))
                 .SetContent(UILayout.Stack(4)
-                    .AddChild(CreateRail(DemoIcons.Mail, "Inbox", "12", UIBadgeType.Danger))
-                    .AddChild(CreateRail(DemoIcons.Bell, "Alerts", "3", UIBadgeType.Warning))
-                    .AddChild(CreateRail(DemoIcons.Check, "Done", null, UIBadgeType.Success))
+                    .AddChild(new ContainerComponent()
+                        .SetWidth(UILayoutLength.Absolute(200))
+                        .SetPadding(UIThickness.All(4, 4, 4, 4))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetIcon(DemoIcons.Mail)
+                            .SetTitle("Inbox")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Danger)
+                            .SetText("12")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    .AddChild(new ContainerComponent()
+                        .SetWidth(UILayoutLength.Absolute(200))
+                        .SetPadding(UIThickness.All(4, 4, 4, 4))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetIcon(DemoIcons.Bell)
+                            .SetTitle("Alerts")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Warning)
+                            .SetText("3")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                    // No text on the last one: the pill is a dot, for when the number does not matter.
+                    .AddChild(new ContainerComponent()
+                        .SetWidth(UILayoutLength.Absolute(200))
+                        .SetPadding(UIThickness.All(4, 4, 4, 4))
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
+                            .SetIcon(DemoIcons.Check)
+                            .SetTitle("Done")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new BadgeComponent()
+                            .SetType(UIBadgeType.Success)
+                            .SetTooltip("Nothing waiting")
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    // No text on the last one: the pill is a dot, for when the number does not matter.
-    private static ContainerComponent CreateRail(string icon, string title, string? count, UIBadgeType type)
-        => new ContainerComponent()
-            .SetWidth(UILayoutLength.Absolute(200))
-            .SetPadding(UIThickness.All(4, 4, 4, 4))
-            .SetColumn(24, UIGridUnit.Auto())
-            .AddChild(new TextComponent()
-                .SetIcon(icon)
-                .SetTitle(title)
-                .SetTitleType(UITextAppearance.Body)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetPlacement(1, 1, 23, 1)
-            )
-            .AddChild(new BadgeComponent()
-                .SetType(type)
-                .SetText(count)
-                .SetTooltip(count is null ? "Nothing waiting" : null)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetHorizontalAlignment(UIAlignment.End)
-                .SetPlacement(24, 1, 1, 1)
-            );
 
     /// <summary>
     /// A row of pills, each one a thing rather than a state; this is where <c>Color</c> earns its place over <c>Type</c>.
     /// </summary>
     private static ContainerComponent CreateCategoryGroup()
     {
-        return DemoUI.CreateGroup(null, "A row of them, one thing each",
-            // The head of an issue, which is where a row of tags actually lives.
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("A row of them, one thing each",
+            // The head of a server's page, which is where a row of tags actually lives.
+            new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(420))
                 .ConfigureDefaultHeader(header => header
-                    .SetTitle("Web Portal · #482")
-                    .SetDescription("Fix circular progress anti-aliasing")
+                    .SetTitle("db-us-east-2")
+                    .SetDescription("Pinecrest Clinic's primary database")
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
                 .SetContent(UILayout.Row(6)
-                    .AddChild(CreateTag("client", UIColorStyle.Info))
-                    .AddChild(CreateTag("rendering", UIColorStyle.Accent))
-                    .AddChild(CreateTag("good first issue", UIColorStyle.Success))
-                    .AddChild(CreateTag("needs design", UIColorStyle.Warning))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Info)).SetText("Pro"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Accent)).SetText("us-east"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)).SetText("backups on"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetText("Degraded"))
                     .AddChild(new BadgeComponent()
                         .SetType(UIBadgeType.Surface)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
-                        .SetText("opened 6 days ago")
+                        .SetText("maintenance tonight")
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    private static BadgeComponent CreateTag(string name, UIColorStyle color)
-        => new BadgeComponent()
-            .SetColor(UIThemeColor.FromStyle(color))
-            .SetText(name);
 }

@@ -1,7 +1,7 @@
 // The one way a file leaves the browser: a multipart POST beside the hub, answering with the selection id the controller reads.
 
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes";
-import { logWarn } from "../runtime/logger";
+import { logElapsed, logWarn } from "../runtime/logger";
 
 const UploadPath = "/_ne/files/upload";
 
@@ -32,9 +32,15 @@ export type UploadedSelection = {
 export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: number) => void): Promise<UploadedSelection> {
     return new Promise<UploadedSelection>((resolve, reject) => {
         const body = new FormData();
+        const started = performance.now();
+        let bytes = 0;
+        let count = 0;
 
-        for (const file of files)
+        for (const file of files) {
             body.append("files", file, file.name);
+            bytes += file.size;
+            count++;
+        }
 
         const request = new XMLHttpRequest();
 
@@ -60,6 +66,7 @@ export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: nu
                 return;
             }
 
+            logElapsed(`uploaded ${count} file(s), ${bytes} bytes,`, started);
             resolve({ selectionId });
         });
 

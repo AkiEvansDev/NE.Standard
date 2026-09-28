@@ -82,8 +82,19 @@ export function applyIconValue(element: Element, value: unknown): void {
 
     element.classList.add(iconClassName);
 
-    if (icon.length === 0)
+    // The previous value goes first: an element redrawn with a new icon would otherwise wear both glyphs, or a picture and a glyph.
+    for (const className of Array.from(element.classList)) {
+        if (isIconClassName(className))
+            element.classList.remove(className);
+    }
+
+    if (element instanceof HTMLElement || element instanceof SVGElement)
+        element.style.removeProperty("--ui-icon-url");
+
+    if (icon.length === 0) {
+        element.removeAttribute(iconAttribute);
         return;
+    }
 
     element.setAttribute(iconAttribute, "");
 
@@ -103,6 +114,11 @@ export function applyIconValue(element: Element, value: unknown): void {
 
 /** The prefix a pack's per-glyph rule is written under. */
 const glyphClassPrefix = "ui-icon-glyph--";
+
+/** Whether a class is one an icon value writes — a glyph's, or the untinted picture's — so a new value can clear the old. */
+export function isIconClassName(className: string): boolean {
+    return className === iconImageClassName || className.startsWith(glyphClassPrefix);
+}
 
 /** The class a glyph name wears; must stay in step with `WebIconClassName.FromIconName`. */
 export function toIconGlyphClassName(value: unknown): string {

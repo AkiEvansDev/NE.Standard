@@ -44,7 +44,9 @@ internal sealed partial class UIViewCompilationContext
                     ? BuildItemsBindingPath(component, sourceBinding.Value, componentContexts, rootPath)
                     : BuildBindingPath(component, sourceBinding.Value, componentContexts, rootPath);
 
-                WarnOnUnresolvableControllerPath(component, definition.Property.Name, sourceBinding.Value.Scope, fullPath);
+                // An optional binding expects items without the path: a default template binds a whole model contract.
+                if (!sourceBinding.Value.Optional)
+                    WarnOnUnresolvableControllerPath(component, definition.Property.Name, fullPath);
 
                 // An items collection is one binding, not two — compiling it again as a scalar property would
                 // send a value the client has no binding metadata for.
@@ -78,16 +80,7 @@ internal sealed partial class UIViewCompilationContext
 
             if (TryBuildWindowGeometryPath(component, definition.Property, componentContexts, rootPath, out CompiledPath geometryPath))
             {
-                CompiledUIBinding geometryBinding = AddBinding(
-                    bindings,
-                    templatesByKey,
-                    CompiledUIBindingKind.ComponentProperty,
-                    component.Id,
-                    definition.Property,
-                    UIBindingMode.OneWay,
-                    geometryPath,
-                    definition.ValueType
-                );
+                CompiledUIBinding geometryBinding = AddBinding(bindings, templatesByKey, CompiledUIBindingKind.ComponentProperty, component.Id, definition.Property, UIBindingMode.OneWay, geometryPath, definition.ValueType);
 
                 values.Add(new CompiledUIPropertyValue
                 {
@@ -164,6 +157,7 @@ internal sealed partial class UIViewCompilationContext
 
     private IVisualComponent? TryGetEnclosingContextComponent(IVisualComponent? target, Dictionary<string, ResolvedComponentContext> componentContexts)
     {
+        // Not one visual hop: a plain child inherits its parent's context, so one step would land back on the level Relative already uses.
         while (target is not null && !DefinesOwnContext(target, componentContexts))
             target = TryGetParentComponent(target);
 

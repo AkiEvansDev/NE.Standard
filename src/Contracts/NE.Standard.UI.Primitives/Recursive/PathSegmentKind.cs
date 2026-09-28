@@ -16,7 +16,7 @@ public enum PathSegmentKind
     Index = 1,
 
     /// <summary>
-    /// The segment addresses a dictionary element by key.
+    /// The segment addresses a keyed collection item by its <c>IBindableItem.Id</c>.
     /// </summary>
     Key = 2,
 }

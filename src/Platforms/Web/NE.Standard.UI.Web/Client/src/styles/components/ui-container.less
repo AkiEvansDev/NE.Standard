@@ -64,6 +64,18 @@
     .ui-responsive-grid-line-base(grid-row, --ui-placement, row, row-span, 1);
 }
 
+// A width the author wrote for a wide page — a card of 460 pixels, a panel of 380 — is capped at the room its parent lays it out
+// in, rather than pushing past its edge and being cut off there, on a phone above all. Only where a child is laid out in the
+// flow: a popup is placed against an anchor and keeps its own width. A MaxWidth of the author's own still rules, and what a
+// scroll container holds keeps its size: it is there to be scrolled.
+:is(@{ui-placement-hosts}, .ui-stack-panel, .ui-wrap-panel, [data-ui-region]) > [data-ui-id] {
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+}
+
+    .ui-scroll:is(.ui-scroll-x--auto, .ui-scroll-x--always) > [data-ui-id] {
+        .ui-responsive-property(max-width, --ui-max-width, none);
+    }
+
 @media (min-width: @ui-breakpoint-sm) {
     :is(@{ui-placement-hosts}) > [data-ui-id] {
         .ui-responsive-grid-line-sm(grid-column, --ui-placement, column, column-span, 24);

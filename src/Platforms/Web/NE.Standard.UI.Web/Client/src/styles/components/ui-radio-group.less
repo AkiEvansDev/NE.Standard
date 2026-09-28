@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/focus.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
@@ -46,6 +47,11 @@
     border-radius: 999px;
 }
 
+// The input is hidden, so the ring it would wear goes on the dot it stands for.
+.ui-radio-group__input:focus-visible ~ .ui-radio-group__dot {
+    .ui-focus-ring();
+}
+
 .ui-radio-group__input:checked ~ .ui-radio-group__dot {
     border-color: var(--ui-color-primary);
 }
@@ -88,4 +94,3 @@
         width: 0.625rem;
         height: 0.625rem;
     }
-

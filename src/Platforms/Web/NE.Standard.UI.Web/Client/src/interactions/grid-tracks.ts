@@ -54,7 +54,7 @@ export function parseGridTracks(template: string): GridTrack[] | null {
 }
 
 function parseGridTrack(token: string): GridTrack | null {
-    if (token === "auto")
+    if (token === "auto" || token === "max-content")
         return { kind: "auto", value: 0 };
 
     const fit = /^fit-content\(\s*([\d.]+)px\s*\)$/.exec(token);
@@ -117,11 +117,12 @@ function splitTopLevel(template: string): string[] {
 }
 
 /** The template a track list writes back: what the renderer would have written for the same tracks. */
-export function formatGridTracks(tracks: readonly GridTrack[]): string {
-    return tracks.map(formatGridTrack).join(" ");
+/** `content` is how a bare content track is written: `max-content` where the container may grow past its box to hold it. */
+export function formatGridTracks(tracks: readonly GridTrack[], content: "auto" | "max-content" = "auto"): string {
+    return tracks.map(track => formatGridTrack(track, content)).join(" ");
 }
 
-function formatGridTrack(track: GridTrack): string {
+function formatGridTrack(track: GridTrack, content: "auto" | "max-content"): string {
     switch (track.kind) {
         case "px":
             return `${formatNumber(track.value)}px`;
@@ -131,7 +132,7 @@ function formatGridTrack(track: GridTrack): string {
             if (track.min !== undefined)
                 return `minmax(${formatNumber(track.min)}px, auto)`;
 
-            return track.max === undefined ? "auto" : `fit-content(${formatNumber(track.max)}px)`;
+            return track.max === undefined ? content : `fit-content(${formatNumber(track.max)}px)`;
     }
 }
 

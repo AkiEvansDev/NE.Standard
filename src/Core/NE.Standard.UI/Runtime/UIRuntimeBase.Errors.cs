@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
 using NE.Standard.UI.Shell.Runtime;
@@ -43,8 +44,21 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception handlerException)
         {
-            TryLogRuntimeResolutionFailure("exception handler", operation, handlerException);
+            TryLogExceptionHandlerFailure(operation, handlerException);
             return RuntimeExceptionResult.CommandResult(DefaultRuntimeErrorCommand);
+        }
+    }
+
+    private void TryLogExceptionHandlerFailure(string operation, Exception exception)
+    {
+        try
+        {
+            if (Controller is IUIContextController contextController)
+                Log.ExceptionHandlerFailed(contextController.Context.Logger, exception, operation);
+        }
+        catch
+        {
+            // A logger that throws must not turn a failure already recovered from into a new one.
         }
     }
 }

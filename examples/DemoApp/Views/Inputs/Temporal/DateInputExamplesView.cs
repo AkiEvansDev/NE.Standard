@@ -1,9 +1,5 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
 
@@ -24,20 +20,15 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.inputs.date-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateBoundsGroup()],
-            [CreateFormatGroup(), CreateCalendarGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup()], [CreateFormatGroup(), CreateCalendarGroup()]));
 
     /// <summary>
     /// A period is one field with two ends, chosen on one calendar, rather than two fields kept in step by hand.
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateGroup(null, "Where it is used",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Where it is used",
+            UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Reporting period")
                     .SetIcon(DemoIcons.History)
@@ -54,12 +45,11 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetBadgeStyle(UIBadgeType.Warning)
                 )
                 .AddChild(new DateInputComponent()
-                    .SetTitle("Artefacts are kept until")
+                    .SetTitle("Snapshots are kept until")
                     .SetIcon(DemoIcons.History)
                     .SetValue(QuarterEnd)
                     .SetMin(Release)
                 )
-            )
         );
     }
 
@@ -68,8 +58,8 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateGroup(null, "How it is written down",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("How it is written down",
+            UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Unset — the culture's short date")
                     .SetValue(Release)
@@ -84,7 +74,6 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDisplayFormat("dd MMM yyyy")
                     .SetValue(Release)
                 )
-            )
         );
     }
 
@@ -93,8 +82,8 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "Bounds",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Bounds",
+            UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Inside one quarter")
                     .SetValue(Release)
@@ -110,7 +99,6 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Release)
                     .SetMax(Release)
                 )
-            )
         );
     }
 
@@ -119,8 +107,8 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateCalendarGroup()
     {
-        return DemoUI.CreateGroup(null, "The calendar it opens",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("The calendar it opens",
+            UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Weeks starting Monday")
                     .SetFirstDayOfWeek(UIDayOfWeek.Monday)
@@ -135,8 +123,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetTitle("Arrow keys move a week at a time")
                     .SetStepDays(7)
                     .SetValue(Release)
-                )
-            ),
+                ),
             note: "The picker opens aligned to **the toggle button** rather than to the left edge of the field: one anchor cannot both clear the row vertically *and* line up with a button centred inside it."
         );
     }

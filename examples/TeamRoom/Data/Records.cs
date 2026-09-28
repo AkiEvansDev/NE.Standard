@@ -30,7 +30,7 @@ public static class ConversationKinds
 }
 
 /// <summary>A conversation as one account sees it: its own name for it, and how much of it that account has not read.</summary>
-public sealed record ConversationRecord(string Id, string Kind, string Title, IReadOnlyList<string> MemberIds, long LastReadMessageId, int Unread);
+public sealed record ConversationRecord(string Id, string Kind, string Title, long LastReadMessageId, int Unread);
 
 public sealed record MessageRecord(long Id, string ConversationId, string AuthorId, string Text, DateTime SentUtc, DateTime? EditedUtc, IReadOnlyList<AttachmentRecord> Attachments);
 
@@ -46,4 +46,5 @@ public static class MediaPurposes
     public const string Attachment = "attachment";
 }
 
-public sealed record MediaRecord(string Id, string OwnerId, string Purpose, string ContentType, long Size, byte[] Bytes, string? FileName);
+/// <summary>A kept item without its bytes, which are read through the row's id as a stream.</summary>
+public sealed record MediaRecord(string Id, long RowId, string OwnerId, string Purpose, string ContentType, long Size, string? FileName);

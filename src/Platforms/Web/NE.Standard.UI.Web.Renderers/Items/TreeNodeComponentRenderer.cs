@@ -16,6 +16,10 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
     private const string ToggleClassName = "ui-tree-node__toggle";
     private const string TextClassName = "ui-tree-node__text";
 
+    private static readonly WebDomOperation[] ParentIdOperations = [WebDomOperation.Attribute(WebAttributes.TreeParent)];
+    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TreeTitle)];
+    private static readonly WebDomOperation[] DropTargetOperations = [WebDomOperation.Attribute(WebAttributes.TreeDropTarget, target: "." + TextClassName)];
+
     public override string ComponentTypeKey => TreeNodeComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-tree-node";
@@ -31,7 +35,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute(WebAttributes.TreeParent, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TreeParent)]);
+        }, ParentIdOperations);
 
         RenderFlagAttribute(context, root, TreeNodeComponent.HasChildrenProperty, WebAttributes.TreeChildren);
         RenderFlagAttribute(context, root, TreeNodeComponent.ExpandedProperty, WebAttributes.TreeExpanded);
@@ -42,7 +46,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.TreeTitle, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TreeTitle)]);
+        }, RenamedTitleOperations);
 
         _ = root.Element("button", toggle =>
         {
@@ -65,7 +69,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
             {
                 if (!string.IsNullOrEmpty(value))
                     _ = target.Attribute(WebAttributes.TreeDropTarget, value);
-            }, [WebDomOperation.Attribute(WebAttributes.TreeDropTarget, target: "." + TextClassName)]);
+            }, DropTargetOperations);
 
             RenderTextBody(context, root, text, new WebTextBodyOptions
             {

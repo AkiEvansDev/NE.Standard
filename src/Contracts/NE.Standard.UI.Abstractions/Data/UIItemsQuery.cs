@@ -103,5 +103,7 @@ public sealed class UIItemsQuery
     /// <summary>
     /// Gets whether the query asks for nothing in particular.
     /// </summary>
+    /// <remarks>Computed, so it stays off the wire.</remarks>
+    [JsonIgnore]
     public bool IsEmpty => Filters.Length == 0 && Sorts.Length == 0;
 }

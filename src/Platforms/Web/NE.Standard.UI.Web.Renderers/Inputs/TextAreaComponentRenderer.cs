@@ -74,11 +74,15 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             NativeInputRendererBase.RenderFormId(context, textarea);
             NativeInputRendererBase.RenderFieldName(context, textarea);
             NativeInputRendererBase.RenderIsReadOnly(context, textarea);
+            RenderFieldLabel(context, textarea);
 
             _ = RenderProperty<string?>(context, textarea, IInputComponent.ValueProperty, static (target, value) =>
             {
-                if (!string.IsNullOrEmpty(value))
-                    _ = target.Text(value);
+                if (string.IsNullOrEmpty(value))
+                    return;
+
+                // The parser drops one line break right after <textarea>: a value that starts with one keeps it only if a second precedes it.
+                _ = target.Text(value[0] is '\n' or '\r' ? "\n" + value : value);
             }, [WebDomOperation.Property("value")]);
         });
     }

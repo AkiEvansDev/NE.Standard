@@ -15,8 +15,16 @@ export const NoRowOpenAttribute = "data-ui-no-row-open";
 export const TreeUnremovableAttribute = "data-ui-tree-unremovable";
 /** On a tabs view's root: no tab can be closed, and the strip keeps no room for a close. */
 export const TabsUnremovableAttribute = "data-ui-tabs-unremovable";
+/** On a tabs view's root: a double click or F2 renames a caption in place. */
+export const TabsRenamableAttribute = "data-ui-tabs-renamable";
 /** On a tabs view's root: its tabs may be reordered by dragging. */
 export const TabsDraggableAttribute = "data-ui-tabs-draggable";
+/** On a tabs view's root: the built-in entries its tab menu offers, as space-separated tokens — `rename pin delete`. */
+export const TabsMenuAttribute = "data-ui-tabs-menu";
+/** On a tabs view's root: a tab's close raises a command, so its tab menu may offer the remove entry. */
+export const TabsRemovesAttribute = "data-ui-tabs-removes";
+/** On a context menu's host: the menu's name, empty for its owner's unnamed one. */
+export const ContextMenuAttribute = "data-ui-context-menu";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
@@ -41,6 +49,8 @@ export const CollectionSinkAttribute = "data-ui-collection-sink";
 export const ItemsQueryAttribute = "data-ui-items-query";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
+/** On a number input's root: the author's display format (a .NET numeric format such as `N2`) the value is written in. */
+export const NumberFormatAttribute = "data-ui-number-format";
 /** The temporal culture pack as JSON — month and day names, the AM and PM words — read the same way. */
 export const TemporalCultureAttribute = "data-ui-temporal-culture";
 export const EmptyTemplateAttribute = "data-ui-empty-template";
@@ -80,8 +90,6 @@ export const WindowOffsetAttribute = "data-ui-window-offset";
 export const WindowTotalAttribute = "data-ui-window-total";
 export const WindowMoreBeforeAttribute = "data-ui-window-more-before";
 export const WindowMoreAfterAttribute = "data-ui-window-more-after";
-/** On a windowed host: what the source computed over every item the query leaves, by property, as JSON. */
-export const WindowAggregatesAttribute = "data-ui-window-aggregates";
 export const FormIdAttribute = "data-ui-form-id";
 
 export const VisibilityAttribute = "data-ui-visibility";
@@ -92,10 +100,25 @@ export const CollapsedAttribute = "data-ui-collapsed";
 export const MenuGroupAttribute = "data-ui-menu-group";
 export const MenuSelectAttribute = "data-ui-menu-select";
 export const MenuOpenAttribute = "data-ui-menu-open";
+/** On a menu with a search beside its switch (MenuComponent.SetSearch), which menu-search-engine.ts narrows the entries by. */
+export const MenuSearchAttribute = "data-ui-menu-search";
+/** On a searchable menu while something is typed into its search, and on an entry the search leaves out. */
+export const MenuSearchingAttribute = "data-ui-menu-searching";
+export const MenuUnmatchedAttribute = "data-ui-menu-unmatched";
+/** A side's drawer button (naming the side's region), the root while one is open, and the backdrop under it (UIViewOptions.SideDrawers). */
+export const DrawerToggleAttribute = "data-ui-drawer-toggle";
+export const DrawerOpenAttribute = "data-ui-drawer-open";
+export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
+/** On each band of the page, naming it: a side's drawer is found by it. */
+export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
 export const MenuItemKindAttribute = "data-ui-menu-item-kind";
+/** A menu entry that runs nothing when pressed: a caption or a rule. */
+export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
+/** A group's own entry, which opens its block rather than running anything. */
+export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .ui-menu-item`;
 /** A menu entry with a mark of its own — a group's chevron, a check's tick — which is also one a press leaves the menu open on. */
-export const MarkedMenuEntrySelector = `[${MenuGroupAttribute}] > .ui-menu-item, .ui-menu-item[${MenuItemKindAttribute}="check"]`;
+export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .ui-menu-item[${MenuItemKindAttribute}="check"]`;
 export const CollapseToggleAttribute = "data-ui-collapse-toggle";
 /** Client-only: on a collapsible while collapsible-engine.ts slides it, so the stylesheet holds the open layout until the slide ends. */
 export const FoldingAttribute = "data-ui-folding";
@@ -179,15 +202,20 @@ export const VisibilityTierAttributes = [
 export const SubmitFormIdAttribute = "data-ui-submit-form-id";
 export const ComponentSelector = `[${ComponentIdAttribute}]`;
 
+/** A value as the inside of a quoted attribute selector: a quote, a backslash and a control character escaped. */
 export function cssAttributeValue(value: string | number): string {
-    return String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+    return String(value)
+        .replace(/[\\"]/g, "\\$&")
+        // A raw newline ends a CSS string and the selector throws; a control character goes as its hex escape, space-terminated.
+        // oxlint-disable-next-line no-control-regex -- the control characters are what it escapes
+        .replace(/[\u0000-\u001f\u007f]/g, character => `\\${character.charCodeAt(0).toString(16)} `);
 }
 
 /** `IsURLValid` to `is-url-valid`; must stay in step with `WebNaming.ToKebabCase` on the C# side. */
 export function toKebabCase(value: string): string {
     return value
-        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-        .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+        .replace(/([a-z])([A-Z])/g, "$1-$2")
+        .replace(/([A-Z0-9])([A-Z][a-z])/g, "$1-$2")
         .replace(/_/g, "-")
         .toLowerCase();
 }

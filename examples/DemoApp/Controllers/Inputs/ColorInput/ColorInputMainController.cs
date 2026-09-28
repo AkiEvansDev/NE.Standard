@@ -1,8 +1,5 @@
 using DemoApp.Controllers.Base;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.ColorInput;
 
@@ -26,11 +23,7 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value,
-            UIThemeColor.FromColorVariant(ColorName.AstralTeal),
-            UIThemeColor.FromColorVariant(ColorName.NebulaRose, ColorAdjustment.Tint, 3),
-            UIThemeColor.FromColorVariant(ColorVariant.FromRgb(0x33, 0x99, 0xCC)),
-            null));
+        => SetLastChange(nameof(Value), Value = CycleValue(Value, UIThemeColor.FromColorVariant(ColorName.AstralTeal), UIThemeColor.FromColorVariant(ColorName.NebulaRose, ColorAdjustment.Tint, 3), UIThemeColor.FromColorVariant(ColorVariant.FromRgb(0x33, 0x99, 0xCC)), null));
 
     public void CycleTextFormat()
         => SetLastChange(nameof(TextFormat), TextFormat = CycleEnum(TextFormat));

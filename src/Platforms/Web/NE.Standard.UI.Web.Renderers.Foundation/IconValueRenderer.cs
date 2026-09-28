@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -17,6 +18,11 @@ public static class IconValueRenderer
         WebDomOperation.Style(WebIconValue.ImageSourceProperty, converter: WebDomConverters.IconUrlCss)
     ];
 
+    private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
+
+    // The characters a glyph class keeps; a name with none of them names no glyph (WebIconClassName.FromIconName).
+    private static readonly SearchValues<char> GlyphCharacters = SearchValues.Create("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
     /// <summary>Writes the size class and colour a glyph wears.</summary>
     public static void RenderIconAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty sizeProperty, UIProperty colorProperty)
     {
@@ -27,7 +33,7 @@ public static class IconValueRenderer
         {
             if (value is UIIconSize size)
                 _ = t.Class(WebClassNames.IconSize(size));
-        }, [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)]);
+        }, SizeOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
     }
@@ -51,7 +57,10 @@ public static class IconValueRenderer
         });
     }
 
-    /// <summary>Writes the icon onto <paramref name="target"/>: a glyph as its pack's class, a picture as the image URL.</summary>
+    /// <summary>
+    /// Writes the icon onto <paramref name="target"/>: a glyph as its pack's class, a picture as the image URL; a name with no letter or
+    /// digit (an emoji, a stray symbol) writes nothing.
+    /// </summary>
     public static void RenderIconValue(IHtmlElementBuilder target, string value)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -66,6 +75,8 @@ public static class IconValueRenderer
             return;
         }
 
-        _ = target.Class(WebIconClassName.FromIconName(value));
+        // Nothing rather than a refusal, as icon-value.ts answers: the value may be data, and data must not fail the page.
+        if (value.AsSpan().ContainsAny(GlyphCharacters))
+            _ = target.Class(WebIconClassName.FromIconName(value));
     }
 }

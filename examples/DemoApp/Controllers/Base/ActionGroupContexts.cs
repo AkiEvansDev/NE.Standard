@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -45,8 +41,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
 
     // Background says which colour, Type says what is done with it.
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
     public void CycleOverflow()
         => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
@@ -134,8 +129,7 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
 
     // Color overrides Type: set, the pill carries that colour tinted rather than the type's own paint.
     public void CycleColor()
-        => SetLastChange(nameof(Color), Color = CycleValue(Color,
-            UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning), null));
+        => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning), null));
 
     public void CycleIcon()
         => SetLastChange(nameof(Icon), Icon = CycleIconValue(Icon, DemoIcons.Clock));
@@ -144,8 +138,7 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     public void CycleIconColor()
     {
         CheckIcon();
-        SetLastChange(nameof(IconColor), IconColor = CycleValue(IconColor,
-            null, UIThemeColor.FromStyle(UIColorStyle.Default), UIThemeColor.FromStyle(UIColorStyle.Warning), UIThemeColor.FromStyle(UIColorStyle.Danger)));
+        SetLastChange(nameof(IconColor), IconColor = CycleValue(IconColor, null, UIThemeColor.FromStyle(UIColorStyle.Default), UIThemeColor.FromStyle(UIColorStyle.Warning), UIThemeColor.FromStyle(UIColorStyle.Danger)));
     }
 
     public void CycleIconSize()

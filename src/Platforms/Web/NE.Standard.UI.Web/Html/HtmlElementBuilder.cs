@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using NE.Standard.UI.Web.Abstractions.Html;
 
@@ -27,9 +26,11 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
     };
 
     private readonly List<KeyValuePair<string, string?>> _attributes = [];
-    private readonly List<string> _classes = [];
-    private readonly List<KeyValuePair<string, string>> _styles = [];
     private readonly List<IHtmlContent> _children = [];
+
+    // Made on first use: most elements carry no inline style and many no class, and a page is tens of thousands of elements.
+    private List<string>? _classes;
+    private List<KeyValuePair<string, string>>? _styles;
 
     public HtmlElementBuilder(string tag)
     {
@@ -40,13 +41,18 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
     public string Tag { get; }
 
     /// <summary>
-    /// Adds a class, ignoring one the element already carries, since a repeat would print the class twice.
+    /// Adds a class, ignoring one the element already carries, since a repeat would print the class twice; an empty one — what a
+    /// class switch answers for a value it does not know — adds nothing rather than failing the page.
     /// </summary>
     public IHtmlElementBuilder Class(string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (string.IsNullOrWhiteSpace(value))
+            return this;
 
-        if (!_classes.Contains(value, StringComparer.Ordinal))
+        _classes ??= [];
+
+        // List<string>.Contains is ordinal already; the comparer overload would enumerate through an allocated enumerator.
+        if (!_classes.Contains(value))
             _classes.Add(value);
 
         return this;
@@ -74,12 +80,17 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
         return this;
     }
 
+    /// <summary>
+    /// Adds an inline style; a value that formats to nothing is left out, so the stylesheet's own applies, rather than failing the page.
+    /// </summary>
     public IHtmlElementBuilder Style(string name, string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        _styles.Add(new KeyValuePair<string, string>(name, value));
+        if (string.IsNullOrWhiteSpace(value))
+            return this;
+
+        (_styles ??= []).Add(new KeyValuePair<string, string>(name, value));
 
         return this;
     }
@@ -115,6 +126,15 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
         return this;
     }
 
+    public IHtmlBuilder Content(IHtmlContent content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        _children.Add(content);
+
+        return this;
+    }
+
     public void WriteTo(TextWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -122,8 +142,8 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
         writer.Write('<');
         writer.Write(Tag);
 
-        if (_classes.Count != 0)
-            WriteClassAttribute(writer);
+        if (_classes is { Count: > 0 } classes)
+            WriteClassAttribute(writer, classes);
 
         for (var i = 0; i < _attributes.Count; i++)
         {
@@ -131,8 +151,8 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
             WriteAttribute(writer, attribute.Key, attribute.Value);
         }
 
-        if (_styles.Count != 0)
-            WriteStyleAttribute(writer);
+        if (_styles is { Count: > 0 } styles)
+            WriteStyleAttribute(writer, styles);
 
         if (VoidElements.Contains(Tag))
         {
@@ -150,16 +170,17 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
         writer.Write('>');
     }
 
-    private void WriteClassAttribute(TextWriter writer)
+    // Encoded straight into the writer: the string-returning overload allocates a copy of every value that needs escaping.
+    private static void WriteClassAttribute(TextWriter writer, List<string> classes)
     {
         writer.Write(" class=\"");
 
-        for (var i = 0; i < _classes.Count; i++)
+        for (var i = 0; i < classes.Count; i++)
         {
             if (i > 0)
                 writer.Write(' ');
 
-            writer.Write(WebUtility.HtmlEncode(_classes[i]));
+            WebUtility.HtmlEncode(classes[i], writer);
         }
 
         writer.Write('"');
@@ -174,24 +195,24 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
             return;
 
         writer.Write("=\"");
-        writer.Write(WebUtility.HtmlEncode(value));
+        WebUtility.HtmlEncode(value, writer);
         writer.Write('"');
     }
 
-    private void WriteStyleAttribute(TextWriter writer)
+    private static void WriteStyleAttribute(TextWriter writer, List<KeyValuePair<string, string>> styles)
     {
         writer.Write(" style=\"");
 
-        for (var i = 0; i < _styles.Count; i++)
+        for (var i = 0; i < styles.Count; i++)
         {
             if (i > 0)
                 writer.Write("; ");
 
-            KeyValuePair<string, string> style = _styles[i];
+            KeyValuePair<string, string> style = styles[i];
 
-            writer.Write(WebUtility.HtmlEncode(style.Key));
+            WebUtility.HtmlEncode(style.Key, writer);
             writer.Write(": ");
-            writer.Write(WebUtility.HtmlEncode(style.Value));
+            WebUtility.HtmlEncode(style.Value, writer);
         }
 
         writer.Write('"');

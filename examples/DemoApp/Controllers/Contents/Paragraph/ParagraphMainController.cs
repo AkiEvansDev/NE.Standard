@@ -1,6 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Contents.Paragraph;
 
@@ -16,10 +14,7 @@ internal sealed partial class ParagraphMainController : DemoStandardController
     }
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new(
-        "Release notes",
-        "Every merge to the release branch is built, signed and published to the internal feed, and the notes below are generated from the commits that went into it."
-    );
+    public partial TextContentGroupContext ContentGroup { get; set; } = new("Release notes", "Every release of the provisioner rolls out to Europe West first and then one region an hour, and the notes below are written from the change requests that went into it.");
 
     [RecursiveMember]
     public partial ParagraphLayoutGroupContext LayoutGroup { get; set; } = new();

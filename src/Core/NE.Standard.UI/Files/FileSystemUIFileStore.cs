@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
@@ -18,23 +19,53 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 {
     private sealed record StoredUpload(UIUploadFile File, string SelectionId, string Path, DateTime CreatedAtUtc);
 
-    private sealed record StoredDownload(string FileName, string ContentType, string Path, DateTime CreatedAtUtc);
+    private sealed record StoredDownload(string FileName, string ContentType, string Path, long Size, DateTime CreatedAtUtc);
 
     // Keyed by (session, id) so a file id from another session simply does not resolve.
     private readonly ConcurrentDictionary<(string SessionId, string FileId), StoredUpload> _uploads = new();
     private readonly ConcurrentDictionary<(string SessionId, string Token), StoredDownload> _downloads = new();
 
+    // Each session's upload bytes, kept beside the uploads: the upload endpoint asks on every request, and walking every
+    // session's files for it would cost more the more the store holds.
+    private readonly ConcurrentDictionary<string, long> _sessionBytes = new(StringComparer.Ordinal);
+
     private readonly string _root;
+
+    /// <summary>How many files the store keeps on disk, uploads and staged downloads together, for the host's meter.</summary>
+    public int Count => _uploads.Count + _downloads.Count;
+
+    /// <summary>How many bytes the files the store keeps take on disk, for the host's meter.</summary>
+    public long Size
+    {
+        get
+        {
+            long size = 0;
+
+            foreach (KeyValuePair<(string SessionId, string FileId), StoredUpload> pair in _uploads)
+                size += pair.Value.File.Size;
+
+            foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> pair in _downloads)
+                size += pair.Value.Size;
+
+            return size;
+        }
+    }
 
     public FileSystemUIFileStore(UIApplication application)
     {
         ArgumentNullException.ThrowIfNull(application);
 
-        _root = application.Files.StorageRoot
-            ?? Path.Combine(Path.GetTempPath(), "ne.standard.ui.files");
+        _root = application.Files.StorageRoot ?? DefaultRoot();
 
         _ = Directory.CreateDirectory(_root);
     }
+
+    /// <summary>
+    /// The application's own folder under the temp folder: the orphan sweep deletes what no entry of this store claims, so a
+    /// folder two applications shared would lose each one's files to the other's sweep.
+    /// </summary>
+    internal static string DefaultRoot()
+        => UIApplicationStorage.TempDirectory("ne.standard.ui.files");
 
     /// <inheritdoc />
     public async Task<UIUploadFile> SaveUploadAsync(string sessionId, string selectionId, string fileName, string? contentType, Stream content, CancellationToken cancellationToken = default)
@@ -76,9 +107,26 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         file.Validate();
 
-        _uploads[(sessionId, fileId)] = new StoredUpload(file, selectionId, path, DateTime.UtcNow);
+        AddUpload(sessionId, fileId, new StoredUpload(file, selectionId, path, DateTime.UtcNow));
 
         return file;
+    }
+
+    /// <summary>Registers an upload and counts its bytes to its session.</summary>
+    private void AddUpload(string sessionId, string fileId, StoredUpload upload)
+    {
+        _uploads[(sessionId, fileId)] = upload;
+        _ = _sessionBytes.AddOrUpdate(sessionId, upload.File.Size, (_, bytes) => bytes + upload.File.Size);
+    }
+
+    /// <inheritdoc />
+    public Task<long> GetUploadedBytesAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(_sessionBytes.GetValueOrDefault(sessionId));
     }
 
     /// <inheritdoc />
@@ -147,13 +195,18 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         var token = CreateId();
         var path = Path.Combine(_root, $"{token}.download");
 
+        long size;
+
         // Same as the upload path: until the token is registered, the file is known to nothing.
         try
         {
             FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
 
             await using (destination.ConfigureAwait(false))
+            {
                 await content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+                size = destination.Length;
+            }
         }
         catch
         {
@@ -161,7 +214,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             throw;
         }
 
-        _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, DateTime.UtcNow);
+        _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, size, DateTime.UtcNow);
 
         return token;
     }
@@ -187,6 +240,55 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     }
 
     /// <inheritdoc />
+    public Task RemoveSelectionAsync(string sessionId, string selectionId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectionId);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        foreach (KeyValuePair<(string SessionId, string FileId), StoredUpload> entry in _uploads)
+        {
+            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal)
+                && string.Equals(entry.Value.SelectionId, selectionId, StringComparison.Ordinal)
+                && TryRemoveUpload(entry.Key, out StoredUpload? removed))
+            {
+                Delete(removed.Path);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private bool TryRemoveUpload((string SessionId, string FileId) key, [NotNullWhen(true)] out StoredUpload? removed)
+    {
+        if (!_uploads.TryRemove(key, out removed))
+            return false;
+
+        Uncount(key.SessionId, removed.File.Size);
+        return true;
+    }
+
+    /// <summary>Removes the upload only while it is still the one given, so one the sweep read stays if it was replaced since.</summary>
+    private bool TryRemoveUpload(KeyValuePair<(string SessionId, string FileId), StoredUpload> entry)
+    {
+        if (!_uploads.TryRemove(entry))
+            return false;
+
+        Uncount(entry.Key.SessionId, entry.Value.File.Size);
+        return true;
+    }
+
+    private void Uncount(string sessionId, long size)
+    {
+        var bytes = _sessionBytes.AddOrUpdate(sessionId, 0, (_, current) => current - size);
+
+        // Dropped only while still empty, so an upload counted meanwhile keeps its session's entry.
+        if (bytes <= 0)
+            _ = _sessionBytes.TryRemove(new KeyValuePair<string, long>(sessionId, bytes));
+    }
+
+    /// <inheritdoc />
     public Task RemoveSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -195,7 +297,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         foreach (KeyValuePair<(string SessionId, string FileId), StoredUpload> entry in _uploads)
         {
-            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal) && _uploads.TryRemove(entry.Key, out StoredUpload? removed))
+            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal) && TryRemoveUpload(entry.Key, out StoredUpload? removed))
                 Delete(removed.Path);
         }
 
@@ -203,6 +305,29 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         {
             if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal) && _downloads.TryRemove(entry.Key, out StoredDownload? removed))
                 Delete(removed.Path);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task MoveSessionAsync(string fromSessionId, string toSessionId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromSessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toSessionId);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        foreach (KeyValuePair<(string SessionId, string FileId), StoredUpload> entry in _uploads)
+        {
+            if (string.Equals(entry.Key.SessionId, fromSessionId, StringComparison.Ordinal) && TryRemoveUpload(entry.Key, out StoredUpload? moved))
+                AddUpload(toSessionId, entry.Key.FileId, moved);
+        }
+
+        foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
+        {
+            if (string.Equals(entry.Key.SessionId, fromSessionId, StringComparison.Ordinal) && _downloads.TryRemove(entry.Key, out StoredDownload? moved))
+                _downloads[(toSessionId, entry.Key.Token)] = moved;
         }
 
         return Task.CompletedTask;
@@ -217,7 +342,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         foreach (KeyValuePair<(string SessionId, string FileId), StoredUpload> entry in _uploads)
         {
-            if (entry.Value.CreatedAtUtc + uploadRetention <= utcNow && _uploads.TryRemove(entry))
+            if (entry.Value.CreatedAtUtc + uploadRetention <= utcNow && TryRemoveUpload(entry))
             {
                 Delete(entry.Value.Path);
                 removed++;
@@ -314,5 +439,6 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         _uploads.Clear();
         _downloads.Clear();
+        _sessionBytes.Clear();
     }
 }

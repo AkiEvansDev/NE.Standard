@@ -1,9 +1,4 @@
 using System;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Base;
 
@@ -35,7 +30,7 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<MenuItem> Entries { get; } =
     [
-        new() { Id = "workspace", Kind = UIMenuItemKind.Header, Title = "Workspace" },
+        new() { Id = "panel", Kind = UIMenuItemKind.Header, Title = "Panel" },
         new() { Id = OverviewId, Title = "Overview", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Selected = true },
         new() { Id = DeploysId, Title = "Deploys", Icon = DemoIcons.Outline(DemoIcons.Upload), BadgeText = "3" },
         new() { Id = LogsId, Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Shortcut = SampleShortcut },
@@ -68,12 +63,7 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
 
     // The mark moved to the other edge, taken away, and a ground with its own ink in place of the wash.
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            UISelectionStyle.Marked(UISelectionMark.Right, UIThemeColor.Accent),
-            UISelectionStyle.Marked(UISelectionMark.None),
-            new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null),
-            new UISelectionStyle(null, null, null, null, Bold: true)
-        ));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Right, UIThemeColor.Accent), UISelectionStyle.Marked(UISelectionMark.None), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null), new UISelectionStyle(null, null, null, null, Bold: true)));
 
     // Marking one clears the other: the menu enforces nothing, the current page is the controller's fact.
     public void ToggleDeploysSelected()
@@ -113,9 +103,6 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
 
         settings.Visibility = visible ? UIVisibility.Collapsed : UIVisibility.Visible;
     }
-
-    public void Report(string message)
-        => LogEvent(message);
 
     private MenuItem Entry(string id)
     {
@@ -216,9 +203,6 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
 
         delete.Visibility = visible ? UIVisibility.Collapsed : UIVisibility.Visible;
     }
-
-    public void Report(string message)
-        => LogEvent(message);
 
     private ButtonItem Command(string id)
     {

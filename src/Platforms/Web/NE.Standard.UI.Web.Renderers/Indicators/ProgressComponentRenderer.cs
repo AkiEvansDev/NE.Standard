@@ -23,6 +23,9 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        // The range and the reading as a screen reader hears them, beside the variables the bar and the ring are drawn from.
+        _ = root.Attribute("role", "progressbar");
+
         _ = RenderProperty<UIProgressVariant?>(context, root, ProgressComponent.VariantProperty, static (target, value) =>
         {
             if (value is UIProgressVariant variant)
@@ -31,11 +34,19 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
         ThemeColorRenderer.RenderThemeColor(context, root, ProgressComponent.ColorProperty);
 
-        _ = RenderProperty<decimal?>(context, root, ProgressComponent.MinProperty, static (target, value)
-            => target.Style("--ui-progress-min", (value ?? 0m).ToString(CultureInfo.InvariantCulture)), [WebDomOperation.Style("--ui-progress-min")]);
+        _ = RenderProperty<decimal?>(context, root, ProgressComponent.MinProperty, static (target, value) =>
+        {
+            var min = (value ?? 0m).ToString(CultureInfo.InvariantCulture);
 
-        _ = RenderProperty<decimal?>(context, root, ProgressComponent.MaxProperty, static (target, value)
-            => target.Style("--ui-progress-max", (value ?? 100m).ToString(CultureInfo.InvariantCulture)), [WebDomOperation.Style("--ui-progress-max")]);
+            _ = target.Style("--ui-progress-min", min).Attribute("aria-valuemin", min);
+        }, [WebDomOperation.Style("--ui-progress-min"), WebDomOperation.Attribute("aria-valuemin", target: "root")]);
+
+        _ = RenderProperty<decimal?>(context, root, ProgressComponent.MaxProperty, static (target, value) =>
+        {
+            var max = (value ?? 100m).ToString(CultureInfo.InvariantCulture);
+
+            _ = target.Style("--ui-progress-max", max).Attribute("aria-valuemax", max);
+        }, [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")]);
 
         _ = RenderProperty<bool?>(context, root, ProgressComponent.ShowValueProperty, (target, value) =>
         {
@@ -47,11 +58,15 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         {
             _ = label.Class("ui-progress__label");
 
-            _ = RenderProperty<string?>(context, label, ProgressComponent.LabelProperty, static (target, value) =>
+            // The words name the bar as well as standing beside it.
+            _ = RenderProperty<string?>(context, label, ProgressComponent.LabelProperty, (target, value) =>
             {
-                if (!string.IsNullOrWhiteSpace(value))
-                    _ = target.Text(value);
-            }, [WebDomOperation.Text()]);
+                if (string.IsNullOrWhiteSpace(value))
+                    return;
+
+                _ = target.Text(value);
+                _ = root.Attribute("aria-label", value);
+            }, [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", target: "root")]);
         });
 
         _ = root.Element("span", track =>
@@ -107,11 +122,18 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
             });
         });
 
-        _ = RenderProperty<decimal?>(context, root, ProgressComponent.ValueProperty, static (target, value)
-            => target.Style("--ui-progress-value", (value ?? 0m).ToString(CultureInfo.InvariantCulture)),
+        // No reading is an indeterminate bar, which carries no aria-valuenow at all.
+        _ = RenderProperty<decimal?>(context, root, ProgressComponent.ValueProperty, static (target, value) =>
+        {
+            _ = target.Style("--ui-progress-value", (value ?? 0m).ToString(CultureInfo.InvariantCulture));
+
+            if (value is decimal reading)
+                _ = target.Attribute("aria-valuenow", reading.ToString(CultureInfo.InvariantCulture));
+        },
         [
             WebDomOperation.Style("--ui-progress-value"),
-            WebDomOperation.Text(target: ".ui-progress__number", converter: WebDomConverters.ProgressValueText)
+            WebDomOperation.Text(target: ".ui-progress__number", converter: WebDomConverters.ProgressValueText),
+            WebDomOperation.Attribute("aria-valuenow", target: "root")
         ]);
     }
 

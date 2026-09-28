@@ -1,7 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.Card;
 
@@ -53,8 +50,7 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
 
     // Background says which colour, Surface says what is done with it; the null step shows the fallback.
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
     // A picture over the fill: the fit says how much of it the surface shows.
     public void CycleBackgroundImage()
@@ -74,7 +70,7 @@ internal sealed partial class CardMainController() : DemoStandardController
 
     // The header is a TextComponent, so it takes the same three contexts a field's label does.
     [RecursiveMember]
-    public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Web Portal · #482", "Fix circular progress anti-aliasing");
+    public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Change request · CHG-482", "Resize db-us-east-2 to Dedicated");
 
     [RecursiveMember]
     public partial TextLayoutGroupContext HeaderGroup { get; set; } = new();

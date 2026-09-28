@@ -4,7 +4,6 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -44,9 +43,18 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
         {
             _ = row.Class($"{SharedClassName}__row");
 
+            // A period's two clocks are one answer to one caption: the row is the group the caption names.
+            if (isRange)
+            {
+                _ = row.Attribute("role", "group");
+                RenderFieldLabel(context, row);
+            }
+
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
             RenderInputHeaderInside(context, root, row);
+
+            _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
             _ = row.Element("span", container =>
             {
@@ -65,6 +73,8 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
                     RenderSegments(context, container, end: true);
                 });
             }
+
+            _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
             _ = row.Element("span", stepper =>
             {
@@ -97,11 +107,7 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
         _ = container.Class($"{SharedClassName}__segments");
         _ = container.Attribute("role", "group");
 
-        if (IsRange(context))
-            _ = container.Attribute("aria-label", context.Translate(end ? UIStrings.PickerEnd : UIStrings.PickerStart));
-
-        if (end)
-            _ = container.Attribute(WebAttributes.TemporalEnd);
+        RenderPartLabel(context, container, end);
     }
 
     protected override string GetDefaultDisplayFormat(UITemporalStep? step)

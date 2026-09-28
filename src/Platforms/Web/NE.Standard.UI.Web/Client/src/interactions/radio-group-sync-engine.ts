@@ -23,8 +23,7 @@ export class RadioGroupSyncEngine {
     public constructor(options: RadioGroupSyncEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
-            this.claimGroupName(group);
+        this.claimGroupNames([...this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)]);
 
         for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
             this.sync(group);
@@ -34,6 +33,8 @@ export class RadioGroupSyncEngine {
 
         // Hand-rolled rather than observeComponents: an attribute and an added node call for different work, and only the record says which.
         const observer = new MutationObserver(mutations => {
+            const added: HTMLElement[] = [];
+
             for (const mutation of mutations) {
                 if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
                     // A class change is an option's Enabled moving: the group it belongs to re-reads its options.
@@ -42,57 +43,69 @@ export class RadioGroupSyncEngine {
                 }
 
                 for (const node of mutation.addedNodes) {
-                    if (!(node instanceof HTMLElement))
-                        continue;
-
-                    // Groups first: an item takes its name from the group it lands in.
-                    this.decorateAddedGroups(node);
-                    this.decorateAddedItems(node);
+                    if (node instanceof HTMLElement)
+                        added.push(node);
                 }
             }
+
+            // Groups first, all of a batch at once, since claiming a name reads every group on the page: an item takes its name
+            // from the group it lands in.
+            this.claimGroupNames(added.flatMap(groupsIn));
+
+            for (const node of added)
+                this.decorateAddedItems(node);
         });
 
         observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, DisabledAttribute, "class"], childList: true, subtree: true });
     }
 
-    private decorateAddedGroups(node: HTMLElement): void {
-        const groups = node.classList.contains(RadioGroupClass)
-            ? [node]
-            : [...node.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)];
-
-        for (const group of groups)
-            this.claimGroupName(group);
-    }
-
-    /** One rendered group, one name: a copy that finds its name taken renames itself and its radios. */
-    private claimGroupName(group: HTMLElement): void {
-        const name = group.getAttribute(GroupNameAttribute);
-
-        if (name === null)
+    /**
+     * One rendered group, one name: each candidate that finds its name held by another group renames itself and its radios; the
+     * last holder keeps the name. The page's names are counted once, so a template's many copies cost one pass, not one each.
+     */
+    private claimGroupNames(candidates: readonly HTMLElement[]): void {
+        if (candidates.length === 0)
             return;
 
-        let taken = false;
+        const holders = new Map<string, number>();
 
-        for (const other of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
-            if (other !== group && other.getAttribute(GroupNameAttribute) === name) {
-                taken = true;
-                break;
-            }
+        for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
+            const name = group.getAttribute(GroupNameAttribute);
+
+            if (name !== null)
+                holders.set(name, (holders.get(name) ?? 0) + 1);
         }
 
-        if (!taken)
+        const shared = new Set<string>();
+
+        for (const group of candidates) {
+            const name = group.getAttribute(GroupNameAttribute);
+            const count = name === null ? 0 : holders.get(name) ?? 0;
+
+            if (name === null || count < 2)
+                continue;
+
+            holders.set(name, count - 1);
+            shared.add(name);
+
+            const unique = `${name}-${++this.renamed}`;
+
+            group.setAttribute(GroupNameAttribute, unique);
+
+            for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[])
+                radio.name = unique;
+
+            this.sync(group);
+        }
+
+        if (shared.size === 0)
             return;
 
-        const unique = `${name}-${++this.renamed}`;
-
-        group.setAttribute(GroupNameAttribute, unique);
-
-        for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[])
-            radio.name = unique;
-
-        // The browser unchecked the group that held the shared name, so every group re-reads its own value.
-        for (const other of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`))
-            this.sync(other);
+        // The browser unchecked the group left holding a shared name, so it re-reads its own value too.
+        for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
+            if (shared.has(group.getAttribute(GroupNameAttribute) ?? ""))
+                this.sync(group);
+        }
     }
 
     private sync(group: HTMLElement | null): void {
@@ -157,6 +170,11 @@ export class RadioGroupSyncEngine {
         wrapper.prepend(input, dot);
         this.sync(group);
     }
+}
+
+/** The node itself when it is a group, and the groups under it. */
+function groupsIn(node: HTMLElement): HTMLElement[] {
+    return node.classList.contains(RadioGroupClass) ? [node] : [...node.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)];
 }
 
 /** Whether the option this radio stands for is disabled. */

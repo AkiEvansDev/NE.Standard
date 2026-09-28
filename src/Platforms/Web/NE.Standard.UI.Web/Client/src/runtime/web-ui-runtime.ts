@@ -26,6 +26,8 @@ import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
 import { ContextMenuEngine } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
+import { MenuSearchEngine } from "../interactions/menu-search-engine";
+import { SideDrawerEngine } from "../interactions/side-drawer-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
 import { SplitButtonEngine } from "../interactions/split-button-engine";
@@ -36,7 +38,7 @@ import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
 import { ColorInputEngine } from "../interactions/color-input-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
 import { TreeEngine } from "../interactions/tree-engine";
-import { TabsViewEngine } from "../interactions/tabs-view-engine";
+import { TabMenuEntryEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
@@ -83,14 +85,18 @@ import { ClientStore } from "../state/client-store";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
 import { ValueConverterRegistration } from "../extensions/converters";
 import { ValueReaderRegistration, ValueReading } from "../extensions/value-readers";
+import { nameOfPackageEngine, startEngine } from "./engine-start";
 import { exposeGlobalApi } from "./global-api";
-import { logDebug, logError, logWarn } from "./logger";
+import { formatMilliseconds, logDebug, logElapsed, logError, logWarn } from "./logger";
 import { WebUIRuntimeOptions } from "./runtime-options";
 
 const DefaultWindowIdStorageKey = "ne.standard.ui.windowId";
 
 // An attach that throws is retried this many times before giving up, waiting this long before each retry.
 const AttachRetryDelaysMilliseconds = [500, 1000, 2000];
+
+// How many attaches may run back to back, each asked for while the one before it ran, before the page is given up as lost.
+const AttachRunsInARow = 3;
 
 type EngineContext = {
     readonly root: ParentNode;
@@ -143,45 +149,48 @@ export type PropertyWriting = {
     set(element: Element, propertyName: string, value: unknown): boolean;
 };
 
-// Every engine that needs only the root and the shared services, started in this order; the order matters in one place, and that place says so.
-const ComponentEngines: readonly ((context: EngineContext) => unknown)[] = [
-    ({ root }) => new FileInputEngine({ root }),
-    ({ root }) => new ImageInputEngine({ root }),
-    ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine }),
-    // After every engine with its own Enter or Escape, so theirs is the one that runs on a key they take.
-    ({ root }) => new FieldKeysEngine({ root }),
-    ({ root }) => new ImageFallbackEngine({ root }),
-    ({ root }) => new RadioGroupSyncEngine({ root }),
-    ({ root }) => new SelectInteractionEngine({ root }),
-    ({ root }) => new SearchInputEngine({ root }),
-    ({ root }) => new DebouncedCommitEngine({ root }),
-    ({ root }) => new ItemsSelectionEngine({ root }),
-    ({ root, propertyPatchEngine, dom }) => new RangeValueEngine({ root, propertyPatchEngine, dom }),
-    ({ root, propertyPatchEngine }) => new NumberInputEngine({ root, propertyPatchEngine }),
-    ({ root, propertyPatchEngine, dom }) => new ColorInputEngine({ root, propertyPatchEngine, dom }),
-    ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine }),
-    ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom }),
-    ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine }),
-    ({ root }) => new ContextMenuEngine({ root }),
-    ({ root }) => new SplitButtonEngine({ root }),
-    ({ root }) => new ToggleButtonEngine({ root }),
-    ({ root }) => new ButtonGroupEngine({ root }),
-    ({ root }) => new MenuEngine({ root }),
+// Every engine that needs only the root and the shared services, named for the console should its start throw, and started in this order;
+// the order matters in one place, and that place says so.
+const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
+    ["file input", ({ root }) => new FileInputEngine({ root })],
+    ["image input", ({ root }) => new ImageInputEngine({ root })],
+    ["key value action", ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine })],
+    // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
+    ["field keys", ({ root }) => new FieldKeysEngine({ root })],
+    ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
+    ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
+    ["select interaction", ({ root }) => new SelectInteractionEngine({ root })],
+    ["search input", ({ root }) => new SearchInputEngine({ root })],
+    ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
+    ["items selection", ({ root }) => new ItemsSelectionEngine({ root })],
+    ["range value", ({ root, propertyPatchEngine, dom }) => new RangeValueEngine({ root, propertyPatchEngine, dom })],
+    ["number input", ({ root, propertyPatchEngine }) => new NumberInputEngine({ root, propertyPatchEngine })],
+    ["color input", ({ root, propertyPatchEngine, dom }) => new ColorInputEngine({ root, propertyPatchEngine, dom })],
+    ["temporal picker", ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine })],
+    ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
+    ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
+    ["context menu", ({ root }) => new ContextMenuEngine({ root })],
+    ["split button", ({ root }) => new SplitButtonEngine({ root })],
+    ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
+    ["button group", ({ root }) => new ButtonGroupEngine({ root })],
+    ["menu", ({ root }) => new MenuEngine({ root })],
     // Before the group engine: it restores a menu's fold, and groups are opened against the shape that leaves.
-    ({ root }) => new CollapsibleEngine({ root }),
-    ({ root }) => new MenuGroupEngine({ root }),
-    ({ root }) => new GridSplitterEngine({ root }),
-    ({ root }) => new AccordionEngine({ root }),
-    ({ root }) => new TabsEngine({ root }),
-    ({ root, effects }) => new TabsViewEngine({ root, effects }),
-    ({ root }) => new BreadcrumbsEngine({ root }),
-    ({ root }) => new ScrollAnchorEngine({ root }),
-    ({ root }) => new ScrollGroupEngine({ root }),
-    ({ root }) => new FlyoutInteractionEngine({ root }),
-    ({ root }) => new TextFoldEngine({ root }),
-    ({ root }) => startTooltips(root),
+    ["collapsible", ({ root }) => new CollapsibleEngine({ root })],
+    ["menu group", ({ root }) => new MenuGroupEngine({ root })],
+    ["menu search", ({ root }) => new MenuSearchEngine({ root })],
+    ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
+    ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
+    ["accordion", ({ root }) => new AccordionEngine({ root })],
+    ["tabs", ({ root }) => new TabsEngine({ root })],
+    ["tabs view", ({ root, effects }) => new TabsViewEngine({ root, effects })],
+    ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
+    ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
+    ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
+    ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root })],
+    ["text fold", ({ root }) => new TextFoldEngine({ root })],
+    ["tooltip", ({ root }) => startTooltips(root)],
     // A theme flag, not a per-page choice: off the flag, the whole engine never starts.
-    ({ root }) => document.documentElement.hasAttribute(PressRippleAttribute) ? new PressRippleEngine({ root }) : undefined
+    ["press ripple", ({ root }) => document.documentElement.hasAttribute(PressRippleAttribute) ? new PressRippleEngine({ root }) : undefined]
 ];
 
 export class WebUIRuntime {
@@ -210,6 +219,11 @@ export class WebUIRuntime {
     public readonly reactiveSources: ReactiveSourceRegistry;
 
     private attachTask: Promise<void> | null = null;
+
+    // An attach asked for while one runs: that one may have started before the reason did, so it runs again once it ends.
+    private reattachRequested = false;
+
+    private connectionLost = false;
 
     // The change sets still waiting on a staged value, in order; null while every one has been applied.
     private inbound: Promise<void> | null = null;
@@ -296,7 +310,8 @@ export class WebUIRuntime {
             virtualization: this.virtualization
         });
 
-        this.transport = new SignalRTransport(this.windowId, options.signalR);
+        // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts).
+        this.transport = new SignalRTransport(this.windowId, changes => this.applyChanges(changes), options.signalR);
         this.dispatcher = new CommandDispatcher(this.transport);
 
         // Value sync is independent of the event pipeline: a component with both does two round-trips on one "change".
@@ -306,7 +321,6 @@ export class WebUIRuntime {
             metadata: this.metadata,
             dom: this.dom,
             dispatcher: valueChangeDispatcher,
-            applyChanges: changes => this.applyChanges(changes),
             valueReaders: this.extensions.valueReaders,
             recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordSentValue(reference, dynamicParameters, value)
         });
@@ -333,18 +347,17 @@ export class WebUIRuntime {
 
         this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects };
 
-        for (const start of ComponentEngines)
-            start(this.engineContext);
+        for (const [name, start] of ComponentEngines)
+            startEngine(name, start, this.engineContext);
 
         // Apart from the list: a tree's filter and sort run in its own walk, which needs the rules and the rows' values.
-        new TreeEngine({ root: this.root, effects: this.effects, rules: { metadata: this.metadata, state: propertyState, renderer: itemsRenderer } });
+        startEngine("tree", ({ root, effects }) => new TreeEngine({ root, effects, rules: { metadata: this.metadata, state: propertyState, renderer: itemsRenderer } }), this.engineContext);
 
         this.eventPipeline = new EventPipeline({
             root: this.root,
             metadata: this.metadata,
             dom: this.dom,
             dispatcher: this.dispatcher,
-            applyChanges: changes => this.applyChanges(changes),
             afterEffects: () => this.windows.reconsider(),
             interactionEngine,
             eventCatalog: this.extensions.events,
@@ -358,14 +371,16 @@ export class WebUIRuntime {
         for (const eventName of new Set([...this.metadata.getEventNames(), ...interactionIndex.getSourceEventNames()]))
             this.eventPipeline.addEvent(eventName);
 
+        // After them, since each is added bare: the tab menu's entry names its own keys, the entry and the tab, as a package's event does.
+        this.eventPipeline.addEvent(TabMenuEntryEvent.name, TabMenuEntryEvent.registration);
+
         // Held by name, since a package's chooser reaches it through the engine context.
         this.tables = new TableColumnsEngine({ root: this.root });
 
         // After the transport, since asking for a window is an invoke.
         this.windows = new ItemsWindowEngine({
             root: this.root,
-            requestWindow: request => this.transport.requestItemWindowAsync(request),
-            applyChanges: changes => this.applyChanges(changes)
+            requestWindow: request => this.transport.requestItemWindowAsync(request)
         });
 
         // Once, for every package engine: the services are the engines and modules themselves, not a face built per start.
@@ -414,12 +429,20 @@ export class WebUIRuntime {
             roving: rovingFocus
         };
 
-        this.transport.onChanges(changes => this.applyChanges(changes));
+        this.transport.onChanges(changes => void this.applyChanges(changes));
 
-        // The server strips effects from a client-invoked command's returned copy, so both channels cannot double-apply.
+        // The server strips effects from a client-invoked command's returned copy, so both channels cannot double-apply; a
+        // background command's pushed result ends the dispatch waiting for it, which applies its effects as it would an invoke's.
         this.transport.onCommandResult(result => {
+            // The changes here, in the order the messages arrived, as an answer's are: handed through the dispatch they would land
+            // a few turns late, behind a push that came after them. The dispatch is settled once they are applied, without them.
+            const { changes, ...rest } = result;
+
             // The effects after the changes, a staged value among them: an effect acts on the page those changes produced.
-            void Promise.resolve(this.applyChanges(result.changes)).then(() => {
+            void Promise.resolve(this.applyChanges(changes)).then(() => {
+                if (this.dispatcher.settle(rest))
+                    return;
+
                 this.effects.applyAll(result.command?.effects, this.dom);
 
                 // After the effects: a scroll effect can move a windowed viewport without raising a scroll event.
@@ -432,15 +455,39 @@ export class WebUIRuntime {
         });
         this.transport.onReconnecting(error => {
             logWarn("SignalR reconnecting.", error);
+
+            // A result still to come would be pushed to the connection that just dropped, which the new one never hears.
+            this.dispatcher.release(new Error("the connection to the server dropped before the command answered.", { cause: error }));
         });
         // A failure here is logged once, by the transport's own onReconnected wrapper.
         this.transport.onReconnected(async () => {
             logDebug("SignalR reconnected. Reattaching runtime.");
             await this.attachAsync();
         });
-        this.transport.onClosed(error => {
-            if (error !== undefined)
-                logError("SignalR connection closed.", error);
+        // Once the automatic reconnect has given up, or the connection was stopped: either way it does not come back.
+        this.transport.onClosed(error => this.loseConnection(error ?? new Error("the connection to the server closed.")));
+    }
+
+    /**
+     * The connection is gone for good: every call fails at once rather than waiting, and the reader is offered a reload — the page
+     * does not reconnect by itself. Said once, however many ways the loss is reported.
+     */
+    private loseConnection(reason: unknown): void {
+        if (this.connectionLost)
+            return;
+
+        this.connectionLost = true;
+        logError("the connection to the server is lost; the page offers a reload.", reason);
+
+        const lost = new Error("the connection to the server is lost; reload the page.", { cause: reason });
+
+        this.transport.close(lost);
+        this.dispatcher.release(lost);
+        this.notifications.show({
+            message: clientStrings.text("ui.connection.lost"),
+            severity: "danger",
+            sticky: true,
+            action: { label: clientStrings.text("ui.connection.reload"), run: () => window.location.reload() }
         });
     }
 
@@ -474,8 +521,23 @@ export class WebUIRuntime {
         this.hydrate();
         this.startEnginesAwaitingHydration();
 
-        await this.transport.startAsync();
+        // The automatic reconnect covers a connection that was open; one that never opened is lost from the start.
+        try {
+            const connecting = performance.now();
+
+            await this.transport.startAsync();
+            logElapsed("SignalR connection opened", connecting);
+        }
+        catch (error) {
+            this.loseConnection(error);
+            return;
+        }
+
         await this.attachAsync();
+
+        // performance.now() counts from the navigation's start, so this is how long the reader waited for a page that answers.
+        if (!this.connectionLost)
+            logDebug(`page live ${formatMilliseconds(performance.now())} after the navigation started.`);
     }
 
     /** Takes the client's copy of the values the page was rendered with, changing nothing the reader sees. */
@@ -483,14 +545,16 @@ export class WebUIRuntime {
         if (this.hydration === null)
             return;
 
+        const started = performance.now();
+
         this.dom.rebuild();
 
         // Before the change set: its reconcile keeps a row only if it can read what the row holds.
         this.updateProcessor.registerServerRenderedItems(this.hydration.changes);
-        this.applyChanges(this.hydration.changes);
+        void this.applyChanges(this.hydration.changes);
         this.updateProcessor.initializeItemsHosts();
 
-        logDebug("runtime hydrated from the page.", { pageId: this.hydration.pageId });
+        logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: this.hydration.changes?.updates?.length ?? 0 });
     }
 
     private startEnginesAwaitingHydration(): void {
@@ -499,7 +563,7 @@ export class WebUIRuntime {
         this.enginesAwaitingHydration = null;
 
         for (const start of engines)
-            start(this.pluginContext);
+            startEngine(nameOfPackageEngine(start), start, this.pluginContext);
     }
 
     public addEvent<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}): void {
@@ -540,7 +604,7 @@ export class WebUIRuntime {
             return;
         }
 
-        start(this.pluginContext);
+        startEngine(nameOfPackageEngine(start), start, this.pluginContext);
     }
 
     /**
@@ -578,10 +642,12 @@ export class WebUIRuntime {
     }
 
     private async attachAsync(): Promise<void> {
-        if (this.attachTask !== null)
+        if (this.attachTask !== null) {
+            this.reattachRequested = true;
             return this.attachTask;
+        }
 
-        this.attachTask = this.attachCoreAsync();
+        this.attachTask = this.attachRepeatedlyAsync();
 
         try {
             await this.attachTask;
@@ -591,42 +657,113 @@ export class WebUIRuntime {
         }
     }
 
-    private async attachCoreAsync(): Promise<void> {
-        const result = await this.attachWithRetryAsync();
+    // Bounded: an attach whose own initial changes keep failing asks for another every time, and would otherwise never stop.
+    private async attachRepeatedlyAsync(): Promise<void> {
+        for (let run = 1; ; run++) {
+            this.reattachRequested = false;
 
-        if (result === null)
-            return;
+            if (!await this.attachCoreAsync() || !this.reattachRequested)
+                return;
 
-        if (result.reload === true) {
-            this.reloadForView(this.hydration?.view ?? "");
-            return;
+            if (run >= AttachRunsInARow) {
+                this.loseConnection(new Error("the page fell behind the server on every attach."));
+                return;
+            }
         }
+    }
 
-        forgetReloadedView();
-        this.dom.rebuild();
-        this.updateProcessor.registerServerRenderedItems(result.initialChanges);
-        await this.applyChanges(result.initialChanges);
-        this.updateProcessor.initializeItemsHosts();
-        this.windows.start();
+    /** Whether the runtime ended attached; false when the attach gave up or the page is reloading. */
+    private async attachCoreAsync(): Promise<boolean> {
+        if (this.connectionLost)
+            return false;
 
-        logDebug("runtime attached.", {
-            windowId: this.windowId,
-            instanceId: this.instanceId
+        // The server pushes this connection only what came after the snapshot the attach answers with, and may push it before
+        // the answer lands: every change set arriving from here on waits until the snapshot is on the page.
+        const hold = this.holdInbound();
+        const started = performance.now();
+
+        try {
+            const result = await this.attachWithRetryAsync();
+            const answered = performance.now();
+
+            if (result === null) {
+                this.loseConnection(new Error("attaching the runtime failed after retrying."));
+                return false;
+            }
+
+            if (result.reload === true) {
+                this.reloadForView(this.hydration?.view ?? "");
+                return false;
+            }
+
+            forgetReloadedView();
+            this.dom.rebuild();
+            this.updateProcessor.registerServerRenderedItems(result.initialChanges);
+
+            // Behind whatever was already queued, and applied here rather than through the queue the hold closes.
+            await hold.previous;
+            await this.applyAttachChangesAsync(result.initialChanges);
+
+            this.updateProcessor.initializeItemsHosts();
+            this.windows.start();
+
+            logElapsed("runtime attached", started, {
+                windowId: this.windowId,
+                instanceId: this.instanceId,
+                answered: formatMilliseconds(answered - started),
+                updates: result.initialChanges?.updates?.length ?? 0
+            });
+
+            return true;
+        }
+        finally {
+            hold.release();
+        }
+    }
+
+    /** Closes the inbound queue until `release`: change sets arriving meanwhile wait; `previous` is what was queued before. */
+    private holdInbound(): { readonly previous: Promise<void>; readonly release: () => void } {
+        const previous = this.inbound ?? Promise.resolve();
+        let release: () => void = () => { };
+        const held = new Promise<void>(resolve => {
+            release = resolve;
         });
+        const chained = previous.then(() => held);
+
+        this.inbound = chained;
+        void chained.then(() => {
+            if (this.inbound === chained)
+                this.inbound = null;
+        });
+
+        return { previous, release };
+    }
+
+    /** The snapshot's changes, a staged value among them fetched first; one that cannot be fetched asks for another attach. */
+    private async applyAttachChangesAsync(changes: ServerChangeSet | undefined): Promise<void> {
+        try {
+            this.applyNow(hasStagedValues(changes) ? await fetchStagedValuesAsync(changes) : changes);
+        }
+        catch (error) {
+            logError("a staged value of the attach could not be fetched; the page attaches again.", error);
+            this.reattachRequested = true;
+        }
     }
 
     /**
      * Retries a failed attach a few times with a growing backoff, so a hub call that throws without dropping the socket
-     * doesn't need a page reload to recover. `null` after the last attempt means every retry failed; a later reconnect starts its own run.
+     * doesn't need a page reload to recover. `null` after the last attempt means every retry failed, and the connection is given up.
      */
     private async attachWithRetryAsync(): Promise<WebUIAttachResult | null> {
+        // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
+        const standIn = readStandInNavigation();
         const request: WebUIAttachRequest = {
             clientWindowId: this.windowId,
-            route: window.location.pathname,
+            route: standIn?.route ?? window.location.pathname,
             // Presenting the runtime the render prepared claims it rather than building a second one.
             pageId: this.hydration?.pageId ?? null,
             view: this.hydration?.view ?? null,
-            parameters: readQueryParameters(window.location.search)
+            parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search)
         };
 
         for (let attempt = 0; ; attempt++) {
@@ -635,7 +772,7 @@ export class WebUIRuntime {
             }
             catch (error) {
                 if (attempt >= AttachRetryDelaysMilliseconds.length) {
-                    logError("attaching the runtime failed after retrying; giving up until the next reconnect.", error);
+                    logError("attaching the runtime failed after retrying; giving up.", error);
                     return null;
                 }
 
@@ -647,7 +784,11 @@ export class WebUIRuntime {
 }
 
 export async function startWebUIAsync(options: WebUIRuntimeOptions = {}): Promise<WebUIRuntime> {
+    const started = performance.now();
     const runtime = new WebUIRuntime(options);
+
+    // Reading the page's metadata and starting every engine: the whole of what the client does before it looks at the page.
+    logElapsed("runtime built", started);
 
     await runtime.startAsync();
 
@@ -714,6 +855,25 @@ function createWindowId(): string {
     return `tab-${random}-${performance.now().toString(36).replace(".", "")}`;
 }
 
+/** The navigation a page standing in for another was rendered for, off the shell's root; null on a page that is what was asked for. */
+function readStandInNavigation(): { route: string; parameters: Record<string, unknown> | null } | null {
+    const text = document.querySelector("[data-ui-root]")?.getAttribute("data-ui-navigation");
+
+    if (text === null || text === undefined)
+        return null;
+
+    try {
+        const parsed = JSON.parse(text) as { route?: unknown; parameters?: unknown };
+
+        return typeof parsed.route === "string"
+            ? { route: parsed.route, parameters: typeof parsed.parameters === "object" ? parsed.parameters as Record<string, unknown> | null : null }
+            : null;
+    }
+    catch {
+        return null;
+    }
+}
+
 function readQueryParameters(search: string): Record<string, unknown> | null {
     const parameters = new URLSearchParams(search);
 
@@ -723,10 +883,10 @@ function readQueryParameters(search: string): Record<string, unknown> | null {
     const result: Record<string, unknown> = {};
 
     parameters.forEach((value, key) => {
-        if (Object.prototype.hasOwnProperty.call(result, key)) {
+        if (Object.hasOwn(result, key)) {
             const existing = result[key];
 
-            result[key] = Array.isArray(existing) ? [...existing, value] : [existing, value];
+            result[key] = Array.isArray(existing) ? [...(existing as unknown[]), value] : [existing, value];
             return;
         }
 

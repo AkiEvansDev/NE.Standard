@@ -5,7 +5,7 @@ import { applyIconValue } from "./icon-value.ts";
 import { isSafeLink } from "./url-safety.ts";
 
 // Plain constants rather than an `enum`: the node test runner strips types rather than compiling them.
-export const InlineStyles = {
+const InlineStyles = {
     None: 0,
     Bold: 1,
     Italic: 2,
@@ -14,7 +14,7 @@ export const InlineStyles = {
     Code: 16
 } as const;
 
-export type InlineStyles = number;
+type InlineStyles = number;
 
 export type InlineSegment = {
     readonly text: string;
@@ -40,6 +40,10 @@ const FoldClass = "ui-text__fold";
 const FoldToggleClass = "ui-text__fold-toggle";
 const FoldContentClass = "ui-text__fold-content";
 
+// A fold's text is parsed again where it is rendered, one level of recursion per fold: text nested deeper than this reads as
+// literal braces, or a few kilobytes of user text could exhaust the stack of whatever renders it.
+const MaxFoldDepth = 8;
+
 export function parseInlineMarkup(text: string | null | undefined): InlineSegment[] {
     if (text === null || text === undefined || text.length === 0)
         return [];
@@ -47,7 +51,7 @@ export function parseInlineMarkup(text: string | null | undefined): InlineSegmen
     const segments: InlineSegment[] = [];
     const buffer = { value: "" };
 
-    parseRange(text, 0, text.length, InlineStyles.None, null, segments, buffer);
+    parseRange(new MarkupText(text), 0, text.length, InlineStyles.None, null, segments, buffer);
     flush(segments, buffer, InlineStyles.None, null);
 
     return segments;
@@ -189,7 +193,8 @@ function wrap(tag: string, node: Node): Node {
     return element;
 }
 
-function parseRange(text: string, start: number, end: number, styles: InlineStyles, url: string | null, segments: InlineSegment[], buffer: { value: string }): void {
+function parseRange(markup: MarkupText, start: number, end: number, styles: InlineStyles, url: string | null, segments: InlineSegment[], buffer: { value: string }): void {
+    const text = markup.text;
     let index = start;
 
     while (index < end) {
@@ -201,7 +206,7 @@ function parseRange(text: string, start: number, end: number, styles: InlineStyl
             continue;
         }
 
-        const code = readCode(text, index, end);
+        const code = readCode(markup, index, end);
 
         if (code !== null) {
             flush(segments, buffer, styles, url);
@@ -212,11 +217,11 @@ function parseRange(text: string, start: number, end: number, styles: InlineStyl
             continue;
         }
 
-        const style = readStyle(text, index, end);
+        const style = readStyle(markup, index, end);
 
         if (style !== null) {
             flush(segments, buffer, styles, url);
-            parseRange(text, index + style.markerLength, style.contentEnd, styles | style.style, url, segments, buffer);
+            parseRange(markup, index + style.markerLength, style.contentEnd, styles | style.style, url, segments, buffer);
             flush(segments, buffer, styles | style.style, url);
 
             index = style.contentEnd + style.markerLength;
@@ -224,7 +229,7 @@ function parseRange(text: string, start: number, end: number, styles: InlineStyl
         }
 
         // Before the link, because both open on a bracket and only this one has the `!` in front of it.
-        const icon = readIcon(text, index, end);
+        const icon = readIcon(markup, index, end);
 
         if (icon !== null) {
             flush(segments, buffer, styles, url);
@@ -234,11 +239,11 @@ function parseRange(text: string, start: number, end: number, styles: InlineStyl
             continue;
         }
 
-        const link = url === null ? readLink(text, index, end) : null;
+        const link = url === null ? readLink(markup, index, end) : null;
 
         if (link !== null) {
             flush(segments, buffer, styles, url);
-            parseRange(text, link.labelStart, link.labelEnd, styles, link.url, segments, buffer);
+            parseRange(markup, link.labelStart, link.labelEnd, styles, link.url, segments, buffer);
             flush(segments, buffer, styles, link.url);
 
             index = link.linkEnd;
@@ -246,7 +251,7 @@ function parseRange(text: string, start: number, end: number, styles: InlineStyl
         }
 
         // A fold's text stays unparsed here and is parsed when it is rendered, which is how a fold may hold a fold.
-        const fold = readFold(text, index, end);
+        const fold = readFold(markup, index, end);
 
         if (fold !== null) {
             flush(segments, buffer, styles, url);
@@ -270,7 +275,9 @@ function flush(segments: InlineSegment[], buffer: { value: string }, styles: Inl
 }
 
 // Read before the style markers: a code run's content is not parsed, save for the escape.
-function readCode(text: string, index: number, end: number): number | null {
+function readCode(markup: MarkupText, index: number, end: number): number | null {
+    const text = markup.text;
+
     if (text[index] !== CodeMarker)
         return null;
 
@@ -279,7 +286,7 @@ function readCode(text: string, index: number, end: number): number | null {
     if (contentStart >= end || isSpace(text[contentStart]))
         return null;
 
-    const contentEnd = findClosingMarker(text, contentStart, end, CodeMarker, 1);
+    const contentEnd = markup.findClosingMarker(contentStart, end, CodeMarker, 1);
 
     return contentEnd > contentStart ? contentEnd : null;
 }
@@ -299,12 +306,14 @@ function appendLiteral(text: string, start: number, end: number, buffer: { value
 type IconMatch = { readonly name: string; readonly iconEnd: number };
 
 // `![glyph]`: a glyph name and only a glyph name.
-function readIcon(text: string, index: number, end: number): IconMatch | null {
+function readIcon(markup: MarkupText, index: number, end: number): IconMatch | null {
+    const text = markup.text;
+
     if (text[index] !== IconMarker || index + 1 >= end || text[index + 1] !== "[")
         return null;
 
     const contentStart = index + 2;
-    const closing = findClosingBracket(text, contentStart, end);
+    const closing = markup.findClosingBracket(contentStart, end);
 
     if (closing <= contentStart)
         return null;
@@ -314,28 +323,14 @@ function readIcon(text: string, index: number, end: number): IconMatch | null {
     return isGlyphName(name) ? { name, iconEnd: closing + 1 } : null;
 }
 
-// The `]` closing a bracket opened before `start`, honouring escapes; -1 when there is none.
-function findClosingBracket(text: string, start: number, end: number): number {
-    for (let scan = start; scan < end; scan++) {
-        if (text[scan] === Escape) {
-            scan++;
-            continue;
-        }
-
-        if (text[scan] === "]")
-            return scan;
-    }
-
-    return -1;
-}
-
 function isGlyphName(value: string): boolean {
     return value.length > 0 && /^[A-Za-z0-9._-]+$/.test(value);
 }
 
 type StyleMatch = { readonly style: InlineStyles; readonly markerLength: number; readonly contentEnd: number };
 
-function readStyle(text: string, index: number, end: number): StyleMatch | null {
+function readStyle(markup: MarkupText, index: number, end: number): StyleMatch | null {
+    const text = markup.text;
     const current = text[index];
 
     if (current !== "*" && current !== "_" && current !== "~")
@@ -367,53 +362,32 @@ function readStyle(text: string, index: number, end: number): StyleMatch | null 
     if (contentStart >= end || isSpace(text[contentStart]))
         return null;
 
-    const contentEnd = findClosingMarker(text, contentStart, end, current, markerLength);
+    const contentEnd = markup.findClosingMarker(contentStart, end, current, markerLength);
 
     return contentEnd > contentStart ? { style, markerLength, contentEnd } : null;
 }
 
-function findClosingMarker(text: string, contentStart: number, end: number, marker: string, markerLength: number): number {
-    for (let index = contentStart; index + markerLength <= end; index++) {
-        if (text[index] === Escape) {
-            index++;
-            continue;
-        }
-
-        if (text[index] !== marker)
-            continue;
-
-        if (markerLength === 2 && (index + 1 >= end || text[index + 1] !== marker))
-            continue;
-
-        if (markerLength === 1 && index + 1 < end && text[index + 1] === marker)
-            continue;
-
-        if (index > contentStart && !isSpace(text[index - 1]))
-            return index;
-    }
-
-    return -1;
-}
-
 type LinkMatch = { readonly labelStart: number; readonly labelEnd: number; readonly url: string; readonly linkEnd: number };
 
-function readLink(text: string, index: number, end: number): LinkMatch | null {
+function readLink(markup: MarkupText, index: number, end: number): LinkMatch | null {
+    const text = markup.text;
+
     if (text[index] !== "[")
         return null;
 
-    const closingLabel = findClosingBracket(text, index + 1, end);
+    const closingLabel = markup.findClosingBracket(index + 1, end);
 
     if (closingLabel < 0 || closingLabel + 1 >= end || text[closingLabel + 1] !== "(")
         return null;
 
-    const closingUrl = text.indexOf(")", closingLabel + 2);
+    const closingUrl = markup.findClosingParen(closingLabel + 2, end);
 
-    if (closingUrl < 0 || closingUrl >= end)
+    if (closingUrl < 0)
         return null;
 
-    const url = text.slice(closingLabel + 2, closingUrl).trim();
+    const url = markup.readLinkUrl(closingLabel, closingUrl);
 
-    if (!isSafeLink(url))
+    if (url === null)
         return null;
 
     const labelStart = index + 1;
@@ -425,40 +399,26 @@ function readLink(text: string, index: number, end: number): LinkMatch | null {
 type FoldMatch = { readonly caption: string; readonly contentStart: number; readonly contentEnd: number };
 
 // `[caption]{text}`: the caption is plain text, and the braces nest so the text may hold a fold of its own.
-function readFold(text: string, index: number, end: number): FoldMatch | null {
+function readFold(markup: MarkupText, index: number, end: number): FoldMatch | null {
+    const text = markup.text;
+
     if (text[index] !== "[")
         return null;
 
-    const closingCaption = findClosingBracket(text, index + 1, end);
+    const closingCaption = markup.findClosingBracket(index + 1, end);
 
     if (closingCaption <= index + 1 || closingCaption + 1 >= end || text[closingCaption + 1] !== FoldOpen)
         return null;
 
     // A caption is a word or a few, never markup: a bracket opened inside it means the fold starts there, as a link inside a link's label does.
-    for (let scan = index + 1; scan < closingCaption; scan++) {
-        if (text[scan] === Escape)
-            scan++;
-        else if (text[scan] === "[")
-            return null;
-    }
+    if (markup.hasOpeningBracket(index + 1, closingCaption))
+        return null;
 
-    const contentStart = closingCaption + 2;
-    let contentEnd = -1;
-    let depth = 1;
+    const open = closingCaption + 1;
+    const contentStart = open + 1;
+    const contentEnd = markup.findMatchingBrace(open, end);
 
-    for (let scan = contentStart; scan < end && contentEnd < 0; scan++) {
-        if (text[scan] === Escape) {
-            scan++;
-            continue;
-        }
-
-        if (text[scan] === FoldOpen)
-            depth++;
-        else if (text[scan] === FoldClose && --depth === 0)
-            contentEnd = scan;
-    }
-
-    if (contentEnd <= contentStart)
+    if (contentEnd <= contentStart || markup.braceDepth(open) > MaxFoldDepth)
         return null;
 
     const caption = { value: "" };
@@ -466,6 +426,189 @@ function readFold(text: string, index: number, end: number): FoldMatch | null {
     appendLiteral(text, index + 1, closingCaption, caption);
 
     return { caption: caption.value, contentStart, contentEnd };
+}
+
+// The text with the closing mark after every position indexed on first use, so an opening mark finds its close in constant time
+// and a parse stays linear however many marks are left open. Every lookup starts right after an opening mark, never a backslash,
+// so the escapes read from the start of the text are the escapes a scan from that position would read.
+class MarkupText {
+    public readonly text: string;
+
+    private escaped: Uint8Array | null = null;
+    private closeBrackets: Int32Array | null = null;
+    private openBrackets: Int32Array | null = null;
+    private closeParens: Int32Array | null = null;
+    private braceMatches: Int32Array | null = null;
+    private braceDepths: Int32Array | null = null;
+    private readonly closers: (Int32Array | null)[] = [null, null, null, null, null];
+    private linkLabel = -1;
+    private linkUrl: string | null = null;
+
+    public constructor(text: string) {
+        this.text = text;
+    }
+
+    // The first unescaped `]` in [start, end); -1 when there is none.
+    public findClosingBracket(start: number, end: number): number {
+        this.closeBrackets ??= this.next("]", true);
+
+        return within(this.closeBrackets[start], end);
+    }
+
+    public hasOpeningBracket(start: number, end: number): boolean {
+        this.openBrackets ??= this.next("[", true);
+
+        return within(this.openBrackets[start], end) >= 0;
+    }
+
+    // The first `)` in [start, end), escaped or not, as a link's URL ends.
+    public findClosingParen(start: number, end: number): number {
+        this.closeParens ??= this.next(")", false);
+
+        return within(this.closeParens[start], end);
+    }
+
+    public findMatchingBrace(open: number, end: number): number {
+        return within(this.braces()[open], end);
+    }
+
+    // How many brace levels the pair opened at `open` holds, itself included.
+    public braceDepth(open: number): number {
+        this.braces();
+
+        return (this.braceDepths as Int32Array)[open];
+    }
+
+    // Where a run opened just before `contentStart` closes: the marker, exactly as long as it opened, hugging the text before it.
+    public findClosingMarker(contentStart: number, end: number, marker: string, markerLength: number): number {
+        const slot = closingMarkerSlot(marker, markerLength);
+        const closers = this.closers[slot] ?? this.buildClosers(marker, markerLength);
+
+        this.closers[slot] = closers;
+
+        const first = closers[contentStart + 1];
+
+        if (markerLength === 2)
+            return first >= 0 && first + 1 < end ? first : -1;
+
+        if (first >= 0 && first < end - 1)
+            return first;
+
+        // A single marker right before the range's end closes even when the character after the range repeats it.
+        const last = end - 1;
+
+        return last > contentStart && this.text[last] === marker && !this.isEscaped(last) && !isSpace(this.text[last - 1]) ? last : -1;
+    }
+
+    // The URL of the link whose label closes at `closingLabel`, or null when it has none that is safe.
+    public readLinkUrl(closingLabel: number, closingUrl: number): string | null {
+        // Every bracket opened before one label reads the same URL; kept once, a refused one is not cut and checked again per bracket.
+        if (this.linkLabel !== closingLabel) {
+            const candidate = this.text.slice(closingLabel + 2, closingUrl).trim();
+
+            this.linkLabel = closingLabel;
+            this.linkUrl = isSafeLink(candidate) ? candidate : null;
+        }
+
+        return this.linkUrl;
+    }
+
+    private isEscaped(index: number): boolean {
+        if (this.escaped === null) {
+            const escaped = new Uint8Array(this.text.length);
+
+            for (let i = 1; i < this.text.length; i++)
+                escaped[i] = this.text[i - 1] === Escape && escaped[i - 1] === 0 ? 1 : 0;
+
+            this.escaped = escaped;
+        }
+
+        return this.escaped[index] === 1;
+    }
+
+    private next(value: string, honourEscapes: boolean): Int32Array {
+        const table = new Int32Array(this.text.length + 1);
+
+        table[this.text.length] = -1;
+
+        for (let i = this.text.length - 1; i >= 0; i--)
+            table[i] = this.text[i] === value && (!honourEscapes || !this.isEscaped(i)) ? i : table[i + 1];
+
+        return table;
+    }
+
+    private braces(): Int32Array {
+        if (this.braceMatches !== null)
+            return this.braceMatches;
+
+        const matches = new Int32Array(this.text.length).fill(-1);
+        const depths = new Int32Array(this.text.length);
+        const open: number[] = [];
+
+        for (let i = 0; i < this.text.length; i++) {
+            if (this.isEscaped(i))
+                continue;
+
+            if (this.text[i] === FoldOpen) {
+                open.push(i);
+            } else if (this.text[i] === FoldClose && open.length > 0) {
+                // While a pair is open its depth holds its deepest child's; closing it adds its own level and passes it up.
+                const pair = open.pop() as number;
+
+                matches[pair] = i;
+                depths[pair]++;
+
+                if (open.length > 0) {
+                    const parent = open[open.length - 1];
+
+                    depths[parent] = Math.max(depths[parent], depths[pair]);
+                }
+            }
+        }
+
+        this.braceDepths = depths;
+        this.braceMatches = matches;
+
+        return matches;
+    }
+
+    private buildClosers(marker: string, markerLength: number): Int32Array {
+        const closers = new Int32Array(this.text.length + 1);
+
+        closers[this.text.length] = -1;
+
+        for (let i = this.text.length - 1; i >= 0; i--)
+            closers[i] = this.isCloser(i, marker, markerLength) ? i : closers[i + 1];
+
+        return closers;
+    }
+
+    private isCloser(index: number, marker: string, markerLength: number): boolean {
+        if (index === 0 || this.text[index] !== marker || this.isEscaped(index) || isSpace(this.text[index - 1]))
+            return false;
+
+        const repeated = index + 1 < this.text.length && this.text[index + 1] === marker;
+
+        // The doubled marker must be exactly doubled, so `***a***` closes as bold wrapping italic.
+        return markerLength === 2 ? repeated : !repeated;
+    }
+}
+
+function within(position: number, end: number): number {
+    return position >= 0 && position < end ? position : -1;
+}
+
+function closingMarkerSlot(marker: string, markerLength: number): number {
+    switch (marker) {
+        case "*":
+            return markerLength === 2 ? 0 : 1;
+        case "_":
+            return 2;
+        case "~":
+            return 3;
+        default:
+            return 4;
+    }
 }
 
 function isExternalUrl(url: string): boolean {

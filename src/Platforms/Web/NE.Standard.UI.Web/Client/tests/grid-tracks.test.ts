@@ -42,6 +42,14 @@ test("formatting writes what the renderer would have written", () => {
     assert.equal(formatGridTracks(parseGridTracks(template)!), template);
 });
 
+test("a container that grows past its box writes a bare content track as its content's width, and reads it back", () => {
+    const tracks = parseGridTracks("auto minmax(80px, auto) fit-content(300px) minmax(0, 1fr)")!;
+    const wide = formatGridTracks(tracks, "max-content");
+
+    assert.equal(wide, "max-content minmax(80px, auto) fit-content(300px) minmax(0, 1fr)");
+    assert.deepEqual(parseGridTracks(wide), tracks);
+});
+
 test("limits are one-based on the attribute and land on the track", () => {
     const limits = parseGridTrackLimits("1:160:420 3::300");
 

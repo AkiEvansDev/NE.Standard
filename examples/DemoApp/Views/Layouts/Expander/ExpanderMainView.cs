@@ -1,12 +1,7 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.Expander;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Regions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Expander;
 
@@ -52,7 +47,7 @@ internal sealed class ExpanderMainView : DemoMainView, IUIViewDefinition
             .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
             .ConfigureDefaultHeader(BindHeader)
             .SetContent(new ParagraphComponent()
-                .SetDescription("Artifacts are kept for 30 days, replicated once per availability zone, and may burst to twice the standard quota.")
+                .SetDescription("Snapshots are kept for 30 days, replicated once within the region, and taken each night inside the backup window.")
                 .SetDescriptionType(UITextAppearance.Body)
                 .SetWrapMode(UITextWrapMode.Wrap)
             )

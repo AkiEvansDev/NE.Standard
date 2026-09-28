@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- The namespaces of this package an application writes against. The .targets beside this file turns them into global
+       usings unless the project sets NEStandardUIImplicitUsings to false; a package only names its own. -->
+  <ItemGroup>
+    <NEStandardUIUsing Include="NE.Standard.UI.Application" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Controllers" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Data" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Navigation" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Startup" />
+  </ItemGroup>
+
+</Project>

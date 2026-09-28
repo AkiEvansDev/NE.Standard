@@ -86,12 +86,13 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
                 _ = RenderProperty<int?>(context, input, TextInputComponent.DebounceMillisecondsProperty, static (target, value) =>
                 {
-                    if (value is int milliseconds)
+                    if (value is int milliseconds and >= 0)
                         _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
 
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
+                RenderFieldLabel(context, input);
 
                 _ = RenderProperty<string?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
                 {

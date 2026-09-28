@@ -3,35 +3,30 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Recursive;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Navigation.TabsView;
 
 /// <summary>
-/// An editor: the project's files, the ones open in the strip, and the four gestures the strip allows.
+/// An editor: the operator's files, the ones open in the strip, and the four gestures the strip allows.
 /// </summary>
 internal sealed partial class EditorGroupContext : DemoGroupContext
 {
-    private static readonly Dictionary<string, (string Title, string Folder, string Icon, string Body)> Project = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string Title, string Folder, string Icon, string Body)> OperatorFiles = new(StringComparer.Ordinal)
     {
-        ["readme"] = ("README.md", "/", DemoIcons.FileText, "A server-driven UI framework for .NET: views and controllers in C#, rendered live to the browser."),
-        ["program"] = ("Program.cs", "examples/DemoApp.Web", DemoIcons.File, "WebStartupBuilder.Configure<DemoAppWebStartup, DemoAppStartup>(builder.Services);\n\nawait app.RunAsync();"),
-        ["startup"] = ("DemoAppStartup.cs", "examples/DemoApp", DemoIcons.File, "protected override void ConfigureApplication(UIApplicationBuilder application)\n{\n    _ = application.Route<HomeView>(\"/\");\n}"),
-        ["settings"] = ("appsettings.json", "examples/DemoApp.Web", DemoIcons.Settings, /*lang=json,strict*/ "{\n  \"Logging\": { \"LogLevel\": { \"Default\": \"Information\" } }\n}"),
-        ["styles"] = ("ui.less", "Client/src", DemoIcons.Palette, "@import \"core/tokens.less\";\n@import \"components/ui-tabs-view.less\";"),
-        ["plan"] = ("PLAN.md", "docs", DemoIcons.List, "What is built, and what is left to finish the Web platform.")
+        ["incident"] = ("incident-report.md", "incidents", DemoIcons.FileText, "Slow API in Europe West: a full database disk, 39 minutes, and three follow-ups."),
+        ["health"] = ("health-check.cs", "checks", DemoIcons.File, "public HealthStatus Check(Server server)\n    => server.Disk.UsedPercent < 90 ? HealthStatus.Healthy : HealthStatus.Degraded;"),
+        ["provision"] = ("provision.sh", "scripts", DemoIcons.File, "#!/usr/bin/env bash\nset -euo pipefail\n\nmkfs.ext4 /dev/vdb\nmount /dev/vdb /data"),
+        ["server"] = ("server.json", "servers/api-eu-west-1", DemoIcons.Settings, /*lang=json,strict*/ "{\n  \"plan\": \"standard\",\n  \"region\": \"eu-west\"\n}"),
+        ["badges"] = ("badges.less", "status-page", DemoIcons.Palette, "@import \"tokens.less\";\n.badge-degraded { color: @warning; }"),
+        ["status"] = ("status.html", "status-page", DemoIcons.Link, "<h1>Orvane Cloud status</h1>\n<p>All systems operational.</p>")
     };
 
-    /// <summary>The project tree — every file there is, open or not.</summary>
+    /// <summary>The file tree — every file there is, open or not.</summary>
     [RecursiveMember(false)]
     public RecursiveCollection<TextItem> Files { get; } =
     [
-        .. Project.Select(static entry => new TextItem
+        .. OperatorFiles.Select(static entry => new TextItem
         {
             Id = entry.Key,
             Title = entry.Value.Title,
@@ -42,17 +37,17 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
 
     /// <summary>The files open in the strip; the first is pinned and the controller refuses to close it.</summary>
     [RecursiveMember(false)]
-    public RecursiveCollection<DemoDocumentItem> Documents { get; } = [CreateDocument("readme", 1, pinned: true), CreateDocument("program", 2)];
+    public RecursiveCollection<DemoDocumentItem> Documents { get; } = [CreateDocument("incident", 1, pinned: true), CreateDocument("health", 2)];
 
     [RecursiveMember]
-    public partial string? SelectedKey { get; set; } = "readme";
+    public partial string? SelectedKey { get; set; } = "incident";
 
     /// <summary>
     /// Opens a file, or switches to it when it is already open.
     /// </summary>
     public void Open(string id)
     {
-        if (!Project.TryGetValue(id, out (string Title, string Folder, string Icon, string Body) file))
+        if (!OperatorFiles.TryGetValue(id, out (string Title, string Folder, string Icon, string Body) file))
             return;
 
         if (Find(id) is null)
@@ -71,80 +66,19 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
         SelectedKey = id;
     }
 
-    public const string PinAction = "pin";
+    /// <summary>The editor's own entry of the tab menu, between the strip's Rename and Pin and its Close.</summary>
     public const string CloseOthersAction = "close-others";
-    public const string CloseAction = "close";
 
     /// <summary>
-    /// What the tab's context menu asks for, by the entry's key and the tab's id.
+    /// What an entry the editor appended to the tab menu asks for, by the entry's key and the tab's id; the strip's own entries
+    /// are done in the browser and arrive as the document's values.
     /// </summary>
     public void Act(string action, string id)
     {
-        switch (action)
-        {
-            case PinAction:
-                TogglePin(id);
-                break;
-            case CloseOthersAction:
-                CloseOthers(id);
-                break;
-            case CloseAction:
-                Close(id);
-                break;
-            default:
-                LogEvent($"unknown tab action '{action}'");
-                break;
-        }
-    }
-
-    /// <summary>The tab draws the pin and drops its close by itself; the menu entry's word and glyph follow here, being the document's own.</summary>
-    private void TogglePin(string id)
-    {
-        if (Find(id) is not DemoDocumentItem document)
-            return;
-
-        document.Pinned = document.Pinned != true;
-        document.Order = HeadOrder(document);
-        SetPinEntry(document);
-        LogEvent(document.Pinned == true ? $"pinned {document.Title}" : $"unpinned {document.Title}");
-    }
-
-    /// <summary>Where a tab just pinned or unpinned stands: after the last pinned tab, or before the first unpinned one.</summary>
-    private double? HeadOrder(DemoDocumentItem document)
-    {
-        double? lastPinned = null;
-        double? firstUnpinned = null;
-
-        foreach (DemoDocumentItem other in Documents)
-        {
-            if (ReferenceEquals(other, document) || other.Order is not double order)
-                continue;
-
-            if (other.Pinned == true)
-                lastPinned = lastPinned is null ? order : Math.Max(lastPinned.Value, order);
-            else
-                firstUnpinned = firstUnpinned is null ? order : Math.Min(firstUnpinned.Value, order);
-        }
-
-        return (lastPinned, firstUnpinned) switch
-        {
-            (null, null) => document.Order,
-            (null, double first) => first - 1,
-            (double last, null) => last + 1,
-            (double last, double first) => (last + first) / 2
-        };
-    }
-
-    private static void SetPinEntry(DemoDocumentItem document)
-    {
-        foreach (MenuItem entry in document.Actions)
-        {
-            if (!string.Equals(entry.Id, PinAction, StringComparison.Ordinal))
-                continue;
-
-            entry.Title = document.Pinned == true ? "Unpin" : "Pin";
-            entry.Icon = DemoIcons.Outline(document.Pinned == true ? DemoIcons.Unpin : DemoIcons.Pin);
-        }
+        if (string.Equals(action, CloseOthersAction, StringComparison.Ordinal))
+            CloseOthers(id);
+        else
+            LogEvent($"unknown tab action '{action}'");
     }
 
     private void CloseOthers(string id)
@@ -191,7 +125,7 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
 
         if (title.Length == 0)
         {
-            document.Title = Project[id].Title;
+            document.Title = OperatorFiles[id].Title;
             LogEvent($"an empty name is refused — back to {document.Title}");
             return;
         }
@@ -203,7 +137,14 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
         LogEvent($"renamed to {title}");
     }
 
-    /// <summary>The strip after a drop, read off the orders the drag wrote back.</summary>
+    /// <summary>A pin or an unpin from the tab menu, read off the state the strip wrote back.</summary>
+    public void ReportPin(string id)
+    {
+        if (Find(id) is DemoDocumentItem document)
+            LogEvent(document.Pinned == true ? $"pinned {document.Title}" : $"unpinned {document.Title}");
+    }
+
+    /// <summary>The strip after a drop or a pin, read off the orders the strip wrote back.</summary>
     public void ReportOrder()
         => LogEvent("order: " + string.Join(" · ", Documents.OrderBy(static document => document.Order).Select(static document => document.Title)));
 
@@ -212,7 +153,7 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
 
     private static DemoDocumentItem CreateDocument(string id, double order, bool pinned = false)
     {
-        (var title, _, var icon, var body) = Project[id];
+        (var title, _, var icon, var body) = OperatorFiles[id];
 
         DemoDocumentItem document = new()
         {
@@ -226,12 +167,6 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
             Pinned = pinned
         };
 
-        document.Actions.Add(new MenuItem { Id = TabsViewScenariosController.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) });
-        document.Actions.Add(new MenuItem { Id = PinAction });
-        document.Actions.Add(new MenuItem { Id = CloseOthersAction, Title = "Close others", Icon = DemoIcons.Outline(DemoIcons.Close) });
-        document.Actions.Add(new MenuItem { Id = CloseAction, Title = "Close", Icon = DemoIcons.Outline(DemoIcons.Close) });
-        SetPinEntry(document);
-
         return document;
     }
 }
@@ -244,14 +179,14 @@ internal sealed partial class DriveGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<DemoDocumentItem> Steps { get; } =
     [
-        CreateStep("source", 1, "Source", "Checked out main at 7f3a1c2. Nothing to do here."),
-        CreateStep("build", 2, "Build", "Restore, compile and the client bundle — 41 seconds on the last run."),
-        CreateStep("test", 3, "Test", "452 tests across three projects, none skipped."),
-        CreateStep("deploy", 4, "Deploy", "Promotes the build to staging and waits for a person.")
+        CreateStep("order", 1, "Order", "api-eu-west-1 on the Standard plan in eu-west. Nothing to do here."),
+        CreateStep("disk", 2, "Disk", "80 GB created and the image written — 41 seconds on the last run."),
+        CreateStep("boot", 3, "Boot", "Booted on the first try, with the firewall rules applied."),
+        CreateStep("health", 4, "Health check", "Waits for the health check to pass, then hands the server to the customer.")
     ];
 
     [RecursiveMember]
-    public partial string? SelectedKey { get; set; } = "source";
+    public partial string? SelectedKey { get; set; } = "order";
 
     public void Move(int offset)
     {
@@ -295,21 +230,13 @@ internal sealed partial class TabsViewScenariosController() : DemoController
         => EditorGroup.Rename(id);
 
     public const string EditorTabsId = "editor-tabs";
-    public const string RenameAction = "rename";
 
     /// <summary>
-    /// Rename opens the caption's own field through an effect; everything else the group answers on the server.
+    /// An entry the editor appended to the strip's tab menu, with the entry's key and the tab's id.
     /// </summary>
     [UICommand]
-    public UICommandResult TabAction(string action, string id)
-    {
-        if (string.Equals(action, RenameAction, StringComparison.Ordinal))
-            return UICommandResult.Ok([new RenameTabEffect(EditorTabsId, id)]);
-
-        EditorGroup.Act(action, id);
-
-        return UICommandResult.Ok();
-    }
+    public void TabAction(string entry, string id)
+        => EditorGroup.Act(entry, id);
 
     [UICommand]
     public void NextStep()
@@ -320,7 +247,8 @@ internal sealed partial class TabsViewScenariosController() : DemoController
         => DriveGroup.Move(-1);
 
     /// <summary>
-    /// A drop has no command of its own: it writes the tab's <c>Order</c> back, and this hangs off that notification.
+    /// A drop and a pin have no command of their own: they write the tab's <c>Order</c> and <c>Pinned</c> back, and this hangs
+    /// off those notifications.
     /// </summary>
     protected override void OnNotify(RecursiveChange change)
     {
@@ -330,12 +258,17 @@ internal sealed partial class TabsViewScenariosController() : DemoController
 
         RecursivePath path = change.Path;
 
-        if (path.Count == 4
-            && path[0].Kind == PathSegmentKind.Property && string.Equals(path[0].Property, nameof(EditorGroup), StringComparison.Ordinal)
-            && path[1].Kind == PathSegmentKind.Property && string.Equals(path[1].Property, nameof(EditorGroupContext.Documents), StringComparison.Ordinal)
-            && path[3].Kind == PathSegmentKind.Property && string.Equals(path[3].Property, nameof(TabItem.Order), StringComparison.Ordinal))
+        if (path.Count != 4
+            || path[0].Kind != PathSegmentKind.Property || !string.Equals(path[0].Property, nameof(EditorGroup), StringComparison.Ordinal)
+            || path[1].Kind != PathSegmentKind.Property || !string.Equals(path[1].Property, nameof(EditorGroupContext.Documents), StringComparison.Ordinal)
+            || path[3].Kind != PathSegmentKind.Property)
         {
-            EditorGroup.ReportOrder();
+            return;
         }
+
+        if (string.Equals(path[3].Property, nameof(TabItem.Order), StringComparison.Ordinal))
+            EditorGroup.ReportOrder();
+        else if (string.Equals(path[3].Property, nameof(TabItem.Pinned), StringComparison.Ordinal) && path[2].Kind == PathSegmentKind.Key)
+            EditorGroup.ReportPin(path[2].Key);
     }
 }

@@ -9,4 +9,7 @@ public interface IHtmlBuilder
     IHtmlBuilder Text(string value);
 
     IHtmlBuilder Element(string tag, Action<IHtmlElementBuilder> configure);
+
+    /// <summary>Adds markup already built elsewhere as it stands, written when this builder is — never turned into a string first.</summary>
+    IHtmlBuilder Content(IHtmlContent content);
 }

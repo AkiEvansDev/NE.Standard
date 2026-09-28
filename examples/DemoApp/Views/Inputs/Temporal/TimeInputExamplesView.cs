@@ -1,10 +1,5 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
 
@@ -25,18 +20,13 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.inputs.time-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateStepGroup()],
-            [CreateSegmentsGroup(), CreateBoundsGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateStepGroup()], [CreateSegmentsGroup(), CreateBoundsGroup()]));
 
     /// <summary>The jobs it is given, and the pair that is a window rather than a moment.</summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateGroup(null, "Where it is used",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Where it is used",
+            UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("Daily digest is sent at")
                     .SetIcon(DemoIcons.Clock)
@@ -60,7 +50,6 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(new TimeOnly(7, 0))
                     .SetStepMinutes(30)
                 )
-            )
         );
     }
 
@@ -69,8 +58,8 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateSegmentsGroup()
     {
-        return DemoUI.CreateGroup(null, "Which segments it has",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Which segments it has",
+            UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("Unset — the culture's short time")
                     .SetValue(Standup)
@@ -85,7 +74,6 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetDisplayFormat("HH:mm:ss")
                     .SetValue(Window)
                 )
-            )
         );
     }
 
@@ -94,8 +82,8 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateStepGroup()
     {
-        return DemoUI.CreateGroup(null, "What the arrows move by",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("What the arrows move by",
+            UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("A minute at a time")
                     .SetDisplayFormat("HH:mm")
@@ -114,7 +102,6 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetStepSeconds(5)
                     .SetValue(Window)
                 )
-            )
         );
     }
 
@@ -123,8 +110,8 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "Bounds",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Bounds",
+            UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("Working hours")
                     .SetDisplayFormat("HH:mm")
@@ -139,7 +126,6 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetMin(new TimeOnly(8, 0))
                 )
                 .AddChild(UIText.Note("The editor is **segments only** — free text is gone for this control, so nothing it produces can fail to parse and `FormatMessage` is never reached from it."))
-            )
         );
     }
 }

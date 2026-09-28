@@ -1,20 +1,29 @@
-// The items variant of a tabs strip: captions and pages come from one collection, so a tab's key is the item's own key.
+// The items variant of a tabs strip: captions and pages come from one collection, so a tab's key is the item's own key. The strip
+// runs its own tab menu: the built-in entries it chose, as the tab it was opened on allows, and the application's entries raised
+// with the tab's key.
 
 import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, TabCaptionAttribute, TabOrderAttribute, TabPinnedAttribute, TabsSelectedAttribute,
+    BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemKindAttribute, PassiveMenuEntrySelector,
+    TabCaptionAttribute, TabOrderAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
     UndraggableAttribute, TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
 } from "../addressing/dom-attributes";
 import { EffectRegistry } from "../effects/effect-registry";
+import { EventRegistration } from "../events/event-descriptor";
 import { getIdValue, RenameTabClientEffect } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
-import { observeComponents } from "./dom-mutations";
+import { ContextMenuOpeningDetail, ContextMenuOpeningEventName } from "./context-menu-engine";
+import { happenedInside, observeComponents } from "./dom-mutations";
 import { markDragStart } from "./drag-marks";
 import { isLaidOut } from "./element-visibility";
 import { openInlineRename } from "./inline-rename";
 import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
-import { OverflowButtonClass, StripOverflowMenu, fitStrip } from "./strip-overflow";
+import { OverflowButtonClass, StripFitter } from "./strip-overflow";
+import {
+    MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries
+} from "./tab-menu";
+import { StripTab, ordersAfterMove, pinnedBoundary } from "./tab-order";
 
 const RootClass = "ui-tabs-view";
 const ItemClass = "ui-tab-item";
@@ -22,6 +31,7 @@ const LabelClass = "ui-tab-item__label";
 const CloseClass = "ui-tab-item__close";
 const RenameClass = "ui-tab-item__rename";
 const CaptionClass = "ui-tab-item__caption";
+const PinClass = "ui-tab-item__pin";
 const TitleSelector = ".ui-text__title";
 const DraggingModifier = "ui-tab-item--dragging";
 const OverflowedModifier = "ui-tab-item__caption--overflowed";
@@ -30,7 +40,20 @@ const NoOverflowModifier = "ui-tabs-view--no-overflow";
 const PageClass = "ui-tab-item__page";
 const SelectedModifier = "ui-tab-item--selected";
 
-const RenamableAttribute = "data-ui-tabs-renamable";
+const MenuEntrySelector = ".ui-menu-item";
+
+/** An application's entry of the tab menu, raised on the strip: EventNames.TabMenuEntry. */
+const TabMenuEntryEventName = "tab-menu-entry";
+
+type TabMenuEntryDetail = {
+    readonly keys: readonly string[];
+};
+
+/** How the pipeline reads the tab menu's entry event: its keys are the entry's and the tab's, in place of the chain above the strip. */
+export const TabMenuEntryEvent: { readonly name: string; readonly registration: Omit<EventRegistration<CustomEvent<TabMenuEntryDetail>>, "name"> } = {
+    name: TabMenuEntryEventName,
+    registration: { dynamicParameters: context => context.domEvent.detail?.keys ?? null }
+};
 
 /** Written on the host: what the caption strip took of it, so the page below can fill the rest. */
 const StripHeightVariable = "--ui-tabs-view-strip";
@@ -42,26 +65,25 @@ export type TabsViewEngineOptions = {
 
 export class TabsViewEngine {
     private readonly root: ParentNode;
-    private readonly overflow: StripOverflowMenu;
+    private readonly fitter: StripFitter;
 
     // Where the dragged tab's row sat before the drag, so a cancelled drop can put it back rather than commit the live reorder.
     private dragStart: { readonly parent: Node; readonly next: Node | null } | null = null;
 
-    // The strip is fitted again whenever its width changes; a host is observed once, on first sight.
-    private readonly resizes = typeof ResizeObserver === "function"
-        ? new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const root = entry.target.closest<HTMLElement>(`.${RootClass}`);
-
-                if (root !== null)
-                    this.apply(root);
-            }
-        })
-        : null;
+    // The strip and the key of the tab its menu was last opened on, which the menu's entries act on: a key, since the tab's row
+    // may be drawn again while the menu stands open.
+    private menuTab: { readonly root: HTMLElement; readonly key: string } | null = null;
 
     public constructor(options: TabsViewEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.overflow = new StripOverflowMenu((strip, key) => this.select(strip, key));
+        this.fitter = new StripFitter({
+            rootClass: RootClass,
+            overflowingClass: OverflowingModifier,
+            wrapsClass: NoOverflowModifier,
+            hiddenClass: OverflowedModifier,
+            refit: root => this.apply(root),
+            pick: (root, key) => this.pickFromOverflow(root, key)
+        });
 
         this.applyAll();
 
@@ -87,6 +109,7 @@ export class TabsViewEngine {
             this.startRename(label);
         });
 
+        this.root.addEventListener(ContextMenuOpeningEventName, domEvent => this.prepareMenu(domEvent));
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
@@ -96,11 +119,12 @@ export class TabsViewEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
         // Tabs arrive with the collection, so childList counts as much as the selected attribute; a strip whose Draggable switches
-        // live rewrites every caption's draggable flag, so that's watched too.
+        // live rewrites every caption's draggable flag, so that's watched too. What happens inside a page is the page's own: a table
+        // patched there must not re-measure the strip with a forced layout on every push.
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, ...VisibilityTierAttributes] },
+            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${PageClass}`, `.${RootClass}`) },
             views => {
                 for (const view of views)
                     this.apply(view);
@@ -206,56 +230,164 @@ export class TabsViewEngine {
         const host = this.hostOf(root);
         const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
 
-        if (host === null || button === null)
-            return;
+        // The host holds the pages too: its width is the strip's room, and a page growing taller changes nothing on the strip.
+        if (host !== null && button !== null)
+            this.fitter.fit(root, { room: host, button, captions, selected });
+    }
 
-        // Watched whatever the strip does with its captions: a host that changed size has a strip of another height under it.
-        this.resizes?.observe(host);
-
-        // A strip without the "…" list wraps its captions instead: every caption stays on the strip.
-        if (root.classList.contains(NoOverflowModifier)) {
-            for (const caption of captions)
-                caption.classList.remove(OverflowedModifier);
-
-            root.classList.remove(OverflowingModifier);
-            return;
-        }
-
-        // Shown for the measurement, so a control that was hidden has a width; taken off again when everything fits.
-        root.classList.add(OverflowingModifier);
-
-        const overflowing = fitStrip({
-            captions,
-            selected,
-            width: host.clientWidth,
-            buttonWidth: button.getBoundingClientRect().width,
-            hiddenClass: OverflowedModifier
-        });
-
-        root.classList.toggle(OverflowingModifier, overflowing);
-
-        if (!overflowing && this.overflow.isOpenFor(root))
-            this.overflow.close();
+    /** A tab picked from the list is the current one, fitted onto the strip first, and the keyboard carries on from its caption. */
+    private pickFromOverflow(root: HTMLElement, key: string): void {
+        this.select(root, key);
+        this.ownItems(root).find(item => tabKey(item) === key)?.querySelector<HTMLElement>(`.${LabelClass}`)?.focus({ preventScroll: true });
     }
 
     private toggleOverflow(root: HTMLElement, button: HTMLElement): void {
-        if (this.overflow.isOpenFor(root)) {
-            this.overflow.close();
+        this.fitter.toggleList(root, button, () => {
+            const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
+
+            return this.ownItems(root).filter(isLaidOut).map(item => ({
+                key: tabKey(item),
+                title: item.querySelector(`.${LabelClass}`)?.textContent?.trim() ?? tabKey(item),
+                current: tabKey(item) === selected
+            }));
+        });
+    }
+
+    /**
+     * Leaves in the tab menu what the strip chose and the tab it was opened on allows, and a rule only between two shown entries; a
+     * menu left with nothing to offer stays shut.
+     */
+    private prepareMenu(domEvent: Event): void {
+        const menu = domEvent.target;
+
+        if (!(domEvent instanceof CustomEvent) || !(menu instanceof HTMLElement) || menu.getAttribute(ContextMenuAttribute) !== TabMenuName)
+            return;
+
+        const root = menu.parentElement;
+        const item = (domEvent.detail as ContextMenuOpeningDetail).target.closest<HTMLElement>(`.${ItemClass}`);
+
+        if (root === null || !root.classList.contains(RootClass) || item === null || item.closest(`.${RootClass}`) !== root) {
+            domEvent.preventDefault();
             return;
         }
 
-        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
-        const entries = this.ownItems(root).filter(isLaidOut).map(item => ({
-            key: tabKey(item),
-            title: item.querySelector(`.${LabelClass}`)?.textContent?.trim() ?? tabKey(item),
-            current: tabKey(item) === selected
-        }));
+        const offered = offeredEntries(root, item);
+        const rows = menuRows(menu);
 
-        this.overflow.open(button, root, entries);
+        // An application's entry keeps its own visibility; a built-in one shows as offered.
+        const kinds = rows.map((row): MenuRow => {
+            if (isRule(row))
+                return "rule";
+
+            const shown = offered.get(row.getAttribute(ComponentKeyAttribute) ?? "");
+
+            if (shown !== undefined)
+                row.style.display = shown ? "" : "none";
+
+            return (shown ?? isLaidOut(row)) ? "shown" : "hidden";
+        });
+
+        shownRules(kinds).forEach((shown, i) => {
+            if (kinds[i] === "rule")
+                rows[i].style.display = shown ? "" : "none";
+        });
+
+        if (!kinds.includes("shown")) {
+            domEvent.preventDefault();
+            return;
+        }
+
+        this.menuTab = { root, key: tabKey(item) };
+    }
+
+    /** An entry of a strip's tab menu: the strip's own run here, an application's is raised with the tab the menu was opened on. */
+    private handleMenuEntry(target: Element): boolean {
+        const menu = target.closest<HTMLElement>(`[${ContextMenuAttribute}="${TabMenuName}"]`);
+        const root = menu?.parentElement ?? null;
+        const entry = target.closest<HTMLElement>(MenuEntrySelector);
+
+        if (menu === null || root === null || !root.classList.contains(RootClass) || entry === null || !menu.contains(entry))
+            return false;
+
+        const key = entry.closest(`[${ComponentKeyAttribute}]`)?.getAttribute(ComponentKeyAttribute) ?? "";
+        const opened = this.menuTab;
+        const item = opened === null || opened.root !== root ? undefined : this.ownItems(root).find(candidate => tabKey(candidate) === opened.key);
+
+        // A group's own entry opens its block, a rule or a caption runs nothing, and a tab closed while the menu stood open has none.
+        if (key.length === 0 || entry.matches(`${MenuGroupEntrySelector}, ${PassiveMenuEntrySelector}`) || item === undefined)
+            return true;
+
+        if (!key.startsWith(TabMenuPrefix)) {
+            root.dispatchEvent(new CustomEvent<TabMenuEntryDetail>(TabMenuEntryEventName, { bubbles: true, detail: { keys: [key, tabKey(item)] } }));
+            return true;
+        }
+
+        // Asked again at the click: the strip's choice or the tab may have changed while the menu stood open.
+        if (offeredEntries(root, item).get(key) !== true)
+            return true;
+
+        switch (key) {
+            case RenameEntry: {
+                const label = item.querySelector<HTMLElement>(`.${LabelClass}`);
+
+                if (label !== null)
+                    this.startRename(label);
+
+                break;
+            }
+            case PinEntry:
+            case UnpinEntry:
+                this.setPinned(root, item, key === PinEntry);
+                break;
+            default:
+                // Close and Delete are the one remove entry, worded two ways: both do what the cross does.
+                item.dispatchEvent(new Event("remove", { bubbles: true }));
+                break;
+        }
+
+        return true;
+    }
+
+    /**
+     * Pins or unpins a tab and moves it to the boundary of the pinned ones, the strip's head; both are written back through the
+     * tab's own values, the pin as its state and the place as its order, the way a drag writes its order.
+     */
+    private setPinned(root: HTMLElement, item: HTMLElement, pinned: boolean): void {
+        if (item.hasAttribute(TabPinnedAttribute) === pinned)
+            return;
+
+        const pin = item.querySelector<HTMLElement>(`:scope > .${CaptionClass} > .${PinClass}`);
+
+        item.toggleAttribute(TabPinnedAttribute, pinned);
+
+        if (pin !== null) {
+            pin.toggleAttribute(TabPinnedAttribute, pinned);
+            pin.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        const items = this.ownItems(root);
+        const others = items.filter(other => other !== item);
+        const index = pinnedBoundary(others.map(stripTab));
+
+        // Already standing there, the tab's order is already between its neighbours; a tab alone always is.
+        if (items.indexOf(item) === index)
+            return;
+
+        const next = others[index];
+
+        if (next !== undefined)
+            rowOf(next).before(rowOf(item));
+        else
+            rowOf(others[others.length - 1]).after(rowOf(item));
+
+        writeOrders([...others.slice(0, index), item, ...others.slice(index)], index);
     }
 
     private handleClick(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
+            return;
+
+        if (this.handleMenuEntry(domEvent.target))
             return;
 
         if (this.handleClose(domEvent, domEvent.target))
@@ -299,7 +431,7 @@ export class TabsViewEngine {
         domEvent.stopPropagation();
 
         // A tab that cannot be removed, or a strip that removes nothing, has its close hidden; a press that still lands raises nothing.
-        if (root.hasAttribute(TabsUnremovableAttribute) || rowOf(item).hasAttribute(UnremovableAttribute) || item.hasAttribute(UnremovableAttribute))
+        if (!isRemovable(root, item))
             return true;
 
         item.dispatchEvent(new Event("remove", { bubbles: true }));
@@ -315,7 +447,7 @@ export class TabsViewEngine {
         const label = domEvent.target.closest<HTMLElement>(`.${LabelClass}`);
         const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (label === null || root === null || !root.hasAttribute(RenamableAttribute))
+        if (label === null || root === null || !root.hasAttribute(TabsRenamableAttribute))
             return;
 
         domEvent.preventDefault();
@@ -359,7 +491,7 @@ export class TabsViewEngine {
 
         // F2 renames the caption the caret is on, the key the tree's rows answer too.
         if (domEvent.key === "F2") {
-            if (!root.hasAttribute(RenamableAttribute))
+            if (!root.hasAttribute(TabsRenamableAttribute))
                 return;
 
             domEvent.preventDefault();
@@ -493,22 +625,14 @@ export class TabsViewEngine {
         if (start !== null && row.parentNode === start.parent && row.nextSibling === start.next)
             return;
 
-        this.commitOrder(item);
-    }
+        const root = item.closest<HTMLElement>(`.${RootClass}`);
 
-    /** The dropped tab takes the midpoint between its new neighbours, so no other tab is renumbered. */
-    private commitOrder(item: HTMLElement): void {
-        const row = rowOf(item);
-        const previous = readOrder(itemOf(row.previousElementSibling));
-        const next = readOrder(itemOf(row.nextElementSibling));
+        if (root === null)
+            return;
 
-        const order = previous === null && next === null ? 0
-            : previous === null ? next! - 1
-                : next === null ? previous + 1
-                    : (previous + next) / 2;
+        const items = this.ownItems(root);
 
-        item.setAttribute(TabOrderAttribute, String(order));
-        item.dispatchEvent(new Event("change", { bubbles: true }));
+        writeOrders(items, items.indexOf(item));
     }
 
     private select(root: HTMLElement, key: string): void {
@@ -525,13 +649,44 @@ function lastPinnedRow(root: HTMLElement, draggingRow: HTMLElement): HTMLElement
     let last: HTMLElement | null = null;
 
     for (const item of ownDescendants(root, `.${ItemClass}`, `.${RootClass}`)) {
-        const row = rowOf(item as HTMLElement);
+        const row = rowOf(item);
 
         if (row !== draggingRow && item.hasAttribute(TabPinnedAttribute))
             last = row;
     }
 
     return last;
+}
+
+/** Whether a tab may be closed: neither the strip nor the tab's item refuses it. */
+function isRemovable(root: HTMLElement, item: HTMLElement): boolean {
+    return !root.hasAttribute(TabsUnremovableAttribute) && !rowOf(item).hasAttribute(UnremovableAttribute) && !item.hasAttribute(UnremovableAttribute);
+}
+
+/**
+ * The built-in entries of the tab menu a tab is offered: what the strip chose, as the tab allows. Rename needs only the item's
+ * `CanRename`, not the strip's `Renamable`, which governs the double click and F2; the remove entry needs a remove command and a removable tab.
+ */
+function offeredEntries(root: HTMLElement, item: HTMLElement): ReadonlyMap<string, boolean> {
+    return tabMenuEntries(readTabMenuChoice(root.getAttribute(TabsMenuAttribute)), {
+        pinned: item.hasAttribute(TabPinnedAttribute),
+        renamable: !rowOf(item).hasAttribute(UnrenamableAttribute),
+        removable: root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item)
+    });
+}
+
+/** Whether a row of the tab menu is a rule: one of the strip's own, or one among the application's entries. */
+function isRule(row: HTMLElement): boolean {
+    const key = row.getAttribute(ComponentKeyAttribute);
+
+    return key === SeparatorEntry || key === RemoveSeparatorEntry || row.querySelector(`:scope > [${MenuItemKindAttribute}="separator"]`) !== null;
+}
+
+/** The tab menu's entries and rules, its items host's own rows: an entry's sub-entries are rows of a host of their own. */
+function menuRows(menu: HTMLElement): HTMLElement[] {
+    const host = menu.querySelector<HTMLElement>(`[${ItemsHostAttribute}]`);
+
+    return host === null ? [] : Array.from(host.children).filter((row): row is HTMLElement => row instanceof HTMLElement && row.hasAttribute(ComponentKeyAttribute));
 }
 
 /** The items host's child that holds a tab: the tab itself when nothing wraps it, else its wrapper. */
@@ -543,13 +698,6 @@ function rowOf(item: HTMLElement): HTMLElement {
         : item;
 }
 
-function itemOf(row: Element | null): Element | null {
-    if (row === null)
-        return null;
-
-    return row.matches(`.${ItemClass}`) ? row : row.querySelector(`.${ItemClass}`);
-}
-
 function draggedItem(domEvent: Event): HTMLElement | null {
     if (!(domEvent.target instanceof Element))
         return null;
@@ -559,9 +707,24 @@ function draggedItem(domEvent: Event): HTMLElement | null {
     return caption?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
 }
 
+/**
+ * Writes the orders a move leaves a strip with — `items` in their new order, the moved tab at `index`: the moved tab's own
+ * between its neighbours, so no other tab is renumbered where that holds, each through the tab's two-way `Order`.
+ */
+function writeOrders(items: readonly HTMLElement[], index: number): void {
+    for (const [place, order] of ordersAfterMove(items.map(stripTab), index)) {
+        items[place].setAttribute(TabOrderAttribute, String(order));
+        items[place].dispatchEvent(new Event("change", { bubbles: true }));
+    }
+}
+
+function stripTab(item: HTMLElement): StripTab {
+    return { order: readOrder(item), pinned: item.hasAttribute(TabPinnedAttribute) };
+}
+
 /** The order a row was last written with, or null for a row that carries none or one that does not parse. */
-function readOrder(item: Element | null): number | null {
-    const value = item?.getAttribute(TabOrderAttribute) ?? null;
+function readOrder(item: Element): number | null {
+    const value = item.getAttribute(TabOrderAttribute);
 
     if (value === null)
         return null;

@@ -20,6 +20,6 @@ public abstract partial class FieldInputComponentBase<TComponent, TValue>(string
     public UIInputSize? Size { get; set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IFieldInputComponent), IsBindable = false, GenerateBinder = false, DefaultValue = UIInputTitlePlacement.Top)]
+    [UIComponentProperty(Contract = typeof(IFieldInputComponent), IsBindable = false, DefaultValue = UIInputTitlePlacement.Top)]
     public UIInputTitlePlacement? TitlePlacement { get; set; }
 }

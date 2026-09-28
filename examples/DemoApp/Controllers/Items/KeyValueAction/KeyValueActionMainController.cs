@@ -1,10 +1,5 @@
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Items.KeyValueAction;
 
@@ -70,7 +65,7 @@ internal sealed partial class KeyValueActionRowsGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
     [
-        CreateItem("region", "Region", "eu-west-1"),
+        CreateItem("region", "Region", "eu-west"),
         CreateItem("replicas", "Replicas", "3"),
         CreateItem("visibility", "Visibility", "internal"),
     ];

@@ -57,7 +57,11 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Attribute("role", "table");
+        // A table whose rows are chosen is a grid: the keyboard walks its rows and each says whether it is chosen.
+        var selectable = RenderSelectableRole(context, root);
+
+        _ = root.Attribute("role", selectable ? "grid" : "table");
+        var cellRole = CellRole(context);
 
         RenderFlags(context, root);
         RenderWideMode(context, root);
@@ -66,11 +70,11 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
         IReadOnlyList<UITableColumn> columns = ResolveColumns(context);
         // Once per render: the same slots draw every server row and tell the client how to draw its own.
-        WebRenderItemsCompositeMetadata composite = CreateComposite(columns);
+        WebRenderItemsCompositeMetadata composite = CreateComposite(columns, cellRole);
 
         RenderTracks(root, columns);
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, composite: composite);
+        RegisterItemsTemplateMetadata(context, composite: composite, announcesSelection: selectable);
         RegisterItemsFilterSortMetadata(context);
 
         RenderOverTable(context, root, columns);
@@ -90,6 +94,10 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
         RenderUnderTable(context, root, columns);
     }
+
+    /// <summary>What a cell is to a screen reader: a grid's cell where rows are chosen, a table's otherwise — for a package's cells too.</summary>
+    protected static string CellRole(WebRenderContext context)
+        => ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many ? "gridcell" : "cell";
 
     /// <summary>The seven switches, each a modifier the stylesheet reads; a bound one flips live.</summary>
     protected virtual void RenderFlags(WebRenderContext context, IHtmlElementBuilder root)
@@ -133,15 +141,16 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         return columns ?? [];
     }
 
-    /// <summary>The client mirror of <see cref="RenderRow"/>: one slot per column, in the column's cell.</summary>
-    protected virtual WebRenderItemsCompositeMetadata CreateComposite(IReadOnlyList<UITableColumn> columns)
+    /// <summary>The client mirror of <see cref="RenderRow"/>: one slot per column, in the column's cell — a grid's cell where rows are chosen.</summary>
+    protected virtual WebRenderItemsCompositeMetadata CreateComposite(IReadOnlyList<UITableColumn> columns, string cellRole = "cell")
     {
         ArgumentNullException.ThrowIfNull(columns);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cellRole);
 
         WebRenderItemsCompositeSlotMetadata[] slots = new WebRenderItemsCompositeSlotMetadata[columns.Count];
 
         for (var i = 0; i < columns.Count; i++)
-            slots[i] = new WebRenderItemsCompositeSlotMetadata { VariantKey = columns[i].TemplateKey, WrapperClassName = CellClasses(columns, i), WrapperRole = "cell", WrapperAttributes = CellAttributes(columns, i) };
+            slots[i] = new WebRenderItemsCompositeSlotMetadata { VariantKey = columns[i].TemplateKey, WrapperClassName = CellClasses(columns, i), WrapperRole = cellRole, WrapperAttributes = CellAttributes(columns, i) };
 
         return new WebRenderItemsCompositeMetadata { ItemClassName = RowClassName, ItemRole = "row", HostSlotVariantKey = TemplateNames.Row, Slots = slots };
     }
@@ -186,14 +195,14 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         Dictionary<string, string> attributes = new(2, StringComparer.Ordinal) { [WebAttributes.TableColumn] = index.ToString(CultureInfo.InvariantCulture) };
 
         if (columns[index].Pinned && index > 0)
-            attributes["style"] = PinOffset(index);
+            attributes["style"] = $"left:{PinOffset(index)}";
 
         return attributes;
     }
 
-    /// <summary>The inline rule that puts a pinned cell at its offset.</summary>
+    /// <summary>Where a pinned cell stands: the variable the columns engine writes for its column.</summary>
     private static string PinOffset(int index)
-        => $"left:var({PinVariablePrefix}{index.ToString(CultureInfo.InvariantCulture)})";
+        => $"var({PinVariablePrefix}{index.ToString(CultureInfo.InvariantCulture)})";
 
     /// <summary>The authored tracks as a variable on the root, and the bounds the resize handle clamps to.</summary>
     protected virtual void RenderTracks(IHtmlElementBuilder root, IReadOnlyList<UITableColumn> columns)
@@ -301,8 +310,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         if (IsPinnedEdge(columns, index))
             _ = cell.Class($"{className}{PinnedEdgeModifier}");
 
+        // Through Style rather than the style attribute, so a style written on the same cell later joins it instead of repeating it.
         if (index > 0)
-            _ = cell.Attribute("style", PinOffset(index));
+            _ = cell.Style("left", PinOffset(index));
     }
 
     /// <summary>The caption and the resize handle; a grid puts its own marks and attributes between them.</summary>
@@ -378,6 +388,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         {
             HashSet<string> selected = ResolveSelectedKeys(context);
             var virtualized = hostMode == UIItemsHostMode.Virtualized;
+            var selectable = ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many;
 
             // A virtualized table hands the client every value and only the first rows; the client draws the rest from them.
             RegisterServerRenderedItemValues(context, items, always: virtualized || PublishItemValues);
@@ -385,7 +396,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             var count = virtualized && items.Count > VirtualizedFirstPaintRows ? VirtualizedFirstPaintRows : items.Count;
 
             for (var i = 0; i < count; i++)
-                RenderRow(context, host, items[i], composite, selected);
+                RenderRow(context, host, items[i], composite, selected, selectable);
         });
     }
 
@@ -400,8 +411,11 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     /// </summary>
     protected virtual bool PublishItemValues => false;
 
-    /// <summary>One row: the slots of <paramref name="composite"/>, each in its cell, as the client draws a row of its own.</summary>
-    protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, WebRenderItemsCompositeMetadata composite, HashSet<string> selected)
+    /// <summary>
+    /// One row: the slots of <paramref name="composite"/>, each in its cell, as the client draws a row of its own; a
+    /// <paramref name="selectable"/> row says whether it is chosen.
+    /// </summary>
+    protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, WebRenderItemsCompositeMetadata composite, HashSet<string> selected, bool selectable)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
@@ -414,7 +428,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
             StampTemplateSlotAsHost(context, row, item, TemplateNames.Row);
             RenderStampedRowAbilities(context, row, item);
-            MarkSelected(row, item, selected);
+            MarkSelected(row, item, selected, announce: selectable);
 
             for (var i = 0; i < composite.Slots.Count; i++)
             {

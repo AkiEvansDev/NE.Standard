@@ -8,6 +8,9 @@ namespace NE.Standard.UI.Abstractions.Items;
 /// </summary>
 public sealed record UIChoice
 {
+    /// <summary>
+    /// Creates a choice from its wire value and the caption shown for it.
+    /// </summary>
     public UIChoice(string value, string caption)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -17,7 +20,13 @@ public sealed record UIChoice
         Caption = caption;
     }
 
+    /// <summary>
+    /// Gets the raw wire value.
+    /// </summary>
     public string Value { get; }
 
+    /// <summary>
+    /// Gets the caption the page shows for the value.
+    /// </summary>
     public string Caption { get; }
 }

@@ -73,9 +73,7 @@ export class AddressResolver {
                     id: componentId,
                     dynamicParameters: [...dynamicParameters]
                 },
-                property: {
-                    name: definition.propertyName
-                }
+                property: definition.propertyName
             }
         }));
     }
@@ -97,7 +95,7 @@ export class AddressResolver {
             definition,
             bindingId: 0,
             bindingSelector: null,
-            address: { component: { id: componentId, dynamicParameters: [] }, property: { name: definition.propertyName } }
+            address: { component: { id: componentId, dynamicParameters: [] }, property: definition.propertyName }
         };
     }
 

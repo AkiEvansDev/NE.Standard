@@ -1,7 +1,16 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Items;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Regions;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -12,6 +21,16 @@ namespace NE.Standard.UI.Web.Renderers.Items;
 public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-items-view__item";
+
+    // What a row may be drawn from and still be an option: words, marks, pictures and the boxes they stand in.
+    private static readonly FrozenSet<string> PassiveTypeKeys = new[]
+    {
+        TextComponent.ComponentTypeKey, ParagraphComponent.ComponentTypeKey, IconComponent.ComponentTypeKey, BadgeComponent.ComponentTypeKey,
+        ImageComponent.ComponentTypeKey, SeparatorComponent.ComponentTypeKey, SpinnerComponent.ComponentTypeKey, ProgressComponent.ComponentTypeKey,
+        ContainerComponent.ComponentTypeKey, StackPanelComponent.ComponentTypeKey, WrapPanelComponent.ComponentTypeKey, SurfaceComponent.ComponentTypeKey,
+        CardComponent.ComponentTypeKey, CardHeaderRegion.ComponentTypeKey, DefaultTextTemplate.ComponentTypeKey, DefaultEmptyTemplate.ComponentTypeKey,
+        DefaultGroupTemplate.ComponentTypeKey
+    }.ToFrozenSet(StringComparer.Ordinal);
 
     public override string ComponentTypeKey => ItemsViewComponent.ComponentTypeKey;
 
@@ -24,15 +43,58 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 
         RenderLayout(context, root, ItemsViewComponent.LayoutTypeProperty, ItemsViewComponent.OrientationProperty, ItemsViewComponent.SpacingProperty);
         RenderSelection(context, root);
+
+        // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection.
+        var listbox = RenderSelectableRole(context, root) && !RowsHoldControls(context);
+
+        _ = root.Attribute("role", listbox ? "listbox" : "list");
+
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);
+        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: listbox);
         RegisterItemsFilterSortMetadata(context);
-        RenderItems(context, root);
+        RenderItems(context, root, listbox);
     }
 
-    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)
+    /// <summary>Whether a row template holds anything a press lands on — a button, a field, a link — rather than only words and pictures.</summary>
+    private static bool RowsHoldControls(WebRenderContext context)
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        foreach (UIComponentSlot slot in context.Node.Slots)
+        {
+            if (slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant && HoldsControl(view, slot.RootComponentId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HoldsControl(CompiledView view, UIComponentId componentId)
+    {
+        UIComponentNode node = view.Graph.GetRequired(componentId);
+
+        if (!PassiveTypeKeys.Contains(node.TypeKey))
+            return true;
+
+        foreach (UIComponentId child in node.Children)
+        {
+            if (HoldsControl(view, child))
+                return true;
+        }
+
+        // A right-click menu is a popup of its own, not a control inside the row.
+        foreach (UIComponentSlot slot in node.Slots)
+        {
+            if (slot.Kind != UIComponentSlotKind.ContextMenu && HoldsControl(view, slot.RootComponentId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root, bool listbox)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
@@ -51,7 +113,11 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
             var virtualized = hostMode == UIItemsHostMode.Virtualized;
 
             // A virtualized host hands the client every value and only the first rows: the client draws the rest, headers included.
-            RenderItemList(context, host, items, ItemClassName, decorateItem: (itemRoot, item, _) => MarkSelected(itemRoot, item, selected), limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
+            RenderItemList(context, host, items, ItemClassName, decorateItem: (itemRoot, item, index) =>
+            {
+                _ = itemRoot.Attribute("role", listbox ? "option" : "listitem");
+                MarkSelected(itemRoot, item, selected, announce: listbox);
+            }, limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
         });
     }
 }

@@ -1,14 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.BuiltIns.Templates;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Navigation.TabsView;
 
@@ -28,10 +20,7 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateBrowserGroup()],
-            [CreateCardGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateBrowserGroup()], [CreateCardGroup()]));
 
         _ = container.AddChild(CreateEmptyGroup());
     }
@@ -43,13 +32,13 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
     {
         DemoDocumentItem[] pages =
         [
-            CreateDocument("docs", DemoIcons.FileText, "Getting started", 1, "docs.example.com/start", "Install the package, write a view and a controller, and route the pair."),
-            CreateDocument("repo", DemoIcons.Link, "NE.Standard", 2, "github.com/example/ne-standard", "The repository, 4 open pull requests and a green main."),
-            CreateDocument("status", DemoIcons.Alert, "Status", 3, "status.example.com", "All systems operational. Last incident 12 days ago.")
+            CreateDocument("docs", DemoIcons.FileText, "Getting started", 1, "docs.orvane.example/start", "Create a server, pick a plan and a region, and point your domain at it."),
+            CreateDocument("api", DemoIcons.Link, "API reference", 2, "docs.orvane.example/api", "Every call the public API takes, and the key each one needs."),
+            CreateDocument("status", DemoIcons.Alert, "Status", 3, "status.orvane.example", "All systems operational. Last incident 12 days ago.")
         ];
 
-        return DemoUI.CreateGroup(null, "A browser",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A browser",
+            new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsViewComponent()
                     .SetItems(pages)
@@ -67,8 +56,6 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
                         )
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -91,17 +78,17 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
     {
         DemoDocumentItem[] sections =
         [
-            CreateDocument("summary", DemoIcons.FileText, "Summary", 1, string.Empty, "Error rate doubled in eu-west-1 at 11:52. The scheduler paused the rollout on its own."),
+            CreateDocument("summary", DemoIcons.FileText, "Summary", 1, string.Empty, "Error rate doubled in eu-west at 11:52. The scheduler paused the rollout on its own."),
             CreateDocument("timeline", DemoIcons.History, "Timeline", 2, string.Empty, "11:52 alert fired · 11:54 rollout paused · 12:10 root cause found · 12:31 fixed forward"),
-            CreateDocument("runbook", DemoIcons.List, "Runbook", 3, string.Empty, "1. Confirm the region.\n2. Pause the rollout.\n3. Compare the two builds' configuration.")
+            CreateDocument("runbook", DemoIcons.List, "Runbook", 3, string.Empty, "1. Confirm the region.\n2. Pause the rollout.\n3. Compare the two releases' configuration.")
         ];
 
-        return DemoUI.CreateGroup(null, "Inside a card",
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("Inside a card",
+            new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(460))
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Alert)
-                    .SetTitle("INC-4812 · Elevated errors in eu-west-1")
+                    .SetTitle("INC-4812 · Elevated errors in eu-west")
                     .SetDescription("Resolved · 39 minutes")
                     .SetBadgeText("Sev 2")
                     .SetBadgeStyle(UIBadgeType.Warning)
@@ -114,8 +101,6 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -124,8 +109,8 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateEmptyGroup()
     {
-        return DemoUI.CreateGroup(null, "Starts empty",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Starts empty",
+            new SurfaceComponent()
                 .SetContent(new TabsViewComponent()
                     .SetItems([])
                     .SetEmptyTemplate(new DefaultEmptyTemplate()
@@ -136,9 +121,7 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                     .SetPageTemplate(new ParagraphComponent().BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative))
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                ),
             columns: 24,
             note: "With no tabs there is no strip either: the empty template is the whole control, and the first tab added brings the strip with it."
         );

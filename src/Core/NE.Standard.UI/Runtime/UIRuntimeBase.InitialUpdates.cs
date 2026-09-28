@@ -26,45 +26,7 @@ internal abstract partial class UIRuntimeBase
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<ServerUIUpdate> pendingUpdates = [.. _pendingUpdates];
-            var pendingFullResync = _pendingFullResync;
-
-            ClearPendingUpdatesNoLock();
-
-            try
-            {
-                HashSet<RecursivePath> paths = [];
-
-                foreach (UIBindingId bindingId in bindingIds)
-                {
-                    if (bindingId.IsEmpty)
-                        throw new ArgumentException("Binding id must not be empty.", nameof(bindingIds));
-
-                    CompiledUIBinding binding = View.Bindings.GetRequired(bindingId);
-
-                    if (binding.Mode == UIBindingMode.OneWayToSource)
-                        continue;
-
-                    RecursivePath? sourcePath = TryGetInitialControllerPath(binding);
-
-                    if (sourcePath is null)
-                        continue;
-
-                    _ = paths.Add(NormalizeInitialPath(sourcePath));
-                }
-
-                foreach (RecursivePath path in paths)
-                    AppendSetUpdatesNoLock(path);
-
-                return DrainPendingUpdatesNoLock();
-            }
-            finally
-            {
-                ClearPendingUpdatesNoLock();
-
-                _pendingUpdates.AddRange(pendingUpdates);
-                _pendingFullResync = pendingFullResync;
-            }
+            return BuildInitialChangeSetNoLock(bindingIds);
         }
         finally
         {
@@ -83,24 +45,109 @@ internal abstract partial class UIRuntimeBase
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<ServerCollectionChangeUIUpdate> updates = [];
-
-            for (var i = 0; i < View.Bindings.All.Count; i++)
-            {
-                CompiledUIBinding binding = View.Bindings.All[i];
-
-                if (binding.Kind != CompiledUIBindingKind.ComponentCollection || binding.Mode == UIBindingMode.OneWayToSource)
-                    continue;
-
-                AppendInitialCollectionChanges(binding, updates);
-            }
-
-            return updates;
+            return BuildInitialCollectionChangesNoLock();
         }
         finally
         {
             _ = _stateLock.Release();
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        EnsureStarted();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
+        ArgumentNullException.ThrowIfNull(bindingIds);
+
+        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // One hold for the snapshot and the mark: an update queued before it is in the snapshot and never sent to the instance,
+            // one queued after it is sent, and is newer than the snapshot.
+            QueueUntakenControllerChangesNoLock();
+
+            ServerChangeSet values = BuildInitialChangeSetNoLock(bindingIds);
+            List<ServerCollectionChangeUIUpdate> collections = BuildInitialCollectionChangesNoLock();
+
+            MarkSnapshot(instanceId, _updateSequence);
+
+            return new ServerChangeSet { Updates = [.. values.Updates, .. collections] };
+        }
+        finally
+        {
+            _ = _stateLock.Release();
+        }
+    }
+
+    /// <summary>The bindings' values as they stand, built through the queue with what was already queued set aside and put back.</summary>
+    private ServerChangeSet BuildInitialChangeSetNoLock(IReadOnlyCollection<UIBindingId> bindingIds)
+    {
+        List<PendingUpdate> pendingUpdates = [.. _pendingUpdates];
+        var pendingFullResync = _pendingFullResync;
+
+        // Set aside too: the snapshot walks the live change path, which would mark every window whose rules read a snapshot
+        // path as stale, and reload it from the start after every render and attach though nothing changed.
+        HashSet<UIComponentId>? dirtyItemWindows = _dirtyItemWindows;
+        _dirtyItemWindows = null;
+
+        ClearPendingUpdatesNoLock();
+
+        try
+        {
+            HashSet<RecursivePath> paths = [];
+
+            foreach (UIBindingId bindingId in bindingIds)
+            {
+                if (bindingId.IsEmpty)
+                    throw new ArgumentException("Binding id must not be empty.", nameof(bindingIds));
+
+                CompiledUIBinding binding = View.Bindings.GetRequired(bindingId);
+
+                if (binding.Mode == UIBindingMode.OneWayToSource)
+                    continue;
+
+                RecursivePath? sourcePath = TryGetInitialControllerPath(binding);
+
+                if (sourcePath is null)
+                    continue;
+
+                _ = paths.Add(NormalizeInitialPath(sourcePath));
+            }
+
+            foreach (RecursivePath path in paths)
+                AppendSetUpdatesNoLock(path);
+
+            // A snapshot is an answer, not a queued change: no instance filters it.
+            return new ServerChangeSet { Updates = DrainPendingUpdatesNoLock().Updates };
+        }
+        finally
+        {
+            ClearPendingUpdatesNoLock();
+
+            _pendingUpdates.AddRange(pendingUpdates);
+            _pendingFullResync = pendingFullResync;
+            _dirtyItemWindows = dirtyItemWindows;
+        }
+    }
+
+    private List<ServerCollectionChangeUIUpdate> BuildInitialCollectionChangesNoLock()
+    {
+        List<ServerCollectionChangeUIUpdate> updates = [];
+
+        for (var i = 0; i < View.Bindings.All.Count; i++)
+        {
+            CompiledUIBinding binding = View.Bindings.All[i];
+
+            if (binding.Kind != CompiledUIBindingKind.ComponentCollection || binding.Mode == UIBindingMode.OneWayToSource)
+                continue;
+
+            AppendInitialCollectionChanges(binding, updates);
+        }
+
+        return updates;
     }
 
     private void AppendInitialCollectionChanges(CompiledUIBinding binding, List<ServerCollectionChangeUIUpdate> updates)

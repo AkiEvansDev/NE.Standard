@@ -1,18 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
+using System.Linq;
 
 namespace DemoApp.Controllers.Base;
 
-/// <summary>
-/// One row of the lists on the items pages: a text item that also belongs to a group, so the same model is
-/// drawn by the default text template and bucketed by the default group template.
-/// </summary>
 /// <summary>A release as the tiles draw it: the text body plus the picture across the top.</summary>
 internal sealed partial class DemoReleaseItem : TextItem
 {
@@ -20,6 +12,10 @@ internal sealed partial class DemoReleaseItem : TextItem
     public partial string Picture { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// One row of the lists on the items pages: a text item that also belongs to a group, so the same model is
+/// drawn by the default text template and bucketed by the default group template.
+/// </summary>
 internal sealed partial class DemoServiceItem : TextItem, IBindableGroup
 {
     [RecursiveMember]
@@ -33,7 +29,6 @@ internal sealed partial class DemoServiceItem : TextItem, IBindableGroup
 /// <summary>
 /// A template over a collection, and the properties that say how the copies are laid out and scrolled.
 /// </summary>
-/// <remarks><c>Grouped</c> takes effect only after a reload: grouping is decided at render and the collection patch adds no header.</remarks>
 internal sealed partial class ItemsViewGroupContext : DemoGroupContext
 {
     private int _added;
@@ -72,17 +67,7 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
     public partial UISelectionStyle? SelectionStyle { get; set; }
 
     [RecursiveMember(false)]
-    public RecursiveCollection<DemoServiceItem> Items { get; } =
-    [
-        CreateService("payments-api", "Payments API", "12 replicas · eu-west-1", "Europe", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-        CreateService("web-portal", "Web Portal", "4 replicas · eu-west-1", "Europe", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-        CreateService("search-indexer", "Search Indexer", "2 replicas · eu-central-1", "Europe", "Degraded", UIBadgeType.Warning, DemoIcons.Search),
-        CreateService("mail-relay", "Mail Relay", "1 replica · us-east-1", "Americas", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-        CreateService("report-builder", "Report Builder", "3 replicas · us-east-1", "Americas", "Healthy", UIBadgeType.Success, DemoIcons.FileText),
-        CreateService("notifier", "Notifier", "2 replicas · us-east-1", "Americas", "Healthy", UIBadgeType.Success, DemoIcons.Bell),
-        CreateService("scheduler", "Scheduler", "1 replica · ap-south-1", "Asia Pacific", "Healthy", UIBadgeType.Success, DemoIcons.Clock),
-        CreateService("audit-log", "Audit Log", "2 replicas · ap-south-1", "Asia Pacific", "Healthy", UIBadgeType.Success, DemoIcons.History),
-    ];
+    public RecursiveCollection<DemoServiceItem> Items { get; } = [.. DemoSamples.Services()];
 
     public ItemsViewGroupContext()
     {
@@ -131,24 +116,33 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
         => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "payments-api", "search-indexer"));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "billing", "dns"));
 
     public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["web-portal", "mail-relay"], ["scheduler"]));
+        => SetLastChange(nameof(SelectedKeys), SelectedKeys = NextSelectedKeys(SelectedKeys));
+
+    // By what a step holds, not by reference: a list the view writes back as the viewer chooses is a new one.
+    private static string[]? NextSelectedKeys(IReadOnlyList<string>? current)
+    {
+        string[][] steps = [["panel", "mail-relay"], ["scheduler"]];
+
+        if (current is null)
+            return steps[0];
+
+        var index = Array.FindIndex(steps, step => step.SequenceEqual(current));
+
+        return index < 0 ? steps[0] : index + 1 < steps.Length ? steps[index + 1] : null;
+    }
 
     // A mark on the left, a solid ground, and a ground with its own ink: the three shapes the object has.
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            UISelectionStyle.Marked(UISelectionMark.Left),
-            UISelectionStyle.Ground(UIThemeColor.Accent),
-            new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)
-        ));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
 
     public void AddService()
     {
         var id = string.Create(CultureInfo.InvariantCulture, $"service-{++_added}");
 
-        Items.Add(CreateService(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeType.Info, DemoIcons.Star));
+        Items.Add(DemoSamples.Service(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeType.Info, DemoIcons.Star));
     }
 
     public void RemoveService()
@@ -167,7 +161,4 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
         for (var i = 0; i < Items.Count; i++)
             Items[i].Group = grouped ? null : Items[i].Region;
     }
-
-    private static DemoServiceItem CreateService(string id, string title, string description, string region, string badge, UIBadgeType badgeStyle, string icon)
-        => new() { Id = id, Icon = icon, Title = title, Description = description, BadgeText = badge, BadgeStyle = badgeStyle, Group = region, Region = region };
 }

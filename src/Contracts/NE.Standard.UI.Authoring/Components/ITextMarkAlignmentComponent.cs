@@ -24,13 +24,13 @@ public interface ITextMarkAlignmentComponent : IVisualComponent
     /// Gets where the leading icon sits against the text beside it: <c>Content</c> (the default) centres it
     /// across title and description, while <c>Title</c> keeps it on the title's own line.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UITextIconAlignment.Content)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UITextIconAlignment.Content)]
     UITextIconAlignment? IconAlignment { get; }
 
     /// <summary>
     /// Gets where a trailing badge sits against the text beside it: <c>Title</c> (default) keeps it at the title line's end;
     /// <c>Content</c> centres it across title and description.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UITextBadgeAlignment.Title)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UITextBadgeAlignment.Title)]
     UITextBadgeAlignment? BadgeAlignment { get; }
 }

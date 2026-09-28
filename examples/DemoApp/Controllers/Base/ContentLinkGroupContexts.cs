@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -9,7 +5,7 @@ namespace DemoApp.Controllers.Base;
 /// </summary>
 internal sealed partial class LinkGroupContext : DemoGroupContext
 {
-    private const string SampleUrl = "https://example.com/docs/rollout";
+    private const string SampleUrl = "https://docs.orvane.example/rollout";
 
     [RecursiveMember]
     public partial string? Url { get; set; } = SampleUrl;
@@ -64,6 +60,5 @@ internal sealed partial class SeparatorGroupContext : DemoGroupContext
         => SetLastChange(nameof(Label), Label = CycleValue(Label, null, SampleLabel));
 
     public void CycleColor()
-        => SetLastChange(nameof(Color), Color = CycleValue(Color,
-            UIThemeColor.Muted, UIThemeColor.FromStyle(UIColorStyle.Danger), null));
+        => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.Muted, UIThemeColor.FromStyle(UIColorStyle.Danger), null));
 }

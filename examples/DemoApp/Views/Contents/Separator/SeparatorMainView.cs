@@ -1,10 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Contents.Separator;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 
 namespace DemoApp.Views.Contents.Separator;
 

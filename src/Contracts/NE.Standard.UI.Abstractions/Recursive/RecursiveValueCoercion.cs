@@ -103,10 +103,16 @@ public static class RecursiveValueCoercion
                 // A document the client sent, as the inferred dictionary or array it arrives as, against the model that declares its
                 // shape — a graph's nodes, a grid's sort terms.
                 _ when value is IDictionary<string, object?> or object?[] && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
+                // Invariant text carries no group separator: "1,5" is a decimal comma typed in another culture, never fifteen.
+                _ when value is string fractionalText && IsFractional(underlyingType) => ParseFractional(fractionalText, underlyingType),
 
                 _ when underlyingType != typeof(string) && value is IConvertible => Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture),
                 _ => null
             };
+
+            // A number or a name from the wire may be no member at all; stored, it would reach every switch over the enum.
+            if (converted is not null && underlyingType.IsEnum && !IsDefinedEnumValue(underlyingType, converted))
+                return false;
 
             if (converted is not null && underlyingType.IsInstanceOfType(converted))
             {
@@ -163,4 +169,41 @@ public static class RecursiveValueCoercion
     /// <summary>A type the serializer builds rather than a value it parses: not a primitive, a text or a name.</summary>
     private static bool IsModelType(Type type)
         => type != typeof(object) && type != typeof(string) && !type.IsPrimitive && !type.IsEnum && !typeof(IConvertible).IsAssignableFrom(type);
+
+    private static bool IsFractional(Type type)
+        => type == typeof(double) || type == typeof(float) || type == typeof(decimal);
+
+    private static object ParseFractional(string text, Type type)
+    {
+        if (type == typeof(double))
+            return double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+
+        if (type == typeof(float))
+            return float.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+
+        return decimal.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Whether an enum value is one of its named members, or, for a <c>[Flags]</c> enum, a union of them.</summary>
+    private static bool IsDefinedEnumValue(Type enumType, object value)
+    {
+        if (Enum.IsDefined(enumType, value))
+            return true;
+
+        if (enumType.GetCustomAttribute<FlagsAttribute>() is null)
+            return false;
+
+        var mask = 0UL;
+
+        foreach (var defined in Enum.GetValuesAsUnderlyingType(enumType))
+            mask |= ToBits(defined);
+
+        return (ToBits(value) & ~mask) == 0;
+    }
+
+    // Signed underlying types are widened through long, or a negative member would overflow the conversion to ulong.
+    private static ulong ToBits(object value)
+        => Type.GetTypeCode(value.GetType().IsEnum ? Enum.GetUnderlyingType(value.GetType()) : value.GetType()) is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64
+            ? unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture))
+            : Convert.ToUInt64(value, CultureInfo.InvariantCulture);
 }

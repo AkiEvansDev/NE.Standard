@@ -68,6 +68,18 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     Task StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Builds what an attaching client instance starts from — the given bindings' values and every bound collection — and from
+    /// then on hands that instance only what is queued after it (<see cref="ChangesFor"/>). Before it, the instance is sent nothing.
+    /// </summary>
+    Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A change set as one attached client instance receives it: without what its attach snapshot already holds, without the values
+    /// it wrote itself, and empty while it has no snapshot.
+    /// </summary>
+    ServerChangeSet ChangesFor(string instanceId, ServerChangeSet changes);
+
+    /// <summary>
     /// Builds initial server-originated updates for the specified compiled bindings.
     /// </summary>
     Task<ServerChangeSet> BuildInitialChangeSetAsync(IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default);
@@ -86,6 +98,11 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// <summary>
     /// Processes a client-originated event command.
     /// </summary>
+    /// <remarks>
+    /// A background command whose request carries a <see cref="UICommandRequest.RequestId"/> is answered as
+    /// <see cref="UICommandExecutionResult.Accepted"/> and runs on, pushing its result to <paramref name="invoker"/>; it keeps
+    /// <paramref name="cancellationToken"/>, so pass one that lives as long as the connection.
+    /// </remarks>
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -105,8 +122,8 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// Gets whether a command is currently executing against this runtime.
     /// </summary>
     /// <remarks>
-    /// Kept true for the whole run of a background or exclusive command, so a cleanup pass racing a disconnect
-    /// does not dispose the runtime out from under it.
+    /// Kept true for the whole run of a background or exclusive command, so neither a cleanup pass racing a disconnect nor
+    /// an eviction takes the runtime; one disposed while a command runs is disposed by the last command to finish.
     /// </remarks>
     bool HasCommandsInFlight { get; }
 

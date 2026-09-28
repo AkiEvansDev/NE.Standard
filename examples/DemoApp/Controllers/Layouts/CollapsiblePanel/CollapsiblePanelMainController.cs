@@ -1,7 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.CollapsiblePanel;
 
@@ -33,8 +30,7 @@ internal sealed partial class CollapsiblePanelGroupContext : DemoGroupContext
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(8), UIThickness.Uniform(24), null));
 
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 }
 
 internal sealed partial class CollapsiblePanelMainController() : DemoStandardController

@@ -74,6 +74,6 @@ internal sealed class WebOutgoingValues
 
         ServerChangeSet changes = Stage(result.Changes, sessionId, readers);
 
-        return ReferenceEquals(changes, result.Changes) ? result : new UICommandExecutionResult { Command = result.Command, Changes = changes };
+        return ReferenceEquals(changes, result.Changes) ? result : new UICommandExecutionResult { Command = result.Command, Changes = changes, Accepted = result.Accepted, RequestId = result.RequestId };
     }
 }

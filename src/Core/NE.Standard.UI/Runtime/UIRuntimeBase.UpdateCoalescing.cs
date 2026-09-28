@@ -9,7 +9,7 @@ internal abstract partial class UIRuntimeBase
     {
         for (var i = _pendingUpdates.Count - 1; i >= 0; i--)
         {
-            if (_pendingUpdates[i] is not ServerValueUIUpdate existing)
+            if (_pendingUpdates[i].Update is not ServerValueUIUpdate existing)
                 continue;
 
             if (!existing.Address.Component.Id.Equals(update.Address.Component.Id) || !existing.Address.Property.Equals(update.Address.Property))
@@ -22,21 +22,21 @@ internal abstract partial class UIRuntimeBase
             break;
         }
 
-        _pendingUpdates.Add(update);
+        QueueUpdateNoLock(update);
     }
 
     private void AddPendingCollectionUpdateNoLock(ServerCollectionChangeUIUpdate update)
     {
         // A collection inside a template variant the row does not wear has no host on the page: not sent, not warned about.
         if (IsStampedFor(update.Component))
-            _pendingUpdates.Add(update);
+            QueueUpdateNoLock(update);
     }
 
     private void RemovePendingSubtreeUpdatesNoLock(UIComponentId componentId, object?[] dynamicParameters)
     {
         for (var i = _pendingUpdates.Count - 1; i >= 0; i--)
         {
-            ServerUIUpdate existing = _pendingUpdates[i];
+            ServerUIUpdate existing = _pendingUpdates[i].Update;
 
             if (existing is ServerValueUIUpdate valueUpdate)
             {

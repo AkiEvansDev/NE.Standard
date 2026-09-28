@@ -24,7 +24,7 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     /// <summary>
     /// Gets or sets the source URL used when <see cref="Source"/> fails to load.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? FallbackSource { get; set; }
 
     /// <summary>

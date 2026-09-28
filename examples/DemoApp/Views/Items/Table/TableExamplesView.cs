@@ -1,21 +1,6 @@
 using DemoApp.Controllers.Items.ItemsView;
 using DemoApp.Controllers.Items.Table;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.Table;
 
@@ -23,6 +8,7 @@ namespace DemoApp.Views.Items.Table;
 /// What a table is used for, one screen per job: narrowed by a box, opened by a row, a column per kind of cell, chosen rows,
 /// a source read a window at a time, and a table that is a card's content.
 /// </summary>
+/// <remarks>Most groups share one column set on purpose, so what differs between the groups is the behaviour and never the table.</remarks>
 internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string OpenGroup = nameof(TableExamplesController.OpenGroup);
@@ -45,59 +31,7 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateColumnKindsGroup(), CreateWindowedGroup(), CreateChosenGroup()],
             [CreateFilterGroup(), CreateCardGroup(), CreateOpenGroup()]
-        ));
-    }
-
-    /// <summary>
-    /// The plain table with a box over it, narrowed in the browser against rows it holds whole, as the viewer types.
-    /// </summary>
-    private static ContainerComponent CreateFilterGroup()
-    {
-        return DemoUI.CreateGroup(null, "Narrowed as you type, and by status",
-            content => content
-                .AddChild(UILayout.Columns(12,
-                    new TextInputComponent(FilterId)
-                        .SetPlaceholder("Filter services")
-                        .SetPrefixIcon(DemoIcons.Search)
-                        .SetShowClearButton()
-                        .SetDebounceMilliseconds(150),
-                    new SelectComponent(StatusId)
-                        .SetPlaceholder("Any status")
-                        .SetShowClearButton()
-                        .SetOptions(
-                        [
-                            new OptionItem { Id = "Healthy", Title = "Healthy" },
-                            new OptionItem { Id = "Degraded", Title = "Degraded" },
-                            new OptionItem { Id = "Failing", Title = "Failing" },
-                            new OptionItem { Id = "Paused", Title = "Paused" }
-                        ])
-                )
-                .SetMargin(UIThickness.All(0, 0, 0, 8))
-                .SetPlacement(1, 1, 24, 1))
-                // Two rules, each active only while its control holds a value; a row passes both or is hidden.
-                .AddChild(CreateDeploymentsTable()
-                    .FilterBy(FilterId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Service))
-                    .FilterBy(StatusId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Status), UIComparisonOperator.Equal)
-                    .SetStriped(true)
-                    .SetPlacement(1, 2, 24, 1)
-                ),
-            note: "All eight rows, because a filter is only worth a box when there are more rows than the reader wants to look through. The two rules are ANDed in the browser; the catalogue under Screens runs four of them and three sorts on one list."
-        );
-    }
-
-    /// <summary>
-    /// A row is the control: the pointer says so, and a click hands the row's key to the controller.
-    /// </summary>
-    private static ContainerComponent CreateOpenGroup()
-    {
-        return DemoUI.CreateGroup(OpenGroup, "A row that opens",
-            content => content.AddChild(CreateDeploymentsTable(rows: 5)
-                .SetRowHoverable(true)
-                .SetStriped(true)
-                .OnRowClickWithItemKey(nameof(TableExamplesController.OpenRow))
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "Striped as well, since that is the pair most tables are built from: the pointer's wash answers on a striped row too."
+            )
         );
     }
 
@@ -106,51 +40,33 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateColumnKindsGroup()
     {
-        TextComponent glyph = new TextComponent()
-            .BindIcon(nameof(DemoDeploymentRow.Icon), UIBindingScope.Relative)
-            .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary));
-
-        TextComponent badge = new TextComponent()
-            .BindBadgeText(nameof(DemoDeploymentRow.Status), UIBindingScope.Relative)
-            .BindBadgeStyle(nameof(DemoDeploymentRow.StatusStyle), UIBindingScope.Relative);
-
-        // The button's click is its own, never the row's: a control inside a row keeps its press.
-        ButtonComponent restart = new ButtonComponent()
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
-            .SetTooltip("Restart")
-            .OnClick(nameof(TableExamplesController.RestartRow), UIAction.ArgCurrentItemKey("id"));
-
-        return DemoUI.CreateGroup(ActionGroup, "A column per kind of cell",
-            content => content.AddChild(new TableComponent()
+        return DemoUI.CreateExample("A column per kind of cell",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments())
-                .AddColumn("", glyph, UIGridUnit.Absolute(48), UITextAlignment.Center)
+                .AddColumn("", new TextComponent()
+                    .BindIcon(nameof(DemoDeploymentRow.Icon), UIBindingScope.Relative)
+                    .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary)),
+                    UIGridUnit.Absolute(48), UITextAlignment.Center
+                )
                 .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
                 .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
-                .AddColumn("Status", badge, UIGridUnit.Absolute(120))
-                .AddColumn("", restart, UIGridUnit.Absolute(56), UITextAlignment.End)
-                .SetShowColumnSeparators(true)
-                .SetPlacement(1, 1, 24, 1)
-            )
-        );
-    }
-
-    /// <summary>
-    /// Rows chosen with the items view's vocabulary: a mark on the left names the chosen ones, and any number may be chosen.
-    /// </summary>
-    private static ContainerComponent CreateChosenGroup()
-    {
-        return DemoUI.CreateGroup(ChosenGroup, "Chosen rows",
-            content => content.AddChild(CreateDeploymentsTable(rows: 6)
-                .SetSelectionMode(UISelectionMode.Many)
-                .SetSelectedKeys(["web-portal", "notifier"])
-                .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
-                // The row Enter and a double click open, so the group's line says which one that was and what stayed chosen.
-                .OnRowOpenWithItemKey(nameof(TableExamplesController.OpenChosenRow))
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "Ctrl and Shift choose as a file manager's rows do. Enter opens the row the keyboard is on and leaves the group chosen."
+                .AddColumn("Status", new TextComponent()
+                    .BindBadgeText(nameof(DemoDeploymentRow.Status), UIBindingScope.Relative)
+                    .BindBadgeStyle(nameof(DemoDeploymentRow.StatusStyle), UIBindingScope.Relative),
+                    UIGridUnit.Absolute(120)
+                )
+                // The button's click is its own, never the row's: a control inside a row keeps its press.
+                .AddColumn("", new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetSize(UIButtonSize.Small)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
+                    .SetTooltip("Restart")
+                    .OnClick(nameof(TableExamplesController.RestartRow), UIAction.ArgCurrentItemKey("id")),
+                    UIGridUnit.Absolute(56), UITextAlignment.End
+                )
+                .SetShowColumnSeparators(true),
+            context: ActionGroup
         );
     }
 
@@ -159,17 +75,81 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateWindowedGroup()
     {
-        return DemoUI.CreateGroup(null, "A hundred thousand rows, a window at a time",
-            content => content.AddChild(new TableComponent("windowed-rows")
+        return DemoUI.CreateExample("A hundred thousand rows, a window at a time",
+            new TableComponent("windowed-rows")
+                .SetHorizontalScroll(UIScrollMode.Auto)
                 .BindSource(nameof(TableExamplesController.Source))
                 .AddTextColumn("Row", nameof(DemoRowItem.Title), UIGridUnit.Absolute(160))
                 .AddTextColumn("Detail", nameof(DemoRowItem.Detail))
                 .SetResizableColumns(true)
                 .SetShowColumnSeparators(true)
-                .SetMaxHeight(UILayoutLength.Absolute(300))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                .SetMaxHeight(UILayoutLength.Absolute(300)),
             note: "Drag a column's edge in the header to resize it; a double-click on the edge puts the authored width back."
+        );
+    }
+
+    /// <summary>
+    /// Rows chosen with the items view's vocabulary: a mark on the left names the chosen ones, and any number may be chosen.
+    /// </summary>
+    private static ContainerComponent CreateChosenGroup()
+    {
+        return DemoUI.CreateExample("Chosen rows",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 6))
+                .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+                .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
+                .SetSelectionMode(UISelectionMode.Many)
+                .SetSelectedKeys(["panel", "status-page"])
+                .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
+                // The row Enter and a double click open, so the group's line says which one that was and what stayed chosen.
+                .OnRowOpenWithItemKey(nameof(TableExamplesController.OpenChosenRow)),
+            note: "Ctrl and Shift choose as a file manager's rows do. Enter opens the row the keyboard is on and leaves the group chosen.",
+            context: ChosenGroup
+        );
+    }
+
+    /// <summary>
+    /// The plain table with a box over it, narrowed in the browser against rows it holds whole, as the viewer types.
+    /// </summary>
+    private static ContainerComponent CreateFilterGroup()
+    {
+        return DemoUI.CreateExample("Narrowed as you type, and by status",
+            UILayout.Stack(0)
+                .AddChild(UILayout.Columns(12,
+                        new TextInputComponent(FilterId)
+                            .SetPlaceholder("Filter services")
+                            .SetPrefixIcon(DemoIcons.Search)
+                            .SetShowClearButton()
+                            .SetDebounceMilliseconds(150),
+                        new SelectComponent(StatusId)
+                            .SetPlaceholder("Any status")
+                            .SetShowClearButton()
+                            .SetOptions(
+                            [
+                                new OptionItem { Id = "Healthy", Title = "Healthy" },
+                                new OptionItem { Id = "Degraded", Title = "Degraded" },
+                                new OptionItem { Id = "Failing", Title = "Failing" },
+                                new OptionItem { Id = "Paused", Title = "Paused" }
+                            ])
+                    )
+                    .SetMargin(UIThickness.All(0, 0, 0, 8))
+                )
+                // Two rules, each active only while its control holds a value; a row passes both or is hidden.
+                .AddChild(new TableComponent()
+                    .SetHorizontalScroll(UIScrollMode.Auto)
+                    .SetItems(DemoDeploymentRow.CreateDeployments())
+                    .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
+                    .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+                    .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+                    .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
+                    .FilterBy(FilterId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Service))
+                    .FilterBy(StatusId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Status), UIComparisonOperator.Equal)
+                    .SetStriped(true)
+                ),
+            note: "All eight rows, because a filter is only worth a box when there are more rows than the reader wants to look through. The two rules are ANDed in the browser; the catalogue under Screens runs four of them and three sorts on one list."
         );
     }
 
@@ -178,30 +158,43 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCardGroup()
     {
-        return DemoUI.CreateGroup(null, "In a card",
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("In a card",
+            new CardComponent()
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Cloud)
                     .SetTitle("Deployments")
                     .SetDescription("The four the card has room to summarise.")
                 )
-                .SetContent(CreateDeploymentsTable(rows: 4)
+                .SetContent(new TableComponent()
+                    .SetHorizontalScroll(UIScrollMode.Auto)
+                    .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 4))
+                    .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
+                    .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+                    .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+                    .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
                     .SetBorderThickness(UIThickness.Uniform(0))
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
     /// <summary>
-    /// The four text columns most of the groups share; each group takes as many rows as its point needs.
+    /// A row is the control: the pointer says so, and a click hands the row's key to the controller.
     /// </summary>
-    /// <remarks>One column set on purpose, so what differs between the groups is the behaviour and never the table.</remarks>
-    private static TableComponent CreateDeploymentsTable(int rows = 0)
-        => new TableComponent()
-            .SetItems(rows > 0 ? DemoDeploymentRow.CreateDeployments().GetRange(0, rows) : DemoDeploymentRow.CreateDeployments())
-            .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
-            .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
-            .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
-            .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110));
+    private static ContainerComponent CreateOpenGroup()
+    {
+        return DemoUI.CreateExample("A row that opens",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 5))
+                .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+                .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
+                .SetRowHoverable(true)
+                .SetStriped(true)
+                .OnRowClickWithItemKey(nameof(TableExamplesController.OpenRow)),
+            note: "Striped as well, since that is the pair most tables are built from: the pointer's wash answers on a striped row too.",
+            context: OpenGroup
+        );
+    }
 }

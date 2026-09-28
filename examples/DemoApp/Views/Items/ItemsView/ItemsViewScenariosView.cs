@@ -1,16 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Items.ItemsView;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.ItemsView;
 
@@ -37,12 +27,7 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
     protected override string HeaderDescription => "demo.items.items-view.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateRowsGroup(), CreateLocalGroup()],
-            [CreateChatGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateRowsGroup(), CreateLocalGroup()], [CreateChatGroup()]));
 
     private static ContainerComponent CreateRowsGroup()
     {

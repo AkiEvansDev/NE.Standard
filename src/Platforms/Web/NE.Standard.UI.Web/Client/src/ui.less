@@ -4,6 +4,7 @@
 @import "./styles/core/typography.less";
 @import "./styles/core/scrollbar.less";
 @import "./styles/core/runtime.less";
+@import "./styles/core/side-drawers.less";
 
 @import "./styles/components/ui-container.less";
 @import "./styles/components/ui-grid-splitter.less";
@@ -38,6 +39,7 @@
 @import "./styles/components/ui-radio-group.less";
 @import "./styles/components/ui-select.less";
 @import "./styles/components/ui-search.less";
+@import "./styles/components/ui-multi-select.less";
 @import "./styles/components/ui-slider.less";
 @import "./styles/components/ui-temporal-input.less";
 @import "./styles/components/ui-color-input.less";
@@ -64,6 +66,8 @@
 @import "./styles/components/ui-dialog.less";
 @import "./styles/components/ui-notification.less";
 @import "./styles/components/ui-tooltip.less";
+// Last: the reader's system preferences (less motion, forced colours) win the ties with every component's rules.
+@import "./styles/core/preferences.less";
 
 [data-ui-theme="light"] {
     color-scheme: light;

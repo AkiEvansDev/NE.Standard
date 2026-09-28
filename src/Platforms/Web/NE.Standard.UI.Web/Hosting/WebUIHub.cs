@@ -110,8 +110,8 @@ internal sealed partial class WebUIHub : Hub
         [LoggerMessage(EventId = 4, Level = LogLevel.Debug, Message = "Attaching web UI route '{Route}' for tab '{ClientWindowId}' and connection '{ConnectionId}'.")]
         public static partial void Attaching(ILogger logger, string route, string clientWindowId, string connectionId);
 
-        [LoggerMessage(EventId = 5, Level = LogLevel.Debug, Message = "Attached web UI route '{Route}' for tab '{ClientWindowId}', connection '{ConnectionId}', runtime '{HasRuntime}'.")]
-        public static partial void Attached(ILogger logger, string route, string clientWindowId, string connectionId, bool hasRuntime);
+        [LoggerMessage(EventId = 5, Level = LogLevel.Debug, Message = "Attached web UI route '{Route}' for tab '{ClientWindowId}', connection '{ConnectionId}', runtime '{HasRuntime}', in {ElapsedMs:F1} ms with {ChangeCount} initial change(s).")]
+        public static partial void Attached(ILogger logger, string route, string clientWindowId, string connectionId, bool hasRuntime, double elapsedMs, int changeCount);
 
         [LoggerMessage(EventId = 6, Level = LogLevel.Debug, Message = "Detached web UI SignalR connection '{ConnectionId}'.")]
         public static partial void Detached(ILogger logger, string connectionId);
@@ -119,8 +119,8 @@ internal sealed partial class WebUIHub : Hub
         [LoggerMessage(EventId = 7, Level = LogLevel.Debug, Message = "Web UI SignalR connection '{ConnectionId}' did not have an attached runtime.")]
         public static partial void DetachSkipped(ILogger logger, string connectionId);
 
-        [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Stored theme '{Theme}' on session '{SessionId}'.")]
-        public static partial void ThemeStored(ILogger logger, string theme, string sessionId);
+        [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Stored theme '{Theme}' on connection '{ConnectionId}'s session.")]
+        public static partial void ThemeStored(ILogger logger, string theme, string connectionId);
 
         [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Theme '{Theme}' was not stored: connection '{ConnectionId}' presented no session.")]
         public static partial void ThemeNotStored(ILogger logger, string theme, string connectionId);
@@ -138,9 +138,10 @@ internal sealed partial class WebUIHub : Hub
     private readonly IUserSessionStore _sessions;
     private readonly WebValueStagingStore _stagedValues;
     private readonly WebOutgoingValues _outgoing;
+    private readonly WebUIMetrics _metrics;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, ILogger<WebUIHub> logger)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(renderCache);
@@ -149,6 +150,7 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(stagedValues);
         ArgumentNullException.ThrowIfNull(outgoing);
+        ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(logger);
 
         _host = host;
@@ -158,12 +160,14 @@ internal sealed partial class WebUIHub : Hub
         _sessions = sessions;
         _stagedValues = stagedValues;
         _outgoing = outgoing;
+        _metrics = metrics;
         _logger = logger;
     }
 
     public override Task OnConnectedAsync()
     {
         Log.ConnectionOpened(_logger, Context.ConnectionId);
+        _metrics.ConnectionOpened();
 
         return base.OnConnectedAsync();
     }
@@ -175,6 +179,7 @@ internal sealed partial class WebUIHub : Hub
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Route);
 
         var route = UIRoutePath.Normalize(request.Route);
+        var started = Stopwatch.GetTimestamp();
 
         Log.Attaching(_logger, route, request.ClientWindowId, Context.ConnectionId);
 
@@ -186,12 +191,7 @@ internal sealed partial class WebUIHub : Hub
 
         UserSessionInitData session = CreateSession(request.ClientWindowId);
 
-        UIViewResolution view = await _host.ResolveViewAsync(
-            navigation,
-            session,
-            UIViewRequestPhase.Attach,
-            Context.ConnectionAborted
-        ).ConfigureAwait(false);
+        UIViewResolution view = await _host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Attach, Context.ConnectionAborted).ConfigureAwait(false);
 
         // A page of another compile — the code changed under it — holds ids that address nothing here: reloaded, not fed updates.
         if (request.View is not null && !string.Equals(request.View, view.View.Fingerprint, StringComparison.Ordinal))
@@ -213,7 +213,8 @@ internal sealed partial class WebUIHub : Hub
                 Id = Context.ConnectionId,
                 WindowId = request.ClientWindowId,
                 Navigation = view.Navigation,
-                PageId = request.PageId
+                PageId = request.PageId,
+                StartsFromSnapshot = true
             },
             Context.ConnectionAborted
         ).ConfigureAwait(false);
@@ -224,24 +225,22 @@ internal sealed partial class WebUIHub : Hub
             Context.ConnectionAborted
         ).ConfigureAwait(false) ?? await RenderInitBindingIdsAsync(view).ConfigureAwait(false);
 
-        ServerChangeSet initialChanges = await WebInitialChanges.BuildAsync(runtime.Runtime, initBindingIds, Context.ConnectionAborted).ConfigureAwait(false);
+        // The snapshot also marks this connection's starting point: nothing queued before it is pushed to it, everything after it is.
+        ServerChangeSet initialChanges = runtime.Runtime is null
+            ? ServerChangeSet.Empty
+            : await runtime.Runtime.BuildAttachChangesAsync(Context.ConnectionId, [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))], Context.ConnectionAborted).ConfigureAwait(false);
 
         if (runtime.Runtime is not null)
             Context.Items[HandleContextItemKey] = runtime.Handle;
 
-        Log.Attached(_logger, route, request.ClientWindowId, Context.ConnectionId, runtime.Runtime is not null);
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+
+        Log.Attached(_logger, route, request.ClientWindowId, Context.ConnectionId, runtime.Runtime is not null, elapsed.TotalMilliseconds, initialChanges.Updates.Length);
 
         return new WebUIAttachResult
         {
             InitialChanges = _outgoing.Stage(initialChanges, runtime.Handle.Session.SessionId, 1)
         };
-    }
-
-    private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
-    {
-        WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer, _renderCache, Context.ConnectionAborted).ConfigureAwait(false);
-
-        return render.InitBindingIds ?? [];
     }
 
     /// <summary>
@@ -259,6 +258,13 @@ internal sealed partial class WebUIHub : Hub
             Credential = Context.User?.Identity?.IsAuthenticated == true ? Context.User.Identity.Name : null,
             Principal = Context.User
         };
+    }
+
+    private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
+    {
+        WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer, _renderCache, Context.ConnectionAborted).ConfigureAwait(false);
+
+        return render.InitBindingIds ?? [];
     }
 
     /// <summary>
@@ -285,7 +291,7 @@ internal sealed partial class WebUIHub : Hub
         var stored = await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
 
         if (stored)
-            Log.ThemeStored(_logger, request.Theme, sessionId);
+            Log.ThemeStored(_logger, request.Theme, Context.ConnectionId);
     }
 
     public async Task<UICommandExecutionResult> ProcessEventAsync(UICommandRequest request)
@@ -390,7 +396,8 @@ internal sealed partial class WebUIHub : Hub
             ComponentId = new UIComponentId(request.ComponentId),
             DynamicParameters = request.DynamicParameters ?? [],
             Anchor = anchor,
-            Count = request.Count,
+            // Clamped here, where the number comes off the wire: a hand-made call must not ask a source for its whole table.
+            Count = Math.Clamp(request.Count, 1, UIItemWindowClientRequest.MaxCount),
             Mode = request.Extend ? UIItemWindowMode.Extend : UIItemWindowMode.Replace
         };
     }
@@ -398,6 +405,7 @@ internal sealed partial class WebUIHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Log.ConnectionClosed(_logger, Context.ConnectionId);
+        _metrics.ConnectionClosed();
 
         if (exception is not null)
             Log.ConnectionClosedWithException(_logger, exception, Context.ConnectionId);

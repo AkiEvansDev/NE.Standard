@@ -38,7 +38,9 @@ export class PointerDrag<TContext> {
         options.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
         options.root.addEventListener("pointerup", domEvent => this.handlePointerEnd(domEvent), true);
         options.root.addEventListener("pointercancel", domEvent => this.handlePointerEnd(domEvent), true);
-        options.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
+        // On the window, which hears a key before the document does: Escape mid-drag cancels the drag rather than closing the popup
+        // the handle is in (a colour square), which popup-dismissal would otherwise take first.
+        window.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         options.root.addEventListener("focusout", domEvent => unmarkPointerFocus(domEvent.target), true);
     }
 
@@ -48,7 +50,8 @@ export class PointerDrag<TContext> {
     }
 
     private handlePointerDown(domEvent: Event): void {
-        if (!(domEvent instanceof PointerEvent) || domEvent.button !== 0 || !(domEvent.target instanceof Element))
+        // One gesture at a time: a second finger taking over would leave the first handle marked and its end never run.
+        if (!(domEvent instanceof PointerEvent) || domEvent.button !== 0 || !(domEvent.target instanceof Element) || this.drag !== null)
             return;
 
         const handle = this.options.resolveHandle(domEvent.target);

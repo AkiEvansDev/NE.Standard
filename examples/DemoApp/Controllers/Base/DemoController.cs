@@ -3,13 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Recursive;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Base;
 
@@ -82,7 +76,8 @@ internal partial class DemoGroupContext : RecursiveObservable
     protected void SetLastChange<T>(string property, T value)
         => Message = $"{property} -> {value}";
 
-    protected void LogEvent(string message)
+    /// <summary>Writes a timestamped line to the section's header, for what happened rather than what changed.</summary>
+    internal void LogEvent(string message)
         => Message = $"{DateTime.Now:HH:mm:ss} > {message}";
 
     protected static T CycleEnum<T>(T current) where T : struct, Enum

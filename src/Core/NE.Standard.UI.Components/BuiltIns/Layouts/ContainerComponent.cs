@@ -35,13 +35,13 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     /// <summary>
     /// Gets the grid column definitions.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIGridUnit> Columns => _columns;
 
     /// <summary>
     /// Gets the grid row definitions.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIGridUnit> Rows => _rows;
 
     /// <summary>

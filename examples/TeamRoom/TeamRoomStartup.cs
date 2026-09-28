@@ -1,12 +1,9 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
-using NE.Standard.UI.Application;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NE.Standard.UI.Primitives.Security;
-using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Sessions;
-using NE.Standard.UI.Startup;
 using TeamRoom.Controllers;
 using TeamRoom.Data;
 using TeamRoom.Security;
@@ -32,6 +29,8 @@ public sealed class TeamRoomStartup : UIStartupBase
         _ = services.AddSingleton(new AppDatabase(DataDirectory));
         _ = services.AddSingleton<AppEvents>();
         _ = services.AddSingleton<AccountService>();
+        // Off unless the host registered one of its own first: the web host turns it on in Development.
+        services.TryAddSingleton(new QuickSignIn());
         _ = services.AddSingleton<DocumentService>();
         _ = services.AddSingleton<ChatService>();
         _ = services.AddSingleton<MediaService>();

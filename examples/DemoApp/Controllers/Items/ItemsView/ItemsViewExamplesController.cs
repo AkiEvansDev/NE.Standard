@@ -1,8 +1,5 @@
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Items.ItemsView;
 
@@ -34,7 +31,7 @@ internal sealed partial class FeedGroupContext : DemoGroupContext
     [
         new() { Id = "e1", Title = "Robin", Description = "The staging deploy is stuck on the health check again." },
         new() { Id = "e2", Title = "Alex", Description = "Same pair as Tuesday. Rolling back to 480 while I look." },
-        new() { Id = "e3", Title = "Robin", Kind = ImageKind, Source = DemoImages.HarbourSky, Description = "The dashboard at 09:14, before the rollback." },
+        new() { Id = "e3", Title = "Robin", Kind = ImageKind, Source = DemoImages.HarbourSky, Description = "The status page's banner at 09:14, before the rollback." },
         new() { Id = "e4", Title = "Alex", Description = "481 is green. Eight of eight, four minutes twelve." }
     ];
 

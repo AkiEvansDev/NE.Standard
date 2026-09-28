@@ -1,10 +1,5 @@
 using System;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Temporal;
 
@@ -25,20 +20,15 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     protected override string HeaderDescription => "demo.inputs.date-time-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup(), CreateBoundsGroup()],
-            [CreateFormatGroup(), CreateAgainstNarrowerGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup()], [CreateFormatGroup(), CreateAgainstNarrowerGroup()]));
 
     /// <summary>
     /// The jobs it is given: a scheduled moment, and the two ends of a window that may cross midnight.
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateGroup(null, "Where it is used",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Where it is used",
+            UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("Cutover starts")
                     .SetIcon(DemoIcons.Clock)
@@ -62,7 +52,6 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetValue(Cutover)
                     .SetIsReadOnly(true)
                 )
-            )
         );
     }
 
@@ -71,8 +60,8 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateGroup(null, "How it is written down",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("How it is written down",
+            UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("Unset — the culture's short date and time")
                     .SetValue(Cutover)
@@ -92,7 +81,6 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetDisplayFormat("ddd d MMM, h:mm tt")
                     .SetValue(Cutover)
                 )
-            )
         );
     }
 
@@ -101,8 +89,8 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     /// </summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "Bounds, and the calendar it opens",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Bounds, and the calendar it opens",
+            UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("Inside the maintenance window")
                     .SetDisplayFormat("yyyy-MM-dd HH:mm")
@@ -120,7 +108,6 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetFirstDayOfWeek(UIDayOfWeek.Sunday)
                     .SetValue(Cutover)
                 )
-            )
         );
     }
 
@@ -129,8 +116,8 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     /// </summary>
     private static ContainerComponent CreateAgainstNarrowerGroup()
     {
-        return DemoUI.CreateGroup(null, "Against a date and a time",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Against a date and a time",
+            UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("One field")
                     .SetDisplayFormat("yyyy-MM-dd HH:mm")
@@ -149,7 +136,6 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetStepMinutes(15)
                 )
                 .AddChild(UIText.Note("**Split them** while the two answers are independent — a birthday and a reminder time. **Keep them together** when one is meaningless without the other, or when the window runs past midnight."))
-            )
         );
     }
 }

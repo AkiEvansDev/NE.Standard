@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.ImageInput;
 
@@ -26,53 +19,10 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     {
         _ = container.AddChild(CreateCoverGroup());
 
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateProfileGroup()],
-            [CreateInlineGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateProfileGroup()], [CreateInlineGroup()]));
 
         _ = container.AddChild(CreateAppearanceGroup());
         _ = container.AddChild(CreateShelfGroup());
-    }
-
-    /// <summary>
-    /// An avatar beside the name it belongs to: the picture is the whole control, the pencil appears over it.
-    /// </summary>
-    private static ContainerComponent CreateProfileGroup()
-    {
-        return DemoUI.CreateGroup(null, "A profile card",
-            content => content.AddChild(new SurfaceComponent()
-                .SetContent(DemoUI.CreateStack(16)
-                    .AddChild(CreatePerson(DemoImages.Avatar, "Aki Evans", "Platform team · owner"))
-                    .AddChild(DemoUI.CreateCaption("The rest of the team, the same control at the same size"))
-                    .AddChild(CreatePerson(null, "Robin Hale", "Platform · no photo yet"))
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "Avatar is the shape for a picture replaced where it is read: no drop area, no filename — the pencil appears over the photo itself."
-        );
-    }
-
-    private static StackPanelComponent CreatePerson(string? photo, string name, string role)
-    {
-        ImageInputComponent picture = new ImageInputComponent()
-            .SetShape(UIImageInputShape.Avatar)
-            .SetTooltip("Change the photo");
-
-        return DemoUI.CreateRow(16)
-            .SetVerticalAlignment(UIAlignment.Center)
-            .AddChild(photo is null ? picture : picture.SetValue(photo))
-            .AddChild(DemoUI.CreateStack(2)
-                .AddChild(new ParagraphComponent()
-                    .SetDescription(name)
-                    .SetDescriptionType(UITextAppearance.Subtitle)
-                )
-                .AddChild(new ParagraphComponent()
-                    .SetDescription(role)
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-            );
     }
 
     /// <summary>
@@ -80,8 +30,8 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateCoverGroup()
     {
-        return DemoUI.CreateGroup(null, "A cover picture",
-            content => content.AddChild(DemoUI.CreateRow(24)
+        return DemoUI.CreateExample("The status page's banner",
+            UILayout.Row(24)
                 .AddChild(new ImageInputComponent()
                     .SetTitle("Chosen")
                     .SetWidth(UILayoutLength.Absolute(520))
@@ -96,11 +46,60 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetPlaceholder("Drop a picture here")
                     .SetBadgeText("optional")
                     .SetBadgeStyle(UIBadgeType.Info)
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                ),
             columns: 24,
             note: "The same control either way: empty it is the drop area, filled it is the picture — nothing appears or disappears when a file is chosen."
+        );
+    }
+
+    /// <summary>
+    /// An avatar beside the name it belongs to: the picture is the whole control, the pencil appears over it.
+    /// </summary>
+    private static ContainerComponent CreateProfileGroup()
+    {
+        return DemoUI.CreateExample("A profile card",
+            new SurfaceComponent()
+                .SetContent(UILayout.Stack(16)
+                    .AddChild(UILayout.Row(16)
+                        .SetVerticalAlignment(UIAlignment.Center)
+                        .AddChild(new ImageInputComponent()
+                            .SetShape(UIImageInputShape.Avatar)
+                            .SetTooltip("Change the photo")
+                            .SetValue(DemoImages.Avatar)
+                        )
+                        .AddChild(UILayout.Stack(2)
+                            .AddChild(new ParagraphComponent()
+                                .SetDescription("Sam Ortega")
+                                .SetDescriptionType(UITextAppearance.Subtitle)
+                            )
+                            .AddChild(new ParagraphComponent()
+                                .SetDescription("Owner")
+                                .SetDescriptionType(UITextAppearance.Caption)
+                                .SetDescriptionColor(UIThemeColor.Muted)
+                            )
+                        )
+                    )
+                    .AddChild(UIText.Label("The rest of the team, the same control at the same size"))
+                    .AddChild(UILayout.Row(16)
+                        .SetVerticalAlignment(UIAlignment.Center)
+                        .AddChild(new ImageInputComponent()
+                            .SetShape(UIImageInputShape.Avatar)
+                            .SetTooltip("Change the photo")
+                        )
+                        .AddChild(UILayout.Stack(2)
+                            .AddChild(new ParagraphComponent()
+                                .SetDescription("Robin Hale")
+                                .SetDescriptionType(UITextAppearance.Subtitle)
+                            )
+                            .AddChild(new ParagraphComponent()
+                                .SetDescription("Admin · no photo yet")
+                                .SetDescriptionType(UITextAppearance.Caption)
+                                .SetDescriptionColor(UIThemeColor.Muted)
+                            )
+                        )
+                    )
+                ),
+            note: "Avatar is the shape for a picture replaced where it is read: no drop area, no filename — the pencil appears over the photo itself."
         );
     }
 
@@ -109,15 +108,15 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateInlineGroup()
     {
-        return DemoUI.CreateGroup(null, "One field among others",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("One field among others",
+            UILayout.Stack(16)
                 .AddChild(new TextInputComponent()
-                    .SetTitle("Product name")
-                    .SetValue("Harbour lamp")
+                    .SetTitle("Customer")
+                    .SetValue("Saltmarsh Media")
                 )
                 .AddChild(new ImageInputComponent()
                     .SetShape(UIImageInputShape.Inline)
-                    .SetTitle("Product picture")
+                    .SetTitle("Logo on invoices")
                     .SetPlaceholder("PNG or JPEG, two megabytes at most")
                     .SetAccept("image/png,image/jpeg")
                     // Refused in the browser before the upload; the endpoint's own limit still holds behind it.
@@ -129,7 +128,6 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                     .SetValue(DemoImages.NightStreet)
                     .SetPlaceholder("The thumbnail is the value")
                 )
-            )
         );
     }
 
@@ -139,26 +137,35 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateAppearanceGroup()
     {
-        return DemoUI.CreateGroup(null, "Appearances",
-            content => content.AddChild(DemoUI.CreateStack(16)
-                .AddChild(CreateAppearanceSample(UIInputAppearance.Filled, DemoImages.NightStreet))
-                .AddChild(CreateAppearanceSample(UIInputAppearance.Outline, null))
-                .AddChild(CreateAppearanceSample(UIInputAppearance.Underline, null))
-                .AddChild(CreateAppearanceSample(UIInputAppearance.Ghost, null))
-            ),
+        return DemoUI.CreateExample("Appearances",
+            UILayout.Stack(16)
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetAppearance(UIInputAppearance.Filled)
+                    .SetTitle("Filled")
+                    .SetPlaceholder("PNG or JPEG")
+                    .SetValue(DemoImages.NightStreet)
+                )
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetAppearance(UIInputAppearance.Outline)
+                    .SetTitle("Outline")
+                    .SetPlaceholder("PNG or JPEG")
+                )
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetAppearance(UIInputAppearance.Underline)
+                    .SetTitle("Underline")
+                    .SetPlaceholder("PNG or JPEG")
+                )
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetAppearance(UIInputAppearance.Ghost)
+                    .SetTitle("Ghost")
+                    .SetPlaceholder("PNG or JPEG")
+                ),
             note: "Appearance dresses the inline row as it does a file input's; the picture and the avatar have one look, whatever the appearance."
         );
-    }
-
-    private static ImageInputComponent CreateAppearanceSample(UIInputAppearance appearance, string? photo)
-    {
-        ImageInputComponent field = new ImageInputComponent()
-            .SetShape(UIImageInputShape.Inline)
-            .SetAppearance(appearance)
-            .SetTitle(appearance.ToString())
-            .SetPlaceholder("PNG or JPEG");
-
-        return photo is null ? field : field.SetValue(photo);
     }
 
     /// <summary>
@@ -167,13 +174,11 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateShelfGroup()
     {
-        return DemoUI.CreateGroup(null, "Several at once",
-            content => content.AddChild(new ImageInputComponent()
+        return DemoUI.CreateExample("Several at once",
+            new ImageInputComponent()
                 .SetMultiple(true)
-                .SetTitle("Gallery")
-                .SetPlaceholder("Drop pictures here, or pick them")
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                .SetTitle("Incident screenshots")
+                .SetPlaceholder("Drop screenshots here, or pick them"),
             columns: 24,
             note: "SetMultiple(true) turns the picture shape into a shelf; bind SelectionIds to read the pictures back, and clear it to empty the shelf."
         );

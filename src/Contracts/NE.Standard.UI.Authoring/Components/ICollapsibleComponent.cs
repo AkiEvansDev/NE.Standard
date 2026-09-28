@@ -34,12 +34,12 @@ public interface ICollapsibleComponent : IVisualComponent
     /// <summary>
     /// Gets the edge the component sits on and folds toward, which decides whether width or height collapses.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UISide.Left)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UISide.Left)]
     UISide? Side { get; }
 
     /// <summary>
     /// Gets whether the component draws its own switch for <see cref="Expanded"/>.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     bool? ShowCollapseToggle { get; }
 }

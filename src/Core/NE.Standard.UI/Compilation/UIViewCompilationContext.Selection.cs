@@ -1,5 +1,3 @@
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -14,27 +12,16 @@ internal sealed partial class UIViewCompilationContext
     {
         for (var i = 0; i < _componentOrder.Count; i++)
         {
-            if (_componentOrder[i] is not ISelectableItemsComponent selectable || IsBound(selectable, ISelectableItemsComponent.SelectionModeProperty))
+            if (_componentOrder[i] is not ISelectableItemsComponent selectable || FindBinding(selectable, ISelectableItemsComponent.SelectionModeProperty) is not null)
                 continue;
 
             UISelectionMode mode = selectable.SelectionMode ?? UISelectionMode.None;
 
-            if (mode != UISelectionMode.One && IsBound(selectable, ISelectableItemsComponent.SelectedKeyProperty))
+            if (mode != UISelectionMode.One && FindBinding(selectable, ISelectableItemsComponent.SelectedKeyProperty) is not null)
                 _warnings.Add($"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKey)}' but its selection mode is {mode}, which never reads it.");
 
-            if (mode != UISelectionMode.Many && IsBound(selectable, ISelectableItemsComponent.SelectedKeysProperty))
+            if (mode != UISelectionMode.Many && FindBinding(selectable, ISelectableItemsComponent.SelectedKeysProperty) is not null)
                 _warnings.Add($"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKeys)}' but its selection mode is {mode}, which never reads it.");
         }
-    }
-
-    private static bool IsBound(IVisualComponent component, UIProperty property)
-    {
-        foreach (UIBinding binding in component.Bindings)
-        {
-            if (binding.Target == property)
-                return true;
-        }
-
-        return false;
     }
 }

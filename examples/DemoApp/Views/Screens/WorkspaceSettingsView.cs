@@ -1,22 +1,11 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
 /// <summary>
 /// Settings the way they are actually edited: no submit button anywhere. Underlined fields save as the viewer leaves them,
-/// switches on the flip, the security rows in place, and the danger zone is unlocked by typing the workspace's name.
+/// switches on the flip, the security rows in place, and the danger zone is unlocked by typing the account's name.
 /// </summary>
 internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
 {
@@ -37,7 +26,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
 
     /// <summary>Underlined fields, each committing on blur through the same command; the note under the card names the save.</summary>
     private static CardComponent CreateProfile()
-        => UIPage.Card("Profile", "How you appear to the rest of the room.", UILayout.Stack(16,
+        => UIPage.Card("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
             new ImageInputComponent()
                 .SetTitle("Picture")
                 .SetShape(UIImageInputShape.Avatar)
@@ -61,10 +50,10 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                     .SetAppearance(UIInputAppearance.Underline)
                     .SetOptions(
                     [
-                        new OptionItem { Id = "europe-lisbon", Title = "Lisbon (UTC+1)" },
-                        new OptionItem { Id = "europe-berlin", Title = "Berlin (UTC+2)" },
-                        new OptionItem { Id = "america-new-york", Title = "New York (UTC−4)" },
-                        new OptionItem { Id = "asia-tokyo", Title = "Tokyo (UTC+9)" }
+                        new OptionItem { Id = "europe-amsterdam", Title = "Amsterdam (UTC+2)" },
+                        new OptionItem { Id = "europe-stockholm", Title = "Stockholm (UTC+2)" },
+                        new OptionItem { Id = "america-ashburn", Title = "Ashburn (UTC−4)" },
+                        new OptionItem { Id = "asia-singapore", Title = "Singapore (UTC+8)" }
                     ])
                     .BindValue(nameof(WorkspaceSettingsController.TimeZone))
                     .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
@@ -151,18 +140,18 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     /// <summary>The button is disabled until the typed name matches — compared in the browser, so nothing is sent until it does.</summary>
     private static CardComponent CreateDangerZone()
         => UIPage.Card("Danger zone", "The one thing on this page that cannot be undone.", UILayout.Stack(16,
-            UIText.Paragraph($"Deleting **{WorkspaceSettingsController.WorkspaceName}** removes every room, file and message in it. Type the workspace's name to unlock the button."),
+            UIText.Paragraph($"Deleting **{WorkspaceSettingsController.AccountName}** removes every server, bucket and invoice in it. Type the account's name to unlock the button."),
             UIForm.Row(
                 new TextInputComponent(DeleteConfirmationId)
                     .SetAppearance(UIInputAppearance.Outline)
-                    .SetPlaceholder(WorkspaceSettingsController.WorkspaceName)
+                    .SetPlaceholder(WorkspaceSettingsController.AccountName)
                     .SetTrimInput()
                     .SetDebounceMilliseconds(150)
                     .BindValue(nameof(WorkspaceSettingsController.DeleteConfirmation)),
-                UIButtons.Danger("Delete workspace", DemoIcons.Outline(DemoIcons.Alert))
+                UIButtons.Danger("Delete account", DemoIcons.Outline(DemoIcons.Alert))
                     .SetHorizontalAlignment(UIAlignment.Start)
-                    .EnabledWhen(DeleteConfirmationId, WorkspaceSettingsController.WorkspaceName)
-                    .OnClick(nameof(WorkspaceSettingsController.DeleteWorkspace))
+                    .EnabledWhen(DeleteConfirmationId, WorkspaceSettingsController.AccountName)
+                    .OnClick(nameof(WorkspaceSettingsController.DeleteAccount))
             )
         ), DemoIcons.Outline(DemoIcons.Alert));
 }

@@ -124,8 +124,8 @@ export class ColorInputEngine {
                 return context;
             },
             move: (context, _, point) => this.applyPoint(context, point),
-            // Every position along the way already committed; nothing is left to do once the pointer lets go.
-            end: () => undefined
+            // Every position along the way was drawn; the colour the pointer let go on is the one sent, not one round trip per move.
+            end: (_, context) => this.send(context.input)
         });
 
         // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
@@ -332,7 +332,7 @@ export class ColorInputEngine {
         }
     }
 
-    /** Live while a slider moves: a colour that only appears on release cannot be judged. */
+    /** Drawn live while a slider moves, since a colour that only appears on release cannot be judged; sent on its `change`. */
     private handleInput(domEvent: Event): void {
         if (!(domEvent.target instanceof HTMLInputElement))
             return;
@@ -343,12 +343,12 @@ export class ColorInputEngine {
             return;
 
         if (domEvent.target.hasAttribute(FactorAttribute)) {
-            this.commit(input, state => ({ ...state, factor: Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 0) }));
+            this.commit(input, state => ({ ...state, factor: Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 0) }), false);
             return;
         }
 
         if (domEvent.target.hasAttribute(OpacityAttribute))
-            this.commit(input, state => ({ ...state, opacity: clampByte(Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 255)) }));
+            this.commit(input, state => ({ ...state, opacity: clampByte(Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 255)) }), false);
     }
 
     private handleFieldChange(domEvent: Event): void {
@@ -360,6 +360,12 @@ export class ColorInputEngine {
 
         if (input === null)
             return;
+
+        // A slider let go: what its `input` events drew is sent now.
+        if (field.hasAttribute(FactorAttribute) || field.hasAttribute(OpacityAttribute)) {
+            this.send(input);
+            return;
+        }
 
         if (field.hasAttribute(HexAttribute)) {
             const rgba = parseHex(field.value);
@@ -403,18 +409,21 @@ export class ColorInputEngine {
         if (surface === "hue") {
             const ratio = clampRatio((point.y - rect.top) / rect.height);
 
-            this.commit(input, state => ({ ...state, hue: ratio * 360, name: null }));
+            this.commit(input, state => ({ ...state, hue: ratio * 360, name: null }), false);
             return;
         }
 
         const saturation = clampRatio((point.x - rect.left) / rect.width);
         const value = 1 - clampRatio((point.y - rect.top) / rect.height);
 
-        this.commit(input, state => ({ ...state, saturation, value, name: null }));
+        this.commit(input, state => ({ ...state, saturation, value, name: null }), false);
     }
 
-    /** Draws the new state and writes it back through the hidden input's ordinary two-way change. */
-    private commit(input: HTMLElement, next: (state: ColorState) => ColorState): void {
+    /**
+     * Draws the new state and writes it into the hidden input; `send` raises the input's ordinary two-way change. A gesture still
+     * moving writes without sending, so a re-read meanwhile (a patched format) reads the colour on screen, and sends once it ends.
+     */
+    private commit(input: HTMLElement, next: (state: ColorState) => ColorState, send = true): void {
         const state = this.states.get(input);
 
         if (state === undefined || input.hasAttribute(ReadOnlyAttribute))
@@ -431,7 +440,17 @@ export class ColorInputEngine {
             return;
 
         valueInput.value = toCanonical(updated, this.resolveRgb(input, updated));
-        valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        if (send)
+            this.send(input);
+    }
+
+    /** Sends what the hidden input holds through its two-way change. */
+    private send(input: HTMLElement): void {
+        if (input.hasAttribute(ReadOnlyAttribute))
+            return;
+
+        input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     private toggle(input: HTMLElement | null): void {
@@ -527,7 +546,7 @@ function relativeLuminance(red: number, green: number, blue: number): number {
 function linearChannel(channel: number): number {
     const value = channel / 255;
 
-    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 
 function readValue(input: HTMLElement): string {

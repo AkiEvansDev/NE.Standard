@@ -4,7 +4,8 @@ import {
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
 import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { findOwningComponentId } from "../addressing/dom-registry";
-import { ItemAnchorName, ServerChangeSet, WebUIItemWindowRequest } from "../metadata/metadata-index";
+import { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index";
+import { isEndAnchored } from "../interactions/scroll-anchor-engine";
 import { logWarn } from "../runtime/logger";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
 import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
@@ -22,8 +23,8 @@ const DecisionInterval = 60;
 
 export type ItemsWindowEngineOptions = {
     readonly root?: ParentNode;
-    readonly requestWindow: (request: WebUIItemWindowRequest) => Promise<ServerChangeSet>;
-    readonly applyChanges: (changes: ServerChangeSet) => void | Promise<void>;
+    /** Settles once the window's rows are applied. */
+    readonly requestWindow: (request: WebUIItemWindowRequest) => Promise<void>;
 };
 
 type WindowState = {
@@ -81,6 +82,13 @@ export class ItemsWindowEngine {
     private revealWindow(host: Element): void {
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
+        // An end-anchored feed opened on an older part of its source is read up to that window's last row, so that row goes to
+        // the bottom edge, as the newest one would.
+        if (offset !== null && isEndAnchored(host) && isTrue(host.getAttribute(WindowMoreAfterAttribute))) {
+            scrollHostTo(host, Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height));
+            return;
+        }
+
         // A window that starts at the source's own start is already in view; scrolling to its first row would push whatever stands
         // above the rows in the same scroller out of sight (a wide table's band and header are inside its root).
         if (offset === null || offset === 0)
@@ -90,11 +98,24 @@ export class ItemsWindowEngine {
         scrollHostTo(host, isTrue(host.getAttribute(WindowMoreAfterAttribute)) ? offset * this.getState(host).itemSize : host.scrollHeight);
     }
 
+    /** Where the window's last row ends, in the host's coordinates: the spacer standing for the rows before it, then the rows. */
+    private windowBottom(host: Element, offset: number): number {
+        const items = itemElements(host);
+        const itemSize = this.getState(host).itemSize;
+        const measured = items.length === 0 ? 0 : boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
+
+        return offset * itemSize + (measured > 0 ? measured : items.length * itemSize);
+    }
+
     /** Re-places the spacers after a change set moved a window, and follows a window that moved. */
     public sync(): void {
         for (const host of this.hosts()) {
             this.layout(host);
-            this.realign(host);
+
+            // While a read is in flight the window still describes where the viewer was: following it would undo their scroll.
+            // The read realigns once it lands.
+            if (!this.getState(host).pending)
+                this.realign(host);
         }
     }
 
@@ -255,7 +276,7 @@ export class ItemsWindowEngine {
         state.pending = true;
 
         try {
-            const changes = await this.options.requestWindow({
+            await this.options.requestWindow({
                 componentId,
                 dynamicParameters: readDynamicParameters(host),
                 anchor,
@@ -264,8 +285,6 @@ export class ItemsWindowEngine {
                 count: this.windowSize(host),
                 extend
             });
-
-            await this.options.applyChanges(changes);
         }
         catch (error) {
             logWarn("reading an item window failed.", { componentId, anchor, error });
@@ -278,6 +297,9 @@ export class ItemsWindowEngine {
             if (state.restless) {
                 state.restless = false;
                 this.considerRequest(host);
+            }
+            else {
+                this.realign(host);
             }
         }
     }

@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Indicators;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Indicators.Progress;
 
@@ -23,67 +16,119 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     protected override string HeaderDescription => "demo.indicators.progress.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateQuotaGroup(), CreateKnownGroup()],
-            [CreateScaleGroup(), CreateTileGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateQuotaGroup(), CreateKnownGroup()], [CreateScaleGroup(), CreateTileGroup()]));
 
     /// <summary>
     /// What most readings are: a line of prose with a bar under it.
     /// </summary>
     private static ContainerComponent CreateQuotaGroup()
     {
-        return DemoUI.CreateGroup(null, "Under the thing it measures",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Under the thing it measures",
+            new SurfaceComponent()
                 .SetContent(UILayout.Stack(16)
                     .SetWidth(UILayoutLength.Absolute(360))
-                    .AddChild(CreateQuota("Build minutes", "1 240 of 2 000 this month", 62, null))
-                    .AddChild(CreateQuota("Artifact storage", "47 GB of 50 GB", 94, UIColorStyle.Danger))
-                    .AddChild(CreateQuota("Seats in use", "8 of 25", 32, UIColorStyle.Success))
+                    .AddChild(UILayout.Stack(6)
+                        .AddChild(new TextComponent()
+                            .SetTitle("Bandwidth")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetDescription("1 240 GB of 2 000 GB this month")
+                            .SetDescriptionType(UITextAppearance.Caption)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                        )
+                        .AddChild(new ProgressComponent()
+                            .SetValue(62)
+                            .SetHorizontalAlignment(UIAlignment.Stretch)
+                        )
+                    )
+                    .AddChild(UILayout.Stack(6)
+                        .AddChild(new TextComponent()
+                            .SetTitle("Snapshots")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetDescription("47 GB of 50 GB")
+                            .SetDescriptionType(UITextAppearance.Caption)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                        )
+                        .AddChild(new ProgressComponent()
+                            .SetValue(94)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
+                            .SetHorizontalAlignment(UIAlignment.Stretch)
+                        )
+                    )
+                    .AddChild(UILayout.Stack(6)
+                        .AddChild(new TextComponent()
+                            .SetTitle("Servers in use")
+                            .SetTitleType(UITextAppearance.Body)
+                            .SetDescription("8 of 25")
+                            .SetDescriptionType(UITextAppearance.Caption)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                        )
+                        .AddChild(new ProgressComponent()
+                            .SetValue(32)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Success))
+                            .SetHorizontalAlignment(UIAlignment.Stretch)
+                        )
+                    )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    private static StackPanelComponent CreateQuota(string title, string reading, decimal value, UIColorStyle? style)
-        => UILayout.Stack(6)
-            .AddChild(new TextComponent()
-                .SetTitle(title)
-                .SetTitleType(UITextAppearance.Body)
-                .SetDescription(reading)
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.Muted)
-            )
-            .AddChild(new ProgressComponent()
-                .SetValue(value)
-                .SetColor(style is UIColorStyle colour ? UIThemeColor.FromStyle(colour) : null)
-                .SetHorizontalAlignment(UIAlignment.Stretch)
-            );
 
     /// <summary>
     /// A value says how far along; no value says only that something is running.
     /// </summary>
     private static ContainerComponent CreateKnownGroup()
     {
-        return DemoUI.CreateGroup(null, "How far, and whether that is known",
-            content => content.AddChild(UILayout.Stack(16)
+        return DemoUI.CreateExample("How far, and whether that is known",
+            UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
-                .AddChild(DemoUI.CreateCaption("Known — the value is a number"))
+                .AddChild(UIText.Label("Known — the value is a number"))
                 .AddChild(new ProgressComponent()
                     .SetValue(62)
                     .SetShowValue(true)
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                 )
-                .AddChild(DemoUI.CreateCaption("Not known — the value is unset"))
+                .AddChild(UIText.Label("Not known — the value is unset"))
                 // No SetValue: null is indeterminate, where zero would be a bar that is simply empty.
                 .AddChild(new ProgressComponent()
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
+        );
+    }
+
+    /// <summary>
+    /// The same number against three windows, which is the one thing the value alone never says.
+    /// </summary>
+    private static ContainerComponent CreateScaleGroup()
+    {
+        return DemoUI.CreateExample("The same value, three windows",
+            UILayout.Stack(16)
+                .SetWidth(UILayoutLength.Absolute(360))
+                .AddChild(UILayout.Stack(6)
+                    .AddChild(UIText.Label("0 to 100"))
+                    .AddChild(new ProgressComponent()
+                        .SetRange(0, 100)
+                        .SetValue(62)
+                        .SetShowValue(true)
+                        .SetHorizontalAlignment(UIAlignment.Stretch)
+                    )
+                )
+                .AddChild(UILayout.Stack(6)
+                    .AddChild(UIText.Label("0 to 200"))
+                    .AddChild(new ProgressComponent()
+                        .SetRange(0, 200)
+                        .SetValue(62)
+                        .SetShowValue(true)
+                        .SetHorizontalAlignment(UIAlignment.Stretch)
+                    )
+                )
+                .AddChild(UILayout.Stack(6)
+                    .AddChild(UIText.Label("50 to 100"))
+                    .AddChild(new ProgressComponent()
+                        .SetRange(50, 100)
+                        .SetValue(62)
+                        .SetShowValue(true)
+                        .SetHorizontalAlignment(UIAlignment.Stretch)
+                    )
+                )
         );
     }
 
@@ -92,59 +137,65 @@ internal sealed class ProgressExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTileGroup()
     {
-        return DemoUI.CreateGroup(null, "A ring, where a bar has no room",
-            content => content.AddChild(UILayout.Row(12)
-                .AddChild(CreateTile("Coverage", 87, UIColorStyle.Success))
-                .AddChild(CreateTile("Error budget", 41, UIColorStyle.Warning))
-                .AddChild(CreateTile("Disk", 96, UIColorStyle.Danger))
-                .SetPlacement(1, 1, 24, 1)
-            )
+        return DemoUI.CreateExample("A ring, where a bar has no room",
+            UILayout.Row(12)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetWidth(UILayoutLength.Absolute(150))
+                    .SetContent(UILayout.Stack(10)
+                        .SetHorizontalAlignment(UIAlignment.Center)
+                        .AddChild(new ProgressComponent()
+                            .SetVariant(UIProgressVariant.Circular)
+                            .SetValue(87)
+                            .SetShowValue(true)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Success))
+                        )
+                        .AddChild(new TextComponent()
+                            .SetTitle("Health checks")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetTitleColor(UIThemeColor.Muted)
+                            .SetTextAlignment(UITextAlignment.Center)
+                        )
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetWidth(UILayoutLength.Absolute(150))
+                    .SetContent(UILayout.Stack(10)
+                        .SetHorizontalAlignment(UIAlignment.Center)
+                        .AddChild(new ProgressComponent()
+                            .SetVariant(UIProgressVariant.Circular)
+                            .SetValue(41)
+                            .SetShowValue(true)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning))
+                        )
+                        .AddChild(new TextComponent()
+                            .SetTitle("Error budget")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetTitleColor(UIThemeColor.Muted)
+                            .SetTextAlignment(UITextAlignment.Center)
+                        )
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetWidth(UILayoutLength.Absolute(150))
+                    .SetContent(UILayout.Stack(10)
+                        .SetHorizontalAlignment(UIAlignment.Center)
+                        .AddChild(new ProgressComponent()
+                            .SetVariant(UIProgressVariant.Circular)
+                            .SetValue(96)
+                            .SetShowValue(true)
+                            .SetColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
+                        )
+                        .AddChild(new TextComponent()
+                            .SetTitle("Disk")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetTitleColor(UIThemeColor.Muted)
+                            .SetTextAlignment(UITextAlignment.Center)
+                        )
+                    )
+                )
         );
     }
-
-    private static SurfaceComponent CreateTile(string label, decimal value, UIColorStyle style)
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
-            .SetWidth(UILayoutLength.Absolute(150))
-            .SetContent(UILayout.Stack(10)
-                .SetHorizontalAlignment(UIAlignment.Center)
-                .AddChild(new ProgressComponent()
-                    .SetVariant(UIProgressVariant.Circular)
-                    .SetValue(value)
-                    .SetShowValue(true)
-                    .SetColor(UIThemeColor.FromStyle(style))
-                )
-                .AddChild(new TextComponent()
-                    .SetTitle(label)
-                    .SetTitleType(UITextAppearance.Caption)
-                    .SetTitleColor(UIThemeColor.Muted)
-                    .SetTextAlignment(UITextAlignment.Center)
-                )
-            );
-
-    /// <summary>
-    /// The same number against three windows, which is the one thing the value alone never says.
-    /// </summary>
-    private static ContainerComponent CreateScaleGroup()
-    {
-        return DemoUI.CreateGroup(null, "The same value, three windows",
-            content => content.AddChild(UILayout.Stack(16)
-                .SetWidth(UILayoutLength.Absolute(360))
-                .AddChild(CreateScale("0 to 100", 0, 100))
-                .AddChild(CreateScale("0 to 200", 0, 200))
-                .AddChild(CreateScale("50 to 100", 50, 100))
-                .SetPlacement(1, 1, 24, 1)
-            )
-        );
-    }
-
-    private static StackPanelComponent CreateScale(string label, decimal min, decimal max)
-        => UILayout.Stack(6)
-            .AddChild(DemoUI.CreateCaption(label))
-            .AddChild(new ProgressComponent()
-                .SetRange(min, max)
-                .SetValue(62)
-                .SetShowValue(true)
-                .SetHorizontalAlignment(UIAlignment.Stretch)
-            );
 }

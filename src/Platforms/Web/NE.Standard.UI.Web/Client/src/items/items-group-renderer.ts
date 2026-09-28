@@ -88,7 +88,7 @@ export function regroupHost(host: Element, componentId: number, templates: Items
 
         // The items without a group are a bucket with no header, as on the server.
         if (key !== "" && bucketItems.some(item => !item.classList.contains(HiddenClass))) {
-            const header = createHeader(groupTemplate!, renderer, bucketItems[0]);
+            const header = createHeader(groupTemplate, renderer, bucketItems[0]);
 
             if (header !== null)
                 orderedNodes.push(header);

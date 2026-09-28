@@ -8,11 +8,12 @@ import { restoreFocusTo } from "./popup-focus";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { PopupDismissal } from "./popup-dismissal";
 import {
-    clampPushedValue, clampToRange, defaultMoment, EndValueInputClass, isEndPart, isRange, MaxAttribute, MinAttribute, orderPeriod,
+    clampPushedValue, clampToRange, defaultMoment, isEndPart, isRange, MaxAttribute, MinAttribute, orderPeriod,
     parseCanonical, PickerAttributes, readBound, readCulturePack, readFormat, readMode, readStep, readValue, readValueOf, RootClass,
-    TemporalMode, TimeStep, TimeUnit, toCanonical, ValueInputClass, writeValueOf
+    TemporalMode, TimeStep, TimeUnit, toCanonical, valueInputOf, writeValueOf
 } from "./temporal-dom";
 import { chooseDay as choosePeriodDay, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
+import { turnWheel } from "./wheel-notches";
 
 const FieldClass = "ui-temporal-input__field";
 const PopupClass = "ui-temporal-input__popup";
@@ -26,11 +27,6 @@ const PopupGap = 4;
 
 /** How long a clock column has to stand still before what it brought to the middle counts as chosen. */
 const ScrollSettleDelay = 140;
-
-/** How far a wheel turns for one reading of a clock column: a notch of a mouse wheel, or as much of a trackpad's glide. */
-const WheelNotch = 100;
-/** A wheel that reports lines rather than pixels turns three of them a notch. */
-const WheelLine = WheelNotch / 3;
 
 const ToggleAttribute = "data-ui-temporal-toggle";
 const FirstDayAttribute = "data-ui-temporal-first-day";
@@ -74,6 +70,8 @@ export class TemporalPickerEngine {
     private readonly columnSettles = new Map<HTMLElement, number>();
     // How far the wheel has turned over each unit's column since its last reading; by unit, since a choice draws the columns again.
     private readonly wheelTurns = new Map<string, number>();
+    // Listened on the open popup alone: a non-passive wheel listener on the document would hold every scroll of the page for the main thread.
+    private readonly onColumnWheel = (domEvent: WheelEvent): void => this.handleColumnWheel(domEvent);
 
     public constructor(options: TemporalPickerEngineOptions = {}) {
         this.options = options;
@@ -121,10 +119,6 @@ export class TemporalPickerEngine {
 
         // A clock column is a dial: what a scroll brings to its middle is chosen. Capture, because scroll does not bubble.
         this.root.addEventListener("scroll", domEvent => this.handleColumnScroll(domEvent), true);
-
-        // The wheel over a column is taken whole: a notch is one reading. Left to the scroll it was a guess, since a short column
-        // (a half-hour step) has little travel, and the snap or a Min/Max bound could make the same turn choose or not at random.
-        this.root.addEventListener("wheel", domEvent => this.handleColumnWheel(domEvent), { capture: true, passive: false });
 
         // Capture, because blur does not bubble.
         this.root.addEventListener("blur", domEvent => this.handleFieldBlur(domEvent), true);
@@ -448,8 +442,12 @@ export class TemporalPickerEngine {
         }, ScrollSettleDelay));
     }
 
-    private handleColumnWheel(domEvent: Event): void {
-        if (!(domEvent instanceof WheelEvent) || this.openPicker === null || domEvent.deltaY === 0 || !(domEvent.target instanceof Element))
+    /**
+     * The wheel over a column is taken whole: a notch is one reading. Left to the scroll it was a guess, since a short column (a
+     * half-hour step) has little travel, and the snap or a Min/Max bound could make the same turn choose or not at random.
+     */
+    private handleColumnWheel(domEvent: WheelEvent): void {
+        if (this.openPicker === null || domEvent.deltaY === 0 || !(domEvent.target instanceof Element))
             return;
 
         const column = domEvent.target.closest<HTMLElement>(`.${TimeColumnClass}`);
@@ -460,13 +458,9 @@ export class TemporalPickerEngine {
 
         domEvent.preventDefault();
 
-        const turn = domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? domEvent.deltaY : domEvent.deltaY * WheelLine;
-        const before = this.wheelTurns.get(unit) ?? 0;
-        // A turn the other way starts over: what was left of the last direction is not owed to this one.
-        const turned = (Math.sign(before) === Math.sign(turn) ? before : 0) + turn;
-        const steps = Math.trunc(turned / WheelNotch);
+        const { steps, carried } = turnWheel(this.wheelTurns.get(unit) ?? 0, domEvent.deltaY, domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL);
 
-        this.wheelTurns.set(unit, turned - (steps * WheelNotch));
+        this.wheelTurns.set(unit, carried);
 
         if (steps === 0)
             return;
@@ -537,6 +531,7 @@ export class TemporalPickerEngine {
 
         picker.classList.add(OpenClass);
         picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`)?.setAttribute("aria-expanded", "true");
+        picker.querySelector<HTMLElement>(`.${PopupClass}`)?.addEventListener("wheel", this.onColumnWheel, { passive: false });
         this.openPicker = picker;
 
         this.renderPopup(picker, true);
@@ -556,8 +551,10 @@ export class TemporalPickerEngine {
         this.wheelTurns.clear();
 
         // Before the popup hides: hiding it drops focus on the body, and then there is nothing to bring back — to the end being set.
-        if (popup !== null)
+        if (popup !== null) {
             restoreFocusTo(fieldOf(picker, this.getState(picker).activeEnd === "end"), popup);
+            popup.removeEventListener("wheel", this.onColumnWheel);
+        }
 
         picker.classList.remove(OpenClass);
         picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`)?.setAttribute("aria-expanded", "false");
@@ -598,8 +595,11 @@ export class TemporalPickerEngine {
         const range = isRange(picker);
         const value = readValueOf(picker, range && state.activeEnd === "end");
 
-        // The rebuild throws away the element holding focus, so its column is remembered across it.
+        // The rebuild throws away the element holding focus, so what it was is remembered across it: a clock column, a button of
+        // the header or footer, or anything else in the popup, which lands on the calendar's day.
         const focusedUnit = activeTimeUnit(popup);
+        const focusedNav = activeNavAction(popup);
+        const focusWasInside = popup.contains(document.activeElement);
 
         popup.replaceChildren();
 
@@ -618,11 +618,15 @@ export class TemporalPickerEngine {
 
         popup.append(panes, renderFooter(mode));
 
-        applyRovingDay(popup, state, value, moveFocus);
+        // A month chosen from the month pane is gone after the rebuild, so its focus falls to the day like any other.
+        const navTarget = focusedNav === null ? null : popup.querySelector<HTMLElement>(`[${NavAttribute}="${CSS.escape(focusedNav)}"]`);
+
+        applyRovingDay(popup, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
         applyPeriodPreview(picker, state);
         fitTimeColumns(popup);
         centreTimeColumns(popup);
         restoreTimeFocus(popup, focusedUnit);
+        navTarget?.focus({ preventScroll: true });
 
         // Re-placed after every render: the height changes between panes, and a fixed popup does not re-lay-out.
         this.positionPopup(picker);
@@ -855,6 +859,13 @@ function activeTimeUnit(popup: HTMLElement): string | null {
     return active.closest<HTMLElement>(`.${TimeColumnClass}`)?.getAttribute(UnitAttribute) ?? null;
 }
 
+/** Which header or footer button holds focus, read before a rebuild throws it away. */
+function activeNavAction(popup: HTMLElement): string | null {
+    const active = document.activeElement;
+
+    return active instanceof HTMLElement && popup.contains(active) ? active.getAttribute(NavAttribute) : null;
+}
+
 function restoreTimeFocus(popup: HTMLElement, unit: string | null): void {
     if (unit === null)
         return;
@@ -905,10 +916,6 @@ function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
     }
 
     return picker.querySelector<HTMLInputElement>(`.${FieldClass}`);
-}
-
-function valueInputOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
-    return picker.querySelector<HTMLInputElement>(`.${end ? EndValueInputClass : ValueInputClass}`);
 }
 
 /** The day at the hour, minute and second another moment holds. */

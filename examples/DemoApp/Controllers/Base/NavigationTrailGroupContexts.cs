@@ -1,9 +1,3 @@
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -12,19 +6,11 @@ namespace DemoApp.Controllers.Base;
 /// <remarks>The last step is the current page by position, so shortening the trail moves the mark.</remarks>
 internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
 {
-    private static readonly BreadcrumbItem[] FullTrail =
-    [
-        new() { Id = "home", Title = "Home", Icon = DemoIcons.Outline(DemoIcons.Home), Url = "https://example.com/" },
-        new() { Id = "projects", Title = "Projects", Url = "https://example.com/projects" },
-        new() { Id = "web-portal", Title = "Web Portal", Url = "https://example.com/projects/web-portal" },
-        new() { Id = "deploy", Title = "Deploy #482", Url = "https://example.com/projects/web-portal/deploys/482" },
-    ];
-
     [RecursiveMember]
     public partial UIResponsive<double>? Spacing { get; set; }
 
     [RecursiveMember(false)]
-    public RecursiveCollection<BreadcrumbItem> Steps { get; } = [.. FullTrail];
+    public RecursiveCollection<BreadcrumbItem> Steps { get; } = [.. CreateTrail()];
 
     public BreadcrumbsGroupContext()
     {
@@ -51,9 +37,19 @@ internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
 
         Steps.Clear();
 
-        for (var i = 0; i < count; i++)
-            Steps.Add(FullTrail[i]);
+        foreach (BreadcrumbItem step in CreateTrail()[..count])
+            Steps.Add(step);
     }
+
+    // Fresh steps every time: a node belongs to one collection, so a trail shared between two pages would fail the second.
+    private static BreadcrumbItem[] CreateTrail()
+        =>
+        [
+            new() { Id = "home", Title = "Home", Icon = DemoIcons.Outline(DemoIcons.Home), Url = "https://orvane.example/" },
+            new() { Id = "services", Title = "Services", Url = "https://orvane.example/services" },
+            new() { Id = "panel", Title = "Panel", Url = "https://orvane.example/services/panel" },
+            new() { Id = "deploy", Title = "Deploy #482", Url = "https://orvane.example/services/panel/deploys/482" },
+        ];
 
     // A step in the middle: the mark goes with the step it belongs to, which the first and last cannot show.
     public void ToggleHiddenStep()

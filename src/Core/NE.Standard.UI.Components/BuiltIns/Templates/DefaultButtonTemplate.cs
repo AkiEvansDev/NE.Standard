@@ -15,7 +15,7 @@ public abstract class DefaultButtonTemplate<TTemplate> : ButtonComponent<TTempla
     /// <summary>
     /// Initializes a new button template, optionally binding its label to the item at <paramref name="itemPath"/>.
     /// </summary>
-    protected DefaultButtonTemplate(string? itemPath = null, bool binds = true) : base()
+    protected DefaultButtonTemplate(string? itemPath = null, bool binds = false) : base()
     {
         if (!string.IsNullOrWhiteSpace(itemPath))
             _ = BindContext(itemPath, UIBindingScope.Relative);

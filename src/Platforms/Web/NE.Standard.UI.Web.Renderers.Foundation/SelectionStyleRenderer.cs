@@ -17,6 +17,15 @@ public static class SelectionStyleRenderer
     public const string MarkVariable = "--ui-selected-mark";
     public const string FontWeightVariable = "--ui-selected-font-weight";
 
+    private static readonly WebDomOperation[] Operations =
+    [
+        WebDomOperation.Style(BackgroundVariable, converter: WebDomConverters.SelectionBackgroundCss),
+        WebDomOperation.Style(ForegroundVariable, converter: WebDomConverters.SelectionForegroundCss),
+        WebDomOperation.Style(MarkColorVariable, converter: WebDomConverters.SelectionMarkColorCss),
+        WebDomOperation.Style(MarkVariable, converter: WebDomConverters.SelectionMarkCss),
+        WebDomOperation.Style(FontWeightVariable, converter: WebDomConverters.SelectionFontWeightCss)
+    ];
+
     public static void RenderSelectionStyle(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -27,26 +36,21 @@ public static class SelectionStyleRenderer
             if (value is not UISelectionStyle style)
                 return;
 
-            if (style.Background is UIThemeColor background)
-                _ = target.Style(BackgroundVariable, WebCssValues.ThemeColor(background));
+            // A style colour with no variable of its own (Default, Muted) is written as nothing, as the client's converter answers.
+            if (style.Background is UIThemeColor background && WebCssValues.ThemeColor(background) is { Length: > 0 } backgroundCss)
+                _ = target.Style(BackgroundVariable, backgroundCss);
 
-            if (style.Foreground is UIThemeColor foreground)
-                _ = target.Style(ForegroundVariable, WebCssValues.ThemeColor(foreground));
+            if (style.Foreground is UIThemeColor foreground && WebCssValues.ThemeColor(foreground) is { Length: > 0 } foregroundCss)
+                _ = target.Style(ForegroundVariable, foregroundCss);
 
-            if (style.MarkColor is UIThemeColor markColor)
-                _ = target.Style(MarkColorVariable, WebCssValues.ThemeColor(markColor));
+            if (style.MarkColor is UIThemeColor markColor && WebCssValues.ThemeColor(markColor) is { Length: > 0 } markColorCss)
+                _ = target.Style(MarkColorVariable, markColorCss);
 
             if (style.Mark is UISelectionMark mark)
                 _ = target.Style(MarkVariable, WebCssValues.SelectionMark(mark));
 
             if (style.Bold is bool bold)
                 _ = target.Style(FontWeightVariable, WebCssValues.SelectionFontWeight(bold));
-        }, [
-            WebDomOperation.Style(BackgroundVariable, converter: WebDomConverters.SelectionBackgroundCss),
-            WebDomOperation.Style(ForegroundVariable, converter: WebDomConverters.SelectionForegroundCss),
-            WebDomOperation.Style(MarkColorVariable, converter: WebDomConverters.SelectionMarkColorCss),
-            WebDomOperation.Style(MarkVariable, converter: WebDomConverters.SelectionMarkCss),
-            WebDomOperation.Style(FontWeightVariable, converter: WebDomConverters.SelectionFontWeightCss)
-        ]);
+        }, Operations);
     }
 }

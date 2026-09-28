@@ -144,12 +144,17 @@
     justify-content: center;
     width: 1.25rem;
     height: 1.25rem;
+    // The cross's ink is about half its box: drawn into the caption's gap and end padding, the air past the cross matches the air
+    // before the label, where the whole box and the padding stood nearly twice that.
+    margin-inline: -0.25rem -0.375rem;
     border: 0;
     border-radius: var(--ui-radius-button);
     background: none;
     color: var(--ui-text-muted);
     cursor: pointer;
     opacity: 0;
+    // Not pressable while it cannot be seen: on a touch screen the tap that brings the hover is also the click.
+    pointer-events: none;
     transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
@@ -157,6 +162,7 @@
     .ui-tab-item--selected .ui-tab-item__close,
     .ui-tab-item__close:focus-visible {
         opacity: 1;
+        pointer-events: auto;
     }
 
     // Ink alone: the caption is the surface that washes under the pointer.

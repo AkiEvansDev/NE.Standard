@@ -1,18 +1,5 @@
 using DemoApp.Controllers.Inputs.TextInput;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.TextInput;
 
@@ -34,12 +21,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
     protected override string HeaderDescription => "demo.inputs.text-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateChangeGroup(), CreateSubmitGroup()],
-            [CreateTrimGroup(), CreateFilterGroup(), CreateBlockGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateChangeGroup(), CreateSubmitGroup()], [CreateTrimGroup(), CreateFilterGroup(), CreateBlockGroup()]));
 
     /// <summary>
     /// A two-way value syncs on the native <c>change</c> event — on blur or Enter, not per keystroke.
@@ -105,7 +87,8 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
     }
 
     /// <summary>
-    /// Only a <c>Submit</c>-trigger rule gates the button; a <c>Change</c>/<c>Blur</c> error does not stop a submit.
+    /// The <c>Submit</c> rules run on the press, and any error that stands then — theirs, or a <c>Change</c>/<c>Blur</c> rule's that
+    /// already failed — stops it; a warning or an info does not.
     /// </summary>
     /// <remarks>The second field is bound <c>OnSubmit</c>, so its value reaches the controller with the command.</remarks>
     private static ContainerComponent CreateSubmitGroup()
@@ -122,7 +105,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
                         .BindValidation(nameof(TextInputSubmitGroupContext.EmailValidation), UIBindingScope.Relative)
                         .Required("An owner email is required.", UIValidationTrigger.Submit)
                         .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur)
-                        .Regex("@example\\.com$", "An outside address gets the weekly digest only.", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
+                        .Regex("@orvane\\.example$", "An outside address gets the weekly digest only.", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
                     )
                     .AddChild(new TextInputComponent()
                         .SetTitle("Notes (sent on submit only)")
@@ -139,7 +122,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
                 );
             },
             contentMinHeight: 200,
-            note: "Only an error on the Submit trigger stops the press; a warning or an info says its piece and lets the command through. The server has its say too: owner@example.com is already taken, and the refusal comes back as a message on the field."
+            note: "The Submit rules run on the press, and any error standing then stops it, a Change or Blur rule's that already failed included; a warning or an info says its piece and lets the command through. The server has its say too: owner@orvane.example is already taken, and the refusal comes back as a message on the field."
         );
     }
 
@@ -175,7 +158,7 @@ internal sealed class TextInputScenariosView : DemoScenariosView, IUIViewDefinit
                         .SetFormId(BlockFormId)
                         .BindValue(nameof(TextInputBlockGroupContext.Email), UIBindingScope.Relative)
                         .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur)
-                        .Regex("@example\\.com$", "An outside address gets the weekly digest only.", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
+                        .Regex("@orvane\\.example$", "An outside address gets the weekly digest only.", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
                         .ValidationInto(BlockErrorsId, ITextComponent.DescriptionProperty)
                     )
                     .AddChild(new ParagraphComponent(BlockErrorsId)

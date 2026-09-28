@@ -5,7 +5,7 @@
 import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
 import { planRowRemoval } from "../interactions/row-cursor";
 import { ComponentKeyAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
-import { DomRegistry, findOwningComponentId } from "../addressing/dom-registry";
+import { DomRegistry, findOwningComponentAddress } from "../addressing/dom-registry";
 import { MetadataIndex } from "../metadata/metadata-index";
 import { PropertyStateStore } from "../state/property-state-store";
 import { areValuesEqual } from "../state/value-equality";
@@ -46,9 +46,13 @@ type VirtualEntry = {
 
 /** What the host would show top to bottom once the rules have run: rows, and a header over each group. */
 type ProjectedRow = {
-    readonly id: string;
     readonly entry: VirtualEntry;
     readonly header: boolean;
+};
+
+type RunningMean = {
+    sum: number;
+    count: number;
 };
 
 type VirtualHostState = {
@@ -59,6 +63,13 @@ type VirtualHostState = {
     groupOrder: string[];
     itemEstimate: number;
     headerEstimate: number;
+    // Every height measured so far, not only this pass's: an estimate from the rows now in view swings with them, and every
+    // unmeasured row above the viewport swings with it.
+    itemHeights: RunningMean;
+    headerHeights: RunningMean;
+    // The last pass's rows and pitches, so a scroll pass can hold the row at the viewport's top where it was.
+    laidOut: readonly ProjectedRow[] | null;
+    pitches: readonly number[];
     scheduled: number;
     // The first laid-out row, so a pass that changed nothing about the range can leave the document alone.
     first: number;
@@ -115,15 +126,19 @@ export class ItemsVirtualizationEngine {
 
     // ---- what the host holds
 
-    /** The host's values are replaced wholesale; rows whose key and value are unchanged keep their element. */
-    public refill(host: Element, items: readonly { readonly key: string; readonly item: unknown }[]): void {
+    /**
+     * The host's values are replaced wholesale; rows whose key and value are unchanged keep their element. Answers the keys whose
+     * entry left or was made afresh, for the caller to forget what it recorded under them.
+     */
+    public refill(host: Element, items: readonly { readonly key: string; readonly item: unknown }[]): string[] {
         const state = this.getState(host);
 
         if (state === null)
-            return;
+            return [];
 
         const previous = new Map(state.entries.map(entry => [entry.key, entry]));
         const next: VirtualEntry[] = [];
+        const renewed: string[] = [];
 
         for (const { key, item } of items) {
             const kept = previous.get(key);
@@ -135,14 +150,22 @@ export class ItemsVirtualizationEngine {
                 continue;
             }
 
-            kept?.element?.remove();
+            if (kept !== undefined) {
+                kept.element?.remove();
+                renewed.push(key);
+            }
+
             next.push({ key, item, element: null, height: kept?.height ?? null });
         }
 
-        for (const dropped of previous.values())
+        for (const dropped of previous.values()) {
             dropped.element?.remove();
+            renewed.push(dropped.key);
+        }
 
         state.entries = next;
+
+        return renewed;
     }
 
     public insert(host: Element, key: string, item: unknown, index: number | null): void {
@@ -255,7 +278,7 @@ export class ItemsVirtualizationEngine {
             if (sorts.length > 0)
                 entries = [...entries].sort((left, right) => compareItems(left.item, right.item, sorts));
 
-            state.projected = entries.map(entry => ({ id: entry.key, entry, header: false }));
+            state.projected = entries.map(entry => ({ entry, header: false }));
             return;
         }
 
@@ -291,10 +314,10 @@ export class ItemsVirtualizationEngine {
 
             // The items without a group are a bucket with no header, as everywhere else.
             if (group !== "")
-                projected.push({ id: ` ${group}`, entry: bucket[0], header: true });
+                projected.push({ entry: bucket[0], header: true });
 
             for (const entry of bucket)
-                projected.push({ id: entry.key, entry, header: false });
+                projected.push({ entry, header: false });
         }
 
         state.projected = projected;
@@ -341,7 +364,7 @@ export class ItemsVirtualizationEngine {
         // A horizontal or wrapping host is not laid out in a column, so every row is drawn; the values still drive it.
         if (isColumn(host) && total > 0) {
             const scroll = readHostScroll(host);
-            const top = scroll.top;
+            const top = holdTopRow(host, state, rows, pitches, scroll.top);
             const bottom = top + scroll.height;
             let offset = 0;
 
@@ -403,19 +426,35 @@ export class ItemsVirtualizationEngine {
             changed = true;
         }
 
+        const kept = new Set(drawn);
+
+        // An entry the rules left out lets its row go for good: kept, it would come back with the values it had when it left.
+        for (const entry of state.entries) {
+            if (entry.element !== null && !kept.has(entry.element)) {
+                entry.element.remove();
+                entry.element = null;
+                changed = true;
+            }
+        }
+
         // Anything drawn by nobody here — a server row past the range, a header of an old pass — goes.
         for (const child of getRealItemElements(host)) {
-            if (!drawn.includes(child)) {
+            if (!kept.has(child)) {
                 child.remove();
                 changed = true;
             }
         }
 
         for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
-            if (!drawn.includes(header)) {
+            if (!kept.has(header)) {
                 header.remove();
                 changed = true;
             }
+        }
+
+        for (const slot of state.headers.values()) {
+            if (slot.element !== null && !kept.has(slot.element))
+                slot.element = null;
         }
 
         const before = sum(pitches, 0, first);
@@ -432,6 +471,9 @@ export class ItemsVirtualizationEngine {
             state.last = last;
             this.options.dom.invalidate();
         }
+
+        state.laidOut = rows;
+        state.pitches = pitches;
 
         // Measured after every write of the pass, so the pass forces one layout, not one per row.
         this.measure(state, rows, first, last);
@@ -458,11 +500,6 @@ export class ItemsVirtualizationEngine {
     }
 
     private measure(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {
-        let itemSum = 0;
-        let itemCount = 0;
-        let headerSum = 0;
-        let headerCount = 0;
-
         for (let i = first; i < last && i < rows.length; i++) {
             const row = rows[i];
             const slot = row.header ? state.headers.get(groupOf(row.entry)) : row.entry;
@@ -476,23 +513,15 @@ export class ItemsVirtualizationEngine {
             if (height <= 0)
                 continue;
 
+            addHeight(row.header ? state.headerHeights : state.itemHeights, slot.height, height);
             slot.height = height;
-
-            if (row.header) {
-                headerSum += height;
-                headerCount++;
-            }
-            else {
-                itemSum += height;
-                itemCount++;
-            }
         }
 
-        if (itemCount > 0)
-            state.itemEstimate = itemSum / itemCount;
+        if (state.itemHeights.count > 0)
+            state.itemEstimate = state.itemHeights.sum / state.itemHeights.count;
 
-        if (headerCount > 0)
-            state.headerEstimate = headerSum / headerCount;
+        if (state.headerHeights.count > 0)
+            state.headerEstimate = state.headerHeights.sum / state.headerHeights.count;
     }
 
     private pitchOf(state: VirtualHostState, row: ProjectedRow): number {
@@ -509,12 +538,14 @@ export class ItemsVirtualizationEngine {
         if (known !== undefined)
             return known;
 
-        const componentId = findOwningComponentId(host);
+        const owner = findOwningComponentAddress(host);
 
-        if (componentId === null) {
+        if (owner === null) {
             logWarn("a virtualized items host is not inside an addressable component.", host);
             return null;
         }
+
+        const componentId = owner.componentId;
 
         const entries: VirtualEntry[] = [];
         const drawn = new Map<string, Element>();
@@ -526,7 +557,7 @@ export class ItemsVirtualizationEngine {
                 drawn.set(key, element);
         }
 
-        const published = this.options.metadata.getItemValues(componentId);
+        const published = this.options.metadata.getItemValues(componentId, owner.dynamicParameters);
 
         if (published.length > 0) {
             for (const value of published)
@@ -546,6 +577,10 @@ export class ItemsVirtualizationEngine {
             groupOrder: [],
             itemEstimate: DefaultItemSize,
             headerEstimate: DefaultItemSize,
+            itemHeights: { sum: 0, count: 0 },
+            headerHeights: { sum: 0, count: 0 },
+            laidOut: null,
+            pitches: [],
             scheduled: 0,
             first: -1,
             last: -1
@@ -555,6 +590,51 @@ export class ItemsVirtualizationEngine {
 
         return state;
     }
+}
+
+/** Counts a row's height once, however often it is measured again: a changed height replaces its old one in the sum. */
+function addHeight(mean: RunningMean, previous: number | null, height: number): void {
+    if (previous === null) {
+        mean.sum += height;
+        mean.count++;
+    }
+    else {
+        mean.sum += height - previous;
+    }
+}
+
+/**
+ * Where the viewport's top should be for the row the reader saw there to stay put. A scroll pass lays out the same rows as the
+ * one before, but the spacers still stand for the pitches that pass had, and the heights it measured changed the estimate of
+ * every unmeasured row above: the row moves by the sum of the differences, so the viewport moves with it. A pass after the rules
+ * ran has other rows, and is left where the reader is.
+ */
+function holdTopRow(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], pitches: readonly number[], top: number): number {
+    if (state.laidOut !== rows || state.pitches.length !== pitches.length || top <= 0)
+        return top;
+
+    let shown = 0;
+    let moved = 0;
+
+    for (let i = 0; i < pitches.length; i++) {
+        // On the page now: the drawn rows at their own height, every other row as the spacer the last pass sized.
+        const pitch = i >= state.first && i < state.last ? pitches[i] : state.pitches[i];
+
+        if (shown + pitch > top)
+            break;
+
+        shown += pitch;
+        moved += pitches[i];
+    }
+
+    const shift = moved - shown;
+
+    if (Math.abs(shift) < 0.5)
+        return top;
+
+    scrollHostTo(host, top + shift);
+
+    return top + shift;
 }
 
 function setElement(state: VirtualHostState, row: ProjectedRow, element: Element | null): void {

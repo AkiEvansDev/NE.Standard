@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 internal sealed partial class StandardGroupContext : DemoGroupContext
@@ -50,11 +46,7 @@ internal sealed partial class StandardGroupContext : DemoGroupContext
 
     // The fourth step is the responsive one: gone on a narrow window and back from `md` up.
     public void CycleVisibility()
-        => SetLastChange(nameof(Visibility), Visibility = CycleValue(Visibility,
-            UIVisibility.Visible,
-            UIVisibility.Hidden,
-            UIVisibility.Collapsed,
-            UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)));
+        => SetLastChange(nameof(Visibility), Visibility = CycleValue(Visibility, UIVisibility.Visible, UIVisibility.Hidden, UIVisibility.Collapsed, UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)));
 
     public void ToggleEnabled()
         => SetLastChange(nameof(Enabled), Enabled = !Enabled);

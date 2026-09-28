@@ -29,6 +29,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, "ui-tabs--no-overflow", WebValueCondition.IsFalse);
 
         List<string> keys = ResolveTabKeys(context);
+        var selected = ResolveSelectedTab(context, keys);
 
         _ = root.Element("div", strip =>
         {
@@ -53,6 +54,10 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
                     _ = page.Attribute(WebAttributes.TabPage, key);
                     _ = page.Attribute("role", "tabpanel");
 
+                    // Hidden here as the engine would hide it, so the first paint shows one page rather than all of them stacked.
+                    if (selected is not null && !string.Equals(key, selected, StringComparison.Ordinal))
+                        _ = page.Attribute("hidden");
+
                     RenderRegion(context, page, TabRegionNames.Page(key));
                 });
             }
@@ -60,7 +65,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
     }
 
     /// <summary>The tab order, read off the compiled slots, which are recorded in the order they were added.</summary>
-    private static List<string> ResolveTabKeys(WebRenderContext context)
+    internal static List<string> ResolveTabKeys(WebRenderContext context)
     {
         List<string> keys = [];
 
@@ -71,5 +76,22 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         }
 
         return keys;
+    }
+
+    /// <summary>
+    /// The tab the page opens on, as <c>tabs-engine.ts</c> decides it: the chosen key, or the first tab where the key names none;
+    /// null where the render cannot know it (a bound key with no session value).
+    /// </summary>
+    internal static string? ResolveSelectedTab(WebRenderContext context, List<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(keys);
+
+        WebRenderValueKind kind = ResolveRenderValue(context, TabsComponent.SelectedKeyProperty, out string? selected, out _);
+
+        if (keys.Count == 0 || (kind == WebRenderValueKind.Binding && selected is null))
+            return null;
+
+        return selected is not null && keys.Contains(selected) ? selected : keys[0];
     }
 }

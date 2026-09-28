@@ -57,8 +57,10 @@
         .ui-text-nowrap();
     }
 
-    // The value reads from the trailing edge, against the caption at the leading one.
+    // The value reads from the trailing edge, against the caption at the leading one. The caret after the last character is
+    // drawn inside the field's edge, over that character, unless the edge leaves it room of its own.
     .ui-input--title-inside .ui-field {
+        padding-inline-end: 2px;
         text-align: end;
     }
 
@@ -114,7 +116,6 @@
         .ui-loading-ring();
     }
 
-
 // The three inputs that open a popup, for the rule below.
 @ui-input-open: ~".ui-color-input--open, .ui-select--open, .ui-temporal-input--open";
 
@@ -148,7 +149,7 @@
     background: none;
 }
 
-// A rule under the text, not a box; the ring is zeroed via a variable, since an input's own ring selector cannot be outranked from here.
+// A rule under the text, not a box: the variable zeroes the focus ring, the row's inset shadow and the box's outline alike.
 .ui-input--underline {
     --ui-input-focus-ring: 0;
     --ui-field-inset: 0px;
@@ -281,7 +282,6 @@
     -webkit-text-fill-color: var(--ui-color-on-surface);
     caret-color: var(--ui-color-on-surface);
 }
-
 
 // An error and a warning colour the field's edge; an info only speaks under it.
 :is(.ui-invalid, .ui-validation--warning) > :is(@{ui-input-field-state}) {

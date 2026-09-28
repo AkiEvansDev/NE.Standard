@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.Search;
 
@@ -17,11 +13,11 @@ internal sealed partial class SearchExamplesListContext : RecursiveObservable
 {
     private static readonly ServiceEntry[] Catalogue =
     [
-        new("payments-api", "Payments API", "12 replicas · eu-west-1", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-        new("web-portal", "Web Portal", "4 replicas · eu-west-1", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-        new("search-indexer", "Search Indexer", "2 replicas · eu-central-1", "Degraded", UIBadgeType.Warning, DemoIcons.Search),
-        new("mail-relay", "Mail Relay", "1 replica · us-east-1", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-        new("report-builder", "Report Builder", "3 replicas · us-east-1", "Healthy", UIBadgeType.Success, DemoIcons.FileText)
+        new("billing", "Billing", "12 replicas · eu-west", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
+        new("panel", "Panel", "4 replicas · eu-west", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
+        new("dns", "DNS", "2 replicas · eu-west", "Degraded", UIBadgeType.Warning, DemoIcons.Search),
+        new("mail-relay", "Mail Relay", "1 replica · us-east", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
+        new("metrics", "Metrics", "3 replicas · us-east", "Healthy", UIBadgeType.Success, DemoIcons.FileText)
     ];
 
     [RecursiveMember]

@@ -19,6 +19,10 @@
          and a hash the public mirror has never seen makes both the nuspec's repository commit and the
          assembly's informational version dead references. -->
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <!-- Symbols and sources inside the assembly, since no commit hash can point a debugger at the mirror: a consumer steps
+         into the package and reads its line numbers with nothing else to download. -->
+    <DebugType>embedded</DebugType>
+    <EmbedAllSources>true</EmbedAllSources>
     <!-- A file rather than an expression: Prosperity is not an OSI-approved licence, and only those have an
          SPDX expression NuGet will accept. -->
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

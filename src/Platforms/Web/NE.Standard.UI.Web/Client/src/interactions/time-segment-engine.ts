@@ -2,6 +2,7 @@
 
 import { componentParts } from "../addressing/dom-registry";
 import { formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
+import { clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import {
     clampPushedValue, clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
@@ -9,6 +10,7 @@ import {
 } from "./temporal-dom";
 import { observeComponents } from "./dom-mutations";
 import { resolveRovingTarget } from "./roving-focus";
+import { turnWheel } from "./wheel-notches";
 
 const SegmentsClass = "ui-temporal-input__segments";
 const SegmentClass = "ui-temporal-input__segment";
@@ -43,6 +45,10 @@ export class TimeSegmentEngine {
     private readonly options: TimeSegmentEngineOptions;
     private readonly root: ParentNode;
     private readonly edits = new WeakMap<HTMLElement, EditState>();
+    // How far the wheel has turned over the focused segment since its last step.
+    private wheelTurn = 0;
+    // Listened on the focused segment alone: a non-passive wheel listener on the document would hold every scroll of the page for the main thread.
+    private readonly onWheel = (domEvent: WheelEvent): void => this.handleWheel(domEvent);
 
     public constructor(options: TimeSegmentEngineOptions = {}) {
         this.options = options;
@@ -59,8 +65,8 @@ export class TimeSegmentEngine {
         observeComponents(this.root, `.${RootClass}`, { attributeFilter: [...PickerAttributes] }, roots => this.applyAll(roots));
 
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
-        this.root.addEventListener("wheel", domEvent => this.handleWheel(domEvent), { capture: true, passive: false });
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
+        this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent), true);
         this.root.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), true);
 
         // Before the click below, and only to keep focus where it is — see handleStepperPress.
@@ -167,22 +173,39 @@ export class TimeSegmentEngine {
         }
     }
 
-    private handleWheel(domEvent: Event): void {
-        if (!(domEvent instanceof WheelEvent))
-            return;
-
+    /** Only the focused segment takes the wheel, or scrolling the page over a form would change values in passing. */
+    private handleFocusIn(domEvent: Event): void {
         const segment = editableSegment(domEvent.target);
 
-        // Only the focused segment reacts, or scrolling the page over a form would change values in passing.
-        if (segment === null || segment !== document.activeElement)
+        if (segment === null)
+            return;
+
+        this.wheelTurn = 0;
+        segment.addEventListener("wheel", this.onWheel, { passive: false });
+    }
+
+    private handleWheel(domEvent: WheelEvent): void {
+        const segment = editableSegment(domEvent.currentTarget);
+
+        if (segment === null || segment !== document.activeElement || domEvent.deltaY === 0)
             return;
 
         domEvent.preventDefault();
 
+        const { steps, carried } = turnWheel(this.wheelTurn, domEvent.deltaY, domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL);
+
+        this.wheelTurn = carried;
+
+        if (steps === 0)
+            return;
+
         const root = segment.closest<HTMLElement>(`.${RootClass}`)!;
 
         this.resetBuffer(root);
-        this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, domEvent.deltaY < 0 ? 1 : -1, endOf(segment));
+
+        // Turned up is a step up; each notch is a step, so a trackpad's glide steps as far as a wheel turned as far would.
+        for (let step = 0; step < Math.abs(steps); step++)
+            this.applyStep(root, segment.getAttribute(SegmentAttribute) as SegmentUnit, steps < 0 ? 1 : -1, endOf(segment));
     }
 
     /** Keeps the focused segment focused while the stepper is pressed, so the click below still knows which unit to step. */
@@ -223,6 +246,8 @@ export class TimeSegmentEngine {
 
         if (segment === null)
             return;
+
+        segment.removeEventListener("wheel", this.onWheel);
 
         const root = segment.closest<HTMLElement>(`.${RootClass}`);
 
@@ -368,8 +393,23 @@ function createPart(part: Part): HTMLElement {
     segment.setAttribute("role", "spinbutton");
     segment.setAttribute(SegmentAttribute, part.unit);
     segment.dataset.width = String(part.width);
+    describeSegment(segment, part.unit);
 
     return segment;
+}
+
+/** A spinbutton's name and bounds, so a reader hears "hours, 9" rather than an unnamed number. */
+function describeSegment(segment: HTMLElement, unit: SegmentUnit): void {
+    if (unit === "meridiem") {
+        segment.setAttribute("aria-label", clientStrings.text("ui.picker.meridiem"));
+        return;
+    }
+
+    const clock = clockUnit(unit);
+
+    segment.setAttribute("aria-label", clientStrings.text(clock === "hour" ? "ui.picker.hours" : clock === "minute" ? "ui.picker.minutes" : "ui.picker.seconds"));
+    segment.setAttribute("aria-valuemin", unit === "hour12" ? "1" : "0");
+    segment.setAttribute("aria-valuemax", unit === "hour12" ? "12" : unit === "hour" ? "23" : "59");
 }
 
 // A separator is its own text; only a date token goes through the formatter, and never a blank one.
@@ -397,7 +437,10 @@ function writeAria(segment: HTMLElement, unit: SegmentUnit, value: Date | null):
         return;
     }
 
-    segment.setAttribute("aria-valuenow", String(unitValue(value, clockUnit(unit))));
+    // A 12-hour dial reads its own number, not the 24-hour hour beneath it.
+    const hour = value.getHours();
+
+    segment.setAttribute("aria-valuenow", String(unit === "hour12" ? (hour % 12 === 0 ? 12 : hour % 12) : unitValue(value, clockUnit(unit))));
 }
 
 /** Whether a segment belongs to the period's end clock rather than its start. */

@@ -50,6 +50,10 @@ public interface IUIClientEndpoint
     /// <summary>
     /// Processes a client-originated UI event.
     /// </summary>
+    /// <remarks>
+    /// A background command answered as accepted keeps <paramref name="cancellationToken"/> while it runs on, so a transport
+    /// passes one that lives as long as the connection, not the request.
+    /// </remarks>
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle handle, UICommandRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>

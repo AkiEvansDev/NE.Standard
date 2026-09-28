@@ -11,7 +11,7 @@ internal static class StandardWebAssetDescriptors
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
         Source = "NE.Standard.UI.Web.Client.dist.ui.css",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/css/ui.css",
+        PublicPath = "/_ne/css/ui.css",
         Order = 0
     };
 
@@ -22,7 +22,7 @@ internal static class StandardWebAssetDescriptors
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
         Source = "NE.Standard.UI.Web.Client.dist.ui-boot.js",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/js/ui-boot.js",
+        PublicPath = "/_ne/js/ui-boot.js",
         Order = 0
     };
 
@@ -33,7 +33,7 @@ internal static class StandardWebAssetDescriptors
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
         Source = "NE.Standard.UI.Web.Client.dist.ui.js",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/js/ui.js",
+        PublicPath = "/_ne/js/ui.js",
         Order = 0
     };
 
@@ -48,7 +48,7 @@ internal static class StandardWebAssetDescriptors
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
         Source = "NE.Standard.UI.Web.Client.fonts.InterVariable.woff2",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/fonts/inter.woff2",
+        PublicPath = "/_ne/fonts/inter.woff2",
         Order = 0
     };
 
@@ -63,7 +63,7 @@ internal static class StandardWebAssetDescriptors
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
         Source = "NE.Standard.UI.Web.Client.fonts.NEGlyphs.woff2",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/fonts/ne-glyphs.woff2",
+        PublicPath = "/_ne/fonts/ne-glyphs.woff2",
         Order = 0
     };
 
@@ -79,7 +79,7 @@ internal static class StandardWebAssetDescriptors
         Source = "ui-fonts",
         Content = $"@font-face{{font-family:\"Inter\";font-style:normal;font-weight:100 900;font-display:swap;src:url(\"{Font.ResolveVersionedPublicPath()}\") format(\"woff2\");}}"
             + $"@font-face{{font-family:\"NE Glyphs\";font-style:normal;font-weight:400;font-display:block;src:url(\"{GlyphFont.ResolveVersionedPublicPath()}\") format(\"woff2\");}}",
-        PublicPath = "/css/ui-fonts.css",
+        PublicPath = "/_ne/css/ui-fonts.css",
         Order = -1
     };
 }

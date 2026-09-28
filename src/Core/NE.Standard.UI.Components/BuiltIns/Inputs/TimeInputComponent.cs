@@ -14,7 +14,7 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
     /// Validates that one end of the value or the period sits between the minimum and the maximum.
     /// </summary>
     protected override void ValidateEnd(TimeOnly? min, TimeOnly? max, TimeOnly? value)
-        => ValidateOrderedRange(min, max, value, "time");
+        => OrderedRange.Validate(min, max, value, "time");
 
     /// <inheritdoc/>
     protected override void ValidatePeriod(TimeOnly? start, TimeOnly? end)

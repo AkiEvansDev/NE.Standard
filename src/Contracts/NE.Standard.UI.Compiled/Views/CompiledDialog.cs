@@ -77,15 +77,20 @@ public sealed class CompiledDialog
     /// <summary>
     /// Gets whether the dialog blocks interaction with the underlying view.
     /// </summary>
-    public bool Modal { get; init; }
+    public bool Modal { get; init; } = true;
 
     /// <summary>
     /// Gets whether clicking the backdrop closes the dialog.
     /// </summary>
-    public bool CloseOnBackdrop { get; init; }
+    public bool CloseOnBackdrop { get; init; } = true;
 
     /// <summary>
     /// Gets whether pressing Escape closes the dialog.
     /// </summary>
-    public bool CloseOnEscape { get; init; }
+    public bool CloseOnEscape { get; init; } = true;
+
+    /// <summary>
+    /// Gets the dialog's accessible name, a translation key or plain text.
+    /// </summary>
+    public string? Label { get; init; }
 }

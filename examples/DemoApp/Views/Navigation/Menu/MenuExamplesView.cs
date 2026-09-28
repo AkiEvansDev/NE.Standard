@@ -1,17 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Navigation.Menu;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Navigation.Menu;
 
@@ -43,47 +32,6 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateFiltersGroup(), CreateSidebarGroup(), CreateContextGroup()],
             [CreateCommandsGroup(), CreateRowsGroup(), CreateTopBarGroup()]
-        ));
-    }
-
-    /// <summary>
-    /// This demo's own pages in sections that open and close, on a rail that folds to its icons. The entries are the controller's,
-    /// and a section added live is a row the client builds, its sub-entries included.
-    /// </summary>
-    private static ContainerComponent CreateSidebarGroup()
-    {
-        return DemoUI.CreateGroup(SidebarGroup, "A sidebar with sections",
-            content => content.AddChild(new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
-                .SetHorizontalAlignment(UIAlignment.Start)
-                .SetContent(new MenuComponent(SidebarId)
-                    .SetShowCollapseToggle(true)
-                    .SetMinWidth(UILayoutLength.Absolute(200))
-                    .BindItems(nameof(SidebarGroupContext.Entries), UIBindingScope.Relative)
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            controls => DemoUI.InitControls(controls, new Dictionary<string, string>
-            {
-                ["Add a section"] = nameof(MenuExamplesController.AddSection)
-            })
-        );
-    }
-
-    /// <summary>
-    /// Entries that run something rather than go somewhere, each with the key that fires it without the menu.
-    /// </summary>
-    private static ContainerComponent CreateCommandsGroup()
-    {
-        return DemoUI.CreateGroup(CommandsGroup, "Commands, and the keys that fire them",
-            content => content.AddChild(new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
-                .SetWidth(UILayoutLength.Absolute(280))
-                .SetContent(new MenuComponent()
-                    .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
-                    .OnItemClickWithItemKey(nameof(MenuExamplesController.Run))
-                )
-                .SetPlacement(1, 1, 24, 1)
             )
         );
     }
@@ -94,8 +42,10 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFiltersGroup()
     {
-        return DemoUI.CreateGroup(FiltersGroup, "Selects and checks",
-            content => content
+        return DemoUI.CreateExample("Selects and checks",
+            // A grid of two halves rather than a row, so the button starts at the middle whatever the list's width.
+            new ContainerComponent()
+                .SetRow(1, UIGridUnit.Auto())
                 .AddChild(new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(280))
@@ -103,7 +53,7 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                         .BindItems(nameof(FiltersGroupContext.Entries), UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(MenuExamplesController.Filter))
                     )
-                    .SetPlacement(1, 1, 12, 1)
+                    .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
                 )
                 .AddChild(new SplitButtonComponent()
                     .SetMode(UISplitButtonMode.Menu)
@@ -112,39 +62,33 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .BindItems(nameof(FiltersGroupContext.Entries), UIBindingScope.Relative)
                     .OnItemClickWithItemKey(nameof(MenuExamplesController.Filter))
-                    .SetPlacement(13, 1, 12, 1)
+                    .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(13, 1, 12, 1))
                 ),
-            note: "Kind = Select carries Value and its Items as the choices; Kind = Check carries Checked. Both click the entry command with their key, and the controller answers on the bound items."
+            note: "Kind = Select carries Value and its Items as the choices; Kind = Check carries Checked. Both click the entry command with their key, and the controller answers on the bound items.",
+            context: FiltersGroup
         );
     }
 
     /// <summary>
-    /// A row of pages across the top of a screen, with the current mark following the click.
+    /// This demo's own pages in sections that open and close, on a rail that folds to its icons. The entries are the controller's,
+    /// and a section added live is a row the client builds, its sub-entries included.
     /// </summary>
-    private static ContainerComponent CreateTopBarGroup()
+    private static ContainerComponent CreateSidebarGroup()
     {
-        return DemoUI.CreateGroup(TopBarGroup, "A bar across the top",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A sidebar with sections",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
-                .SetContent(new StackPanelComponent()
-                    .SetOrientation(UIOrientation.Horizontal)
-                    .SetSpacing(24)
-                    .SetVerticalAlignment(UIAlignment.Center)
-                    .AddChild(new TextComponent()
-                        .SetIcon(DemoIcons.Shield)
-                        .SetTitle("Payments API")
-                        .SetTitleType(UITextAppearance.Subtitle)
-                    )
-                    .AddChild(new MenuComponent()
-                        .SetOrientation(UIOrientation.Horizontal)
-                        // No gap along a bar: the entries' hover grounds would show a sliver of the bar between them.
-                        .SetSpacing(0)
-                        .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
-                        .OnItemClickWithItemKey(nameof(MenuExamplesController.Navigate))
-                    )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            )
+                .SetHorizontalAlignment(UIAlignment.Start)
+                .SetContent(new MenuComponent(SidebarId)
+                    .SetShowCollapseToggle(true)
+                    .SetMinWidth(UILayoutLength.Absolute(200))
+                    .BindItems(nameof(SidebarGroupContext.Entries), UIBindingScope.Relative)
+                ),
+            context: SidebarGroup,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["Add a section"] = nameof(MenuExamplesController.AddSection)
+            })
         );
     }
 
@@ -153,9 +97,8 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateContextGroup()
     {
-        return DemoUI.CreateGroup(ContextGroup, "As a context menu on one component",
-            content => content.AddChild(new CardComponent()
-                .SetPlacement(1, 1, 24, 1)
+        return DemoUI.CreateExample("As a context menu on one component",
+            new CardComponent()
                 .SetContextMenu(new MenuComponent().SetItems(
                 [
                     new MenuItem { Id = "card-actions", Kind = UIMenuItemKind.Header, Title = "Card" },
@@ -165,8 +108,25 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetContent(new TextComponent()
                     .SetTitle("Right-click this card")
                     .SetDescription("The menu is set on the card itself — it compiles with the card and opens where the pointer is; Surface = Background puts it on the page's ground.")
-                )
-            )
+                ),
+            context: ContextGroup
+        );
+    }
+
+    /// <summary>
+    /// Entries that run something rather than go somewhere, each with the key that fires it without the menu.
+    /// </summary>
+    private static ContainerComponent CreateCommandsGroup()
+    {
+        return DemoUI.CreateExample("Commands, and the keys that fire them",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Raised)
+                .SetWidth(UILayoutLength.Absolute(280))
+                .SetContent(new MenuComponent()
+                    .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
+                    .OnItemClickWithItemKey(nameof(MenuExamplesController.Run))
+                ),
+            context: CommandsGroup
         );
     }
 
@@ -175,34 +135,56 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRowsGroup()
     {
-        return DemoUI.CreateGroup(ContextGroup, "As a context menu on every row of a list",
-            content => content.AddChild(new ItemsViewComponent()
+        return DemoUI.CreateExample("As a context menu on every row of a list",
+            new ItemsViewComponent()
                 .BindItems(nameof(ContextMenuGroupContext.Deploys), UIBindingScope.Relative)
                 .SetSpacing(8)
-                .SetPlacement(1, 1, 24, 1)
-                .SetTemplate(CreateRowTemplate())
-            )
+                .SetTemplate(new ActionComponent()
+                    .SetTrailingText("right-click")
+                    .SetContextMenu(new MenuComponent()
+                        .SetItems(
+                        [
+                            new MenuItem { Id = "promote", Title = "Promote to production", Icon = DemoIcons.Outline(DemoIcons.Upload) },
+                            new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
+                            new MenuItem { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo) }
+                        ])
+                        // Both scopes at once: Parent reaches past the menu's item scope to the row.
+                        .OnItemClick(nameof(MenuExamplesController.Promote), UIAction.ArgParent("row", nameof(DemoDeployItem.Id)), UIAction.ArgCurrentItemKey("entry"))
+                    )
+                    .BindTitle(nameof(DemoDeployItem.Title), UIBindingScope.Relative)
+                ),
+            context: ContextGroup
         );
     }
 
-    private static ActionComponent CreateRowTemplate()
+    /// <summary>
+    /// A row of pages across the top of a screen, with the current mark following the click.
+    /// </summary>
+    private static ContainerComponent CreateTopBarGroup()
     {
-        return new ActionComponent()
-            .SetTrailingText("right-click")
-            .SetContextMenu(new MenuComponent()
-                .SetItems(
-                [
-                    new MenuItem { Id = "promote", Title = "Promote to production", Icon = DemoIcons.Outline(DemoIcons.Upload) },
-                    new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
-                    new MenuItem { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo) }
-                ])
-                // Both scopes at once: Parent reaches past the menu's item scope to the row.
-                .OnItemClick(
-                    nameof(MenuExamplesController.Promote),
-                    UIAction.ArgParent("row", nameof(DemoDeployItem.Id)),
-                    UIAction.ArgCurrentItemKey("entry")
-                )
-            )
-            .BindTitle(nameof(DemoDeployItem.Title), UIBindingScope.Relative);
+        return DemoUI.CreateExample("A bar across the top",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Raised)
+                .SetContent(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetSpacing(24)
+                    // On a phone the entries go under the name rather than past the bar's edge.
+                    .SetWrap(true)
+                    .SetVerticalAlignment(UIAlignment.Center)
+                    .AddChild(new TextComponent()
+                        .SetIcon(DemoIcons.Shield)
+                        .SetTitle("Billing")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                    )
+                    .AddChild(new MenuComponent()
+                        .SetOrientation(UIOrientation.Horizontal)
+                        // No gap along a bar: the entries' hover grounds would show a sliver of the bar between them.
+                        .SetSpacing(0)
+                        .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
+                        .OnItemClickWithItemKey(nameof(MenuExamplesController.Navigate))
+                    )
+                ),
+            context: TopBarGroup
+        );
     }
 }

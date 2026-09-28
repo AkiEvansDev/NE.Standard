@@ -6,6 +6,7 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Compilation;
@@ -24,6 +25,7 @@ internal sealed partial class UIViewCompilationContext
             {
                 UIEvent sourceEvent = component.Events[j];
                 EnsureServerEventAllowed(sourceEvent.Name);
+                EnsureCommandExists(component, sourceEvent);
 
                 events.Add(new CompiledUIEvent
                 {
@@ -51,6 +53,24 @@ internal sealed partial class UIViewCompilationContext
     private static bool IsLocalLifecycleEvent(string eventName)
         => eventName.StartsWith("before-", StringComparison.Ordinal)
         || eventName.StartsWith("after-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Refuses an event whose command the controller does not declare — otherwise a renamed command compiles, ships, and fails only
+    /// when someone presses that button.
+    /// </summary>
+    private void EnsureCommandExists(IVisualComponent component, UIEvent sourceEvent)
+    {
+        if (_controllerType is null || !typeof(UIControllerBase).IsAssignableFrom(_controllerType))
+            return;
+
+        if (UIControllerBase.DeclaresCommand(_controllerType, sourceEvent.Action.Command))
+            return;
+
+        throw new InvalidOperationException(
+            $"Component '{component.Id}' runs command '{sourceEvent.Action.Command}' on '{sourceEvent.Name}', but controller " +
+            $"'{_controllerType.Name}' has no [UICommand] method of that name."
+        );
+    }
 
     private CompiledUIActionArgument[] BuildActionArguments(IVisualComponent component, UIAction action, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {

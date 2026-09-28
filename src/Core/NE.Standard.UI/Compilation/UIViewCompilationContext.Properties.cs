@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
@@ -27,9 +25,7 @@ internal sealed partial class UIViewCompilationContext
             && string.IsNullOrWhiteSpace(input.FormId)
             && FindBinding(component, IInputComponent.FormIdProperty) is null)
         {
-            throw new InvalidOperationException(
-                $"Property '{property.Name}' on component type '{typeKey}' is bound '{mode}' but the component has no 'FormId', so its value could never be submitted."
-            );
+            throw new InvalidOperationException($"Property '{property.Name}' on component type '{typeKey}' is bound '{mode}' but the component has no 'FormId', so its value could never be submitted.");
         }
     }
 
@@ -59,21 +55,5 @@ internal sealed partial class UIViewCompilationContext
         _propertyDefinitionsCache.Add(typeKey, definitions);
 
         return definitions;
-    }
-
-    private void EnsurePropertyDefinitionsInitialized(IVisualComponent component)
-    {
-        Type componentType = component.GetType();
-
-        if (!_initializedComponentTypes.Add(componentType))
-            return;
-
-        List<Type> hierarchy = [];
-
-        for (Type? current = componentType; current is not null && current != typeof(object); current = current.BaseType)
-            hierarchy.Add(current);
-
-        for (var i = hierarchy.Count - 1; i >= 0; i--)
-            RuntimeHelpers.RunClassConstructor(hierarchy[i].TypeHandle);
     }
 }

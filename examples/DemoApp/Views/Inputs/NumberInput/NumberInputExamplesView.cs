@@ -1,10 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Primitives.Interaction;
 
 namespace DemoApp.Views.Inputs.NumberInput;
 
@@ -22,10 +16,7 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateQuantityGroup()],
-            [CreateFormatGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateQuantityGroup()], [CreateFormatGroup()]));
 
         _ = container.AddChild(CreateBoundsGroup());
     }
@@ -35,8 +26,8 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateQuantityGroup()
     {
-        return DemoUI.CreateGroup(null, "A number with a unit",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("A number with a unit",
+            UILayout.Stack(12)
                 .AddChild(new NumberInputComponent()
                     .SetTitle("Replicas")
                     .SetValue(12)
@@ -52,9 +43,9 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetShowStepper()
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Monthly budget")
+                    .SetTitle("Monthly spend")
                     .SetValue(2400)
-                    .SetPrefixText("$")
+                    .SetPrefixText("€")
                     .SetAllowThousandsSeparator()
                     .SetStep(100)
                 )
@@ -67,7 +58,6 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetAllowDecimals()
                     .SetStep(0.5m)
                 )
-            )
         );
     }
 
@@ -76,8 +66,8 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateGroup(null, "What may be typed",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("What may be typed",
+            UILayout.Stack(12)
                 .AddChild(new NumberInputComponent()
                     .SetTitle("Replicas — a count, so no decimals and no minus")
                     .SetValue(12)
@@ -93,20 +83,19 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
                     .SetTrimTrailingZeros()
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Unit price — money, so the second place is always written")
-                    .SetValue(1.5m)
-                    .SetPrefixText("$")
+                    .SetTitle("Price per seat — money, so the second place is always written")
+                    .SetValue(6m)
+                    .SetPrefixText("€")
                     .SetAllowDecimals()
                     .SetDisplayFormat("N2")
                 )
                 .AddChild(new NumberInputComponent()
-                    .SetTitle("Chamber temperature — the one field that may go below zero")
-                    .SetValue(-4)
-                    .SetSuffixText("°C")
+                    .SetTitle("Time zone offset — the one field that may go below zero")
+                    .SetValue(-5)
+                    .SetSuffixText("hours")
                     .SetAllowNegative()
                     .SetAllowDecimals()
-                )
-            ),
+                ),
             note: "Every rule here is a property; what the page is for is which rule the measured thing asks for."
         );
     }
@@ -118,37 +107,38 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
     /// <remarks>Full width, three across: the three are read against each other, not down a column.</remarks>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateGroup(null, "What it says about a value",
-            content => content.AddChild(DemoUI.CreateRow(24)
-                .AddChild(CreateBounded("Both ends — the stepper stops, and so does the typing", new NumberInputComponent()
+        return DemoUI.CreateExample("What it says about a value",
+            UILayout.Row(24)
+                .AddChild(UIPage.Labelled("Both ends — the stepper stops, and so does the typing", new NumberInputComponent()
                     .SetTitle("Replicas")
                     .SetValue(8)
                     .SetRange(1, 64)
                     .SetShowStepper()
-                ))
-                .AddChild(CreateBounded("Empty is not an answer", new NumberInputComponent()
+                    .SetWidth(UILayoutLength.Absolute(300))
+                    )
+                )
+                .AddChild(UIPage.Labelled("Empty is not an answer", new NumberInputComponent()
                     .SetTitle("Replicas")
                     .SetPlaceholder("How many?")
                     .SetShowStepper()
                     .Required("A replica count is required.")
-                ))
-                .AddChild(CreateBounded("Two rules, and the field says the graver one", new NumberInputComponent()
-                    .SetTitle("Monthly budget")
-                    .SetPrefixText("$")
+                    .SetWidth(UILayoutLength.Absolute(300))
+                    )
+                )
+                .AddChild(UIPage.Labelled("Two rules, and the field says the graver one", new NumberInputComponent()
+                    .SetTitle("Monthly spend")
+                    .SetPrefixText("€")
                     .SetValue(50)
                     .SetStep(10)
                     .SetShowStepper()
-                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 10, "Under $10 the plan cannot be billed at all.", UIValidationSeverity.Error)
-                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 100, "Under $100 the plan costs more to run than it takes.", UIValidationSeverity.Warning)
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 10, "Under €10 the plan cannot be billed at all.", UIValidationSeverity.Error)
+                    .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 100, "Under €100 the plan costs more to run than it takes.", UIValidationSeverity.Warning)
+                    .SetWidth(UILayoutLength.Absolute(300))
+                    )
+                ),
             columns: 24,
             note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too. "
-                + "The budget carries two `Validate` rules on the `Change` trigger, so both are answered on every keystroke — type 5 and the error speaks, 50 and the warning does, 150 and neither."
+                + "The spend carries two `Validate` rules on the `Change` trigger, so both are answered on every keystroke — type 5 and the error speaks, 50 and the warning does, 150 and neither."
         );
     }
-
-    private static StackPanelComponent CreateBounded(string caption, NumberInputComponent field)
-        => DemoUI.CreateCaptionedItem(caption, field.SetWidth(UILayoutLength.Absolute(300)));
 }

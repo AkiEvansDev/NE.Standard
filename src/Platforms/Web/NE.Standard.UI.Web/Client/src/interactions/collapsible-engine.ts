@@ -6,6 +6,8 @@ import { ClientStore } from "../state/client-store";
 
 const RootClass = "ui-collapsible";
 const ContentClass = "ui-collapsible__content";
+// The row a toggle shares with content set beside it (CollapsibleChromeRenderer).
+const BarClass = "ui-collapsible__bar";
 const CollapsedSlot = "collapsed";
 const FoldDuration = 200;
 const FoldEasing = "cubic-bezier(0.4, 0, 0.2, 1)";
@@ -85,9 +87,9 @@ export class CollapsibleEngine {
         this.toggleOf(component)?.setAttribute("aria-expanded", collapsed ? "false" : "true");
     }
 
-    /** This component's own switch, not one belonging to a collapsible nested inside it. */
+    /** This component's own switch — the root's child, or in the row it shares with content — not one of a collapsible inside it. */
     private toggleOf(component: HTMLElement): HTMLElement | null {
-        return component.querySelector<HTMLElement>(`:scope > [${CollapseToggleAttribute}]`);
+        return component.querySelector<HTMLElement>(`:scope > [${CollapseToggleAttribute}], :scope > .${BarClass} > [${CollapseToggleAttribute}]`);
     }
 
     // Measured and slid, not transitioned: an auto size is not a length CSS can interpolate.
@@ -121,7 +123,7 @@ export class CollapsibleEngine {
 
         this.folds.set(component, animations);
 
-        Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+        void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
             if (this.folds.get(component) === animations) {
                 this.folds.delete(component);
                 component.removeAttribute(FoldingAttribute);
@@ -157,4 +159,3 @@ function measureFold(component: HTMLElement, content: HTMLElement | null): FoldS
 
     return { component: component.getBoundingClientRect()[axis], content: content?.getBoundingClientRect()[axis] ?? 0 };
 }
-

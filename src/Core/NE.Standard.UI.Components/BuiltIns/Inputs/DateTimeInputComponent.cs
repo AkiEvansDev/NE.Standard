@@ -14,7 +14,7 @@ public abstract class DateTimeInputComponent<T>(string? id = null) : TemporalInp
     /// Validates that one end of the value or the period sits between the minimum and the maximum.
     /// </summary>
     protected override void ValidateEnd(DateTimeOffset? min, DateTimeOffset? max, DateTimeOffset? value)
-        => ValidateOrderedRange(min, max, value, "date-time");
+        => OrderedRange.Validate(min, max, value, "date-time");
 
     /// <inheritdoc/>
     protected override void ValidatePeriod(DateTimeOffset? start, DateTimeOffset? end)

@@ -27,7 +27,7 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
     /// <summary>
     /// Gets or sets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIOrientation.Vertical)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIOrientation.Vertical)]
     public UIOrientation? Orientation { get; set; }
 
     /// <summary>

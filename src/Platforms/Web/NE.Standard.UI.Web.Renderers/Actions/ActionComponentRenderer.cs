@@ -38,11 +38,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
             {
                 _ = chevron.Class("ui-action__chevron");
 
-                _ = RenderProperty<bool?>(context, chevron, ActionComponent.ShowChevronProperty, static (target, value) =>
-                {
-                    if (value == false)
-                        _ = target.Class("ui-hidden");
-                }, [WebDomOperation.ToggleClass("ui-hidden", condition: WebValueCondition.IsFalse)]);
+                RenderFlagClass(context, chevron, ActionComponent.ShowChevronProperty, "ui-hidden", WebValueCondition.IsFalse);
             });
         });
     }

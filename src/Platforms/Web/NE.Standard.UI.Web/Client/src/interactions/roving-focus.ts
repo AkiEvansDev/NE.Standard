@@ -13,20 +13,20 @@ export type RovingRequest = {
 
 /** The element the key moves to, or null when the key is not a navigation key for this axis. */
 export function resolveRovingTarget(request: RovingRequest): HTMLElement | null {
+    const edge = resolveEdge(request.key);
+    const step = resolveStep(request.key, request.axis);
+
+    // The key first: measuring every item for a key that moves nothing is a layout read per item on every keystroke.
+    if (edge === null && step === 0)
+        return null;
+
     const items = request.items.filter(isRovingCandidate);
 
     if (items.length === 0)
         return null;
 
-    const edge = resolveEdge(request.key);
-
     if (edge !== null)
         return edge === "first" ? items[0] : items[items.length - 1];
-
-    const step = resolveStep(request.key, request.axis);
-
-    if (step === 0)
-        return null;
 
     // An unknown current enters at the near end rather than doing nothing.
     const index = request.current === null ? -1 : items.indexOf(request.current);
@@ -40,6 +40,11 @@ export function resolveRovingTarget(request: RovingRequest): HTMLElement | null 
         return items[next];
 
     return (request.loop ?? true) ? items[(next + items.length) % items.length] : null;
+}
+
+/** Whether the key moves along this axis at all: an arrow of it, Home or End. */
+export function isRovingKey(key: string, axis: RovingAxis): boolean {
+    return resolveEdge(key) !== null || resolveStep(key, axis) !== 0;
 }
 
 /** The arrowing as a package reaches it through the engine context. */

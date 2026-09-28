@@ -68,6 +68,6 @@ export function readNumberAttribute(element: Element, name: string): number {
 }
 
 // Keys only: every item collection is keyed, so an element with no key introduces no scope; a positional fallback would misaddress.
-function readDynamicParameter(element: Element): unknown | undefined {
+function readDynamicParameter(element: Element): unknown {
     return element.getAttribute(ComponentKeyAttribute) ?? undefined;
 }

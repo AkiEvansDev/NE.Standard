@@ -30,6 +30,7 @@ public sealed class UICompiledBindingIndex
     private readonly FrozenDictionary<UIBindingTemplateId, CompiledUIBinding[]> _bindingsByTemplateId;
     private readonly FrozenDictionary<BindingTemplateKindKey, CompiledUIBinding[]> _bindingsByTemplateIdAndKind;
     private readonly FrozenDictionary<BindingTemplateStringKindKey, CompiledUIBinding[]> _descendantBindingsByTemplateAndKind;
+    private readonly FrozenDictionary<RecursivePath, string> _templatesByShape;
     private readonly CompiledUIBinding[] _all;
 
     /// <summary>
@@ -82,6 +83,39 @@ public sealed class UICompiledBindingIndex
         _bindingsByTemplateId = GroupingIndex.Freeze(byTemplate);
         _bindingsByTemplateIdAndKind = GroupingIndex.Freeze(byTemplateAndKind);
         _descendantBindingsByTemplateAndKind = GroupingIndex.Freeze(descendantsByTemplateAndKind);
+        _templatesByShape = BuildTemplatesByShape(templates);
+    }
+
+    /// <summary>
+    /// Every shape a lookup by path can answer, the view's own templates and the ancestors a descendant lookup is keyed by: a
+    /// path of any other shape resolves to nothing without building a template, and the map grows with the view, never with
+    /// the paths a running model raises.
+    /// </summary>
+    private static FrozenDictionary<RecursivePath, string> BuildTemplatesByShape(UICompiledBindingTemplateIndex templates)
+    {
+        Dictionary<RecursivePath, string> byShape = new(RecursivePathTemplate.ShapeComparer);
+
+        foreach (CompiledUIBindingTemplate template in templates.All)
+        {
+            AddShape(byShape, template.Template);
+
+            foreach (var ancestorTemplate in EnumerateAncestorTemplates(template.Template))
+                AddShape(byShape, ancestorTemplate);
+        }
+
+        return byShape.ToFrozenDictionary(RecursivePathTemplate.ShapeComparer);
+    }
+
+    private static void AddShape(Dictionary<RecursivePath, string> byShape, string template)
+    {
+        RecursivePathTemplate parsed = RecursivePathTemplate.Parse(template);
+
+        // Any parameter values will do: the shape comparer reads only where the slots are.
+        var placeholders = new object[parsed.ParameterCount];
+
+        Array.Fill(placeholders, 0);
+
+        _ = byShape.TryAdd(parsed.Materialize(placeholders), template);
     }
 
     /// <summary>
@@ -211,11 +245,15 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(path);
 
-        (RecursivePathTemplate template, var pathParameters) = RecursivePathTemplate.FromPath(path);
-        parameters = pathParameters;
+        parameters = RecursivePathTemplate.GetParameters(path);
 
-        return Get(sourceId, template);
+        return _templatesByShape.TryGetValue(path, out var template) ? GetByTemplateString(sourceId, template) : Empty;
     }
+
+    private CompiledUIBinding[] GetByTemplateString(UIBindingSourceId sourceId, string template)
+        => _templates.TryGet(sourceId, template, out CompiledUIBindingTemplate? compiledTemplate) && _bindingsByTemplateId.TryGetValue(compiledTemplate.Id, out CompiledUIBinding[]? bindings)
+            ? bindings
+            : Empty;
 
     /// <summary>
     /// Gets bindings of the specified kind for a source and concrete path.
@@ -227,11 +265,15 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(path);
 
-        (RecursivePathTemplate template, var pathParameters) = RecursivePathTemplate.FromPath(path);
-        parameters = pathParameters;
+        parameters = RecursivePathTemplate.GetParameters(path);
 
-        return Get(sourceId, template, kind);
+        return _templatesByShape.TryGetValue(path, out var template) ? GetByTemplateString(sourceId, template, kind) : Empty;
     }
+
+    private CompiledUIBinding[] GetByTemplateString(UIBindingSourceId sourceId, string template, CompiledUIBindingKind kind)
+        => _templates.TryGet(sourceId, template, out CompiledUIBindingTemplate? compiledTemplate) && _bindingsByTemplateIdAndKind.TryGetValue(new BindingTemplateKindKey(compiledTemplate.Id, kind), out CompiledUIBinding[]? bindings)
+            ? bindings
+            : Empty;
 
     /// <summary>
     /// Gets bindings for a source and path template.
@@ -243,9 +285,7 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(template);
 
-        return _templates.TryGet(sourceId, template, out CompiledUIBindingTemplate? compiledTemplate)
-            ? GetByTemplateId(compiledTemplate.Id)
-            : Empty;
+        return GetByTemplateString(sourceId, template.Template);
     }
 
     /// <summary>
@@ -258,9 +298,7 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(template);
 
-        return _templates.TryGet(sourceId, template, out CompiledUIBindingTemplate? compiledTemplate)
-            ? GetByTemplateId(compiledTemplate.Id, kind)
-            : Empty;
+        return GetByTemplateString(sourceId, template.Template, kind);
     }
 
     /// <summary>
@@ -273,11 +311,15 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(path);
 
-        (RecursivePathTemplate template, var pathParameters) = RecursivePathTemplate.FromPath(path);
-        parameters = pathParameters;
+        parameters = RecursivePathTemplate.GetParameters(path);
 
-        return GetDescendants(sourceId, template, kind);
+        return _templatesByShape.TryGetValue(path, out var template) ? GetDescendantsByTemplateString(sourceId, template, kind) : Empty;
     }
+
+    private CompiledUIBinding[] GetDescendantsByTemplateString(UIBindingSourceId sourceId, string template, CompiledUIBindingKind kind)
+        => _descendantBindingsByTemplateAndKind.TryGetValue(new BindingTemplateStringKindKey(sourceId, template, kind), out CompiledUIBinding[]? bindings)
+            ? bindings
+            : Empty;
 
     /// <summary>
     /// Gets bindings below the specified source path template.
@@ -289,9 +331,7 @@ public sealed class UICompiledBindingIndex
 
         ArgumentNullException.ThrowIfNull(template);
 
-        return _descendantBindingsByTemplateAndKind.TryGetValue(new BindingTemplateStringKindKey(sourceId, template.Template, kind), out CompiledUIBinding[]? bindings)
-            ? bindings
-            : Empty;
+        return GetDescendantsByTemplateString(sourceId, template.Template, kind);
     }
 
     /// <summary>
@@ -389,5 +429,4 @@ public sealed class UICompiledBindingIndex
             yield return template[..i];
         }
     }
-
 }

@@ -1,12 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Binding;
 
 namespace DemoApp.Views.Navigation.TabsView;
 
@@ -41,9 +35,11 @@ internal sealed class TabsViewMainView : DemoMainView, IUIViewDefinition
             .BindSelectedKey($"{TabsViewGroup}.{nameof(TabsViewGroupContext.SelectedKey)}")
             .BindRenamable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Renamable)}")
             .BindDraggable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Draggable)}")
+            .BindTabMenuEntries($"{TabsViewGroup}.{nameof(TabsViewGroupContext.TabMenuEntries)}")
             .BindRemovable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Removable)}")
             .BindShowOverflow($"{TabsViewGroup}.{nameof(TabsViewGroupContext.ShowOverflow)}")
             .BindItems(nameof(TabsViewMainController.Documents))
+            .OnItemRemove(nameof(TabsViewMainController.RemoveDocument))
             // The page is a template over the item, bound to whichever document the tab stands for.
             .SetPageTemplate(new ParagraphComponent()
                 .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)

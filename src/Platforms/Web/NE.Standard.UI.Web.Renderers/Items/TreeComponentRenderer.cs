@@ -71,15 +71,16 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
 
         // The tree takes the focus whatever it chooses: the arrows fold and walk its rows.
         RenderSelection(context, root);
+        var selectable = RenderSelectableRole(context, root);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, composite: CompositeItem);
+        RegisterItemsTemplateMetadata(context, composite: CompositeItem, announcesSelection: selectable);
         RegisterItemsFilterSortMetadata(context);
-        RenderRows(context, root);
+        RenderRows(context, root, selectable);
     }
 
     /// <summary>Renders the rows into an inner host, the element that scrolls; the client's lookup searches descendants only, so the root cannot be it.</summary>
-    private static void RenderRows(WebRenderContext context, IHtmlElementBuilder root)
+    private static void RenderRows(WebRenderContext context, IHtmlElementBuilder root, bool selectable)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
@@ -99,14 +100,14 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
             Dictionary<string, TreePlacement> placed = new(StringComparer.Ordinal);
 
             for (var i = 0; i < items.Count; i++)
-                RenderRow(context, host, items[i], placed, selected);
+                RenderRow(context, host, items[i], placed, selected, selectable);
         });
     }
 
     /// <summary>Where a placed node stands: its level, whether it is on screen, and whether it is unfolded as authored.</summary>
     private readonly record struct TreePlacement(int Depth, bool Shown, bool Expanded);
 
-    private static void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, Dictionary<string, TreePlacement> placed, HashSet<string> selected)
+    private static void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, Dictionary<string, TreePlacement> placed, HashSet<string> selected, bool selectable)
     {
         ITreeNodeModel? node = item as ITreeNodeModel;
         var expanded = node?.Expanded == true;
@@ -138,7 +139,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
 
             StampTemplateSlotAsHost(context, row, item, TemplateNames.Row);
             RenderStampedRowAbilities(context, row, item);
-            MarkSelected(row, item, selected);
+            MarkSelected(row, item, selected, announce: selectable);
 
             RenderNamedTemplateSlot(context, row, item, TemplateNames.Node, NodeClassName, nameof(ITreeNodeModel.Kind));
         });

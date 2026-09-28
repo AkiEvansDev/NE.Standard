@@ -16,6 +16,9 @@ public sealed class StandardUploadService : IUIUploadService
 {
     private readonly IUIFileStore _store;
 
+    /// <summary>
+    /// Creates the service over the store the upload endpoint staged into.
+    /// </summary>
     public StandardUploadService(IUIFileStore store)
     {
         ArgumentNullException.ThrowIfNull(store);

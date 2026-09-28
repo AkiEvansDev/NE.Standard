@@ -398,6 +398,8 @@
     background: color-mix(in srgb, black 45%, transparent);
     color: white;
     opacity: 0;
+    // Not pressable while it cannot be seen: on a touch screen the tap that brings the hover is also the click.
+    pointer-events: none;
     cursor: pointer;
     transition: opacity @ui-motion-fast @ui-motion-ease;
     .ui-cross-glyph(@ui-glyph-lg);
@@ -405,6 +407,21 @@
 
     .ui-image-input__tile:is(:hover, :focus-within) > .ui-image-input__remove {
         opacity: 1;
+        pointer-events: auto;
+    }
+
+    // Without a hover there is nothing to bring the veil up: the cross stands in the corner at all times, a small target that
+    // leaves the rest of the picture to look at.
+    @media (hover: none) {
+        .ui-image-input__remove {
+            inset: 0.25rem 0.25rem auto auto;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 999px;
+            opacity: 1;
+            pointer-events: auto;
+            .ui-cross-glyph(@ui-glyph-sm);
+        }
     }
 
     .ui-image-input[data-ui-image-readonly] .ui-image-input__remove,
@@ -412,20 +429,11 @@
         display: none;
     }
 
-// While the picture is on its way: the veil stays down and a ring turns over the square.
+// While the picture is on its way the remove veil stays down, and the shared loading veil and ring (runtime.less) turn over
+// the square: a ring of the tile's own lost to the shared veil's `::after`, which drew it with the tile's corners beside a second ring.
 .ui-image-input__tile.ui-loading > .ui-image-input__remove {
     display: none;
 }
-
-    .ui-image-input__tile.ui-loading::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        margin: auto;
-        font-size: 1.5rem;
-        color: white;
-        .ui-loading-ring();
-    }
 
 // The square that picks more: the empty surface's dashed edge and glyph, at a square's size.
 .ui-image-input__add {

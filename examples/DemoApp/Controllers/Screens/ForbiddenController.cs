@@ -1,10 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Screens;
 

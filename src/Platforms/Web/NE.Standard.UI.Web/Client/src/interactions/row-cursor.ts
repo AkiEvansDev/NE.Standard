@@ -2,10 +2,10 @@
 // to which row a key acts on. The host's root holds focus and names the row via aria-activedescendant.
 
 import { ComponentIdAttribute, SelectedAttribute, ensureElementId } from "../addressing/dom-attributes";
-import { resolveRovingTarget, RovingAxis } from "./roving-focus";
+import { isRovingKey, resolveRovingTarget, RovingAxis } from "./roving-focus";
 
 /** On the row the keyboard is on; the engine of the host moves it. */
-export const RowFocusAttribute = "data-ui-row-focus";
+const RowFocusAttribute = "data-ui-row-focus";
 
 /** A row is disabled when the component it wraps is: the wrapper itself, or the template's root one or two levels down. */
 export function isRowDisabled(row: HTMLElement): boolean {
@@ -14,7 +14,7 @@ export function isRowDisabled(row: HTMLElement): boolean {
 }
 
 /** The rows a key can land on: drawn and not disabled. */
-export function rowCandidates(rows: readonly HTMLElement[]): HTMLElement[] {
+function rowCandidates(rows: readonly HTMLElement[]): HTMLElement[] {
     return rows.filter(row => row.getClientRects().length > 0 && !isRowDisabled(row));
 }
 
@@ -41,6 +41,10 @@ export function setRowFocus(root: HTMLElement, rows: readonly HTMLElement[], row
 
 /** The row a navigation key moves to from the current one, or null when the key is not one; the ends do not wrap. */
 export function resolveRowTarget(key: string, rows: readonly HTMLElement[], current: HTMLElement | null, axis: RovingAxis): HTMLElement | null {
+    // The key first: a row list of thousands is not measured for a key that moves nothing.
+    if (!isRovingKey(key, axis))
+        return null;
+
     return resolveRovingTarget({ key, items: rowCandidates(rows), current, axis, loop: false });
 }
 

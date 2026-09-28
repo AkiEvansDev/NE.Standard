@@ -1,5 +1,3 @@
-using NE.Standard.UI.Primitives.Annotations;
-
 namespace DemoApp.Controllers.Inputs.Temporal;
 
 /// <summary>
@@ -27,5 +25,4 @@ internal sealed partial class TemporalFieldGroupContext : AffixedFieldGroupConte
     // Back to null last: that is the control's own default, the culture's short pattern.
     public void CycleDisplayFormat()
         => SetLastChange(nameof(DisplayFormat), DisplayFormat = CycleValue(DisplayFormat, _firstFormat, _secondFormat, null));
-
 }

@@ -25,7 +25,7 @@ public static class UserSessionStoreExtensions
         if (session is null || session.ThemeMode == mode)
             return false;
 
-        await store.SaveAsync(session with { ThemeMode = mode }, cancellationToken).ConfigureAwait(false);
+        await store.SaveAsync(session with { ThemeMode = mode, IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
 
         return true;
     }

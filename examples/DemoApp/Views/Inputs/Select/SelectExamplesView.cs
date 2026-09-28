@@ -1,13 +1,5 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.Select;
 
@@ -27,10 +19,7 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreatePlainGroup()],
-            [CreateRichGroup(), CreatePlacementGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreatePlainGroup()], [CreateRichGroup(), CreatePlacementGroup()]));
 
         _ = container.AddChild(CreateTemplateGroup());
     }
@@ -38,13 +27,13 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>
     private static ContainerComponent CreatePlainGroup()
     {
-        return DemoUI.CreateGroup(null, "A list of names",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("A list of names",
+            UILayout.Stack(12)
                 .AddChild(new SelectComponent()
                     .SetTitle("Region")
                     .SetPlaceholder("Pick a region")
                     .SetOptions(RegionOptions())
-                    .SetValue("eu-west-1")
+                    .SetValue("eu-west")
                     .SetShowClearButton()
                 )
                 .AddChild(new SelectComponent()
@@ -52,7 +41,6 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetPlaceholder("Pick a region")
                     .SetOptions(RegionOptions())
                 )
-            )
         );
     }
 
@@ -62,13 +50,13 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePlacementGroup()
     {
-        return DemoUI.CreateGroup(null, "Where the list opens",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Where the list opens",
+            UILayout.Stack(12)
                 .AddChild(new SelectComponent()
                     .SetTitle("From the end edge")
                     .SetPopupPlacement(UIPopupPlacement.BottomEnd)
                     .SetOptions(RegionOptions())
-                    .SetValue("eu-west-1")
+                    .SetValue("eu-west")
                     .SetWidth(UILayoutLength.Absolute(160))
                     .SetHorizontalAlignment(UIAlignment.End)
                 )
@@ -77,10 +65,9 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetSize(UIInputSize.Small)
                     .SetPopupPlacement(UIPopupPlacement.TopStart)
                     .SetOptions(RegionOptions())
-                    .SetValue("eu-west-1")
+                    .SetValue("eu-west")
                     .SetWidth(UILayoutLength.Absolute(120))
                 )
-            )
         );
     }
 
@@ -89,17 +76,16 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRichGroup()
     {
-        return DemoUI.CreateGroup(null, "An option with more than a name",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("An option with more than a name",
+            UILayout.Stack(12)
                 .AddChild(new SelectComponent()
                     .SetTitle("Target environment")
                     .SetPlaceholder("Pick an environment")
-                    .SetOptions(Environments())
+                    .SetOptions(DemoSamples.Environments())
                     .SetValue("prod")
                     .SetShowClearButton()
                 )
                 .AddChild(UIText.Note("The trigger shows the chosen option through the list's own template — icon, second line and badge included."))
-            )
         );
     }
 
@@ -109,16 +95,17 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
     /// <remarks>A literal here wins wherever the item says nothing, and a template of your own starts from a bare <c>TextComponent</c>.</remarks>
     private static ContainerComponent CreateTemplateGroup()
     {
-        return DemoUI.CreateGroup(null, "A template of your own",
-            content => content.AddChild(DemoUI.CreateRow(32)
-                .AddChild(DemoUI.CreateCaptionedItem("The default row, over the same options", new SelectComponent()
+        return DemoUI.CreateExample("A template of your own",
+            UILayout.Row(32)
+                .AddChild(UIPage.Labelled("The default row, over the same options", new SelectComponent()
                     .SetTitle("On call")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetPlaceholder("Pick an engineer")
                     .SetOptions(Engineers())
                     .SetValue("robin")
-                ))
-                .AddChild(DemoUI.CreateCaptionedItem("A template of your own", new SelectComponent()
+                    )
+                )
+                .AddChild(UIPage.Labelled("A template of your own", new SelectComponent()
                     .SetTitle("On call")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetPlaceholder("Pick an engineer")
@@ -133,9 +120,8 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .SetOptions(Engineers())
                     .SetValue("robin")
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    )
+                ),
             columns: 24,
             note: "Side by side, because the template only reads as a choice against the row it replaces — a larger glyph, the second line quietened, the badge moved to the far end."
         );
@@ -143,47 +129,16 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
 
     private static OptionItem[] RegionOptions()
         => [
-            new() { Id = "eu-west-1", Title = "Ireland", Group = "Europe" },
-            new() { Id = "eu-central-1", Title = "Frankfurt", Group = "Europe" },
-            new() { Id = "us-east-1", Title = "N. Virginia", Group = "Americas" },
-            new() { Id = "ap-south-1", Title = "Mumbai", Group = "Asia Pacific" }
-        ];
-
-    private static OptionItem[] Environments()
-        => [
-            new()
-            {
-                Id = "prod",
-                Icon = DemoIcons.Shield,
-                Title = "Production",
-                Description = "eu-west-1 · 12 replicas",
-                BadgeText = "Locked",
-                BadgeStyle = UIBadgeType.Danger
-            },
-            new()
-            {
-                Id = "staging",
-                Icon = DemoIcons.BadgeCheck,
-                Title = "Staging",
-                Description = "eu-west-1 · 3 replicas",
-                BadgeText = "Open",
-                BadgeStyle = UIBadgeType.Success
-            },
-            new()
-            {
-                Id = "dev",
-                Icon = DemoIcons.Settings,
-                Title = "Development",
-                Description = "eu-central-1 · 1 replica",
-                BadgeText = "Rebuilt daily",
-                BadgeStyle = UIBadgeType.Info
-            }
+            new() { Id = "eu-west", Title = "Amsterdam", Group = "Europe" },
+            new() { Id = "eu-central", Title = "Frankfurt", Group = "Europe" },
+            new() { Id = "us-east", Title = "Ashburn", Group = "Americas" },
+            new() { Id = "ap-south", Title = "Singapore", Group = "Asia Pacific" }
         ];
 
     private static OptionItem[] Engineers()
         => [
-            new() { Id = "robin", Icon = DemoIcons.UserRound, Title = "Robin", Description = "Platform · until 18:00" },
-            new() { Id = "sam", Icon = DemoIcons.UserRound, Title = "Sam", Description = "Payments · until 22:00" },
-            new() { Id = "alex", Icon = DemoIcons.UserRound, Title = "Alex", Description = "Night shift" }
+            new() { Id = "robin", Icon = DemoIcons.UserRound, Title = "Robin", Description = "Admin · until 18:00" },
+            new() { Id = "sam", Icon = DemoIcons.UserRound, Title = "Sam", Description = "Owner · until 22:00" },
+            new() { Id = "alex", Icon = DemoIcons.UserRound, Title = "Alex", Description = "Admin · night shift" }
         ];
 }

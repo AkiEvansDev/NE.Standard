@@ -1,19 +1,4 @@
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 using TeamRoom.Controllers;
 
 namespace TeamRoom.Views;
@@ -327,7 +312,7 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             )
             .AddChild(new ButtonComponent()
                 .SetType(UIButtonType.Ghost)
-                .SetIcon(AppIcons.Outline(AppIcons.Check))
+                .SetIcon(AppIcons.Outline(AppIcons.Newest))
                 .SetTooltip("Jump to the newest message")
                 .OnClick(nameof(ChatController.JumpToNewest))
             );
@@ -377,11 +362,13 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             new UIDialog
             {
                 Key = ChatController.AttachDialogKey,
+                Label = "Attach files",
                 Content = CreateAttachPanel()
             },
             new UIDialog
             {
                 Key = ChatController.PictureDialogKey,
+                Label = "Picture",
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(8)
@@ -401,6 +388,7 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             new UIDialog
             {
                 Key = ChatController.EditDialogKey,
+                Label = "Edit message",
                 CloseOnBackdrop = false,
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
@@ -408,33 +396,36 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                     .SetMinWidth(UILayoutLength.Absolute(420))
                     .AddChild(new TextComponent().SetTitle("Edit the message").SetTitleType(UITextAppearance.Title).SetDescription("The attachments stay as they were sent."))
                     .AddChild(new TextAreaComponent().SetRows(4).BindValue(nameof(ChatController.EditText)))
-                    .AddChild(CreateDialogButtons(nameof(ChatController.SaveEdit), "Save"))
+                    .AddChild(CreateDialogButtons(nameof(ChatController.CloseDialogs), nameof(ChatController.SaveEdit), "Save"))
             },
             new UIDialog
             {
                 Key = ChatController.DeleteDialogKey,
+                Label = "Delete message",
                 CloseOnBackdrop = false,
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
                     .SetMinWidth(UILayoutLength.Absolute(360))
                     .AddChild(new TextComponent().SetTitle("Delete this message?").SetTitleType(UITextAppearance.Title).BindDescription(nameof(ChatController.DeleteQuestion)))
-                    .AddChild(CreateDialogButtons(nameof(ChatController.DeleteMessage), "Delete", UIButtonType.Danger))
+                    .AddChild(CreateDialogButtons(nameof(ChatController.CloseDialogs), nameof(ChatController.DeleteMessage), "Delete", UIButtonType.Danger))
             },
             new UIDialog
             {
                 Key = ChatController.NewRoomDialogKey,
+                Label = "New room",
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
                     .SetMinWidth(UILayoutLength.Absolute(320))
                     .AddChild(new TextComponent().SetTitle("A new room").SetTitleType(UITextAppearance.Title).SetDescription("Everyone can see it and talk in it."))
                     .AddChild(new TextInputComponent().SetTitle("Name").BindValue(nameof(ChatController.NewRoomTitle)))
-                    .AddChild(CreateDialogButtons(nameof(ChatController.CreateRoom), "Create"))
+                    .AddChild(CreateDialogButtons(nameof(ChatController.CloseDialogs), nameof(ChatController.CreateRoom), "Create"))
             },
             new UIDialog
             {
                 Key = ChatController.NewDirectDialogKey,
+                Label = "A direct conversation",
                 Content = new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
@@ -446,15 +437,7 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                         .BindOptions(nameof(ChatController.People))
                         .BindValue(nameof(ChatController.DirectTarget))
                     )
-                    .AddChild(CreateDialogButtons(nameof(ChatController.StartDirect), "Open"))
+                    .AddChild(CreateDialogButtons(nameof(ChatController.CloseDialogs), nameof(ChatController.StartDirect), "Open"))
             }
         ];
-
-    private static StackPanelComponent CreateDialogButtons(string command, string title, UIButtonType type = UIButtonType.Primary)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(8)
-            .SetHorizontalAlignment(UIAlignment.End)
-            .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Cancel").OnClick(nameof(ChatController.CloseDialogs)))
-            .AddChild(new ButtonComponent().SetType(type).SetTitle(title).OnClick(command));
 }

@@ -1,16 +1,11 @@
 using System.Collections.Generic;
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Items.Tree;
 
 /// <summary>
-/// A project's files with a menu per kind: a folder takes a new file, a file is renamed or deleted, either opens.
+/// A bucket's objects with a menu per kind: a folder takes a new object, an object is renamed or deleted, either opens.
 /// </summary>
 internal sealed partial class TreeFilesGroupContext : DemoGroupContext
 {
@@ -21,7 +16,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     private int _added;
 
     [RecursiveMember(false)]
-    public RecursiveCollection<TreeNode> Items { get; } = [.. DemoProjectTree.Create()];
+    public RecursiveCollection<TreeNode> Items { get; } = [.. DemoStorageTree.Create()];
 
     public void Open(string id)
         => LogEvent($"Opened {TitleOf(id)}");
@@ -58,7 +53,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
         LogEvent($"Deleted {node.Title}");
     }
 
-    /// <summary>A new file goes in right after its folder; its key comes back so the caller can open it for a rename.</summary>
+    /// <summary>A new object goes in right after its folder; its key comes back so the caller can open it for a rename.</summary>
     public string? AddFile(string folderId)
     {
         TreeNode? folder = Find(folderId);
@@ -68,8 +63,8 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
 
         var fileId = string.Create(CultureInfo.InvariantCulture, $"new-file-{++_added}");
 
-        Items.Insert(Items.IndexOf(folder) + 1, DemoProjectTree.File(fileId, string.Create(CultureInfo.InvariantCulture, $"NewFile{_added}.cs"), folderId));
-        LogEvent($"Added a file to {folder.Title}");
+        Items.Insert(Items.IndexOf(folder) + 1, DemoStorageTree.File(fileId, string.Create(CultureInfo.InvariantCulture, $"new-object-{_added}.json"), folderId));
+        LogEvent($"Added an object to {folder.Title}");
 
         return fileId;
     }
@@ -91,7 +86,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
 
         TreeNode? folder = string.IsNullOrEmpty(target) ? null : Find(target);
 
-        if (folder is not null && folder.Kind != DemoProjectTree.FolderKind)
+        if (folder is not null && folder.Kind != DemoStorageTree.FolderKind)
             folder = folder.ParentId is null ? null : Find(folder.ParentId);
 
         if (folder is not null && (folder == node || IsUnder(folder, id)))
@@ -168,15 +163,15 @@ internal sealed partial class TreeLazyGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<TreeNode> Items { get; } =
     [
-        Lazy("packages", "packages"),
-        Lazy("node-modules", "node_modules"),
-        Lazy("artifacts", "artifacts"),
+        Lazy("backups-eu-west", "backups-eu-west"),
+        Lazy("backups-us-east", "backups-us-east"),
+        Lazy("snapshots-ap-south", "snapshots-ap-south"),
     ];
 
     private static TreeNode Lazy(string id, string title, string? parentId = null)
-        => new() { Id = id, Title = title, ParentId = parentId, Kind = DemoProjectTree.FolderKind, Icon = DemoIcons.Outline(DemoIcons.Folder), HasChildren = true };
+        => new() { Id = id, Title = title, ParentId = parentId, Kind = DemoStorageTree.FolderKind, Icon = DemoIcons.Outline(DemoIcons.Folder), HasChildren = true };
 
-    /// <summary>Three files and one more folder to open, put right after the folder that asked.</summary>
+    /// <summary>Three objects and one more folder to open, put right after the folder that asked.</summary>
     public void Load(string id)
     {
         var index = 0;
@@ -190,10 +185,10 @@ internal sealed partial class TreeLazyGroupContext : DemoGroupContext
         var load = ++_loads;
         List<TreeNode> children =
         [
-            Lazy(string.Create(CultureInfo.InvariantCulture, $"{id}-sub-{load}"), string.Create(CultureInfo.InvariantCulture, $"folder-{load}"), id),
-            DemoProjectTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-a-{load}"), string.Create(CultureInfo.InvariantCulture, $"index-{load}.js"), id),
-            DemoProjectTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-b-{load}"), string.Create(CultureInfo.InvariantCulture, $"package-{load}.json"), id),
-            DemoProjectTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-c-{load}"), "LICENSE", id),
+            Lazy(string.Create(CultureInfo.InvariantCulture, $"{id}-sub-{load}"), string.Create(CultureInfo.InvariantCulture, $"batch-{load}"), id),
+            DemoStorageTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-a-{load}"), string.Create(CultureInfo.InvariantCulture, $"snapshot-{load}.tar.gz"), id),
+            DemoStorageTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-b-{load}"), string.Create(CultureInfo.InvariantCulture, $"manifest-{load}.json"), id),
+            DemoStorageTree.File(string.Create(CultureInfo.InvariantCulture, $"{id}-c-{load}"), "checksums.txt", id),
         ];
 
         for (var i = 0; i < children.Count; i++)
@@ -255,10 +250,10 @@ internal sealed partial class TreeMenuGroupContext : DemoGroupContext
     public RecursiveCollection<DemoActionNode> Items { get; } =
     [
         Node("prod", "Production", null, true, DemoIcons.Shield, DeployAction),
-        Node("prod-eu", "eu-west-1", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
-        Node("prod-us", "us-east-1", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
+        Node("prod-eu", "eu-west", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
+        Node("prod-us", "us-east", "prod", false, DemoIcons.Cloud, DeployAction, PauseAction),
         Node("staging", "Staging", null, true, DemoIcons.Sliders, DeployAction, DeleteAction),
-        Node("staging-eu", "eu-west-1", "staging", false, DemoIcons.Cloud, DeployAction, ResumeAction, DeleteAction),
+        Node("staging-eu", "eu-west", "staging", false, DemoIcons.Cloud, DeployAction, ResumeAction, DeleteAction),
         Node("sandbox", "Sandbox", null, false, DemoIcons.Folder, DeleteAction)
     ];
 
@@ -343,7 +338,7 @@ internal sealed partial class TreeExamplesController : DemoController
     public void RenameNode(string id)
         => FilesGroup.Rename(id);
 
-    /// <summary>A menu entry: rename hands the field back to the client, a new file is added and handed back the same way, a delete is done here.</summary>
+    /// <summary>A menu entry: rename hands the field back to the client, a new object is added and handed back the same way, a delete is done here.</summary>
     [UICommand]
     public UICommandResult NodeAction(string action, string id)
     {

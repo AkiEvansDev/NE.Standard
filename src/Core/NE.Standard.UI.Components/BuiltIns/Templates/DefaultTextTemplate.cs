@@ -20,7 +20,7 @@ public abstract partial class DefaultTextTemplate<TTemplate> : TextComponent<TTe
     /// <summary>
     /// Initializes a new text template, optionally binding its content to the item at <paramref name="itemPath"/>.
     /// </summary>
-    protected DefaultTextTemplate(string? itemPath = null, bool binds = true) : base()
+    protected DefaultTextTemplate(string? itemPath = null, bool binds = false) : base()
     {
         IconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
         TitleType = UITextAppearance.Body;

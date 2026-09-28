@@ -1,7 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Actions.ButtonGroup;
 
@@ -48,17 +45,13 @@ internal sealed partial class SegmentGroupContext : DemoGroupContext
 
     // The strip's own look is a primary fill; the cycle keeps the ground and recolours the ink, then swaps the fill for a line.
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            UISelectionStyle.Ground(UIThemeColor.Accent),
-            new UISelectionStyle(UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Primary), null, null, Bold: true),
-            new UISelectionStyle(UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.OnSurface), UISelectionMark.Bottom, UIThemeColor.Primary)));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Primary), null, null, Bold: true), new UISelectionStyle(UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.OnSurface), UISelectionMark.Bottom, UIThemeColor.Primary)));
 
     public void CyclePadding()
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(2), UIThickness.Uniform(4), null));
 
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 }
 
 internal sealed partial class ButtonGroupMainController() : DemoStandardController

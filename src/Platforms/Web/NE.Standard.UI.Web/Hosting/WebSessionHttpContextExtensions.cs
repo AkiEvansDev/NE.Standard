@@ -18,7 +18,7 @@ public static class WebSessionHttpContextExtensions
 {
     /// <summary>
     /// Reads the stored session behind the request's cookie, or <see langword="null"/> when it presents none the
-    /// store knows or one idle past <see cref="UISessionOptions.IdleTimeout"/>.
+    /// store knows or one idle past its timeout (<see cref="UserSessionState.IsIdle"/>).
     /// </summary>
     public static async ValueTask<UserSessionState?> GetUISessionAsync(this HttpContext http, CancellationToken cancellationToken = default)
     {
@@ -33,7 +33,7 @@ public static class WebSessionHttpContextExtensions
         IUserSessionStore sessions = http.RequestServices.GetRequiredService<IUserSessionStore>();
         UserSessionState? stored = await sessions.TryGetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        if (stored is null || stored.IsIdle(application.Sessions.IdleTimeout, DateTime.UtcNow))
+        if (stored is null || stored.IsIdle(application.Sessions, DateTime.UtcNow))
             return null;
 
         return stored;

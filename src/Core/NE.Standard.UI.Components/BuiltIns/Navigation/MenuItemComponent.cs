@@ -18,7 +18,7 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
     /// Gets or sets whether this entry renders as an entry, a section caption or a rule.
     /// </summary>
     /// <remarks>Render-time only, not bindable: the menu already picks a template variant from <c>IMenuItemModel.Kind</c>.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIMenuItemKind.Item)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuItemKind.Item)]
     public UIMenuItemKind? Kind { get; set; }
 
     /// <summary>

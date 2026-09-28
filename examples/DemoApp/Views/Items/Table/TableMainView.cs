@@ -1,11 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.Table;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Items.Table;
 
@@ -31,10 +26,12 @@ internal sealed class TableMainView : DemoMainView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TableComponent("deployments")
             .BindItems($"{ItemsGroup}.{nameof(TableRowsGroupContext.Items)}")
-            .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
-            .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+            .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Auto(min: 112))
+            .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 88))
             .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(110), UITextAlignment.End)
             .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(120))
+            // Sideways on a phone, rather than the name and the region squeezed to nothing beside the two fixed columns.
+            .SetHorizontalScroll(UIScrollMode.Auto)
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
             .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
             .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")

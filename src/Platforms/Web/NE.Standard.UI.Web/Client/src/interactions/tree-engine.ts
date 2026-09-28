@@ -22,6 +22,7 @@ import { openInlineRename } from "./inline-rename";
 import { removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { focusedRow, isRowDisabled, resolveRowTarget, setRowFocus } from "./row-cursor";
+import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
 import { chooseRow, ensureAnchor, gestureOf, PlainGesture, selectedRows } from "./row-selection";
 
@@ -44,6 +45,8 @@ const DepthVariable = "--ui-tree-depth";
 const ExpandedSlot = "expanded";
 // A folder a drag hovers over for this long opens, so a node can be dropped deeper without letting go.
 const SpringOpenMilliseconds = 600;
+// The keys besides Up, Down, Home and End the tree answers; any other passes without the rows being read.
+const ActionKeys = new Set([" ", "ArrowRight", "ArrowLeft", "Enter", "F2", "Delete"]);
 
 /** The viewer's fold by node key: true unfolded, false folded; a node not in it keeps its authored start. */
 type StoredFold = Record<string, boolean>;
@@ -90,6 +93,9 @@ export class TreeEngine {
 
     // A node asked for its children once per unfold; folding it again lets the next unfold ask again.
     private readonly requested = new WeakSet<Element>();
+
+    // The boot patches each tree last wrote, so a walk that changed no fold writes nothing to the browser's storage.
+    private readonly writtenBoot = new WeakMap<Element, string>();
 
     // The folder a drag is waiting over, and the wait.
     private springTarget: HTMLElement | null = null;
@@ -139,11 +145,12 @@ export class TreeEngine {
 
         this.layoutAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        // A row added or removed, a node's parent or its children flag patched, the tree's own switches: the walk runs again.
+        // A row added, removed or redrawn, a node's parent or its children flag patched, the tree's own switches: the walk runs
+        // again. A change deeper in a row (a title's text, the rename field) moves nothing the walk derives, and is not answered.
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [TreeParentAttribute, TreeChildrenAttribute, TreeExpandedAttribute, TreeDraggableAttribute] },
+            { childList: true, attributeFilter: [TreeParentAttribute, TreeChildrenAttribute, TreeExpandedAttribute, TreeDraggableAttribute], relevant: movesRows },
             trees => this.layoutAll(trees)
         );
     }
@@ -246,6 +253,12 @@ export class TreeEngine {
             (placement.shown ? shown : hidden).push(`.${RowClass}[${ComponentKeyAttribute}="${CSS.escape(key)}"]`);
         }
 
+        const written = `${hidden.join(",")}|${shown.join(",")}`;
+
+        if (this.writtenBoot.get(tree) === written)
+            return;
+
+        this.writtenBoot.set(tree, written);
         this.store.writeBoot(tree, BootHiddenSlot, hidden.length === 0 ? null : this.bootPatch(hidden, "hidden"));
         this.store.writeBoot(tree, BootShownSlot, shown.length === 0 ? null : this.bootPatch(shown, "shown"));
     }
@@ -452,7 +465,7 @@ export class TreeEngine {
 
         const tree = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
 
-        if (tree === null || tree.matches(".ui-disabled"))
+        if (tree === null || tree.matches(".ui-disabled") || (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, "vertical")))
             return;
 
         const rows = this.rowsOf(tree);
@@ -566,8 +579,12 @@ export class TreeEngine {
         const over = domEvent.target.closest<HTMLElement>(`.${RowClass}`);
         const target = over !== null && over.closest(`.${RootClass}`) === tree ? over : host;
 
-        if (target !== host && dragging.some(row => row === target || this.isUnder(tree, target, row)))
-            return;
+        if (target !== host) {
+            const parents = this.parentKeysOf(tree);
+
+            if (dragging.some(row => row === target || isUnder(parents, keyOf(target), keyOf(row))))
+                return;
+        }
 
         domEvent.preventDefault();
 
@@ -623,7 +640,8 @@ export class TreeEngine {
         domEvent.preventDefault();
 
         const targetKey = marked.classList.contains(RowClass) ? keyOf(marked) : "";
-        const moved = dragging.filter(row => !dragging.some(other => other !== row && this.isUnder(tree, row, other)));
+        const parents = this.parentKeysOf(tree);
+        const moved = dragging.filter(row => !dragging.some(other => other !== row && isUnder(parents, keyOf(row), keyOf(other))));
 
         this.markDrop(tree, null);
         this.springOpen(tree, null);
@@ -665,16 +683,14 @@ export class TreeEngine {
         target?.setAttribute(DropAttribute, "");
     }
 
-    /** Whether `row` sits under `ancestor`, by the parent keys the nodes carry. */
-    private isUnder(tree: HTMLElement, row: HTMLElement, ancestor: HTMLElement): boolean {
-        const ancestorKey = keyOf(ancestor);
+    /** Each row's parent key by its own, read once per drag event rather than once per ancestor of every dragged row. */
+    private parentKeysOf(tree: HTMLElement): Map<string, string> {
+        const parents = new Map<string, string>();
 
-        for (let parent = this.parentOf(tree, row); parent !== null; parent = this.parentOf(tree, parent)) {
-            if (keyOf(parent) === ancestorKey)
-                return true;
-        }
+        for (const row of this.rowsOf(tree))
+            parents.set(keyOf(row), nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "");
 
-        return false;
+        return parents;
     }
 
     /** Folds or unfolds a node, remembers the viewer's choice and lays the tree out again from it. */
@@ -788,6 +804,31 @@ export class TreeEngine {
 
         return rows;
     }
+}
+
+/** Whether the row keyed `key` sits under the one keyed `ancestorKey`, by the parent keys the nodes carry. */
+function isUnder(parents: ReadonlyMap<string, string>, key: string, ancestorKey: string): boolean {
+    const seen = new Set<string>();
+
+    // A parent key that loops back on itself is a malformed tree, not a reason to hang the drag.
+    for (let parent = parents.get(key) ?? ""; parent.length > 0 && !seen.has(parent); parent = parents.get(parent) ?? "") {
+        if (parent === ancestorKey)
+            return true;
+
+        seen.add(parent);
+    }
+
+    return false;
+}
+
+/** Whether a record can move what the walk derives: rows coming, going or redrawn, or an attribute it reads. */
+function movesRows(mutation: MutationRecord): boolean {
+    if (mutation.type !== "childList")
+        return true;
+
+    const target = mutation.target;
+
+    return target instanceof HTMLElement && (target.classList.contains(RowClass) || (target.hasAttribute(ItemsHostAttribute) && target.parentElement?.classList.contains(RootClass) === true));
 }
 
 function createLoadingRow(): HTMLElement {

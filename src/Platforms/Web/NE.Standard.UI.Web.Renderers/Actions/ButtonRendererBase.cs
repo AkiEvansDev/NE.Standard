@@ -12,6 +12,11 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 /// <summary>The chrome every button-shaped control draws: type class, submit form id, padding, background and border.</summary>
 public abstract class ButtonRendererBase : WebComponentRendererBase
 {
+    // Every button, menu entry, breadcrumb and tab caption registers these, so they are built once.
+    private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonClass)];
+    private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonSizeClass)];
+    private static readonly WebDomOperation[] SubmitFormIdOperations = [WebDomOperation.Attribute(WebAttributes.SubmitFormId)];
+
     protected override string ElementName => "button";
 
     /// <summary>Whether a real <c>button</c> is rendered, and so needs <c>type="button"</c> to never submit an enclosing form.</summary>
@@ -39,19 +44,19 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         {
             if (value is UIButtonType type)
                 _ = target.Class(WebClassNames.ButtonClass(type));
-        }, [WebDomOperation.Class(converter: WebDomConverters.ButtonClass)]);
+        }, TypeOperations);
 
         _ = RenderProperty<UIButtonSize?>(context, root, ButtonComponent.SizeProperty, static (target, value) =>
         {
             if (value is UIButtonSize size)
                 _ = target.Class(WebClassNames.ButtonSize(size));
-        }, [WebDomOperation.Class(converter: WebDomConverters.ButtonSizeClass)]);
+        }, SizeOperations);
 
         _ = RenderProperty<string?>(context, root, ButtonComponent.SubmitFormIdProperty, static (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.SubmitFormId, value);
-        }, [WebDomOperation.Attribute(WebAttributes.SubmitFormId)]);
+        }, SubmitFormIdOperations);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, "--ui-padding");
 
@@ -94,5 +99,8 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
         if (string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(tooltip))
             _ = host.Attribute("aria-label", tooltip);
+
+        // Words the button does not show outrank both: a switch drawn as "Aa" is "Match case" to a screen reader.
+        RenderAccessibleName(context, host);
     }
 }

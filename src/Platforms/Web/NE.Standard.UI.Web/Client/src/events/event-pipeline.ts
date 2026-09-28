@@ -6,7 +6,6 @@ import { EventCatalog } from "../extensions/events";
 import { InteractionEngine } from "../interactions/interaction-engine";
 import { ValidationEngine } from "../interactions/validation-engine";
 import { MetadataIndex } from "../metadata/metadata-index";
-import { ServerChangeSet } from "../metadata/metadata-index";
 import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
 import { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
 import { EventRegistry } from "./event-registry";
@@ -20,7 +19,6 @@ export type EventPipelineOptions = {
     readonly dispatcher: CommandDispatcher;
 
     /** How a command's answer reaches the page; the host's own entry point, not the update processor. Awaited when it names a staged value. */
-    readonly applyChanges: (changes: ServerChangeSet | undefined) => void | Promise<void>;
 
     /** Run once the command's effects have been applied, for whatever has to look at the DOM they moved. */
     readonly afterEffects?: () => void;
@@ -192,6 +190,9 @@ export class EventPipeline {
         if (await this.isRefusedValueEventAsync(registration, element))
             return Refused;
 
+        // Behind every value given before it, a large one still being staged included, so the command meets the values the reader gave.
+        await this.options.valueBinding?.whenSent();
+
         // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
         if (this.options.dispatcher.isPending(request))
             return Refused;
@@ -204,23 +205,19 @@ export class EventPipeline {
         });
 
         const result = await this.options.dispatcher.dispatchAsync(request).catch(error => {
+            // Still ended: a spinner the press began must not outlive a command the lost connection took with it.
+            this.applyAfterEvent(eventName, context);
+
             throw new DispatchFailure(error);
         });
 
-        await this.options.applyChanges(result.changes);
-
-        // After the change set: an effect that focuses or scrolls needs the DOM those changes produced.
+        // After the change set, which the transport applied before the result came back: an effect that focuses or scrolls needs the DOM those changes produced.
         this.options.effects.applyAll(result.command?.effects, this.options.dom);
         this.options.afterEffects?.();
 
-        this.options.interactionEngine.applyEvent({
-            name: `after-${eventName}`,
-            componentId: context.componentId,
-            dynamicParameters: context.dynamicParameters,
-            domEvent: context.domEvent
-        });
+        this.applyAfterEvent(eventName, context);
 
-        return { dispatched: true, success: result.command?.success !== false, error: result.command?.message ?? null };
+        return { dispatched: true, success: result.command?.success !== false, error: result.command?.error ?? null };
     }
 
     // An .OnChange command must not run for a value the controller never took, so it waits for that value's round-trip; a package's
@@ -232,6 +229,15 @@ export class EventPipeline {
         await this.options.valueBinding?.whenSettled(component);
 
         return this.options.validationEngine?.isRefused(component) === true;
+    }
+
+    private applyAfterEvent(eventName: string, context: EventDispatchContext): void {
+        this.options.interactionEngine.applyEvent({
+            name: `after-${eventName}`,
+            componentId: context.componentId,
+            dynamicParameters: context.dynamicParameters,
+            domEvent: context.domEvent
+        });
     }
 
     private shouldHandleComponent(eventName: string, componentId: number, element: Element): boolean {

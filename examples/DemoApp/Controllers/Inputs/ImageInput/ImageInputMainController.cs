@@ -3,9 +3,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Files;
 
 namespace DemoApp.Controllers.Inputs.ImageInput;
 
@@ -112,6 +109,12 @@ internal sealed partial class ImageInputMainController() : DemoStandardControlle
 
         if (selection.Files.Length == 0)
             return;
+
+        if (!DemoImages.IsInlinePicture(selection.Files[0].ContentType, selection.Files[0].Size))
+        {
+            ValueGroup.LogEvent("not shown: a PNG, JPEG, GIF or WebP picture of at most 2 MB");
+            return;
+        }
 
         UIUploadedFile file = await Context.Uploads
             .OpenAsync(Context.Handle, selection.Files[0].FileId, cancellationToken: cancellationToken)

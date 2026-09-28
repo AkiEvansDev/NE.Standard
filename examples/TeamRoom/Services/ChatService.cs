@@ -9,7 +9,7 @@ namespace TeamRoom.Services;
 /// <summary>
 /// Rooms everyone is in, direct conversations between two people, and the messages in them.
 /// </summary>
-public sealed class ChatService(AppDatabase database, AccountService accounts, AppEvents events)
+public sealed class ChatService(AppDatabase database, AppEvents events)
 {
     public const string GeneralRoomId = "general";
 
@@ -34,11 +34,12 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
     {
         using SqliteConnection connection = database.Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT c.id, c.kind, c.title,
                    COALESCE(m.last_read_message_id, 0),
-                   (SELECT COUNT(*) FROM messages x WHERE x.conversation_id = c.id AND x.id > COALESCE(m.last_read_message_id, 0) AND x.author_id <> $me),
-                   (SELECT MAX(x.id) FROM messages x WHERE x.conversation_id = c.id)
+                   {UnreadOf},
+                   {OtherMember},
+                   {OtherNickname}
             FROM conversations c
             LEFT JOIN conversation_members m ON m.conversation_id = c.id AND m.account_id = $me
             WHERE c.kind = $room OR m.account_id IS NOT NULL
@@ -47,63 +48,35 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
         _ = command.Parameters.AddWithValue("$me", accountId);
         _ = command.Parameters.AddWithValue("$room", ConversationKinds.Room);
 
-        List<(string Id, string Kind, string? Title, long LastRead, int Unread)> rows = [];
-
-        using (SqliteDataReader reader = command.ExecuteReader())
-        {
-            while (reader.Read())
-                rows.Add((reader.GetString(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetInt64(3), (int)reader.GetInt64(4)));
-        }
-
+        using SqliteDataReader reader = command.ExecuteReader();
         List<ConversationRecord> result = [];
 
-        foreach ((var id, var kind, var title, var lastRead, var unread) in rows)
+        while (reader.Read())
         {
-            List<string> members = Members(connection, id);
+            var id = reader.GetString(0);
+            var kind = reader.GetString(1);
+            var title = kind == ConversationKinds.Room
+                ? reader.IsDBNull(2) ? id : reader.GetString(2)
+                : DirectTitle(reader.IsDBNull(5) ? null : reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6));
 
-            result.Add(new ConversationRecord(id, kind, kind == ConversationKinds.Room ? title ?? id : DirectTitle(members, accountId), members, lastRead, unread));
+            result.Add(new ConversationRecord(id, kind, title, reader.GetInt64(3), (int)reader.GetInt64(4)));
         }
 
         return result;
     }
 
-    private static List<string> Members(SqliteConnection connection, string conversationId)
-    {
-        using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT account_id FROM conversation_members WHERE conversation_id = $id";
-        _ = command.Parameters.AddWithValue("$id", conversationId);
+    /// <summary>The messages of conversation <c>c</c> the reader <c>$me</c> has not read, their own not counted.</summary>
+    private const string UnreadOf = "(SELECT COUNT(*) FROM messages x WHERE x.conversation_id = c.id AND x.id > COALESCE(m.last_read_message_id, 0) AND x.author_id <> $me)";
 
-        using SqliteDataReader reader = command.ExecuteReader();
-        List<string> members = [];
+    /// <summary>The other person in conversation <c>c</c>, kept after their account is deleted.</summary>
+    private const string OtherMember = "(SELECT o.account_id FROM conversation_members o WHERE o.conversation_id = c.id AND o.account_id <> $me LIMIT 1)";
 
-        while (reader.Read())
-            members.Add(reader.GetString(0));
-
-        return members;
-    }
+    /// <summary>The other person's name, null once their account is gone.</summary>
+    private const string OtherNickname = "(SELECT a.nickname FROM conversation_members o JOIN accounts a ON a.id = o.account_id WHERE o.conversation_id = c.id AND o.account_id <> $me LIMIT 1)";
 
     /// <summary>A direct conversation is named after the other person; one with only yourself in it is a note to self.</summary>
-    private string DirectTitle(List<string> members, string accountId)
-    {
-        foreach (var member in members)
-        {
-            if (member != accountId)
-                return accounts.Find(member)?.Nickname ?? "(deleted account)";
-        }
-
-        return "Notes to self";
-    }
-
-    public ConversationRecord? Find(string conversationId, string accountId)
-    {
-        foreach (ConversationRecord conversation in ListFor(accountId))
-        {
-            if (conversation.Id == conversationId)
-                return conversation;
-        }
-
-        return null;
-    }
+    private static string DirectTitle(string? otherId, string? otherNickname)
+        => otherId is null ? "Notes to self" : otherNickname ?? "(deleted account)";
 
     /// <summary>Whether an account may read a conversation: every room is open, a direct one only to its two people.</summary>
     public bool IsMember(string conversationId, string accountId)
@@ -149,6 +122,9 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
     public string GetOrCreateDirect(string accountId, string otherId)
     {
         using SqliteConnection connection = database.Open();
+
+        // Immediate: two people opening the conversation with each other at once would otherwise make two.
+        using SqliteTransaction transaction = connection.BeginTransaction();
         using SqliteCommand find = connection.CreateCommand();
         find.CommandText = """
             SELECT c.id FROM conversations c
@@ -178,6 +154,8 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
 
         if (otherId != accountId)
             AddMember(connection, id, otherId);
+
+        transaction.Commit();
 
         events.Publish(new ConversationsChanged(accountId));
         events.Publish(new ConversationsChanged(otherId));
@@ -252,9 +230,7 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
         {
             while (reader.Read())
             {
-                rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
-                    DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                    reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
+                rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
             }
         }
 
@@ -264,6 +240,21 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
             messages.Add(new MessageRecord(id, conversation, author, text, sent, edited, Attachments(connection, id)));
 
         return messages;
+    }
+
+    private static List<AttachmentRecord> Attachments(SqliteConnection connection, long messageId)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT id, message_id, media_id, file_name, content_type, size, is_image FROM attachments WHERE message_id = $id ORDER BY rowid";
+        _ = command.Parameters.AddWithValue("$id", messageId);
+
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<AttachmentRecord> attachments = [];
+
+        while (reader.Read())
+            attachments.Add(new AttachmentRecord(reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6) != 0));
+
+        return attachments;
     }
 
     /// <summary>The author's own change of wording; anyone else is refused. The attachments stay as they were sent.</summary>
@@ -313,24 +304,11 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
 
         transaction.Commit();
 
-        events.Publish(new MessageDeleted(message.ConversationId, messageId, origin));
+        AppDatabase.ReclaimSpace(connection);
+
+        events.Publish(new MessageDeleted(message.ConversationId, messageId, ReadersOf(connection, message.ConversationId), origin));
 
         return null;
-    }
-
-    private static List<AttachmentRecord> Attachments(SqliteConnection connection, long messageId)
-    {
-        using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT id, message_id, media_id, file_name, content_type, size, is_image FROM attachments WHERE message_id = $id ORDER BY rowid";
-        _ = command.Parameters.AddWithValue("$id", messageId);
-
-        using SqliteDataReader reader = command.ExecuteReader();
-        List<AttachmentRecord> attachments = [];
-
-        while (reader.Read())
-            attachments.Add(new AttachmentRecord(reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6) != 0));
-
-        return attachments;
     }
 
     /// <summary>Posts a message with what was attached to it and tells every open page.</summary>
@@ -380,9 +358,32 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
 
         MessageRecord message = FindMessage(messageId)!;
 
-        events.Publish(new MessagePosted(conversationId, messageId, authorId, origin));
+        events.Publish(new MessagePosted(conversationId, messageId, authorId, ReadersOf(connection, conversationId), origin));
 
         return message;
+    }
+
+    /// <summary>Who may read a conversation: <see langword="null"/> for a room, which is everyone's, or its members.</summary>
+    private static List<string>? ReadersOf(SqliteConnection connection, string conversationId)
+    {
+        using SqliteCommand kind = connection.CreateCommand();
+        kind.CommandText = "SELECT kind FROM conversations WHERE id = $id";
+        _ = kind.Parameters.AddWithValue("$id", conversationId);
+
+        if ((kind.ExecuteScalar() as string) == ConversationKinds.Room)
+            return null;
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT account_id FROM conversation_members WHERE conversation_id = $id";
+        _ = command.Parameters.AddWithValue("$id", conversationId);
+
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<string> members = [];
+
+        while (reader.Read())
+            members.Add(reader.GetString(0));
+
+        return members;
     }
 
     /// <summary>The reader got this far; the unread count on their list moves with it.</summary>
@@ -400,15 +401,21 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
         _ = command.ExecuteNonQuery();
     }
 
-    /// <summary>Every unread message across the account's conversations: the sidebar's number.</summary>
+    /// <summary>Every unread message across the account's conversations: the sidebar's number, in one query.</summary>
     public int CountUnread(string accountId)
     {
-        var total = 0;
+        using SqliteConnection connection = database.Open();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT COALESCE(SUM({UnreadOf}), 0)
+            FROM conversations c
+            LEFT JOIN conversation_members m ON m.conversation_id = c.id AND m.account_id = $me
+            WHERE c.kind = $room OR m.account_id IS NOT NULL
+            """;
+        _ = command.Parameters.AddWithValue("$me", accountId);
+        _ = command.Parameters.AddWithValue("$room", ConversationKinds.Room);
 
-        foreach (ConversationRecord conversation in ListFor(accountId))
-            total += conversation.Unread;
-
-        return total;
+        return (int)(long)command.ExecuteScalar()!;
     }
 
     /// <summary>Messages whose text carries the words, newest first — in one conversation, or in every one the account may read.</summary>
@@ -421,8 +428,8 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
 
         using SqliteConnection connection = database.Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT x.id, x.conversation_id, c.kind, c.title, x.author_id, x.text, x.sent_utc
+        command.CommandText = $"""
+            SELECT x.id, x.conversation_id, c.kind, c.title, x.author_id, x.text, x.sent_utc, {OtherMember}, {OtherNickname}
             FROM messages x
             JOIN conversations c ON c.id = x.conversation_id
             WHERE ($conversation IS NULL OR x.conversation_id = $conversation)
@@ -437,24 +444,17 @@ public sealed class ChatService(AppDatabase database, AccountService accounts, A
         _ = command.Parameters.AddWithValue("$pattern", "%" + query.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%");
         _ = command.Parameters.AddWithValue("$limit", limit);
 
-        List<(long Id, string Conversation, string Kind, string? Title, string Author, string Text, DateTime Sent)> rows = [];
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<MessageSearchHit> hits = [];
 
-        using (SqliteDataReader reader = command.ExecuteReader())
+        while (reader.Read())
         {
-            while (reader.Read())
-            {
-                rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3), reader.GetString(4), reader.GetString(5),
-                    DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
-            }
-        }
+            var conversation = reader.GetString(1);
+            var name = reader.GetString(2) == ConversationKinds.Room
+                ? reader.IsDBNull(3) ? conversation : reader.GetString(3)
+                : DirectTitle(reader.IsDBNull(7) ? null : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8));
 
-        List<MessageSearchHit> hits = new(rows.Count);
-
-        foreach ((var id, var conversation, var kind, var title, var author, var text, DateTime sent) in rows)
-        {
-            var name = kind == ConversationKinds.Room ? title ?? conversation : DirectTitle(Members(connection, conversation), accountId);
-
-            hits.Add(new MessageSearchHit(id, conversation, name, author, text, sent));
+            hits.Add(new MessageSearchHit(reader.GetInt64(0), conversation, name, reader.GetString(4), reader.GetString(5), DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
         }
 
         return hits;

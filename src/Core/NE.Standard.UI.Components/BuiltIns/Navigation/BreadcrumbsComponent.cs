@@ -21,7 +21,7 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     /// Gets or sets the text drawn between steps; unset, the mark is the library's own chevron.
     /// </summary>
     /// <remarks>Render-time only, not bindable: it is drawn by the platform after every step but the last.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? Separator { get; set; }
 
     /// <summary>

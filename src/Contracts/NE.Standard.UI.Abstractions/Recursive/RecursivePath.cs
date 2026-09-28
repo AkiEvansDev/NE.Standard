@@ -22,7 +22,8 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
     /// <summary>
     /// Creates a path from an array of segments, optionally taking ownership of the array.
     /// </summary>
-    public RecursivePath(PathSegment[] segments, bool ownsArray)
+    /// <remarks>Internal: a caller that kept writing to an owned array would change a path already used as a key.</remarks>
+    internal RecursivePath(PathSegment[] segments, bool ownsArray)
     {
         ArgumentNullException.ThrowIfNull(segments);
         _segments = ownsArray ? segments : [.. segments];
@@ -110,6 +111,20 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
             return this;
 
         return count == 0 ? Empty : new RecursivePath(_segments[..count], ownsArray: true);
+    }
+
+    /// <summary>
+    /// Returns the path without its first <paramref name="count"/> segments; the path itself when that is none of them.
+    /// </summary>
+    public RecursivePath Skip(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _segments.Length);
+
+        if (count == 0)
+            return this;
+
+        return count == _segments.Length ? Empty : new RecursivePath(_segments[count..], ownsArray: true);
     }
 
     /// <summary>

@@ -152,7 +152,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
         => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
-
 }
 
 /// <summary>

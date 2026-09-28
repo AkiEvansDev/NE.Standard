@@ -1,20 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
@@ -42,7 +28,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                 .SetShowQuoteLine(true),
             UIText.Title("What we changed"),
             CreateChanges(),
-            UIText.Paragraph("None of this is new — the pattern is described in [the rollout plan](https://example.com/docs/rollout) and in half the SRE books on the shelf. What was new for us was **doing all four at once**, and then *not* keeping the window as a comfort. The first release without one felt reckless. The fifth felt like Thursday."),
+            UIText.Paragraph("None of this is new — the pattern is described in [the rollout plan](https://docs.orvane.example/rollout) and in half the SRE books on the shelf. What was new for us was **doing all four at once**, and then *not* keeping the window as a comfort. The first release without one felt reckless. The fifth felt like Thursday."),
             new SeparatorComponent().SetLabel("Tags"),
             UILayout.Row(8, CreateTag("Deploys"), CreateTag("Reliability"), CreateTag("Platform")),
             CreateVote(),
@@ -66,7 +52,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                     .SetCornerRadius(UICornerRadius.Uniform(18))
                     .SetWidth(UILayoutLength.Absolute(36))
                     .SetHeight(UILayoutLength.Absolute(36)),
-                UIText.Body("Robin Hale", "Platform team · six minutes to read")
+                UIText.Body("Robin Hale", "Admin · six minutes to read")
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetVerticalAlignment(UIAlignment.Center)
             )
@@ -78,7 +64,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
             .SetItems(
             [
                 Change("gate", "A health gate of ten minutes", "The rollout waits, and the wait is the whole of the ceremony."),
-                Change("regions", "One region at a time", "A fault stays where it started, and the other two regions carry the load."),
+                Change("regions", "One region at a time", "A fault stays where it started, and the other four regions carry the load."),
                 Change("rollback", "A rollback that needs nobody", "The p99 crossing the gate is the trigger; a person is only told afterwards."),
                 Change("index", "The index rebuild off the deploy path", "What paged us on 481 now runs on its own schedule, hours away from a release.")
             ])
@@ -109,13 +95,14 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                     UIButtons.Ghost("Not really").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "no"))
                 )
                 .SetHorizontalAlignment(UIAlignment.End)
-            ));
+                )
+            );
 
     /// <summary>One field and one button, with the rules a real box has: a shape checked on blur, a taken address refused.</summary>
     private static CardComponent CreateSubscribe()
-        => UIPage.Card("Get the next one by mail", "One note a month, on what the platform team learned.", UILayout.Columns(12,
+        => UIPage.Card("Get the next one by mail", "One note a month, on what Orvane's staff learned.", UILayout.Columns(12,
             new TextInputComponent()
-                .SetPlaceholder("you@company.com")
+                .SetPlaceholder("you@bramble.example")
                 .SetType(UITextInputType.Email)
                 .SetAutocomplete(UIAutocomplete.Email)
                 .SetAppearance(UIInputAppearance.Outline)
@@ -133,6 +120,6 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     private static ContainerComponent CreateNeighbours()
         => UILayout.Columns(16,
             new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ChevronRight)).SetTitle("The deploy calendar, and why it is on a wall").SetUrl("/screens/inbox"),
-            new LinkComponent().SetTitle("Retries with jitter").SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetUrl("/screens/catalogue").SetHorizontalAlignment(UIAlignment.End)
+            new LinkComponent().SetTitle("Four plans, and how to pick one").SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetUrl("/screens/catalogue").SetHorizontalAlignment(UIAlignment.End)
         );
 }

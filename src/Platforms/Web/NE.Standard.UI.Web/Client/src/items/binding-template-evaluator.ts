@@ -160,18 +160,18 @@ export function tryReadItemProperty(item: unknown, propertyName: string): Bindin
     const record = item as Record<string, unknown>;
     const key = resolveItemPropertyKey(record, propertyName);
 
-    return Object.prototype.hasOwnProperty.call(record, key) ? { ok: true, value: record[key] } : NotResolved;
+    return Object.hasOwn(record, key) ? { ok: true, value: record[key] } : NotResolved;
 }
 
 /** The key this record holds a property under, or the wire form to create it as; reads and writes must use this one rule. */
 export function resolveItemPropertyKey(record: Record<string, unknown>, propertyName: string): string {
-    if (Object.prototype.hasOwnProperty.call(record, propertyName))
+    if (Object.hasOwn(record, propertyName))
         return propertyName;
 
     // The common path, not a fallback: templates carry the CLR name while the wire is camelCase.
     const camelCase = toCamelCase(propertyName);
 
-    if (Object.prototype.hasOwnProperty.call(record, camelCase))
+    if (Object.hasOwn(record, camelCase))
         return camelCase;
 
     const lowerName = propertyName.toLowerCase();
@@ -284,7 +284,7 @@ export function tryReadCollectionItem(source: unknown, parameter: unknown): Bind
     if (!Array.isArray(source) && typeof source === "object") {
         const record = source as Record<string, unknown>;
 
-        if (Object.prototype.hasOwnProperty.call(record, parameter))
+        if (Object.hasOwn(record, parameter))
             return { ok: true, value: record[parameter] };
     }
 
@@ -330,7 +330,7 @@ export function tryWriteCollectionItem(source: unknown, parameter: unknown, valu
 
     const record = source as Record<string, unknown>;
 
-    if (!Object.prototype.hasOwnProperty.call(record, parameter))
+    if (!Object.hasOwn(record, parameter))
         return false;
 
     record[parameter] = value;

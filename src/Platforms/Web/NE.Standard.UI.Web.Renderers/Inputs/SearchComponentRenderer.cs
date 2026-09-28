@@ -124,6 +124,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
             }, [WebDomOperation.ToggleAttribute(WebAttributes.SearchManual, condition: WebValueCondition.IsFalse)]);
 
             NativeInputRendererBase.RenderIsReadOnly(context, input);
+            TextContentRendererBase.RenderFieldLabel(context, input);
         });
     }
 }

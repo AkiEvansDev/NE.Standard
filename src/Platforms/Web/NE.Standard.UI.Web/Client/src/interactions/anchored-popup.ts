@@ -138,6 +138,10 @@ function repositionAll(): void {
 }
 
 function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
+    // An anchor the page redrew away measures as a zero box at the corner: the popup stays where it stood rather than jumping there.
+    if (!anchor.isConnected)
+        return;
+
     if (options.minAnchorWidth === true)
         popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
 
@@ -147,8 +151,8 @@ function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOpt
     const popupRect = popup.getBoundingClientRect();
     const side = resolveSide(anchorRect, popupRect, options);
 
-    let top = mainAxisOffset(anchorRect, crossRect, popupRect, side, options.gap);
-    let left = crossAxisOffset(anchorRect, crossRect, popupRect, side, options.gap);
+    let top = topOffset(anchorRect, crossRect, popupRect, side, options.gap);
+    let left = leftOffset(anchorRect, crossRect, popupRect, side, options.gap);
 
     // An end-aligned popup over a small mark would clamp the arrow away from the mark's centre: the popup moves instead, so the
     // arrow lands on the anchor's centre.
@@ -165,8 +169,10 @@ function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOpt
     popup.style.top = `${top}px`;
     popup.style.left = `${left}px`;
 
-    // The side actually used, not the one asked for: an arrow has to know which way it points after a flip.
-    popup.dataset.uiPlacement = side;
+    // The side actually used, not the one asked for: an arrow has to know which way it points after a flip. Written only when it
+    // moves, since every write is a mutation record, and an engine observing its popup would answer each scroll frame.
+    if (popup.dataset.uiPlacement !== side)
+        popup.dataset.uiPlacement = side;
 
     setArrowOffset(popup, crossRect, popupRect, side, top, left);
 }
@@ -249,7 +255,7 @@ function alignmentSuffix(placement: AnchoredPopupPlacement): string {
     return separator === -1 ? "" : placement.slice(separator);
 }
 
-function mainAxisOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
+function topOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
     if (placement.startsWith("top"))
         return anchorRect.top - gap - popupRect.height;
 
@@ -259,7 +265,7 @@ function mainAxisOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMR
     return align(crossRect.top, crossRect.height, popupRect.height, placement);
 }
 
-function crossAxisOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
+function leftOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
     if (placement.startsWith("left"))
         return anchorRect.left - gap - popupRect.width;
 

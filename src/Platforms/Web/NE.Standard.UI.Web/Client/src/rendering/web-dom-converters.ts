@@ -285,8 +285,21 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["searchSelectionModeClass", value => `ui-search-mode--${toToken(value, searchSelectionModeTokens)}`],
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],
     ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, popupPlacementTokens)}`],
-    ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)]
+    ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)],
+    ["tabMenuEntriesAttribute", value => toTabMenuTokens(value)]
 ]);
+
+// UITabMenuEntries by token and flag bit, in the order WebClassNames.TabMenuEntries writes them.
+const tabMenuTokens: readonly (readonly [string, number])[] = [["rename", 1], ["pin", 2], ["close", 4], ["delete", 8]];
+
+/** A tab menu's chosen entries as space-separated tokens, from the flags' names ("Rename, Pin") or their number; none is no attribute. */
+function toTabMenuTokens(value: unknown): string | undefined {
+    const names = typeof value === "string" ? value.split(",").map(name => name.trim().toLowerCase()) : null;
+    const bits = typeof value === "number" ? value : 0;
+    const tokens = tabMenuTokens.filter(([token, bit]) => names === null ? (bits & bit) !== 0 : names.includes(token)).map(([token]) => token);
+
+    return tokens.length === 0 ? undefined : tokens.join(" ");
+}
 
 /** A surface's picture: the address quoted the way an icon's is, or nothing when none is set. */
 function toBackgroundImageCss(value: unknown): string {
@@ -912,5 +925,3 @@ function toVisibilityAttribute(value: unknown, tier: ResponsiveTier): string | u
 
     return token === "visible" ? undefined : token;
 }
-
-

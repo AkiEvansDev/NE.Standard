@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Inputs.Search;
 
@@ -41,7 +37,7 @@ internal sealed partial class SearchTermGroupContext : DemoGroupContext
 
     // The last step matches nothing on purpose: an empty result is otherwise hard to reach.
     public void CycleSearchText()
-        => SetLastChange(nameof(SearchText), SearchText = CycleValue(SearchText, null, "ir", "us-", "atlantis"));
+        => SetLastChange(nameof(SearchText), SearchText = CycleValue(SearchText, null, "am", "eu-", "atlantis"));
 
     public void ToggleAutoSearch()
         => SetLastChange(nameof(AutoSearch), AutoSearch = !AutoSearch);
@@ -72,7 +68,7 @@ internal sealed partial class SearchValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, null, "eu-west-1", "ap-south-1"));
+        => SetLastChange(nameof(Value), Value = CycleValue(Value, null, "eu-west", "ap-south"));
 }
 
 /// <summary>
@@ -99,12 +95,11 @@ internal sealed partial class SearchResultsGroupContext : DemoGroupContext
 {
     private static readonly (string Id, string Title, string Group)[] Catalogue =
     [
-        ("eu-west-1", "Ireland", "Europe"),
-        ("eu-central-1", "Frankfurt", "Europe"),
-        ("us-east-1", "N. Virginia", "Americas"),
-        ("us-west-2", "Oregon", "Americas"),
-        ("ap-south-1", "Mumbai", "Asia Pacific"),
-        ("ap-northeast-1", "Tokyo", "Asia Pacific"),
+        ("eu-west", "Amsterdam", "Europe"),
+        ("eu-central", "Frankfurt", "Europe"),
+        ("eu-north", "Stockholm", "Europe"),
+        ("us-east", "Ashburn", "Americas"),
+        ("ap-south", "Singapore", "Asia Pacific"),
     ];
 
     [RecursiveMember(false)]

@@ -163,6 +163,13 @@ public sealed class UIContext
         return Updates.SendCommandResultAsync(Handle, result, cancellationToken);
     }
 
+    /// <summary>
+    /// Sends client effects to every page attached to this runtime — under <c>PerClient</c>, every tab sharing it — without waiting
+    /// for a command to answer.
+    /// </summary>
+    public Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default)
+        => Runtime.SendEffectsToAllAsync(effects, except: null, cancellationToken);
+
     private IUIUpdateSink Updates
         => (IUIUpdateSink?)Services.GetService(typeof(IUIUpdateSink))
             ?? throw new InvalidOperationException($"'{nameof(IUIUpdateSink)}' is not registered.");
@@ -231,10 +238,28 @@ public sealed class UIContext
         );
 
     /// <summary>
-    /// Removes the session, so every later command on this connection is refused.
+    /// Ends the session: every later command under it is refused, the files uploaded under it go, and every other page open
+    /// under it is sent to sign in and its runtime ended; this page keeps running to finish its own answer.
     /// </summary>
-    public ValueTask SignOutAsync(CancellationToken cancellationToken = default)
-        => Sessions.RemoveAsync(Handle.Session.SessionId, cancellationToken);
+    /// <remarks>
+    /// Through <see cref="IUISessions"/> where the host registers one; without it, only the stored session and its files go.
+    /// </remarks>
+    public async ValueTask SignOutAsync(CancellationToken cancellationToken = default)
+    {
+        UIHandle handle = Handle;
+        var sessionId = handle.Session.SessionId;
+
+        if (Services.GetService(typeof(IUISessions)) is IUISessions sessions)
+        {
+            await sessions.EndSessionAsync(sessionId, handle, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await Sessions.RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
+
+        if (Services.GetService(typeof(IUIFileStore)) is IUIFileStore files)
+            await files.RemoveSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Applies a change to the stored session — the way to set language, theme or anything else that has to
@@ -247,17 +272,9 @@ public sealed class UIContext
     {
         ArgumentNullException.ThrowIfNull(update);
 
-        IUserSessionStore store = Sessions;
-        UserSessionState? session = await store.TryGetAsync(Handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
-
-        if (session is null)
-            return;
-
-        UserSessionState updated = update(session);
-
-        ArgumentNullException.ThrowIfNull(updated);
-
-        await store.SaveAsync(updated, cancellationToken).ConfigureAwait(false);
+        // Applied to what the store holds at the write, so a change made meanwhile from elsewhere is not overwritten; and never
+        // recreating a session signed out since. Something written into a session is a client using it: the full idle timeout.
+        _ = await Sessions.TryUpdateAsync(Handle.Session.SessionId, session => (update(session) ?? throw new InvalidOperationException("A session update returned no session.")) with { IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

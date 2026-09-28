@@ -97,6 +97,15 @@
     grid-row: 3;
 }
 
+// UIShellLayout.FullHeightSides: the sides run from the top of the page to its bottom, the header and footer between them.
+[data-ui-root][data-ui-full-height-sides] > :is([data-ui-region="left-side"], [data-ui-region="right-side"]) {
+    grid-row: 1 / 4;
+}
+
+[data-ui-root][data-ui-full-height-sides] > :is([data-ui-region="header"], [data-ui-region="footer"]) {
+    grid-column: 2;
+}
+
 [data-ui-id] {
     --ui-align-h: initial;
     --ui-align-v: initial;
@@ -200,7 +209,7 @@
 }
 
 // Chrome is pressed, opened and dragged, never selected: a drag on a tab's caption mustn't start a text selection, nor a
-// press on a menu entry leave its words highlighted. Selectable text inside stays selectable, for prose only.
+// press on a menu entry leave its words highlighted. Selectable is for prose: a Selectable text inside chrome is not selectable either.
 @ui-chrome-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-key-value-action__action";
 
 :is(@{ui-chrome-hosts}),
@@ -239,4 +248,3 @@
         pointer-events: none;
         .ui-loading-ring();
     }
-

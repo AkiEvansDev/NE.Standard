@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Components.Foundation;
 
@@ -40,11 +39,12 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     public IVisualComponent? EmptyTemplate { get; private set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITemplatedComponent), DefaultValue = null, DefaultBindingScope = UIBindingScope.Relative)]
+    /// <remarks>Render-time only: the renderer and the runtime read it off the compiled state to pick a variant, so a binding would change nothing.</remarks>
+    [UIComponentProperty(Contract = typeof(ITemplatedComponent), IsBindable = false, DefaultValue = null)]
     public string? TemplateKeyProperty { get; set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITemplatedComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(ITemplatedComponent), IsBindable = false, DefaultValue = null)]
     public string? FallbackTemplateKey { get; set; }
 
     /// <inheritdoc/>

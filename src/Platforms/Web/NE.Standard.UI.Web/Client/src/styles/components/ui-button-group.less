@@ -16,7 +16,11 @@
     .ui-surface-image();
     // Reset on the root carrying [data-ui-id]; the size rules below re-read the chain with their own defaults.
     .ui-selected-scope();
-    overflow: clip;
+    // A strip longer than the room it is given — a phone's — scrolls sideways under the finger rather than cutting its last
+    // segments off; the rounded ends still clip what slides under them.
+    overflow-x: auto;
+    overflow-y: clip;
+    scrollbar-width: none;
 }
 
     .ui-button-group.ui-disabled {

@@ -13,5 +13,9 @@ public enum UIScrollAnchor
     /// <summary>
     /// The container follows content appended at the end while the viewer is already at the end.
     /// </summary>
+    /// <remarks>
+    /// A windowed host whose window stops short of its source's end is not at the end: it opens with the window's last row at
+    /// the bottom edge and is left where it is until the viewer scrolls down to the newest item.
+    /// </remarks>
     End = 1
 }

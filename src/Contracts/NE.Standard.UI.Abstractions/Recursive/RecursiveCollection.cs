@@ -14,12 +14,22 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 public class RecursiveCollection<T> : RecursiveObservable, IList<T>
     where T : RecursiveObservable
 {
-    private sealed class ItemForwarder(RecursiveCollection<T> owner, T item)
+    private sealed class ItemForwarder
     {
-        private readonly RecursiveCollection<T> _owner = owner;
-        private readonly T _item = item;
+        private readonly RecursiveCollection<T> _owner;
+        private readonly T _item;
 
-        public void Notify(RecursiveChange change)
+        public ItemForwarder(RecursiveCollection<T> owner, T item)
+        {
+            _owner = owner;
+            _item = item;
+            Notify = Forward;
+        }
+
+        /// <summary>The callback the item is handed, made once so a re-propagation allocates no delegate.</summary>
+        public Action<RecursiveChange> Notify { get; }
+
+        private void Forward(RecursiveChange change)
             => _owner.ForwardItemNotify(_item, change);
     }
 
@@ -77,6 +87,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
                 EnsureItemCanBeAttachedNoLock(value, replacingIndex: index);
                 EnsureIdCanBeAttachedNoLock(value, replacingItem: oldItem);
+                value.EnsureCanAttach(this, this);
 
                 var oldItemIds = GetItemIdsNoLock(index, count: 1);
 
@@ -95,7 +106,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             oldItem.DetachOwner(this);
             oldItem.ResetNotifier();
 
-            value.AttachOwner(this);
+            value.AttachOwner(this, this);
             value.SetNotifier(forwarder.Notify);
 
             Notify(change);
@@ -113,6 +124,14 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         throw new InvalidOperationException("The same recursive node instance cannot appear more than once in the same collection.");
     }
 
+    /// <summary>Every check an incoming item must pass, run before the collection changes so a refused item leaves it as it was.</summary>
+    private void EnsureCanAddNoLock(T item)
+    {
+        EnsureItemCanBeAttachedNoLock(item);
+        EnsureIdCanBeAttachedNoLock(item);
+        item.EnsureCanAttach(this, this);
+    }
+
     private void EnsureIdCanBeAttachedNoLock(T item, T? replacingItem = null)
     {
         if (_itemsById is null)
@@ -122,6 +141,20 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
         if (_itemsById.TryGetValue(id, out T? existing) && !ReferenceEquals(existing, replacingItem))
             throw new InvalidOperationException($"Duplicate recursive item id '{id}'.");
+    }
+
+    private static string GetItemId(T item)
+    {
+        if (item is not IBindableItem bindableItem)
+            throw new InvalidOperationException($"Item type '{typeof(T).Name}' does not support key lookup.");
+
+        // Names the type so a missing id points back to the model, not just to wherever inside Add it surfaced.
+        return string.IsNullOrWhiteSpace(bindableItem.Id)
+            ? throw new InvalidOperationException(
+                $"Item of type '{item.GetType().Name}' has no id. Every item in a recursive collection needs a stable " +
+                $"'{nameof(IBindableItem)}.{nameof(IBindableItem.Id)}' set at construction — wrap a plain value in " +
+                "'UIValueItem<T>' or 'UIOptionValue<T>' when the value itself is the identity.")
+            : bindableItem.Id;
     }
 
     private string[] GetItemIdsNoLock(int index, int count)
@@ -192,8 +225,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
         lock (_sync)
         {
-            EnsureItemCanBeAttachedNoLock(item);
-            EnsureIdCanBeAttachedNoLock(item);
+            EnsureCanAddNoLock(item);
 
             index = _items.Count;
 
@@ -204,7 +236,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             change = RecursiveChange.Add(RecursivePath.Empty, index, count: 1, GetItemIdsNoLock(index, count: 1));
         }
 
-        item.AttachOwner(this);
+        item.AttachOwner(this, this);
         item.SetNotifier(forwarder.Notify);
 
         Notify(change);
@@ -218,13 +250,24 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
     /// Adds multiple items and emits a single collection add change.
     /// </summary>
     public void AddRange(IEnumerable<T> items)
+        => InsertRangeCore(index: null, items);
+
+    /// <summary>
+    /// Inserts multiple items at <paramref name="index"/> and emits a single collection add change.
+    /// </summary>
+    public void InsertRange(int index, IEnumerable<T> items)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+
+        InsertRangeCore(index, items);
+    }
+
+    /// <summary>Inserts a range at <paramref name="index"/>, or at the end when it is null.</summary>
+    private void InsertRangeCore(int? index, IEnumerable<T> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
         T[] buffer = items as T[] ?? [.. items];
-
-        if (buffer.Length == 0)
-            return;
 
         HashSet<T> uniqueItems = new(buffer.Length, ReferenceEqualityComparer.Instance);
         HashSet<string>? uniqueIds = _itemsById is null ? null : new(buffer.Length, StringComparer.Ordinal);
@@ -248,24 +291,25 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
         lock (_sync)
         {
-            for (var i = 0; i < buffer.Length; i++)
-            {
-                EnsureItemCanBeAttachedNoLock(buffer[i]);
-                EnsureIdCanBeAttachedNoLock(buffer[i]);
-            }
+            startIndex = index ?? _items.Count;
 
-            startIndex = _items.Count;
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(startIndex, _items.Count, nameof(index));
+
+            if (buffer.Length == 0)
+                return;
+
+            for (var i = 0; i < buffer.Length; i++)
+                EnsureCanAddNoLock(buffer[i]);
+
             forwarders = new ItemForwarder[buffer.Length];
 
+            _items.InsertRange(startIndex, buffer);
+            ReindexRangeNoLock(startIndex);
+
             for (var i = 0; i < buffer.Length; i++)
             {
-                T item = buffer[i];
-                var index = startIndex + i;
-
-                _items.Add(item);
-                AddMapsNoLock(item, index);
-
-                forwarders[i] = GetOrCreateForwarderNoLock(item);
+                AddIdNoLock(buffer[i]);
+                forwarders[i] = GetOrCreateForwarderNoLock(buffer[i]);
             }
 
             change = RecursiveChange.Add(RecursivePath.Empty, startIndex, buffer.Length, GetItemIdsNoLock(startIndex, buffer.Length));
@@ -278,7 +322,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         {
             T item = buffer[i];
 
-            item.AttachOwner(this);
+            item.AttachOwner(this, this);
             item.SetNotifier(forwarders[i].Notify, visited);
         }
 
@@ -286,18 +330,10 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         NotifyCountChanged();
     }
 
-    private static string GetItemId(T item)
+    private void ReindexRangeNoLock(int startIndex)
     {
-        if (item is not IBindableItem bindableItem)
-            throw new InvalidOperationException($"Item type '{typeof(T).Name}' does not support key lookup.");
-
-        // Names the type so a missing id points back to the model, not just to wherever inside Add it surfaced.
-        return string.IsNullOrWhiteSpace(bindableItem.Id)
-            ? throw new InvalidOperationException(
-                $"Item of type '{item.GetType().Name}' has no id. Every item in a recursive collection needs a stable " +
-                $"'{nameof(IBindableItem)}.{nameof(IBindableItem.Id)}' set at construction — wrap a plain value in " +
-                "'UIValueItem<T>' or 'UIOptionValue<T>' when the value itself is the identity.")
-            : bindableItem.Id;
+        for (var i = startIndex; i < _items.Count; i++)
+            _indicesByItem[_items[i]] = i;
     }
 
     /// <inheritdoc />
@@ -364,8 +400,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
         lock (_sync)
         {
-            EnsureItemCanBeAttachedNoLock(item);
-            EnsureIdCanBeAttachedNoLock(item);
+            EnsureCanAddNoLock(item);
 
             _items.Insert(index, item);
 
@@ -376,17 +411,11 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             change = RecursiveChange.Add(RecursivePath.Empty, index, count: 1, GetItemIdsNoLock(index, count: 1));
         }
 
-        item.AttachOwner(this);
+        item.AttachOwner(this, this);
         item.SetNotifier(forwarder.Notify);
 
         Notify(change);
         NotifyCountChanged();
-    }
-
-    private void ReindexRangeNoLock(int startIndex)
-    {
-        for (var i = startIndex; i < _items.Count; i++)
-            _indicesByItem[_items[i]] = i;
     }
 
     /// <inheritdoc />
@@ -563,7 +592,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         {
             T item = snapshot[i];
 
-            item.AttachOwner(this);
+            item.AttachOwner(this, this);
             item.SetNotifier(forwarders[i].Notify, visited);
         }
     }

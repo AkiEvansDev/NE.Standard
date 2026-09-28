@@ -1,15 +1,7 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Actions;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions;
 
@@ -33,20 +25,15 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
     protected override string HeaderDescription => "demo.actions.command-bar.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateToolbarGroup(), CreateDeployGroup()],
-            [CreateFooterGroup(), CreateRailGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateToolbarGroup(), CreateDeployGroup()], [CreateFooterGroup(), CreateRailGroup()]));
 
     /// <summary>
     /// A strip of small ghost buttons over the thing they act on, in three groups with a rule between them.
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateGroup(ToolbarGroup, "A toolbar over a document",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A toolbar over a document",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetContent(UILayout.Stack(8)
                     .AddChild(new CommandBarComponent()
@@ -63,9 +50,8 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
                         .SetDescriptionType(UITextAppearance.Body)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            )
+                ),
+            context: ToolbarGroup
         );
     }
 
@@ -74,15 +60,15 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateDeployGroup()
     {
-        return DemoUI.CreateGroup(DeployGroup, "The actions a deploy offers",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("The actions a deploy offers",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new TextComponent()
                         .SetIcon(DemoIcons.Upload)
-                        .SetTitle("payments-api · #481")
+                        .SetTitle("billing · #481")
                         .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("eu-west-1 · started 14:02")
+                        .SetDescription("eu-west · started 14:02")
                         .BindBadgeText(nameof(DeployActionsGroupContext.State), UIBindingScope.Relative)
                         .BindBadgeStyle(nameof(DeployActionsGroupContext.StateStyle), UIBindingScope.Relative)
                     )
@@ -91,10 +77,9 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
                         .BindItems(nameof(DeployActionsGroupContext.Actions), UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(CommandBarExamplesController.PressDeployAction))
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+                ),
+            context: DeployGroup,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
                 ["Fail the deploy"] = nameof(CommandBarExamplesController.FailDeploy),
                 ["Succeed"] = nameof(CommandBarExamplesController.SucceedDeploy),
@@ -107,15 +92,15 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateFooterGroup()
     {
-        return DemoUI.CreateGroup(FooterGroup, "A dialog's footer",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A dialog's footer",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(16)
                     .AddChild(new ParagraphComponent()
-                        .SetTitle("Rename the workspace?")
+                        .SetTitle("Rename the account?")
                         .SetTitleType(UITextAppearance.Title)
-                        .SetDescription("Every link to **payments-staging** keeps working; only the name on the page changes.")
+                        .SetDescription("Every link to **Bramble Studio** keeps working; only the name on the page changes.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
                     .AddChild(new CommandBarComponent()
@@ -124,9 +109,8 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
                         .BindItems(nameof(CommandListGroupContext.Commands), UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(CommandBarExamplesController.PressFooter))
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            )
+                ),
+            context: FooterGroup
         );
     }
 
@@ -135,8 +119,8 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateRailGroup()
     {
-        return DemoUI.CreateGroup(RailGroup, "A rail beside a message",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A rail beside a message",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 // A grid, not a stack: the message takes what is going and the rail takes what it needs.
                 .SetContent(new ContainerComponent()
@@ -145,7 +129,7 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
                         .SetIcon(DemoImages.Avatar)
                         .SetTitle("Grace")
                         .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("The eu-west-1 rollout is paused — error rate doubled at 14:07. I have the logs open if anyone wants to look before we roll back.")
+                        .SetDescription("The eu-west rollout is paused — error rate doubled at 14:07. I have the logs open if anyone wants to look before we roll back.")
                         .SetDescriptionType(UITextAppearance.Body)
                         .SetMargin(UIThickness.All(0, 0, 16, 0))
                         .SetPlacement(1, 1, 23, 1)
@@ -158,9 +142,8 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
                         .OnItemClickWithItemKey(nameof(CommandBarExamplesController.PressRail))
                         .SetPlacement(24, 1, 1, 1)
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            )
+                ),
+            context: RailGroup
         );
     }
 }

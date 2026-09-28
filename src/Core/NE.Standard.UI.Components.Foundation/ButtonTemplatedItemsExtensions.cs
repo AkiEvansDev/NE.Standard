@@ -33,6 +33,10 @@ public static class ButtonTemplatedItemsExtensions
         return component;
     }
 
+    private static IButtonComponent RequiredButtonTemplate<T>(T component)
+        where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
+        => component.Template ?? throw new InvalidOperationException($"'{T.ComponentTypeKey}' has no item template.");
+
     /// <summary>
     /// Registers a click command invoked when an item is clicked, with UI action arguments.
     /// </summary>
@@ -73,8 +77,4 @@ public static class ButtonTemplatedItemsExtensions
     public static T OnItemClickWith<T>(this T component, string command, string argumentName, UIActionArgumentKind argumentKind)
         where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
         => component.OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
-
-    private static IButtonComponent RequiredButtonTemplate<T>(T component)
-        where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
-        => component.Template ?? throw new InvalidOperationException($"'{T.ComponentTypeKey}' has no item template.");
 }

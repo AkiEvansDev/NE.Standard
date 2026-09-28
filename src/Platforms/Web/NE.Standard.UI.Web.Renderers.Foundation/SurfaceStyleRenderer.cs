@@ -12,6 +12,11 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>The author's colour, written to <c>--ui-surface-color</c> so <see cref="UISurfaceStyle"/> decides how to use it; the picture over it to <c>--ui-surface-image</c>.</summary>
 public static class SurfaceStyleRenderer
 {
+    private static readonly WebDomOperation[] BackgroundOperations = [WebDomOperation.Style("--ui-surface-color", converter: WebDomConverters.ThemeColorCss)];
+    private static readonly WebDomOperation[] BackgroundImageOperations = [WebDomOperation.Style("--ui-surface-image", converter: WebDomConverters.BackgroundImageCss)];
+    private static readonly WebDomOperation[] BackgroundImageFitOperations = [WebDomOperation.Style("--ui-surface-image-size", converter: WebDomConverters.ImageFitSizeCss)];
+    private static readonly WebDomOperation[] SurfaceOperations = [WebDomOperation.Class(converter: WebDomConverters.SurfaceStyleClass)];
+
     public static void RenderBackground(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -21,7 +26,7 @@ public static class SurfaceStyleRenderer
         {
             if (value is UIThemeColor background && WebCssValues.ThemeColor(background) is { Length: > 0 } css)
                 _ = element.Style("--ui-surface-color", css);
-        }, [WebDomOperation.Style("--ui-surface-color", converter: WebDomConverters.ThemeColorCss)]);
+        }, BackgroundOperations);
     }
 
     /// <summary>Two custom properties the root's Less reads: the picture and its <c>background-size</c>.</summary>
@@ -34,13 +39,13 @@ public static class SurfaceStyleRenderer
         {
             if (WebIconValue.TryReadImage(value, out var source, out _))
                 _ = element.Style("--ui-surface-image", WebIconValue.ImageSourceCss(source));
-        }, [WebDomOperation.Style("--ui-surface-image", converter: WebDomConverters.BackgroundImageCss)]);
+        }, BackgroundImageOperations);
 
         _ = WebComponentRendererBase.RenderProperty<UIImageFit?>(context, target, ISurfaceComponent.BackgroundImageFitProperty, static (element, value) =>
         {
             if (value is UIImageFit fit)
                 _ = element.Style("--ui-surface-image-size", WebCssValues.ImageFitSize(fit));
-        }, [WebDomOperation.Style("--ui-surface-image-size", converter: WebDomConverters.ImageFitSizeCss)]);
+        }, BackgroundImageFitOperations);
     }
 
     public static void RenderSurface(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
@@ -52,6 +57,6 @@ public static class SurfaceStyleRenderer
         {
             if (value is UISurfaceStyle surface)
                 _ = element.Class(WebClassNames.SurfaceStyle(surface));
-        }, [WebDomOperation.Class(converter: WebDomConverters.SurfaceStyleClass)]);
+        }, SurfaceOperations);
     }
 }

@@ -1,11 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Inputs.ImageInput;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.ImageInput;
 
@@ -53,6 +48,7 @@ internal sealed class ImageInputMainView : DemoMainView, IUIViewDefinition
             .BindIsReadOnly($"{ValueGroup}.{nameof(ImageValueGroupContext.IsReadOnly)}")
             .BindSize($"{ValueGroup}.{nameof(ImageValueGroupContext.Size)}")
             .OnChange(nameof(ImageInputMainController.TakePictureAsync))
+            .SetMaxFileSize(DemoImages.MaxInlinePictureBytes)
             .BindAccept($"{ImageGroup}.{nameof(ImagePictureGroupContext.Accept)}")
             .BindPlaceholderIcon($"{ImageGroup}.{nameof(ImagePictureGroupContext.PlaceholderIcon)}")
             .BindPlaceholder($"{ImageGroup}.{nameof(ImagePictureGroupContext.Placeholder)}")

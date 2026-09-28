@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isSafeLink, toSafeImageSource, toSafeLink } from "../src/rendering/url-safety.ts";
+import { isLocalRoute, isSafeLink, toSafeImageSource, toSafeLink } from "../src/rendering/url-safety.ts";
+
+test("a navigation target is a path of this site and nothing a browser reads as another", () => {
+    assert.equal(isLocalRoute("/"), true);
+    assert.equal(isLocalRoute("/screens/account?tab=1"), true);
+    assert.equal(isLocalRoute("//evil.example"), false);
+    assert.equal(isLocalRoute("/\\evil.example"), false);
+    assert.equal(isLocalRoute("/\t/evil.example"), false);
+    assert.equal(isLocalRoute("/\n/evil.example"), false);
+    assert.equal(isLocalRoute("/\r\\evil.example"), false);
+    assert.equal(isLocalRoute("https://evil.example"), false);
+    assert.equal(isLocalRoute("screens/account"), false);
+    assert.equal(isLocalRoute(""), false);
+    assert.equal(isLocalRoute(null), false);
+});
 
 test("a link keeps the schemes a renderer allows and refuses the rest", () => {
     assert.equal(isSafeLink("https://example.test/a?b#c"), true);

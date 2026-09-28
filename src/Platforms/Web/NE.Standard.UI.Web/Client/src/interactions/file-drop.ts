@@ -1,7 +1,7 @@
 // A file dragged onto a field is chosen the way a picked one is. One listener set for every host that takes a drop: the host is
 // marked while a file is over it, and the drop hands the files over filtered by `accept`, since the browser does not filter drops.
 
-export type FileDropTarget = {
+type FileDropTarget = {
     /** The component the mark goes on and the files go to. */
     readonly host: HTMLElement;
     /** The native picker's `accept`, which the drop honours; empty takes anything. */
@@ -139,7 +139,7 @@ function unmarkAll(options: FileDropOptions, marked: Set<HTMLElement>): void {
 }
 
 /** Whether a dropped file matches the native picker's `accept`: a MIME family, a MIME type, or an extension. */
-export function acceptsFile(accept: string, file: File): boolean {
+function acceptsFile(accept: string, file: File): boolean {
     if (accept.trim().length === 0)
         return true;
 

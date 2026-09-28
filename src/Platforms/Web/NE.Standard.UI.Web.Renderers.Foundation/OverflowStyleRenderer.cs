@@ -11,6 +11,8 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <remarks><c>ScrollContainer</c> must not call this: it decides its own overflow, which this default would clobber.</remarks>
 public static class OverflowStyleRenderer
 {
+    private static readonly WebDomOperation[] Operations = [WebDomOperation.Style("overflow", converter: WebDomConverters.OverflowCss)];
+
     public static void RenderOverflow(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -23,6 +25,6 @@ public static class OverflowStyleRenderer
 
             // Clips at the padding box, not the content box; the content box crops text descenders since a line's ink exceeds its box height.
             _ = target.Style("overflow", WebCssValues.Overflow(overflow));
-        }, [WebDomOperation.Style("overflow", converter: WebDomConverters.OverflowCss)]);
+        }, Operations);
     }
 }

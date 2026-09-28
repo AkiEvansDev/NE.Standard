@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -43,10 +42,10 @@ public sealed class RecursivePathTemplate
     /// </summary>
     public static RecursivePathTemplate Empty { get; } = new(string.Empty, 0, []);
 
-    // Bounded: shapes come from the application's model, but a recursive model (a tree's Children under Children) has no last one.
-    private const int MaxCachedShapes = 4096;
-
-    private static readonly ConcurrentDictionary<RecursivePath, RecursivePathTemplate> TemplatesByShape = new(new PathShapeComparer());
+    /// <summary>
+    /// Compares paths by shape: the same properties, with a key or an index in the same places, whatever the keys and indexes are.
+    /// </summary>
+    public static IEqualityComparer<RecursivePath> ShapeComparer { get; } = new PathShapeComparer();
 
     private readonly TemplatePart[] _parts;
 
@@ -226,16 +225,7 @@ public sealed class RecursivePathTemplate
         if (path.Count == 0)
             return (Empty, []);
 
-        // Every path of one shape — the same properties, a key or an index wherever the other has one — has the same template,
-        // and a running view raises the same few shapes for ever: the template is built once and a lookup by path costs its
-        // parameters alone.
-        if (!TemplatesByShape.TryGetValue(path, out RecursivePathTemplate? template))
-        {
-            template = BuildFromPath(path);
-
-            if (TemplatesByShape.Count < MaxCachedShapes)
-                _ = TemplatesByShape.TryAdd(path, template);
-        }
+        RecursivePathTemplate template = BuildFromPath(path);
 
         return (template, ReadParameters(path, template.ParameterCount));
     }
@@ -286,6 +276,24 @@ public sealed class RecursivePathTemplate
         }
 
         return parameters;
+    }
+
+    /// <summary>
+    /// Reads a path's keys and indexes in order — the parameters its template takes — without building the template.
+    /// </summary>
+    public static object[] GetParameters(RecursivePath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        var parameterCount = 0;
+
+        foreach (PathSegment segment in path.AsSpan())
+        {
+            if (segment.Kind != PathSegmentKind.Property)
+                parameterCount++;
+        }
+
+        return ReadParameters(path, parameterCount);
     }
 
     /// <summary>Two paths are one shape when they name the same properties and hold a key or an index in the same places.</summary>

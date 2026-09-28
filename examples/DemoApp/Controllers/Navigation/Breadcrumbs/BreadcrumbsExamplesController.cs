@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Navigation.Breadcrumbs;
 
@@ -12,20 +9,20 @@ namespace DemoApp.Controllers.Navigation.Breadcrumbs;
 /// </summary>
 internal sealed partial class FolderBrowserContext : DemoGroupContext
 {
-    private const string Root = "drive";
+    private const string Root = "buckets";
 
     private static readonly Dictionary<string, (string Title, string? Parent)> Folders = new(StringComparer.Ordinal)
     {
-        [Root] = ("My Drive", null),
-        ["projects"] = ("Projects", Root),
-        ["shared"] = ("Shared with me", Root),
-        ["archive"] = ("Archive", Root),
-        ["payments-api"] = ("payments-api", "projects"),
-        ["web-portal"] = ("web-portal", "projects"),
-        ["src"] = ("src", "payments-api"),
-        ["tests"] = ("tests", "payments-api"),
-        ["docs"] = ("docs", "web-portal"),
-        ["2024"] = ("2024", "archive"),
+        [Root] = ("Buckets", null),
+        ["backups-eu-west"] = ("backups-eu-west", Root),
+        ["backups-us-east"] = ("backups-us-east", Root),
+        ["invoices"] = ("invoices", Root),
+        ["2026"] = ("2026", "backups-eu-west"),
+        ["2025"] = ("2025", "backups-eu-west"),
+        ["api-eu-west-1"] = ("api-eu-west-1", "2026"),
+        ["db-eu-west-1"] = ("db-eu-west-1", "2026"),
+        ["db-us-east-2"] = ("db-us-east-2", "backups-us-east"),
+        ["invoices-2026"] = ("2026", "invoices"),
     };
 
     [RecursiveMember(false)]

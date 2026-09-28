@@ -40,9 +40,10 @@ public static class WebNaming
     {
         var previous = value[index - 1];
 
-        if (char.IsLower(previous) || char.IsDigit(previous))
+        if (char.IsLower(previous))
             return true;
 
-        return char.IsUpper(previous) && index + 1 < value.Length && char.IsLower(value[index + 1]);
+        // A digit does not start a word by itself: Chart2D is chart2d, Column2Span is column2-span.
+        return char.IsLetterOrDigit(previous) && index + 1 < value.Length && char.IsLower(value[index + 1]);
     }
 }

@@ -22,7 +22,7 @@
     border-color: var(--ui-color-border);
     border-radius: var(--ui-radius-row);
     background: var(--ui-surface-color, transparent);
-    outline: none;
+    // No `outline: none`: the tree holds the keyboard's focus as the items view and the table do, and wears the theme's ring as they do.
     // The room before a title: the chevron's square plus the node's gap. The row of waiting spends the same space; a tree
     // with no chevron drops the pair together, since the hidden toggle collapses its gap too.
     --ui-tree-chevron: calc(@ui-tree-chevron-size + @ui-space-1);

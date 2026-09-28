@@ -95,6 +95,15 @@ public static class WebAttributes
     /// <summary>The script element that carries the hydration payload.</summary>
     public const string Hydration = "data-ui-hydration";
 
+    /// <summary>The shell's root element, which the page's content sits in.</summary>
+    public const string Root = "data-ui-root";
+
+    /// <summary>
+    /// On the shell's root when the page stands in for the one asked for (a sign-in, not-found or error page at the address
+    /// that led there): the route and parameters it was rendered for, which the runtime attaches to instead of the address.
+    /// </summary>
+    public const string Navigation = "data-ui-navigation";
+
     /// <summary>The script element that carries the render metadata.</summary>
     public const string Metadata = "data-ui-metadata";
 
@@ -155,6 +164,9 @@ public static class WebAttributes
     /// <summary>The number culture pack as JSON; an engine formats by the nearest one above the element.</summary>
     public const string NumberCulture = "data-ui-number-culture";
 
+    /// <summary>On a number input's root: the author's display format (a .NET numeric format such as <c>N2</c>) the client writes the value in.</summary>
+    public const string NumberFormat = "data-ui-number-format";
+
     public const string Key = "data-ui-key";
 
     /// <summary>On an item's row: the item refuses to be chosen, dragged, removed or renamed (<c>IItemAbilitiesModel</c>).</summary>
@@ -185,6 +197,19 @@ public static class WebAttributes
 
     /// <summary>On a group wrapper whose entry is a select: its choices fly out beside it whatever the menu's fold (menu-group-engine.ts).</summary>
     public const string MenuSelect = "data-ui-menu-select";
+
+    /// <summary>On a menu with a search beside its switch, which menu-search-engine.ts narrows the entries by.</summary>
+    public const string MenuSearch = "data-ui-menu-search";
+
+    /// <summary>On the button that opens a side as a drawer, naming the side's region; and on the root while one is open (side-drawer-engine.ts).</summary>
+    public const string DrawerToggle = "data-ui-drawer-toggle";
+
+    /// <summary>On each band of the page — header, sides, content, footer — naming it; a side's drawer is found by it.</summary>
+    public const string Region = "data-ui-region";
+    public const string DrawerOpen = "data-ui-drawer-open";
+
+    /// <summary>On what an open drawer dims the page under; a press on it closes the drawer.</summary>
+    public const string DrawerBackdrop = "data-ui-drawer-backdrop";
 
     public const string Name = "data-ui-name";
 
@@ -233,6 +258,12 @@ public static class WebAttributes
     public const string SearchMinLength = "data-ui-search-min-length";
 
     public const string SelectClear = "data-ui-select-clear";
+
+    /// <summary>On a multi-select's chip: the key of the option it stands for.</summary>
+    public const string SelectChip = "data-ui-select-chip";
+
+    /// <summary>On a multi-select's root: how many options it takes at most.</summary>
+    public const string SelectMax = "data-ui-select-max";
 
     /// <summary>On a select-shaped trigger that is a text field: a click in it places the caret rather than closing the list.</summary>
     public const string SelectTriggerMode = "data-ui-select-trigger-mode";
@@ -309,6 +340,12 @@ public static class WebAttributes
 
     /// <summary>On a tabs view's root: its tabs may be reordered by dragging.</summary>
     public const string TabsDraggable = "data-ui-tabs-draggable";
+
+    /// <summary>On a tabs view's root: the built-in entries its tab menu offers, as space-separated tokens — <c>rename pin delete</c>.</summary>
+    public const string TabsMenu = "data-ui-tabs-menu";
+
+    /// <summary>On a tabs view's root: a tab's close raises a command, so its tab menu may offer the remove entry.</summary>
+    public const string TabsRemoves = "data-ui-tabs-removes";
 
     /// <summary>On a tabs view's root: its tabs cannot be closed at all: no caption shows a close, and the strip keeps no room for one.</summary>
     public const string TabsUnremovable = "data-ui-tabs-unremovable";
@@ -405,5 +442,4 @@ public static class WebAttributes
     public const string WindowPaged = "data-ui-window-paged";
 
     public const string WindowTotal = "data-ui-window-total";
-
 }

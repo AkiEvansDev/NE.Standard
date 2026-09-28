@@ -1,0 +1,94 @@
+// What the reader asked of the system rather than of the page: less motion, and the forced palette of a high-contrast mode.
+// Imported last in ui.less, so these win the ties with every component's own rules.
+
+// Movement goes and its end state stays: an expander opens, a drawer is open, a tab's line is under the new tab, all at once.
+// The loading ring keeps turning, as the one sign that something is under way.
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+    }
+}
+
+// Forced colours drop every box-shadow and force every ground to Canvas, so a state drawn only as a wash, an inset mark or a
+// filled pseudo-element vanishes. Each is redrawn in the system's own colours, which the mode leaves as they are.
+@media (forced-colors: active) {
+    // A chosen row, option, entry or segment: an outline in the selection colour stands for the wash and the edge mark.
+    .ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected],
+    .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id],
+    .ui-table [data-ui-items-host] > .ui-table__row[data-ui-selected],
+    .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-selected],
+    .ui-select__option[aria-selected="true"],
+    .ui-menu-item--selected,
+    .ui-button-group__item[data-ui-selected] > .ui-button,
+    .ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    // The keyboard's row while its host holds the focus: dashed, so it tells apart from a chosen row, and in the selection
+    // colour when it is one.
+    .ui-items-view:not(.ui-items-view--wrap):focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
+    .ui-items-view--wrap:focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
+    .ui-table:focus > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
+    .ui-tree:focus > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus] {
+        outline: 2px dashed CanvasText;
+        outline-offset: -2px;
+    }
+
+        .ui-items-view:not(.ui-items-view--wrap):focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
+        .ui-items-view--wrap:focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
+        .ui-table:focus > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
+        .ui-tree:focus > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected] {
+            outline-color: Highlight;
+        }
+
+    // The current tab's line is a pseudo-element's ground.
+    .ui-tab-header--selected::after,
+    .ui-tab-item--selected .ui-tab-item__caption::after {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+
+    // A checked box, track or dot is a filled ground the mode would take away; the mark on it takes the text colour that goes with it.
+    .ui-checkbox__input:checked ~ .ui-checkbox__box,
+    .ui-switch__input:checked ~ .ui-switch__box {
+        forced-color-adjust: none;
+        border-color: Highlight;
+        background: Highlight;
+    }
+
+        .ui-checkbox__input:checked ~ .ui-checkbox__box::after {
+            color: HighlightText;
+        }
+
+    .ui-switch__box::after {
+        forced-color-adjust: none;
+        background: CanvasText;
+    }
+
+        .ui-switch__input:checked ~ .ui-switch__box::after {
+            background: HighlightText;
+        }
+
+    .ui-radio-group__input:checked ~ .ui-radio-group__dot {
+        border-color: Highlight;
+    }
+
+    .ui-radio-group__dot::after {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+
+    // A bar's fill is its reading; the track gets an edge, since its tint is gone too.
+    .ui-progress--linear > .ui-progress__track {
+        outline: 1px solid CanvasText;
+    }
+
+    .ui-progress--linear > .ui-progress__track > .ui-progress__fill {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+}

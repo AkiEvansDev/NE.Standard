@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -47,16 +48,30 @@ public static class ResponsiveRenderer
         ArgumentException.ThrowIfNullOrWhiteSpace(cssVariableName);
         ArgumentNullException.ThrowIfNull(formatter);
 
-        _ = WebComponentRendererBase.RenderProperty<UIResponsive<T>?>(context, target, propertyOwnerTypeKey, property, (t, value) =>
+        // Built once per variable: every component renders its margin, sizes and padding through here.
+        ResponsiveProperty<T> responsive = ResponsiveProperty<T>.ByVariable.GetOrAdd(cssVariableName, static (name, arg) => new ResponsiveProperty<T>(name, arg.formatter, [
+            WebDomOperation.Style(name, converter: arg.baseConverter),
+            WebDomOperation.Style(name + "-sm", converter: arg.smConverter),
+            WebDomOperation.Style(name + "-md", converter: arg.mdConverter),
+            WebDomOperation.Style(name + "-xl", converter: arg.xlConverter),
+            WebDomOperation.Style(name + "-xxl", converter: arg.xxlConverter)
+        ]), (formatter, baseConverter, smConverter, mdConverter, xlConverter, xxlConverter));
+
+        _ = WebComponentRendererBase.RenderProperty(context, target, propertyOwnerTypeKey, property, responsive.Write, responsive.Operations);
+    }
+
+    /// <summary>One responsive custom property's operations and its static write, shared by every component rendering it.</summary>
+    private sealed class ResponsiveProperty<T>(string cssVariableName, Func<T, string> formatter, WebDomOperation[] operations)
+        where T : struct
+    {
+        public static readonly ConcurrentDictionary<string, ResponsiveProperty<T>> ByVariable = new(StringComparer.Ordinal);
+
+        public WebDomOperation[] Operations { get; } = operations;
+
+        public Action<IHtmlElementBuilder, UIResponsive<T>?> Write { get; } = (target, value) =>
         {
             if (value is UIResponsive<T> responsive)
-                WebResponsiveCss.WriteTiers(t, responsive, cssVariableName, formatter);
-        }, [
-            WebDomOperation.Style(cssVariableName, converter: baseConverter),
-            WebDomOperation.Style(cssVariableName + "-sm", converter: smConverter),
-            WebDomOperation.Style(cssVariableName + "-md", converter: mdConverter),
-            WebDomOperation.Style(cssVariableName + "-xl", converter: xlConverter),
-            WebDomOperation.Style(cssVariableName + "-xxl", converter: xxlConverter)
-        ]);
+                WebResponsiveCss.WriteTiers(target, responsive, cssVariableName, formatter);
+        };
     }
 }

@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -48,12 +44,10 @@ internal sealed partial class ThemeSwitcherGroupContext : TooltipGroupContext
 
     // The outlined drawing first, because that is what a control wears.
     public void CycleLightIcon()
-        => SetLastChange(nameof(LightIcon), LightIcon = CycleValue(LightIcon,
-            DemoIcons.Outline(DemoIcons.LightMode), DemoIcons.LightMode, DemoImages.Mask(DemoImages.Mark), null));
+        => SetLastChange(nameof(LightIcon), LightIcon = CycleValue(LightIcon, DemoIcons.Outline(DemoIcons.LightMode), DemoIcons.LightMode, DemoImages.Mask(DemoImages.Mark), null));
 
     public void CycleDarkIcon()
-        => SetLastChange(nameof(DarkIcon), DarkIcon = CycleValue(DarkIcon,
-            DemoIcons.Outline(DemoIcons.DarkMode), DemoIcons.DarkMode, DemoImages.Mask(DemoImages.Mark), null));
+        => SetLastChange(nameof(DarkIcon), DarkIcon = CycleValue(DarkIcon, DemoIcons.Outline(DemoIcons.DarkMode), DemoIcons.DarkMode, DemoImages.Mask(DemoImages.Mark), null));
 
     public void CycleIconSize()
         => SetLastChange(nameof(IconSize), IconSize = CycleEnum(IconSize));
@@ -69,6 +63,5 @@ internal sealed partial class ThemeSwitcherGroupContext : TooltipGroupContext
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(4), UIThickness.Uniform(20), null));
 
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 }

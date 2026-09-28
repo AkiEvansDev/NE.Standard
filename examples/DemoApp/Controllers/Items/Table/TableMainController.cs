@@ -1,11 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Items.Table;
 
@@ -52,14 +47,14 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
     public static List<DemoDeploymentRow> CreateDeployments()
         =>
         [
-            Create("payments-api", "Payments API", "eu-west-1", 12, "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-            Create("web-portal", "Web Portal", "eu-west-1", 4, "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-            Create("search-indexer", "Search Indexer", "eu-central-1", 2, "Degraded", UIBadgeType.Warning, DemoIcons.Search),
-            Create("mail-relay", "Mail Relay", "us-east-1", 1, "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-            Create("report-builder", "Report Builder", "us-east-1", 3, "Healthy", UIBadgeType.Success, DemoIcons.FileText),
-            Create("notifier", "Notifier", "us-east-1", 2, "Healthy", UIBadgeType.Success, DemoIcons.Bell),
-            Create("scheduler", "Scheduler", "ap-south-1", 1, "Healthy", UIBadgeType.Success, DemoIcons.Clock),
-            Create("audit-log", "Audit Log", "ap-south-1", 2, "Failing", UIBadgeType.Danger, DemoIcons.History),
+            Create("billing", "Billing", "eu-west", 12, "Healthy", UIBadgeType.Success, DemoIcons.Shield),
+            Create("panel", "Panel", "eu-west", 4, "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
+            Create("dns", "DNS", "eu-west", 2, "Degraded", UIBadgeType.Warning, DemoIcons.Link),
+            Create("mail-relay", "Mail Relay", "us-east", 1, "Paused", UIBadgeType.Surface, DemoIcons.Mail),
+            Create("metrics", "Metrics", "us-east", 3, "Healthy", UIBadgeType.Success, DemoIcons.FileText),
+            Create("status-page", "Status Page", "us-east", 2, "Healthy", UIBadgeType.Success, DemoIcons.Bell),
+            Create("scheduler", "Scheduler", "ap-south", 1, "Healthy", UIBadgeType.Success, DemoIcons.Clock),
+            Create("audit-log", "Audit Log", "ap-south", 2, "Failing", UIBadgeType.Danger, DemoIcons.History),
         ];
 }
 
@@ -151,17 +146,13 @@ internal sealed partial class TableGroupContext : DemoGroupContext
         => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "payments-api", "search-indexer"));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "billing", "dns"));
 
     public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["web-portal", "mail-relay"], ["scheduler"]));
+        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["panel", "mail-relay"], ["scheduler"]));
 
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null,
-            UISelectionStyle.Marked(UISelectionMark.Left),
-            UISelectionStyle.Ground(UIThemeColor.Accent),
-            new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)
-        ));
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
 }
 
 /// <summary>

@@ -4,11 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Actions;
 
@@ -20,9 +15,6 @@ internal sealed partial class ButtonLatencyGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial bool Busy { get; set; }
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 /// <summary>
@@ -48,9 +40,6 @@ internal sealed partial class ButtonGuardGroupContext : DemoGroupContext
 
     private static string Next(string current)
         => (int.Parse(current, CultureInfo.InvariantCulture) + 1).ToString(CultureInfo.InvariantCulture);
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 /// <summary>One command, four stages: what it writes between awaits is on screen before it returns.</summary>
@@ -69,6 +58,56 @@ internal sealed partial class ButtonProgressGroupContext : DemoGroupContext
     {
         Stage = stage;
         StageStyle = style;
+    }
+}
+
+/// <summary>
+/// A job that runs in the background: its tab stays free, so a note typed meanwhile lands and a Cancel reaches it.
+/// </summary>
+internal sealed partial class ButtonBackgroundGroupContext : DemoGroupContext
+{
+    private readonly Lock _sync = new();
+    private CancellationTokenSource? _running;
+
+    [RecursiveMember]
+    public partial string Note { get; set; } = string.Empty;
+
+    /// <summary>Starts a run the connection's closing or <see cref="Cancel"/> ends, whichever comes first.</summary>
+    public CancellationTokenSource Begin(CancellationToken connection)
+    {
+        CancellationTokenSource running = CancellationTokenSource.CreateLinkedTokenSource(connection);
+
+        lock (_sync)
+            _running = running;
+
+        return running;
+    }
+
+    /// <summary>Taken out under the lock and cancelled outside it: the run it wakes may end, and let go of it, on this thread.</summary>
+    public void Cancel()
+    {
+        CancellationTokenSource? running;
+
+        lock (_sync)
+            running = _running;
+
+        try
+        {
+            running?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The run ended between the two lines; there is nothing left to cancel.
+        }
+    }
+
+    public void End(CancellationTokenSource running)
+    {
+        lock (_sync)
+        {
+            if (ReferenceEquals(_running, running))
+                _running = null;
+        }
     }
 }
 
@@ -99,27 +138,15 @@ internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
         Outcome = "Waiting for a decision";
         OutcomeStyle = UIBadgeType.Surface;
     }
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 internal sealed partial class ButtonConfirmGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string Workspace { get; set; } = "payments-staging";
+    public partial string Server { get; set; } = "web-eu-central-3";
 
     [RecursiveMember]
     public partial bool Present { get; set; } = true;
-
-    public void Report(string message)
-        => LogEvent(message);
-}
-
-internal sealed partial class ButtonReportGroupContext : DemoGroupContext
-{
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 /// <summary>
@@ -130,12 +157,12 @@ internal sealed partial class ButtonScenariosController() : DemoController
     /// <summary>The key the view declares its dialog under.</summary>
     internal const string ConfirmKey = "button-confirm-delete";
 
-    private static readonly (string Stage, UIBadgeType Style)[] PipelineStages =
+    private static readonly (string Stage, UIBadgeType Style)[] ProvisioningStages =
     [
-        ("Resolving dependencies", UIBadgeType.Info),
-        ("Compiling", UIBadgeType.Info),
-        ("Running tests", UIBadgeType.Warning),
-        ("Publishing", UIBadgeType.Primary)
+        ("Allocating the disk", UIBadgeType.Info),
+        ("Installing the image", UIBadgeType.Info),
+        ("Running health checks", UIBadgeType.Warning),
+        ("Opening the firewall", UIBadgeType.Primary)
     ];
 
     [RecursiveMember]
@@ -154,10 +181,13 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public partial ButtonConfirmGroupContext ConfirmGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonReportGroupContext ReportGroup { get; set; } = new();
+    public partial ButtonBackgroundGroupContext BackgroundGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonReportGroupContext EffectGroup { get; set; } = new();
+    public partial DemoGroupContext ReportGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext EffectGroup { get; set; } = new();
 
     /// <summary>
     /// Waits two seconds and says nothing; the difference between its two callers is in the view.
@@ -165,11 +195,11 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public async Task DeployAsync(CancellationToken cancellationToken)
     {
-        LatencyGroup.Report("the server heard the press");
+        LatencyGroup.LogEvent("the server heard the press");
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-        LatencyGroup.Report("finished two seconds later");
+        LatencyGroup.LogEvent("finished two seconds later");
     }
 
     /// <summary>
@@ -179,12 +209,12 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public async Task DeployBoundAsync(CancellationToken cancellationToken)
     {
         LatencyGroup.Busy = true;
-        LatencyGroup.Report("Busy = true, on its way to the browser");
+        LatencyGroup.LogEvent("Busy = true, on its way to the browser");
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
         LatencyGroup.Busy = false;
-        LatencyGroup.Report("Busy = false, two seconds later");
+        LatencyGroup.LogEvent("Busy = false, two seconds later");
     }
 
     /// <summary>
@@ -194,7 +224,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public async Task ChargeGuardedAsync(CancellationToken cancellationToken)
     {
         GuardGroup.CountGuarded();
-        GuardGroup.Report("guarded — the button was off before the press left the browser");
+        GuardGroup.LogEvent("guarded — the button was off before the press left the browser");
 
         await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
 
@@ -205,7 +235,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public async Task ChargePlainAsync(CancellationToken cancellationToken)
     {
         GuardGroup.CountPlain();
-        GuardGroup.Report("bare — this press got through; a repeat would be dropped without a word");
+        GuardGroup.LogEvent("bare — this press got through; a repeat would be dropped without a word");
 
         await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
     }
@@ -216,7 +246,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
         GuardGroup.GuardedCount = "0";
         GuardGroup.PlainCount = "0";
         GuardGroup.GuardedEnabled = true;
-        GuardGroup.Report("both counters back to zero");
+        GuardGroup.LogEvent("both counters back to zero");
     }
 
     /// <summary>
@@ -225,7 +255,11 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public async Task ApproveAsync(CancellationToken cancellationToken)
     {
-        DecisionGroup.Report("approving — the other button went off before this left the browser");
+        // The buttons going off is the feedback; this is the rule, since a second press can still reach the server.
+        if (!DecisionGroup.Open)
+            return;
+
+        DecisionGroup.LogEvent("approving — the other button went off before this left the browser");
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
@@ -235,7 +269,10 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public async Task RejectAsync(CancellationToken cancellationToken)
     {
-        DecisionGroup.Report("rejecting — the other button went off before this left the browser");
+        if (!DecisionGroup.Open)
+            return;
+
+        DecisionGroup.LogEvent("rejecting — the other button went off before this left the browser");
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
@@ -246,27 +283,70 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public void ReopenRequest()
     {
         DecisionGroup.Reopen();
-        DecisionGroup.Report("open again");
+        DecisionGroup.LogEvent("open again");
     }
 
     /// <summary>
     /// Four writes inside one command, each shipped over the push channel as it happens.
     /// </summary>
     [UICommand]
-    public async Task RunPipelineAsync(CancellationToken cancellationToken)
+    public async Task ProvisionAsync(CancellationToken cancellationToken)
     {
         ProgressGroup.Busy = true;
 
-        foreach ((var stage, UIBadgeType style) in PipelineStages)
+        try
         {
-            ProgressGroup.Enter(stage, style);
+            foreach ((var stage, UIBadgeType style) in ProvisioningStages)
+            {
+                ProgressGroup.Enter(stage, style);
 
-            await Task.Delay(800, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(800, cancellationToken).ConfigureAwait(false);
+            }
+
+            ProgressGroup.Enter("Running", UIBadgeType.Success);
         }
-
-        ProgressGroup.Enter("Deployed", UIBadgeType.Success);
-        ProgressGroup.Busy = false;
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The tab that pressed it went away mid-way (a reload): the page that comes back finds it not started, not stuck half done.
+            ProgressGroup.Enter("Not started", UIBadgeType.Surface);
+            throw;
+        }
+        finally
+        {
+            ProgressGroup.Busy = false;
+        }
     }
+
+    /// <summary>
+    /// Six seconds of waiting on the storage. Background, so the invoke is answered at once and the result follows: the tab's
+    /// connection is free for the note and the Cancel meanwhile. It writes only its own group's report.
+    /// </summary>
+    [UICommand(ConcurrencyMode = UICommandConcurrencyMode.Background)]
+    public async Task BackUpAsync(CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource running = BackgroundGroup.Begin(cancellationToken);
+
+        BackgroundGroup.LogEvent("backing up db-eu-west-1 — type a note or press Cancel meanwhile");
+
+        try
+        {
+            await Task.Delay(6000, running.Token).ConfigureAwait(false);
+
+            BackgroundGroup.LogEvent("backup of db-eu-west-1 finished, six seconds later");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            BackgroundGroup.LogEvent("backup cancelled — the Cancel reached it while it ran");
+        }
+        finally
+        {
+            BackgroundGroup.End(running);
+        }
+    }
+
+    [UICommand]
+    public void CancelBackup()
+        => BackgroundGroup.Cancel();
 
     [UICommand]
     public static UICommandResult AskToDelete()
@@ -275,7 +355,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public UICommandResult CancelDelete()
     {
-        ConfirmGroup.Report("cancelled — nothing was deleted");
+        ConfirmGroup.LogEvent("cancelled — nothing was deleted");
 
         return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey)]);
     }
@@ -285,22 +365,22 @@ internal sealed partial class ButtonScenariosController() : DemoController
     public UICommandResult ConfirmDelete()
     {
         ConfirmGroup.Present = false;
-        ConfirmGroup.Report($"deleted {ConfirmGroup.Workspace}");
+        ConfirmGroup.LogEvent($"deleted {ConfirmGroup.Server}");
 
         return UICommandResult.Ok(
         [
             new CloseDialogEffect(ConfirmKey),
-            new ShowNotificationEffect($"{ConfirmGroup.Workspace} was deleted.", UIColorStyle.Danger)
+            new ShowNotificationEffect($"{ConfirmGroup.Server} was deleted.", UIColorStyle.Danger)
         ]);
     }
 
     [UICommand]
-    public UICommandResult RestoreWorkspace()
+    public UICommandResult RestoreServer()
     {
         ConfirmGroup.Present = true;
-        ConfirmGroup.Report("restored, so the story can be told again");
+        ConfirmGroup.LogEvent("restored, so the story can be told again");
 
-        return UICommandResult.Ok([new ShowNotificationEffect($"{ConfirmGroup.Workspace} is back.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect($"{ConfirmGroup.Server} is back.", UIColorStyle.Success)]);
     }
 
     /// <summary>
@@ -309,7 +389,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public void FailUnhandled()
     {
-        ReportGroup.Report("about to throw — nothing in the command reports it");
+        ReportGroup.LogEvent("about to throw — nothing in the command reports it");
 
         throw new InvalidOperationException("The release gate refused: staging has been unhealthy for 90 seconds.");
     }
@@ -318,7 +398,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public UICommandResult FailReported()
     {
-        ReportGroup.Report("refused, and said so in its own words");
+        ReportGroup.LogEvent("refused, and said so in its own words");
 
         return UICommandResult.Ok(
         [
@@ -329,7 +409,7 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public UICommandResult GoToExamples()
     {
-        EffectGroup.Report("NavigateEffect — the client changes page");
+        EffectGroup.LogEvent("NavigateEffect — the client changes page");
 
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = "/actions/button/examples" })]);
     }
@@ -340,12 +420,12 @@ internal sealed partial class ButtonScenariosController() : DemoController
     [UICommand]
     public async Task DownloadReportAsync(CancellationToken cancellationToken)
     {
-        EffectGroup.Report("staged, and handed over as a single-use path");
+        EffectGroup.LogEvent("staged, and handed over as a single-use path");
 
-        var content = Encoding.UTF8.GetBytes("stage,seconds\nresolve,0.8\ncompile,0.8\ntest,0.8\npublish,0.8\n");
+        var content = Encoding.UTF8.GetBytes("stage,seconds\nallocate,0.8\ninstall,0.8\ncheck,0.8\nfirewall,0.8\n");
 
         _ = await Context.Downloads
-            .DownloadAsync(Context.Handle, "deploy-report.csv", "text/csv", content, cancellationToken)
+            .DownloadAsync(Context.Handle, "provisioning-report.csv", "text/csv", content, cancellationToken)
             .ConfigureAwait(false);
     }
 }

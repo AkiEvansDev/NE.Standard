@@ -60,7 +60,6 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
     private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UIPropertyDefinition[]> _propertyDefinitionsCache = new(StringComparer.Ordinal);
-    private readonly HashSet<Type> _initializedComponentTypes = [];
     private readonly List<CompiledRegion> _regions = [];
     private readonly List<CompiledDialog> _dialogs = [];
 
@@ -128,7 +127,8 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             Margin = dialog.Margin,
             Modal = dialog.Modal,
             CloseOnBackdrop = dialog.CloseOnBackdrop,
-            CloseOnEscape = dialog.CloseOnEscape
+            CloseOnEscape = dialog.CloseOnEscape,
+            Label = dialog.Label
         });
     }
 
@@ -144,13 +144,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         CompiledUIBindingTemplate rootTemplate = GetOrAddTemplate(templatesByKey, rootPath.Source, rootPath.Template);
         CompiledUIContext rootContext = GetOrAddContext(contextsByTemplateId, rootTemplate);
 
-        Dictionary<string, ResolvedComponentContext> componentContexts = BuildComponentContexts(
-            sourcesByKey,
-            templatesByKey,
-            contextsByTemplateId,
-            rootContext,
-            rootPath
-        );
+        Dictionary<string, ResolvedComponentContext> componentContexts = BuildComponentContexts(sourcesByKey, templatesByKey, contextsByTemplateId, rootContext, rootPath);
 
         UIComponentNode[] nodes = BuildNodes(componentContexts);
         UIComponentState[] states = BuildStates(templatesByKey, bindings, componentContexts, rootPath);

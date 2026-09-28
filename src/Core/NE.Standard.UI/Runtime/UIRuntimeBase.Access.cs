@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
@@ -33,9 +36,135 @@ internal abstract partial class UIRuntimeBase
 
         ArgumentNullException.ThrowIfNull(action);
 
-        ServerChangeSet changes = await DrainAsync(action, force: false, cancellationToken).ConfigureAwait(false);
+        return await InSendOrderAsync(async () =>
+        {
+            ServerChangeSet changes = await DrainAsync(action, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
 
-        return await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+            return await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private readonly Queue<(string Operation, Func<CancellationToken, Task> Action)> _posted = new();
+    private bool _drainingPosted;
+
+    /// <inheritdoc />
+    public void Post(Func<CancellationToken, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        PostCore("Post", action);
+    }
+
+    /// <summary>Queues work to run on the thread pool as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> runs it, in the order it was posted.</summary>
+    /// <remarks>
+    /// Counted as a command from the moment it is queued, so a runtime asked to go waits for the work rather than disposing under
+    /// it; work still queued when the runtime is asked to go is dropped. One drain runs at a time, so a message posted and then
+    /// deleted arrives in that order.
+    /// </remarks>
+    private void PostCore(string operation, Func<CancellationToken, Task> action)
+    {
+        _ = Interlocked.Increment(ref _commandsInFlight);
+
+        lock (_posted)
+        {
+            _posted.Enqueue((operation, action));
+
+            if (_drainingPosted)
+                return;
+
+            _drainingPosted = true;
+        }
+
+        _ = Task.Run(DrainPostedAsync);
+    }
+
+    private async Task DrainPostedAsync()
+    {
+        while (true)
+        {
+            (string Operation, Func<CancellationToken, Task> Action) next;
+
+            lock (_posted)
+            {
+                if (!_posted.TryDequeue(out next))
+                {
+                    _drainingPosted = false;
+                    return;
+                }
+            }
+
+            await RunPostedAsync(next.Operation, next.Action).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Runs queued work and lets go of its hold; never faults, since nothing awaits it: a failure goes to the controller.</summary>
+    private async Task RunPostedAsync(string operation, Func<CancellationToken, Task> action)
+    {
+        try
+        {
+            if (Volatile.Read(ref _disposeRequested) == 0)
+                _ = await InvokeAsync(action, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception handlerException)
+            {
+                TryLogDetachedCommandFailure(operation, handlerException);
+            }
+        }
+        finally
+        {
+            try
+            {
+                await LeaveCommandAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                TryLogDetachedCommandFailure(operation, exception);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(effects);
+
+        if (effects.Count == 0)
+            return;
+
+        // The command-result channel with no command behind it, as SendEffectsAsync takes to its one connection.
+        UICommandExecutionResult result = new()
+        {
+            Command = UICommandResult.Ok(ResolveEffects(effects)),
+            Changes = ServerChangeSet.Empty
+        };
+
+        IUIUpdateSink updates = Connection.ClientServices.Updates;
+        ExceptionDispatchInfo? failure = null;
+
+        foreach (UIHandle viewer in ViewerHandles)
+        {
+            if (except is not null && StringComparer.Ordinal.Equals(viewer.Instance.Id, except.Instance.Id))
+                continue;
+
+            try
+            {
+                await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // One tab whose connection is gone must not keep the effect from the rest.
+                failure ??= ExceptionDispatchInfo.Capture(exception);
+            }
+        }
+
+        failure?.Throw();
     }
 
     /// <inheritdoc />

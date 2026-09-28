@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.Expander;
 
@@ -26,9 +24,6 @@ internal sealed partial class ExpanderLoadGroupContext : DemoGroupContext
 
     [RecursiveMember]
     public partial UIBadgeType StateStyle { get; set; } = UIBadgeType.Surface;
-
-    public void Report(string message)
-        => LogEvent(message);
 
     public void Reset()
     {
@@ -73,7 +68,7 @@ internal sealed partial class ExpanderScenariosController() : DemoController
 {
     // Five lines that stay five: a paragraph's description keeps the newlines the author wrote.
     private const string LogText =
-        "12:04:11  resolve  ok\n12:04:12  restore  ok\n12:04:19  build    ok in 7.1s\n12:04:26  test     452 passed, 0 failed\n12:04:31  publish  ok";
+        "12:04:11  order    ok\n12:04:12  disk     80 GB created\n12:04:19  boot     ok in 7.1s\n12:04:26  health   check passed\n12:04:31  ready    api-eu-west-1";
 
     [RecursiveMember]
     public partial ExpanderLoadGroupContext LoadGroup { get; set; } = new();
@@ -89,14 +84,14 @@ internal sealed partial class ExpanderScenariosController() : DemoController
     {
         if (LoadGroup.Loaded)
         {
-            LoadGroup.Report("opened again — the command still ran, and decided there was nothing to read");
+            LoadGroup.LogEvent("opened again — the command still ran, and decided there was nothing to read");
             return;
         }
 
         LoadGroup.Busy = true;
         LoadGroup.State = "Reading";
         LoadGroup.StateStyle = UIBadgeType.Info;
-        LoadGroup.Report("first open — going to the server for it");
+        LoadGroup.LogEvent("first open — going to the server for it");
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 

@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.ItemsView;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Items.Table;
 

@@ -1,8 +1,5 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Extensions;
 
 namespace DemoApp.Views.Screens;
 

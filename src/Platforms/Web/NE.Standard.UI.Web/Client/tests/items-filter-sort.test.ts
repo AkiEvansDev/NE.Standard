@@ -103,3 +103,20 @@ test("the viewer's sorts come before the authored ones", () => {
     assert.deepEqual(active.map(entry => [entry.itemProperty, entry.direction]), [["Title", "Descending"], ["Group", "Ascending"]]);
     assert.deepEqual(getActiveSorts(undefined, noState, null), []);
 });
+
+test("numbers come before text, so mixed values keep one order", () => {
+    const values = ["1a", "10", "2"];
+
+    assert.ok(compareValues("2", "10") < 0);
+    assert.ok(compareValues("10", "1a") < 0);
+    assert.ok(compareValues("2", "1a") < 0);
+    assert.deepEqual([...values].sort(compareValues), ["2", "10", "1a"]);
+    assert.deepEqual(["10", "1a", "2"].sort(compareValues), ["2", "10", "1a"]);
+});
+
+test("blank text sorts with nothing, not among the zeros", () => {
+    assert.equal(compareValues("", null), 0);
+    assert.equal(compareValues("  ", undefined), 0);
+    assert.ok(compareValues("", 0) < 0);
+    assert.ok(compareValues(-1, " ") > 0);
+});

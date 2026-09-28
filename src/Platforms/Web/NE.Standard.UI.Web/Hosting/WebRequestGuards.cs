@@ -12,15 +12,22 @@ namespace NE.Standard.UI.Web.Hosting;
 internal static class WebRequestGuards
 {
     /// <summary>
-    /// Refuses a cross-site request; same-origin requests, and ones carrying neither header, pass — an antiforgery token would
-    /// defend these the same way, but none exists to check.
+    /// Refuses a request from any other origin; same-origin requests, a user's own navigation, and ones carrying neither header
+    /// pass — an antiforgery token would defend these the same way, but none exists to check.
     /// </summary>
+    /// <remarks>
+    /// <c>same-site</c> is refused too: a sibling subdomain is sent the session's <c>Lax</c> cookie, and the Origin check below
+    /// has always meant the same origin.
+    /// </remarks>
     public static bool IsCrossSiteRequest(HttpContext http)
     {
         var secFetchSite = http.Request.Headers["Sec-Fetch-Site"].ToString();
 
         if (!string.IsNullOrEmpty(secFetchSite))
-            return string.Equals(secFetchSite, "cross-site", StringComparison.OrdinalIgnoreCase);
+        {
+            return !string.Equals(secFetchSite, "same-origin", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(secFetchSite, "none", StringComparison.OrdinalIgnoreCase);
+        }
 
         var origin = http.Request.Headers["Origin"].ToString();
 
@@ -32,12 +39,27 @@ internal static class WebRequestGuards
             || !string.Equals(originUri.Authority, http.Request.Host.Value, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>One answer for every size limit — a file's, a session's, a staged value's — so a client reads one status.</summary>
+    public static IResult TooLarge(string detail)
+        => Results.Problem(detail, statusCode: StatusCodes.Status413PayloadTooLarge);
+
     /// <summary>
-    /// Fails the read once more than <paramref name="limit"/> bytes have gone past, without buffering to measure it.
+    /// Fails the read once more than <paramref name="limit"/> bytes have gone past, or once <paramref name="claim"/> cannot take
+    /// the bytes that arrived, without buffering to measure it.
     /// </summary>
-    public sealed class LimitedStream(Stream inner, long limit) : Stream
+    /// <remarks>
+    /// A refusal is an ordinary exception out of whatever reads the stream, which may wrap it; a caller tells it from any other
+    /// failure by <see cref="LimitExceeded"/>, never by the exception's type.
+    /// </remarks>
+    public sealed class LimitedStream(Stream inner, long limit, WebSessionAllowance.Claim? claim = null) : Stream
     {
         private long _read;
+
+        /// <summary>Gets whether a read was refused, on <c>limit</c> or on the allowance.</summary>
+        public bool LimitExceeded { get; private set; }
+
+        /// <summary>Gets whether the read failed on the session's allowance rather than on <c>limit</c>.</summary>
+        public bool AllowanceSpent { get; private set; }
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -59,6 +81,10 @@ internal static class WebRequestGuards
             return count;
         }
 
+        // The base class runs this overload as a synchronous Read on the pool, which a request body refuses.
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
         public override int Read(byte[] buffer, int offset, int count)
         {
             var read = inner.Read(buffer, offset, count);
@@ -73,7 +99,17 @@ internal static class WebRequestGuards
             _read += count;
 
             if (_read > limit)
+            {
+                LimitExceeded = true;
                 throw new InvalidOperationException($"The body exceeds the {limit} byte limit.");
+            }
+
+            if (claim is not null && !claim.TryReserve(count))
+            {
+                LimitExceeded = true;
+                AllowanceSpent = true;
+                throw new InvalidOperationException("The body exceeds what is left of the allowance.");
+            }
         }
 
         public override void Flush()

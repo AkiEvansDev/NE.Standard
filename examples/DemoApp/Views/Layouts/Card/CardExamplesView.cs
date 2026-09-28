@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Card;
 
@@ -27,120 +20,123 @@ internal sealed class CardExamplesView : DemoExamplesView, IUIViewDefinition
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateArticleGroup(), CreateReadingGroup(), CreateControlGroup()],
             [CreatePersonGroup(), CreateWaitingGroup(), CreateBandsGroup()]
-        ));
+            )
+        );
     }
 
     private static ContainerComponent CreateArticleGroup()
-        => CreateGalleryItem("An article", new CardComponent()
-            .ConfigureDefaultHeader(header => header
-                .SetTitle("Server-driven UI")
-                .SetDescription("8 min read · Architecture")
-            )
-            // A paragraph rather than a text component: a card's body is prose, and text content keeps one line.
-            .SetContent(new ParagraphComponent()
-                .SetDescription("Views are authored in C#, compiled into a component graph on the server, and rendered to the browser as incremental DOM updates over SignalR.")
-                .SetDescriptionType(UITextAppearance.Body)
-            )
+        => DemoUI.CreateExample("An article",
+            new CardComponent()
+                .SetWidth(UILayoutLength.Absolute(340))
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Why Europe North runs on new disks")
+                    .SetDescription("6 min read · Infrastructure")
+                )
+                // A paragraph rather than a text component: a card's body is prose, and text content keeps one line.
+                .SetContent(new ParagraphComponent()
+                    .SetDescription("Stockholm opened in 2023 on new disks from the first day, so its databases read faster than any other region's, and the older regions now move over one server at a time.")
+                    .SetDescriptionType(UITextAppearance.Body)
+                )
         );
 
     private static ContainerComponent CreatePersonGroup()
-        => CreateGalleryItem("A person", new CardComponent()
-            .ConfigureDefaultHeader(header => header
-                .SetTitle("Robin Hale")
-                .SetDescription("Client runtime")
-                // The same Icon property carrying a picture, which with no size given fills the header's height.
-                .SetIcon(DemoImages.Avatar)
-                .SetBadgeText("Admin")
-            )
-            .SetContent(UILayout.Stack(8)
-                .AddChild(new TextComponent().SetIcon(DemoIcons.Mail).SetTitle("robin@example.com").SetTitleType(UITextAppearance.Caption))
-                .AddChild(new TextComponent().SetIcon(DemoIcons.Clock).SetTitle("UTC+2 · usually online 9-17").SetTitleType(UITextAppearance.Caption))
-            )
+        => DemoUI.CreateExample("A person",
+            new CardComponent()
+                .SetWidth(UILayoutLength.Absolute(340))
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Robin Hale")
+                    .SetDescription("Orvane Cloud staff")
+                    // The same Icon property carrying a picture, which with no size given fills the header's height.
+                    .SetIcon(DemoImages.Avatar)
+                    .SetBadgeText("Admin")
+                )
+                .SetContent(UILayout.Stack(8)
+                    .AddChild(new TextComponent().SetIcon(DemoIcons.Mail).SetTitle("robin@orvane.example").SetTitleType(UITextAppearance.Caption))
+                    .AddChild(new TextComponent().SetIcon(DemoIcons.Clock).SetTitle("UTC+2 · usually online 9-17").SetTitleType(UITextAppearance.Caption))
+                )
         );
 
     private static ContainerComponent CreateReadingGroup()
-        => CreateGalleryItem("A reading", new CardComponent()
-            .ConfigureDefaultHeader(header => header
-                .SetTitle("Deploys this week")
-                .SetBadgeText("+18%")
-                .SetBadgeStyle(UIBadgeType.Success)
-            )
-            .SetContent(new TextComponent()
-                .SetTitle("47")
-                .SetTitleType(UITextAppearance.Display)
-                .SetDescription("12 to production, 35 to staging")
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.Muted)
-            )
+        => DemoUI.CreateExample("A reading",
+            new CardComponent()
+                .SetWidth(UILayoutLength.Absolute(340))
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Deploys this week")
+                    .SetBadgeText("+18%")
+                    .SetBadgeStyle(UIBadgeType.Success)
+                )
+                .SetContent(new TextComponent()
+                    .SetTitle("47")
+                    .SetTitleType(UITextAppearance.Display)
+                    .SetDescription("12 to production, 35 to staging")
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetDescriptionColor(UIThemeColor.Muted)
+                )
         );
 
     private static ContainerComponent CreateWaitingGroup()
-        => CreateGalleryItem("Something waiting on you", new CardComponent()
-            .ConfigureDefaultHeader(header => header
-                .SetTitle("Web Portal · #482")
-                .SetDescription("Fix circular progress anti-aliasing")
-                .SetIcon(DemoIcons.Check)
-                .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Success))
-            )
-            .SetContent(new ParagraphComponent()
-                .SetDescription("All checks passed. Two approvals, no requested changes — ready to merge.")
-                .SetDescriptionType(UITextAppearance.Body)
-            )
-            // The footer is where what you can do about the card goes, as one row of answers.
-            .SetFooter(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(8)
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
-                    .SetSize(UIButtonSize.Small)
-                    .SetTitle("Merge")
+        => DemoUI.CreateExample("Something waiting on you",
+            new CardComponent()
+                .SetWidth(UILayoutLength.Absolute(340))
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Change request · CHG-482")
+                    .SetDescription("Resize db-us-east-2 to Dedicated")
+                    .SetIcon(DemoIcons.Check)
+                    .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Success))
                 )
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
-                    .SetTitle("View diff")
+                .SetContent(new ParagraphComponent()
+                    .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
+                    .SetDescriptionType(UITextAppearance.Body)
                 )
-            )
+                // The footer is where what you can do about the card goes, as one row of answers.
+                .SetFooter(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetSpacing(8)
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Primary)
+                        .SetSize(UIButtonSize.Small)
+                        .SetTitle("Approve")
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetTitle("View plan")
+                    )
+                )
         );
 
     private static ContainerComponent CreateControlGroup()
-        => CreateGalleryItem("A control that acts on the card", new CardComponent()
-            .ConfigureDefaultHeader(header => header
-                .SetTitle("Release 2.4")
-                .SetDescription("Scheduled for Friday")
-            )
-            // The header's own slot: what it does is close this card, not act on its content.
-            .SetHeaderAction(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetIcon(DemoIcons.Outline(DemoIcons.Close))
-                .SetTooltip("Dismiss")
-            )
-            .SetContent(new ParagraphComponent()
-                .SetDescription("The header keeps its own text on one line and the control takes only what it needs.")
-                .SetDescriptionType(UITextAppearance.Body)
-            )
+        => DemoUI.CreateExample("A control that acts on the card",
+            new CardComponent()
+                .SetWidth(UILayoutLength.Absolute(340))
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Release 483")
+                    .SetDescription("Scheduled for Friday")
+                )
+                // The header's own slot: what it does is close this card, not act on its content.
+                .SetHeaderAction(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Close))
+                    .SetTooltip("Dismiss")
+                )
+                .SetContent(new ParagraphComponent()
+                    .SetDescription("The header keeps its own text on one line and the control takes only what it needs.")
+                    .SetDescriptionType(UITextAppearance.Body)
+                )
         );
 
     private static ContainerComponent CreateBandsGroup()
-        => CreateGalleryItem("The bands that are not there", new CardComponent()
-            .SetHeaderAction(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetIcon(DemoIcons.Outline(DemoIcons.Close))
-                .SetTooltip("Dismiss")
-            )
-            .SetContent(new ParagraphComponent()
-                .SetDescription("No header text and no footer: a region is drawn only where there is something to draw, and a band that is nothing but a control keeps neither the rule nor the room a header would take.")
-                .SetDescriptionType(UITextAppearance.Body)
-            )
-        );
-
-    private static ContainerComponent CreateGalleryItem(string label, CardComponent card)
-    {
-        return DemoUI.CreateGroup(null, label,
-            content => content.AddChild(card
+        => DemoUI.CreateExample("The bands that are not there",
+            new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(340))
-                .SetPlacement(1, 1, 24, 1)
-            )
+                .SetHeaderAction(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Close))
+                    .SetTooltip("Dismiss")
+                )
+                .SetContent(new ParagraphComponent()
+                    .SetDescription("No header text and no footer: a region is drawn only where there is something to draw, and a band that is nothing but a control keeps neither the rule nor the room a header would take.")
+                    .SetDescriptionType(UITextAppearance.Body)
+                )
         );
-    }
 }

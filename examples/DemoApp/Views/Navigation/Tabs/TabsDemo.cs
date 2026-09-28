@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-
 namespace DemoApp.Views.Navigation.Tabs;
 
 /// <summary>The page a demo tab shows: a stack set off from the strip.</summary>

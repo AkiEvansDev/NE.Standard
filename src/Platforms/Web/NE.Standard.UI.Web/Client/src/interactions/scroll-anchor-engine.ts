@@ -1,9 +1,9 @@
-import { VisibilityAttribute } from "../addressing/dom-attributes";
+import { VisibilityAttribute, WindowMoreAfterAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 
 /** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
-export const ScrollAnchorAttribute = "data-ui-scroll-anchor";
-export const EndAnchor = "End";
+const ScrollAnchorAttribute = "data-ui-scroll-anchor";
+const EndAnchor = "End";
 
 // Slack rather than an exact comparison: fractional scroll positions and sub-pixel row heights fall short of it.
 const EndThreshold = 4;
@@ -41,7 +41,7 @@ export class ScrollAnchorEngine {
         if (!(container instanceof Element) || !isEndAnchored(container))
             return;
 
-        this.pinned.set(container, isAtEnd(container));
+        this.pinned.set(container, isAtEnd(container) && !holdsOlderWindow(container));
     }
 
     private followContent(): void {
@@ -53,6 +53,13 @@ export class ScrollAnchorEngine {
             if (this.pinned.get(container) === false)
                 continue;
 
+            // The end of a window that stops short of the source's end is a spacer: scrolling there would have the window engine
+            // swap the window the server opened on (a search hit) for the newest one.
+            if (holdsOlderWindow(container)) {
+                this.pinned.set(container, false);
+                continue;
+            }
+
             this.pinned.set(container, true);
 
             if (!isAtEnd(container))
@@ -63,6 +70,11 @@ export class ScrollAnchorEngine {
 
 export function isEndAnchored(container: Element): boolean {
     return container.getAttribute(ScrollAnchorAttribute) === EndAnchor;
+}
+
+/** Whether the container is a windowed host whose window has newer items after it, so its end is not the newest content. */
+function holdsOlderWindow(container: Element): boolean {
+    return container.getAttribute(WindowMoreAfterAttribute)?.toLowerCase() === "true";
 }
 
 export function isAtEnd(container: Element): boolean {

@@ -2,10 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Overlays;
 
@@ -14,7 +10,7 @@ namespace DemoApp.Controllers.Overlays;
 /// </summary>
 internal sealed partial class DeployGroupContext : DemoGroupContext
 {
-    private int _build = 481;
+    private int _release = 481;
 
     [RecursiveMember]
     public partial string Staging { get; set; } = "Staging: nothing deployed yet.";
@@ -22,11 +18,8 @@ internal sealed partial class DeployGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial string Production { get; set; } = "Production: nothing deployed yet.";
 
-    public int NextBuild()
-        => ++_build;
-
-    public void Report(string message)
-        => LogEvent(message);
+    public int NextRelease()
+        => ++_release;
 }
 
 /// <summary>
@@ -36,9 +29,6 @@ internal sealed partial class JobGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial string LastRun { get; set; } = "The migration has not run yet.";
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 /// <summary>
@@ -58,15 +48,6 @@ internal sealed partial class StackGroupContext : DemoGroupContext
 
         return _pushed;
     }
-
-    public void Report(string message)
-        => LogEvent(message);
-}
-
-internal sealed partial class WrapGroupContext : DemoGroupContext
-{
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 internal sealed partial class NotificationTestController() : DemoController
@@ -81,54 +62,54 @@ internal sealed partial class NotificationTestController() : DemoController
     public partial StackGroupContext StackGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial WrapGroupContext WrapGroup { get; set; } = new();
+    public partial DemoGroupContext WrapGroup { get; set; } = new();
 
     [UICommand]
     public UICommandResult DeployStaging()
     {
-        var build = DeployGroup.NextBuild();
+        var release = DeployGroup.NextRelease();
 
-        DeployGroup.Staging = $"Staging: build #{build}, deployed {DateTime.Now:HH:mm:ss}.";
-        DeployGroup.Report($"ShowNotification (Success) for #{build}");
+        DeployGroup.Staging = $"Staging: release #{release}, deployed {DateTime.Now:HH:mm:ss}.";
+        DeployGroup.LogEvent($"ShowNotification (Success) for #{release}");
 
-        return UICommandResult.Ok([new ShowNotificationEffect($"Build #{build} deployed to staging.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect($"Release #{release} deployed to staging.", UIColorStyle.Success)]);
     }
 
     /// <summary>
-    /// Production takes every other build: a warning while it is checked, and the failure named when the check comes back.
+    /// Production takes every other release: a warning while it is checked, and the failure named when the check comes back.
     /// </summary>
     [UICommand]
     public UICommandResult DeployProduction()
     {
-        var build = DeployGroup.NextBuild();
+        var release = DeployGroup.NextRelease();
 
-        if (build % 2 == 0)
+        if (release % 2 == 0)
         {
-            DeployGroup.Production = $"Production: build #{build}, deployed {DateTime.Now:HH:mm:ss}.";
-            DeployGroup.Report($"ShowNotification (Success) for #{build}");
+            DeployGroup.Production = $"Production: release #{release}, deployed {DateTime.Now:HH:mm:ss}.";
+            DeployGroup.LogEvent($"ShowNotification (Success) for #{release}");
 
-            return UICommandResult.Ok([new ShowNotificationEffect($"Build #{build} is live in production.", UIColorStyle.Success)]);
+            return UICommandResult.Ok([new ShowNotificationEffect($"Release #{release} is live in production.", UIColorStyle.Success)]);
         }
 
-        DeployGroup.Production = $"Production: build #{build} rolled back {DateTime.Now:HH:mm:ss} — the health check never went green.";
-        DeployGroup.Report($"ShowNotification (Warning, Danger) for #{build}");
+        DeployGroup.Production = $"Production: release #{release} rolled back {DateTime.Now:HH:mm:ss} — the health check never went green.";
+        DeployGroup.LogEvent($"ShowNotification (Warning, Danger) for #{release}");
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect($"Build #{build} is being health-checked.", UIColorStyle.Warning),
-            new ShowNotificationEffect($"Build #{build} rolled back: the health check never went green.", UIColorStyle.Danger)
+            new ShowNotificationEffect($"Release #{release} is being health-checked.", UIColorStyle.Warning),
+            new ShowNotificationEffect($"Release #{release} rolled back: the health check never went green.", UIColorStyle.Danger)
         ]);
     }
 
     [UICommand]
     public async Task<UICommandResult> RunMigrationAsync(CancellationToken cancellationToken)
     {
-        JobGroup.Report("running — nothing shows until the work is done");
+        JobGroup.LogEvent("running — nothing shows until the work is done");
 
         await Task.Delay(1800, cancellationToken).ConfigureAwait(false);
 
         JobGroup.LastRun = $"Last run {DateTime.Now:HH:mm:ss}: 12 tables migrated, nothing to roll back.";
-        JobGroup.Report("ShowNotification (Success) once the work was done");
+        JobGroup.LogEvent("ShowNotification (Success) once the work was done");
 
         return UICommandResult.Ok([new ShowNotificationEffect("The migration finished: 12 tables.", UIColorStyle.Success)]);
     }
@@ -139,12 +120,12 @@ internal sealed partial class NotificationTestController() : DemoController
     [UICommand]
     public UICommandResult NotifyThree()
     {
-        StackGroup.Report("three effects in one result");
+        StackGroup.LogEvent("three effects in one result");
 
         return UICommandResult.Ok(
         [
             new ShowNotificationEffect("Queued.", UIColorStyle.Info),
-            new ShowNotificationEffect("Built.", UIColorStyle.Primary),
+            new ShowNotificationEffect("Health-checked.", UIColorStyle.Primary),
             new ShowNotificationEffect("Deployed.", UIColorStyle.Success)
         ]);
     }
@@ -154,7 +135,7 @@ internal sealed partial class NotificationTestController() : DemoController
     {
         var pushed = StackGroup.Push();
 
-        StackGroup.Report($"pushed #{pushed}");
+        StackGroup.LogEvent($"pushed #{pushed}");
 
         return UICommandResult.Ok([new ShowNotificationEffect($"Pushed notification #{pushed}.", UIColorStyle.Accent)]);
     }
@@ -162,11 +143,11 @@ internal sealed partial class NotificationTestController() : DemoController
     [UICommand]
     public UICommandResult NotifyLong()
     {
-        WrapGroup.Report("a message that has to wrap");
+        WrapGroup.LogEvent("a message that has to wrap");
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect("The staging deploy was rolled back because the health check at https://staging.example.com/healthz answered 503 for ninety seconds, which is longer than the window the release gate allows.", UIColorStyle.Danger)
+            new ShowNotificationEffect("The staging deploy was rolled back because the health check at https://staging.orvane.example/healthz answered 503 for ninety seconds, which is longer than the window the release gate allows.", UIColorStyle.Danger)
         ]);
     }
 }

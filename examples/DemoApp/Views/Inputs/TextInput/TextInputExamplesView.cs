@@ -1,13 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.TextInput;
 
@@ -27,37 +18,30 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateServiceGroup(), CreateClipboardGroup()],
-            [CreateCredentialsGroup(), CreateGhostGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateServiceGroup(), CreateClipboardGroup()], [CreateCredentialsGroup(), CreateGhostGroup()]));
 
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSizesGroup()],
-            [CreateDenseGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateSizesGroup()], [CreateDenseGroup()]));
     }
 
     /// <summary>The three sizes a field says outright: the height, the side padding and the text step together.</summary>
     private static ContainerComponent CreateSizesGroup()
     {
-        return DemoUI.CreateGroup(null, "Sizes",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Sizes",
+            UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
                     .SetTitle("Small — a node, a status bar, a cell")
                     .SetSize(UIInputSize.Small)
-                    .SetValue("payments-api")
+                    .SetValue("billing")
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Medium — a form")
-                    .SetValue("payments-api")
+                    .SetValue("billing")
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Large — the field the page is about")
                     .SetSize(UIInputSize.Large)
-                    .SetValue("payments-api")
+                    .SetValue("billing")
                 )
-            )
         );
     }
 
@@ -67,27 +51,27 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateDenseGroup()
     {
-        return DemoUI.CreateGroup(null, "Caption inside the field",
-            content => content.AddChild(DemoUI.CreateStack(4)
+        return DemoUI.CreateExample("Caption inside the field",
+            UILayout.Stack(4)
                 .AddChild(new TextInputComponent()
                     .SetSize(UIInputSize.Small)
                     .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                    .SetTitle("Label")
-                    .SetValue("Area")
+                    .SetTitle("Server")
+                    .SetValue("db-us-east-2")
                 )
                 .AddChild(new NumberInputComponent()
                     .SetSize(UIInputSize.Small)
                     .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                    .SetTitle("Width")
-                    .SetSuffixText("px")
-                    .SetValue(640)
+                    .SetTitle("Disk")
+                    .SetSuffixText("GB")
+                    .SetValue(240)
                 )
                 .AddChild(new SelectComponent()
                     .SetSize(UIInputSize.Small)
                     .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                    .SetTitle("Operation")
-                    .SetOptions([new OptionItem { Id = "add", Title = "Add" }, new OptionItem { Id = "multiply", Title = "Multiply" }])
-                    .SetValue("multiply")
+                    .SetTitle("Role")
+                    .SetOptions([new OptionItem { Id = "api", Title = "api" }, new OptionItem { Id = "db", Title = "db" }])
+                    .SetValue("db")
                 )
                 .AddChild(new DateInputComponent()
                     .SetSize(UIInputSize.Small)
@@ -102,8 +86,8 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                 .AddChild(new SearchComponent()
                     .SetSize(UIInputSize.Small)
                     .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                    .SetTitle("Assignee")
-                    .SetPlaceholder("Search people")
+                    .SetTitle("Region")
+                    .SetPlaceholder("Search regions")
                 )
                 .AddChild(new ImageInputComponent()
                     .SetShape(UIImageInputShape.Inline)
@@ -112,31 +96,30 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetTitle("Icon")
                     .SetPlaceholder("None chosen")
                 )
-            )
         );
     }
 
     /// <summary>The ordinary form case: a label per field, one of them with a unit suffix.</summary>
     private static ContainerComponent CreateServiceGroup()
     {
-        // The last field carries both icon surfaces: the affixes are the field's, Icon belongs to the label.
-        return DemoUI.CreateGroup(null, "Service settings",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Service settings",
+            UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
                     .SetTitle("Service name")
-                    .SetValue("Payments API")
+                    .SetValue("Billing")
                     .SetShowClearButton()
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Health endpoint")
                     .SetValue("/healthz")
-                    .SetPrefixText("https://example.com")
+                    .SetPrefixText("https://orvane.example")
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Request timeout")
                     .SetValue("30")
                     .SetSuffixText("seconds")
                 )
+                // The last field carries both icon surfaces: the affixes are the field's, Icon belongs to the label.
                 .AddChild(new TextInputComponent()
                     .SetTitle("Search")
                     .SetIcon(DemoIcons.Filter)
@@ -145,7 +128,6 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue("deploy")
                     .SetShowClearButton()
                 )
-            )
         );
     }
 
@@ -155,15 +137,15 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// <remarks>Ghost, not a label with a pencil beside it — the box appears under the pointer, so nothing has to be found first.</remarks>
     private static ContainerComponent CreateGhostGroup()
     {
-        return DemoUI.CreateGroup(null, "Edited where it is read",
-            content => content.AddChild(new SurfaceComponent()
-                .SetContent(DemoUI.CreateStack(8)
-                    .AddChild(DemoUI.CreateCaption("The release's name"))
+        return DemoUI.CreateExample("Edited where it is read",
+            new SurfaceComponent()
+                .SetContent(UILayout.Stack(8)
+                    .AddChild(UIText.Label("The release's name"))
                     .AddChild(new TextInputComponent()
                         .SetAppearance(UIInputAppearance.Ghost)
                         .SetValue("Release 2.4")
                     )
-                    .AddChild(DemoUI.CreateCaption("A line the reviewer reads")
+                    .AddChild(UIText.Label("A line the reviewer reads")
                         .SetMargin(UIThickness.All(0, 8, 0, 0))
                     )
                     .AddChild(new TextInputComponent()
@@ -175,9 +157,7 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                         .SetAppearance(UIInputAppearance.Ghost)
                         .SetPlaceholder("Nothing written down yet")
                     )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                ),
             note: "The box appears under the pointer and on focus; empty, the placeholder is the only thing that says the line can be typed into."
         );
     }
@@ -187,13 +167,13 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateCredentialsGroup()
     {
-        return DemoUI.CreateGroup(null, "Typed fields",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Typed fields",
+            UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
                     .SetTitle("Owner email")
                     .SetType(UITextInputType.Email)
                     .SetIcon(DemoIcons.Send)
-                    .SetValue("platform@example.com")
+                    .SetValue("robin@orvane.example")
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Deploy token")
@@ -207,20 +187,19 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetTitle("Docs")
                     .SetType(UITextInputType.Url)
                     .SetIcon(DemoIcons.ExternalLink)
-                    .SetValue("https://example.com/docs")
+                    .SetValue("https://docs.orvane.example")
                 )
-            )
         );
     }
 
     /// <summary>A copy at the field's end needs no round trip: the effect reads the field as it is when the button is pressed.</summary>
     private static ContainerComponent CreateClipboardGroup()
     {
-        return DemoUI.CreateGroup(null, "Copied to the clipboard",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("Copied to the clipboard",
+            UILayout.Stack(12)
                 .AddChild(new TextInputComponent(SecretId)
                     .SetTitle("Webhook secret")
-                    .SetValue("whsec_9f3c1b7a4e2d")
+                    .SetValue("orv_whsec_9f3c1b7a4e2d")
                     // The field's own slot, so the button sits in the row rather than in a column beside it.
                     .SetTrailingAction(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
@@ -234,9 +213,8 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                     .SetTitle("Copy the install command")
-                    .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal("dotnet add package NE.Standard.UI"))
-                )
-            ),
+                    .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal("curl -fsSL https://docs.orvane.example/install.sh | sh"))
+                ),
             note: "The first takes what the field holds when pressed, the second a fixed line; neither makes a round trip."
         );
     }

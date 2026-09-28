@@ -25,7 +25,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
-    <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
+    <!-- Analyzers pass through to the application, so the engine's generator reaches a project that installs only this host. -->
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" PrivateAssets="contentfiles;build" />
     <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
     <ProjectReference Include="..\..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
@@ -46,12 +47,14 @@
     <WebClientBoot>$(WebClientDist)\ui-boot.js</WebClientBoot>
   </PropertyGroup>
 
-  <Target Name="BuildWebClientAssets" BeforeTargets="PrepareResources" Condition="'$(SkipWebClientBuild)' != 'true'">
-    <Exec
-      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
-      Command="npm install"
-      Condition="!Exists('$(MSBuildProjectDirectory)\Client\node_modules')" />
+  <!-- Installed again whenever the lockfile is newer than the install, not only when there is none: a dependency added
+       later (a linter, a bumped tool) would otherwise be missing from a clone that had restored before it. -->
+  <Target Name="RestoreWebClientPackages" Condition="'$(SkipWebClientBuild)' != 'true'" Inputs="$(MSBuildProjectDirectory)\Client\package-lock.json" Outputs="$(MSBuildProjectDirectory)\Client\node_modules\.package-lock.json">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\Client" Command="npm install" />
+    <Touch Files="$(MSBuildProjectDirectory)\Client\node_modules\.package-lock.json" AlwaysCreate="true" />
+  </Target>
 
+  <Target Name="BuildWebClientAssets" BeforeTargets="PrepareResources" DependsOnTargets="RestoreWebClientPackages" Condition="'$(SkipWebClientBuild)' != 'true'">
     <!-- The client's tests read the parity corpora under eng/, which is never mirrored, so they run here and
          not from `npm run build` - the same rule the .NET tests follow: a mirror builds, it does not test. -->
     <Exec

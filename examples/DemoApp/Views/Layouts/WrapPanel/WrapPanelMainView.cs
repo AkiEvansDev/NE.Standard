@@ -1,8 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.WrapPanel;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 
 namespace DemoApp.Views.Layouts.WrapPanel;
 

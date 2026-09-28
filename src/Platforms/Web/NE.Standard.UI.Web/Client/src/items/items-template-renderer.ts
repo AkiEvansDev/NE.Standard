@@ -49,7 +49,7 @@ export class ItemsTemplateRenderer {
         // The wrapper carries what a component's markup puts around an item but its template cannot.
         const itemsTemplate = this.metadata.getItemsTemplateMetadata(itemsViewComponentId);
         const root = itemsTemplate?.itemWrapperElementName
-            ? wrapItemContent(content, itemsTemplate.itemWrapperElementName, itemsTemplate.itemWrapperClassName ?? null)
+            ? wrapItemContent(content, itemsTemplate.itemWrapperElementName, itemsTemplate.itemWrapperClassName ?? null, itemsTemplate.itemWrapperRole ?? null)
             : content;
 
         // The scope moves to the wrapper rather than being copied: two entries on one chain would stack the item twice.
@@ -295,11 +295,15 @@ export function writeItemValuePath(item: unknown, path: readonly ItemValueStep[]
     return item;
 }
 
-function wrapItemContent(content: Element, elementName: string, className: string | null): Element {
+function wrapItemContent(content: Element, elementName: string, className: string | null, role: string | null): Element {
     const wrapper = document.createElement(elementName);
 
     if (className !== null)
         wrapper.className = className;
+
+    // The role the server writes on its own wrappers, so a row built here reads the same to assistive technology.
+    if (role !== null && role.length > 0)
+        wrapper.setAttribute("role", role);
 
     wrapper.appendChild(content);
 

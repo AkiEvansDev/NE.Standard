@@ -168,7 +168,7 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
 
         if (trimmed[0] == '@')
         {
-            if (!Enum.TryParse(trimmed.AsSpan(1), ignoreCase: false, out UIColorStyle style))
+            if (!TryParseMemberName(trimmed.AsSpan(1), out UIColorStyle style))
                 return false;
 
             color = FromStyle(style);
@@ -187,20 +187,36 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
         return TryParseVariant(trimmed, out color);
     }
 
+    /// <summary>
+    /// Reads a member by its name only: <see cref="Enum.TryParse{TEnum}(ReadOnlySpan{char}, bool, out TEnum)"/> alone also takes a
+    /// number or a comma list, which would let the wire store a role or a colour no member names.
+    /// </summary>
+    private static bool TryParseMemberName<TEnum>(ReadOnlySpan<char> text, out TEnum value)
+        where TEnum : struct, Enum
+    {
+        value = default;
+
+        return text.Length > 0
+            && char.IsAsciiLetter(text[0])
+            && !text.Contains(',')
+            && Enum.TryParse(text, ignoreCase: false, out value)
+            && Enum.IsDefined(value);
+    }
+
     private static bool TryParseVariant(string text, out UIThemeColor color)
     {
         color = default;
 
         var parts = text.Split('/');
 
-        if (!Enum.TryParse(parts[0], ignoreCase: false, out ColorName name))
+        if (!TryParseMemberName(parts[0], out ColorName name))
             return false;
 
         ColorAdjustment adjustment = ColorAdjustment.None;
         var factor = 0;
         byte opacity = 255;
 
-        if (parts.Length > 1 && !Enum.TryParse(parts[1], ignoreCase: false, out adjustment))
+        if (parts.Length > 1 && !TryParseMemberName(parts[1], out adjustment))
             return false;
 
         if (parts.Length > 2 && !int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out factor))
@@ -217,24 +233,19 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
     }
 
     /// <summary>
-    /// The canonical wire form <see cref="TryParse"/> reads; a colour that differs between light and dark themes travels as
-    /// its light variant, since the wire carries only one colour.
+    /// The canonical wire form <see cref="TryParse"/> reads: the explicit colour when there is one, as it wins over the role; a
+    /// colour that differs between light and dark themes travels as its light variant, since the wire carries only one colour.
     /// </summary>
     public string ToCanonical()
     {
-        if (Style is UIColorStyle style)
-            return $"@{style}";
+        if ((Light ?? Dark) is ColorVariant value)
+        {
+            return value.Rgb is not null
+                ? value.ToHex()
+                : string.Create(CultureInfo.InvariantCulture, $"{value.Name}/{value.Adjustment}/{value.Factor}/{value.Opacity}");
+        }
 
-        ColorVariant? variant = Light ?? Dark;
-
-        if (variant is null)
-            return string.Empty;
-
-        ColorVariant value = variant.Value;
-
-        return value.Rgb is not null
-            ? value.ToHex()
-            : string.Create(CultureInfo.InvariantCulture, $"{value.Name}/{value.Adjustment}/{value.Factor}/{value.Opacity}");
+        return Style is UIColorStyle style ? $"@{style}" : string.Empty;
     }
 
     public override string ToString()

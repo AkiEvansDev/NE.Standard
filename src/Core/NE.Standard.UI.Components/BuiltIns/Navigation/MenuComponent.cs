@@ -5,10 +5,12 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -24,10 +26,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent
+public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 2d;
+
+    // UIStrings.MenuSearch: the Shell's key, written out, as the components reference no Shell.
+    private const string SearchKey = "ui.menu.search";
+
+    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
 
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
     public const string HeaderTemplateKey = nameof(UIMenuItemKind.Header);
@@ -71,8 +78,59 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry, and has no sub-entries of its own.
     /// </summary>
     /// <remarks>Render-time only: a nested list is built as its entry's block.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool? Nested { get; private set; }
+
+    /// <summary>
+    /// Gets whether the menu carries a search beside its switch, which narrows the entries in the browser as it is typed into.
+    /// </summary>
+    /// <remarks>Render-time only: <see cref="SetSearch"/> puts the field in and turns this on.</remarks>
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = false)]
+    public bool? ShowSearch { get; private set; }
+
+    /// <inheritdoc/>
+    public IReadOnlyDictionary<string, IVisualComponent> Regions => _regions;
+
+    /// <inheritdoc/>
+    public bool HasRegions => _regions.Count > 0;
+
+    /// <summary>
+    /// Gets what the menu carries beside its switch.
+    /// </summary>
+    public IVisualComponent? ToggleContent => _regions.GetValueOrDefault(RegionNames.ToggleContent);
+
+    /// <summary>
+    /// Puts content beside the menu's switch, in one row with it — a title, a button of the menu's own — seen only while the menu is
+    /// open. <see cref="SetSearch"/> puts a search there.
+    /// </summary>
+    public T SetToggleContent(IVisualComponent content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        // Content of the author's own is no search: a field inside it must not start narrowing the entries.
+        ShowSearch = null;
+        _regions[RegionNames.ToggleContent] = content;
+        return Self;
+    }
+
+    /// <summary>
+    /// Puts a search beside the menu's switch: what is typed narrows the entries in the browser by the words they show — a group
+    /// stays, open, while one of its sub-entries matches, and a caption while an entry under it does.
+    /// </summary>
+    public T SetSearch(string? placeholder = null)
+    {
+        _ = SetToggleContent(new TextInputComponent()
+            .SetType(UITextInputType.Search)
+            .SetAppearance(UIInputAppearance.Underline)
+            .SetSize(UIInputSize.Small)
+            .SetPlaceholder(placeholder ?? SearchKey)
+            .SetPrefixIcon(UIGlyphs.Search)
+            .SetShowClearButton()
+        );
+
+        ShowSearch = true;
+        return Self;
+    }
 
     /// <summary>
     /// Initializes the menu with its default entry template, the caption/rule/check/select variants, and — unless it is itself an
@@ -111,6 +169,20 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         return Self;
     }
 
+    /// <summary>The nested menu an entry's sub-entries are shown through; null on a nested menu itself.</summary>
+    private MenuComponent? Submenu => GetTemplateVariant(SubmenuTemplateKey) as MenuComponent;
+
+    /// <summary>
+    /// The entry and check templates; captions and rules take no click, and a select's own click only opens its choices.
+    /// </summary>
+    private IEnumerable<IButtonComponent> ClickableTemplates()
+    {
+        yield return Template ?? throw new InvalidOperationException($"'{TypeKey}' has no item template.");
+
+        if (GetTemplateVariant(CheckTemplateKey) is IButtonComponent check)
+            yield return check;
+    }
+
     /// <summary>
     /// Registers a click command that passes the clicked item as an argument.
     /// </summary>
@@ -141,20 +213,6 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         _ = Submenu?.OnItemClick(command, arguments);
 
         return Self;
-    }
-
-    /// <summary>The nested menu an entry's sub-entries are shown through; null on a nested menu itself.</summary>
-    private MenuComponent? Submenu => GetTemplateVariant(SubmenuTemplateKey) as MenuComponent;
-
-    /// <summary>
-    /// The entry and check templates; captions and rules take no click, and a select's own click only opens its choices.
-    /// </summary>
-    private IEnumerable<IButtonComponent> ClickableTemplates()
-    {
-        yield return Template ?? throw new InvalidOperationException($"'{TypeKey}' has no item template.");
-
-        if (GetTemplateVariant(CheckTemplateKey) is IButtonComponent check)
-            yield return check;
     }
 }
 

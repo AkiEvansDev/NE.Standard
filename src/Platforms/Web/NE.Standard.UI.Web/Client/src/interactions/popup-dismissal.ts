@@ -1,5 +1,5 @@
 // Closing a popup from outside: a click outside or Escape, judged by composedPath so a re-render during the click can't lie.
-// Escape is one document listener over every dismissal, closing only the popup opened last.
+// Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest.
 
 export type PopupDismissReason = "outside" | "escape" | "blur";
 
@@ -19,7 +19,8 @@ export type PopupDismissalOptions = {
 
 const instances = new Set<PopupDismissal>();
 
-// The order popups were first seen open in, so Escape can tell the newest; a popup seen closed is forgotten and re-numbered when it reopens.
+// The order Escape first found popups open in, a tie-breaker between unrelated popups only: two opened between one Escape and the
+// next are numbered together, in the order their dismissals were built. A popup seen closed is forgotten and re-numbered when it reopens.
 const openOrder = new Map<HTMLElement, number>();
 let openSequence = 0;
 let escapeInstalled = false;
@@ -31,7 +32,8 @@ function installEscape(): void {
     escapeInstalled = true;
 
     document.addEventListener("keydown", domEvent => {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape")
+        // A key already taken — a drag cancelled by it — is not also a popup's.
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented)
             return;
 
         if (dismissNewest())
@@ -56,8 +58,11 @@ function dismissNewest(): boolean {
     const open: { instance: PopupDismissal; popup: HTMLElement }[] = [];
 
     for (const instance of instances) {
-        for (const popup of instance.openPopups())
-            open.push({ instance, popup });
+        for (const popup of instance.openPopups()) {
+            // One the page redrew away cannot be seen, so it cannot be what Escape is meant for.
+            if (popup.isConnected)
+                open.push({ instance, popup });
+        }
     }
 
     const seen = new Set(open.map(entry => entry.popup));
@@ -72,14 +77,32 @@ function dismissNewest(): boolean {
             openOrder.set(popup, ++openSequence);
     }
 
-    open.sort((left, right) => (openOrder.get(right.popup) ?? 0) - (openOrder.get(left.popup) ?? 0));
+    const ordered = orderForEscape(open, entry => openOrder.get(entry.popup) ?? 0, (outer, inner) => outer.popup.contains(inner.popup));
 
-    for (const { instance, popup } of open) {
+    for (const { instance, popup } of ordered) {
         if (instance.dismiss(popup, "escape"))
             return true;
     }
 
     return false;
+}
+
+/**
+ * The order Escape tries open popups in: a popup opened inside another (a select's list in a flyout) always before the one around
+ * it, since it can only have opened later; otherwise the newest first.
+ */
+export function orderForEscape<T>(entries: readonly T[], sequenceOf: (entry: T) => number, contains: (outer: T, inner: T) => boolean): T[] {
+    const remaining = [...entries].sort((left, right) => sequenceOf(right) - sequenceOf(left));
+    const ordered: T[] = [];
+
+    while (remaining.length > 0) {
+        // Containment is a tree, so some remaining popup always holds none of the others.
+        const index = remaining.findIndex(entry => !remaining.some(other => other !== entry && contains(entry, other)));
+
+        ordered.push(...remaining.splice(index, 1));
+    }
+
+    return ordered;
 }
 
 export class PopupDismissal {

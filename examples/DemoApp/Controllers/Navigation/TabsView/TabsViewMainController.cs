@@ -1,6 +1,5 @@
+using System.Linq;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Navigation.TabsView;
 
@@ -17,27 +16,27 @@ internal sealed partial class TabsViewMainController : DemoStandardController
     [
         new()
         {
-            Id = TabsViewGroupContext.ReadmeKey,
-            Title = "README.md",
+            Id = TabsViewGroupContext.IncidentKey,
+            Title = "incident-report.md",
             Icon = DemoIcons.Outline(DemoIcons.FileText),
             Order = 1,
-            Body = "A server-driven UI framework for .NET. The view is a component tree written in C#, the controller is an observable object graph, and the client never holds application state."
+            Body = "Slow API in Europe West. The disk of db-eu-west-1 ran full at 11:52, writes queued behind it, and the API answered in seconds rather than milliseconds until it was resized."
         },
         new()
         {
-            Id = TabsViewGroupContext.ProgramKey,
-            Title = "Program.cs",
+            Id = TabsViewGroupContext.HealthKey,
+            Title = "health-check.cs",
             Icon = DemoIcons.Outline(DemoIcons.File),
             Order = 2,
-            Body = "WebStartupBuilder.Configure<DemoAppWebStartup, DemoAppStartup>(builder.Services);\n\nawait app.MapStandardUIWebAsync();\nawait app.RunAsync();"
+            Body = "public HealthStatus Check(Server server)\n    => server.Disk.UsedPercent < 90\n        ? HealthStatus.Healthy\n        : HealthStatus.Degraded;"
         },
         new()
         {
-            Id = TabsViewGroupContext.SettingsKey,
-            Title = "appsettings.json",
+            Id = TabsViewGroupContext.ServerKey,
+            Title = "server.json",
             Icon = DemoIcons.Outline(DemoIcons.Settings),
             Order = 3,
-            Body = /*lang=json,strict*/ "{\n  \"Logging\": { \"LogLevel\": { \"Default\": \"Information\" } },\n  \"AllowedHosts\": \"*\"\n}"
+            Body = /*lang=json,strict*/ "{\n  \"plan\": \"standard\",\n  \"region\": \"eu-west\",\n  \"image\": \"orvane-base-2026.09\"\n}"
         }
     ];
 
@@ -51,6 +50,11 @@ internal sealed partial class TabsViewMainController : DemoStandardController
     {
         FirstTabGroup = new TabsViewItemGroupContext(Documents[0]);
     }
+
+    /// <summary>A tab's close or the tab menu's remove entry: reported, and the tab kept.</summary>
+    [UICommand]
+    public void RemoveDocument(string id)
+        => TabsViewGroup.ReportRemove(Documents.FirstOrDefault(document => document.Id == id)?.Title ?? id);
 
     [UICommand]
     public void CycleTabsViewGroupOption(string id)

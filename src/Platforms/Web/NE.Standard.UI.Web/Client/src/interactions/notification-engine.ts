@@ -5,6 +5,7 @@ const HostClass = "ui-notification-host";
 const NotificationClass = "ui-notification";
 const LeavingClass = "ui-notification--leaving";
 const MessageClass = "ui-notification__message";
+const ActionClass = "ui-notification__action";
 const CloseClass = "ui-notification__close";
 
 const DefaultDurationMs = 5000;
@@ -21,6 +22,15 @@ export type NotificationEngineOptions = {
 export type NotificationRequest = {
     readonly message: string;
     readonly severity?: unknown;
+    // Stays until the reader closes it: for a state that is still true after a moment, not an event that happened.
+    readonly sticky?: boolean;
+    readonly action?: NotificationAction;
+};
+
+/** A button beside the message that does the one thing the notice asks for. */
+type NotificationAction = {
+    readonly label: string;
+    readonly run: () => void;
 };
 
 export class NotificationEngine {
@@ -31,6 +41,10 @@ export class NotificationEngine {
     public constructor(options: NotificationEngineOptions = {}) {
         this.root = options.root ?? document;
         this.durationMs = options.durationMs ?? DefaultDurationMs;
+
+        // Up before the first toast: the host is the live region polite toasts are announced through, and a region inserted along
+        // with its words is not reliably read.
+        this.ensureHost();
     }
 
     public show(request: NotificationRequest): HTMLElement {
@@ -41,14 +55,19 @@ export class NotificationEngine {
             ? `${NotificationClass} ${NotificationClass}--${severity}`
             : NotificationClass;
 
-        // Only Danger interrupts a screen reader; anything else would talk over the user for a routine toast.
-        element.setAttribute("role", severity === "danger" ? "alert" : "status");
-        element.setAttribute("aria-live", severity === "danger" ? "assertive" : "polite");
+        // Only Danger interrupts a screen reader, as an alert, which is announced as it arrives; anything else is spoken politely by
+        // the host's live region.
+        if (severity === "danger")
+            element.setAttribute("role", "alert");
 
         const message = document.createElement("span");
 
         message.className = MessageClass;
         message.textContent = request.message;
+        element.append(message);
+
+        if (request.action !== undefined)
+            element.append(createAction(request.action));
 
         const close = document.createElement("button");
 
@@ -57,15 +76,45 @@ export class NotificationEngine {
         close.setAttribute("aria-label", clientStrings.text("ui.notification.close"));
         close.addEventListener("click", () => this.dismiss(element));
 
-        element.append(message, close);
+        element.append(close);
         this.ensureHost().append(element);
 
+        if (request.sticky === true)
+            return element;
+
+        // Auto-dismiss pauses while hovered or while the keyboard is on one of its buttons, so a toast cannot vanish out from under
+        // someone reading it, nor take the focus down with it.
+        let hovered = false;
+        let focused = false;
         let timer = window.setTimeout(() => this.dismiss(element), this.durationMs);
 
-        // Auto-dismiss pauses while hovered, so a toast cannot vanish out from under someone reading it.
-        element.addEventListener("mouseenter", () => window.clearTimeout(timer));
-        element.addEventListener("mouseleave", () => {
+        const pause = (): void => window.clearTimeout(timer);
+        const resume = (): void => {
+            if (hovered || focused)
+                return;
+
+            window.clearTimeout(timer);
             timer = window.setTimeout(() => this.dismiss(element), this.durationMs);
+        };
+
+        element.addEventListener("mouseenter", () => {
+            hovered = true;
+            pause();
+        });
+        element.addEventListener("mouseleave", () => {
+            hovered = false;
+            resume();
+        });
+        element.addEventListener("focusin", () => {
+            focused = true;
+            pause();
+        });
+        element.addEventListener("focusout", domEvent => {
+            if (domEvent.relatedTarget instanceof Node && element.contains(domEvent.relatedTarget))
+                return;
+
+            focused = false;
+            resume();
         });
 
         return element;
@@ -77,15 +126,7 @@ export class NotificationEngine {
 
         element.classList.add(LeavingClass);
 
-        window.setTimeout(() => {
-            element.remove();
-
-            // The host is built on demand and removed once empty, rather than sitting in the page permanently.
-            if (this.host !== null && this.host.childElementCount === 0) {
-                this.host.remove();
-                this.host = null;
-            }
-        }, LeaveDurationMs);
+        window.setTimeout(() => element.remove(), LeaveDurationMs);
     }
 
     private ensureHost(): HTMLElement {
@@ -95,17 +136,29 @@ export class NotificationEngine {
         const container = this.root instanceof Document ? this.root.body : this.root;
         const existing = container.querySelector<HTMLElement>(`.${HostClass}`);
 
-        if (existing !== null) {
-            this.host = existing;
-            return existing;
-        }
+        const host = existing ?? document.createElement("div");
 
-        const host = document.createElement("div");
+        host.classList.add(HostClass);
+        host.setAttribute("role", "status");
+        host.setAttribute("aria-live", "polite");
 
-        host.className = HostClass;
-        container.append(host);
+        // Kept after its last toast, empty and click-through, since it has to stand in the page before the next one's words arrive.
+        if (existing === null)
+            container.append(host);
+
         this.host = host;
 
         return host;
     }
+}
+
+function createAction(action: NotificationAction): HTMLButtonElement {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = `${ActionClass} ui-button ui-button--primary ui-button--small`;
+    button.textContent = action.label;
+    button.addEventListener("click", () => action.run());
+
+    return button;
 }

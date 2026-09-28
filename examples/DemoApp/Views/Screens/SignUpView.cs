@@ -1,28 +1,16 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Screens;
 
 /// <summary>
 /// The account form in the outline style: a card in the middle of the page, the rules a real sign-up has, and a switch
-/// that reveals the team part. Every rule but the taken address runs in the browser.
+/// that reveals the company part. Every rule but the taken address runs in the browser.
 /// </summary>
 internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
 {
     private const string FormId = "sign-up";
-    private const string TeamSwitchId = "sign-up-team";
+    private const string CompanySwitchId = "sign-up-company";
 
     public static string ViewKey => "demo.screens.sign-up";
 
@@ -38,7 +26,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1);
 
     private static CardComponent CreateForm()
-        => UIPage.Card("Start with the basics", "Free for a team of three. No card, no trial clock.", UILayout.Stack(16,
+        => UIPage.Card("Start with the basics", "Servers from €6 a month, in five regions. No card until the first one.", UILayout.Stack(16,
                 new TextInputComponent()
                     .SetTitle("Full name")
                     .SetAppearance(UIInputAppearance.Outline)
@@ -57,39 +45,43 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     .Required("An address is how you get in.", UIValidationTrigger.Submit)
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                 UIForm.Field(CreatePasswordField(), "Eight characters or more. A phrase beats a word."),
-                new SwitchComponent(TeamSwitchId)
-                    .SetTitle("I'm setting this up for a team")
-                    .SetDescription("Invite people and share a room from the first day.")
+                new SwitchComponent(CompanySwitchId)
+                    .SetTitle("I'm signing up for a company")
+                    .SetDescription("Invoices carry its name, and VAT goes by its country.")
                     .SetDescriptionColor(UIThemeColor.Muted)
-                    .BindValue(nameof(SignUpController.ForTeam)),
+                    .BindValue(nameof(SignUpController.ForCompany)),
                 // Revealed by the switch, in the browser: nothing here is required, so the fields can stay folded away.
                 UILayout.Stack(16,
                     new TextInputComponent()
-                        .SetTitle("Team name")
+                        .SetTitle("Company name")
                         .SetAppearance(UIInputAppearance.Outline)
-                        .SetPlaceholder("What the room is called")
+                        .SetPlaceholder("As it goes on the invoice")
                         .SetAutocomplete(UIAutocomplete.Organization)
                         .SetFormId(FormId)
-                        .BindValue(nameof(SignUpController.TeamName)),
+                        .BindValue(nameof(SignUpController.CompanyName)),
                     new SelectComponent()
-                        .SetTitle("Team size")
+                        .SetTitle("Country")
                         .SetAppearance(UIInputAppearance.Outline)
-                        .SetPlaceholder("How many of you")
+                        .SetPlaceholder("Where the company is registered")
                         .SetOptions(
                         [
-                            new OptionItem { Id = "2-5", Title = "2 to 5" },
-                            new OptionItem { Id = "6-20", Title = "6 to 20" },
-                            new OptionItem { Id = "21-100", Title = "21 to 100" },
-                            new OptionItem { Id = "100+", Title = "More than 100" }
+                            new OptionItem { Id = "de", Title = "Germany" },
+                            new OptionItem { Id = "fr", Title = "France" },
+                            new OptionItem { Id = "es", Title = "Spain" },
+                            new OptionItem { Id = "it", Title = "Italy" },
+                            new OptionItem { Id = "pl", Title = "Poland" },
+                            new OptionItem { Id = "nl", Title = "Netherlands" },
+                            new OptionItem { Id = "se", Title = "Sweden" },
+                            new OptionItem { Id = "pt", Title = "Portugal" }
                         ])
                         .SetFormId(FormId)
-                        .BindValue(nameof(SignUpController.TeamSize))
+                        .BindValue(nameof(SignUpController.Country))
                 )
-                .ShownWhen(TeamSwitchId),
+                .ShownWhen(CompanySwitchId),
                 // The links live in the description: a title is one line of plain words, a description takes inline marks.
                 new CheckboxComponent()
                     .SetTitle("I agree to the terms")
-                    .SetDescription("The [terms of service](https://example.com/terms) and the [privacy policy](https://example.com/privacy), a page each.")
+                    .SetDescription("The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each.")
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetFormId(FormId)
                     .BindValue(nameof(SignUpController.AcceptsTerms))
@@ -141,5 +133,6 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     // an interaction may run.
                     UIButtons.Primary("Open the inbox").OnClick(nameof(SignUpController.OpenInbox))
                 )
-            ));
+                )
+            );
 }

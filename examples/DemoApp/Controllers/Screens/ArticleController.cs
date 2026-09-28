@@ -1,9 +1,4 @@
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
+using System;
 
 namespace DemoApp.Controllers.Screens;
 
@@ -30,7 +25,14 @@ internal sealed partial class ArticleController : UIControllerBase
     {
         var email = SubscriberEmail?.Trim() ?? string.Empty;
 
-        if (email.EndsWith("@example.com", System.StringComparison.OrdinalIgnoreCase))
+        // The field's rule is the browser's feedback; the server keeps its own, since a submit can reach it without the form.
+        if (email.Length == 0)
+        {
+            SubscriberNotice = UIValidationMessage.Error("An address, so the note has somewhere to go.");
+            return UICommandResult.Ok();
+        }
+
+        if (email.EndsWith("@orvane.example", StringComparison.OrdinalIgnoreCase))
         {
             SubscriberNotice = UIValidationMessage.Error("That address is already on the list.");
             return UICommandResult.Ok();

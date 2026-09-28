@@ -19,21 +19,21 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// Gets or sets the step increment used when adjusting the value.
     /// </summary>
     /// <remarks>Render-time only: the picker builds its time columns from this once.</remarks>
-    [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateBinder = false, GenerateSetter = false)]
+    [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateSetter = false)]
     public UITemporalStep? Step { get; set; }
 
     /// <summary>
     /// Gets or sets the first day of the week used when rendering a calendar/picker.
     /// </summary>
     /// <remarks>Render-time only: the weekday header is ordered once at render.</remarks>
-    [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateBinder = false)]
+    [UIComponentProperty(DefaultValue = null, IsBindable = false)]
     public UIDayOfWeek? FirstDayOfWeek { get; set; }
 
     /// <summary>
     /// Gets or sets whether the control edits a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.
     /// </summary>
     /// <remarks>Render-time only: how many fields the row holds is how the control is built.</remarks>
-    [UIComponentProperty(DefaultValue = false, IsBindable = false, GenerateBinder = false)]
+    [UIComponentProperty(DefaultValue = false, IsBindable = false)]
     public bool? IsRange { get; set; }
 
     /// <summary>

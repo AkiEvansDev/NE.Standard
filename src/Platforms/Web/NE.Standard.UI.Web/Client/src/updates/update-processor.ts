@@ -1,9 +1,10 @@
-import { cssAttributeValue, CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
-import { DomRegistry, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
+import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
+import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
 import { ItemStackEntry } from "../items/binding-template-evaluator";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
 import { planRowRemoval } from "../interactions/row-cursor";
+import { SelectionRootSelector } from "../interactions/row-selection";
 import { resolveHostMode } from "../items/items-host-mode";
 import { syncItemsHost } from "../items/items-host-sync";
 import { renderItemRow } from "../items/items-row-renderer";
@@ -24,7 +25,7 @@ import {
     getIdValue,
     getUpdateKind
 } from "../metadata/metadata-index";
-import { logDebug, logWarn } from "../runtime/logger";
+import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
 import { PropertyStateStore } from "../state/property-state-store";
 import { areValuesEqual } from "../state/value-equality";
 import { CollectionSinkRegistry, toCollectionChange } from "./collection-sinks";
@@ -49,16 +50,33 @@ export class UpdateProcessor {
     ) {
     }
 
-    /** Records what every server-rendered row holds — from the render metadata and from the pending insert — before anything is applied. */
+    /**
+     * Records what every server-rendered row holds — from the render metadata and from the pending insert — before anything is
+     * applied. A row that already holds an item keeps it: on a re-attach it was drawn from that item, and the refill must see the
+     * difference to redraw it, where the snapshot's item recorded over it would read as unchanged.
+     */
     public registerServerRenderedItems(changeSet?: ServerChangeSet | null): void {
-        for (const host of this.dom.root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
-            const componentId = findOwningComponentId(host);
+        const rowsByHost = new Map<Element, Map<string, Element>>();
+        const rowsOf = (host: Element): Map<string, Element> => {
+            let rows = rowsByHost.get(host);
 
-            if (componentId === null)
+            if (rows === undefined) {
+                rows = indexItemElements(host);
+                rowsByHost.set(host, rows);
+            }
+
+            return rows;
+        };
+
+        // By the host's whole address: a list inside every row of another is one host per row, each with values of its own.
+        for (const host of this.dom.root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+            const owner = findOwningComponentAddress(host);
+
+            if (owner === null)
                 continue;
 
-            for (const value of this.metadata.getItemValues(componentId))
-                this.registerItemValue(host, value.key, value.item);
+            for (const value of this.metadata.getItemValues(owner.componentId, owner.dynamicParameters))
+                this.registerItemValue(rowsOf(host), value.key, value.item);
         }
 
         for (const update of changeSet?.updates ?? []) {
@@ -70,24 +88,35 @@ export class UpdateProcessor {
             if (getCollectionUpdateAction(insert.action) !== "Insert")
                 continue;
 
-            const host = this.findItemsHost(getIdValue(insert.component?.id), insert.component?.dynamicParameters ?? []);
+            for (const host of this.findItemsHosts(getIdValue(insert.component?.id), insert.component?.dynamicParameters ?? [])) {
+                const rows = rowsOf(host);
 
-            if (host === null)
-                continue;
-
-            for (const change of insert.items ?? [])
-                this.registerItemValue(host, change.key, change.item);
+                for (const change of insert.items ?? [])
+                    this.registerItemValue(rows, change.key, change.item);
+            }
         }
     }
 
-    private registerItemValue(host: Element, key: string | null | undefined, item: unknown): void {
+    private registerItemValue(rows: ReadonlyMap<string, Element>, key: string | null | undefined, item: unknown): void {
         if (key === null || key === undefined)
             return;
 
-        const element = findItemElement(host, key);
+        const element = rows.get(key) ?? null;
 
-        if (element !== null)
+        if (element !== null && this.readItemScope(element) === undefined)
             this.itemsRenderer.registerItemScope(element, resolveScopeComponentId(element), item);
+    }
+
+    /** The scope a rendered row records; a wrapped item records it on the child inside the key-carrying element. */
+    private readItemScope(element: Element): ItemStackEntry | undefined {
+        const own = this.itemsRenderer.getItemScope(element);
+
+        if (own !== undefined)
+            return own;
+
+        const child = element.firstElementChild;
+
+        return child === null ? undefined : this.itemsRenderer.getItemScope(child);
     }
 
     /** Runs the post-mutation sync once over server-rendered hosts, which never went through a change. */
@@ -118,19 +147,32 @@ export class UpdateProcessor {
         if (updates === undefined || updates.length === 0)
             return;
 
+        const started = isDebugEnabled() ? performance.now() : -1;
+
         for (let index = 0; index < updates.length; index++) {
             const update = updates[index];
-            const refill = readCollectionRefill(update, updates[index + 1]);
 
-            // A component that takes its collection through a sink has no rows to reconcile: the reset and the insert go to the sink.
-            if (refill === null || this.namesSink(refill)) {
-                this.applyUpdate(update);
-                continue;
+            // One update that throws is logged and passed over, so the rest of the set still reaches the page.
+            try {
+                const refill = readCollectionRefill(update, updates[index + 1]);
+
+                // A component that takes its collection through a sink has no rows to reconcile: the reset and the insert go to the sink.
+                if (refill === null || this.namesSink(refill)) {
+                    this.applyUpdate(update);
+                    continue;
+                }
+
+                // Before the refill: a refill that throws has still taken its insert, which must not then be applied alone.
+                index++;
+                this.applyCollectionRefill(refill);
             }
-
-            this.applyCollectionRefill(refill);
-            index++;
+            catch (error) {
+                logError("applying an update failed.", { update, error });
+            }
         }
+
+        if (started >= 0)
+            logElapsed(`applied ${updates.length} server update(s)`, started);
     }
 
     private namesSink(refill: CollectionRefill): boolean {
@@ -139,32 +181,33 @@ export class UpdateProcessor {
 
     /** Applies a reset-then-whole-collection pair by reconciling against the rows on screen, rather than rebuilding them. */
     private applyCollectionRefill(refill: CollectionRefill): void {
-        const host = this.findItemsHost(refill.componentId, refill.dynamicParameters);
+        const hosts = this.findItemsHosts(refill.componentId, refill.dynamicParameters);
 
-        if (host === null) {
+        if (hosts.length === 0) {
             logWarn("items host was not found for a collection refill.", refill.items);
             return;
         }
 
+        for (const host of hosts)
+            this.refillHost(host, refill);
+    }
+
+    private refillHost(host: Element, refill: CollectionRefill): void {
         // A virtualized host takes the values and draws what is in view itself.
         if (resolveHostMode(host) === "virtualized") {
-            this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
+            const redrawn = this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
+
+            this.state.forgetRows(refill.componentId, refill.dynamicParameters, redrawn);
             this.syncItemsHost(host, refill.componentId);
             this.dom.invalidate();
             return;
         }
 
         const ancestors = this.itemsRenderer.getAncestorStack(host);
-        const existing = new Map<string, Element>();
-
-        for (const element of getRealItemElements(host)) {
-            const key = element.getAttribute(ComponentKeyAttribute);
-
-            if (key !== null)
-                existing.set(key, element);
-        }
-
+        const existing = indexItemElements(host);
         const ordered: Element[] = [];
+        // A row redrawn or gone takes its recorded values with it, as a remove or a replace does.
+        const forgotten: string[] = [];
 
         for (const change of refill.items) {
             const key = change.key ?? null;
@@ -187,15 +230,21 @@ export class UpdateProcessor {
             const element = this.renderItemElement(refill.componentId, change.item, key, ancestors);
 
             // Taken out here: the leftovers below only see keys the new list did not claim, and this one was.
-            previous?.remove();
+            if (previous !== null) {
+                previous.remove();
+                forgotten.push(key);
+            }
 
             if (element !== null)
                 ordered.push(element);
         }
 
-        for (const leftover of existing.values())
+        for (const [key, leftover] of existing) {
             leftover.remove();
+            forgotten.push(key);
+        }
 
+        this.state.forgetRows(refill.componentId, refill.dynamicParameters, forgotten);
         placeItemsInOrder(host, ordered);
 
         this.syncItemsHost(host, refill.componentId);
@@ -301,9 +350,11 @@ export class UpdateProcessor {
             return;
         }
 
-        const host = this.findItemsHost(componentId, dynamicParameters);
+        this.forgetRowState(componentId, dynamicParameters, update);
 
-        if (host === null) {
+        const hosts = this.findItemsHosts(componentId, dynamicParameters);
+
+        if (hosts.length === 0) {
             // An empty reset with nowhere to land is nothing to show: a nested list rendered only when it has entries (a menu's
             // sub-entries) still gets its initial reset like any collection. Anything else addressed to a missing host is a fault.
             if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
@@ -312,6 +363,11 @@ export class UpdateProcessor {
             return;
         }
 
+        for (const host of hosts)
+            this.applyCollectionChangeToHost(host, componentId, update);
+    }
+
+    private applyCollectionChangeToHost(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
         if (resolveHostMode(host) === "virtualized") {
             this.applyVirtualizedCollectionChange(host, update);
             this.syncItemsHost(host, componentId);
@@ -345,6 +401,21 @@ export class UpdateProcessor {
 
         // Marked rather than rebuilt: the registry rebuilds on its next lookup, which is what lets the rest of this set address these rows.
         this.dom.invalidate();
+    }
+
+    /** The rows a change takes away take their recorded values with them; a replaced row is drawn afresh and starts afresh too. */
+    private forgetRowState(componentId: number, dynamicParameters: readonly unknown[], update: ServerCollectionChangeUIUpdate): void {
+        switch (getCollectionUpdateAction(update.action)) {
+            case "Remove":
+            case "Replace":
+                this.state.forgetRows(componentId, dynamicParameters, (update.items ?? []).map(change => change.oldKey ?? change.key).filter((key): key is string => typeof key === "string"));
+                break;
+            case "Reset":
+                this.state.forgetHost(componentId, dynamicParameters);
+                break;
+            default:
+                break;
+        }
     }
 
     /** The same five changes, applied to the values a virtualized host holds rather than to its children. */
@@ -383,31 +454,29 @@ export class UpdateProcessor {
         }
     }
 
-    /** The item a rendered row stands for; a wrapped item records its scope on the child inside the key-carrying element. */
+    /** The item a rendered row stands for. */
     private readItemValue(element: Element): unknown {
-        const own = this.itemsRenderer.getItemScope(element);
-
-        if (own !== undefined)
-            return own.item;
-
-        const child = element.firstElementChild;
-
-        return child === null ? undefined : this.itemsRenderer.getItemScope(child)?.item;
+        return this.readItemScope(element)?.item;
     }
 
     /** The component's own host — not the first one under it, which may be a nested component's (a select in a grid's filter row). */
-    private findItemsHost(componentId: number, dynamicParameters: readonly unknown[]): Element | null {
-        const root = this.dom.findComponent(componentId, dynamicParameters);
+    /**
+     * The items host of every instance a collection is addressed to: one, or — for a collection bound from the root inside an item
+     * template, which the server sends once with no row key — the host of each row's copy, as a value bound so reaches each.
+     */
+    private findItemsHosts(componentId: number, dynamicParameters: readonly unknown[]): Element[] {
+        const hosts: Element[] = [];
 
-        if (root === null)
-            return null;
-
-        for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
-            if (findOwningComponentId(host) === componentId)
-                return host;
+        for (const root of this.dom.findAllComponents(componentId, dynamicParameters)) {
+            for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+                if (findOwningComponentId(host) === componentId) {
+                    hosts.push(host);
+                    break;
+                }
+            }
         }
 
-        return null;
+        return hosts;
     }
 
     // Placed by source index, not child index: a sorted or grouped host's children are in another order, and the sync after restores it.
@@ -438,7 +507,9 @@ export class UpdateProcessor {
 
     private applyCollectionReplace(host: Element, componentId: number, items: readonly ServerCollectionItemChange[]): void {
         const ancestors = this.itemsRenderer.getAncestorStack(host);
-        const order = getSourceOrder(host, getRealItemElements(host));
+        const present = getRealItemElements(host);
+        const order = getSourceOrder(host, present);
+        const rows = indexItemElements(host, present);
 
         for (const change of items) {
             const key = change.key ?? null;
@@ -448,11 +519,14 @@ export class UpdateProcessor {
                 continue;
             }
 
-            const existing = findItemElement(host, change.oldKey ?? key);
+            const existing = rows.get(change.oldKey ?? key) ?? null;
             const element = this.renderItemElement(componentId, change.item, key, ancestors);
 
             if (element === null)
                 continue;
+
+            rows.delete(change.oldKey ?? key);
+            rows.set(key, element);
 
             if (existing !== null) {
                 replaceSourceItem(order, existing, element);
@@ -465,34 +539,56 @@ export class UpdateProcessor {
 }
 
 function applyCollectionRemove(host: Element, items: readonly ServerCollectionItemChange[]): void {
-    const order = getSourceOrder(host, getRealItemElements(host));
+    const present = getRealItemElements(host);
+    const order = getSourceOrder(host, present);
+    const byKey = indexItemElements(host, present);
 
-    // The host's parent is the row-cursor's root in every host with rows (items view, table, tree): rows are its direct children.
-    const root = host.parentElement;
-    let rows = root === null ? [] : getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement);
+    const root = rowCursorRoot(host);
+    const rows = root === null ? [] : present.filter((row): row is HTMLElement => row instanceof HTMLElement);
 
     for (const change of items) {
-        const element = change.key === null || change.key === undefined ? null : findItemElement(host, change.key);
+        const key = change.key ?? null;
+        const element = key === null ? null : byKey.get(key) ?? null;
 
-        if (element === null) {
+        if (key === null || element === null) {
             logWarn("collection remove did not resolve an item.", change);
             continue;
         }
 
         const restoreCursor = root !== null && element instanceof HTMLElement ? planRowRemoval(root, rows, element) : null;
 
+        byKey.delete(key);
         removeSourceItem(order, element);
         element.remove();
-        rows = rows.filter(row => row !== element);
+
+        // Spliced in place, not filtered into a new list: a remove of many rows stays linear in the rows it removes.
+        const at = rows.indexOf(element as HTMLElement);
+
+        if (at >= 0)
+            rows.splice(at, 1);
+
         restoreCursor?.();
     }
 }
 
+/**
+ * The element that holds a host's focus and names its cursor row: the items view or the tree around the host, the table past its
+ * scroll box; any other host's parent.
+ */
+function rowCursorRoot(host: Element): HTMLElement | null {
+    const parent = host.parentElement;
+    const owner = parent?.closest<HTMLElement>(SelectionRootSelector) ?? null;
+
+    return owner !== null && (owner === parent || owner === parent?.parentElement) ? owner : parent;
+}
+
 function applyCollectionMove(host: Element, moves: readonly ServerCollectionMoveChange[]): void {
-    const order = getSourceOrder(host, getRealItemElements(host));
+    const present = getRealItemElements(host);
+    const order = getSourceOrder(host, present);
+    const byKey = indexItemElements(host, present);
 
     for (const move of moves) {
-        const element = move.key === null || move.key === undefined ? null : findItemElement(host, move.key);
+        const element = move.key === null || move.key === undefined ? null : byKey.get(move.key) ?? null;
 
         if (element === null) {
             logWarn("collection move did not resolve an item.", move);
@@ -560,6 +656,16 @@ function resolveScopeComponentId(element: Element): number {
     return child === null ? 0 : readComponentId(child);
 }
 
-function findItemElement(host: Element, key: string): Element | null {
-    return host.querySelector<Element>(`:scope > [${ComponentKeyAttribute}="${cssAttributeValue(key)}"]`);
+/** The host's rows by key, read once: a lookup per key by selector walks the host's subtree, which is quadratic over a list. */
+function indexItemElements(host: Element, present: readonly Element[] = getRealItemElements(host)): Map<string, Element> {
+    const rows = new Map<string, Element>();
+
+    for (const element of present) {
+        const key = element.getAttribute(ComponentKeyAttribute);
+
+        if (key !== null && !rows.has(key))
+            rows.set(key, element);
+    }
+
+    return rows;
 }

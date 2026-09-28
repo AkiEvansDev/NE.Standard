@@ -18,13 +18,13 @@ import type {
 import type { PropertyStateStore } from "../state/property-state-store";
 
 /** One term of the viewer's query, the shape `UIItemFilterTerm` travels in. */
-export type ItemsQueryFilter = {
+type ItemsQueryFilter = {
     readonly itemProperty: string;
     readonly operator: WebInteractionOperator;
     readonly value?: unknown;
 };
 
-export type ItemsQuerySort = {
+type ItemsQuerySort = {
     readonly itemProperty: string;
     readonly direction: WebRenderItemsSortMetadata["direction"];
 };
@@ -58,8 +58,13 @@ export function applyItemFilters(host: Element, componentId: number, metadata: M
     const config = metadata.getItemsFilterSortMetadata(componentId);
     const query = readItemsQuery(host);
 
-    if (config === undefined && query === null)
+    // Nothing filters: every item shows, which un-hides the ones a query just emptied had hidden.
+    if (config === undefined && query === null) {
+        for (const item of getRealItemElements(host))
+            item.classList.remove(HiddenClass);
+
         return;
+    }
 
     for (const item of getRealItemElements(host)) {
         const itemValue = itemsRenderer.getItemValue(item);
@@ -136,25 +141,45 @@ function isRuleActive(
     return evaluateOperator(state.get(source, []), activeOperator, activeValue);
 }
 
-/** One item property against another: numeric where both sides read as numbers, else by locale-aware text; null/undefined sort first. */
+/**
+ * One item property against another, as one order over every value a column can hold: nothing first (null, undefined, blank
+ * text), then everything that reads as a number, by value, then the rest by locale-aware text. Deciding number or text per pair
+ * instead made "2" < "10" < "1a" < "2", an order no sort can keep.
+ */
 export function compareValues(left: unknown, right: unknown): number {
     if (left === right)
         return 0;
 
-    if (left === null || left === undefined)
-        return -1;
+    const leftRank = rankOf(left);
+    const rightRank = rankOf(right);
 
-    if (right === null || right === undefined)
-        return 1;
+    if (leftRank !== rightRank)
+        return leftRank - rightRank;
 
-    if (typeof left === "number" && typeof right === "number")
-        return left - right;
+    if (leftRank === ValueRank.Nothing)
+        return 0;
 
-    const leftNumber = Number(left);
-    const rightNumber = Number(right);
+    if (leftRank === ValueRank.Number) {
+        const difference = Number(left) - Number(right);
 
-    if (!Number.isNaN(leftNumber) && !Number.isNaN(rightNumber))
-        return leftNumber - rightNumber;
+        return Number.isNaN(difference) ? 0 : Math.sign(difference);
+    }
 
     return String(left).localeCompare(String(right));
+}
+
+// Plain numbers rather than an enum: `node --test` strips types and cannot compile one.
+const ValueRank = { Nothing: 0, Number: 1, Text: 2 } as const;
+
+function rankOf(value: unknown): number {
+    if (value === null || value === undefined)
+        return ValueRank.Nothing;
+
+    if (typeof value === "number")
+        return Number.isNaN(value) ? ValueRank.Nothing : ValueRank.Number;
+
+    if (typeof value === "string" && value.trim().length === 0)
+        return ValueRank.Nothing;
+
+    return Number.isNaN(Number(value)) ? ValueRank.Text : ValueRank.Number;
 }

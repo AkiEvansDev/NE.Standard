@@ -64,15 +64,7 @@ public sealed class UIComponentGraph
 
                 ValidateSlot(node, slot);
 
-                ComponentSlotKindKey kindKey = new(node.ComponentId, slot.Kind);
-
-                if (!slotsByKindBuilder.TryGetValue(kindKey, out List<UIComponentSlot>? kindSlots))
-                {
-                    kindSlots = [];
-                    slotsByKindBuilder.Add(kindKey, kindSlots);
-                }
-
-                kindSlots.Add(slot);
+                GroupingIndex.Add(slotsByKindBuilder, new ComponentSlotKindKey(node.ComponentId, slot.Kind), slot);
 
                 if (slot.Kind != UIComponentSlotKind.Child)
                 {
@@ -84,16 +76,11 @@ public sealed class UIComponentGraph
             }
         }
 
-        Dictionary<ComponentSlotKindKey, UIComponentSlot[]> frozenSlotsByKindSource = new(slotsByKindBuilder.Count);
-
-        foreach (KeyValuePair<ComponentSlotKindKey, List<UIComponentSlot>> pair in slotsByKindBuilder)
-            frozenSlotsByKindSource.Add(pair.Key, [.. pair.Value]);
-
         for (var i = 0; i < nodes.Length; i++)
             ValidateNodeReferences(nodes[i], nodeBuilder);
 
         _nodes = nodeBuilder.ToFrozenDictionary();
-        _slotsByKind = frozenSlotsByKindSource.ToFrozenDictionary();
+        _slotsByKind = GroupingIndex.Freeze(slotsByKindBuilder);
         _slotsByExactKey = slotsByExactKeyBuilder.ToFrozenDictionary();
         _componentIdsByAuthoringId = idsByAuthoringId.ToFrozenDictionary(StringComparer.Ordinal);
     }

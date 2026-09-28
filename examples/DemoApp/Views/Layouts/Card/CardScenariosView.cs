@@ -1,17 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Layouts.Card;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Card;
 
@@ -36,12 +25,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
     protected override string HeaderDescription => "demo.layouts.card.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateClickGroup(), CreateSelectionGroup()],
-            [CreateHoverGroup(), CreateRefreshGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateClickGroup(), CreateSelectionGroup()], [CreateHoverGroup(), CreateRefreshGroup()]));
 
     /// <summary>
     /// Hover interactions write <c>Visible</c> on a panel the pointer is not over, entirely on the client.
@@ -55,11 +39,11 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))
                     .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Success))
-                    .SetTitle("Web Portal · #482")
-                    .SetDescription("Fix circular progress anti-aliasing")
+                    .SetTitle("Change request · CHG-482")
+                    .SetDescription("Resize db-us-east-2 to Dedicated")
                 )
                 .SetContent(new ParagraphComponent()
-                    .SetDescription("All checks passed. Two approvals, no requested changes.")
+                    .SetDescription("Plan checked and the maintenance window booked.")
                     .SetDescriptionType(UITextAppearance.Body)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
@@ -70,7 +54,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.Muted)
                         .SetVerticalAlignment(UIAlignment.Center)
-                        .SetPlacement(1, 1, 12, 1)
+                        .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
                     )
                     // Written on the panel: the id names the watched component, the property lands on this one.
                     .AddChild(new StackPanelComponent()
@@ -79,20 +63,21 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                         .InteractOnHoverStart(HoverCardId, IVisualComponent.VisibilityProperty, UIVisibility.Visible)
                         .InteractOnHoverEnd(HoverCardId, IVisualComponent.VisibilityProperty, UIVisibility.Hidden)
                         .SetOrientation(UIOrientation.Horizontal)
+                        .SetWrap(true)
                         .SetSpacing(4)
                         .SetHorizontalAlignment(UIAlignment.End)
-                        .SetPlacement(13, 1, 12, 1)
+                        .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(13, 1, 12, 1))
                         .AddChild(new ButtonComponent()
-                            .OnClick(nameof(CardScenariosController.ViewDiff))
+                            .OnClick(nameof(CardScenariosController.ViewPlan))
                             .SetType(UIButtonType.Ghost)
                             .SetSize(UIButtonSize.Small)
-                            .SetTitle("View diff")
+                            .SetTitle("View plan")
                         )
                         .AddChild(new ButtonComponent()
-                            .OnClick(nameof(CardScenariosController.MergeRequest))
+                            .OnClick(nameof(CardScenariosController.ApproveChange))
                             .SetType(UIButtonType.Primary)
                             .SetSize(UIButtonSize.Small)
-                            .SetTitle("Merge")
+                            .SetTitle("Approve")
                         )
                     )
                 )
@@ -118,7 +103,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                     .OnItemClick(nameof(CardScenariosController.RecordMenuClick))
                 )
                 .ConfigureDefaultHeader(header => header
-                    .SetTitle("Web Portal · #482")
+                    .SetTitle("Change request · CHG-482")
                     .SetDescription("Click the card, the button, or right-click either")
                 )
                 .SetContent(UILayout.Stack(10)
@@ -154,21 +139,24 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                     DemoIcons.Upload,
                     "Deploy now",
                     "Straight to production, no gate."
-                ))
+                    )
+                )
                 .AddChild(CreateChoice(
                     CardSelectionGroupContext.ScheduleId,
                     nameof(CardSelectionGroupContext.ScheduleSurface),
                     DemoIcons.Clock,
                     "Schedule it",
                     "Runs at the next release window."
-                ))
+                    )
+                )
                 .AddChild(CreateChoice(
                     CardSelectionGroupContext.StageId,
                     nameof(CardSelectionGroupContext.StageSurface),
                     DemoIcons.Shield,
                     "Stage only",
                     "Stops after staging, waits for approval."
-                ))
+                    )
+                )
                 .SetPlacement(1, 1, 24, 1)
             ),
             note: "Three cards and one command, told apart by the literal each card carries — the shape a list of rows uses, written by hand because three cards are not a collection."

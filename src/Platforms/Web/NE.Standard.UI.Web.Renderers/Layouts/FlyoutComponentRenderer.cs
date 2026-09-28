@@ -17,7 +17,7 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
 {
     public override string ComponentTypeKey => FlyoutComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-flyout";
+    protected override string ClassName => FlyoutRenderer.ClassName;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -50,27 +50,9 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
         }, [WebDomOperation.ToggleAttribute(WebAttributes.FlyoutNoEscapeClose, condition: WebValueCondition.IsFalse)]);
 
         if (HasRegion(context, RegionNames.Anchor))
-        {
-            _ = root.Element("div", anchor =>
-            {
-                _ = anchor.Class("ui-flyout__anchor");
-
-                RenderRegion(context, anchor, RegionNames.Anchor);
-            });
-        }
+            FlyoutRenderer.RenderAnchor(root, anchor => RenderRegion(context, anchor, RegionNames.Anchor));
 
         if (HasRegion(context, RegionNames.Content))
-        {
-            _ = root.Element("div", content =>
-            {
-                _ = content.Class("ui-flyout__content");
-                _ = content.Attribute("role", "dialog");
-
-                // Focusable without being a tab stop, so an opened flyout has somewhere to put focus.
-                _ = content.Attribute("tabindex", "-1");
-
-                RenderRegion(context, content, RegionNames.Content);
-            });
-        }
+            FlyoutRenderer.RenderContent(root, content => RenderRegion(context, content, RegionNames.Content));
     }
 }

@@ -85,6 +85,12 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // The count comes from the client: a source is asked for no more than its window may hold, whatever a request carries.
+        var limit = Math.Max(1, MaxWindowSize);
+
+        if (request.Count > limit)
+            request = new UIItemWindowRequest(request.Anchor, limit, request.Mode, request.Query);
+
         UIItemWindow<TItem> window = await GetWindowAsync(request, cancellationToken).ConfigureAwait(false);
 
         ArgumentNullException.ThrowIfNull(window);
@@ -99,7 +105,8 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
             return;
         }
 
-        // Clear then add: a non-extending read is treated as a fresh window rather than diffed against the old one.
+        // Clear then add: a non-extending read is treated as a fresh window rather than diffed against the old one. It holds
+        // no more than the clamped count, which is within the limit.
         Items.Clear();
         Items.AddRange(window.Items);
 
@@ -110,7 +117,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     }
 
     /// <summary>
-    /// Gets the most items the window may hold before an extending read trims its far side.
+    /// Gets the most items the window may hold: a read asks for no more, and an extending read trims its far side back to it.
     /// </summary>
     protected virtual int MaxWindowSize => 200;
 
@@ -135,8 +142,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         {
             if (before)
             {
-                for (var i = fresh.Count - 1; i >= 0; i--)
-                    Items.Insert(0, fresh[i]);
+                Items.InsertRange(0, fresh);
 
                 if (Offset is int offset)
                     Offset = Math.Max(0, offset - fresh.Count);
@@ -154,27 +160,31 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         else
             HasMoreAfter = window.HasMoreAfter;
 
-        TrimWindow(before);
+        // The far side from the way the viewer travels, and never into the rows just read: the count is within the limit.
+        TrimWindow(fromTheEnd: before);
     }
 
+    /// <summary>Trims the window back to its limit in one removal, from the end or the start.</summary>
     private void TrimWindow(bool fromTheEnd)
     {
-        while (Items.Count > MaxWindowSize)
-        {
-            if (fromTheEnd)
-            {
-                Items.RemoveAt(Items.Count - 1);
-                HasMoreAfter = true;
-            }
-            else
-            {
-                Items.RemoveAt(0);
-                HasMoreBefore = true;
+        var excess = Items.Count - Math.Max(1, MaxWindowSize);
 
-                // The window starts one item later; an offset left behind would misplace the next read.
-                if (Offset is int offset)
-                    Offset = offset + 1;
-            }
+        if (excess <= 0)
+            return;
+
+        if (fromTheEnd)
+        {
+            Items.RemoveRange(Items.Count - excess, excess);
+            HasMoreAfter = true;
+        }
+        else
+        {
+            Items.RemoveRange(0, excess);
+            HasMoreBefore = true;
+
+            // The window starts that many items later; an offset left behind would misplace the next read.
+            if (Offset is int offset)
+                Offset = offset + excess;
         }
     }
 

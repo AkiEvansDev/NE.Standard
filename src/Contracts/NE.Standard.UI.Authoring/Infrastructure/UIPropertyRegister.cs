@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
@@ -20,17 +22,42 @@ public static class UIPropertyRegister
     private static readonly Lock Sync = new();
     private static readonly Dictionary<string, Dictionary<UIProperty, UIPropertyDefinition>> Registrations = [];
 
+    // The component types whose hierarchy has been walked; apart from Sync, since a static constructor it runs registers under it.
+    private static readonly ConcurrentDictionary<Type, bool> RegisteredTypes = new();
+
+    /// <summary>
+    /// Runs every static constructor of a component type's hierarchy, base type first, so that every level's properties are
+    /// registered before any is read; once per type.
+    /// </summary>
+    public static void EnsureRegistered(Type componentType)
+    {
+        ArgumentNullException.ThrowIfNull(componentType);
+
+        if (RegisteredTypes.ContainsKey(componentType))
+            return;
+
+        List<Type> hierarchy = [];
+
+        for (Type? current = componentType; current is not null && current != typeof(object); current = current.BaseType)
+            hierarchy.Add(current);
+
+        for (var i = hierarchy.Count - 1; i >= 0; i--)
+            RuntimeHelpers.RunClassConstructor(hierarchy[i].TypeHandle);
+
+        _ = RegisteredTypes.TryAdd(componentType, true);
+    }
+
     /// <summary>
     /// Creates and registers a property definition by property name.
     /// </summary>
-    public static UIPropertyDefinition Create<TComponent, TValue>(string property, bool isBindable = true, UIBindingCapabilities bindingCapabilities = UIBindingCapabilities.SourceToTarget, object? defaultValue = null)
+    public static UIPropertyDefinition Create<TComponent, TValue>(string property, bool isBindable = true, UIBindingCapabilities bindingCapabilities = UIBindingCapabilities.SourceToTarget, object? defaultValue = null, UIBindingMode defaultBindingMode = UIBindingMode.OneWay)
         where TComponent : IBindableComponent, IUIComponentDefinition
-        => Create<TComponent, TValue>(new UIProperty(property), isBindable, bindingCapabilities, defaultValue);
+        => Create<TComponent, TValue>(new UIProperty(property), isBindable, bindingCapabilities, defaultValue, defaultBindingMode);
 
     /// <summary>
     /// Creates and registers a property definition.
     /// </summary>
-    public static UIPropertyDefinition Create<TComponent, TValue>(UIProperty property, bool isBindable = true, UIBindingCapabilities bindingCapabilities = UIBindingCapabilities.SourceToTarget, object? defaultValue = null)
+    public static UIPropertyDefinition Create<TComponent, TValue>(UIProperty property, bool isBindable = true, UIBindingCapabilities bindingCapabilities = UIBindingCapabilities.SourceToTarget, object? defaultValue = null, UIBindingMode defaultBindingMode = UIBindingMode.OneWay)
         where TComponent : IBindableComponent, IUIComponentDefinition
     {
         PropertyInfo propertyInfo = typeof(TComponent).GetProperty(property.Name, BindingFlags.Instance | BindingFlags.Public)
@@ -58,6 +85,7 @@ public static class UIPropertyRegister
             ValueType = typeof(TValue),
             IsBindable = isBindable,
             BindingCapabilities = bindingCapabilities,
+            DefaultBindingMode = defaultBindingMode,
             DefaultValue = defaultValue,
             IsNullable = IsNullableType(typeof(TValue)),
             IsTranslatable = IsTranslatableProperty(propertyInfo),

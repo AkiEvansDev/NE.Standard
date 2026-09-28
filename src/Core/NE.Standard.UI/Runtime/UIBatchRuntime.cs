@@ -1,13 +1,10 @@
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Controllers;
 using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
-internal sealed class UIBatchRuntime(UIHandle handle, CompiledView view, IUIController controller, UIApplication application) : UIRuntimeBase(handle, view, controller, application)
-{
-    protected override ServerChangeSet DrainPendingUpdatesForRuntimeModeNoLock(bool force)
-        => force ? DrainPendingUpdatesNoLock() : ServerChangeSet.Empty;
-}
+/// <summary>A runtime whose queued changes wait for the scheduled flush, which sends them to every attached instance.</summary>
+internal sealed class UIBatchRuntime(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application) : UIRuntimeBase(handle, view, controller, clientServices, application);

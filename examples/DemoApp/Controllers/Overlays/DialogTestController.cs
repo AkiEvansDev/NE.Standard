@@ -4,27 +4,20 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Overlays;
 
 /// <summary>
-/// Builds the page lists, and a dialog that asks before one of them goes: the list is what changes.
+/// Releases the page lists, and a dialog that asks before one of them goes: the list is what changes.
 /// </summary>
 internal sealed partial class ConfirmGroupContext : DemoGroupContext
 {
-    private static readonly int[] AllBuilds = [479, 480, 481];
+    private static readonly int[] AllReleases = [479, 480, 481];
 
-    private readonly List<int> _builds = [.. AllBuilds];
+    private readonly List<int> _releases = [.. AllReleases];
 
     [RecursiveMember]
-    public partial string Builds { get; set; } = string.Empty;
+    public partial string Releases { get; set; } = string.Empty;
 
     [RecursiveMember]
     public partial string Question { get; set; } = string.Empty;
@@ -34,18 +27,18 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
         Describe();
     }
 
-    public bool HasBuilds => _builds.Count > 0;
+    public bool HasReleases => _releases.Count > 0;
 
     public void Ask()
-        => Question = $"Build #{_builds[^1]} and its artifacts go for good. The deploys that used it keep their logs.";
+        => Question = $"Release #{_releases[^1]} and its image go for good. The deploys that used it keep their logs.";
 
     public void Delete()
     {
-        var build = _builds[^1];
+        var release = _releases[^1];
 
-        _builds.RemoveAt(_builds.Count - 1);
+        _releases.RemoveAt(_releases.Count - 1);
         Describe();
-        LogEvent($"deleted #{build}");
+        LogEvent($"deleted #{release}");
     }
 
     public void Keep()
@@ -53,16 +46,16 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
 
     public void Restore()
     {
-        _builds.Clear();
-        _builds.AddRange(AllBuilds);
+        _releases.Clear();
+        _releases.AddRange(AllReleases);
         Describe();
         LogEvent("all three are back");
     }
 
     private void Describe()
-        => Builds = _builds.Count == 0
-            ? "No builds left."
-            : $"{_builds.Count} build{(_builds.Count == 1 ? "" : "s")} kept: {string.Join(", ", _builds.Select(build => $"#{build}"))}";
+        => Releases = _releases.Count == 0
+            ? "No releases left."
+            : $"{_releases.Count} release{(_releases.Count == 1 ? "" : "s")} kept: {string.Join(", ", _releases.Select(release => $"#{release}"))}";
 }
 
 /// <summary>
@@ -71,10 +64,10 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
 internal sealed partial class EditGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string Name { get; set; } = "Payments API";
+    public partial string Name { get; set; } = "Billing";
 
     [RecursiveMember]
-    public partial string Owner { get; set; } = "platform-team";
+    public partial string Owner { get; set; } = "Priya Nair";
 
     [RecursiveMember]
     public partial string DraftName { get; set; } = string.Empty;
@@ -156,9 +149,9 @@ internal sealed partial class DetailsGroupContext : DemoGroupContext
 {
     private static readonly (string Id, string Service, string Status, string Details)[] Deploys =
     [
-        ("payments", "payments-api", "healthy", "Build #481 · deployed 14 minutes ago by release-bot · 12 pods, all passing the health check."),
-        ("search", "search-indexer", "degraded", "Build #477 · deployed 3 hours ago · 2 of 6 pods restarting; the index rebuild is 60% through."),
-        ("mail", "mail-relay", "failed", "Build #480 · rolled back 40 minutes ago · the health check answered 503 for ninety seconds.")
+        ("billing", "billing", "healthy", "Release #481 · deployed 14 minutes ago by release-bot · 12 replicas, all passing the health check."),
+        ("dns", "dns", "degraded", "Release #477 · deployed 3 hours ago · 1 of 2 replicas restarting; the zone reload is 60% through."),
+        ("mail", "mail-relay", "failed", "Release #480 · rolled back 40 minutes ago · the health check answered 503 for ninety seconds.")
     ];
 
     [RecursiveMember(false)]
@@ -216,9 +209,6 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial string Published { get; set; } = "Not published yet.";
-
-    public void Report(string message)
-        => LogEvent(message);
 }
 
 internal sealed partial class DialogTestController() : DemoController
@@ -248,7 +238,7 @@ internal sealed partial class DialogTestController() : DemoController
     [UICommand]
     public UICommandResult AskBeforeDelete()
     {
-        if (!ConfirmGroup.HasBuilds)
+        if (!ConfirmGroup.HasReleases)
             return UICommandResult.Ok([new ShowNotificationEffect("Nothing left to delete.", UIColorStyle.Info)]);
 
         ConfirmGroup.Ask();
@@ -257,15 +247,19 @@ internal sealed partial class DialogTestController() : DemoController
     }
 
     [UICommand]
-    public UICommandResult DeleteBuild()
+    public UICommandResult DeleteRelease()
     {
+        // The dialog is asked only while there is a release; a late second press finds none.
+        if (!ConfirmGroup.HasReleases)
+            return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey)]);
+
         ConfirmGroup.Delete();
 
-        return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect("The build is gone.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect("The release is gone.", UIColorStyle.Success)]);
     }
 
     [UICommand]
-    public UICommandResult KeepBuild()
+    public UICommandResult KeepRelease()
     {
         ConfirmGroup.Keep();
 
@@ -273,7 +267,7 @@ internal sealed partial class DialogTestController() : DemoController
     }
 
     [UICommand]
-    public void RestoreBuilds()
+    public void RestoreReleases()
         => ConfirmGroup.Restore();
 
     [UICommand]
@@ -334,17 +328,23 @@ internal sealed partial class DialogTestController() : DemoController
     [UICommand]
     public async Task<UICommandResult> PublishAsync(CancellationToken cancellationToken)
     {
-        ProgressGroup.Report("publishing — the dialog was pushed mid-command");
+        ProgressGroup.LogEvent("publishing — the dialog was pushed mid-command");
 
         _ = await Context.Dialogs.ShowAsync(Context.Handle, ProgressKey, cancellationToken).ConfigureAwait(false);
 
-        await Task.Delay(1800, cancellationToken).ConfigureAwait(false);
-
-        _ = await Context.Dialogs.HideAsync(Context.Handle, ProgressKey, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Task.Delay(1800, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // On every way out: work that throws must not leave the page behind its dialog.
+            _ = await Context.Dialogs.HideAsync(Context.Handle, ProgressKey, CancellationToken.None).ConfigureAwait(false);
+        }
 
         ProgressGroup.Published = $"Published at {DateTime.Now:HH:mm:ss}.";
-        ProgressGroup.Report("done — the same service hid it");
+        ProgressGroup.LogEvent("done — the same service hid it");
 
-        return UICommandResult.Ok([new ShowNotificationEffect("Build #481 published.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect("Release #481 published.", UIColorStyle.Success)]);
     }
 }

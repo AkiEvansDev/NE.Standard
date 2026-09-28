@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using NE.Standard.UI.Icons.Material;
 
 namespace DemoApp;
 
@@ -14,6 +13,7 @@ public static class DemoIcons
     public const string Add = MaterialIcons.Add;
     public const string Check = MaterialIcons.Check;
     public const string Copy = MaterialIcons.ContentCopy;
+    public const string Code = MaterialIcons.Code;
     public const string Edit = MaterialIcons.Edit;
     public const string Refresh = MaterialIcons.Refresh;
     public const string Undo = MaterialIcons.Undo;
@@ -62,8 +62,6 @@ public static class DemoIcons
     public const string LightMode = MaterialIcons.LightMode;
     public const string DarkMode = MaterialIcons.DarkMode;
     public const string Star = MaterialIcons.Star;
-    public const string Pin = MaterialIcons.Keep;
-    public const string Unpin = MaterialIcons.KeepOff;
 
     /// <summary>
     /// The outlined drawing of a glyph, which is what a control wears; the filled one is for content.

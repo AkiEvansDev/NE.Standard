@@ -101,6 +101,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                     NativeInputRendererBase.RenderFieldName(context, input);
 
                     NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, input);
+                    RenderFieldLabel(context, input);
 
                     // Clamped on the way out: a range input clamps silently, so an out-of-range value would leave
                     // the rendered handle and the server disagreeing.

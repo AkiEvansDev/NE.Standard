@@ -14,6 +14,8 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class NumberInputComponentRenderer : TextContentRendererBase
 {
+    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.NumberFormat, target: "root")];
+
     protected override string ClassName => "ui-number-input";
 
     public override string ComponentTypeKey => NumberInputComponent.ComponentTypeKey;
@@ -24,6 +26,16 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderTooltip(context, root);
+
+        // How the client writes the value: the culture's separators and the author's format. The value itself stays invariant, as it
+        // travels.
+        NumberCultureRenderer.RenderNumberCulture(root, ResolveInputCulture(context));
+
+        _ = RenderProperty<string?>(context, root, IFormattedInputComponent.DisplayFormatProperty, static (target, value) =>
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _ = target.Attribute(WebAttributes.NumberFormat, value);
+        }, DisplayFormatOperations);
 
         _ = RenderProperty<bool?>(context, root, NumberInputComponent.ShowStepperProperty, static (target, value) =>
         {
@@ -100,6 +112,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
                 NativeInputRendererBase.RenderIsReadOnly(context, input);
+                RenderFieldLabel(context, input);
 
                 _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
                 {

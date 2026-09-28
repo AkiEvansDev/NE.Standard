@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Shell.Commands;
@@ -17,6 +19,23 @@ public sealed class UICommandExecutionResult
     /// Gets server-side changes produced by the command.
     /// </summary>
     public required ServerChangeSet Changes { get; init; }
+
+    /// <summary>
+    /// Gets whether the command was only accepted: it runs on, and its result is pushed later carrying <see cref="RequestId"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Accepted { get; init; }
+
+    /// <summary>
+    /// Gets the id of the request a pushed result ends; null on an invoke's own answer and on a result nobody asked for.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RequestId { get; init; }
+
+    /// <summary>
+    /// Gets the run an accepted command goes on with, answering whether it succeeded; never faults. Not serialized.
+    /// </summary>
+    internal Task<bool>? Completion { get; init; }
 
     /// <summary>
     /// Validates the command execution result.

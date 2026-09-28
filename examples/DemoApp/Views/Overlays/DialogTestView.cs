@@ -1,18 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Overlays;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Indicators;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Overlays;
 
@@ -42,12 +30,13 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.ConfirmKey,
+                Label = "Confirm",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
-                Content = CreatePanel("Delete this build?", $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
+                Content = CreatePanel("Delete this release?", $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
                     CreateButtons(
-                        CreateButton("Cancel", nameof(DialogTestController.KeepBuild), UIButtonType.Ghost),
-                        CreateButton("Delete", nameof(DialogTestController.DeleteBuild), UIButtonType.Danger)
+                        CreateButton("Cancel", nameof(DialogTestController.KeepRelease), UIButtonType.Ghost),
+                        CreateButton("Delete", nameof(DialogTestController.DeleteRelease), UIButtonType.Danger)
                     )
                 )
             },
@@ -55,6 +44,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
+                Label = "Edit",
                 Width = UILayoutLength.Absolute(640),
                 Content = CreatePanel("Edit the service", null,
                     new TextInputComponent()
@@ -74,6 +64,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.FiltersKey,
+                Label = "Filters",
                 Placement = UIDialogPlacement.Left,
                 Surface = UISurfaceStyle.Background,
                 Modal = false,
@@ -88,6 +79,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.DetailsKey,
+                Label = "Details",
                 Placement = UIDialogPlacement.Right,
                 Width = UILayoutLength.Absolute(480),
                 Content = UILayout.Stack(12)
@@ -106,20 +98,16 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.ProgressKey,
+                Label = "Progress",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = new SpinnerComponent()
-                    .SetLabel("Publishing build #481")
+                    .SetLabel("Publishing release #481")
             }
         ];
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateConfirmGroup(), CreateEditGroup(), CreateProgressGroup()],
-            [CreateFiltersGroup(), CreateDetailsGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateConfirmGroup(), CreateEditGroup(), CreateProgressGroup()], [CreateFiltersGroup(), CreateDetailsGroup()]));
 
     /// <summary>The list on the page shrinks when the dialog says Delete and stays when it says Cancel.</summary>
     private static ContainerComponent CreateConfirmGroup()
@@ -127,11 +115,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(ConfirmGroup, "Ask before deleting",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(ConfirmGroupContext.Builds), UIBindingScope.Relative)
+                    .BindDescription(nameof(ConfirmGroupContext.Releases), UIBindingScope.Relative)
                 )
-                .AddChild(DemoUI.CreateRow(8)
-                    .AddChild(CreateButton("Delete the latest build", nameof(DialogTestController.AskBeforeDelete), UIButtonType.Danger))
-                    .AddChild(CreateButton("Restore", nameof(DialogTestController.RestoreBuilds), UIButtonType.Ghost))
+                .AddChild(UILayout.Row(8)
+                    .AddChild(CreateButton("Delete the latest release", nameof(DialogTestController.AskBeforeDelete), UIButtonType.Danger))
+                    .AddChild(CreateButton("Restore", nameof(DialogTestController.RestoreReleases), UIButtonType.Ghost))
                 )
             ),
             contentMinHeight: 120,

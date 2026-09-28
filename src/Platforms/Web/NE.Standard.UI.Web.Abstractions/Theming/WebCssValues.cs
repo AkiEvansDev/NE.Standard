@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using NE.Colors;
@@ -16,7 +15,7 @@ public static class WebCssValues
         {
             UIThemeMode.Light => "light",
             UIThemeMode.Dark => "dark",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>
@@ -51,7 +50,7 @@ public static class WebCssValues
             UIAlignment.Center => "center",
             UIAlignment.End => "end",
             UIAlignment.Stretch => "stretch",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     // `clip`, not `hidden`: `hidden` also makes the element a scroll container, reachable by script-driven scrolling.
@@ -63,7 +62,7 @@ public static class WebCssValues
             UIImageFit.Contain => "contain",
             UIImageFit.Cover => "cover",
             UIImageFit.None => "auto",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string Overflow(UIOverflow value)
@@ -71,7 +70,7 @@ public static class WebCssValues
         {
             UIOverflow.Hidden => "clip",
             UIOverflow.Show => "visible",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string LayoutLength(UILayoutLength value)
@@ -80,7 +79,7 @@ public static class WebCssValues
             UILayoutLengthKind.Auto => "auto",
             UILayoutLengthKind.Absolute => Pixels(value.Value),
             UILayoutLengthKind.Fill => "100%",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>
@@ -90,10 +89,7 @@ public static class WebCssValues
         => value.Kind == UILayoutLengthKind.Auto ? string.Empty : LayoutLength(value);
 
     public static string Thickness(UIThickness value)
-        => string.Create(
-            CultureInfo.InvariantCulture,
-            $"{value.Top}px {value.Right}px {value.Bottom}px {value.Left}px"
-        );
+        => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px {value.Right}px {value.Bottom}px {value.Left}px");
 
     public static string Radius(UICornerRadius radius)
     {
@@ -107,10 +103,7 @@ public static class WebCssValues
         if (topLeft == topRight && topLeft == bottomRight && topLeft == bottomLeft)
             return Pixels(topLeft);
 
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"{topLeft}px {topRight}px {bottomRight}px {bottomLeft}px"
-        );
+        return string.Create(CultureInfo.InvariantCulture, $"{topLeft}px {topRight}px {bottomRight}px {bottomLeft}px");
     }
 
     /// <summary>
@@ -129,7 +122,7 @@ public static class WebCssValues
                 { MaxValue: double max } => string.Create(CultureInfo.InvariantCulture, $"fit-content({max}px)"),
                 _ => "auto"
             },
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     public static string GridUnit(double value, double? min = null)
@@ -176,7 +169,7 @@ public static class WebCssValues
             UISelectionMode.None => "none",
             UISelectionMode.One => "one",
             UISelectionMode.Many => "many",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>
@@ -190,7 +183,7 @@ public static class WebCssValues
             UISelectionMark.Right => "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
             UISelectionMark.Top => "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
             UISelectionMark.Bottom => "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
-            _ => throw new UnreachableException()
+            _ => string.Empty
         };
 
     /// <summary>The weight a chosen entry's text takes: semibold, or the control's regular weight.</summary>

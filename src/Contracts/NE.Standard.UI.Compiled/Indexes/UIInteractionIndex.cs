@@ -113,5 +113,4 @@ public sealed class UIInteractionIndex
             ? interactions
             : Empty;
     }
-
 }

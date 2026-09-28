@@ -20,7 +20,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(ITextComponent))]
 [UIComponentPropertyBlock(typeof(ITextMarkAlignmentComponent))]
-public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButtonComponent, ISurfaceComponent, IBorderedComponent, IOverflowComponent, ITextComponent, ITextMarkAlignmentComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButtonComponent, ISurfaceComponent, IBorderedComponent, IOverflowComponent, ITextComponent, ITextMarkAlignmentComponent, IAccessibleNameComponent
     where T : ButtonComponent<T>, IUIComponentDefinition
 {
     // Declared as registered defaults, not set in the constructor, so tooling reads the value a button wears.

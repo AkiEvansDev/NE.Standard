@@ -24,14 +24,7 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         {
             while (reader.Read())
             {
-                NodeRecord node = new(
-                    reader.GetString(0),
-                    reader.IsDBNull(1) ? null : reader.GetString(1),
-                    reader.GetString(2),
-                    reader.GetString(3),
-                    DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                    reader.IsDBNull(5) ? null : reader.GetString(5)
-                );
+                NodeRecord node = new(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1), reader.GetString(2), reader.GetString(3), DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), reader.IsDBNull(5) ? null : reader.GetString(5));
 
                 var parent = node.ParentId ?? string.Empty;
 
@@ -65,8 +58,8 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         id = string.Empty;
         name = name.Trim();
 
-        if (name.Length is 0 or > 120)
-            return "A name is 1 to 120 characters.";
+        if (NameError(name) is { } nameError)
+            return nameError;
 
         using SqliteConnection connection = database.Open();
 
@@ -89,10 +82,14 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         _ = command.Parameters.AddWithValue("$author", authorId);
         _ = command.ExecuteNonQuery();
 
-        events.Publish(new DocumentsChanged(null));
+        events.Publish(new DocumentsChanged(null, TreeChanged: true));
 
         return null;
     }
+
+    /// <summary>What is wrong with a trimmed name, or null.</summary>
+    private static string? NameError(string name)
+        => name.Length is 0 or > 120 ? "A name is 1 to 120 characters." : null;
 
     private static string? FindKind(SqliteConnection connection, string id)
     {
@@ -107,8 +104,8 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
     {
         name = name.Trim();
 
-        if (name.Length is 0 or > 120)
-            return "A name is 1 to 120 characters.";
+        if (NameError(name) is { } nameError)
+            return nameError;
 
         using SqliteConnection connection = database.Open();
         using SqliteCommand command = connection.CreateCommand();
@@ -117,7 +114,7 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         _ = command.Parameters.AddWithValue("$id", id);
         _ = command.ExecuteNonQuery();
 
-        events.Publish(new DocumentsChanged(id));
+        events.Publish(new DocumentsChanged(id, TreeChanged: true));
 
         return null;
     }
@@ -126,6 +123,9 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
     public string? Move(string id, string? parentId)
     {
         using SqliteConnection connection = database.Open();
+
+        // Immediate, so two moves crossing each other cannot both pass the walk and leave a cycle no walk from the root reaches.
+        using SqliteTransaction transaction = connection.BeginTransaction();
 
         if (parentId is not null)
         {
@@ -144,8 +144,9 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         _ = command.Parameters.AddWithValue("$parent", (object?)parentId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("$id", id);
         _ = command.ExecuteNonQuery();
+        transaction.Commit();
 
-        events.Publish(new DocumentsChanged(null));
+        events.Publish(new DocumentsChanged(null, TreeChanged: true));
 
         return null;
     }
@@ -164,10 +165,12 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
     {
         using SqliteConnection connection = database.Open();
         using SqliteCommand command = connection.CreateCommand();
+
+        // UNION rather than UNION ALL: a node reached twice ends the walk instead of repeating it.
         command.CommandText = """
             WITH RECURSIVE subtree(id) AS (
                 SELECT $id
-                UNION ALL
+                UNION
                 SELECT nodes.id FROM nodes JOIN subtree ON nodes.parent_id = subtree.id
             )
             DELETE FROM nodes WHERE id IN (SELECT id FROM subtree)
@@ -175,7 +178,7 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         _ = command.Parameters.AddWithValue("$id", id);
         _ = command.ExecuteNonQuery();
 
-        events.Publish(new DocumentsChanged(null));
+        events.Publish(new DocumentsChanged(null, TreeChanged: true));
     }
 
     /// <summary>The file's text, or <see langword="null"/> when there is no such file.</summary>
@@ -205,7 +208,7 @@ public sealed class DocumentService(AppDatabase database, AppEvents events)
         if (command.ExecuteNonQuery() == 0)
             return false;
 
-        events.Publish(new DocumentsChanged(id));
+        events.Publish(new DocumentsChanged(id, TreeChanged: false));
 
         return true;
     }

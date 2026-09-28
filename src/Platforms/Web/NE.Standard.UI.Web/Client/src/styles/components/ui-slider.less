@@ -194,12 +194,13 @@
     display: inline-block;
 }
 
+// The colour alone, not the shorthand: the fill is the track's background-image (range.less), and a shorthand wiped the value off it.
 .ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
-    background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
 }
 
 .ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
-    background: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
 }
 
 // A size steps the track, the handle and the text ui-input.less sizes; the handle stays centred on the track by its own margin.

@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 
   <!-- See DemoApp.csproj: sources in the monorepo, packages in a mirror. -->
@@ -19,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(InMonorepo)' != 'true'">
-    <PackageReference Include="NE.Standard.UI.Generators" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Components" Version="$(CoreVersion)" />
     <PackageReference Include="NE.Standard.UI.Extensions" Version="$(CoreVersion)" />

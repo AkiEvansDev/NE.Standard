@@ -3,6 +3,8 @@ export type SubtreeObserverInit = {
     readonly childList?: boolean;
     readonly characterData?: boolean;
     readonly attributeFilter?: readonly string[];
+    /** Which records the engine answers at all; the rest are skipped before their components are looked for. Default: every one. */
+    readonly relevant?: (mutation: MutationRecord) => boolean;
 };
 
 /** Past this many components in one batch, finding them costs more than sweeping the root for them. */
@@ -18,7 +20,7 @@ export function observeComponents(
         return null;
 
     const observer = new MutationObserver(mutations => {
-        const components = collectComponents(root, mutations, selector);
+        const components = collectComponents(root, init.relevant === undefined ? mutations : mutations.filter(init.relevant), selector);
 
         if (components !== null)
             handler(components);
@@ -61,4 +63,11 @@ function collectComponents(root: ParentNode, mutations: readonly MutationRecord[
     }
 
     return components.size === 0 ? null : components;
+}
+
+/** Whether a record happened inside a part (a tab's page) rather than elsewhere in its component, judged by the nearer of the two. */
+export function happenedInside(mutation: MutationRecord, partSelector: string, rootSelector: string): boolean {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+
+    return target?.closest(`${partSelector}, ${rootSelector}`)?.matches(partSelector) === true;
 }

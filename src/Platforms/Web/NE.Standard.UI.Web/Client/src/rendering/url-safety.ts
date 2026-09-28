@@ -36,6 +36,19 @@ export function toSafeLink(value: unknown): string | undefined {
     return isSafeLink(value) ? String(value) : undefined;
 }
 
+/**
+ * Whether a navigation target is a path of this site: it starts with one slash. `//host` and `/\host` start with one too, and a
+ * browser reads both as another site, so a sign-in page's return address could otherwise send the reader anywhere. A control
+ * character is refused anywhere: the URL parser drops a tab or a line break, so `/\t/host` is `//host` by the time it navigates.
+ */
+export function isLocalRoute(value: unknown): boolean {
+    // oxlint-disable-next-line no-control-regex -- a control character is what it refuses
+    if (typeof value !== "string" || !value.startsWith("/") || /[\x00-\x1f\x7f]/.test(value))
+        return false;
+
+    return value.length === 1 || (value[1] !== "/" && value[1] !== "\\");
+}
+
 /** The image source as written, or undefined for a scheme the icon value would refuse too. */
 export function toSafeImageSource(value: unknown): string | undefined {
     const source = String(value ?? "").trim();

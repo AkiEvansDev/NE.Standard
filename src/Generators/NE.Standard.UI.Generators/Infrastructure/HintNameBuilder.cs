@@ -1,56 +1,40 @@
-using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
+using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace NE.Standard.UI.Generators.Infrastructure;
 
 internal static class HintNameBuilder
 {
+    /// <summary>
+    /// A hint name from the type's fully qualified metadata name, so two types that share a name or a file name never collide:
+    /// namespace segments joined by <c>.</c>, a containing type by <c>+</c>, and the arity after <c>_</c>.
+    /// </summary>
     public static string Build(INamedTypeSymbol type, string suffix)
     {
-        var fileName = TryGetPrimaryFileName(type);
-        var typeSuffix = BuildTypeSuffix(type);
+        StringBuilder builder = new();
 
-        if (!string.IsNullOrWhiteSpace(fileName))
-        {
-            // The arity must stay in the name even when the file matches the type name, or `Foo` and `Foo<T>` collide on one hint name.
-            return string.Equals(fileName, type.Name, StringComparison.Ordinal) && type.TypeParameters.Length == 0
-                ? fileName + "." + suffix + ".g.cs"
-                : fileName + "." + typeSuffix + "." + suffix + ".g.cs";
-        }
+        if (!type.ContainingNamespace.IsGlobalNamespace)
+            _ = builder.Append(type.ContainingNamespace.ToDisplayString()).Append('.');
 
-        var fullName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            .Replace("global::", string.Empty)
-            .Replace('<', '_')
-            .Replace('>', '_')
-            .Replace(',', '_')
-            .Replace('.', '_')
-            .Replace(' ', '_');
+        Stack<INamedTypeSymbol> containingTypes = new();
 
-        return fullName + "." + suffix + ".g.cs";
+        for (INamedTypeSymbol? current = type.ContainingType; current is not null; current = current.ContainingType)
+            containingTypes.Push(current);
+
+        while (containingTypes.Count > 0)
+            _ = AppendTypeName(builder, containingTypes.Pop()).Append('+');
+
+        return AppendTypeName(builder, type).Append('.').Append(suffix).Append(".g.cs").ToString();
     }
 
-    private static string? TryGetPrimaryFileName(INamedTypeSymbol type)
+    private static StringBuilder AppendTypeName(StringBuilder builder, INamedTypeSymbol type)
     {
-        foreach (SyntaxReference reference in type.DeclaringSyntaxReferences)
-        {
-            var path = reference.SyntaxTree.FilePath;
+        _ = builder.Append(type.Name);
 
-            if (string.IsNullOrWhiteSpace(path))
-                continue;
-
-            var fileName = Path.GetFileNameWithoutExtension(path);
-
-            if (!string.IsNullOrWhiteSpace(fileName))
-                return fileName;
-        }
-
-        return null;
+        return type.TypeParameters.Length == 0
+            ? builder
+            : builder.Append('_').Append(type.TypeParameters.Length.ToString(CultureInfo.InvariantCulture));
     }
-
-    private static string BuildTypeSuffix(INamedTypeSymbol type)
-        => type.TypeParameters.Length == 0
-            ? type.Name
-            : type.Name + "_" + type.TypeParameters.Length.ToString(CultureInfo.InvariantCulture);
 }

@@ -1,12 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Actions.ButtonGroup;
 
@@ -26,10 +18,7 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateToolbarGroup()],
-            [CreatePeriodGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateToolbarGroup()], [CreatePeriodGroup()]));
 
         _ = container.AddChild(CreateFieldGroup());
     }
@@ -39,8 +28,8 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateGroup(null, "A view switched from a toolbar",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A view switched from a toolbar",
+            new SurfaceComponent()
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
                 .SetContent(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
@@ -61,8 +50,7 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
                         ])
                         .SetPlacement(24, 1, 1, 1)
                     )
-                )
-            ),
+                ),
             note: "Glyphs alone, with the word in the tooltip: a strip at a toolbar's end is read by its pictures."
         );
     }
@@ -72,8 +60,8 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreatePeriodGroup()
     {
-        return DemoUI.CreateGroup(null, "A period chosen by word",
-            content => content.AddChild(DemoUI.CreateStack()
+        return DemoUI.CreateExample("A period chosen by word",
+            UILayout.Stack(12)
                 .AddChild(new ButtonGroupComponent()
                     .SetSelectedKey("week")
                     .SetItems([
@@ -92,8 +80,7 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
                         new ButtonItem { Id = "staging", Icon = DemoIcons.Outline(DemoIcons.Cloud), Title = "Staging" },
                         new ButtonItem { Id = "prod", Icon = DemoIcons.Outline(DemoIcons.Shield), Title = "Production" }
                     ])
-                )
-            ),
+                ),
             note: "The first at the ordinary size with a disabled year; the second large, with the accent as the chosen ground."
         );
     }
@@ -103,8 +90,8 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
     /// </summary>
     private static ContainerComponent CreateFieldGroup()
     {
-        return DemoUI.CreateGroup(null, "Beside a field",
-            content => content.AddChild(new ContainerComponent()
+        return DemoUI.CreateExample("Beside a field",
+            new ContainerComponent()
                 .SetColumn(24, UIGridUnit.Auto())
                 .AddChild(new TextInputComponent()
                     .SetTitle("Search deploys")
@@ -121,8 +108,7 @@ internal sealed class ButtonGroupExamplesView : DemoExamplesView, IUIViewDefinit
                         new ButtonItem { Id = "failed", Title = "Failed" }
                     ])
                     .SetPlacement(24, 1, 1, 1)
-                )
-            ),
+                ),
             columns: 24,
             note: "The group sits at the far end of the row the field fills, which is only a row once it has the page's width."
         );

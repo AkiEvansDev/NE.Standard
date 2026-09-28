@@ -16,12 +16,15 @@ import { PointerDrag } from "./pointer-drag";
 const RootClass = "ui-table";
 const ReorderableClass = "ui-table--reorderable";
 const ScrollClass = "ui-table__scroll";
+const ScrollXAutoClass = "ui-scroll-x--auto";
+const ScrollXAlwaysClass = "ui-scroll-x--always";
 const ScrollSelector = `:scope > .${ScrollClass}`;
 const ResizerSelector = ".ui-table__resizer";
 const HeaderCellClass = "ui-table__header-cell";
 const PinnedModifierClass = `${HeaderCellClass}--pinned`;
 const HeaderCellSelector = `${ScrollSelector} > .ui-table__header > .${HeaderCellClass}`;
 const PinnedHeaderSelector = `${HeaderCellSelector}--pinned`;
+const TablePartSelector = `.${RootClass}, .ui-table__row, [${TableColumnAttribute}]`;
 
 /** The authored track list (the renderer's variable) and the viewer's, which the stylesheet reads over it. */
 const AuthoredVariable = "--ui-table-columns";
@@ -30,6 +33,22 @@ const SizedVariable = "--ui-table-sized-columns";
 const PinVariablePrefix = "--ui-table-pin-";
 /** Where the viewer put each column, one variable per column, which the stylesheet hands its cells as `order`. */
 const OrderVariablePrefix = "--ui-table-order-";
+
+/**
+ * The column indices the stylesheet has rules of its own for (ui-table.less generates them for 0–63, reading the root's hidden, last
+ * and order state); a column past them is written on its own cells here, which the boot patch cannot paint before the runtime.
+ */
+const StyledColumns = 64;
+/** On a cell of a column past the styled ones: hidden, or the one the row ends with — what the root says for the rest. */
+const CellHiddenAttribute = "data-ui-table-cell-hidden";
+const CellLastAttribute = "data-ui-table-cell-last";
+
+/** Where the columns stand, which are hidden and which ends the row, as the last layout left them. */
+type ColumnState = {
+    readonly places: readonly number[];
+    readonly hidden: ReadonlySet<number>;
+    readonly last: number;
+};
 
 /** The viewer's widths, hidden columns and order, and the boot patch that paints all three before the runtime runs. */
 const ColumnsSlot = "columns";
@@ -98,6 +117,11 @@ export class TableColumnsEngine {
     private readonly widths = new WeakMap<Element, GridTrack[] | null>();
     // The order in force, by key, without the columns that never move: null for the authored one.
     private readonly orders = new WeakMap<Element, string[] | null>();
+    // The viewer's word on hidden columns, read from the store once per table and kept in step with every write to it.
+    private readonly hiddenChoices = new WeakMap<Element, HiddenChoices>();
+    // Each table's column state as last laid out, and the one last written onto the cells of its columns past the styled ones.
+    private readonly columnStates = new WeakMap<Element, ColumnState>();
+    private readonly stampedStates = new WeakMap<Element, string>();
     private readonly warner = new OnceWarner();
     private readonly drag: PointerDrag<ResizeContext>;
     private readonly reorder: PointerDrag<ReorderContext>;
@@ -143,7 +167,25 @@ export class TableColumnsEngine {
 
         this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        observeComponents(this.root, `.${RootClass}`, { childList: true }, tables => this.restoreEach(tables));
+        // A table arriving is restored; rows arriving in a known one bring cells of columns past the styled ones to be written. A
+        // cell's own content changing brings neither.
+        observeComponents(this.root, `.${RootClass}`, { childList: true, relevant: addsTableParts }, tables => {
+            for (const table of tables) {
+                if (this.restored.has(table))
+                    this.stampUnstyledColumns(table, true);
+            }
+
+            this.restoreEach(tables);
+        });
+
+        // Scrolling sideways or not decides how a content column is written, and the mode follows a bound property. Only the table's
+        // own class says so: a cell's class moving (a pressed button, a validation mark) leaves the columns as they are.
+        observeComponents(this.root, `.${RootClass}`, { attributeFilter: ["class"], relevant: mutation => mutation.target instanceof Element && mutation.target.classList.contains(RootClass) }, tables => {
+            for (const table of tables) {
+                if (this.restored.has(table))
+                    this.layout(table);
+            }
+        });
     }
 
     private restoreEach(tables: Iterable<HTMLElement>): void {
@@ -202,8 +244,11 @@ export class TableColumnsEngine {
         const order = columnsInOrder(places);
         const widths = this.widths.get(table) ?? null;
         const arranged = places.some((place, index) => place !== index);
+        // Scrolling sideways, a content column is as wide as its content: `auto` would give it only what the other columns leave,
+        // which a cell ending in an ellipsis makes nothing, and the table would never grow wide enough to scroll.
+        const wide = table.classList.contains(ScrollXAutoClass) || table.classList.contains(ScrollXAlwaysClass);
 
-        if (widths === null && hidden.size === 0 && !arranged)
+        if (widths === null && hidden.size === 0 && !arranged && !wide)
             table.style.removeProperty(SizedVariable);
         else {
             const tracks = widths ?? this.authoredTracks(table);
@@ -211,7 +256,7 @@ export class TableColumnsEngine {
             if (tracks !== null) {
                 const sized = zeroTracks(tracks, hidden);
 
-                table.style.setProperty(SizedVariable, formatGridTracks(order.map(index => sized[index])));
+                table.style.setProperty(SizedVariable, formatGridTracks(order.map(index => sized[index]), wide ? "max-content" : "auto"));
             }
         }
 
@@ -238,6 +283,9 @@ export class TableColumnsEngine {
         else if (table.getAttribute(TableLastAttribute) !== String(last))
             table.setAttribute(TableLastAttribute, String(last));
 
+        this.columnStates.set(table, { places, hidden, last: last ?? -1 });
+        this.stampUnstyledColumns(table, false);
+
         // A column the viewer may move is a control the keyboard reaches; one the table already made a tab stop keeps what it has.
         if (table.classList.contains(ReorderableClass)) {
             for (const column of columns) {
@@ -247,6 +295,37 @@ export class TableColumnsEngine {
         }
 
         this.pin(table);
+    }
+
+    /**
+     * Writes onto every cell of a column past the styled ones what the stylesheet reads off the root for the rest: its place, and
+     * whether it is hidden or ends the row. Skipped when nothing moved since the last write — a resize lays out on every pointer
+     * move — unless rows arrived, whose cells were never written.
+     */
+    private stampUnstyledColumns(table: HTMLElement, rowsArrived: boolean): void {
+        const state = this.columnStates.get(table);
+
+        if (state === undefined || state.places.length <= StyledColumns)
+            return;
+
+        const signature = `${state.places.join(",")}|${[...state.hidden].join(",")}|${state.last}`;
+
+        if (!rowsArrived && this.stampedStates.get(table) === signature)
+            return;
+
+        this.stampedStates.set(table, signature);
+
+        for (const cell of table.querySelectorAll<HTMLElement>(`[${TableColumnAttribute}]`)) {
+            const index = Number(cell.getAttribute(TableColumnAttribute));
+
+            // A nested table's cells are its own to write.
+            if (!(index >= StyledColumns) || cell.closest(`.${RootClass}`) !== table)
+                continue;
+
+            cell.style.order = String(state.places[index] ?? index);
+            cell.toggleAttribute(CellHiddenAttribute, state.hidden.has(index));
+            cell.toggleAttribute(CellLastAttribute, index === state.last);
+        }
     }
 
     /** The columns as the header describes them: index, key, the tier below which the author hides each, and whether it ever moves. */
@@ -296,7 +375,7 @@ export class TableColumnsEngine {
 
     /** The indices hidden now: the viewer's word where there is one, else the author's tier against the viewport's. */
     private hiddenOf(table: HTMLElement, columns: readonly Column[] = this.columnsOf(table)): Set<number> {
-        const choices = this.store.readJson<HiddenChoices>(table, HiddenSlot) ?? {};
+        const choices = this.choicesOf(table);
         const hidden = new Set<number>();
 
         for (const column of columns) {
@@ -305,6 +384,17 @@ export class TableColumnsEngine {
         }
 
         return hidden;
+    }
+
+    private choicesOf(table: HTMLElement): HiddenChoices {
+        let choices = this.hiddenChoices.get(table);
+
+        if (choices === undefined) {
+            choices = this.store.readJson<HiddenChoices>(table, HiddenSlot) ?? {};
+            this.hiddenChoices.set(table, choices);
+        }
+
+        return choices;
     }
 
     private authoredTracks(table: HTMLElement): GridTrack[] | null {
@@ -336,7 +426,7 @@ export class TableColumnsEngine {
         if (!(table instanceof HTMLElement))
             return;
 
-        const choices = this.store.readJson<HiddenChoices>(table, HiddenSlot) ?? {};
+        const choices = { ...this.choicesOf(table) };
         const column = this.columnsOf(table).find(candidate => candidate.key === key);
 
         if (hidden === null || (column !== undefined && hidden === hiddenByTier(column)))
@@ -344,6 +434,7 @@ export class TableColumnsEngine {
         else
             choices[key] = hidden;
 
+        this.hiddenChoices.set(table, choices);
         this.store.writeJson(table, HiddenSlot, Object.keys(choices).length === 0 ? null : choices);
         this.layout(table);
         this.rememberBoot(table);
@@ -720,6 +811,16 @@ function keepColumnFloors(tracks: readonly GridTrack[], moved: GridTrack[], indi
     }
 
     return moved;
+}
+
+/** Whether a record brought a table, a row or a cell: what the columns are laid out over, as opposed to what a cell shows. */
+function addsTableParts(mutation: MutationRecord): boolean {
+    for (const node of mutation.addedNodes) {
+        if (node instanceof Element && (node.matches(TablePartSelector) || node.querySelector(TablePartSelector) !== null))
+            return true;
+    }
+
+    return false;
 }
 
 /** The authored index standing at each place along the row, read off the places every column holds. */

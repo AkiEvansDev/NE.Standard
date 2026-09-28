@@ -20,15 +20,21 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    protected async Task<ServerChangeSet> PublishExternalControllerChangesAsync(RecursiveChange[] changes, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Queues and sends changes made outside a command. They are taken under the state lock, not before it: taken earlier they
+    /// would be in the controller's state an attach snapshot reads and still be queued after it, numbered past its watermark.
+    /// </summary>
+    protected async Task<ServerChangeSet> PublishExternalControllerChangesAsync(Func<RecursiveChange[]> takeChanges, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(takeChanges);
 
-        if (changes.Length == 0 && Interlocked.CompareExchange(ref _fullResyncRequested, 0, 0) == 0)
-            return ServerChangeSet.Empty;
+        return await InSendOrderAsync(() => PublishExternalControllerChangesCoreAsync(takeChanges, cancellationToken), cancellationToken).ConfigureAwait(false);
+    }
 
+    private async Task<ServerChangeSet> PublishExternalControllerChangesCoreAsync(Func<RecursiveChange[]> takeChanges, CancellationToken cancellationToken)
+    {
         ServerChangeSet changeSet;
         List<UIComponentId>? staleWindows;
 
@@ -38,33 +44,40 @@ internal abstract partial class UIRuntimeBase
             if (!IsStarted || IsStopped)
                 return ServerChangeSet.Empty;
 
-            if (Interlocked.Exchange(ref _fullResyncRequested, 0) == 1)
-            {
-                AppendFullResyncNoLock();
-            }
-            else
-            {
-                for (var i = 0; i < changes.Length; i++)
-                {
-                    ArgumentNullException.ThrowIfNull(changes[i]);
-                    AppendControllerChangeNoLock(changes[i]);
-                }
-
-                MarkHeldValuesNoLock();
-            }
+            QueueExternalChangesNoLock(takeChanges());
 
             // A background write can dirty a windowed host as a command does, and a push runtime has no later tick to reload it on.
             staleWindows = DrainDirtyItemWindowsNoLock();
-            changeSet = DrainPendingUpdatesForRuntimeModeNoLock(force: false);
+            changeSet = TakePendingUpdatesNoLock(DrainTarget.Leave);
         }
         finally
         {
             _ = _stateLock.Release();
         }
 
-        changeSet = await AppendItemWindowReloadsAsync(changeSet, staleWindows, cancellationToken).ConfigureAwait(false);
+        changeSet = await AppendItemWindowReloadsAsync(changeSet, staleWindows, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
 
         return await PublishChangesAsync(changeSet, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Queues changes made outside a command — what a background write left for the pump, or for a snapshot to take first.</summary>
+    protected void QueueExternalChangesNoLock(RecursiveChange[] changes)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+
+        if (Interlocked.Exchange(ref _fullResyncRequested, 0) == 1)
+        {
+            AppendFullResyncNoLock();
+            return;
+        }
+
+        for (var i = 0; i < changes.Length; i++)
+        {
+            ArgumentNullException.ThrowIfNull(changes[i]);
+            AppendControllerChangeNoLock(changes[i]);
+        }
+
+        MarkHeldValuesNoLock();
     }
 
     private void AppendControllerChangeNoLock(RecursiveChange change)
@@ -390,7 +403,14 @@ internal abstract partial class UIRuntimeBase
         }
 
         if (_pendingFullResync || _changeBuffer.Count == 0)
+        {
+            // A write that changed nothing has no update to mark; kept, it could hold back a later value, and repeated it would
+            // pile up. A pushing runtime's pump marks them with the changes it takes instead.
+            if (!TakesChangesOnPump)
+                _heldValues.Clear();
+
             return;
+        }
 
         RecursiveChange[] changes = CompactControllerChangesNoLock();
 

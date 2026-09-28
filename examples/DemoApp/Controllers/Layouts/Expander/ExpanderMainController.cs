@@ -1,7 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Layouts.Expander;
 
@@ -51,8 +48,7 @@ internal sealed partial class ExpanderSurfaceGroupContext : DemoGroupContext
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(4), UIThickness.Uniform(24), null));
 
     public void CycleBackground()
-        => SetLastChange(nameof(Background), Background = CycleValue(Background,
-            UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
+        => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
     public void CycleOverflow()
         => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
@@ -64,7 +60,7 @@ internal sealed partial class ExpanderMainController() : DemoStandardController
     public partial ExpanderSurfaceGroupContext ExpanderGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Advanced settings", "Retention, replicas and the burst quota");
+    public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Advanced settings", "Retention, replicas and the backup window");
 
     [RecursiveMember]
     public partial TextLayoutGroupContext HeaderGroup { get; set; } = new();

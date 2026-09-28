@@ -2,27 +2,51 @@ using System;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Controllers.Screens;
 
 /// <summary>
-/// The order's state: what the form holds, and the three sums only the server works out — the delivery chosen by word, a
-/// promo code it has an opinion about, and the total.
+/// The subscription's state: what the form holds, and the sums only the server works out — the plan and servers chosen,
+/// a promo code it has an opinion about, the VAT and the total.
 /// </summary>
 internal sealed partial class CheckoutController : UIControllerBase
 {
-    public const string StandardDelivery = "standard";
-    public const string ExpressDelivery = "express";
-    public const string PickupDelivery = "pickup";
+    public const string StarterPlan = "starter";
+    public const string StandardPlan = "standard";
+    public const string ProPlan = "pro";
+    public const string DedicatedPlan = "dedicated";
 
-    private const decimal Subtotal = 71.50m;
-    private const string PromoCode = "WELCOME10";
+    public const string EuWest = "eu-west";
+    public const string EuCentral = "eu-central";
+    public const string EuNorth = "eu-north";
+    public const string UsEast = "us-east";
+    public const string ApSouth = "ap-south";
+
+    public const string BilledDirectly = "direct";
+    public const string BilledThroughReseller = "reseller";
+
+    private const decimal VatRate = 0.21m;
+    private const string PromoCode = "ORVANE10";
 
     private bool _discounted;
+
+    public CheckoutController()
+    {
+        Recalculate();
+    }
+
+    [RecursiveMember]
+    public partial string? Plan { get; set; } = ProPlan;
+
+    [RecursiveMember]
+    public partial decimal? Servers { get; set; } = 4;
+
+    [RecursiveMember]
+    public partial string? Region { get; set; } = EuWest;
+
+    /// <summary>Who pays: the company itself, or a reseller whose customer gives no address of its own.</summary>
+    [RecursiveMember]
+    public partial string? Billed { get; set; } = BilledDirectly;
 
     [RecursiveMember]
     public partial string? Email { get; set; }
@@ -31,10 +55,7 @@ internal sealed partial class CheckoutController : UIControllerBase
     public partial string? Phone { get; set; }
 
     [RecursiveMember]
-    public partial string? Delivery { get; set; } = StandardDelivery;
-
-    [RecursiveMember]
-    public partial string? FullName { get; set; }
+    public partial string? Company { get; set; }
 
     [RecursiveMember]
     public partial string? Street { get; set; }
@@ -61,7 +82,7 @@ internal sealed partial class CheckoutController : UIControllerBase
     public partial string? BillingPostcode { get; set; }
 
     [RecursiveMember]
-    public partial string? GiftMessage { get; set; }
+    public partial string? InvoiceNote { get; set; }
 
     [RecursiveMember]
     public partial string? Promo { get; set; }
@@ -69,8 +90,20 @@ internal sealed partial class CheckoutController : UIControllerBase
     [RecursiveMember]
     public partial UIValidationMessage? PromoNotice { get; set; }
 
+    /// <summary>The subscription's lines, rewritten in place when the plan, the servers or the region change.</summary>
+    [RecursiveMember(false)]
+    public RecursiveCollection<KeyValueActionItem> Lines { get; } =
+    [
+        UIDetails.Row("plan", string.Empty, string.Empty),
+        UIDetails.Row("server", "Each server", string.Empty),
+        UIDetails.Row("region", "Region", string.Empty)
+    ];
+
     [RecursiveMember]
-    public partial string DeliveryLine { get; set; } = Money(4.90m);
+    public partial string SubtotalLine { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial string VatLine { get; set; } = string.Empty;
 
     [RecursiveMember]
     public partial string DiscountLine { get; set; } = string.Empty;
@@ -79,7 +112,7 @@ internal sealed partial class CheckoutController : UIControllerBase
     public partial UIVisibility DiscountVisibility { get; set; } = UIVisibility.Collapsed;
 
     [RecursiveMember]
-    public partial string TotalLine { get; set; } = Money(Subtotal + 4.90m);
+    public partial string TotalLine { get; set; } = string.Empty;
 
     [RecursiveMember]
     public partial UIVisibility FormVisibility { get; set; } = UIVisibility.Visible;
@@ -90,12 +123,12 @@ internal sealed partial class CheckoutController : UIControllerBase
     [RecursiveMember]
     public partial string PlacedLine { get; set; } = string.Empty;
 
-    /// <summary>The delivery changed: the two sums that depend on it are rewritten, nothing else moves.</summary>
+    /// <summary>The plan, the servers or the region changed: the lines and the sums are rewritten, nothing else moves.</summary>
     [UICommand]
-    public void UpdateDelivery()
+    public void UpdateSummary()
         => Recalculate();
 
-    /// <summary>The one code the shop knows takes a tenth off; any other is refused on the field itself.</summary>
+    /// <summary>The one code the panel knows takes a tenth off; any other is refused on the field itself.</summary>
     [UICommand]
     public void ApplyPromo()
     {
@@ -123,30 +156,73 @@ internal sealed partial class CheckoutController : UIControllerBase
     [UICommand]
     public async Task PlaceOrderAsync(CancellationToken cancellationToken)
     {
+        // The field's rule is the browser's feedback; the server keeps its own, since a submit can reach it without the form.
+        if (string.IsNullOrWhiteSpace(Email))
+            return;
+
         await Task.Delay(900, cancellationToken).ConfigureAwait(false);
 
-        var where = Delivery == PickupDelivery ? "ready to pick up in two hours" : $"on its way to {City?.Trim()}";
-        PlacedLine = $"Order 48 213 is {where}. The receipt went to {Email?.Trim()}.";
+        PlacedLine = $"SUB-000015 is active: {PlanLine()} in {Region}. The invoice went to {Email?.Trim()}.";
         FormVisibility = UIVisibility.Collapsed;
         PlacedVisibility = UIVisibility.Visible;
     }
 
+    private string PlanLine()
+    {
+        var name = Plan switch
+        {
+            StarterPlan => "Starter",
+            StandardPlan => "Standard",
+            DedicatedPlan => "Dedicated",
+            _ => "Pro"
+        };
+        var seats = SeatCount();
+
+        return seats == 1 ? $"{name} × 1 server" : $"{name} × {seats.ToString(CultureInfo.InvariantCulture)} servers";
+    }
+
+    private int SeatCount()
+        => (int)Math.Clamp(Servers ?? 1m, 1m, 40m);
+
     private void Recalculate()
     {
-        var delivery = Delivery switch
+        (var price, var spec) = Plan switch
         {
-            ExpressDelivery => 12.00m,
-            PickupDelivery => 0m,
-            _ => 4.90m
+            StarterPlan => (6m, "1 vCPU · 2 GB · 40 GB"),
+            StandardPlan => (18m, "2 vCPU · 4 GB · 80 GB"),
+            DedicatedPlan => (290m, "16 vCPU · 64 GB · 960 GB"),
+            _ => (64m, "4 vCPU · 16 GB · 240 GB")
         };
-        var discount = _discounted ? Math.Round(Subtotal / 10m, 2) : 0m;
+        var city = Region switch
+        {
+            EuCentral => "Frankfurt",
+            EuNorth => "Stockholm",
+            UsEast => "Ashburn",
+            ApSouth => "Singapore",
+            _ => "Amsterdam"
+        };
+        var subtotal = price * SeatCount();
+        var discount = _discounted ? Math.Round(subtotal / 10m, 2) : 0m;
+        var vat = Math.Round((subtotal - discount) * VatRate, 2);
 
-        DeliveryLine = delivery == 0m ? "Free" : Money(delivery);
+        SetLine(0, PlanLine(), Money(subtotal));
+        // The price is the line above; this one says what a server is, and stays within the summary's width.
+        SetLine(1, "Each server", spec);
+        SetLine(2, "Region", $"{Region} · {city}");
+
+        SubtotalLine = Money(subtotal);
         DiscountLine = $"−{Money(discount)}";
         DiscountVisibility = _discounted ? UIVisibility.Visible : UIVisibility.Collapsed;
-        TotalLine = Money(Subtotal + delivery - discount);
+        VatLine = Money(vat);
+        TotalLine = Money(subtotal - discount + vat);
     }
 
     private static string Money(decimal amount)
-        => $"€ {amount.ToString("0.00", CultureInfo.InvariantCulture)}";
+        => $"€{amount.ToString("0.00", CultureInfo.InvariantCulture)}";
+
+    private void SetLine(int index, string key, string value)
+    {
+        ((TextItem)Lines[index].Key).Title = key;
+        ((TextItem)Lines[index].Value).Title = value;
+    }
 }

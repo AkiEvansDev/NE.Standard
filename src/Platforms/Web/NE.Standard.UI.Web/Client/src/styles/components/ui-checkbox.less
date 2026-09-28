@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/focus.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
@@ -28,6 +29,11 @@
     justify-content: center;
     width: 1.125rem;
     border-radius: 0.25rem;
+}
+
+// The input is hidden, so the ring it would wear goes on the box it stands for.
+.ui-checkbox__input:focus-visible ~ .ui-checkbox__box {
+    .ui-focus-ring();
 }
 
 .ui-checkbox__input:checked ~ .ui-checkbox__box {

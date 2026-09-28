@@ -1,5 +1,4 @@
 using DemoApp.Controllers.Base;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Controllers.Actions;
 
@@ -12,7 +11,7 @@ internal sealed partial class SplitButtonMainController() : DemoStandardControll
     public partial ButtonGroupContext ButtonGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Merge", "Squash and merge into main");
+    public partial TextContentGroupContext ContentGroup { get; set; } = new("Restart", "Graceful restart of api-eu-west-1");
 
     [RecursiveMember]
     public partial TextLayoutGroupContext LayoutGroup { get; set; } = new();
@@ -28,11 +27,11 @@ internal sealed partial class SplitButtonMainController() : DemoStandardControll
     public partial string LastPress { get; set; } = "Nothing pressed yet.";
 
     [UICommand]
-    public void Merge()
-        => LastPress = "The main part: Merge.";
+    public void Restart()
+        => LastPress = "The main part: Restart.";
 
     [UICommand]
-    public void MergeAs(string id)
+    public void RestartAs(string id)
         => LastPress = $"The menu: {id}.";
 
     [UICommand]

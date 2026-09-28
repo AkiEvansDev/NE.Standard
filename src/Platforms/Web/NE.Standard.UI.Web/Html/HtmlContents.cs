@@ -21,6 +21,6 @@ internal sealed class TextHtmlContent(string value) : IHtmlContent
     public void WriteTo(TextWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
-        writer.Write(WebUtility.HtmlEncode(value));
+        WebUtility.HtmlEncode(value, writer);
     }
 }

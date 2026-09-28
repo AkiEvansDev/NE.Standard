@@ -1,13 +1,7 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.Card;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Regions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Card;
 
@@ -54,7 +48,7 @@ internal sealed class CardMainView : DemoMainView, IUIViewDefinition
             .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
             .ConfigureDefaultHeader(BindHeader)
             .SetContent(new ParagraphComponent()
-                .SetDescription("All checks passed. Two approvals, no requested changes — ready to merge.")
+                .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
                 .SetDescriptionType(UITextAppearance.Body)
                 .SetWrapMode(UITextWrapMode.Wrap)
             )
@@ -64,12 +58,12 @@ internal sealed class CardMainView : DemoMainView, IUIViewDefinition
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Primary)
                     .SetSize(UIButtonSize.Small)
-                    .SetTitle("Merge")
+                    .SetTitle("Approve")
                 )
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Ghost)
                     .SetSize(UIButtonSize.Small)
-                    .SetTitle("View diff")
+                    .SetTitle("View plan")
                 )
             )
             .SetPlacement(1, 1, 24, 1)

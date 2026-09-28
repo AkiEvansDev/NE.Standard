@@ -10,6 +10,10 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>Renders <see cref="IBorderedComponent"/>'s border colour, thickness and radius onto a component's root element.</summary>
 public static class BorderStyleRenderer
 {
+    private static readonly WebDomOperation[] ColorOperations = [WebDomOperation.Style("border-color", converter: WebDomConverters.ThemeColorCss)];
+    private static readonly WebDomOperation[] ThicknessOperations = [WebDomOperation.Style("border-width", converter: WebDomConverters.ThicknessCss)];
+    private static readonly WebDomOperation[] RadiusOperations = [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)];
+
     public static void RenderBorderStyle(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -19,18 +23,18 @@ public static class BorderStyleRenderer
         {
             if (value is UIThemeColor borderColor && WebCssValues.ThemeColor(borderColor) is { Length: > 0 } css)
                 _ = target.Style("border-color", css);
-        }, [WebDomOperation.Style("border-color", converter: WebDomConverters.ThemeColorCss)]);
+        }, ColorOperations);
 
         _ = WebComponentRendererBase.RenderProperty<UIThickness?>(context, root, IBorderedComponent.BorderThicknessProperty, static (target, value) =>
         {
             if (value is UIThickness borderThickness)
                 _ = target.Style("border-width", WebCssValues.Thickness(borderThickness));
-        }, [WebDomOperation.Style("border-width", converter: WebDomConverters.ThicknessCss)]);
+        }, ThicknessOperations);
 
         _ = WebComponentRendererBase.RenderProperty<UICornerRadius?>(context, root, IBorderedComponent.BorderRadiusProperty, static (target, value) =>
         {
             if (value is UICornerRadius borderRadius)
                 _ = target.Style("border-radius", WebCssValues.Radius(borderRadius));
-        }, [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)]);
+        }, RadiusOperations);
     }
 }

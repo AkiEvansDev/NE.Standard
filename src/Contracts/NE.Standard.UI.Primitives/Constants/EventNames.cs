@@ -89,4 +89,7 @@ public static class EventNames
 
     /// <summary>A tree node the viewer asked to remove with the Delete key.</summary>
     public const string Remove = "remove";
+
+    /// <summary>An entry an application put into a tabs view's tab menu, carrying the entry's key and the tab's.</summary>
+    public const string TabMenuEntry = "tab-menu-entry";
 }

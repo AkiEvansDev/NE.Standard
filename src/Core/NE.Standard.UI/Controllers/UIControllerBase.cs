@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Annotations;
@@ -24,12 +25,15 @@ namespace NE.Standard.UI.Controllers;
 /// <summary>
 /// Base class for UI controllers with recursive state tracking, command discovery and authorization.
 /// </summary>
-public abstract partial class UIControllerBase : RecursiveObservable, IUIController, IUIContextController
+public abstract partial class UIControllerBase : RecursiveObservable, IUIController, IUIContextController, IUIControllerLifecycle
 {
     private static partial class Log
     {
-        [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "UI runtime operation '{Operation}' failed.")]
-        public static partial void RuntimeOperationFailed(ILogger logger, Exception exception, string operation);
+        [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "UI runtime operation '{Operation}' failed on route '{Route}', tab '{ClientWindowId}', user '{UserId}'.")]
+        public static partial void RuntimeOperationFailed(ILogger logger, Exception exception, string operation, string route, string clientWindowId, string? userId);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Debug, Message = "UI runtime operation '{Operation}' on route '{Route}' was refused to user '{UserId}': {Reason}")]
+        public static partial void RuntimeOperationRefused(ILogger logger, string operation, string route, string? userId, string reason);
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "UI controller change notifier failed.")]
         public static partial void ChangeNotifierFailed(ILogger logger, Exception exception);
@@ -93,6 +97,48 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     protected virtual Task OnInitializeAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
+    /// <summary>
+    /// Gets whether a page is attached to this controller's runtime now — a connection someone looks at.
+    /// </summary>
+    public bool HasViewers => _context is not null && _context.Runtime.HasViewers;
+
+    /// <summary>
+    /// Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again — with the
+    /// navigation it arrived with, so a parameter the route does not key its runtime by still reaches one that already existed.
+    /// </summary>
+    /// <remarks>
+    /// Runs as a command does, under the runtime's lock, after the first attach's <see cref="OnInitializeAsync"/>; what it writes is
+    /// in the page the attach is answered with. <see cref="UIContext.Handle"/> is the attaching connection.
+    /// </remarks>
+    protected virtual Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Runs each time a connection detaches — a tab closed, reloaded or navigated away; <see cref="HasViewers"/> already counts
+    /// it gone.
+    /// </summary>
+    /// <remarks>
+    /// Queued and run as a command does, since a closing connection waits for nobody; what it writes flushes to the pages still
+    /// attached.
+    /// </remarks>
+    protected virtual Task OnDetachedAsync(CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    Task IUIControllerLifecycle.AttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        return OnAttachedAsync(navigation, cancellationToken);
+    }
+
+    Task IUIControllerLifecycle.DetachedAsync(CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        return OnDetachedAsync(cancellationToken);
+    }
+
     /// <inheritdoc />
     public bool HasPendingChanges
     {
@@ -137,6 +183,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
         ResetNotifier();
     }
+
+    /// <summary>Whether a controller type declares the named command; the view compiler asks, so a missing one fails at compile.</summary>
+    internal static bool DeclaresCommand(Type controllerType, string command)
+        => CommandCache.GetOrAdd(controllerType, BuildCommandCache).ContainsKey(command);
 
     /// <inheritdoc />
     public IUICommandMetadata GetCommandMetadata(string command)
@@ -185,30 +235,16 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// controller then command.
     /// </summary>
     /// <remarks>
-    /// The authorization filter is pinned outermost (<see cref="int.MinValue"/>) so no other filter can bypass it.
+    /// The authorization filter is pinned outermost so no other filter can bypass it.
     /// </remarks>
     private async Task<UICommandResult> ExecuteFilteredCommandAsync(UICommandDescriptor descriptor, IUICommandFilter[] globalFilters, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken)
     {
-        UICommandFilterContext context = new(
-            descriptor,
-            parameters ?? FrozenDictionary<string, object?>.Empty,
-            Context.Handle,
-            Context.Route,
-            Context.Services
-        )
+        UICommandFilterContext context = new(descriptor, parameters ?? FrozenDictionary<string, object?>.Empty, Context.Handle, Context.Route, Context.Services)
         {
             CancellationToken = cancellationToken
         };
 
-        IUICommandFilter[] filters =
-        [
-            new AuthorizationCommandFilter(this),
-            .. globalFilters,
-            .. descriptor.Filters
-        ];
-
-        // A stable sort: filters of one order keep their attachment order.
-        filters = [.. filters.OrderBy(static filter => filter.Order)];
+        IUICommandFilter[] filters = descriptor.OrderedFilters(globalFilters);
 
         Func<Task> next = async () =>
         {
@@ -223,6 +259,11 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
             next = () => filter.InvokeAsync(context, inner);
         }
+
+        AuthorizationCommandFilter authorization = new(this);
+        Func<Task> chain = next;
+
+        next = () => authorization.InvokeAsync(context, chain);
 
         await next().ConfigureAwait(false);
 
@@ -385,7 +426,12 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ArgumentNullException.ThrowIfNull(context.Exception);
         ArgumentException.ThrowIfNullOrWhiteSpace(context.Operation);
 
-        Log.RuntimeOperationFailed(Context.Logger, context.Exception, context.Operation);
+        // A command the session's rules refuse is answered to the reader and is the application working as meant: a debug line,
+        // not an error with a stack trace.
+        if (context.Exception is UnauthorizedAccessException refusal)
+            Log.RuntimeOperationRefused(Context.Logger, context.Operation, Context.Route.Route, Context.Handle.Session.UserId, refusal.Message);
+        else
+            Log.RuntimeOperationFailed(Context.Logger, context.Exception, context.Operation, Context.Route.Route, Context.Handle.Instance.WindowId, Context.Handle.Session.UserId);
 
         return Task.FromResult(RuntimeExceptionResult.Empty);
     }

@@ -21,7 +21,7 @@ public abstract partial class CollapsiblePanelComponent<T>(string? id = null) : 
     /// <summary>
     /// Gets or sets whether the panel draws its own switch; off means the panel is driven from the controller.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(ICollapsibleComponent), IsBindable = false, GenerateBinder = false, DefaultValue = true)]
+    [UIComponentProperty(Contract = typeof(ICollapsibleComponent), IsBindable = false, DefaultValue = true)]
     public bool? ShowCollapseToggle { get; set; }
 
     /// <summary>
@@ -37,6 +37,23 @@ public abstract partial class CollapsiblePanelComponent<T>(string? id = null) : 
         ArgumentNullException.ThrowIfNull(content);
 
         SetRegion(RegionNames.Content, content);
+        return Self;
+    }
+
+    /// <summary>
+    /// Gets what the panel carries beside its switch.
+    /// </summary>
+    public virtual IVisualComponent? ToggleContent => GetRegionOrDefault(RegionNames.ToggleContent);
+
+    /// <summary>
+    /// Puts content beside the panel's switch, in one row with it — a title, a search, a button of the panel's own — seen only while
+    /// the panel is open.
+    /// </summary>
+    public virtual T SetToggleContent(IVisualComponent content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        SetRegion(RegionNames.ToggleContent, content);
         return Self;
     }
 }

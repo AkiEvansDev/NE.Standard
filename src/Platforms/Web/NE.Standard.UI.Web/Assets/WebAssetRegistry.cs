@@ -11,6 +11,9 @@ internal sealed class WebAssetRegistry : IWebAssetRegistry
 {
     private readonly FrozenDictionary<string, WebAssetDescriptor> _assets;
 
+    // Sorted once: every page load reads the list, and nothing registers an asset after the host is built.
+    private readonly WebAssetDescriptor[] _ordered;
+
     public WebAssetRegistry(IEnumerable<WebAssetDescriptor> assets)
     {
         ArgumentNullException.ThrowIfNull(assets);
@@ -28,12 +31,12 @@ internal sealed class WebAssetRegistry : IWebAssetRegistry
             Add(builder, asset);
 
         _assets = builder.ToFrozenDictionary(StringComparer.Ordinal);
-    }
-
-    public IReadOnlyList<WebAssetDescriptor> Assets
-        => [.. _assets.Values
+        _ordered = [.. _assets.Values
             .OrderBy(static asset => asset.Order)
             .ThenBy(static asset => asset.Key, StringComparer.Ordinal)];
+    }
+
+    public IReadOnlyList<WebAssetDescriptor> Assets => _ordered;
 
     public bool TryGet(string key, [NotNullWhen(true)] out WebAssetDescriptor? asset)
     {

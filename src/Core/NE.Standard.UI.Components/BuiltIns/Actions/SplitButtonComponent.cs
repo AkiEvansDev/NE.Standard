@@ -16,7 +16,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <see cref="UISplitButtonMode.Menu"/> the whole button does.
 /// </summary>
 /// <remarks>Entries are a <see cref="MenuComponent"/> of <see cref="MenuItem"/>, the same model a sidebar uses, drawn in a popup.</remarks>
-public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent
+public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent, ISplitButtonComponent
     where T : SplitButtonComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
@@ -34,7 +34,7 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     /// Gets or sets which part opens the menu: the end part alone, or the whole button.
     /// </summary>
     /// <remarks>Render-time only: which part takes the click is how the control is built, not a state.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UISplitButtonMode.Split)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UISplitButtonMode.Split)]
     public UISplitButtonMode? Mode { get; set; }
 
     /// <summary>

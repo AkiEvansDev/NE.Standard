@@ -2,19 +2,6 @@ using System.Collections.Generic;
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Components.BuiltIns.Templates;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Navigation.TabsView;
 
@@ -57,21 +44,17 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                         .SetShowChevron(false)
                         .OnClick(nameof(TabsViewScenariosController.OpenFile), UIAction.ArgCurrentItemKey("id"))
                     )
-                    .SetPlacement(1, 1, 8, 1)
+                    .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 8, 1))
                 )
                 .AddChild(new TabsViewComponent(TabsViewScenariosController.EditorTabsId)
                     .BindItems(nameof(EditorGroupContext.Documents), UIBindingScope.Relative)
                     .BindSelectedKey(nameof(EditorGroupContext.SelectedKey), UIBindingScope.Relative)
                     .SetRenamable(true)
                     .SetDraggable(true)
-                    // On the tab template, so every tab carries the menu, bound to the document's own entries: the pin entry reads "Unpin" once
-                    // the tab is pinned. The tab's own id reaches the command from the enclosing item.
-                    .SetTemplate(new DefaultTabItemTemplate(binds: true)
-                        .SetContextMenu(new MenuComponent()
-                            .BindItems(nameof(DemoDocumentItem.Actions), UIBindingScope.Relative)
-                            .OnItemClick(nameof(TabsViewScenariosController.TabAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(DemoDocumentItem.Id)))
-                        )
-                    )
+                    // The strip's own menu: Rename, Pin or Unpin, the editor's "Close others", then Close.
+                    .SetTabMenuEntries(UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close)
+                    .AddTabMenuEntries(new MenuItem { Id = EditorGroupContext.CloseOthersAction, Title = "Close others", Icon = DemoIcons.Outline(DemoIcons.Close) })
+                    .OnTabMenuEntry(nameof(TabsViewScenariosController.TabAction))
                     .OnItemRemove(nameof(TabsViewScenariosController.CloseDocument))
                     .OnItemRename(nameof(TabsViewScenariosController.RenameDocument), UIAction.ArgCurrentItemKey("id"))
                     .SetPageTemplate(new ParagraphComponent()
@@ -80,11 +63,11 @@ internal sealed class TabsViewScenariosView : DemoScenariosView, IUIViewDefiniti
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                     )
                     .SetVerticalAlignment(UIAlignment.Start)
-                    .SetPlacement(10, 1, 15, 1)
+                    .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(10, 1, 15, 1))
                 ),
             contentMinHeight: 300,
             columns: 24,
-            note: "Open a file, close it, rename it, drag a header, right-click one, pin it: each one reaches the controller as a change to a single document, and the controller is what answers. A pinned tab wears the pin, loses its close and stays put under a drag."
+            note: "Open a file, close it, rename it, drag a header, right-click one and pin it: each one reaches the controller as a change to a single document, and the controller is what answers. The right-click menu is the strip's own — Rename, Pin and Close chosen for it — with Close others the editor's entry before Close. A pinned tab wears the pin, loses its close and stays put under a drag."
         );
     }
 

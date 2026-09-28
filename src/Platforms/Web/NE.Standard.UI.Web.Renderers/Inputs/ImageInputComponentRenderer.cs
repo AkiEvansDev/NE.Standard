@@ -56,17 +56,19 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         }
         else
         {
-            RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
+            IHtmlElementBuilder picture = RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
             RenderNative(context, root, multiple: false);
-            RenderValues(context, root);
+            RenderValues(context, root, picture);
         }
 
         RenderValidationMessage(context, root);
     }
 
     /// <summary>The button the viewer presses or drops on: the picture, the glyph shown without one, the text of the inline row, the pencil.</summary>
-    private void RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
+    private IHtmlElementBuilder RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
     {
+        IHtmlElementBuilder? pictureElement = null;
+
         _ = root.Element("button", surface =>
         {
             _ = surface.Class($"{ClassName}__surface");
@@ -85,6 +87,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
             _ = surface.Element("img", picture =>
             {
+                pictureElement = picture;
                 _ = picture.Class($"{ClassName}__picture");
                 _ = picture.Attribute("alt", string.Empty);
 
@@ -114,6 +117,9 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
             _ = surface.Element("span", pick => pick.Class($"{ClassName}__pick"));
         });
+
+        // The tree is written out only once the whole component is built, so the value writes onto this after its callback returned.
+        return pictureElement!;
     }
 
     /// <summary>The shelf the viewer drops on: the squares the engine keeps, the square that opens the picker, the words while it is empty.</summary>
@@ -197,7 +203,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The picture's URL and the upload's handle, each on a hidden input the value engine writes and reads.</summary>
-    private void RenderValues(WebRenderContext context, IHtmlElementBuilder root)
+    private void RenderValues(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder picture)
     {
         NativeInputRendererBase.RenderHiddenValueInput(context, root, $"{ClassName}__value", valueInput =>
         {
@@ -209,6 +215,9 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
                 _ = target.Attribute("value", value);
                 _ = root.Attribute(WebAttributes.ImageSource, value);
+
+                // The picture itself too, or the placeholder glyph stands in for it until the engine copies the source over.
+                _ = picture.Attribute("src", value);
             }, [
                 WebDomOperation.Property("value", converter: WebDomConverters.SafeImageSource),
                 WebDomOperation.Attribute(WebAttributes.ImageSource, target: "root", converter: WebDomConverters.SafeImageSource)

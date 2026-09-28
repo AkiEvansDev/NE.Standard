@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- The namespaces of this package an application writes against. The .targets beside this file turns them into global
+       usings unless the project sets NEStandardUIImplicitUsings to false; a package only names its own. -->
+  <ItemGroup>
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Actions" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Contents" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Indicators" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Inputs" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Items" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Layouts" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Models" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Navigation" />
+  </ItemGroup>
+
+</Project>

@@ -12,11 +12,203 @@ namespace NE.Standard.UI.Primitives.Text;
 /// </summary>
 public static class UIInlineMarkup
 {
+    /// <summary>
+    /// The text with the closing mark after every position indexed on first use, so an opening mark finds its close in
+    /// constant time and a parse stays linear however many marks are left open.
+    /// </summary>
+    /// <remarks>
+    /// Every lookup starts right after an opening mark, which is never a backslash, so the escapes read from the start of the
+    /// text are the escapes a scan from that position would read.
+    /// </remarks>
+    private sealed class MarkupText(string text)
+    {
+        private bool[]? _escaped;
+        private int[]? _closeBrackets;
+        private int[]? _openBrackets;
+        private int[]? _closeParens;
+        private int[]? _braceMatches;
+        private int[]? _braceDepths;
+        private readonly int[]?[] _closers = new int[]?[5];
+        private int _linkLabel = -1;
+        private string? _linkUrl;
+
+        public string Text { get; } = text;
+
+        public char this[int index] => Text[index];
+
+        /// <summary>The first unescaped <c>]</c> in [<paramref name="start"/>, <paramref name="end"/>); -1 when there is none.</summary>
+        public int FindClosingBracket(int start, int end)
+            => Within(Next(ref _closeBrackets, ']', honourEscapes: true)[start], end);
+
+        /// <summary>Whether an unescaped <c>[</c> stands in [<paramref name="start"/>, <paramref name="end"/>).</summary>
+        public bool HasOpeningBracket(int start, int end)
+            => Within(Next(ref _openBrackets, '[', honourEscapes: true)[start], end) >= 0;
+
+        /// <summary>The first <c>)</c> in [<paramref name="start"/>, <paramref name="end"/>), escaped or not, as a link's URL ends.</summary>
+        public int FindClosingParen(int start, int end)
+            => Within(Next(ref _closeParens, ')', honourEscapes: false)[start], end);
+
+        /// <summary>The <c>}</c> matching the <c>{</c> at <paramref name="open"/> before <paramref name="end"/>; -1 when there is none.</summary>
+        public int FindMatchingBrace(int open, int end)
+        {
+            EnsureBraces();
+
+            return Within(_braceMatches![open], end);
+        }
+
+        /// <summary>How many brace levels the pair opened at <paramref name="open"/> holds, itself included.</summary>
+        public int BraceDepth(int open)
+        {
+            EnsureBraces();
+
+            return _braceDepths![open];
+        }
+
+        /// <summary>
+        /// Where a run opened just before <paramref name="contentStart"/> closes: the marker, exactly as long as it opened,
+        /// hugging the text before it.
+        /// </summary>
+        public int FindClosingMarker(int contentStart, int end, char marker, int markerLength)
+        {
+            var slot = ClosingMarkerSlot(marker, markerLength);
+
+            _closers[slot] ??= BuildClosers(marker, markerLength);
+
+            var first = _closers[slot]![contentStart + 1];
+
+            if (markerLength == 2)
+                return first >= 0 && first + 1 < end ? first : -1;
+
+            if (first >= 0 && first < end - 1)
+                return first;
+
+            // A single marker right before the range's end closes even when the character after the range repeats it.
+            var last = end - 1;
+
+            return last > contentStart && Text[last] == marker && !IsEscaped(last) && !IsSpace(Text[last - 1]) ? last : -1;
+        }
+
+        /// <summary>The URL of the link whose label closes at <paramref name="closingLabel"/>, or null when it has none that is safe.</summary>
+        public string? ReadLinkUrl(int closingLabel, int closingUrl)
+        {
+            // Every bracket opened before one label reads the same URL; kept once, a refused one is not cut and checked again per bracket.
+            if (_linkLabel != closingLabel)
+            {
+                var candidate = Text[(closingLabel + 2)..closingUrl].Trim();
+
+                _linkLabel = closingLabel;
+                _linkUrl = IsSafeUrl(candidate) ? candidate : null;
+            }
+
+            return _linkUrl;
+        }
+
+        private static int Within(int position, int end)
+            => position >= 0 && position < end ? position : -1;
+
+        private bool IsEscaped(int index)
+        {
+            if (_escaped is null)
+            {
+                _escaped = new bool[Text.Length];
+
+                for (var i = 1; i < Text.Length; i++)
+                    _escaped[i] = Text[i - 1] == EscapeCharacter && !_escaped[i - 1];
+            }
+
+            return _escaped[index];
+        }
+
+        private int[] Next(ref int[]? table, char value, bool honourEscapes)
+        {
+            if (table is not null)
+                return table;
+
+            table = new int[Text.Length + 1];
+            table[Text.Length] = -1;
+
+            for (var i = Text.Length - 1; i >= 0; i--)
+                table[i] = Text[i] == value && (!honourEscapes || !IsEscaped(i)) ? i : table[i + 1];
+
+            return table;
+        }
+
+        private void EnsureBraces()
+        {
+            if (_braceMatches is not null)
+                return;
+
+            var matches = new int[Text.Length];
+            var depths = new int[Text.Length];
+            Stack<int> open = new();
+
+            Array.Fill(matches, -1);
+
+            for (var i = 0; i < Text.Length; i++)
+            {
+                if (IsEscaped(i))
+                    continue;
+
+                if (Text[i] == FoldOpen)
+                {
+                    open.Push(i);
+                }
+                else if (Text[i] == FoldClose && open.TryPop(out var pair))
+                {
+                    // While a pair is open its depth holds its deepest child's; closing it adds its own level and passes it up.
+                    matches[pair] = i;
+                    depths[pair]++;
+
+                    if (open.TryPeek(out var parent))
+                        depths[parent] = Math.Max(depths[parent], depths[pair]);
+                }
+            }
+
+            _braceDepths = depths;
+            _braceMatches = matches;
+        }
+
+        private static int ClosingMarkerSlot(char marker, int markerLength)
+            => marker switch
+            {
+                '*' => markerLength == 2 ? 0 : 1,
+                '_' => 2,
+                '~' => 3,
+                _ => 4
+            };
+
+        private int[] BuildClosers(char marker, int markerLength)
+        {
+            var closers = new int[Text.Length + 1];
+            closers[Text.Length] = -1;
+
+            for (var i = Text.Length - 1; i >= 0; i--)
+                closers[i] = IsCloser(i, marker, markerLength) ? i : closers[i + 1];
+
+            return closers;
+        }
+
+        private bool IsCloser(int index, char marker, int markerLength)
+        {
+            if (index == 0 || Text[index] != marker || IsEscaped(index) || IsSpace(Text[index - 1]))
+                return false;
+
+            var repeated = index + 1 < Text.Length && Text[index + 1] == marker;
+
+            // The doubled marker must be exactly doubled, so `***a***` closes as bold wrapping italic.
+            return markerLength == 2 ? repeated : !repeated;
+        }
+    }
+
     private const char EscapeCharacter = '\\';
     private const char CodeMarker = '`';
     private const char IconMarker = '!';
     private const char FoldOpen = '{';
     private const char FoldClose = '}';
+
+    // A fold's text is parsed again where it is rendered, one level of recursion per fold: text nested deeper than this reads as
+    // literal braces, or a few kilobytes of user text could exhaust the stack of whatever renders it.
+    private const int MaxFoldDepth = 8;
 
     /// <summary>
     /// Splits text into runs. Text with no markup in it comes back as a single plain run, and empty text as
@@ -30,7 +222,7 @@ public static class UIInlineMarkup
         List<UIInlineSegment> segments = [];
         StringBuilder buffer = new();
 
-        ParseRange(text, 0, text.Length, UIInlineStyles.None, null, segments, buffer);
+        ParseRange(new MarkupText(text), 0, text.Length, UIInlineStyles.None, null, segments, buffer);
         Flush(segments, buffer, UIInlineStyles.None, null);
 
         return segments;
@@ -104,7 +296,7 @@ public static class UIInlineMarkup
         return builder.ToString();
     }
 
-    private static void ParseRange(string text, int start, int end, UIInlineStyles styles, string? url, List<UIInlineSegment> segments, StringBuilder buffer)
+    private static void ParseRange(MarkupText text, int start, int end, UIInlineStyles styles, string? url, List<UIInlineSegment> segments, StringBuilder buffer)
     {
         var index = start;
 
@@ -123,7 +315,7 @@ public static class UIInlineMarkup
             if (TryReadCode(text, index, end, out var codeEnd))
             {
                 Flush(segments, buffer, styles, url);
-                AppendLiteral(text, index + 1, codeEnd, buffer);
+                AppendLiteral(text.Text, index + 1, codeEnd, buffer);
                 Flush(segments, buffer, styles | UIInlineStyles.Code, url);
 
                 index = codeEnd + 1;
@@ -164,7 +356,7 @@ public static class UIInlineMarkup
             if (TryReadFold(text, index, end, out var caption, out var foldStart, out var foldEnd))
             {
                 Flush(segments, buffer, styles, url);
-                segments.Add(new UIInlineSegment(text[foldStart..foldEnd], styles, null, null, caption));
+                segments.Add(new UIInlineSegment(text.Text[foldStart..foldEnd], styles, null, null, caption));
 
                 index = foldEnd + 1;
                 continue;
@@ -176,7 +368,7 @@ public static class UIInlineMarkup
     }
 
     /// <summary>Finds where the code run starting at <paramref name="index"/> closes, by the same hugging rule every marker follows.</summary>
-    private static bool TryReadCode(string text, int index, int end, out int contentEnd)
+    private static bool TryReadCode(MarkupText text, int index, int end, out int contentEnd)
     {
         contentEnd = 0;
 
@@ -188,7 +380,7 @@ public static class UIInlineMarkup
         if (contentStart >= end || IsSpace(text[contentStart]))
             return false;
 
-        contentEnd = FindClosingMarker(text, contentStart, end, CodeMarker, 1);
+        contentEnd = text.FindClosingMarker(contentStart, end, CodeMarker, 1);
 
         return contentEnd > contentStart;
     }
@@ -221,7 +413,7 @@ public static class UIInlineMarkup
     }
 
     /// <summary>Finds where the style marker at <paramref name="index"/> closes; two-character markers are tried first, so <c>**</c> is never read as two italics.</summary>
-    private static bool TryReadStyle(string text, int index, int end, out UIInlineStyles style, out int markerLength, out int contentEnd)
+    private static bool TryReadStyle(MarkupText text, int index, int end, out UIInlineStyles style, out int markerLength, out int contentEnd)
     {
         style = UIInlineStyles.None;
         markerLength = 0;
@@ -255,42 +447,15 @@ public static class UIInlineMarkup
         if (contentStart >= end || IsSpace(text[contentStart]))
             return false;
 
-        contentEnd = FindClosingMarker(text, contentStart, end, current, markerLength);
+        contentEnd = text.FindClosingMarker(contentStart, end, current, markerLength);
 
         return contentEnd > contentStart;
-    }
-
-    private static int FindClosingMarker(string text, int contentStart, int end, char marker, int markerLength)
-    {
-        for (var index = contentStart; index + markerLength <= end; index++)
-        {
-            if (text[index] == EscapeCharacter)
-            {
-                index++;
-                continue;
-            }
-
-            if (text[index] != marker)
-                continue;
-
-            // The doubled marker must be exactly doubled, so `***a***` closes as bold wrapping italic.
-            if (markerLength == 2 && (index + 1 >= end || text[index + 1] != marker))
-                continue;
-
-            if (markerLength == 1 && index + 1 < end && text[index + 1] == marker)
-                continue;
-
-            if (index > contentStart && !IsSpace(text[index - 1]))
-                return index;
-        }
-
-        return -1;
     }
 
     /// <summary>
     /// Reads <c>![glyph]</c>; the value is a glyph name and only a glyph name, never a URL or a data payload.
     /// </summary>
-    private static bool TryReadIcon(string text, int index, int end, out string? icon, out int iconEnd)
+    private static bool TryReadIcon(MarkupText text, int index, int end, out string? icon, out int iconEnd)
     {
         icon = null;
         iconEnd = 0;
@@ -299,33 +464,15 @@ public static class UIInlineMarkup
             return false;
 
         var contentStart = index + 2;
-        var closing = FindClosingBracket(text, contentStart, end);
+        var closing = text.FindClosingBracket(contentStart, end);
 
-        if (closing <= contentStart || !IsGlyphName(text.AsSpan(contentStart, closing - contentStart)))
+        if (closing <= contentStart || !IsGlyphName(text.Text.AsSpan(contentStart, closing - contentStart)))
             return false;
 
-        icon = text[contentStart..closing];
+        icon = text.Text[contentStart..closing];
         iconEnd = closing + 1;
 
         return true;
-    }
-
-    /// <summary>The <c>]</c> closing a bracket opened before <paramref name="start"/>, honouring escapes; -1 when there is none.</summary>
-    private static int FindClosingBracket(string text, int start, int end)
-    {
-        for (var scan = start; scan < end; scan++)
-        {
-            if (text[scan] == EscapeCharacter)
-            {
-                scan++;
-                continue;
-            }
-
-            if (text[scan] == ']')
-                return scan;
-        }
-
-        return -1;
     }
 
     /// <summary>Whether <paramref name="value"/> could name a glyph — a pack constant's characters, never something that could turn into a scheme, path or payload.</summary>
@@ -343,7 +490,7 @@ public static class UIInlineMarkup
         return true;
     }
 
-    private static bool TryReadLink(string text, int index, int end, out int labelStart, out int labelEnd, out string? url, out int linkEnd)
+    private static bool TryReadLink(MarkupText text, int index, int end, out int labelStart, out int labelEnd, out string? url, out int linkEnd)
     {
         labelStart = 0;
         labelEnd = 0;
@@ -353,19 +500,19 @@ public static class UIInlineMarkup
         if (text[index] != '[')
             return false;
 
-        var closingLabel = FindClosingBracket(text, index + 1, end);
+        var closingLabel = text.FindClosingBracket(index + 1, end);
 
         if (closingLabel < 0 || closingLabel + 1 >= end || text[closingLabel + 1] != '(')
             return false;
 
-        var closingUrl = text.IndexOf(')', closingLabel + 2);
+        var closingUrl = text.FindClosingParen(closingLabel + 2, end);
 
-        if (closingUrl < 0 || closingUrl >= end)
+        if (closingUrl < 0)
             return false;
 
-        var candidate = text[(closingLabel + 2)..closingUrl].Trim();
+        var candidate = text.ReadLinkUrl(closingLabel, closingUrl);
 
-        if (!IsSafeUrl(candidate))
+        if (candidate is null)
             return false;
 
         labelStart = index + 1;
@@ -410,7 +557,7 @@ public static class UIInlineMarkup
     /// <summary>
     /// Reads <c>[caption]{text}</c>: the caption is plain text, and the braces nest so the text may hold a fold of its own.
     /// </summary>
-    private static bool TryReadFold(string text, int index, int end, out string? caption, out int contentStart, out int contentEnd)
+    private static bool TryReadFold(MarkupText text, int index, int end, out string? caption, out int contentStart, out int contentEnd)
     {
         caption = null;
         contentStart = 0;
@@ -419,44 +566,26 @@ public static class UIInlineMarkup
         if (text[index] != '[')
             return false;
 
-        var closingCaption = FindClosingBracket(text, index + 1, end);
+        var closingCaption = text.FindClosingBracket(index + 1, end);
 
         if (closingCaption <= index + 1 || closingCaption + 1 >= end || text[closingCaption + 1] != FoldOpen)
             return false;
 
         // A caption is a word or a few, never markup: a bracket opened inside it means the fold starts there, as a link inside a link's label does.
-        for (var scan = index + 1; scan < closingCaption; scan++)
-        {
-            if (text[scan] == EscapeCharacter)
-                scan++;
-            else if (text[scan] == '[')
-                return false;
-        }
+        if (text.HasOpeningBracket(index + 1, closingCaption))
+            return false;
 
-        contentStart = closingCaption + 2;
+        var open = closingCaption + 1;
 
-        var depth = 1;
+        contentStart = open + 1;
+        contentEnd = text.FindMatchingBrace(open, end);
 
-        for (var scan = contentStart; scan < end && contentEnd < 0; scan++)
-        {
-            if (text[scan] == EscapeCharacter)
-            {
-                scan++;
-                continue;
-            }
-
-            if (text[scan] == FoldOpen)
-                depth++;
-            else if (text[scan] == FoldClose && --depth == 0)
-                contentEnd = scan;
-        }
-
-        if (contentEnd <= contentStart)
+        if (contentEnd <= contentStart || text.BraceDepth(open) > MaxFoldDepth)
             return false;
 
         StringBuilder captionBuffer = new();
 
-        AppendLiteral(text, index + 1, closingCaption, captionBuffer);
+        AppendLiteral(text.Text, index + 1, closingCaption, captionBuffer);
         caption = captionBuffer.ToString();
 
         return true;

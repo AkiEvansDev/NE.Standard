@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -11,7 +7,7 @@ namespace DemoApp.Controllers.Base;
 /// <remarks>An unset <c>Value</c> means indeterminate — running, but not knowing how far — which both shapes draw as movement.</remarks>
 internal sealed partial class ProgressGroupContext : DemoGroupContext
 {
-    private const string SampleProgressLabel = "Restoring packages";
+    private const string SampleProgressLabel = "Provisioning api-eu-north-1";
 
     [RecursiveMember]
     public partial string? Label { get; set; }
@@ -67,8 +63,7 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
         => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
 
     public void CycleColor()
-        => SetLastChange(nameof(Color), Color = CycleValue(Color,
-            UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromStyle(UIColorStyle.Danger), null));
+        => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromStyle(UIColorStyle.Danger), null));
 
     public void ToggleShowValue()
         => SetLastChange(nameof(ShowValue), ShowValue = !ShowValue);
@@ -83,7 +78,7 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class SpinnerGroupContext : DemoGroupContext
 {
-    private const string SampleLabel = "Reading the manifest";
+    private const string SampleLabel = "Reading metrics";
 
     [RecursiveMember]
     public partial string? Label { get; set; }
@@ -108,6 +103,5 @@ internal sealed partial class SpinnerGroupContext : DemoGroupContext
         => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 
     public void CycleColor()
-        => SetLastChange(nameof(Color), Color = CycleValue(Color,
-            UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.Muted, null));
+        => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.Muted, null));
 }

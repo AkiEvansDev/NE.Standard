@@ -1,5 +1,7 @@
 import { ComponentSelector } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
+import { isInRenameField } from "./inline-rename";
+import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
 import { FocusableSelector, moveFocusInto, restoreFocusTo } from "./popup-focus";
 import { isRovingCandidate } from "./roving-focus";
@@ -107,8 +109,10 @@ export class DialogEngine {
         if (topmost === null)
             return;
 
-        // A popup open inside the dialog — a select's list, a picker, a menu — takes the first Escape; the dialog the next.
-        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups()) {
+        // A popup open inside the dialog — a select's list, a picker, a menu — takes the first Escape, and so does an editor that
+        // cancels on it (a rename field, a key-value row being edited), which hears the key only after this capture listener; the
+        // dialog takes the next.
+        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !isInRenameField(domEvent.target) && !isInEditingRow(domEvent.target)) {
             const key = topmost.getAttribute(DialogAttribute);
 
             if (key !== null) {
@@ -169,7 +173,7 @@ export class DialogEngine {
 }
 
 /** The open dialog on top: open state lives on the DOM `hidden` attribute, not a parallel set, so document order is the stack order. */
-export function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {
+function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {
     const open = root.querySelectorAll<HTMLElement>(`[${DialogAttribute}]:not([hidden])`);
 
     return open.length === 0 ? null : open[open.length - 1];

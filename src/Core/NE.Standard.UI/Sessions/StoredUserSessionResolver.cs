@@ -52,15 +52,7 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
 
         session = ApplyClaims(session, initData.Principal);
 
-        return new UserSessionContext(
-            session.SessionId,
-            session.Language,
-            session.ThemeMode,
-            session.IsAuthenticated,
-            session.UserId,
-            session.Roles,
-            session.Permissions
-        );
+        return new UserSessionContext(session.SessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions);
     }
 
     /// <summary>
@@ -77,7 +69,7 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
         if (stored is null)
             return null;
 
-        return stored.IsIdle(_application.Sessions.IdleTimeout, utcNow) ? null : stored;
+        return stored.IsIdle(_application.Sessions, utcNow) ? null : stored;
     }
 
     /// <summary>

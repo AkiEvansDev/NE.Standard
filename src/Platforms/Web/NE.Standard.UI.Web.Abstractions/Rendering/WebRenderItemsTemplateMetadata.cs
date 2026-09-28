@@ -18,6 +18,15 @@ public sealed class WebRenderItemsTemplateMetadata
 
     public string? ItemWrapperClassName { get; init; }
 
+    /// <summary>The role the wrapper carries — an option, a list item — so a row the client builds reads as the server's rows do.</summary>
+    public string? ItemWrapperRole { get; init; }
+
+    /// <summary>
+    /// Whether each row says whether it is chosen (<c>aria-selected</c>): a row the client builds starts unchosen, and the selection
+    /// engine marks the chosen ones.
+    /// </summary>
+    public bool AnnouncesSelection { get; init; }
+
     /// <summary>
     /// Set when the item is composed of several named template variants instead of one key-selected template; mutually exclusive
     /// with <see cref="ItemWrapperElementName"/> in practice.

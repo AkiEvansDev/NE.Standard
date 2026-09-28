@@ -18,6 +18,9 @@ public static class WebValueKinds
     /// <summary>A tab's caption as renamed, read off its label.</summary>
     public const string TabCaption = "tab-caption";
 
+    /// <summary>Whether a tab is pinned, read off its pin.</summary>
+    public const string TabPinned = "tab-pinned";
+
     /// <summary>A tree node's title as a rename wrote it, on the node's root.</summary>
     public const string TreeTitle = "tree-title";
 

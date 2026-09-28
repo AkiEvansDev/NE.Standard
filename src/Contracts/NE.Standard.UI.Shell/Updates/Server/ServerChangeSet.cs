@@ -19,6 +19,13 @@ public sealed class ServerChangeSet
     public required ServerUIUpdate[] Updates { get; init; }
 
     /// <summary>
+    /// Gets each update's place in the order the runtime queued them, aligned with <see cref="Updates"/>; unset for a change set
+    /// the runtime did not queue (an attach snapshot, a window read), which every client receives whole.
+    /// </summary>
+    [JsonIgnore]
+    public long[]? Sequences { get; init; }
+
+    /// <summary>
     /// Gets whether the change set contains no updates.
     /// </summary>
     [JsonIgnore]
@@ -43,15 +50,59 @@ public sealed class ServerChangeSet
             return this;
 
         ServerUIUpdate[] updates = new ServerUIUpdate[Updates.Length - excepted];
+        var sequences = Sequences is null ? null : new long[updates.Length];
         var next = 0;
 
         for (var i = 0; i < Updates.Length; i++)
         {
-            if (!IsExcepted(Updates[i], instanceId))
-                updates[next++] = Updates[i];
+            if (IsExcepted(Updates[i], instanceId))
+                continue;
+
+            sequences?[next] = Sequences![i];
+
+            updates[next++] = Updates[i];
         }
 
-        return new ServerChangeSet { Updates = updates };
+        return new ServerChangeSet { Updates = updates, Sequences = sequences };
+    }
+
+    /// <summary>
+    /// Gets the change set without the updates queued at or before <paramref name="watermark"/> — those a client's attach snapshot
+    /// already holds; the same instance when there are none.
+    /// </summary>
+    public ServerChangeSet After(long watermark)
+    {
+        if (Sequences is not { } sequences)
+            return this;
+
+        var dropped = 0;
+
+        for (var i = 0; i < sequences.Length; i++)
+        {
+            if (sequences[i] <= watermark)
+                dropped++;
+        }
+
+        if (dropped == 0)
+            return this;
+
+        if (dropped == Updates.Length)
+            return Empty;
+
+        ServerUIUpdate[] updates = new ServerUIUpdate[Updates.Length - dropped];
+        var kept = new long[updates.Length];
+        var next = 0;
+
+        for (var i = 0; i < Updates.Length; i++)
+        {
+            if (sequences[i] <= watermark)
+                continue;
+
+            updates[next] = Updates[i];
+            kept[next++] = sequences[i];
+        }
+
+        return new ServerChangeSet { Updates = updates, Sequences = kept };
     }
 
     /// <summary>
@@ -81,6 +132,9 @@ public sealed class ServerChangeSet
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Updates);
+
+        if (Sequences is not null && Sequences.Length != Updates.Length)
+            throw new InvalidOperationException("A change set's sequences must match its updates one to one.");
 
         for (var i = 0; i < Updates.Length; i++)
         {

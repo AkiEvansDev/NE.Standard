@@ -38,7 +38,7 @@ public static class WebPackageClient
             SourceKind = UIWebAssetSourceKind.EmbeddedResource,
             Source = $"{assemblyName}.Client.dist.{bundleName}.css",
             ResourceAssemblyName = assemblyName,
-            PublicPath = $"/css/{bundleName}.css",
+            PublicPath = $"/_ne/css/{bundleName}.css",
             Order = PackageAssetOrder
         });
 
@@ -49,7 +49,7 @@ public static class WebPackageClient
             SourceKind = UIWebAssetSourceKind.EmbeddedResource,
             Source = $"{assemblyName}.Client.dist.{bundleName}.js",
             ResourceAssemblyName = assemblyName,
-            PublicPath = $"/js/{bundleName}.js",
+            PublicPath = $"/_ne/js/{bundleName}.js",
             Order = PackageAssetOrder
         });
 

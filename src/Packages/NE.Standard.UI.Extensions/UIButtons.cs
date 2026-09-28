@@ -56,6 +56,8 @@ public static class UIButtons
             .SetOrientation(UIOrientation.Horizontal)
             .SetHorizontalAlignment(UIAlignment.End)
             .SetSpacing(8)
+            // On a phone the two may not fit on one line: the primary goes under, still at the far edge, rather than past it.
+            .SetWrap(true)
             .AddChild(secondary)
             .AddChild(primary);
     }
@@ -69,6 +71,7 @@ public static class UIButtons
             .SetOrientation(UIOrientation.Horizontal)
             .SetHorizontalAlignment(UIAlignment.Start)
             .SetSpacing(4)
+            .SetWrap(true)
             .AddChildren(buttons);
     }
 

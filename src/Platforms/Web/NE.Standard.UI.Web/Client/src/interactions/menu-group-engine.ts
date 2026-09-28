@@ -3,7 +3,7 @@
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
 import { PopupDismissal } from "./popup-dismissal";
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemKindAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchingAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
 import { ClientStore } from "../state/client-store";
 
 const RootClass = "ui-menu";
@@ -12,7 +12,6 @@ const RootClass = "ui-menu";
 const NestedClass = "ui-menu--nested";
 const ItemClass = "ui-menu-item";
 const SelectedModifier = "ui-menu-item--selected";
-const ItemWrapperClass = "ui-menu__item";
 const SubmenuClass = "ui-menu__submenu";
 
 const GroupAttribute = MenuGroupAttribute;
@@ -41,14 +40,27 @@ export class MenuGroupEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
 
         // The group as a whole rather than the submenu alone: a click on the group's own entry is the toggle, not a click outside.
+        // Closed on the press and on the window's blur, as the context menu a flyout may stand in is: a right press elsewhere opens
+        // another menu with no click to follow, and the flyout left open would come back with it at the old place.
         new PopupDismissal({
             openPopups: () => this.openFlyout?.parentElement === null || this.openFlyout === null ? [] : [this.openFlyout.parentElement],
-            close: () => this.closeFlyout()
+            close: () => this.closeFlyout(),
+            onPress: true,
+            onWindowBlur: true
         });
 
         this.reconcileEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcileEach(menus));
+
+        // Whoever opens or closes a group — this engine, the search, a server-rendered start — the entry tells the reader so.
+        for (const group of this.root.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`))
+            describeGroup(group);
+
+        observeComponents(this.root, `[${GroupAttribute}]`, { childList: true, attributeFilter: [OpenAttribute] }, groups => {
+            for (const group of groups)
+                describeGroup(group);
+        });
     }
 
     private reconcileEach(menus: Iterable<HTMLElement>): void {
@@ -76,13 +88,16 @@ export class MenuGroupEngine {
             this.openResolvedGroup(menu);
     }
 
-    /** Closes what the menu's previous fold had open, then re-resolves the group for the new one. */
+    /** Closes what the menu's previous fold had open, then re-resolves the group for the new one; a fold makes every group fly out. */
     private handleCollapsedChange(menu: HTMLElement, collapsed: boolean): void {
         this.closeFlyout();
         this.closeGroups(menu);
 
         if (!collapsed)
             this.openResolvedGroup(menu);
+
+        for (const group of menu.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`))
+            describeGroup(group);
     }
 
     /** Opens the group the current page sits in, and only failing that the one this viewer last opened; a select never opens inline. */
@@ -145,6 +160,12 @@ export class MenuGroupEngine {
 
     private toggleInline(menu: HTMLElement, group: HTMLElement): void {
         const nested = menu.classList.contains(NestedClass);
+
+        // Mid-search the groups stand open on their matches: a press folds or unfolds this one alone and is not remembered.
+        if (group.closest(`[${MenuSearchingAttribute}]`) !== null) {
+            group.toggleAttribute(OpenAttribute);
+            return;
+        }
 
         if (group.hasAttribute(OpenAttribute)) {
             group.removeAttribute(OpenAttribute);
@@ -225,9 +246,7 @@ export class MenuGroupEngine {
 
     /** The group whose *own* entry this is — not the one a sub-entry merely sits inside. */
     private ownGroupOf(entry: HTMLElement): HTMLElement | null {
-        const wrapper = entry.closest<HTMLElement>(`.${ItemWrapperClass}`);
-
-        return wrapper !== null && wrapper.hasAttribute(GroupAttribute) ? wrapper : null;
+        return entry.matches(MenuGroupEntrySelector) ? entry.parentElement : null;
     }
 
     private groupOf(entry: HTMLElement | null, menu: HTMLElement): HTMLElement | null {
@@ -239,6 +258,22 @@ export class MenuGroupEngine {
     private submenuOf(group: HTMLElement): HTMLElement | null {
         return group.querySelector<HTMLElement>(`:scope > .${SubmenuClass}`);
     }
+}
+
+/** Writes on a group's own entry whether its block is open, and whether it opens as a popup — a select's, or any in a folded menu. */
+function describeGroup(group: HTMLElement): void {
+    const entry = group.querySelector<HTMLElement>(`:scope > .${ItemClass}`);
+    const menu = group.closest<HTMLElement>(`.${RootClass}`);
+
+    if (entry === null)
+        return;
+
+    entry.setAttribute("aria-expanded", group.hasAttribute(OpenAttribute) ? "true" : "false");
+
+    if (group.hasAttribute(SelectAttribute) || (menu !== null && isCollapsed(menu)))
+        entry.setAttribute("aria-haspopup", "menu");
+    else
+        entry.removeAttribute("aria-haspopup");
 }
 
 function isCollapsed(menu: HTMLElement): boolean {

@@ -44,21 +44,41 @@ public sealed class WebRenderContext
     /// </summary>
     public bool IsPresentationCopy { get; init; }
 
+    /// <summary>
+    /// Whether this subtree is a template the client clones, once per use: every identity is kept, but nothing that must be unique
+    /// on the page — an element id — is written.
+    /// </summary>
+    public bool IsTemplate { get; init; }
+
+    /// <summary>
+    /// Whether this subtree is a popup menu's content — a right-click menu's, named or not — whose entries are menu items to a
+    /// screen reader.
+    /// </summary>
+    public bool IsPopupMenu { get; init; }
+
     public WebRenderContext ForHtml(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, IsPresentationCopy);
+        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu);
 
     public WebRenderContext ForNode(UIComponentNode node, IHtmlElementBuilder html)
-        => Copy(node, Parameters, html, IsPresentationCopy);
+        => Copy(node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu);
 
     /// <summary>Renders into <paramref name="html"/> as a picture of a component — see <see cref="IsPresentationCopy"/>.</summary>
     public WebRenderContext AsPresentationCopy(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, isPresentationCopy: true);
+        => Copy(Node, Parameters, html, isPresentationCopy: true, IsTemplate, IsPopupMenu);
+
+    /// <summary>Renders into <paramref name="html"/> as a template the client clones — see <see cref="IsTemplate"/>.</summary>
+    public WebRenderContext AsTemplate(IHtmlElementBuilder html)
+        => Copy(Node, Parameters, html, IsPresentationCopy, isTemplate: true, IsPopupMenu);
+
+    /// <summary>Renders into <paramref name="html"/> as a popup menu's content — see <see cref="IsPopupMenu"/>.</summary>
+    public WebRenderContext AsPopupMenu(IHtmlElementBuilder html)
+        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, isPopupMenu: true);
 
     public WebRenderContext WithParameters(IReadOnlyList<UIDynamicParameterScope> parameters)
-        => Copy(Node, parameters, Html, IsPresentationCopy);
+        => Copy(Node, parameters, Html, IsPresentationCopy, IsTemplate, IsPopupMenu);
 
-    // The one place every member is carried over, so a member added later cannot be dropped by one of the four copies.
-    private WebRenderContext Copy(UIComponentNode node, IReadOnlyList<UIDynamicParameterScope> parameters, IHtmlElementBuilder html, bool isPresentationCopy)
+    // The one place every member is carried over, so a member added later cannot be dropped by one of the copies.
+    private WebRenderContext Copy(UIComponentNode node, IReadOnlyList<UIDynamicParameterScope> parameters, IHtmlElementBuilder html, bool isPresentationCopy, bool isTemplate, bool isPopupMenu)
         => new()
         {
             ViewResolution = ViewResolution,
@@ -70,7 +90,9 @@ public sealed class WebRenderContext
             Translator = Translator,
             Theme = Theme,
             Values = Values,
-            IsPresentationCopy = isPresentationCopy
+            IsPresentationCopy = isPresentationCopy,
+            IsTemplate = isTemplate,
+            IsPopupMenu = isPopupMenu
         };
 
     public void Validate()

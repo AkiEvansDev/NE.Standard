@@ -1,13 +1,5 @@
 using DemoApp.Controllers.Layouts.Expander;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Expander;
 
@@ -42,7 +34,7 @@ internal sealed class ExpanderScenariosView : DemoScenariosView, IUIViewDefiniti
                     .OnExpand(nameof(ExpanderScenariosController.LoadLogAsync))
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.FileText)
-                        .SetTitle("Build log")
+                        .SetTitle("Provisioning log")
                         .SetDescription("A few hundred kilobytes nobody asked for yet")
                         .BindBadgeText(nameof(ExpanderLoadGroupContext.State), UIBindingScope.Relative)
                         .BindBadgeStyle(nameof(ExpanderLoadGroupContext.StateStyle), UIBindingScope.Relative)

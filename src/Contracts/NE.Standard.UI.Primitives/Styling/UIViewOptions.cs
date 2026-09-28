@@ -1,3 +1,5 @@
+using System;
+
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
@@ -19,7 +21,27 @@ public sealed record UIViewOptions
     public bool ScrollContentOnly { get; init; }
 
     /// <summary>
+    /// Gets which regions run the page's full length: the header and footer across (the default), or the sides down.
+    /// </summary>
+    public UIShellLayout ShellLayout { get; init; }
+
+    /// <summary>
+    /// Gets whether the sides become drawers on a narrow screen: below the medium breakpoint they leave the page's columns and slide
+    /// over the content, each opened by a button the header carries, so a phone gives the content its whole width.
+    /// </summary>
+    public bool SideDrawers { get; init; }
+
+    /// <summary>
     /// Gets which corner this view's notifications stack in.
     /// </summary>
     public UINotificationPlacement NotificationPlacement { get; init; } = UINotificationPlacement.Bottom;
+
+    /// <summary>
+    /// Gets the width, in pixels, every notification of this view takes whatever its message; a narrow screen narrows it further.
+    /// </summary>
+    public double NotificationWidth
+    {
+        get;
+        init => field = double.IsFinite(value) && value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A notification's width is a positive number of pixels.");
+    } = 360;
 }

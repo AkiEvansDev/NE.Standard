@@ -32,6 +32,8 @@ public abstract class UIStartupBase
         // Built in the host's own container, on first resolve: a provider built here would construct every singleton the build touches a second time.
         _ = services.AddSingleton(application.Build);
         _ = services.AddSingleton<IUIHost, UIHost>();
+        // The host holds the runtimes a session's end has to reach, so it is what ends one.
+        _ = services.AddSingleton<IUISessions>(static provider => (UIHost)provider.GetRequiredService<IUIHost>());
     }
 
     internal void Configure(IServiceCollection services, UIApplicationBuilder application)

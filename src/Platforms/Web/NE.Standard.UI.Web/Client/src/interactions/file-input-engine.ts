@@ -78,9 +78,13 @@ export class FileInputEngine {
             return;
 
         const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const files = [...domEvent.target.files ?? []];
+
+        // Cleared, so choosing the same file again — a retry after a failed upload — is a change the picker reports, as the image field's is.
+        domEvent.target.value = "";
 
         if (root !== null)
-            await this.takeFilesAsync(root, [...domEvent.target.files ?? []]);
+            await this.takeFilesAsync(root, files);
     }
 
     /** Sends the files and hands the controller the handle; none clears it, a failure leaves it empty and says so. */
@@ -98,9 +102,12 @@ export class FileInputEngine {
 
         const accepted = filterWithinFileSizeLimit(root, files);
 
-        // Every file refused for size is not an empty pick: the existing selection stands rather than being cleared.
-        if (accepted.length === 0)
+        // Every file refused for size is not an empty pick: the existing selection stands rather than being cleared, and the field
+        // says why nothing happened.
+        if (accepted.length === 0) {
+            field.value = clientStrings.text("ui.file.oversized");
             return;
+        }
 
         // A pick made while the last is still on its way supersedes it: the older upload's answer, whenever it lands, is not written.
         const pick = (this.picks.get(root) ?? 0) + 1;

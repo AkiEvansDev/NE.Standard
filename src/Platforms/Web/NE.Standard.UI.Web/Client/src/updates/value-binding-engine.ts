@@ -2,7 +2,7 @@ import { BindingAttributePrefix, ComponentSelector, ValueBindingAttribute } from
 import { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry";
 import { ValueReaderRegistry, clearElementValue } from "../extensions/value-readers";
 import { DraftDroppedEventName } from "../interactions/draft-events";
-import { MetadataIndex, ServerChangeSet, WebBindingMode, WebRenderPropertyReferenceMetadata, getBindingMode } from "../metadata/metadata-index";
+import { MetadataIndex, WebBindingMode, WebRenderPropertyReferenceMetadata, getBindingMode } from "../metadata/metadata-index";
 import { logError, logWarn } from "../runtime/logger";
 import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
 
@@ -31,7 +31,6 @@ export type ValueBindingEngineOptions = {
     readonly dom: DomRegistry;
     readonly dispatcher: ValueChangeDispatcher;
     // The runtime's, not the update processor's: a value the server answered can move a windowed host, whose spacers are laid out after the change set.
-    readonly applyChanges: (changes: ServerChangeSet | undefined) => void | Promise<void>;
     readonly valueReaders: ValueReaderRegistry;
     /** Records a value this client sent as the property's latest, so a push of an older value is still a change. */
     readonly recordSent: (reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown) => void;
@@ -45,6 +44,10 @@ export class ValueBindingEngine {
     // Elements, not values: an `OnSubmit` value is read at submit time, so a later edit still travels. An element a package holds
     // is here too, until its value is sent.
     private readonly bufferedElements = new Set<Element>();
+
+    // Fields whose value is on its way and not yet answered, by how many sends: a push meanwhile — an attach's snapshot among
+    // them, taken before the value arrived — is recorded but not written, or it would put back what the reader just replaced.
+    private readonly unanswered = new Map<Element, number>();
 
     public constructor(options: ValueBindingEngineOptions) {
         this.options = options;
@@ -79,7 +82,7 @@ export class ValueBindingEngine {
             return;
 
         for (const element of [...this.bufferedElements]) {
-            if (domEvent.target.contains(element))
+            if (domEvent.target.contains(element) || !element.isConnected)
                 this.bufferedElements.delete(element);
         }
     }
@@ -89,6 +92,12 @@ export class ValueBindingEngine {
         const released: Element[] = [];
 
         for (const element of [...this.bufferedElements]) {
+            // A field its row took off the page is let go of here too, rather than held for a submit that can never reach it.
+            if (!element.isConnected) {
+                this.bufferedElements.delete(element);
+                continue;
+            }
+
             if (element.getAttribute(FormIdAttribute) !== formId)
                 continue;
 
@@ -101,6 +110,7 @@ export class ValueBindingEngine {
 
     /** Holds an element's value as the reader's until it is sent, whatever its binding mode: a package's editor with unsaved work. */
     public hold(element: Element): void {
+        this.pruneDetached();
         this.bufferedElements.add(element);
     }
 
@@ -109,9 +119,9 @@ export class ValueBindingEngine {
         return this.bufferedElements.delete(element);
     }
 
-    /** Whether an element holds an `OnSubmit` value its form has not sent yet; a value the server pushes is not written into it. */
+    /** Whether an element holds a value the server has not taken yet — an unsent `OnSubmit` edit, or one sent and not answered; a push is not written into it. */
     public isHeld(element: Element): boolean {
-        return this.bufferedElements.has(element);
+        return this.bufferedElements.has(element) || this.unanswered.has(element);
     }
 
     // A clear affordance is a click on a separate element, not a "change" on the field.
@@ -130,7 +140,7 @@ export class ValueBindingEngine {
         // a rule or interaction reading the field listens for.
         const target = componentRoot?.querySelector(`[${ValueBindingAttribute}]`) ?? componentRoot?.querySelector("input, textarea, select");
 
-        if (target === null || target === undefined)
+        if (target === null || target === undefined || isUneditable(target))
             return;
 
         clearElementValue(target);
@@ -163,7 +173,18 @@ export class ValueBindingEngine {
             return;
         }
 
+        if (!this.bufferedElements.has(element))
+            this.pruneDetached();
+
         this.bufferedElements.add(element);
+    }
+
+    /** Lets go of held fields their rows took off the page: a set of elements would otherwise keep every removed row alive. */
+    private pruneDetached(): void {
+        for (const element of this.bufferedElements) {
+            if (!element.isConnected)
+                this.bufferedElements.delete(element);
+        }
     }
 
     /** Writes back every buffered value of this form in one pass, before the submit command runs. */
@@ -243,16 +264,45 @@ export class ValueBindingEngine {
 
     private async dispatchAndApplyAsync(element: Element, propertyName: string, resolved: ComponentResolveResult, binding: WebRenderPropertyReferenceMetadata): Promise<void> {
         const value = this.options.valueReaders.readBound(element);
-        const changes = await this.options.dispatcher.dispatchAsync({
-            componentId: resolved.componentId,
-            propertyName,
-            dynamicParameters: resolved.dynamicParameters,
-            value
-        });
+        let answered = false;
+        const answer = (): void => {
+            if (answered)
+                return;
 
-        // Before the answer is applied: a value the server's answer carries is newer than the one sent.
-        this.options.recordSent(binding, resolved.dynamicParameters, value);
-        await this.options.applyChanges(changes);
+            answered = true;
+            this.releaseUnanswered(element);
+        };
+
+        this.holdUnanswered(element);
+
+        try {
+            // Let go and recorded just before the answer is applied: a value the server's answer carries is newer than the one sent.
+            await this.options.dispatcher.dispatchAsync({
+                componentId: resolved.componentId,
+                propertyName,
+                dynamicParameters: resolved.dynamicParameters,
+                value
+            }, () => {
+                answer();
+                this.options.recordSent(binding, resolved.dynamicParameters, value);
+            });
+        }
+        finally {
+            answer();
+        }
+    }
+
+    private holdUnanswered(element: Element): void {
+        this.unanswered.set(element, (this.unanswered.get(element) ?? 0) + 1);
+    }
+
+    private releaseUnanswered(element: Element): void {
+        const count = this.unanswered.get(element) ?? 0;
+
+        if (count <= 1)
+            this.unanswered.delete(element);
+        else
+            this.unanswered.set(element, count - 1);
     }
 
     /**
@@ -270,14 +320,21 @@ export class ValueBindingEngine {
         if (propertyName === undefined)
             return;
 
-        const changes = await this.options.dispatcher.dispatchAsync({ componentId, propertyName, dynamicParameters, value });
-
-        this.options.recordSent({ componentId, propertyId }, dynamicParameters, value);
-        await this.options.applyChanges(changes);
+        await this.options.dispatcher.dispatchAsync({ componentId, propertyName, dynamicParameters, value }, () => this.options.recordSent({ componentId, propertyId }, dynamicParameters, value));
     }
 
     /** Resolves once this component's in-flight value sync has been applied; a no-op if there is none. */
     public async whenSettled(component: Element): Promise<void> {
         await this.pendingSyncByComponent.get(component);
     }
+
+    /** Resolves once every value sent so far, any component's, has been handed to the hub — a large one after its staging. */
+    public whenSent(): Promise<void> {
+        return this.options.dispatcher.whenSent();
+    }
+}
+
+/** A field the reader may not change: its clear affordance must not change it either. */
+function isUneditable(element: Element): boolean {
+    return element.matches(":disabled") || ((element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) && element.readOnly);
 }

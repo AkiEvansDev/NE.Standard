@@ -39,7 +39,7 @@ export function readTemporalCulture(element: Element): TemporalCulturePack {
     }
 }
 
-export const TemporalTokens = [
+const TemporalTokens = [
     "MMMM", "dddd", "yyyy", "MMM", "ddd", "dd", "MM", "yy", "HH", "hh", "mm", "ss", "tt", "d", "M", "H", "h", "m", "s"
 ] as const;
 

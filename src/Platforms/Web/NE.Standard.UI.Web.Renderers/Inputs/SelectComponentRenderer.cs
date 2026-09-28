@@ -134,6 +134,10 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
             NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, trigger);
 
+            // A select-only combobox: the caption is its name and the chosen option drawn inside it is its value.
+            _ = trigger.Attribute("role", "combobox");
+            TextContentRendererBase.RenderFieldLabel(context, trigger);
+
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
@@ -151,24 +155,33 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
                 });
             }
 
-            _ = trigger.Element("span", placeholder =>
-            {
-                _ = placeholder.Class("ui-select__placeholder");
-
-                if (selectedItem is not null)
-                    _ = placeholder.Style("display", "none");
-
-                var fallback = context.Translate(UIStrings.SelectPlaceholder);
-
-                _ = RenderProperty<string?>(context, placeholder, IPlaceholderInputComponent.PlaceholderProperty, (target, value)
-                    => _ = target.Text(string.IsNullOrEmpty(value) ? fallback : value)
-                , [WebDomOperation.Text()]);
-            });
+            RenderPlaceholder(context, trigger, hidden: selectedItem is not null);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
 
             RenderClear(context, trigger);
             RenderChevron(trigger);
+        });
+    }
+
+    /// <summary>What stands in the field while nothing is chosen: the author's placeholder, else the framework's word.</summary>
+    public static void RenderPlaceholder(WebRenderContext context, IHtmlElementBuilder parent, bool hidden)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(parent);
+
+        _ = parent.Element("span", placeholder =>
+        {
+            _ = placeholder.Class("ui-select__placeholder");
+
+            if (hidden)
+                _ = placeholder.Style("display", "none");
+
+            var fallback = context.Translate(UIStrings.SelectPlaceholder);
+
+            _ = RenderProperty<string?>(context, placeholder, IPlaceholderInputComponent.PlaceholderProperty, (target, value)
+                => _ = target.Text(string.IsNullOrEmpty(value) ? fallback : value)
+            , [WebDomOperation.Text()]);
         });
     }
 
@@ -211,32 +224,29 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         });
     }
 
-    public static void RenderPopup(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, bool isBound)
+    /// <summary>
+    /// The list the field opens. Given the chosen keys it is a multi-select's: the listbox says it takes several, and every option
+    /// says whether it is chosen on the first paint.
+    /// </summary>
+    public static void RenderPopup(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, bool isBound, IReadOnlySet<string>? chosenKeys = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(items);
 
-        _ = root.Element("div", popup =>
+        RenderItemsHost(context, root, "ui-select__popup", items, isBound, OptionWrapperClassName, configureHost: popup =>
         {
-            _ = popup.Class("ui-select__popup");
             _ = popup.Attribute("role", "listbox");
-            _ = popup.Attribute(WebAttributes.ItemsHost);
 
-            if (isBound)
-                return;
+            if (chosenKeys is not null)
+                _ = popup.Attribute("aria-multiselectable", "true");
+        }, OptionWrapperElementName, decorateItem: (optionRoot, item, index) =>
+        {
+            _ = optionRoot.Attribute("role", "option");
+            _ = optionRoot.Attribute("tabindex", "0");
 
-            if (items.Count == 0)
-            {
-                RenderEmptyPlaceholder(context, popup);
-                return;
-            }
-
-            RenderItemList(context, popup, items, OptionWrapperClassName, OptionWrapperElementName, static (optionRoot, _, _) =>
-            {
-                _ = optionRoot.Attribute("role", "option");
-                _ = optionRoot.Attribute("tabindex", "0");
-            });
+            if (chosenKeys is not null)
+                _ = optionRoot.Attribute("aria-selected", item is IBindableItem option && chosenKeys.Contains(option.Id) ? "true" : "false");
         });
     }
 }

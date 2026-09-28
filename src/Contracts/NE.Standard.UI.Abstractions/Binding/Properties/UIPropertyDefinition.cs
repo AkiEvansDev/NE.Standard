@@ -34,6 +34,11 @@ public sealed class UIPropertyDefinition
     public UIBindingCapabilities BindingCapabilities { get; init; }
 
     /// <summary>
+    /// Gets the mode a binding of this property takes when none is named — the one its generated <c>Bind*</c> method defaults to.
+    /// </summary>
+    public UIBindingMode DefaultBindingMode { get; init; } = UIBindingMode.OneWay;
+
+    /// <summary>
     /// Gets the default property value, when one is registered.
     /// </summary>
     public object? DefaultValue { get; init; }

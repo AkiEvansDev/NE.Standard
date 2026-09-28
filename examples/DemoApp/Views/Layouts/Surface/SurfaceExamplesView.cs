@@ -1,11 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Surface;
 
@@ -27,7 +20,8 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateBarGroup(), CreateChoiceGroup(), CreateEmptyStateGroup()],
             [CreateStatsGroup(), CreateNestedGroup(), CreateAgainstCardGroup()]
-        ));
+            )
+        );
     }
 
     /// <summary>
@@ -35,18 +29,19 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBarGroup()
     {
-        return DemoUI.CreateGroup(null, "A band that holds controls",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A band that holds controls",
+            new SurfaceComponent()
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
                 .SetContent(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
                     .AddChild(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)
+                        .SetWrap(true)
                         .SetSpacing(8)
                         .SetVerticalAlignment(UIAlignment.Center)
-                        .AddChild(CreateChip(DemoIcons.Filter, "All environments"))
-                        .AddChild(CreateChip(DemoIcons.Clock, "Last 7 days"))
-                        .AddChild(CreateChip(DemoIcons.Check, "Successful only"))
+                        .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Filter)).SetTitle("All environments"))
+                        .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Clock)).SetTitle("Last 7 days"))
+                        .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetTitle("Successful only"))
                         .SetPlacement(1, 1, 20, 1)
                     )
                     .AddChild(new ButtonComponent()
@@ -58,101 +53,126 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetPlacement(24, 1, 1, 1)
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
-
-    private static ButtonComponent CreateChip(string icon, string title)
-        => new ButtonComponent()
-            .SetType(UIButtonType.Outline)
-            .SetSize(UIButtonSize.Small)
-            .SetIcon(DemoIcons.Outline(icon))
-            .SetTitle(title);
 
     /// <summary>
     /// What <c>Tinted</c> is for: a hue mixed into the page, so three readings still look like one strip.
     /// </summary>
     private static ContainerComponent CreateStatsGroup()
     {
-        return DemoUI.CreateGroup(null, "A strip of readings",
-            content => content.AddChild(UILayout.Row(12)
-                .AddChild(CreateStat("47", "Deploys this week", UIColorStyle.Info))
-                .AddChild(CreateStat("2", "Rolled back", UIColorStyle.Danger))
-                .AddChild(CreateStat("99.94%", "Availability", UIColorStyle.Success))
-                .SetPlacement(1, 1, 24, 1)
-            )
+        return DemoUI.CreateExample("A strip of readings",
+            UILayout.Row(12)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Info))
+                    .SetWidth(UILayoutLength.Absolute(160))
+                    .SetContent(new TextComponent()
+                        .SetTitle("47")
+                        .SetTitleType(UITextAppearance.Display)
+                        .SetDescription("Deploys this week")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Danger))
+                    .SetWidth(UILayoutLength.Absolute(160))
+                    .SetContent(new TextComponent()
+                        .SetTitle("2")
+                        .SetTitleType(UITextAppearance.Display)
+                        .SetDescription("Rolled back")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Success))
+                    .SetWidth(UILayoutLength.Absolute(160))
+                    .SetContent(new TextComponent()
+                        .SetTitle("99.94%")
+                        .SetTitleType(UITextAppearance.Display)
+                        .SetDescription("Availability")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                    )
+                )
         );
     }
-
-    private static SurfaceComponent CreateStat(string value, string label, UIColorStyle style)
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Tinted)
-            .SetBackground(UIThemeColor.FromStyle(style))
-            .SetWidth(UILayoutLength.Absolute(160))
-            .SetContent(new TextComponent()
-                .SetTitle(value)
-                .SetTitleType(UITextAppearance.Display)
-                .SetDescription(label)
-                .SetDescriptionType(UITextAppearance.Caption)
-            );
 
     /// <summary>
     /// <c>Clickable</c> on a tile whose whole area is the target, with a pair of styles marking the chosen one.
     /// </summary>
     private static ContainerComponent CreateChoiceGroup()
     {
-        return DemoUI.CreateGroup(null, "A tile you pick",
-            content => content.AddChild(UILayout.Row(12)
-                .AddChild(CreateTile(DemoIcons.Upload, "Deploy now", "Straight to production, no gate.", chosen: false))
-                .AddChild(CreateTile(DemoIcons.Clock, "Schedule it", "Runs at the next release window.", chosen: true))
-                .AddChild(CreateTile(DemoIcons.Shield, "Stage only", "Stops after staging, waits for approval.", chosen: false))
-                .SetPlacement(1, 1, 24, 1)
-            )
+        return DemoUI.CreateExample("A tile you pick",
+            UILayout.Row(12)
+                .AddChild(new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetWidth(UILayoutLength.Absolute(200))
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
+                        .SetTitle("Deploy now")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Straight to production, no gate.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                // Tinted on the brand colour rather than merely raised: the whole ground says "picked", not "nearer".
+                .AddChild(new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Primary))
+                    .SetBorderColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
+                    .SetWidth(UILayoutLength.Absolute(200))
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
+                        .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
+                        .SetTitle("Schedule it")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Runs at the next release window.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetWidth(UILayoutLength.Absolute(200))
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
+                        .SetTitle("Stage only")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Stops after staging, waits for approval.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
         );
     }
-
-    // Tinted on the brand colour rather than merely raised: the whole ground says "picked", not "nearer".
-    private static SurfaceComponent CreateTile(string icon, string title, string description, bool chosen)
-        => new SurfaceComponent()
-            .SetClickable(true)
-            .SetSurface(chosen ? UISurfaceStyle.Tinted : UISurfaceStyle.Background)
-            .SetBackground(chosen ? UIThemeColor.FromStyle(UIColorStyle.Primary) : null)
-            .SetBorderColor(chosen ? UIThemeColor.FromStyle(UIColorStyle.Primary) : null)
-            .SetWidth(UILayoutLength.Absolute(200))
-            .SetContent(new ParagraphComponent()
-                .SetIcon(DemoIcons.Outline(icon))
-                .SetIconColor(chosen ? UIThemeColor.FromStyle(UIColorStyle.Primary) : null)
-                .SetTitle(title)
-                .SetTitleType(UITextAppearance.Subtitle)
-                .SetDescription(description)
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.Muted)
-            );
 
     /// <summary>
     /// Two levels: a raised panel over the page, and inside it a flat one that reads as a well.
     /// </summary>
     private static ContainerComponent CreateNestedGroup()
     {
-        return DemoUI.CreateGroup(null, "A surface inside a surface",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("A surface inside a surface",
+            new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
                 .SetContent(UILayout.Stack(10)
                     .AddChild(new TextComponent()
-                        .SetTitle("Build 481")
+                        .SetTitle("Release 481")
                         .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("Finished 4 minutes ago")
+                        .SetDescription("Rolled out 4 minutes ago")
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                     .AddChild(new SurfaceComponent()
                         .SetSurface(UISurfaceStyle.Background)
-                        .SetContent(UIText.Note("`dotnet test` — 452 passed, 0 failed. Artifacts uploaded to the staging registry."))
+                        .SetContent(UIText.Note("`provisioner` — rolled out to Europe West, and the health check passed on every replica."))
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -162,8 +182,8 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     /// <remarks>The mark is its own component, not the text body's leading <c>Icon</c>, so all three pieces share one centre.</remarks>
     private static ContainerComponent CreateEmptyStateGroup()
     {
-        return DemoUI.CreateGroup(null, "Nothing here yet",
-            content => content.AddChild(new SurfaceComponent()
+        return DemoUI.CreateExample("Nothing here yet",
+            new SurfaceComponent()
                 .SetPadding(UIThickness.Uniform(28))
                 .SetContent(UILayout.Stack(12)
                     .SetHorizontalAlignment(UIAlignment.Center)
@@ -175,21 +195,19 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                     .AddChild(new ParagraphComponent()
                         // Subtitle, not the default: at a title's size it reads as the page's own heading.
-                        .SetTitle("No builds match that filter")
+                        .SetTitle("No releases match that filter")
                         .SetTitleType(UITextAppearance.Subtitle)
                         .SetTextAlignment(UITextAlignment.Center)
-                        .SetDescription("Builds older than **thirty days** are archived and hidden by default.")
+                        .SetDescription("Releases older than **thirty days** are archived and hidden by default.")
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetWidth(UILayoutLength.Absolute(320))
                     )
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Outline)
                         .SetHorizontalAlignment(UIAlignment.Center)
-                        .SetTitle("Show archived builds")
+                        .SetTitle("Show archived releases")
                     )
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -198,56 +216,66 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstCardGroup()
     {
-        return DemoUI.CreateGroup(null, "Against a card",
-            content => content.AddChild(UILayout.Row(16)
-                .AddChild(DemoUI.CreateCaptionedItem("SurfaceComponent", new SurfaceComponent()
+        return DemoUI.CreateExample("Against a card",
+            UILayout.Row(16)
+                .AddChild(UIPage.Labelled("SurfaceComponent", new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(260))
                     .SetContent(UILayout.Stack(8)
-                        .AddChild(CreateSampleHeading())
-                        .AddChild(CreateSampleBody())
-                        .AddChild(CreateSampleFooter())
+                        .AddChild(new TextComponent()
+                            .SetTitle("Change request · CHG-482")
+                            .SetDescription("Resize db-us-east-2 to Dedicated")
+                            .SetDescriptionType(UITextAppearance.Caption)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                        )
+                        .AddChild(new ParagraphComponent()
+                            .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
+                            .SetDescriptionType(UITextAppearance.Body)
+                        )
+                        .AddChild(new StackPanelComponent()
+                            .SetOrientation(UIOrientation.Horizontal)
+                            .SetSpacing(8)
+                            .AddChild(new ButtonComponent()
+                                .SetType(UIButtonType.Primary)
+                                .SetSize(UIButtonSize.Small)
+                                .SetTitle("Approve")
+                            )
+                            .AddChild(new ButtonComponent()
+                                .SetType(UIButtonType.Ghost)
+                                .SetSize(UIButtonSize.Small)
+                                .SetTitle("View plan")
+                            )
+                        )
                     )
-                ))
-                .AddChild(DemoUI.CreateCaptionedItem("CardComponent", new CardComponent()
+                    )
+                )
+                .AddChild(UIPage.Labelled("CardComponent", new CardComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(260))
                     .ConfigureDefaultHeader(header => header
-                        .SetTitle("Web Portal · #482")
-                        .SetDescription("Fix circular progress anti-aliasing")
+                        .SetTitle("Change request · CHG-482")
+                        .SetDescription("Resize db-us-east-2 to Dedicated")
                     )
-                    .SetContent(CreateSampleBody())
-                    .SetFooter(CreateSampleFooter())
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            )
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                    )
+                    .SetFooter(new StackPanelComponent()
+                        .SetOrientation(UIOrientation.Horizontal)
+                        .SetSpacing(8)
+                        .AddChild(new ButtonComponent()
+                            .SetType(UIButtonType.Primary)
+                            .SetSize(UIButtonSize.Small)
+                            .SetTitle("Approve")
+                        )
+                        .AddChild(new ButtonComponent()
+                            .SetType(UIButtonType.Ghost)
+                            .SetSize(UIButtonSize.Small)
+                            .SetTitle("View plan")
+                        )
+                    )
+                    )
+                )
         );
     }
-
-    private static TextComponent CreateSampleHeading()
-        => new TextComponent()
-            .SetTitle("Web Portal · #482")
-            .SetDescription("Fix circular progress anti-aliasing")
-            .SetDescriptionType(UITextAppearance.Caption)
-            .SetDescriptionColor(UIThemeColor.Muted);
-
-    private static ParagraphComponent CreateSampleBody()
-        => new ParagraphComponent()
-            .SetDescription("All checks passed. Two approvals, no requested changes — ready to merge.")
-            .SetDescriptionType(UITextAppearance.Body);
-
-    private static StackPanelComponent CreateSampleFooter()
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(8)
-            .AddChild(new ButtonComponent()
-                .SetType(UIButtonType.Primary)
-                .SetSize(UIButtonSize.Small)
-                .SetTitle("Merge")
-            )
-            .AddChild(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetSize(UIButtonSize.Small)
-                .SetTitle("View diff")
-            );
 }

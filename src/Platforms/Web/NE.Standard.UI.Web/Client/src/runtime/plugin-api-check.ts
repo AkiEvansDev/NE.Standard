@@ -79,5 +79,6 @@ export type HandedIn = [
     Assignable<Contract.InlineRenameOptions, InlineRenameOptions>,
     Assignable<Contract.PopupOptions, PopupOptions>,
     Assignable<Contract.EventRegistration, WebUIPluginEventRegistration>,
-    Assignable<Contract.PluginEngine, Parameters<NEStandardUIGlobalApi["registerEngine"]>[0]>
+    Assignable<Contract.PluginEngine, Parameters<NEStandardUIGlobalApi["registerEngine"]>[0]>,
+    Assignable<Contract.ContractVersion, NEStandardUIGlobalApi["contractVersion"]>
 ];

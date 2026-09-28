@@ -1,7 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -31,12 +27,10 @@ internal sealed partial class IconGroupContext : TooltipGroupContext
 
     // The readings of one string, in order: a glyph, its outlined drawing, a picture, and a tinted picture.
     public void CycleIcon()
-        => SetLastChange(nameof(Icon), Icon = CycleValue(Icon,
-            DemoIcons.Star, DemoIcons.Outline(DemoIcons.Star), DemoImages.Logo, DemoImages.Mask(DemoImages.Mark), null));
+        => SetLastChange(nameof(Icon), Icon = CycleValue(Icon, DemoIcons.Star, DemoIcons.Outline(DemoIcons.Star), DemoImages.Logo, DemoImages.Mask(DemoImages.Mark), null));
 
     public void CycleColor()
-        => SetLastChange(nameof(Color), Color = CycleValue(Color,
-            UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.FromStyle(UIColorStyle.Danger), UIThemeColor.Muted, null));
+        => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Primary), UIThemeColor.FromStyle(UIColorStyle.Danger), UIThemeColor.Muted, null));
 
     // Size is the ladder that goes with text; Width drives the drawing itself and is the standard section's row.
     public void CycleSize()
@@ -49,8 +43,8 @@ internal sealed partial class IconGroupContext : TooltipGroupContext
 /// </summary>
 internal sealed partial class ImageGroupContext : TooltipGroupContext
 {
-    private const string SampleAltText = "A harbour at dusk";
-    private const string SampleTooltip = "Taken on the 4th";
+    private const string SampleAltText = "The status page's banner";
+    private const string SampleTooltip = "Shown on status.orvane.example";
     private const string MissingSource = "/images/there-is-no-such-file.jpg";
 
     [RecursiveMember]
@@ -76,15 +70,13 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
 
     // A landscape, a portrait and a square for Fit to settle, then a path that does not resolve for FallbackSource.
     public void CycleSource()
-        => SetLastChange(nameof(Source), Source = CycleValue(Source,
-            DemoImages.HarbourSky, DemoImages.MeteorShore, DemoImages.Avatar, MissingSource, null));
+        => SetLastChange(nameof(Source), Source = CycleValue(Source, DemoImages.HarbourSky, DemoImages.MeteorShore, DemoImages.Avatar, MissingSource, null));
 
     public void CycleFit()
         => SetLastChange(nameof(Fit), Fit = CycleEnum(Fit));
 
     public void CycleCornerRadius()
-        => SetLastChange(nameof(CornerRadius), CornerRadius = CycleValue(CornerRadius,
-            UICornerRadius.Uniform(8), UICornerRadius.Top(24), UICornerRadius.Uniform(999), null));
+        => SetLastChange(nameof(CornerRadius), CornerRadius = CycleValue(CornerRadius, UICornerRadius.Uniform(8), UICornerRadius.Top(24), UICornerRadius.Uniform(999), null));
 
     public void ToggleAltText()
         => SetLastChange(nameof(AltText), AltText = CycleValue(AltText, null, SampleAltText));

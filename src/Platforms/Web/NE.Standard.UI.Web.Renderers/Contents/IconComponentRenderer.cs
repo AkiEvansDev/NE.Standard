@@ -8,6 +8,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class IconComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.HasText)];
+
     public override string ComponentTypeKey => IconComponent.ComponentTypeKey;
 
     protected override string ElementName => "span";
@@ -30,9 +32,6 @@ public sealed class IconComponentRenderer : WebComponentRendererBase
                 _ = root.Attribute(WebAttributes.Icon);
                 IconValueRenderer.RenderIconValue(target, value);
             }
-        }, [
-            .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.HasText)
-        ]);
+        }, IconOperations);
     }
 }

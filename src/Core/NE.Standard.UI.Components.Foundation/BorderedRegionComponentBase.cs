@@ -12,17 +12,13 @@ namespace NE.Standard.UI.Components.Foundation;
 /// </summary>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 public abstract partial class BorderedRegionComponentBase<TComponent>(string? id = null) : RegionContainerComponentBase<TComponent>(id), ISurfaceComponent, IBorderedComponent, IOverflowComponent
     where TComponent : BorderedRegionComponentBase<TComponent>, IUIComponentDefinition
 {
+    // A bordered region draws an edge where the contract leaves the stylesheet's own.
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
-
-    /// <summary>
-    /// Gets or sets the border thickness; a bordered region draws an edge by default.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IBorderedComponent), DefaultValueMember = nameof(DefaultBorderThickness))]
-    public UIThickness? BorderThickness { get; set; }
 
     /// <summary>
     /// Gets the content region.

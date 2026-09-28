@@ -23,18 +23,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// </summary>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent
     where T : KeyValueActionComponent<T>, IUIComponentDefinition
 {
+    // The list draws an edge where the contract leaves the stylesheet's own.
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
-
-    /// <summary>
-    /// Gets or sets the border thickness; the list draws an edge by default.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IBorderedComponent), DefaultValueMember = nameof(DefaultBorderThickness))]
-    public UIThickness? BorderThickness { get; set; }
 
     /// <summary>
     /// Gets or sets whether separator lines are shown between rows.
@@ -72,7 +68,7 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// and save/cancel pair into each row.
     /// </summary>
     /// <remarks>Render-time only: it is how the list is built.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = false)]
     public bool? Editable { get; private set; }
 
     /// <summary>
@@ -163,7 +159,7 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         if (template is IFieldInputComponent { Appearance: null } field)
             field.Appearance = UIInputAppearance.Filled;
 
-        // Spelled out: the raw Bind is one-way whatever the property declares, and a draft that never came back would be no draft.
+        // Spelled out rather than left to the input's own default: a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);
     }
 

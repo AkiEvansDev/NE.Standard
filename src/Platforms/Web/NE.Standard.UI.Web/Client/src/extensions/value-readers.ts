@@ -6,6 +6,7 @@ import {
     TreeDropTargetAttribute,
     TreeTitleAttribute,
     TabOrderAttribute,
+    TabPinnedAttribute,
     TabsSelectedAttribute,
     ValueHolderAttribute,
     ValueKindAttribute
@@ -145,6 +146,8 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // tabs-view-engine.ts: the order on the tab's root, the caption on its label
     { kind: "tab-order", read: element => numberOrNull(element.getAttribute(TabOrderAttribute)) },
     { kind: "tab-caption", read: element => element.getAttribute(TabCaptionAttribute) },
+    // tabs-view-engine.ts: the tab menu's pin, on the tab's pin
+    { kind: "tab-pinned", read: element => element.hasAttribute(TabPinnedAttribute) },
     // tree-engine.ts: the title a rename wrote, on the node's root
     { kind: "tree-title", read: element => element.getAttribute(TreeTitleAttribute) },
     { kind: "tree-drop-target", read: element => element.getAttribute(TreeDropTargetAttribute) ?? "" },

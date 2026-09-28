@@ -1,6 +1,3 @@
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-
 namespace DemoApp.Views.Base;
 
 /// <summary>

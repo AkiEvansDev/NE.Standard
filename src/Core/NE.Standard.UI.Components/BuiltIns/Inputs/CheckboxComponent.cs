@@ -11,7 +11,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 /// <remarks>Its label is a full <see cref="ITextComponent"/>, not an input caption; <c>BadgePlacement</c> has no effect here.</remarks>
 [UIComponentPropertyBlock(typeof(ITextComponent))]
-public abstract partial class CheckboxComponent<T>(string? id = null) : TextInputComponentBase<T, bool?>(id), ITextComponent, ISizedInputComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class CheckboxComponent<T>(string? id = null) : TextInputComponentBase<T, bool?>(id), ITextComponent, ISizedInputComponent, IAccessibleNameComponent
     where T : CheckboxComponent<T>, IUIComponentDefinition
 {
     /// <inheritdoc/>

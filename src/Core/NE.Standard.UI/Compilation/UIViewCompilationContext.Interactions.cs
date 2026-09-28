@@ -124,10 +124,7 @@ internal sealed partial class UIViewCompilationContext
 
             _ = GetRequiredPropertyDefinition(targetComponent.TypeKey, reference.Property);
 
-            targets.Add(new KeyValuePair<UIComponentId, UIPropertyAddress>(
-                GetComponentId(component.Id),
-                new UIPropertyAddress(GetComponentId(reference.Component.Id), reference.Property)
-            ));
+            targets.Add(new KeyValuePair<UIComponentId, UIPropertyAddress>(GetComponentId(component.Id), new UIPropertyAddress(GetComponentId(reference.Component.Id), reference.Property)));
         }
 
         return [.. targets];

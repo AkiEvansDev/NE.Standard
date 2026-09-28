@@ -3,14 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.CodeInput;
-using NE.Standard.UI.Components.BuiltIns.Models;
-using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Recursive;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -150,15 +143,19 @@ public sealed partial class FilesController : TeamRoomController
     protected override void OnAppEvent(AppEvent appEvent)
     {
         if (appEvent is DocumentsChanged changed)
-            Push(() => Reload(changed.NodeId));
+            Push(() => Reload(changed));
     }
 
-    /// <summary>Another page changed the tree or a file: the tree is re-read, and an open, unchanged copy of that file follows the save.</summary>
-    private void Reload(string? nodeId)
+    /// <summary>
+    /// Another page changed the tree or a file: the tree is re-read only when its shape moved, and an open, unchanged copy of
+    /// that file follows the save.
+    /// </summary>
+    private void Reload(DocumentsChanged changed)
     {
-        LoadTree();
+        if (changed.TreeChanged)
+            LoadTree();
 
-        if (nodeId is null || FindDocument(nodeId) is not { } document)
+        if (changed.NodeId is not { } nodeId || FindDocument(nodeId) is not { } document)
             return;
 
         var content = DocumentStore.ReadContent(nodeId);
@@ -360,7 +357,7 @@ public sealed partial class FilesController : TeamRoomController
         if (error is not null)
             return Refuse(error);
 
-        // The event already rebuilt the tree on every page, this one included, before the command returns.
+        // The event rebuilds the tree on the other pages later; this one needs the new node now, to open and select it.
         LoadTree();
 
         if (FindNode(parentId ?? string.Empty) is { } parent)

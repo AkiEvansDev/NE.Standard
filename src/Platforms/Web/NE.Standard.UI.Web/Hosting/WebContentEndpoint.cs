@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -48,6 +49,9 @@ internal static class WebContentEndpoint
 
         // Private: the answer depended on who asked, so no shared cache may hand it to the next person.
         http.Response.Headers.CacheControl = content.Immutable ? "private, max-age=31536000, immutable" : "private, no-cache";
+
+        if (http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.InertContent)
+            WebInertContent.Apply(http.Response, content.ContentType);
 
         return Results.Stream(content.Content, content.ContentType, content.FileName, enableRangeProcessing: true);
     }

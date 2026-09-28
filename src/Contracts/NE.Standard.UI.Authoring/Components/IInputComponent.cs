@@ -64,7 +64,7 @@ public interface IInputComponent : IVisualComponent
     /// Where the message goes: a line under the field, or an edge mark with the message in a tooltip. Decided once at render;
     /// <see cref="UIValidationPresentation.Auto"/> is the line except in a grid cell.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = UIValidationPresentation.Auto)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIValidationPresentation.Auto)]
     UIValidationPresentation? ValidationPresentation { get; }
 
     /// <summary>

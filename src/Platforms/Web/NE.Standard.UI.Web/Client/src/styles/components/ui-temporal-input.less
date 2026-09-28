@@ -47,6 +47,13 @@
     field-sizing: content;
 }
 
+// Too narrow for the phrase on one line (a phone), the end goes under the start rather than both being cut short; the block
+// padding is inside the one-line field's least height, so only two lines grow by it.
+.ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__row {
+    flex-wrap: wrap;
+    padding-block: @ui-space-1;
+}
+
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__segments {
     flex: 0 0 auto;
 }
@@ -368,4 +375,3 @@
         color: var(--ui-color-primary-ink);
         font-size: var(--ui-text-caption-font-size);
     }
-

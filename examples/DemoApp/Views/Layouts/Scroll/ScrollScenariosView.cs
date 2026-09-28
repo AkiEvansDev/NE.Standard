@@ -1,13 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Layouts.Scroll;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Layouts.Scroll;
 
@@ -28,12 +21,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
     protected override string HeaderDescription => "demo.layouts.scroll.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateChatGroup()],
-            [CreateBuildLogGroup()]
-        ));
-    }
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateChatGroup()], [CreateProvisioningLogGroup()]));
 
     /// <summary>
     /// The same message arriving in two viewports: one follows it, the other stays where it was left.
@@ -42,9 +30,9 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(ChatGroup, "The same message arriving in two viewports",
             content => content.AddChild(UILayout.Stack(8)
-                .AddChild(DemoUI.CreateCaption("End — follows what arrives"))
+                .AddChild(UIText.Label("End — follows what arrives"))
                 .AddChild(CreateChat(anchored: true))
-                .AddChild(DemoUI.CreateCaption("None — stays where it was"))
+                .AddChild(UIText.Label("None — stays where it was"))
                 .AddChild(CreateChat(anchored: false))
                 .AddChild(UIText.Note("Scroll the anchored one up and send again: it stays where you left it, and takes the pin back when you return to the bottom."))
                 .SetPlacement(1, 1, 24, 1)
@@ -70,7 +58,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
         return viewport.AddChild(UILayout.Stack(10)
             .AddChild(ScrollDemo.CreateMessage("Robin", "The staging deploy is stuck on the health check again.", false, 280))
             .AddChild(ScrollDemo.CreateMessage("You", "Which replica?", true, 280))
-            .AddChild(ScrollDemo.CreateMessage("Robin", "Two of eight, both in eu-west-1.", false, 280))
+            .AddChild(ScrollDemo.CreateMessage("Robin", "Two of eight, both in eu-west.", false, 280))
             .AddChild(ScrollDemo.CreateMessage("You", "Same pair as Tuesday. Rolling back to 480 while I look.", true, 280))
             .AddChild(ScrollDemo.CreateMessage("Robin", "Rollback is green, traffic is on the old revision.", false, 280))
             .AddChild(CreateReply("Alex", "I have the logs — the gate times out on the migration, not the app.", nameof(ChatGroupContext.Reply1)))
@@ -88,7 +76,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
     /// <summary>
     /// Output from a job that has not finished, where the anchor alone keeps the newest line in sight.
     /// </summary>
-    private static ContainerComponent CreateBuildLogGroup()
+    private static ContainerComponent CreateProvisioningLogGroup()
     {
         return DemoUI.CreateGroup(LogGroup, "A job that is still running",
             content => content.AddChild(UILayout.Stack(8)
@@ -100,7 +88,7 @@ internal sealed class ScrollScenariosView : DemoScenariosView, IUIViewDefinition
                     .SetBorderThickness(UIThickness.Uniform(1))
                     .SetBorderColor(UIThemeColor.Border)
                     .AddChild(new ParagraphComponent()
-                        .BindDescription($"{LogGroup}.{nameof(BuildLogGroupContext.Output)}")
+                        .BindDescription($"{LogGroup}.{nameof(ProvisioningLogGroupContext.Output)}")
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )

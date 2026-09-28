@@ -22,6 +22,25 @@ public sealed class UIFileOptions
     public int MaxFilesPerSelection { get; set; } = 16;
 
     /// <summary>
+    /// Gets or sets how many bytes of uploads one session may hold at once, until the sweep removes them.
+    /// </summary>
+    /// <remarks>
+    /// The bound on how much disk a session can fill in <see cref="UploadRetention"/>: a request past it is refused whole, and a
+    /// file that would cross it is stopped where it crosses.
+    /// </remarks>
+    public long MaxUploadBytesPerSession { get; set; } = 256 * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets how many bytes of uploads every session together may hold at once, counting those still arriving; zero or
+    /// <see langword="null"/> is no such limit.
+    /// </summary>
+    /// <remarks>
+    /// A session costs a visitor one page load, so the per-session limit alone does not bound the disk; an upload that would cross
+    /// this one is refused like one past the session's.
+    /// </remarks>
+    public long? MaxUploadBytesTotal { get; set; } = 4L * 1024 * 1024 * 1024;
+
+    /// <summary>
     /// Gets or sets how long an uploaded selection is kept before the sweep removes it.
     /// </summary>
     public TimeSpan UploadRetention { get; set; } = TimeSpan.FromHours(1);
@@ -40,8 +59,8 @@ public sealed class UIFileOptions
     public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Gets or sets where the default file-system store keeps content. Null uses a folder under the system
-    /// temp directory.
+    /// Gets or sets where the default file-system store keeps content. Null uses the application's own folder under the
+    /// system temp directory.
     /// </summary>
     public string? StorageRoot { get; set; }
 
@@ -55,6 +74,12 @@ public sealed class UIFileOptions
 
         if (MaxFilesPerSelection <= 0)
             throw new InvalidOperationException("Maximum files per selection must be greater than zero.");
+
+        if (MaxUploadBytesPerSession <= 0)
+            throw new InvalidOperationException("Maximum upload bytes per session must be greater than zero.");
+
+        if (MaxUploadBytesTotal < 0)
+            throw new InvalidOperationException("Maximum upload bytes in total must not be negative.");
 
         if (UploadRetention <= TimeSpan.Zero || DownloadRetention <= TimeSpan.Zero)
             throw new InvalidOperationException("File retention must be greater than zero.");

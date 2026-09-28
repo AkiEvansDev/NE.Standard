@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -16,23 +21,38 @@ public static class WebShellRenderer
 {
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string NotificationsAttribute = "data-ui-notifications";
-    private const string RootAttribute = "data-ui-root";
     private const string ScrollContentAttribute = "data-ui-scroll-content";
+    private const string FullHeightSidesAttribute = "data-ui-full-height-sides";
+    private const string SideDrawersAttribute = "data-ui-side-drawers";
+    private const string DrawerBackdropClass = "ui-shell__drawer-backdrop";
 
     private static readonly JsonSerializerOptions MetadataJsonOptions = WebWireJson.CreateOptions();
 
+    // The theme's stylesheet once per theme rather than once a page: a theme is an immutable record the application holds for good.
+    private static readonly ConditionalWeakTable<UITheme, string> ThemeCss = [];
+
+    /// <summary>The document as a string; a response is better served by <see cref="Render(WebShellContext, TextWriter)"/>.</summary>
     public static string Render(WebShellContext context)
     {
+        using StringWriter writer = new();
+
+        Render(context, writer);
+
+        return writer.ToString();
+    }
+
+    /// <summary>Writes the document into <paramref name="writer"/>, the page's own markup included without a copy of it.</summary>
+    public static void Render(WebShellContext context, TextWriter writer)
+    {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(writer);
 
         HtmlContentBuilder html = new();
 
         _ = html.Raw("<!doctype html>");
         _ = html.Element("html", document => RenderDocument(document, context));
 
-        using StringWriter writer = new();
         html.WriteTo(writer);
-        return writer.ToString();
     }
 
     private static void RenderDocument(IHtmlElementBuilder document, WebShellContext context)
@@ -57,7 +77,13 @@ public static class WebShellRenderer
             _ = meta.Attribute("content", "width=device-width, initial-scale=1");
         });
 
-        _ = head.Element("style", style => style.Raw(WebThemeCssBuilder.Build(context.Theme)));
+        // The tab's name and the history entry's: without one a browser shows the address.
+        if (context.Title is not null)
+            _ = head.Element("title", title => title.Text(context.Title));
+
+        _ = head.Element("style", style => style.Raw(ThemeCss.GetValue(context.Theme, WebThemeCssBuilder.Build)));
+        // The view's own, beside the theme's: a number the options checked, so nothing in it needs escaping.
+        _ = head.Element("style", style => style.Raw(string.Create(CultureInfo.InvariantCulture, $":root{{--ui-notification-width:{context.NotificationWidth}px}}")));
 
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.Css))
         {
@@ -73,7 +99,8 @@ public static class WebShellRenderer
             _ = head.Element("script", script => script.Attribute("src", ResolvePublicPath(asset)));
     }
 
-    private static IOrderedEnumerable<WebAssetDescriptor> EnumerateAssets(WebShellContext context, UIWebAssetKind kind)
+    /// <summary>The assets of one kind in the order the shell links them, by <see cref="WebAssetDescriptor.Order"/> and then key.</summary>
+    private static IEnumerable<WebAssetDescriptor> EnumerateAssets(WebShellContext context, UIWebAssetKind kind)
         => context.Assets
             .Where(asset => asset.Kind == kind)
             .OrderBy(static asset => asset.Order)
@@ -87,12 +114,26 @@ public static class WebShellRenderer
         _ = body.Element("div", root =>
         {
             _ = root.Attribute("id", context.RootElementId);
-            _ = root.Attribute(RootAttribute);
+            _ = root.Attribute(WebAttributes.Root);
+
+            if (context.StandInNavigation is UINavigationRequest standIn)
+                _ = root.Attribute(WebAttributes.Navigation, JsonSerializer.Serialize(new { route = standIn.Route, parameters = standIn.Parameters }, MetadataJsonOptions));
 
             if (context.ScrollContentOnly)
                 _ = root.Attribute(ScrollContentAttribute);
 
-            _ = root.Raw(context.Content);
+            if (context.ShellLayout == UIShellLayout.FullHeightSides)
+                _ = root.Attribute(FullHeightSidesAttribute);
+
+            if (context.SideDrawers)
+                _ = root.Attribute(SideDrawersAttribute);
+
+            if (context.Content is not null)
+                _ = root.Content(context.Content);
+
+            // What an open drawer dims the page under, and a press on it closes the drawer; the stylesheet shows it only then.
+            if (context.SideDrawers)
+                _ = root.Element("div", backdrop => backdrop.Class(DrawerBackdropClass).Attribute(WebAttributes.DrawerBackdrop));
         });
 
         RenderMetadata(body, context);
@@ -131,15 +172,30 @@ public static class WebShellRenderer
 
     private static void RenderStrings(IHtmlElementBuilder body, WebShellContext context)
     {
-        if (context.Strings is null || context.Strings.Count == 0)
-            return;
+        var json = context.StringsJson;
+
+        if (string.IsNullOrEmpty(json))
+        {
+            if (context.Strings is null || context.Strings.Count == 0)
+                return;
+
+            json = SerializeStrings(context.Strings);
+        }
 
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
             _ = script.Attribute(WebAttributes.Strings);
-            _ = script.Raw(JsonSerializer.Serialize(context.Strings, MetadataJsonOptions));
+            _ = script.Raw(json);
         });
+    }
+
+    /// <summary>The words as the page carries them, for a caller that keeps the result per language (<see cref="WebShellContext.StringsJson"/>).</summary>
+    public static string SerializeStrings(IReadOnlyDictionary<string, string> strings)
+    {
+        ArgumentNullException.ThrowIfNull(strings);
+
+        return JsonSerializer.Serialize(strings, MetadataJsonOptions);
     }
 
     /// <summary>
@@ -222,6 +278,8 @@ public static class WebShellRenderer
                 ("fallbackTemplateKey", itemsTemplate.FallbackTemplateKey),
                 ("itemWrapperElementName", itemsTemplate.ItemWrapperElementName),
                 ("itemWrapperClassName", itemsTemplate.ItemWrapperClassName),
+                ("itemWrapperRole", itemsTemplate.ItemWrapperRole),
+                ("announcesSelection", itemsTemplate.AnnouncesSelection ? true : null),
                 ("rowDecorator", itemsTemplate.RowDecorator),
                 ("composite", itemsTemplate.Composite is null ? null : Written(
                     ("itemElementName", itemsTemplate.Composite.ItemElementName),
@@ -236,7 +294,8 @@ public static class WebShellRenderer
                         ("variantKeyPropertyName", slot.VariantKeyPropertyName),
                         ("wrapperAttributes", slot.WrapperAttributes)
                     )))
-                ))
+                    )
+                )
             )),
             events = metadata.Events.Select(static compiledEvent => new
             {
@@ -305,15 +364,16 @@ public static class WebShellRenderer
                     propertyId = target.Message.PropertyId
                 }
             }),
-            itemValues = metadata.ItemValues.Select(static itemValues => new
-            {
-                componentId = itemValues.ComponentId.Value,
-                items = itemValues.Items.Select(static item => new
+            // The item itself is the author's data and keeps its nulls; only the host's own address drops an empty one.
+            itemValues = metadata.ItemValues.Select(static itemValues => Written(
+                ("componentId", itemValues.ComponentId.Value),
+                ("dynamicParameters", itemValues.DynamicParameters.Count == 0 ? null : itemValues.DynamicParameters),
+                ("items", itemValues.Items.Select(static item => new
                 {
                     key = item.Key,
                     item = item.Item
-                })
-            }),
+                }))
+            )),
             itemsFilterSort = metadata.ItemsFilterSort.Select(static itemsFilterSort => new
             {
                 componentId = itemsFilterSort.ComponentId.Value,

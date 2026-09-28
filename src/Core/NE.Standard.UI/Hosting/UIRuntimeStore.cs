@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,11 +13,33 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     private readonly Lock _sync = new();
     private readonly Dictionary<UIRuntimeKey, UIRuntimeEntry> _entries = [];
     private readonly Dictionary<string, UIRuntimeKey> _instanceKeys = new(StringComparer.Ordinal);
+    // Each session's keys, kept beside the entries so the cap and every per-session lookup read one session, not the whole store.
+    private readonly Dictionary<string, List<UIRuntimeKey>> _sessionKeys = new(StringComparer.Ordinal);
     // Reused by the flush pass so an empty interval allocates nothing; guarded by its own lock rather than the scheduler's
     // one-at-a-time promise, since a second caller (e.g. a benchmark) could read a list mid-clear.
     private readonly Lock _flushSync = new();
     private readonly List<UIRuntimeEntry> _flushCandidates = [];
     private readonly List<UIRuntimeEntry> _flushReady = [];
+
+    /// <summary>How many runtimes the store holds, for the runtime count the host's meter observes.</summary>
+    public int Count
+    {
+        get
+        {
+            lock (_sync)
+                return _entries.Count;
+        }
+    }
+
+    /// <summary>How many connections are attached to a runtime of the store: the open pages, for the host's meter.</summary>
+    public int AttachedCount
+    {
+        get
+        {
+            lock (_sync)
+                return _instanceKeys.Count;
+        }
+    }
 
     public bool TryGet(UIRuntimeKey key, out IUIRuntime? runtime)
     {
@@ -33,27 +56,8 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         }
     }
 
-    public bool TryGetAttached(UIRuntimeKey key, string instanceId, out IUIRuntime? runtime)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
-
-        lock (_sync)
-        {
-            if (_entries.TryGetValue(key, out UIRuntimeEntry? entry) &&
-                entry.HasInstance(instanceId))
-            {
-                runtime = entry.Runtime;
-                return true;
-            }
-
-            runtime = null;
-            return false;
-        }
-    }
-
     /// <summary>
-    /// The entry itself, when <paramref name="instanceId"/> is attached to it — for callers that need more than
-    /// the runtime, such as the per-entry session-activity throttle.
+    /// The entry <paramref name="instanceId"/> is attached to — its runtime, and the per-entry session-activity throttle.
     /// </summary>
     public bool TryGetAttachedEntry(UIRuntimeKey key, string instanceId, out UIRuntimeEntry? entry)
     {
@@ -73,7 +77,26 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// The one runtime this session has on this address, when it has exactly one.
+    /// The runtime for a key once its creating attach has started it — what a page render may read; one still initializing
+    /// is answered as absent.
+    /// </summary>
+    public bool TryGetStarted(UIRuntimeKey key, out IUIRuntime? runtime)
+    {
+        lock (_sync)
+        {
+            if (_entries.TryGetValue(key, out UIRuntimeEntry? entry) && entry.Initialization.IsCompletedSuccessfully)
+            {
+                runtime = entry.Runtime;
+                return true;
+            }
+
+            runtime = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The one runtime this session has on this address, when it has exactly one and its creating attach has started it.
     /// </summary>
     public bool TryGetSingle(string sessionId, string route, string? identity, out IUIRuntime? runtime)
     {
@@ -84,63 +107,122 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         lock (_sync)
         {
-            foreach (KeyValuePair<UIRuntimeKey, UIRuntimeEntry> pair in _entries)
-            {
-                UIRuntimeKey key = pair.Key;
+            if (!_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys))
+                return false;
 
-                if (!StringComparer.Ordinal.Equals(key.SessionId, sessionId) ||
-                    !StringComparer.Ordinal.Equals(key.Route, route) ||
-                    !StringComparer.Ordinal.Equals(key.Identity, identity))
-                {
+            UIRuntimeEntry? single = null;
+
+            for (var i = 0; i < keys.Count; i++)
+            {
+                UIRuntimeKey key = keys[i];
+
+                if (!StringComparer.Ordinal.Equals(key.Route, route) || !StringComparer.Ordinal.Equals(key.Identity, identity))
                     continue;
-                }
+
+                UIRuntimeEntry entry = _entries[key];
 
                 // A runtime no page ever presented is the render's own provisional one, holding nothing it could not build itself.
-                if (!pair.Value.IsAdopted)
+                if (!entry.IsAdopted)
                     continue;
 
-                if (runtime is not null)
-                {
-                    runtime = null;
+                if (single is not null)
                     return false;
-                }
 
-                runtime = pair.Value.Runtime;
+                single = entry;
             }
 
-            return runtime is not null;
+            // Counted while it initializes, but not read: its state is not the page's yet.
+            if (single is null || !single.Initialization.IsCompletedSuccessfully)
+                return false;
+
+            runtime = single.Runtime;
+            return true;
         }
     }
 
-    public UIRuntimeEntry GetOrAdd(UIRuntimeKey key, string instanceId, Func<IUIRuntime> factory, DateTime utcNow, UIFlushOptions flush, out bool created, out bool attached, out int activeInstances)
+    /// <summary>
+    /// The entry for a key, created when there is none; a session at <paramref name="maxPerSession"/> gives up its longest-idle
+    /// disconnected runtime with no command running for it, answered in <paramref name="evicted"/> for the caller to dispose,
+    /// and is refused when every runtime it holds is in use. A page render's runtime (<paramref name="adopted"/> false) past
+    /// <paramref name="maxUnclaimedPerSession"/> gives up the session's longest-idle unclaimed one instead, never an adopted one.
+    /// </summary>
+    /// <remarks>
+    /// The factory runs the application's controller constructor, so it runs outside the lock every attach, render lookup,
+    /// flush and cleanup waits on; the entry goes in on a second look, which may find another attach got there first, or the
+    /// session full — then the runtime built is answered in <paramref name="unused"/>, and null when there was no room for it.
+    /// The caller disposes both, asynchronously: a scope holding a service that is only <see cref="IAsyncDisposable"/> refuses
+    /// a synchronous dispose.
+    /// </remarks>
+    public UIRuntimeEntry? GetOrAdd(UIRuntimeKey key, string instanceId, Func<IUIRuntime> factory, DateTime utcNow, UIFlushOptions flush, int maxPerSession, int maxUnclaimedPerSession, bool adopted, out bool created, out bool attached, out int activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
         ArgumentNullException.ThrowIfNull(factory);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxPerSession, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxUnclaimedPerSession, 1);
 
         flush.Validate();
 
+        created = false;
+        evicted = null;
+        unused = null;
+
         lock (_sync)
         {
-            created = false;
-            attached = false;
-            activeInstances = 0;
-
-            if (!_entries.TryGetValue(key, out UIRuntimeEntry? entry))
+            if (_entries.TryGetValue(key, out UIRuntimeEntry? existing))
             {
-                entry = new UIRuntimeEntry(factory(), flush);
-                _entries.Add(key, entry);
-
-                created = true;
+                AttachNoLock(existing, key, instanceId, utcNow, adopted, out attached, out activeInstances);
+                return existing;
             }
 
-            DetachFromPreviousEntryNoLock(instanceId, key, utcNow);
-
-            attached = entry.Attach(instanceId, utcNow);
-            activeInstances = entry.ConnectionCount;
-            _instanceKeys[instanceId] = key;
-
-            return entry;
+            // Refused before anything is built when nothing could make room.
+            if (IsFullNoLock(key.SessionId, maxPerSession) && !TryFindEvictableNoLock(key.SessionId, unclaimedOnly: false, out _))
+                throw SessionFull(maxPerSession);
         }
+
+        IUIRuntime runtime = factory();
+        UIRuntimeEntry? entry;
+
+        attached = false;
+        activeInstances = 0;
+
+        lock (_sync)
+        {
+            if (!_entries.TryGetValue(key, out entry))
+            {
+                // A render's runtime makes room from its own kind first: a client that never attaches (a crawler, a prefetch)
+                // would otherwise fill the session's whole cap with runtimes nobody will claim. One still rendering is kept.
+                if (!adopted && CountUnclaimedNoLock(key.SessionId) >= maxUnclaimedPerSession)
+                    _ = TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: true, out evicted);
+
+                if (!IsFullNoLock(key.SessionId, maxPerSession) || (evicted is null && TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: false, out evicted)))
+                {
+                    entry = new UIRuntimeEntry(runtime, flush);
+                    AddEntryNoLock(key, entry);
+                    created = true;
+                }
+            }
+
+            if (entry is not null)
+                AttachNoLock(entry, key, instanceId, utcNow, adopted, out attached, out activeInstances);
+        }
+
+        if (!created)
+            unused = runtime;
+
+        return entry;
+    }
+
+    private void AttachNoLock(UIRuntimeEntry entry, UIRuntimeKey key, string instanceId, DateTime utcNow, bool adopted, out bool attached, out int activeInstances)
+    {
+        DetachFromPreviousEntryNoLock(instanceId, key, utcNow);
+
+        // A real tab presenting it: it stops being a render's provisional entry, see UIRuntimeEntry.IsAdopted.
+        if (adopted)
+            entry.MarkAdopted();
+
+        attached = entry.Attach(instanceId, utcNow);
+        activeInstances = entry.ConnectionCount;
+        _instanceKeys[instanceId] = key;
     }
 
     /// <summary>
@@ -153,6 +235,100 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         if (_entries.TryGetValue(previousKey, out UIRuntimeEntry? previousEntry))
             _ = previousEntry.Detach(instanceId, utcNow);
+    }
+
+    private bool IsFullNoLock(string sessionId, int maxPerSession)
+        => _sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys) && keys.Count >= maxPerSession;
+
+    private int CountUnclaimedNoLock(string sessionId)
+    {
+        if (!_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys))
+            return 0;
+
+        var unclaimed = 0;
+
+        for (var i = 0; i < keys.Count; i++)
+        {
+            if (!_entries[keys[i]].IsAdopted)
+                unclaimed++;
+        }
+
+        return unclaimed;
+    }
+
+    /// <summary>
+    /// The session's longest-idle runtime that may be taken away (no tab attached, and no command running whose work would
+    /// be lost with it), among its unclaimed ones only when <paramref name="unclaimedOnly"/>.
+    /// </summary>
+    private bool TryFindEvictableNoLock(string sessionId, bool unclaimedOnly, out UIRuntimeKey key)
+    {
+        UIRuntimeKey? idlest = null;
+        DateTime idlestSeen = DateTime.MaxValue;
+
+        if (_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys))
+        {
+            for (var i = 0; i < keys.Count; i++)
+            {
+                UIRuntimeEntry entry = _entries[keys[i]];
+
+                if (entry.IsConnected || entry.Runtime.HasCommandsInFlight || entry.LastSeenAtUtc >= idlestSeen || (unclaimedOnly && entry.IsAdopted))
+                    continue;
+
+                idlest = keys[i];
+                idlestSeen = entry.LastSeenAtUtc;
+            }
+        }
+
+        key = idlest.GetValueOrDefault();
+
+        return idlest.HasValue;
+    }
+
+    /// <summary>The refusal of a session that holds as many runtimes as it may.</summary>
+    public static InvalidOperationException SessionFull(int maxPerSession)
+        => new($"This session already holds {maxPerSession} open pages, the most one session may hold (UIPersistenceOptions.MaxRuntimesPerSession).");
+
+    private bool TryEvictIdlestNoLock(string sessionId, bool unclaimedOnly, [NotNullWhen(true)] out IUIRuntime? evicted)
+    {
+        evicted = null;
+
+        if (!TryFindEvictableNoLock(sessionId, unclaimedOnly, out UIRuntimeKey key) || !RemoveEntryNoLock(key, out UIRuntimeEntry? entry))
+            return false;
+
+        evicted = entry.Runtime;
+
+        return true;
+    }
+
+    /// <summary>Takes an entry away with its instances' mappings, keeping the session's index.</summary>
+    private bool RemoveEntryNoLock(UIRuntimeKey key, [NotNullWhen(true)] out UIRuntimeEntry? entry)
+    {
+        if (!_entries.Remove(key, out entry))
+            return false;
+
+        foreach (var instanceId in entry.InstanceIds)
+            _ = _instanceKeys.Remove(instanceId);
+
+        List<UIRuntimeKey> keys = _sessionKeys[key.SessionId];
+        _ = keys.Remove(key);
+
+        if (keys.Count == 0)
+            _ = _sessionKeys.Remove(key.SessionId);
+
+        return true;
+    }
+
+    private void AddEntryNoLock(UIRuntimeKey key, UIRuntimeEntry entry)
+    {
+        _entries.Add(key, entry);
+
+        if (!_sessionKeys.TryGetValue(key.SessionId, out List<UIRuntimeKey>? keys))
+        {
+            keys = [];
+            _sessionKeys.Add(key.SessionId, keys);
+        }
+
+        keys.Add(key);
     }
 
     public bool Detach(string instanceId, DateTime utcNow, out IUIRuntime? runtime, out int activeInstances)
@@ -230,21 +406,16 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         lock (_sync)
         {
-            if (!_entries.TryGetValue(from, out UIRuntimeEntry? entry))
+            if (!RemoveEntryNoLock(from, out UIRuntimeEntry? entry))
                 return false;
-
-            _ = _entries.Remove(from);
 
             if (_entries.ContainsKey(to))
             {
-                foreach (var instanceId in entry.InstanceIds)
-                    _ = _instanceKeys.Remove(instanceId);
-
                 discarded = entry.Runtime;
                 return false;
             }
 
-            _entries.Add(to, entry);
+            AddEntryNoLock(to, entry);
 
             foreach (var instanceId in entry.InstanceIds)
                 _instanceKeys[instanceId] = to;
@@ -264,11 +435,16 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         lock (_sync)
         {
+            if (!_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys))
+                return [];
+
             List<UIRuntimeKey>? staleKeys = null;
 
-            foreach (UIRuntimeKey key in _entries.Keys)
+            for (var i = 0; i < keys.Count; i++)
             {
-                if (key.Equals(keep) || !StringComparer.Ordinal.Equals(key.SessionId, sessionId) || !StringComparer.Ordinal.Equals(key.WindowId, windowId))
+                UIRuntimeKey key = keys[i];
+
+                if (key.Equals(keep) || !StringComparer.Ordinal.Equals(key.WindowId, windowId))
                     continue;
 
                 staleKeys ??= [];
@@ -282,15 +458,39 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
             for (var i = 0; i < staleKeys.Count; i++)
             {
-                _ = _entries.Remove(staleKeys[i], out UIRuntimeEntry? entry);
+                _ = RemoveEntryNoLock(staleKeys[i], out UIRuntimeEntry? entry);
 
-                foreach (var instanceId in entry!.InstanceIds)
-                    _ = _instanceKeys.Remove(instanceId);
-
-                removed[i] = entry.Runtime;
+                removed[i] = entry!.Runtime;
             }
 
             return removed;
+        }
+    }
+
+    /// <summary>
+    /// Takes away every runtime a session holds but <paramref name="keep"/>, and answers them for the caller to end.
+    /// </summary>
+    public IUIRuntime[] RemoveSession(string sessionId, UIRuntimeKey? keep)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        lock (_sync)
+        {
+            if (!_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys))
+                return [];
+
+            UIRuntimeKey[] ended = [.. keys];
+            List<IUIRuntime> removed = new(ended.Length);
+
+            for (var i = 0; i < ended.Length; i++)
+            {
+                if (ended[i].Equals(keep) || !RemoveEntryNoLock(ended[i], out UIRuntimeEntry? entry))
+                    continue;
+
+                removed.Add(entry.Runtime);
+            }
+
+            return [.. removed];
         }
     }
 
@@ -298,14 +498,11 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     {
         lock (_sync)
         {
-            if (!_entries.Remove(key, out UIRuntimeEntry? entry))
+            if (!RemoveEntryNoLock(key, out UIRuntimeEntry? entry))
             {
                 runtime = null;
                 return false;
             }
-
-            foreach (var instanceId in entry.InstanceIds)
-                _ = _instanceKeys.Remove(instanceId);
 
             runtime = entry.Runtime;
             return true;
@@ -331,7 +528,9 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
             foreach (UIRuntimeEntry entry in _entries.Values)
             {
-                if (entry.ShouldFlush(utcNow))
+                // One its creating attach has not started yet has nothing to send and refuses a flush; left unmarked, it is
+                // picked up the tick after it starts.
+                if (entry.ShouldFlush(utcNow) && entry.Runtime.IsStarted)
                     _flushCandidates.Add(entry);
             }
         }
@@ -385,13 +584,10 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
                 removedKeys.Add(pair.Key);
                 removed.Add(pair.Value.Runtime);
-
-                foreach (var instanceId in pair.Value.InstanceIds)
-                    _ = _instanceKeys.Remove(instanceId);
             }
 
             for (var i = 0; i < removedKeys.Count; i++)
-                _ = _entries.Remove(removedKeys[i]);
+                _ = RemoveEntryNoLock(removedKeys[i], out _);
         }
 
         for (var i = 0; i < removed.Count; i++)
@@ -423,6 +619,7 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
             IUIRuntime[] runtimes = [.. _entries.Values.Select(static entry => entry.Runtime)];
             _entries.Clear();
             _instanceKeys.Clear();
+            _sessionKeys.Clear();
 
             return runtimes;
         }

@@ -21,6 +21,9 @@ public sealed class StandardDownloadService : IUIDownloadService
     private readonly IUIUpdateSink _updates;
     private readonly IUIDownloadAddressProvider _addresses;
 
+    /// <summary>
+    /// Creates the service over the store it stages into, the sink that tells the client, and the addresses a download is served at.
+    /// </summary>
     public StandardDownloadService(IUIFileStore store, IUIUpdateSink updates, IUIDownloadAddressProvider addresses)
     {
         ArgumentNullException.ThrowIfNull(store);

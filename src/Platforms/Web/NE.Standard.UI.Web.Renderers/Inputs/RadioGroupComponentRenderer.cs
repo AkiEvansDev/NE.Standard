@@ -35,8 +35,6 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         TextContentRendererBase.RenderInputSize(context, root);
         TextContentRendererBase.RenderInputHeader(context, root);
 
-        _ = root.Attribute("role", "radiogroup");
-
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, RadioGroupComponent.SpacingProperty, "--ui-radio-group-spacing");
 
         _ = RenderProperty<UIOrientation?>(context, root, RadioGroupComponent.OrientationProperty, static (target, value) =>
@@ -47,7 +45,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 
         // One RenderProperty drives one element, but this value has to reach N radios: the initial `checked` is
         // decided here, and live changes fan out from a root attribute RadioGroupSyncEngine watches.
-        WebRenderValueKind valueKind = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? currentValue, out CompiledUIBinding? valueBinding);
+        _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? currentValue, out CompiledUIBinding? valueBinding);
 
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.CheckedRadio);
         _ = RenderProperty<string?>(context, root, IInputComponent.ValueProperty, static (target, value) =>
@@ -82,22 +80,28 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         if (valueBinding is not null)
             _ = root.Attribute(WebAttributes.RadioBindValueId, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
 
-        RenderOptions(context, root, groupName, valueKind, currentValue, valueBinding, readOnly);
+        RenderOptions(context, root, groupName, currentValue, valueBinding, readOnly);
 
         RenderValidationMessage(context, root);
     }
 
-    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
+    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
         // Before the option's text, as a checkbox's box is and as RadioGroupSyncEngine prepends it on a row the client builds.
+        // The host is the radio group, not the root: the caption and the validation line stand outside the choice itself.
         RenderItemsHost(context, root, "ui-radio-group__host", items, isBound, ItemClassName, itemElementName: "label",
-            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, valueKind, currentValue, valueBinding, readOnly)
+            configureHost: host =>
+            {
+                _ = host.Attribute("role", "radiogroup");
+                TextContentRendererBase.RenderFieldLabel(context, host);
+            },
+            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, currentValue, valueBinding, readOnly)
         );
     }
 
-    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, WebRenderValueKind valueKind, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
+    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
     {
         var optionId = item is IBindableItem bindableItem ? bindableItem.Id : null;
 
@@ -110,7 +114,8 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             if (!string.IsNullOrEmpty(optionId))
                 _ = input.Attribute("value", optionId);
 
-            if (valueKind == WebRenderValueKind.Static && optionId is not null && optionId == currentValue)
+            // A bound value is known here on the session's render, so its radio arrives checked rather than when the engine runs.
+            if (optionId is not null && optionId == currentValue)
                 _ = input.Attribute("checked");
 
             if (readOnly)

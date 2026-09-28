@@ -26,6 +26,13 @@ public sealed class UIContentAddress : IUIContentAddressResolver
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        return $"{_prefix}/{Uri.EscapeDataString(key)}";
+        // Each segment on its own: an escaped slash is a path a server does not unescape, so a key that holds one would never
+        // come back as itself.
+        var segments = key.Split('/');
+
+        for (var i = 0; i < segments.Length; i++)
+            segments[i] = Uri.EscapeDataString(segments[i]);
+
+        return $"{_prefix}/{string.Join('/', segments)}";
     }
 }

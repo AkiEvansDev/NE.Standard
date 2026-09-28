@@ -41,17 +41,21 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(changeSet);
         changeSet.Validate();
 
+        return await InSendOrderAsync(() => ProcessChangeSetFromUICoreAsync(invoker, changeSet, cancellationToken), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ServerChangeSet> ProcessChangeSetFromUICoreAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken)
+    {
         try
         {
             ServerChangeSet changes;
             List<PendingSourceWrite>? sourceWrites = null;
+            List<ServerUIUpdate>? refusals = null;
             List<UIComponentId>? staleWindows;
 
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                List<ServerUIUpdate>? validationUpdates = null;
-
                 for (var i = 0; i < changeSet.Updates.Length; i++)
                 {
                     if (TryHoldSourceWriteNoLock(changeSet.Updates[i], out PendingSourceWrite? sourceWrite))
@@ -62,8 +66,9 @@ internal abstract partial class UIRuntimeBase
 
                     ServerValidationUIUpdate? validation = ApplyClientUpdate(changeSet.Updates[i], out ClientValueUIUpdate? applied);
 
+                    // Collected apart from the queue so a refusal always travels and one rejected value cannot abandon the rest.
                     if (validation is not null)
-                        (validationUpdates ??= []).Add(validation);
+                        (refusals ??= []).Add(validation);
 
                     if (applied is not null)
                         _heldValues.Add(new HeldValue(applied, invoker.Instance.Id));
@@ -72,11 +77,7 @@ internal abstract partial class UIRuntimeBase
                 DrainControllerChangesNoLock();
 
                 staleWindows = DrainDirtyItemWindowsNoLock();
-                changes = DrainPendingUpdatesForRuntimeModeNoLock(force: false);
-
-                // Appended after the drain so a refusal always travels and one rejected value cannot abandon the rest.
-                if (validationUpdates is not null)
-                    changes = AppendUpdates(changes, validationUpdates);
+                changes = TakePendingUpdatesNoLock(DrainTarget.Leave);
             }
             finally
             {
@@ -85,14 +86,21 @@ internal abstract partial class UIRuntimeBase
 
             // After the lock: a source write runs through its own asynchronous method, once the rest of the change set has applied.
             if (sourceWrites is not null)
-                changes = AppendUpdates(changes, await ApplySourceWritesAsync(sourceWrites, cancellationToken).ConfigureAwait(false));
+            {
+                if (await ApplySourceWritesAsync(sourceWrites, cancellationToken).ConfigureAwait(false) is { } refused)
+                    (refusals ??= []).AddRange(refused);
+
+                changes = AppendUpdates(changes, await FlushCoreAsync(DrainTarget.Leave, publish: false, cancellationToken).ConfigureAwait(false));
+            }
 
             // Arrives here, not through a flush, so a windowed host's reload rules see what just changed.
-            changes = await AppendItemWindowReloadsAsync(changes, staleWindows, cancellationToken).ConfigureAwait(false);
+            changes = await AppendItemWindowReloadsAsync(changes, staleWindows, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
 
-            changes = await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+            // Every instance's: a runtime that sends as it drains sends them now, one that batches has left them to its flush.
+            _ = await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
 
-            return changes.For(invoker.Instance.Id);
+            // The writer's own, shown to no other instance.
+            return refusals is null ? ServerChangeSet.Empty : new ServerChangeSet { Updates = [.. refusals] };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -100,15 +108,10 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            _ = await HandleRuntimeExceptionAsync(
-                exception,
-                "ProcessChangeSetFromUI",
-                commandRequest: null,
-                clientChangeSet: changeSet,
-                cancellationToken
-            ).ConfigureAwait(false);
+            _ = await HandleRuntimeExceptionAsync(exception, "ProcessChangeSetFromUI", commandRequest: null, clientChangeSet: changeSet, cancellationToken).ConfigureAwait(false);
 
-            return await FlushCoreAsync(force: true, publish: true, cancellationToken).ConfigureAwait(false);
+            // The writer's copy, without the values it just sent: they would otherwise come back over what it is typing.
+            return await AnswerCoreAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -247,7 +250,7 @@ internal abstract partial class UIRuntimeBase
 
         for (var i = 0; i < _pendingUpdates.Count; i++)
         {
-            if (_pendingUpdates[i] is not ServerValueUIUpdate { ExceptInstanceId: null } pending)
+            if (_pendingUpdates[i].Update is not ServerValueUIUpdate { ExceptInstanceId: null } pending)
                 continue;
 
             foreach (HeldValue held in _heldValues)
@@ -262,7 +265,7 @@ internal abstract partial class UIRuntimeBase
                     continue;
                 }
 
-                _pendingUpdates[i] = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, ExceptInstanceId = held.InstanceId };
+                _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, ExceptInstanceId = held.InstanceId } };
                 break;
             }
         }
@@ -272,19 +275,31 @@ internal abstract partial class UIRuntimeBase
 
     private readonly record struct HeldValue(ClientValueUIUpdate Update, string InstanceId);
 
+    /// <remarks>An update never queued carries no number, and counts as newer than any snapshot a client started from.</remarks>
     private static ServerChangeSet AppendUpdates(ServerChangeSet changes, ServerChangeSet additional)
-        => additional.IsEmpty ? changes : AppendUpdates(changes, [.. additional.Updates]);
-
-    private static ServerChangeSet AppendUpdates(ServerChangeSet changes, List<ServerUIUpdate> additional)
     {
+        if (additional.IsEmpty)
+            return changes;
+
         if (changes.IsEmpty)
-            return new ServerChangeSet { Updates = [.. additional] };
+            return additional;
 
-        ServerUIUpdate[] updates = new ServerUIUpdate[changes.Updates.Length + additional.Count];
+        ServerUIUpdate[] updates = [.. changes.Updates, .. additional.Updates];
 
-        changes.Updates.CopyTo(updates, 0);
-        additional.CopyTo(updates, changes.Updates.Length);
+        return changes.Sequences is null && additional.Sequences is null
+            ? new ServerChangeSet { Updates = updates }
+            : new ServerChangeSet { Updates = updates, Sequences = [.. SequencesOf(changes), .. SequencesOf(additional)] };
+    }
 
-        return new ServerChangeSet { Updates = updates };
+    private static long[] SequencesOf(ServerChangeSet changes)
+    {
+        if (changes.Sequences is { } sequences)
+            return sequences;
+
+        var unnumbered = new long[changes.Updates.Length];
+
+        Array.Fill(unnumbered, long.MaxValue);
+
+        return unnumbered;
     }
 }

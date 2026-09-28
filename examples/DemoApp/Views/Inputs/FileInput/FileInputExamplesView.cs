@@ -1,12 +1,4 @@
 using DemoApp.Views.Base;
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace DemoApp.Views.Inputs.FileInput;
 
@@ -27,10 +19,7 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateUsesGroup()],
-            [CreateFormGroup()]
-        ));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup()], [CreateFormGroup()]));
 
         _ = container.AddChild(CreateContractGroup());
     }
@@ -40,8 +29,8 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateGroup(null, "Where it is used",
-            content => content.AddChild(DemoUI.CreateStack(16)
+        return DemoUI.CreateExample("Where it is used",
+            UILayout.Stack(16)
                 .AddChild(new FileInputComponent()
                     .SetTitle("Avatar")
                     .SetIcon(DemoIcons.UserRound)
@@ -50,10 +39,10 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetMaxFileSize(2 * Megabyte)
                 )
                 .AddChild(new FileInputComponent()
-                    .SetTitle("Deploy manifest")
+                    .SetTitle("TLS certificate")
                     .SetIcon(DemoIcons.FileText)
-                    .SetAccept(".yaml,.yml,.json")
-                    .SetPlaceholder("One manifest")
+                    .SetAccept(".pem,.crt")
+                    .SetPlaceholder("One certificate for bramble.example")
                 )
                 .AddChild(new FileInputComponent()
                     .SetTitle("Attachments")
@@ -63,7 +52,6 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetBadgeText("several at once")
                     .SetBadgeStyle(UIBadgeType.Info)
                 )
-            )
         );
     }
 
@@ -72,14 +60,14 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// </summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateGroup(null, "In a form",
-            content => content.AddChild(new CardComponent()
+        return DemoUI.CreateExample("In a form",
+            new CardComponent()
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.FileText)
                     .SetTitle("Attach to the review")
                     .SetDescription("Everything here is submitted together")
                 )
-                .SetContent(DemoUI.CreateStack()
+                .SetContent(UILayout.Stack(12)
                     .AddChild(new TextInputComponent()
                         .SetTitle("What it is")
                         .SetValue("Rollback plan")
@@ -93,12 +81,10 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                         .Required("A file is required.")
                     )
                 )
-                .SetFooter(DemoUI.CreateRow(8)
+                .SetFooter(UILayout.Row(8)
                     .AddChild(UIButtons.Primary("Attach"))
                     .AddChild(UIButtons.Ghost("Cancel"))
                 )
-                .SetPlacement(1, 1, 24, 1)
-            )
         );
     }
 
@@ -108,33 +94,34 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
     /// <remarks>Side by side, because the three contracts only read as a set of choices when they can be compared.</remarks>
     private static ContainerComponent CreateContractGroup()
     {
-        return DemoUI.CreateGroup(null, "What the empty field promises",
-            content => content.AddChild(DemoUI.CreateRow(24)
-                .AddChild(CreateContract("One kind of file", new FileInputComponent()
+        return DemoUI.CreateExample("What the empty field promises",
+            UILayout.Row(24)
+                .AddChild(UIPage.Labelled("One kind of file", new FileInputComponent()
                     .SetTitle("Deploy manifest")
                     .SetAccept(".yaml,.yml")
                     .SetPlaceholder("A single .yaml, up to 256 KB")
                     .SetMaxFileSize(256 * 1024)
-                ))
-                .AddChild(CreateContract("A whole family of them", new FileInputComponent()
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    )
+                )
+                .AddChild(UIPage.Labelled("A whole family of them", new FileInputComponent()
                     .SetTitle("Screenshot")
                     .SetAccept("image/*")
                     .SetPlaceholder("Any image, up to 5 MB")
                     .SetMaxFileSize(5 * Megabyte)
-                ))
-                .AddChild(CreateContract("Several, each within the limit", new FileInputComponent()
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    )
+                )
+                .AddChild(UIPage.Labelled("Several, each within the limit", new FileInputComponent()
                     .SetTitle("Attachments")
                     .SetMultiple(true)
                     .SetMaxFileSize(5 * Megabyte)
                     .SetPlaceholder("Each of them at most 5 MB, not all of them together")
-                ))
-                .SetPlacement(1, 1, 24, 1)
-            ),
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    )
+                ),
             columns: 24,
-            note: "The filter and the limit are a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://example.com/docs/files)."
+            note: "The filter and the limit are a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://docs.orvane.example/files)."
         );
     }
-
-    private static StackPanelComponent CreateContract(string caption, FileInputComponent field)
-        => DemoUI.CreateCaptionedItem(caption, field.SetWidth(UILayoutLength.Absolute(320)));
 }

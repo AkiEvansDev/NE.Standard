@@ -2,17 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Security;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 
 namespace DemoApp.Controllers.Screens;
 
 /// <summary>
-/// A page for the admin role alone: a member who reaches for it is sent to the forbidden page with the route named, and an
+/// A page for the admin role alone: a viewer who reaches for it is sent to the forbidden page with the route named, and an
 /// anonymous session to the sign-in page. The commands are audited like the account's.
 /// </summary>
 [UIAuthorize(DemoAccounts.AdminRole)]
@@ -20,7 +14,7 @@ namespace DemoApp.Controllers.Screens;
 internal sealed partial class AdminController : UIControllerBase
 {
     [RecursiveMember]
-    public partial string KeyLine { get; set; } = "The signing key was issued when the workspace was created.";
+    public partial string KeyLine { get; set; } = "The signing key was issued when Orvane Cloud was set up.";
 
     [RecursiveMember]
     public partial string AuditLines { get; set; } = string.Empty;

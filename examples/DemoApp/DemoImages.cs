@@ -35,4 +35,18 @@ public static class DemoImages
     /// <summary>The tinted form of a picture, painted in the text's colour rather than its own.</summary>
     public static string Mask(string source)
         => $"mask:{source}";
+
+    /// <summary>The largest upload the demo shows back as a <c>data:</c> address; the picker says so too.</summary>
+    public const long MaxInlinePictureBytes = 2 * 1024 * 1024;
+
+    /// <summary>
+    /// Whether an upload may be shown back inline: a raster picture, small. The type is what the browser declared, and an SVG is a
+    /// document that can carry script, so it is not one.
+    /// </summary>
+    /// <remarks>
+    /// Inline is a demo's shortcut: the address lives in the page's state and is sent again with every render and every attach. An
+    /// application keeps the file and names it by a content address (<c>IUIContentProvider</c>), as TeamRoom's media does.
+    /// </remarks>
+    public static bool IsInlinePicture(string? contentType, long size)
+        => size <= MaxInlinePictureBytes && contentType is "image/png" or "image/jpeg" or "image/gif" or "image/webp";
 }
