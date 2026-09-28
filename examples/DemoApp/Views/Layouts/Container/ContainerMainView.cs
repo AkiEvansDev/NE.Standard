@@ -97,6 +97,7 @@ internal sealed class ContainerMainView : DemoMainView, IUIViewDefinition
             .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
             .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindSpacing($"{ContainerGroup}.{nameof(ContainerGroupContext.Spacing)}")
             .BindPadding($"{ContainerGroup}.{nameof(ContainerGroupContext.Padding)}")
             .BindBackground($"{ContainerGroup}.{nameof(ContainerGroupContext.Background)}")
             .BindBackgroundImage($"{ContainerGroup}.{nameof(ContainerGroupContext.BackgroundImage)}")

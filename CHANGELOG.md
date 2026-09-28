@@ -9,6 +9,33 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.1.0
+
+- **Every package moves to 1.1.0.** A change to the framework now releases every package on the next minor version; a
+  change to one component package alone moves only its last digit (`docs/PUBLISHING.md`, *One number per slice*).
+- **A mirror's build waits for the feed itself.** On a release's sync commit it polls nuget.org until every version its
+  tree pins is there, then builds; the release no longer starts the mirrors' builds.
+- **Breaking:** `WebComponentRendererBase.RenderTemplateVariant` is gone. It drew a template variant outside any row, but a
+  variant is compiled in a row's scope, so what it drew asked for a row key it did not have (the data grid's band warned
+  about it on every page). A part drawn outside the rows is a region of its component: declare it through
+  `IRegionContainerComponent` and draw it with `RenderRegion`.
+- **A container puts air between its children.** `ContainerComponent` has a `Spacing` (`UIResponsive<double>`, bindable,
+  unset by default so no page changes): the same pixels between its columns and between its rows, per breakpoint —
+  `SetSpacing(16)`, `SetSpacing(8, xl: 24)`. The space between columns is capped at a twenty-fourth of the room the
+  absolute columns and column floors leave, so a narrow container closes its columns up rather than overflowing; a
+  container with `Auto` columns wants a responsive spacing with a small base. A page that parted placed children with
+  hand-tuned margins can drop them for it; the demo's `/layouts/container` page walks a few values.
+- **A tab's page stands clear of the strip.** `TabsComponent`'s page has the air under the strip a `TabsView` page has
+  always had (`@ui-space-3`); a page that set a top margin of its own for it can drop it.
+- **A colour swatch is as wide as its longest value, and its corners are clean.** The standalone swatch of a
+  `ColorInputComponent` (`AsSwatch()`) is sized for `#RRGGBB`, or `#RRGGBBAA` with opacity shown, so swatches down a column
+  line up whatever they hold; its ring is drawn over the fill, where a border let the page show through the rounded corners.
+- **A table's last column lines up under its caption while the rows scroll.** The rows' vertical scrollbar took its width
+  out of the last column's cells but not out of its header cell, so an end-aligned or centred caption stood off its values.
+  While the rows scroll, the header — and a grid's totals row — now keeps the same gutter at its end
+  (`data-ui-table-scrollbar` on the table); a table scrolling sideways, whose header and rows share one scrollbar, is
+  unchanged. A keyboard ring on a header cell is drawn inside the cell, where the frame no longer clips it.
+
 ## 1.0.1
 
 - **The first stable release.** No `--prerelease` is needed any more. Until 2.0.0 the public surface may still move

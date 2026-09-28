@@ -5,6 +5,7 @@ using System.Text;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -17,6 +18,12 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     /// <summary>The authored track lists, as custom properties the stylesheet reads under a splitter's own.</summary>
     public const string ColumnsVariable = "--ui-columns";
     public const string RowsVariable = "--ui-rows";
+
+    /// <summary>The air between the children, read as the row gap and, capped so twenty-four columns always fit, the column gap.</summary>
+    public const string SpacingVariable = "--ui-container-spacing";
+
+    /// <summary>The room the columns cannot give up (absolute widths and floors), which the column gap's cap leaves out.</summary>
+    public const string FixedColumnsVariable = "--ui-container-fixed-columns";
 
     public override string ComponentTypeKey => ContainerComponent.ComponentTypeKey;
 
@@ -32,8 +39,32 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
         // A variable rather than the grid property itself, so a splitter's tiers can sit over it in the stylesheet's chain.
         RenderTracks(context, root, ContainerComponent.ColumnsProperty, ColumnsVariable, WebAttributes.ColumnLimits);
         RenderTracks(context, root, ContainerComponent.RowsProperty, RowsVariable, WebAttributes.RowLimits);
+        RenderSpacing(context, root);
 
         RenderChildren(context, root);
+    }
+
+    /// <summary>The air between the children, and the fixed room the column gap's cap has to leave out when there is any.</summary>
+    internal static void RenderSpacing(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ContainerComponent.SpacingProperty, SpacingVariable);
+
+        // A bound spacing counts as set, since its value may arrive after the page; an unspaced container writes nothing more.
+        WebRenderValueKind kind = ResolveRenderValue(context, ContainerComponent.SpacingProperty, out UIResponsive<double>? spacing, out _);
+
+        if (kind == WebRenderValueKind.Missing || (kind == WebRenderValueKind.Static && spacing is null))
+            return;
+
+        _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIGridUnit>? columns, out _);
+
+        // What the columns take at any width: an absolute column's size and any other's floor. An auto column's content is unknown here.
+        double room = 0;
+
+        foreach (UIGridUnit column in columns ?? [])
+            room += column.Unit == UIGridUnitType.Absolute ? column.Value : Math.Max(column.MinValue ?? 0, 0);
+
+        if (room > 0)
+            _ = root.Style(FixedColumnsVariable, WebCssValues.Pixels(room));
     }
 
     internal static void RenderTracks(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string variable, string limitsAttribute)

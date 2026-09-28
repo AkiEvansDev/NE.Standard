@@ -15,7 +15,8 @@ Documentation: [akievansdev.github.io/NE.Standard](https://akievansdev.github.io
 
 ## Install
 
-Every package goes out on one repository version and they are only ever installed at matching versions. Until
+The framework's packages share one version and are installed together at it. A component package shares its first two
+digits — `1.1.x` goes with the framework's `1.1` — and moves its last digit on its own between framework releases. Until
 2.0.0 the public surface may still move between versions; each changelog marks what breaks.
 
 ```
@@ -52,8 +53,8 @@ step.
 
 **Components can ship separately too.** A component package is a component like the built-in ones — the same
 generator, the same binding, its own renderer on `NE.Standard.UI.Web.Renderers.Foundation` (the data grid, which
-extends the table, on `NE.Standard.UI.Web.Renderers`) — under the framework's own licence, released together with
-it on the same version, each in a repository of its own:
+extends the table, on `NE.Standard.UI.Web.Renderers`) — under the framework's own licence, released with every framework
+version and on their own between them, each in a repository of its own:
 
 - [`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) — a code editor with
   syntax highlighting, line numbers, several carets and find and replace.

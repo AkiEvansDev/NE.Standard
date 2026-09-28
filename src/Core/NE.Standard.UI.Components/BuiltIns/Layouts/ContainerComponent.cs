@@ -45,6 +45,16 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     public IReadOnlyList<UIGridUnit> Rows => _rows;
 
     /// <summary>
+    /// Gets or sets the spacing between children, across columns and down rows, optionally overridden per breakpoint.
+    /// A container too narrow for twenty-four columns of it narrows the space between columns instead of overflowing, less
+    /// what its absolute columns and floors take; an auto column's content is not counted, so a container with auto columns
+    /// wants a responsive spacing with a small base on a narrow screen.
+    /// </summary>
+    // No default of its own: the stylesheet's zero stands, and a container that is given none writes nothing.
+    [UIComponentProperty(DefaultValue = null)]
+    public UIResponsive<double>? Spacing { get; set; }
+
+    /// <summary>
     /// Sets a grid column definition. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Column"/>.
     /// </summary>
     public T SetColumn(int index, UIGridUnit unit)

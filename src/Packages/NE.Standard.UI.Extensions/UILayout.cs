@@ -91,8 +91,8 @@ public static class UILayout
             .AddChild(Cell(main, 1, sideSpan + 1, 24 - sideSpan, spacing, wide: true));
     }
 
-    // A cell, not a placement on the child (which may be any component); the grid has no gap of its own, so the air between
-    // cells is a cell's margin — above it while the cells stand one under another, before it once they stand side by side.
+    // A cell, not a placement on the child (which may be any component). The presets set their own air by margins, leaving the
+    // container's Spacing off: a cell's margin is above it while the cells stand one under another, before it once side by side.
     private static StackPanelComponent Cell(IVisualComponent child, int index, int column, int span, double spacing, bool wide)
     {
         var air = index == 0 ? 0 : spacing;

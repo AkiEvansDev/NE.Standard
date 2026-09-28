@@ -1,12 +1,15 @@
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
-/// What a grid paints around the cells it lays out: the room inside its edge, the ground behind the cells, and
-/// what happens to a child wider than the columns it was given.
+/// What a grid puts between and around the cells it lays out: the air between them, the room inside its edge, the
+/// ground behind the cells, and what happens to a child wider than the columns it was given.
 /// </summary>
 /// <remarks>Not the card's surface context: a container has no <c>Surface</c> style and nothing to click.</remarks>
 internal sealed partial class ContainerGroupContext : DemoGroupContext
 {
+    [RecursiveMember]
+    public partial UIResponsive<double>? Spacing { get; set; }
+
     [RecursiveMember]
     public partial UIResponsive<UIThickness>? Padding { get; set; }
 
@@ -24,12 +27,17 @@ internal sealed partial class ContainerGroupContext : DemoGroupContext
 
     public ContainerGroupContext()
     {
+        AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
         AddOption(nameof(BackgroundImage), CycleBackgroundImage, () => BackgroundImage);
         AddOption(nameof(BackgroundImageFit), CycleBackgroundImageFit, () => BackgroundImageFit);
         AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
     }
+
+    // The last value is a responsive one: close on a phone, wider from xl up, where the tiles stand side by side.
+    public void CycleSpacing()
+        => SetLastChange(nameof(Spacing), Spacing = CycleValue(Spacing, 8d, 24d, UIResponsive<double>.Create(8, xl: 24), null));
 
     public void CyclePadding()
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(8), UIThickness.Uniform(24), null));

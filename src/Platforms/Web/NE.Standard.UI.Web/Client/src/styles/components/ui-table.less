@@ -42,6 +42,18 @@
         grid-row: 3;
     }
 
+    // While the host scrolls (the engine's data-ui-table-scrollbar), the header — and a package's row under the rows, a grid's
+    // totals — keeps the gutter the host's scrollbar takes from the rows' last column, or that column's caption stands wider than
+    // its values. The host declares its own gutter too: Chrome sizes a subgrid's scrollbar from the layout before, so one that
+    // only appears can leave the rows at full width. Sideways, header and rows share the box's scrollbar and the host has none.
+    .ui-table[data-ui-table-scrollbar] > .ui-table__scroll > * {
+        scrollbar-gutter: stable;
+    }
+
+    .ui-table[data-ui-table-scrollbar] > .ui-table__scroll > :not(.ui-table__host) {
+        overflow: hidden;
+    }
+
 .ui-table > template {
     display: none !important;
 }
@@ -94,6 +106,11 @@
     padding: @ui-space-1 @ui-space-3;
     font-weight: var(--ui-text-title-font-weight);
 }
+
+    // Inset, since the header's edges clip an outer ring: the box's top always, and the bottom while the header keeps a gutter.
+    .ui-table__header-cell:focus-visible {
+        outline-offset: calc(-1 * var(--ui-focus-ring-width, 0px));
+    }
 
     .ui-table__header-cell--center {
         justify-content: center;

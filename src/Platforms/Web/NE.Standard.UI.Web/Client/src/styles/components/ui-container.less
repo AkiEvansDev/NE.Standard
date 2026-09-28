@@ -8,7 +8,16 @@
 
 .ui-container {
     display: grid;
-    gap: 0;
+    // Spacing is the container's own and no other placement host's: reset here, or a nested container would take its parent's.
+    // The column gap is capped at a twenty-fourth of the room the fixed columns leave (`--ui-container-fixed-columns`, their
+    // absolute widths and floors), so a narrow container closes its columns up instead of overflowing. By 24, not by the 23
+    // gaps: 23 would hand the gaps all of that room and leave the star columns none, a sub-pixel rounding from overflow.
+    // An auto column's content is not in the sum. The row gap has no count of tracks to fit.
+    .ui-responsive-reset(--ui-container-spacing);
+    --ui-container-fixed-columns: initial;
+    .ui-responsive-property(--ui-container-gap, --ui-container-spacing, 0px);
+    row-gap: var(--ui-container-gap);
+    column-gap: min(var(--ui-container-gap), calc((100% - var(--ui-container-fixed-columns, 0px)) / 24));
     border-style: solid;
     border-width: 0;
     border-color: transparent;

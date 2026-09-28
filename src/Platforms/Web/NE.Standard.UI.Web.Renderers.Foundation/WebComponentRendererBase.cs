@@ -944,16 +944,6 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         return context.Values.TryGetItems(component, out items);
     }
 
-    /// <summary>Renders one of the component's template variants into <paramref name="parent"/>, outside any row; a variant it does not have renders nothing.</summary>
-    protected static void RenderTemplateVariant(WebRenderContext context, IHtmlElementBuilder parent, string variantKey)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(parent);
-
-        if (context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, variantKey))
-            context.Renderer.RenderComponent(context.ForHtml(parent), slot.RootComponentId);
-    }
-
     private static string CreateBindingAttributeName(UIProperty property)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);

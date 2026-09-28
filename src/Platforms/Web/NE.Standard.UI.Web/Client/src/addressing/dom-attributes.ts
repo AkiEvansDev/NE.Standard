@@ -144,6 +144,8 @@ export const TableDraggingAttribute = "data-ui-table-dragging";
 export const TableDropAttribute = "data-ui-table-drop";
 /** Client-only: on a table's root while it is scrolled sideways, so the last pinned column draws the shadow of what is under it. */
 export const TableScrolledAttribute = "data-ui-table-scrolled";
+/** Client-only: on a table's root while its rows' host scrolls vertically, so the header and the host keep the same gutter at the end. */
+export const TableScrollbarAttribute = "data-ui-table-scrollbar";
 /** On an items host whose rows are chosen by something of its own — a grid's checkboxes: a click on a row chooses nothing. */
 export const NoRowSelectAttribute = "data-ui-no-row-select";
 /** On a tree node's root: the key of the node above it, that it has children, that it starts unfolded, the title a rename wrote. */

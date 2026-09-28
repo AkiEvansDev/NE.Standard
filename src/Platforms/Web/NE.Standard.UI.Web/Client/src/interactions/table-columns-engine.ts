@@ -3,7 +3,7 @@
 
 import {
     ColumnLimitsAttribute, TableColumnAttribute, TableColumnKeyAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute,
-    TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableScrolledAttribute
+    TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableScrollbarAttribute, TableScrolledAttribute
 } from "../addressing/dom-attributes";
 import { currentResponsiveTier, responsiveBreakpoints, ResponsiveTier, responsiveTiers } from "../rendering/responsive-tier";
 import { OnceWarner } from "../runtime/logger";
@@ -24,6 +24,8 @@ const HeaderCellClass = "ui-table__header-cell";
 const PinnedModifierClass = `${HeaderCellClass}--pinned`;
 const HeaderCellSelector = `${ScrollSelector} > .ui-table__header > .${HeaderCellClass}`;
 const PinnedHeaderSelector = `${HeaderCellSelector}--pinned`;
+const HostClass = "ui-table__host";
+const HostSelector = `${ScrollSelector} > .${HostClass}`;
 const TablePartSelector = `.${RootClass}, .ui-table__row, [${TableColumnAttribute}]`;
 
 /** The authored track list (the renderer's variable) and the viewer's, which the stylesheet reads over it. */
@@ -186,6 +188,17 @@ export class TableColumnsEngine {
                     this.layout(table);
             }
         });
+
+        // Once the host holds a scrollbar's gutter its box no longer changes when the scrollbar goes, so rows leaving the host or
+        // being filtered out of sight (a class on the row) are what say it may have.
+        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: ["class", "hidden"], relevant: changesHostRows }, tables => {
+            for (const table of tables) {
+                const host = table.querySelector<HTMLElement>(HostSelector);
+
+                if (host !== null && table.hasAttribute(TableScrollbarAttribute))
+                    this.markScrollbar(table, host);
+            }
+        });
     }
 
     private restoreEach(tables: Iterable<HTMLElement>): void {
@@ -199,6 +212,14 @@ export class TableColumnsEngine {
 
             // A content or star track changes with the table's width, and the pinned columns after it move with it.
             observeSize(table, () => this.pin(table));
+
+            const host = table.querySelector<HTMLElement>(HostSelector);
+
+            // A scrollbar coming changes the host's content box, whether rows arrived or the table was resized.
+            if (host !== null) {
+                this.markScrollbar(table, host);
+                observeSize(host, () => this.markScrollbar(table, host));
+            }
         }
     }
 
@@ -226,6 +247,17 @@ export class TableColumnsEngine {
         }
 
         this.orders.set(table, order);
+    }
+
+    /**
+     * Names on the root whether the rows' host scrolls vertically; the stylesheet then gives the header, the host and any row beside
+     * them the same gutter at the end, so the last column's caption stays over its values.
+     */
+    private markScrollbar(table: HTMLElement, host: HTMLElement): void {
+        // Overflow, not the host's box: once marked, the host keeps the gutter whether a scrollbar stands in it or not.
+        const overflowY = getComputedStyle(host).overflowY;
+
+        table.toggleAttribute(TableScrollbarAttribute, overflowY === "scroll" || (overflowY === "auto" && host.scrollHeight > host.clientHeight));
     }
 
     private layoutAll(): void {
@@ -821,6 +853,13 @@ function addsTableParts(mutation: MutationRecord): boolean {
     }
 
     return false;
+}
+
+/** Whether a record added or removed a row of a table's host, or changed whether one is shown. */
+function changesHostRows(mutation: MutationRecord): boolean {
+    const target = mutation.type === "childList" ? mutation.target : mutation.target.parentElement;
+
+    return target instanceof Element && target.classList.contains(HostClass);
 }
 
 /** The authored index standing at each place along the row, read off the places every column holds. */

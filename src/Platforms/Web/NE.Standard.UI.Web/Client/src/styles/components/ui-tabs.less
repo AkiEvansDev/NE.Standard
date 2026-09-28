@@ -27,12 +27,13 @@
 }
 
 // A page is a placement host (@ui-placement-hosts in ui-container.less), so its content is placed like a card's; the flex
-// properties are the page's own place in the pages column.
+// properties are the page's own place in the pages column. The air under the strip is the page's own, as a TabsView page's.
 .ui-tabs__page {
     .ui-placement-host();
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
+    padding-top: @ui-space-3;
 }
 
     // Needed because the class rule above outranks the UA's bare `[hidden]` rule at specificity 0,0,1.
