@@ -50,7 +50,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     public bool? TrimTrailingZeros { get; set; }
 
     /// <summary>
-    /// Gets or sets whether increment/decrement stepper buttons are shown.
+    /// Gets or sets whether increment/decrement stepper buttons are shown; ArrowUp and ArrowDown in the field step it either way.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? ShowStepper { get; set; }

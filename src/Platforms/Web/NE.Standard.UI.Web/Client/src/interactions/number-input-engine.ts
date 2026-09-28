@@ -41,6 +41,7 @@ export class NumberInputEngine {
         this.root.addEventListener("focus", domEvent => this.handleFocus(domEvent), true);
         this.root.addEventListener("blur", domEvent => this.handleBlur(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleStepClick(domEvent), true);
+        this.root.addEventListener("keydown", domEvent => this.handleStepKey(domEvent as KeyboardEvent), true);
 
         // On the window, the first node an event's capture passes: the value binding engine listens on the document and reads the
         // field there, so the typed text is made invariant before it is read, and the edit text comes back once the event is done.
@@ -181,13 +182,30 @@ export class NumberInputEngine {
         const row = button.closest(".ui-number-input__row");
         const input = row?.querySelector<HTMLInputElement>(`.${FieldClass}`) ?? null;
 
-        if (input === null)
+        if (input === null || input.readOnly || input.disabled)
             return;
 
         domEvent.preventDefault();
+        this.step(input, button.getAttribute(StepDirectionAttribute) === "down" ? -1 : 1);
+    }
 
+    /** ArrowUp and ArrowDown step the field under the caret, as a native number field's do, whether or not it shows a stepper. */
+    private handleStepKey(domEvent: KeyboardEvent): void {
+        if ((domEvent.key !== "ArrowUp" && domEvent.key !== "ArrowDown") || domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey || domEvent.defaultPrevented)
+            return;
+
+        const input = asField(domEvent.target);
+
+        if (input === null || input.readOnly || input.disabled)
+            return;
+
+        domEvent.preventDefault();
+        this.step(input, domEvent.key === "ArrowDown" ? -1 : 1);
+    }
+
+    /** Moves the field one step up or down from what it shows, held inside Min and Max, and reports it as a typed value is reported. */
+    private step(input: HTMLInputElement, direction: 1 | -1): void {
         const step = Number(input.getAttribute(StepAttribute) ?? "1");
-        const direction = button.getAttribute(StepDirectionAttribute) === "down" ? -1 : 1;
         const typed = parseNumberText(input.value, readNumberCulture(input), formatOf(input));
         const current = Number(this.shown.get(input) === input.value ? this.valueOf(input) : typed ?? "0") || 0;
 

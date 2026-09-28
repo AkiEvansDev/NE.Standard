@@ -56,10 +56,13 @@ export type SelectInteractionEngineOptions = {
 // popup's placement), since answering its own writes is a loop and a sync on every scroll frame.
 const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, MaxAttribute, "class", ComponentKeyAttribute];
 
-/** A read-only search keeps its text field and a read-only multi-select its field; neither offers a list or changes. */
+/** A read-only search keeps its text field, a read-only multi-select its field and a read-only select a disabled trigger; none offers a list or changes. */
 function isReadOnly(select: HTMLElement | null): boolean {
+    const trigger = select?.querySelector(`.${TriggerClass}`);
+
     return select?.querySelector<HTMLInputElement>(`.${SearchInputClass}`)?.readOnly === true
-        || select?.querySelector(`.${TriggerClass}`)?.getAttribute("aria-readonly") === "true";
+        || trigger?.getAttribute("aria-readonly") === "true"
+        || trigger?.matches(":disabled") === true;
 }
 
 function isMultiple(select: HTMLElement): boolean {

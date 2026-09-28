@@ -71,6 +71,8 @@
         color: var(--ui-color-on-surface);
     }
 
+    // Read-only: dimmed as a date field's calendar toggle is, so a pick that does nothing does not look like one that would.
     .ui-file-input__pick:disabled {
         cursor: default;
+        opacity: 0.5;
     }

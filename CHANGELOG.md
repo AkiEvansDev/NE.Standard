@@ -9,6 +9,15 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.2.0
+
+- **A read-only field offers nothing that would change it.** A read-only number input's stepper goes, as the time input's
+  does, and a press on it changes nothing; ArrowDown in a read-only date or date-time field no longer opens the calendar,
+  whose choice was written into the field; a read-only select's clear and chevron go, as a read-only search's and
+  multi-select's do. A read-only file input's pick button is dimmed, as a date field's calendar toggle is.
+- **ArrowUp and ArrowDown step a number input**, as a native number field's do, whether or not it shows its stepper — whose
+  buttons stay out of the tab order and hidden from assistive technology, the keys being the accessible way to step.
+
 ## 1.1.0
 
 - **Every package moves to 1.1.0.** A change to the framework now releases every package on the next minor version; a

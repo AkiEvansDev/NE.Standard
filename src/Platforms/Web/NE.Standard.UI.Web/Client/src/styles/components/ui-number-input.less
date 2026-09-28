@@ -31,6 +31,11 @@
     display: flex;
 }
 
+// A read-only field has nothing to step, so its stepper goes, as the time input's does.
+.ui-number-input:has(.ui-number-input__field:read-only) .ui-number-input__stepper {
+    display: none;
+}
+
 .ui-number-input__step-up,
 .ui-number-input__step-down {
     .ui-field-step();

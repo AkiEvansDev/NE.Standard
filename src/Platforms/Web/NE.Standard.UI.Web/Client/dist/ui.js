@@ -2505,7 +2505,8 @@ var ts = "data-ui-select-value", ns = "data-ui-select-placement", E = "ui-select
 	m
 ];
 function Os(e) {
-	return e?.querySelector(`.${ms}`)?.readOnly === !0 || e?.querySelector(`.${is}`)?.getAttribute("aria-readonly") === "true";
+	let t = e?.querySelector(`.${is}`);
+	return e?.querySelector(`.${ms}`)?.readOnly === !0 || t?.getAttribute("aria-readonly") === "true" || t?.matches(":disabled") === !0;
 }
 function ks(e) {
 	return e.classList.contains(ys);
@@ -3116,7 +3117,7 @@ var Dc = "ui-number-input", Oc = "ui-number-input__field", kc = "data-ui-number-
 	values = /* @__PURE__ */ new WeakMap();
 	shown = /* @__PURE__ */ new WeakMap();
 	constructor(e = {}) {
-		this.options = e, this.root = e.root ?? document, this.root.addEventListener("input", (e) => this.handleInput(e), !0), this.root.addEventListener("focus", (e) => this.handleFocus(e), !0), this.root.addEventListener("blur", (e) => this.handleBlur(e), !0), this.root.addEventListener("click", (e) => this.handleStepClick(e), !0), window.addEventListener("change", (e) => this.handleChangeCapture(e), !0), window.addEventListener("change", (e) => this.handleChangeDone(e)), this.showAtRest(this.root.querySelectorAll(`.${Oc}`)), this.options.propertyPatchEngine?.addValueChangeHandler((e) => {
+		this.options = e, this.root = e.root ?? document, this.root.addEventListener("input", (e) => this.handleInput(e), !0), this.root.addEventListener("focus", (e) => this.handleFocus(e), !0), this.root.addEventListener("blur", (e) => this.handleBlur(e), !0), this.root.addEventListener("click", (e) => this.handleStepClick(e), !0), this.root.addEventListener("keydown", (e) => this.handleStepKey(e), !0), window.addEventListener("change", (e) => this.handleChangeCapture(e), !0), window.addEventListener("change", (e) => this.handleChangeDone(e)), this.showAtRest(this.root.querySelectorAll(`.${Oc}`)), this.options.propertyPatchEngine?.addValueChangeHandler((e) => {
 			this.showAtRest(Dn(e.components, `.${Oc}`));
 		});
 	}
@@ -3172,10 +3173,16 @@ var Dc = "ui-number-input", Oc = "ui-number-input__field", kc = "data-ui-number-
 		let t = e.target.closest("[" + Ic + "]");
 		if (t === null) return;
 		let n = t.closest(".ui-number-input__row")?.querySelector(`.${Oc}`) ?? null;
-		if (n === null) return;
-		e.preventDefault();
-		let r = Number(n.getAttribute(Nc) ?? "1"), i = t.getAttribute(Ic) === "down" ? -1 : 1, a = xc(n.value, lc(n), zc(n)), o = (Number(this.shown.get(n) === n.value ? this.valueOf(n) : a ?? "0") || 0) + r * i, s = n.getAttribute(Pc), c = n.getAttribute(Fc);
-		s !== null && (o = Math.max(o, Number(s))), c !== null && (o = Math.min(o, Number(c))), this.commit(n, Bc(o)), this.show(n);
+		n === null || n.readOnly || n.disabled || (e.preventDefault(), this.step(n, t.getAttribute(Ic) === "down" ? -1 : 1));
+	}
+	handleStepKey(e) {
+		if (e.key !== "ArrowUp" && e.key !== "ArrowDown" || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented) return;
+		let t = Rc(e.target);
+		t === null || t.readOnly || t.disabled || (e.preventDefault(), this.step(t, e.key === "ArrowDown" ? -1 : 1));
+	}
+	step(e, t) {
+		let n = Number(e.getAttribute(Nc) ?? "1"), r = xc(e.value, lc(e), zc(e)), i = (Number(this.shown.get(e) === e.value ? this.valueOf(e) : r ?? "0") || 0) + n * t, a = e.getAttribute(Pc), o = e.getAttribute(Fc);
+		a !== null && (i = Math.max(i, Number(a))), o !== null && (i = Math.min(i, Number(o))), this.commit(e, Bc(i)), this.show(e);
 	}
 };
 function Rc(e) {
@@ -3721,7 +3728,7 @@ var zl = "ui-temporal-input__field", Bl = "ui-temporal-input__popup", Vl = "ui-t
 			this.close();
 			return;
 		}
-		this.close();
+		if (this.close(), e.querySelector(`.${zl}`)?.readOnly === !0) return;
 		let n = this.getState(e);
 		n.activeEnd = _l(e) ? t ?? (k(e, !1) === null ? "start" : k(e, !0) === null ? "end" : n.activeEnd) : "start", n.hoverDay = null;
 		let r = k(e, n.activeEnd === "end") ?? yl(e);

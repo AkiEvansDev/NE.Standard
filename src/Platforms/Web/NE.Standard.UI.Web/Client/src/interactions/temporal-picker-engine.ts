@@ -512,6 +512,10 @@ export class TemporalPickerEngine {
 
         this.close();
 
+        // A read-only field offers no calendar to choose from, whether its toggle or ArrowDown in the field asked for one.
+        if (picker.querySelector<HTMLInputElement>(`.${FieldClass}`)?.readOnly === true)
+            return;
+
         const state = this.getState(picker);
 
         // A period opens on the end it lacks, or on the one the field asked for; a whole period starts over from the start.

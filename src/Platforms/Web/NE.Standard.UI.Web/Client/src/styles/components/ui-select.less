@@ -43,7 +43,8 @@
     color: var(--ui-text-muted);
 }
 
-// The same cross as the text input's clear, a step smaller to sit beside the chevron; shown only with a value to clear.
+// The same cross as the text input's clear, a step smaller to sit beside the chevron; shown only with a value to clear, and never
+// on a read-only select, whose trigger IsReadOnly renders disabled.
 .ui-select__clear {
     .ui-field-adornment();
     .ui-cross-glyph(@ui-glyph-xs);
@@ -52,12 +53,22 @@
     height: 1rem;
 }
 
-.ui-select--clearable[data-ui-select-value]:not([data-ui-select-value=""]) .ui-select__clear {
+.ui-select--clearable[data-ui-select-value]:not([data-ui-select-value=""]) .ui-select__trigger:not(:disabled) .ui-select__clear {
     display: inline-flex;
 }
 
 .ui-select--no-chevron .ui-select__chevron {
     display: none;
+}
+
+// Read-only (IsReadOnly renders the trigger disabled): the value stays readable, but there is no list to open, so the chevron
+// goes with the clear above, as a read-only search's and multi-select's do.
+.ui-select__trigger:disabled {
+    cursor: default;
+
+    > .ui-select__chevron {
+        display: none;
+    }
 }
 
 .ui-select__chevron {
