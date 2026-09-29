@@ -18,6 +18,12 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<TreeNode> Items { get; } = [.. DemoStorageTree.Create()];
 
+    public TreeFilesGroupContext()
+    {
+        // One folder switched off: it is not chosen, dragged, dropped into or deleted, and does not open under a drag.
+        Find("status")!.Enabled = false;
+    }
+
     public void Open(string id)
         => LogEvent($"Opened {TitleOf(id)}");
 

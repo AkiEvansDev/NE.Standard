@@ -55,6 +55,12 @@ public sealed class CompiledUIBinding
     public bool Optional { get; init; }
 
     /// <summary>
+    /// Gets whether the bound value is a key the page translates: the target property is translatable and the instance did not
+    /// mark it content.
+    /// </summary>
+    public bool IsTranslatable { get; init; }
+
+    /// <summary>
     /// Gets fixed and dynamic parameters used to materialize the source path template.
     /// </summary>
     public CompiledUIBindingParameter[] Parameters { get; init; } = [];

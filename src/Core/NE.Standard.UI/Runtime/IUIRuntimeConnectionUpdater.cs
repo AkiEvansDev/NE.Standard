@@ -18,6 +18,12 @@ internal interface IUIRuntimeConnectionUpdater
     /// <summary>Tells the controller a connection attached, once the runtime is ready for it; a render's own attach is not one.</summary>
     Task NotifyAttachedAsync(UIHandle handle, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Tells the controller a connection's session moved to another language, as a command runs — what the page's own switch
+    /// takes; the handle is already refreshed.
+    /// </summary>
+    Task NotifyLanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken);
+
     void DetachConnection(string instanceId);
 
     /// <summary>

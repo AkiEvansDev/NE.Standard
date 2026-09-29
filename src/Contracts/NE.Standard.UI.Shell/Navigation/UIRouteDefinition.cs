@@ -25,9 +25,7 @@ public sealed class UIRouteDefinition
     /// </summary>
     public Type? ControllerType { get; init; }
 
-    /// <summary>
-    /// Gets the navigation parameters that are part of this route's address, in declared order.
-    /// </summary>
+    /// <summary>Gets the navigation parameters that are part of this route's address, in declared order.</summary>
     /// <remarks>
     /// Two visits agreeing on every one of these share the same address and runtime; any other parameter is carried without splitting it.
     /// </remarks>

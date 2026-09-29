@@ -1,6 +1,5 @@
-// A host that holds every item's value and keeps only the rows in view in the document. The values are the model here, not
-// the children: filter, sort and grouping run over them, a patch to an undrawn row lands in them, and a row is drawn from
-// them on scrolling into view and dropped on scrolling out.
+// A host that holds every item's value and keeps only the rows in view in the document: the values, not the children, are what
+// filter, sort, grouping and patches work on, and rows are drawn from them as they scroll in.
 
 import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
 import { planRowRemoval } from "../interactions/row-cursor";
@@ -63,8 +62,7 @@ type VirtualHostState = {
     groupOrder: string[];
     itemEstimate: number;
     headerEstimate: number;
-    // Every height measured so far, not only this pass's: an estimate from the rows now in view swings with them, and every
-    // unmeasured row above the viewport swings with it.
+    // Every height measured so far: an estimate from the rows in view alone swings, and every unmeasured row above with it.
     itemHeights: RunningMean;
     headerHeights: RunningMean;
     // The last pass's rows and pitches, so a scroll pass can hold the row at the viewport's top where it was.
@@ -126,10 +124,7 @@ export class ItemsVirtualizationEngine {
 
     // ---- what the host holds
 
-    /**
-     * The host's values are replaced wholesale; rows whose key and value are unchanged keep their element. Answers the keys whose
-     * entry left or was made afresh, for the caller to forget what it recorded under them.
-     */
+    /** Replaces the host's values, keeping unchanged rows' elements; answers the keys that left or were made afresh. */
     public refill(host: Element, items: readonly { readonly key: string; readonly item: unknown }[]): string[] {
         const state = this.getState(host);
 
@@ -603,13 +598,9 @@ function addHeight(mean: RunningMean, previous: number | null, height: number): 
     }
 }
 
-/**
- * Where the viewport's top should be for the row the reader saw there to stay put. A scroll pass lays out the same rows as the
- * one before, but the spacers still stand for the pitches that pass had, and the heights it measured changed the estimate of
- * every unmeasured row above: the row moves by the sum of the differences, so the viewport moves with it. A pass after the rules
- * ran has other rows, and is left where the reader is.
- */
+/** Where the viewport's top goes for the row the reader saw there to stay put after a scroll pass re-measured the rows above. */
 function holdTopRow(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], pitches: readonly number[], top: number): number {
+    // A pass after the rules ran has other rows, and is left where the reader is.
     if (state.laidOut !== rows || state.pitches.length !== pitches.length || top <= 0)
         return top;
 
@@ -627,6 +618,7 @@ function holdTopRow(host: Element, state: VirtualHostState, rows: readonly Proje
         moved += pitches[i];
     }
 
+    // The spacers still stand for the last pass's pitches: the row moved by the sum of the differences.
     const shift = moved - shown;
 
     if (Math.abs(shift) < 0.5)

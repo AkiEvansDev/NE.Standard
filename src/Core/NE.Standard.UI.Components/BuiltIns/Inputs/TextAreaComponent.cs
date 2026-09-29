@@ -81,8 +81,6 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
 /// </summary>
 public sealed class TextAreaComponent(string? id = null) : TextAreaComponent<TextAreaComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.text-area";
 }

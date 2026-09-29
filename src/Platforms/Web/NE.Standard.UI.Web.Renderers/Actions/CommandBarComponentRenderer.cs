@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -30,11 +31,7 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
                 _ = target.Class(WebClassNames.Orientation(orientation));
         }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
 
-        _ = RenderProperty<bool?>(context, root, CommandBarComponent.WrapProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-command-bar--wrap");
-        }, [WebDomOperation.ToggleClass("ui-command-bar--wrap")]);
+        RenderFlagClass(context, root, CommandBarComponent.WrapProperty, "ui-command-bar--wrap");
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, CommandBarComponent.SpacingProperty, "--ui-command-bar-spacing");
 
@@ -50,6 +47,9 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
         RegisterItemsFilterSortMetadata(context);
 
         RenderItems(context, root);
+
+        // After the host: a bar too long for its row moves its trailing commands into this button's menu rather than cutting labels.
+        RenderOverflowButton(context, root, "ui-command-bar__overflow ui-button ui-button--ghost", UIStrings.CommandBarMore, tabStop: true);
     }
 
     /// <summary>Renders the items into an inner host; the client's lookup searches descendants only, so the root cannot be it.</summary>

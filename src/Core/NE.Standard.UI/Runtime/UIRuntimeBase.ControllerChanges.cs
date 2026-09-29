@@ -20,10 +20,11 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    /// <summary>
-    /// Queues and sends changes made outside a command. They are taken under the state lock, not before it: taken earlier they
-    /// would be in the controller's state an attach snapshot reads and still be queued after it, numbered past its watermark.
-    /// </summary>
+    /// <summary>Queues and sends changes made outside a command.</summary>
+    /// <remarks>
+    /// They are taken under the state lock, not before it: taken earlier they would be in the controller's state an attach snapshot
+    /// reads and still be queued after it, numbered past its watermark.
+    /// </remarks>
     protected async Task<ServerChangeSet> PublishExternalControllerChangesAsync(Func<RecursiveChange[]> takeChanges, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -339,9 +340,7 @@ internal abstract partial class UIRuntimeBase
 
     private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> ItemProperties = new();
 
-    /// <summary>
-    /// Re-sends a bound collection whose whole instance was assigned, as a reset followed by its items.
-    /// </summary>
+    /// <summary>Re-sends a bound collection whose whole instance was assigned, as a reset followed by its items.</summary>
     /// <remarks>
     /// Needed because <see cref="RecursiveChangeKind.Reset"/> fires only from inside a collection, not when the instance is <c>Set</c>.
     /// </remarks>
@@ -462,9 +461,7 @@ internal abstract partial class UIRuntimeBase
         return [.. result];
     }
 
-    /// <summary>
-    /// Drops every earlier change the new one supersedes — the same path, or anything under it.
-    /// </summary>
+    /// <summary>Drops every earlier change the new one supersedes — the same path, or anything under it.</summary>
     /// <remarks>
     /// Compares segment by segment rather than via <c>Path.ToString()</c>, since this runs for every change against every kept change.
     /// </remarks>

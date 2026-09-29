@@ -6,9 +6,7 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.UI.Shell.Files;
 
-/// <summary>
-/// Holds file content between the transfer and the code that reads it.
-/// </summary>
+/// <summary>Holds file content between the transfer and the code that reads it.</summary>
 /// <remarks>
 /// Every operation is scoped to a session, and a file id alone must never be enough to read a file — an implementation
 /// that ignores <c>sessionId</c> is broken.
@@ -20,10 +18,8 @@ public interface IUIFileStore
     /// </summary>
     Task<UIUploadFile> SaveUploadAsync(string sessionId, string selectionId, string fileName, string? contentType, Stream content, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// How many bytes of uploads the session holds now — what <c>UIFileOptions.MaxUploadBytesPerSession</c> is checked against.
-    /// A store that does not count answers zero, and the per-session limit then holds nothing back.
-    /// </summary>
+    /// <summary>How many bytes of uploads the session holds now — what <c>UIFileOptions.MaxUploadBytesPerSession</c> is checked against.</summary>
+    /// <remarks>A store that does not count answers zero, and the per-session limit then holds nothing back.</remarks>
     Task<long> GetUploadedBytesAsync(string sessionId, CancellationToken cancellationToken = default)
         => Task.FromResult(0L);
 

@@ -19,9 +19,9 @@
     aspect-ratio: 1;
 }
 
-    // Which of glyph, URL mask or picture draws follows the property filled, not a class; the glyph name lives in content, never the DOM.
+    // Drawn by its pack's or form's class; the glyph name lives in content, voiced as nothing, since the words beside it are the name.
     .ui-icon::before {
-        content: var(--ui-icon-glyph, "");
+        content: ~'var(--ui-icon-glyph, "") / ""';
         display: none;
         width: 1em;
         height: 1em;
@@ -40,31 +40,33 @@
         font-feature-settings: "liga";
         // FILL is the axis between the filled and outlined drawing; opsz is left unnamed so font-optical-sizing: auto keeps choosing it.
         font-variation-settings: "FILL" var(--ui-icon-fill, 1);
-        // A mask paints by default; the glyph form has to say it is different, since a glyph is text and takes color.
-        background-color: var(--ui-icon-paint, currentColor);
-        mask: var(--ui-icon-url, none) center / contain no-repeat;
-        -webkit-mask: var(--ui-icon-url, none) center / contain no-repeat;
     }
 
-    // .ui-icon is worn by a component root and by a nested __icon, so any --ui-* read here must be gated on [data-ui-id]: those inherit.
+    // Shown only where the value names an icon (`data-ui-icon`).
     .ui-icon[data-ui-icon]::before {
         display: block;
     }
 
-    // Gated on the component root: stretching the nested .ui-text__icon breaks the text's rhythm; font-size follows the same width chain.
+    // Gated on the component root, [data-ui-id]: a nested __icon wears .ui-icon too and would inherit the --ui-* read here, and
+    // stretching the nested .ui-text__icon breaks the text's rhythm; font-size follows the same width chain.
     .ui-icon[data-ui-id]::before {
         width: 100%;
         height: 100%;
         .ui-responsive-property(font-size, --ui-width, 1em);
     }
 
-// A picture fills the same --ui-icon-url slot but is painted, not masked; contain, not cover, so a logo or flag is never cropped.
+// The one form that paints, a mask over the text colour, so an unknown glyph draws nothing; the fallback is a clear mask, as
+// `none` would paint the whole box.
+.ui-icon--mask::before {
+    background-color: currentColor;
+    mask: var(--ui-icon-url, linear-gradient(transparent, transparent)) center / contain no-repeat;
+    -webkit-mask: var(--ui-icon-url, linear-gradient(transparent, transparent)) center / contain no-repeat;
+}
+
+// An untinted picture is painted as it is; contain, not cover, so a logo or flag is never cropped.
 .ui-icon--image::before {
     content: "";
-    background-color: transparent;
     background: var(--ui-icon-url) center / contain no-repeat;
-    mask: none;
-    -webkit-mask: none;
     // em, so the radius stays the same fraction of any box; ui-text.less overrides it with the card's radius for the tile.
     border-radius: 0.1875em;
 }
@@ -82,14 +84,12 @@
     font-size: 1.5rem;
 }
 
-// The core's own face as an icon pack, under the `ne-` prefix, so `SetIcon(UIGlyphs.Check)` draws through the same slot a
-// pack's name would, with none installed. Fill defaults to the glyph's own shape (a pencil is filled, a calendar is not).
+// The core's face as an `ne-` icon pack, so `UIGlyphs` draw with no pack installed; fill follows the glyph's shape.
 .ui-glyph-rule(@name; @code; @fill: 0) {
     .ui-icon-glyph--ne-@{name} {
         --ui-icon-font: @ui-glyph-font;
         --ui-icon-glyph: @code;
         --ui-icon-fill: @fill;
-        --ui-icon-paint: transparent;
     }
 }
 

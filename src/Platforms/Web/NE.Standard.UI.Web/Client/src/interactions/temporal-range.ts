@@ -14,11 +14,7 @@ export type PeriodChoice = Period & {
     readonly complete: boolean;
 };
 
-/**
- * The period after `day` is chosen with `active` as the end being set. A start clears an end before it and moves on to the
- * end; an end before the start restarts the period from that day, as a person clicking the wrong way round meant. Each
- * chosen day keeps its end's time, or the picker's default moment when none was set.
- */
+/** The period after `day` is chosen as the `active` end; each chosen day keeps its end's time. */
 export function chooseDay(period: Period, active: PeriodEnd, day: Date): PeriodChoice {
     if (active === "start" || period.start === null) {
         const start = withTime(day, period.start ?? day);
@@ -27,6 +23,7 @@ export function chooseDay(period: Period, active: PeriodEnd, day: Date): PeriodC
         return { start, end, active: "end", complete: false };
     }
 
+    // An end before the start restarts the period from that day, as a click the wrong way round meant.
     if (day.getTime() < startOfDay(period.start).getTime())
         return { start: withTime(day, period.start), end: null, active: "end", complete: false };
 
@@ -41,6 +38,12 @@ export function isWithinPeriod(day: Date, start: Date | null, end: Date | null):
     const time = startOfDay(day).getTime();
 
     return time > startOfDay(start).getTime() && time < startOfDay(end).getTime();
+}
+
+/** Whether `day` wears the chosen period's tint. */
+export function isWithinChosenPeriod(day: Date, period: Period, choosingEnd: boolean): boolean {
+    // Not while the end is chosen: an end kept from before is not the span being made; only the pointer's preview is drawn.
+    return !choosingEnd && isWithinPeriod(day, period.start, period.end);
 }
 
 /** A period whose ends came in the wrong order, put right; the ends themselves are left alone. */

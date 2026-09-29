@@ -1,6 +1,5 @@
-// Holds the runtime's real types to the contract in Client/plugin/ne-standard-ui.d.ts, both ways: what the runtime hands a
-// package is assignable to the contract, and what the contract lets in is what the runtime takes. Compiled by `tsc --noEmit`;
-// nothing imports it, so it bundles to nothing.
+// Holds the runtime's real types to Client/plugin/ne-standard-ui.d.ts both ways: what it hands a package fits the contract, and
+// what the contract lets in it takes. Compiled by `tsc --noEmit`; nothing imports it, so it bundles to nothing.
 
 import type * as Contract from "ne-standard-ui";
 import type { DomRegistry } from "../addressing/dom-registry";
@@ -19,7 +18,11 @@ import type { observeComponents } from "../interactions/dom-mutations";
 import type { FileUploads } from "../interactions/file-upload";
 import type { ItemSelection } from "../interactions/row-selection";
 import type { TableColumns } from "../interactions/table-columns-engine";
-import type { Tooltips } from "../interactions/tooltip-engine";
+import type { TooltipShowOptions, Tooltips } from "../interactions/tooltip-engine";
+import type { componentStates } from "../interactions/interactive-state";
+import type { FieldMarkSeverity, FieldMarkWords, FieldValidation } from "../interactions/validation-engine";
+import type { wheel } from "../interactions/wheel-notches";
+import type { pluginDomNames } from "../addressing/dom-attributes";
 import type { InlineRenameOptions, InlineRenames } from "../interactions/inline-rename";
 import type { PopupOptions, Popups } from "../interactions/popup-service";
 import type { rovingFocus } from "../interactions/roving-focus";
@@ -27,7 +30,7 @@ import type { ItemRows } from "../items/item-rows";
 import type { ItemWindows } from "../items/items-window-engine";
 import type { DomOperationContext, DomOperationRegistration } from "../updates/dom-operation-registry";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
-import type { ClientStrings } from "./client-strings";
+import type { ClientWords } from "./client-strings";
 import type { NEStandardUIGlobalApi, WebUIPluginEventRegistration } from "./global-api";
 import type { Badges, Icons, PluginEngineContext, PropertyWriting } from "./web-ui-runtime";
 
@@ -40,7 +43,7 @@ export type HandedOut = [
     Assignable<DomRegistry, Contract.DomRegistry>,
     Assignable<PropertyPatchEngine, Contract.PropertyPatchEngine>,
     Assignable<PropertyValueChange, Contract.PropertyValueChange>,
-    Assignable<ClientStrings, Contract.ClientStrings>,
+    Assignable<ClientWords, Contract.ClientStrings>,
     Assignable<typeof observeComponents, Contract.ObserveComponents>,
     Assignable<typeof observeSize, Contract.ObserveSize>,
     Assignable<DialogEngine, Contract.Dialogs>,
@@ -56,6 +59,10 @@ export type HandedOut = [
     Assignable<InlineRenames, Contract.InlineRenames>,
     Assignable<Popups, Contract.Popups>,
     Assignable<typeof rovingFocus, Contract.RovingFocus>,
+    Assignable<typeof componentStates, Contract.ComponentStates>,
+    Assignable<FieldValidation, Contract.FieldValidation>,
+    Assignable<typeof wheel, Contract.WheelReading>,
+    Assignable<typeof pluginDomNames, Contract.DomNames>,
     Assignable<FileUploads, Contract.FileUploads>,
     Assignable<TableColumns, Contract.TableColumns>,
     Assignable<ItemRows, Contract.ItemRows>,
@@ -78,6 +85,9 @@ export type HandedIn = [
     Assignable<Contract.ValueConverterRegistration, ValueConverterRegistration>,
     Assignable<Contract.InlineRenameOptions, InlineRenameOptions>,
     Assignable<Contract.PopupOptions, PopupOptions>,
+    Assignable<Contract.TooltipShowOptions, TooltipShowOptions>,
+    Assignable<Contract.ValidationSeverity, FieldMarkSeverity>,
+    Assignable<Contract.ValidationWords, FieldMarkWords>,
     Assignable<Contract.EventRegistration, WebUIPluginEventRegistration>,
     Assignable<Contract.PluginEngine, Parameters<NEStandardUIGlobalApi["registerEngine"]>[0]>,
     Assignable<Contract.ContractVersion, NEStandardUIGlobalApi["contractVersion"]>

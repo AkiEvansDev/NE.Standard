@@ -43,7 +43,11 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     private static StackPanelComponent CreateMasthead()
         => UILayout.Stack(12,
             UIText.Label("Engineering · 11 September 2026"),
-            UIText.Display("Rolling out a release without a maintenance window"),
+            // A paragraph whose title wraps: an article's headline is prose, and on a phone one line kept only its first words.
+            new ParagraphComponent()
+                .SetTitle("Rolling out a release without a maintenance window")
+                .AsDisplay()
+                .SetTitleWrap(true),
             UILayout.Row(12,
                 new ImageComponent()
                     .SetSource(DemoImages.Avatar)
@@ -69,10 +73,12 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                 Change("index", "The index rebuild off the deploy path", "What paged us on 481 now runs on its own schedule, hours away from a release.")
             ])
             .SetSpacing(8)
-            .SetTemplate(new TextComponent()
+            // Paragraphs, both lines wrapping: the list is part of the article's prose, and a cut line loses what it says.
+            .SetTemplate(new ParagraphComponent()
                 .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
                 .SetIconColor(UIThemeColor.Success)
                 .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                .SetTitleWrap(true)
                 .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
                 .SetDescriptionColor(UIThemeColor.Muted)
             );

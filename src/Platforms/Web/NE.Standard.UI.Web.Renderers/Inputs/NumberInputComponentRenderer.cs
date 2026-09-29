@@ -37,11 +37,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 _ = target.Attribute(WebAttributes.NumberFormat, value);
         }, DisplayFormatOperations);
 
-        _ = RenderProperty<bool?>(context, root, NumberInputComponent.ShowStepperProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-number-input--stepper");
-        }, [WebDomOperation.ToggleClass("ui-number-input--stepper")]);
+        RenderFlagClass(context, root, NumberInputComponent.ShowStepperProperty, "ui-number-input--stepper");
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
@@ -66,29 +62,13 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 _ = input.Attribute("inputmode", "decimal");
                 _ = input.Attribute("autocomplete", "off");
 
-                _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowDecimalsProperty, static (target, value) =>
-                {
-                    if (value == false)
-                        _ = target.Attribute(WebAttributes.NumberNoDecimals);
-                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoDecimals, condition: WebValueCondition.IsFalse)]);
+                RenderFlagAttribute(context, input, NumberInputComponent.AllowDecimalsProperty, WebAttributes.NumberNoDecimals, WebValueCondition.IsFalse);
 
-                _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowNegativeProperty, static (target, value) =>
-                {
-                    if (value == false)
-                        _ = target.Attribute(WebAttributes.NumberNoNegative);
-                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoNegative, condition: WebValueCondition.IsFalse)]);
+                RenderFlagAttribute(context, input, NumberInputComponent.AllowNegativeProperty, WebAttributes.NumberNoNegative, WebValueCondition.IsFalse);
 
-                _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowThousandsSeparatorProperty, static (target, value) =>
-                {
-                    if (value == false)
-                        _ = target.Attribute(WebAttributes.NumberNoThousands);
-                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberNoThousands, condition: WebValueCondition.IsFalse)]);
+                RenderFlagAttribute(context, input, NumberInputComponent.AllowThousandsSeparatorProperty, WebAttributes.NumberNoThousands, WebValueCondition.IsFalse);
 
-                _ = RenderProperty<bool?>(context, input, NumberInputComponent.TrimTrailingZerosProperty, static (target, value) =>
-                {
-                    if (value == true)
-                        _ = target.Attribute(WebAttributes.NumberTrimZeros);
-                }, [WebDomOperation.ToggleAttribute(WebAttributes.NumberTrimZeros, condition: WebValueCondition.IsTrue)]);
+                RenderFlagAttribute(context, input, NumberInputComponent.TrimTrailingZerosProperty, WebAttributes.NumberTrimZeros);
 
                 // Live like Min and Max: NumberInputEngine reads the attribute on every step press.
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.StepProperty, static (target, value) =>
@@ -111,7 +91,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
-                NativeInputRendererBase.RenderIsReadOnly(context, input);
+                NativeInputRendererBase.RenderIsReadOnly(context, root, input);
                 RenderFieldLabel(context, input);
 
                 _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, static (target, value) =>

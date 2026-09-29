@@ -105,10 +105,7 @@ export function readBound(root: HTMLElement, attribute: string): Date | null {
     return parseCanonical(root.getAttribute(attribute) ?? "", readMode(root));
 }
 
-/**
- * Writes the start, or the end when `end` is set, through the hidden input and a synthetic "change" — the same two-way path a
- * typed value takes; nothing is written where the value already stands.
- */
+/** Writes the start, or the end, through the hidden input and a "change" — the two-way path a typed value takes. */
 export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean): void {
     const valueInput = valueInputOf(root, end);
 

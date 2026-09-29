@@ -1,13 +1,12 @@
-import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup";
-import { AnchoredPopupPlacement, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
+// `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
+import { PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute } from "../addressing/dom-attributes.ts";
+import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
+import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
+import { isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
-const TooltipAttribute = "data-ui-tooltip";
-const PlacementAttribute = "data-ui-tooltip-placement";
-// A control that speaks through a mark inside it (a field with a validation dot at its corner): the tooltip is the mark's,
-// drawn against the mark wherever in the control the reader points.
-const MarkAttribute = "data-ui-tooltip-mark";
+// A control speaking through a mark inside it (a validation dot, `data-ui-tooltip-mark`) shows the mark's tooltip, drawn against the mark.
 const TooltipClass = "ui-tooltip";
 const VisibleClass = "ui-tooltip--visible";
 // A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
@@ -28,12 +27,13 @@ const RepeatWindowMs = 300;
 const AnchorGap = 7;
 
 let tooltip: HTMLElement | null = null;
-// Also the record of whether a tooltip is on screen: set only by `show`, cleared only by `close`. Any element (an SVG shape
-// included) works, since only its box and attributes are read.
+// Also the record of whether a tooltip is on screen; any element works, an SVG shape too, since only its box and attributes are read.
 let anchor: Element | null = null;
 // A mark whose control holds the focus: its tooltip is the focus's, and the pointer crossing the page neither replaces nor closes it.
 let pinned: Element | null = null;
 let showTimer = 0;
+// What the pending timer will show: a caller naming the same target again while it waits updates the words, not the wait.
+let scheduled: { readonly target: Element; words: string | undefined } | null = null;
 let hideTimer = 0;
 let lastHiddenAt = 0;
 let started = false;
@@ -82,10 +82,7 @@ function onPointerOver(event: Event): void {
     schedule(target);
 }
 
-/**
- * Closes a tooltip whose control the page redrew away: no pointerout comes for a removed element, so it would stand with a stale
- * line until the next press.
- */
+/** Closes a tooltip whose control the page redrew away, since no pointerout comes for a removed element. */
 function dropOrphan(): void {
     if (anchor === null || anchor.isConnected)
         return;
@@ -99,23 +96,29 @@ function onPointerOut(event: Event): void {
         return;
 
     const related = (event as PointerEvent).relatedTarget;
+    // The one on screen, else the one waiting to open: leaving either calls it off.
+    const current = anchor ?? scheduled?.target ?? null;
 
     // Moving onto a child of the same anchor is not leaving it, and neither is moving onto the tooltip.
-    if (related instanceof Node && ((anchor !== null && anchor.contains(related)) || isInsideTooltip(related)))
+    if (related instanceof Node && ((current !== null && current.contains(related)) || isInsideTooltip(related)))
         return;
 
-    if (isInsideTooltip(event.target) || findAnchor(event.target) === anchor)
+    if (isInsideTooltip(event.target) || (current !== null && event.target instanceof Node && current.contains(event.target)))
         hide(false);
 }
 
-// A keyboard user gets the tooltip the moment the control takes focus; one that speaks through a mark keeps it for as long
-// as focus is in it, since a message about the value typed must not come and go with the pointer crossing the row.
+// A keyboard focus opens the control's tooltip at once.
 function onFocusIn(event: Event): void {
+    // A focus the pointer gave opens nothing of its own: the pointer's hover does, after its wait.
+    if (event.target instanceof Element && event.target.hasAttribute(PointerFocusAttribute))
+        return;
+
     const target = findAnchor(event.target);
 
     if (target === null)
         return;
 
+    // A mark's message about the value typed must not come and go with the pointer crossing the row.
     pinned = event.target instanceof Element && event.target.closest(`[${MarkAttribute}]`) !== null ? target : null;
 
     show(target);
@@ -159,28 +162,44 @@ function findAnchor(target: EventTarget | null): Element | null {
     return (spoken.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? spoken : null;
 }
 
-function schedule(target: Element): void {
+function schedule(target: Element, words?: string): void {
     if (pinned !== null)
         return;
 
     window.clearTimeout(hideTimer);
+
+    // Asked again for the target already waiting: the newest words, at the end of the same wait.
+    if (scheduled !== null && scheduled.target === target) {
+        scheduled.words = words;
+        return;
+    }
+
     window.clearTimeout(showTimer);
+    scheduled = null;
 
     // One already on screen belongs to the control just left: it goes at once, and the new one takes its place at once.
     if (anchor !== null) {
         hide(true);
-        show(target);
+        show(target, words);
         return;
     }
 
     const immediate = Date.now() - lastHiddenAt < RepeatWindowMs;
 
     if (immediate) {
-        show(target);
+        show(target, words);
         return;
     }
 
-    showTimer = window.setTimeout(() => show(target), ShowDelayMs);
+    scheduled = { target, words };
+    showTimer = window.setTimeout(() => {
+        const pending = scheduled;
+
+        scheduled = null;
+
+        if (pending !== null)
+            show(pending.target, pending.words);
+    }, ShowDelayMs);
 }
 
 function show(target: Element, words?: string): void {
@@ -191,6 +210,7 @@ function show(target: Element, words?: string): void {
 
     window.clearTimeout(showTimer);
     window.clearTimeout(hideTimer);
+    scheduled = null;
 
     // Taken over from another control without closing between (a focus, a pin, a package's words): that one stops naming it.
     if (anchor !== null && anchor !== target)
@@ -217,12 +237,19 @@ function isOpen(target: Element): boolean {
     return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null;
 }
 
-/**
- * Shows a tooltip of the caller's own words against an element, whatever that element says for itself — what a package
- * drawing its own picture needs. No wait: the caller is answering a pointer already where it means to be.
- */
-function showTooltipWith(target: Element, words: string): void {
-    show(target, words);
+/** How a package's tooltip opens. */
+export type TooltipShowOptions = {
+    /** Wait as a hover does, for words following a passing pointer (a chart's crosshair); unset opens at once. */
+    readonly delay?: boolean;
+};
+
+/** Shows a tooltip of the caller's own words against an element, whatever the element says for itself. */
+function showTooltipWith(target: Element, words: string, options?: TooltipShowOptions): void {
+    // Already on screen for this target: the words change in place, with no wait.
+    if (options?.delay === true && anchor !== target)
+        schedule(target, words);
+    else
+        show(target, words);
 }
 
 /** Closes the tooltip on screen at once, however it was opened. */
@@ -230,27 +257,21 @@ function closeTooltip(): void {
     hide(true);
 }
 
-/** The page's one tooltip as a package reaches it: shown at once with the package's own words, closed by `hide` or by the reader pointing elsewhere. */
+/** The page's one tooltip as a package reaches it: shown with the package's own words, closed by `hide` or by the reader pointing elsewhere. */
 export type Tooltips = {
-    show(target: Element, words: string): void;
+    show(target: Element, words: string, options?: TooltipShowOptions): void;
     hide(): void;
 };
 
 export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip };
 
-/**
- * Opens an anchor's tooltip and holds it open until focus leaves the control it belongs to — for a mark that appears under
- * the reader's own typing, with no focus event left to open on.
- */
+/** Opens an anchor's tooltip until focus leaves its control — for a mark appearing under typing, with no focus event to open on. */
 export function pinTooltip(element: Element): void {
     pinned = element;
     show(element);
 }
 
-/**
- * Re-reads the tooltip of the element on screen: a message rewritten under the reader (a validation mark's, as the value
- * changes) is redrawn where it stands; one taken away closes it rather than leaving a stale line.
- */
+/** Redraws the tooltip on screen from its element's words where it stands; words taken away close it. */
 export function updateTooltip(element: Element): void {
     if (anchor !== element)
         return;
@@ -273,6 +294,7 @@ function readPlacement(target: Element): AnchoredPopupPlacement {
 function hide(immediate: boolean): void {
     window.clearTimeout(showTimer);
     window.clearTimeout(hideTimer);
+    scheduled = null;
 
     const close = (): void => {
         // Nothing was on screen, so this call only cancelled a pending open and must not arm the repeat window.

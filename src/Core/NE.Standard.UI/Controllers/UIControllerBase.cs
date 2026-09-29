@@ -102,13 +102,11 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// </summary>
     public bool HasViewers => _context is not null && _context.Runtime.HasViewers;
 
-    /// <summary>
-    /// Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again — with the
-    /// navigation it arrived with, so a parameter the route does not key its runtime by still reaches one that already existed.
-    /// </summary>
+    /// <summary>Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again.</summary>
     /// <remarks>
-    /// Runs as a command does, under the runtime's lock, after the first attach's <see cref="OnInitializeAsync"/>; what it writes is
-    /// in the page the attach is answered with. <see cref="UIContext.Handle"/> is the attaching connection.
+    /// Given the navigation it arrived with, so a parameter the route does not key its runtime by still reaches one that already
+    /// existed. Runs as a command does, under the runtime's lock, after the first attach's <see cref="OnInitializeAsync"/>; what it
+    /// writes is in the page the attach is answered with. <see cref="UIContext.Handle"/> is the attaching connection.
     /// </remarks>
     protected virtual Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
         => Task.CompletedTask;
@@ -124,6 +122,15 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     protected virtual Task OnDetachedAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
+    /// <summary>Runs when a connection's session moves to another language, so text the controller composed itself can be composed again.</summary>
+    /// <remarks>
+    /// Raised by a command's <see cref="UIContext.UpdateSessionAsync"/> — inline, before the update returns — or by the page's language
+    /// switcher, as a command runs. <see cref="UIContext.Handle"/> is that connection, its session already in the new language. Bound
+    /// keys and phrases need nothing: the page re-translates them.
+    /// </remarks>
+    protected virtual Task OnLanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
     Task IUIControllerLifecycle.AttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -137,6 +144,14 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
 
         return OnDetachedAsync(cancellationToken);
+    }
+
+    Task IUIControllerLifecycle.LanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        ArgumentException.ThrowIfNullOrWhiteSpace(previousLanguage);
+
+        return OnLanguageChangedAsync(previousLanguage, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -234,9 +249,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// Runs the command through its filter chain: ordered by <see cref="IUICommandFilter.Order"/>, ties broken global then
     /// controller then command.
     /// </summary>
-    /// <remarks>
-    /// The authorization filter is pinned outermost so no other filter can bypass it.
-    /// </remarks>
+    /// <remarks>The authorization filter is pinned outermost so no other filter can bypass it.</remarks>
     private async Task<UICommandResult> ExecuteFilteredCommandAsync(UICommandDescriptor descriptor, IUICommandFilter[] globalFilters, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken)
     {
         UICommandFilterContext context = new(descriptor, parameters ?? FrozenDictionary<string, object?>.Empty, Context.Handle, Context.Route, Context.Services)
@@ -388,12 +401,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             method.GetCustomAttributes<UIAuthorizeAttribute>(inherit: true)
         );
 
-    /// <summary>
-    /// Checks a command against the current session, not the snapshot taken when the connection attached.
-    /// </summary>
-    /// <remarks>
-    /// A revoked or signed-out session must be refused immediately, not once an already-open tab reloads.
-    /// </remarks>
+    /// <summary>Checks a command against the current session, not the snapshot taken when the connection attached.</summary>
+    /// <remarks>A revoked or signed-out session must be refused immediately, not once an already-open tab reloads.</remarks>
     private async ValueTask EnsureCommandAuthorizedAsync(UICommandDescriptor command, CancellationToken cancellationToken)
     {
         // No attribute of its own: inherit the route's resolved answer (view + controller + DefaultPolicy) instead of defaulting closed.

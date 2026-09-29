@@ -1,8 +1,10 @@
-// A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): its button in the header slides it over the content, and a
-// press outside it, Escape, a link taken inside it, or the screen growing wide enough to hold it again puts it away.
+// A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): opened by its header button, put away by a press outside,
+// Escape, a link taken inside it, or the screen growing wide again. Open, the drawer is a focus holder, as a dialog's surface is.
 
-import { DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, RegionAttribute } from "../addressing/dom-attributes";
-import { responsiveBreakpoints } from "../rendering/responsive-tier";
+import { DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { motion } from "../rendering/motion.ts";
+import { responsiveBreakpoints } from "../rendering/responsive-tier.ts";
+import { focusAsLastInput, isPointerLast, moveFocusInto } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
 const LinkSelector = "a[href]";
@@ -13,6 +15,9 @@ export type SideDrawerEngineOptions = {
 
 export class SideDrawerEngine {
     private readonly root: ParentNode;
+
+    // The drawers made holders while open, each with whether its tab index was this engine's to add.
+    private readonly holders = new Map<HTMLElement, boolean>();
 
     public constructor(options: SideDrawerEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -69,8 +74,41 @@ export class SideDrawerEngine {
         shell.setAttribute(DrawerOpenAttribute, side);
         this.markToggles(shell);
 
-        // Into the drawer, so a keyboard reader lands on what was opened rather than behind the backdrop.
-        shell.querySelector<HTMLElement>(`:scope > [${RegionAttribute}="${CSS.escape(side)}"] :is(a[href], button, input, [tabindex="0"])`)?.focus();
+        const drawer = drawerOf(shell, side);
+
+        if (drawer === null)
+            return;
+
+        this.hold(drawer);
+
+        // Into the drawer, not behind the backdrop; retried each frame while its fade-in still hides the controls, unless the reader moved.
+        // A press gives it to the drawer itself: a field of it focused at once would raise a phone's on-screen keyboard unasked.
+        this.focusInto(shell, side, drawer, document.activeElement, isPointerLast(), performance.now() + motion.normal);
+    }
+
+    /** Makes an open drawer a focus holder: a field in it let go by Enter or Escape hands it the keyboard, not the page's body. */
+    private hold(drawer: HTMLElement): void {
+        if (this.holders.has(drawer) || drawer.hasAttribute(FocusHolderAttribute))
+            return;
+
+        const addsTabIndex = !drawer.hasAttribute("tabindex");
+
+        drawer.setAttribute(FocusHolderAttribute, "");
+
+        if (addsTabIndex)
+            drawer.tabIndex = -1;
+
+        this.holders.set(drawer, addsTabIndex);
+    }
+
+    private focusInto(shell: HTMLElement, side: string, drawer: HTMLElement, from: Element | null, pressed: boolean, until: number): void {
+        if (shell.getAttribute(DrawerOpenAttribute) !== side || document.activeElement !== from || drawer.contains(from))
+            return;
+
+        moveFocusInto(drawer, pressed ? drawer : null);
+
+        if (performance.now() < until && document.activeElement === from)
+            requestAnimationFrame(() => this.focusInto(shell, side, drawer, from, pressed, until));
     }
 
     private closeAll(): void {
@@ -84,9 +122,22 @@ export class SideDrawerEngine {
         shell.removeAttribute(DrawerOpenAttribute);
         this.markToggles(shell);
 
-        // Back to the button that opened it, so focus is not left inside a drawer now out of sight.
-        if (side !== null && document.activeElement !== null && shell.querySelector(`:scope > [${RegionAttribute}="${CSS.escape(side)}"]`)?.contains(document.activeElement))
-            shell.querySelector<HTMLElement>(`[${DrawerToggleAttribute}="${CSS.escape(side)}"]`)?.focus();
+        if (side === null)
+            return;
+
+        const drawer = drawerOf(shell, side);
+
+        // Back to its button: not inside a drawer out of sight, nor on the body after a press on the backdrop, which takes no focus.
+        const active = document.activeElement;
+
+        if (active === null || active === document.body || drawer?.contains(active) === true) {
+            const toggle = shell.querySelector<HTMLElement>(`[${DrawerToggleAttribute}="${CSS.escape(side)}"]`);
+
+            if (toggle !== null)
+                focusAsLastInput(toggle);
+        }
+
+        this.release(drawer);
     }
 
     private markToggles(shell: HTMLElement): void {
@@ -95,4 +146,22 @@ export class SideDrawerEngine {
         for (const toggle of shell.querySelectorAll<HTMLElement>(`[${DrawerToggleAttribute}]`))
             toggle.setAttribute("aria-expanded", String(toggle.getAttribute(DrawerToggleAttribute) === open));
     }
+
+    /** Takes the holder's marks off a drawer put away: a side standing in its column again is no layer. */
+    private release(drawer: HTMLElement | null): void {
+        const addedTabIndex = drawer === null ? undefined : this.holders.get(drawer);
+
+        if (drawer === null || addedTabIndex === undefined)
+            return;
+
+        this.holders.delete(drawer);
+        drawer.removeAttribute(FocusHolderAttribute);
+
+        if (addedTabIndex)
+            drawer.removeAttribute("tabindex");
+    }
+}
+
+function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {
+    return shell.querySelector<HTMLElement>(`:scope > [${RegionAttribute}="${CSS.escape(side)}"]`);
 }

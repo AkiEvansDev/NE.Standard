@@ -32,9 +32,5 @@ public sealed class DefaultRowTemplateRenderer : WebComponentRendererBase
 
     /// <summary>The one flag that turns a row into its own editor.</summary>
     internal static void RenderEditing(WebRenderContext context, IHtmlElementBuilder root)
-        => _ = RenderProperty<bool?>(context, root, DefaultRowTemplate.EditingProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Attribute(WebAttributes.RowEditing);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.RowEditing, target: "root", condition: WebValueCondition.IsTrue)]);
+        => RenderFlagAttribute(context, root, DefaultRowTemplate.EditingProperty, WebAttributes.RowEditing);
 }

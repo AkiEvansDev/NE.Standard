@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 
 namespace NE.Standard.UI.Abstractions.Binding;
 
@@ -16,6 +17,12 @@ public interface IBindableComponent : IBindableItem
     /// Gets the binding that provides the component data context.
     /// </summary>
     UIBinding? Context { get; }
+
+    /// <summary>
+    /// Whether this instance holds content in a translatable property — text shown as it is, never looked up as a key.
+    /// </summary>
+    bool IsContent(UIProperty property)
+        => false;
 }
 
 /// <summary>

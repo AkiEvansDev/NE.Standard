@@ -38,15 +38,13 @@ public static class WebAttributes
 
     public const string ColorName = "data-ui-color-name";
 
+    public const string ColorNoPalette = "data-ui-color-no-palette";
+
+    public const string ColorNoPicker = "data-ui-color-no-picker";
+
     public const string ColorOpacity = "data-ui-color-opacity";
 
-    public const string ColorPalette = "data-ui-color-palette";
-
     public const string ColorPane = "data-ui-color-pane";
-
-    public const string ColorPicker = "data-ui-color-picker";
-
-    public const string ColorReadonly = "data-ui-color-readonly";
 
     /// <summary>A container's track bounds for a splitter's clamp: <c>index:min:max</c> per bounded track.</summary>
     public const string ColumnLimits = "data-ui-column-limits";
@@ -95,6 +93,9 @@ public static class WebAttributes
     /// <summary>The script element that carries the hydration payload.</summary>
     public const string Hydration = "data-ui-hydration";
 
+    /// <summary>A link's address, kept while the link is disabled or loading and has no <c>href</c> to open from the browser's own menu.</summary>
+    public const string Href = "data-ui-href";
+
     /// <summary>The shell's root element, which the page's content sits in.</summary>
     public const string Root = "data-ui-root";
 
@@ -119,6 +120,12 @@ public static class WebAttributes
 
     public const string FlyoutNoEscapeClose = "data-ui-flyout-no-escape-close";
 
+    /// <summary>
+    /// On a focusable layer that takes the keyboard back from a field in it as Enter or Escape leaves the field (a canvas, a panel
+    /// over it), as a dialog's surface and a flyout's panel do.
+    /// </summary>
+    public const string FocusHolder = "data-ui-focus-holder";
+
     public const string FormId = "data-ui-form-id";
 
     public const string Group = "data-ui-group";
@@ -138,8 +145,6 @@ public static class WebAttributes
 
     /// <summary>An image input's picture, the URL its Value holds; the engine paints it unless a local preview stands in.</summary>
     public const string ImageSource = "data-ui-image-source";
-
-    public const string ImageReadonly = "data-ui-image-readonly";
 
     /// <summary>
     /// A key-value row while it is being edited: its value is the input and its action the save/cancel pair.
@@ -233,8 +238,6 @@ public static class WebAttributes
 
     public const string RadioBindValueId = "data-ui-radio-bind-value-id";
 
-    public const string RadioDisabled = "data-ui-radio-disabled";
-
     public const string RadioGroupName = "data-ui-radio-group-name";
 
     public const string RadioValue = "data-ui-radio-value";
@@ -256,6 +259,9 @@ public static class WebAttributes
     public const string SearchManual = "data-ui-search-manual";
 
     public const string SearchMinLength = "data-ui-search-min-length";
+
+    /// <summary>On a search's field whose list is the server's answer to <c>OnSearch</c>: the client narrows nothing and shows that answer.</summary>
+    public const string SearchAnswered = "data-ui-search-answered";
 
     public const string SelectClear = "data-ui-select-clear";
 
@@ -386,8 +392,6 @@ public static class WebAttributes
 
     public const string TemporalPm = "data-ui-temporal-pm";
 
-    public const string TemporalReadonly = "data-ui-temporal-readonly";
-
     public const string TemporalStep = "data-ui-temporal-step";
 
     public const string TemporalStepDirection = "data-ui-temporal-step-direction";
@@ -442,4 +446,13 @@ public static class WebAttributes
     public const string WindowPaged = "data-ui-window-paged";
 
     public const string WindowTotal = "data-ui-window-total";
+
+    /// <summary>An element's chrome words with their keys (<c>WebWords</c>, <c>strings.write</c>), which a language switch writes again.</summary>
+    public const string Words = "data-ui-words";
+
+    /// <summary>The hook the language switcher's engine finds its button by; a class would be styling.</summary>
+    public const string LanguageSwitcher = "data-ui-language-switcher";
+
+    /// <summary>On a language switcher's choice: the language it switches to.</summary>
+    public const string Language = "data-ui-language";
 }

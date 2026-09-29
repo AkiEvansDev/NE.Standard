@@ -12,14 +12,12 @@ using NE.Standard.UI.Web.Hosting;
 
 namespace NE.Standard.UI.Web.Assets;
 
-/// <summary>
-/// The framework's text assets compressed once, at the smallest size Brotli and Gzip make, and served as they are: a first visit
-/// no longer pays for compressing half a megabyte of script, and at a level the per-response middleware could not afford.
-/// </summary>
+/// <summary>The framework's text assets compressed once, at the smallest size Brotli and Gzip make, and served as they are.</summary>
 /// <remarks>
-/// Built in the background at start (<see cref="WebAssetCompressionStartupTask"/>) and on the first request that finds an asset
-/// not yet built. Keyed by the asset's version, so a file that changes on disk is compressed again. A font is left out — woff2 is
-/// already compressed — and so is any asset the compression would not make smaller.
+/// Once rather than per response: a first visit pays nothing for compressing half a megabyte of script, at a level the per-response
+/// middleware could not afford. Built in the background at start (<see cref="WebAssetCompressionStartupTask"/>) and on the first
+/// request that finds an asset not yet built. Keyed by the asset's version, so a file that changes on disk is compressed again. A
+/// font is left out — woff2 is already compressed — and so is any asset the compression would not make smaller.
 /// </remarks>
 internal sealed partial class WebAssetCompression(IOptions<WebResponseCompressionOptions> options, ILogger<WebAssetCompression> logger)
 {
@@ -88,6 +86,14 @@ internal sealed partial class WebAssetCompression(IOptions<WebResponseCompressio
             source.CopyTo(buffer);
             original = buffer.ToArray();
         }
+
+        return Build(original);
+    }
+
+    /// <summary>Bytes the framework built itself (a language's words) compressed the way an asset is.</summary>
+    internal static Compressed Build(byte[] original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
 
         var brotli = Compress(original, static target => new BrotliStream(target, CompressionLevel.SmallestSize, leaveOpen: true));
         var gzip = Compress(original, static target => new GZipStream(target, CompressionLevel.SmallestSize, leaveOpen: true));

@@ -1,5 +1,4 @@
-// A row that closes lets its draft go: the closing editor fires one event on the row, and every engine holding a draft inside
-// lets it go on hearing it.
+// A closing row lets its draft go: its editor fires one event on the row, and every engine holding a draft inside lets it go.
 
 export const DraftDroppedEventName = "ui-draft-dropped";
 

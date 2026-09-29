@@ -5,12 +5,8 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.UI.Shell.Sessions;
 
-/// <summary>
-/// Stores user sessions between requests.
-/// </summary>
-/// <remarks>
-/// The shipped implementation keeps sessions in memory, which is wrong once there is more than one process.
-/// </remarks>
+/// <summary>Stores user sessions between requests.</summary>
+/// <remarks>The shipped implementation keeps sessions in memory, which is wrong once there is more than one process.</remarks>
 public interface IUserSessionStore
 {
     /// <summary>
@@ -29,7 +25,8 @@ public interface IUserSessionStore
     /// </summary>
     /// <remarks>
     /// Atomic where the store can make it so: read, apply and save as one step, so a session removed or changed meanwhile is not
-    /// written back from a stale read — which would bring back a signed-out session or a revoked role.
+    /// written back from a stale read — which would bring back a signed-out session or a revoked role. An update answering the very
+    /// session it was given changes nothing, and the store writes nothing for it (a language or theme the session already has).
     /// </remarks>
     ValueTask<bool> TryUpdateAsync(string sessionId, Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default);
 

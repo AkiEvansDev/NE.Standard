@@ -1,22 +1,19 @@
-// A menu's search: what is typed into the field beside its switch narrows the entries by the words they show — the words the
-// viewer reads, translated, not the keys behind them. Every typed word has to appear, in any order, case and accents aside. A group
-// stays while its own words or one of its sub-entries match, and opens on the matches; a caption stays while an entry under it
-// does, at every level; rules step out while a search is on. Emptied, or the menu folded, the menu is as it was.
+// A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
+// them. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 import { isRovingCandidate } from "./roving-focus";
+import { foldWords, matchesTerms, searchTerms } from "./search-terms";
 
 const RootClass = "ui-menu";
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
 const BarSelector = ":scope > .ui-collapsible__bar";
 const HostSelector = ":scope > .ui-menu__host";
 const ItemWrapperClass = "ui-menu__item";
-const EntrySelector = ":scope > .ui-menu-item";
-const EntryClass = "ui-menu-item";
+const EntrySelector = `:scope > .${EntryClass}`;
 const TitleSelector = ".ui-text__title";
 const SubmenuHostSelector = ":scope > .ui-menu__submenu > .ui-menu > .ui-menu__host";
-const Marks = /\p{M}/gu;
 
 export type MenuSearchEngineOptions = {
     readonly root?: ParentNode;
@@ -61,7 +58,7 @@ export class MenuSearchEngine {
         if (host === null)
             return;
 
-        const terms = termsOf(field.value, menu);
+        const terms = searchTerms(field.value, menu);
 
         if (terms.length === 0) {
             this.clear(menu, host);
@@ -108,7 +105,7 @@ export class MenuSearchEngine {
 
     /** Whether an entry stays: its own words match, or — for a group — one of its sub-entries' do, the group then opening on them. */
     private match(entry: HTMLElement, terms: readonly string[]): boolean {
-        const own = matches(wordsOf(entry), terms);
+        const own = matchesTerms(wordsOf(entry), terms);
         const submenu = entry.hasAttribute(MenuGroupAttribute) ? entry.querySelector<HTMLElement>(SubmenuHostSelector) : null;
 
         if (submenu === null)
@@ -190,32 +187,6 @@ function searchableMenuOf(field: HTMLInputElement): HTMLElement | null {
     return menu !== null && bar !== null && bar.contains(field) ? menu : null;
 }
 
-/** The typed words, folded as the entries' words are, in the menu's own language. */
-function termsOf(value: string, menu: HTMLElement): string[] {
-    return fold(value, languageOf(menu)).split(/\s+/).filter(term => term.length !== 0);
-}
-
-function languageOf(element: Element): string | undefined {
-    return element.closest("[lang]")?.getAttribute("lang") || undefined;
-}
-
-/** Lower case in the page's language, accents dropped — `é` finds `e`, `ё` finds `е`. */
-function fold(text: string, language: string | undefined): string {
-    const bare = text.normalize("NFD").replace(Marks, "");
-
-    try {
-        return bare.toLocaleLowerCase(language);
-    }
-    catch {
-        // A language tag the browser does not know: its own lower case is the best left.
-        return bare.toLowerCase();
-    }
-}
-
-function matches(words: string, terms: readonly string[]): boolean {
-    return terms.every(term => words.includes(term));
-}
-
 function openGroups(host: HTMLElement): Set<Element | string> {
     const open = new Set<Element | string>();
 
@@ -235,7 +206,7 @@ function kindOf(wrapper: HTMLElement): string {
 
 /** The words an entry shows, as the viewer reads them. */
 function wordsOf(wrapper: HTMLElement): string {
-    return fold(wrapper.querySelector(EntrySelector)?.querySelector(TitleSelector)?.textContent ?? "", languageOf(wrapper));
+    return foldWords(wrapper.querySelector(EntrySelector)?.querySelector(TitleSelector)?.textContent ?? "", wrapper);
 }
 
 function mark(wrapper: HTMLElement, shown: boolean): void {

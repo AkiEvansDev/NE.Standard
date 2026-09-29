@@ -47,8 +47,6 @@ public abstract partial class LinkComponent<T> : VisualComponentBase<T>, ITextBa
 /// </summary>
 public sealed class LinkComponent(string? id = null) : LinkComponent<LinkComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.link";
 }

@@ -28,8 +28,7 @@ export class NumberInputEngine {
     private readonly options: NumberInputEngineOptions;
     private readonly root: ParentNode;
 
-    // The invariant text each field stands for, and the text this engine last showed in it: a field showing anything else was
-    // written by someone else — a server push, a released hold — and holds invariant text of its own.
+    // The invariant text each field stands for and the text last shown in it; a field showing anything else was written by a push.
     private readonly values = new WeakMap<HTMLInputElement, string>();
     private readonly shown = new WeakMap<HTMLInputElement, string>();
 
@@ -43,8 +42,7 @@ export class NumberInputEngine {
         this.root.addEventListener("click", domEvent => this.handleStepClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleStepKey(domEvent as KeyboardEvent), true);
 
-        // On the window, the first node an event's capture passes: the value binding engine listens on the document and reads the
-        // field there, so the typed text is made invariant before it is read, and the edit text comes back once the event is done.
+        // On the window, ahead of the value binding's document listener: the text is invariant when read, the edit text back after.
         window.addEventListener("change", domEvent => this.handleChangeCapture(domEvent), true);
         window.addEventListener("change", domEvent => this.handleChangeDone(domEvent));
 

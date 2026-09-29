@@ -5,10 +5,10 @@ using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
-/// <summary>
-/// A layout container that flows children left to right, wrapping onto additional lines as needed. A child takes its
-/// content's width, or a placement's span of the 24-column grid instead (a span of 6 fits four to a line).
-/// </summary>
+/// <summary>A layout container that flows children left to right, wrapping onto additional lines as needed.</summary>
+/// <remarks>
+/// A child takes its content's width, or a placement's span of the 24-column grid instead (a span of 6 fits four to a line).
+/// </remarks>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent
     where T : WrapPanelComponent<T>, IUIComponentDefinition
@@ -33,8 +33,6 @@ public abstract partial class WrapPanelComponent<T>(string? id = null) : Contain
 /// </summary>
 public sealed class WrapPanelComponent(string? id = null) : WrapPanelComponent<WrapPanelComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.wrap-panel";
 }

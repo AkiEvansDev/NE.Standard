@@ -8,7 +8,8 @@ import test from "node:test";
 
 import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
-type ThemeColorCase = { readonly name: string; readonly value: unknown; readonly css: string; readonly class: string };
+// `ink` and `onColor`, where a case carries them: the colour spent on words, and the text colour that reads on it as a ground.
+type ThemeColorCase = { readonly name: string; readonly value: unknown; readonly css: string; readonly class: string; readonly ink?: string; readonly onColor?: string };
 type TextAppearanceCase = {
     readonly name: string;
     readonly value: unknown;
@@ -40,6 +41,12 @@ for (const testCase of corpus.themeColors) {
     test(`colour: ${testCase.name}`, () => {
         assert.equal(convert("themeColorCss", testCase.value), testCase.css);
         assert.equal(convert("themeColorClass", testCase.value), testCase.class);
+
+        if (testCase.ink !== undefined)
+            assert.equal(convert("themeInkCss", testCase.value), testCase.ink);
+
+        if (testCase.onColor !== undefined)
+            assert.equal(convert("themeOnColorCss", testCase.value), testCase.onColor);
     });
 }
 

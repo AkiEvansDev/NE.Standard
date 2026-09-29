@@ -9,6 +9,522 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.3.0
+
+- **Read-only is one mark on the root and stays focusable.** Every input's root wears `ui-readonly` (`WebClassNames.ReadOnly`,
+  the twin of `ui-disabled`) while it is read-only. A read-only select, checkbox, switch, radio group, slider and time input stay
+  in the tab order and readable: the select's trigger, the box, the range and the radio group say `aria-readonly="true"` instead
+  of being `disabled`, the time segments stay focusable, and the change is refused on the client (`refusal-engine.ts`); a
+  read-only colour or image input's action buttons, the file input's pick and a date or date-time field's calendar toggle say
+  `aria-disabled="true"`, so the picker keeps the focus it holds. **Breaking** for a stylesheet keyed on `:disabled` of the pick
+  or the toggle, which no longer matches. **Breaking:** the marks `data-ui-color-readonly`,
+  `data-ui-image-readonly`, `data-ui-temporal-readonly` and `data-ui-radio-disabled` are gone (with `WebAttributes.ColorReadonly`,
+  `ImageReadonly`, `TemporalReadonly`, `RadioDisabled`) — read `.ui-readonly`; `NativeInputRendererBase.RenderIsReadOnly` takes
+  the root, `RenderIsReadOnlyAsDisabled` is removed and `RenderIsReadOnlyAsAria`, `RenderIsReadOnlyMark` and
+  `ReadOnlyMarkOperation` join it. `WebClassNames.Disabled`, `Loading` and `ReadOnly` name the three state classes.
+- **A read-only control looks like one.** A read-only field no longer lifts its edge under the pointer (every field, through
+  `@ui-field-live`); a read-only checkbox, switch or slider thumb shows no hand and no halo (the colour slider's halo included,
+  and a read-only slider refuses a touch too — on the range itself, so no touch scroll elsewhere waits for it); a read-only
+  search shows no hand beside its text; a field's part that does
+  nothing now — a read-only field's calendar toggle and file pick, the colour toggle — is drawn faded and answers no hover
+  (`@ui-field-idle-part-opacity`).
+- **What is disabled or loading answers nothing, through one predicate** (`isInert`, `isItemDisabled`): a menu entry's shortcut
+  no longer fires inside a disabled or loading menu; Enter on a key-value row no longer presses a loading Save, nor Enter in a
+  field a submit button inside a disabled container; the arrows of a tabs view skip a disabled tab, whose caption is dimmed and
+  which the "…" list shows as a disabled entry; a disabled row of an items view, table or tree takes no hover wash and no hand,
+  a disabled tree node is not dragged, a disabled folder takes no drop and does not spring open, and Delete never removes a
+  disabled row.
+- **A disabled component says so on its root, and what is inside it is inert.** `Enabled = false` writes `ui-disabled` and
+  `aria-disabled="true"` on the root, `Loading = true` writes `ui-loading` and `aria-busy="true"`; the client makes the root's
+  children inert and refuses a press, a double click, a middle click, a drag start and Enter/Space on the root itself in one place
+  (`refusal-engine.ts`, ahead of every engine), and the event pipeline raises nothing from inside a disabled or loading component.
+  The root stays hit-testable and focusable, so **a disabled control shows its tooltip** — the natural place to say why it is off
+  — a screen reader finds it as disabled, and a disabled button takes the keyboard's focus while Enter and Space do nothing. A
+  disabled or loading root shows the `default` or `progress` cursor whatever the component's own. **Breaking:** the root is no
+  longer `inert`; `.ui-disabled-state()` (plugin surface) no longer sets `pointer-events: none`, so a package's own hover rule on a
+  component root spells a live guard (`@ui-button-live`). A read-only slider takes the focus from a click; its value still does
+  not move.
+- **Plugin contract 2. Breaking:** `ContractVersion` is 2, so a package built against contract 1 refuses to register against
+  this framework and the other way round. New on `PluginEngineContext`: `states` (`isInert`, `isReadOnly` — the framework's own
+  predicates), `wheel` (`notch`, and `pixels(event, pagePixels?)`: a wheel event's turn in pixels on both axes), `names` (the
+  attribute, class and selector names the framework writes that a package reads, literal-typed so a rename fails a package's
+  build rather than leaving a copy), and `tooltips.show(target, words, { delay: true })`, which waits as a hover does. New in the
+  plugin Less: `.ui-popup-look()` (a floating panel's look without its placement; `.ui-popup-surface()` is it plus `position:
+  fixed`), `@ui-font-mono`, `.ui-field-edge-hover()`/`.ui-field-edge-active()`/`.ui-field-states()` (a field's edges, which
+  `ui-input.less` draws through too), `.ui-dialog-enter()`/`.ui-dialog-backdrop-enter()` (with no reduced-motion guard of their
+  own: the core's stylesheet stops them on every page), `.ui-entry-hover(@current)`, `.ui-entry-keyboard(@current)` and
+  `@ui-keyboard-focus` (a list's keyboard entry), `.ui-popup-closed()`/`.ui-popup-open(@display)` (a popup that fades out;
+  `.ui-popup-surface()` now fades every popup in, so a package's gains the entrance with no change), `.ui-row-ground()`,
+  `.ui-tile-wash()` and `@ui-row-cursor-focus`, `@ui-field-focus`, `@ui-motion-ripple` and `@ui-root-transition`, and
+  `.ui-reveal-hover(@transition: true)`; `.ui-row-hover()` now brightens a ghost button's ink in the row and gives its press
+  `--ui-wash-active`. `names` carries `selectedKeys`, `unselectable` and `eventBoundary` too, and `selectedKey`,
+  `listTriggerSelector` (a select's, a multi-select's and a search's list trigger), `buttonClass`, `selectClass`,
+  `textInputClass`, `invalidClass` and `sourceLine`; `rows.isKeyTarget(target)` says whether a key is the row keyboard's;
+  `popups.open` takes an `owner` (below), `PopupDismissReason` adds `"focus"` and `"owner"`; `renames.open` takes `refocus`,
+  where the focus goes back after Enter or Escape — **`done` no longer is**: a package's `done` that focuses moves the focus to
+  `refocus`, or it takes the focus from a click elsewhere; `strings.format` takes an author's text as `{ text }`. New in the
+  plugin Less: `.ui-entry-quiet(@entry; @live; @current)`, `.ui-row-cursor-layer()`, `.ui-dialog-exit()`/
+  `.ui-dialog-backdrop-exit()`, `.ui-arc-share(@share)` and `@ui-field-idle-part-opacity`; `@ui-keyboard-focus`,
+  `@ui-field-focus` and `@ui-row-cursor-focus` live in `mixins/focus.less`, and `@ui-button-live` leaves out the owner of a
+  popup the pointer is in (a split button's list), so the owner no longer washes and presses with its entries. Also new, the
+  contract still unreleased: `states.setDisabled(element, disabled)` (a package's control turned off the framework's way — the
+  disabled mark and `aria-disabled`, still focusable), `values.write(element, value)` (a value written into a bound element as
+  its binding writes a push — a variant `rows.renderVariant` drew), `validation.mark(field, severity, words?)` (a package's own
+  field marked invalid, warned or noted through the validation engine — the classes, `aria-invalid`, the message line or mark,
+  weighed with the field's other messages), and in `names` `focusHolder`, `popupSelector`, the table's parts
+  (`tableRowClass`, `tableScrollClass`, `tableHeaderClass`, `tableResizerClass`, `tableHidden`), `hostMode`, the window's
+  attributes (`windowOffset`, `windowTotal`, `windowSize`, `windowMoreAfter`, `windowAggregates`), `itemsQuery` with
+  `valueKind`/`itemsQueryKind`, and the menu's check entry (`menuItemClass`, `menuItemKind`, `menuItemCheckedClass`). In the
+  plugin Less: `@ui-adornment-live`, `@ui-ring-focus`, `@ui-list-current`, `@ui-table-ground`, `@ui-drag-ghost-opacity`,
+  `@ui-loading-label-opacity`, `.ui-popup-fade()`, `.ui-dialog-veil()`, `.ui-inline-link()`, `.ui-text-description-line()`
+  and `.ui-drag-bar-line()`. Then `popups.focusReturn(opener)` — where the focus goes back as a package's surface closes or goes:
+  the opener, the nearest focusable around it, else its component root made focusable for that one return, never the body —
+  `.ui-selected-tile()` (a chosen wrapped tile, over its own picture) and an optional `@property` on `.ui-selected-ground()`.
+  `.ui-popup-fade()` is the transition alone: the fade in's `@starting-style` is `.ui-popup-open()`'s, once per popup, at the open
+  rule's weight.
+- **A disabled link opens from nowhere.** A Link, a menu entry or a breadcrumb has no `href` while disabled or loading, so the
+  browser's own menu cannot open it either; the address is kept on `data-ui-href` (`WebAttributes.Href`) and comes back with the
+  state (`WebComponentRendererBase.RenderLinkAddress`).
+- **A hover tooltip still waiting to open is called off** when the pointer leaves its control first.
+- **A file dropped where nothing takes it is refused.** A read-only or disabled file or image input refuses a drop in place, and
+  a file let go anywhere no drop host takes it is refused on the window rather than opened by the browser in place of the page.
+  An image input whose picture is still uploading wears `ui-loading` and refuses a second drop as it refuses a press; the file
+  input still lets a later pick supersede the one in flight.
+- **Nothing shows a keyboard mark after a pointer action.** The keyboard's row in an items view, a table and a tree is drawn
+  only once a key is used — a click moves the cursor and leaves no wash; the entry the arrows reached in a menu (sidebar or
+  popup), the "…" list, a split button's list, a context menu and the calendar is lit while the keyboard is on it; and one rule
+  (`popup-focus.ts`) marks every focus that arrives while the pointer was the last input — a button the press focused, an option
+  chosen, a list's entry following the pointer, a core engine's or a package's `.focus()` after a press —
+  `data-ui-pointer-focus`. A marked focus lights no focus ring, no field edge and no Ghost wash, and opens no tooltip on its
+  own; the first key other than a modifier held alone lights them. **An editable text entry is the exception** — a caret field
+  that is not read-only or disabled, an editable region, a time segment that is not read-only: its edge says where typing
+  goes, whatever put the focus there, as a browser's own `:focus-visible` does. So a press anywhere on a field
+  (its padding, caption, label, affix) lights it, a text entry a script focuses after a press (a grid's cell editor, a date
+  field its closed picker hands the focus back to) shows its edge at once, a text clear leaves the caret with its edge, and a
+  read-only field clicked stays unlit. An invalid or warning field keeps its edge through any focus, a Ghost one included.
+- **A list has one current entry, and the pointer moves it**, as in a native list: a select's option under the pointer becomes
+  the current one, and so do a popup menu's entry, the "…" list's, the calendar's day and the language switcher's list, so a
+  hover never lights a second entry; while a key has put the keyboard on an entry, the one a resting pointer is on stays quiet.
+  The calendar's day and the dial's cell follow the pointer only as it moves, so the arrows move the day while the pointer
+  rests on the grid, and the dial keeps one lit cell; an entry the keyboard and the pointer share keeps the keyboard's wash and
+  takes the pointer's colour off, so it neither blinks nor shows the theme's ring as the pointer crosses it. **A menu or list
+  opened by the pointer has no current entry**: its container holds the keyboard, and the first ArrowDown lands on the first
+  entry, the first ArrowUp on the last (the context menu, a split button's list, a Select, MultiSelect or Search with no value);
+  opened by a key it starts on its first entry — ArrowUp on a split button's closed opener, on its last — and every opening
+  starts afresh. A list that opens on a value starts from it, as before. A folded rail's group flyout opened from the keyboard
+  gives its first entry the focus.
+  A full multi-select's refused options are passed over by the arrows and the pointer alike, as a disabled option is. A press on an option, a calendar or a dial cell washes stronger than the hover, and the dial's chosen reading no
+  longer brightens under the pointer; a multi-select's chosen option keeps no ground once the pointer that marked it has left.
+- **A popup closes when its owner can no longer use it.** A select's list, a picker, a flyout, a menu's or a split button's
+  list, the "…" list and a context menu close when their owner leaves the page, turns disabled or loading, or — an input's —
+  read-only; a select's list left open no longer takes a choice after a read-only push. Every one also closes when the keyboard
+  takes the focus out of it or its owner (Tab out of the calendar, the colour picker, a split button's list, a context menu), and
+  a right press outside a popup that waits for the click closes it at once, so no context menu opens beside a list still open
+  — and so does a long press, a macOS Ctrl+click or the Menu key. A popup closed for its owner hands the keyboard it held to the
+  owner's root, not the page. **A popup under a modal dialog is left alone**: a flyout whose button opened a dialog is not
+  dismissed by a press in the dialog nor closed by the focus going into it, and is back as the dialog closes; the dialog's
+  focus goes back to its opener, found again by its component where the page redrew it, else to its component's root — never
+  the page. Behind a modal is judged by the popup's owner, so the tab strip's "…" list inside a modal dialog closes on Escape and
+  a press (Escape closed the dialog instead). The context menu gives the focus back to what held it before the right press,
+  else to its owner — its nearest focusable, else its component root made focusable for that return — and a closing press on
+  nothing focusable leaves it there. A dialog or popup closed with the focus elsewhere no longer leaves a component root
+  focusable.
+  **A package's popup is owned too:** `popups.open(anchor, popup, { owner, onDismiss })` closes the same ways — on the owner's
+  state (the anchor when no owner is named) and when the keyboard leaves — and `onDismiss` hears why; an owner that cannot keep
+  a popup gets none, told `"owner"`. **Breaking (behaviour)** for a package that kept a popup open while the focus left it.
+- **What arrives animated leaves animated.** Every popup fades in and out (opacity, `@ui-motion-fast`), the context menu, the
+  tooltip and a menu's flyout included; the dialog fades out; the side drawer's backdrop fades both ways and the drawer
+  slides at the sheet's tempo; a leaving toast closes its gap; and a `HideEffect` fades as Show does on every component, the
+  button family, links, clickable surfaces and button groups included. A menu section unfolds and folds as the expander
+  does, once a hand has unfolded one, and an expander's header answers the pointer with its chevron's ink. A tree's unfolded
+  rows fade in, and a toast's close fades and presses with the family's wash, with no shrink. Entrances take the enter curve
+  and exits the exit curve. A menu's inline group folds (a flex item's automatic minimum held its height, so it snapped), on one
+  curve both ways with its chevron at the fold's tempo, its 2 px of air over the first entry folding with it, and an
+  accordion's closing section no longer snaps its last 12 px. A
+  popup menu replaced by another — a folded rail's flyout, a context menu — goes at once rather than fading under the new one. A period's tints on the calendar are layers under the pointer's wash and a press, and while its end
+  is being chosen only the preview tints, not the span to the end kept from before.
+- **Reduced motion stops every animation too**, on every element, a package's included: the dialog, the toast and the ripple
+  lose their own guards, a scripted smooth scroll honours it, and the loading ring keeps turning.
+- **Forced colours are answered more widely.** The focus ring is 2px there, the keyboard's only; the select's keyboard option,
+  the keyboard's entry in a menu, the "…" list and the calendar, the calendar's chosen day, period and today, the time dial's
+  band, a focused time segment, the tree's drop target, the splitter and column resize lines, the slider's track and fill, a
+  folded menu section holding the current page, a tinted picture icon, the loading ring and the colour input's colours and
+  pane tab are drawn in the system's colours.
+- **The rows' keyboard is the host's and its rows'.** Keys pressed in a host's own chrome — a grid's search box, sortable
+  captions, pager, band buttons, flyouts — are no longer taken by the rows; a wrapped items view moves with all four arrows,
+  Up and Down to the nearest tile on the next line (before, none moved it: a wrap's rows had no box to measure); a chosen row
+  under the keyboard's cursor keeps its chosen ground, with the cursor's wash laid over it as a layer — a table's pinned cell
+  too — so the cursor shows among many chosen rows, and fades as it comes and goes. A chosen row with pinned columns draws its
+  mark and its forced-colours outline once, above them (no bar per pinned cell, no doubled line under the last row, kept in a
+  table without separators); a nested table's pinned cells no longer wear an outer row's cursor wash; a table's chosen row keeps
+  its ground under the pointer in a `RowHover` table. A held modifier alone no longer lights the row cursor. **Breaking
+  (behaviour):** under `data-ui-no-row-select` (a data grid with `SelectionMode.Many`) Enter only opens the row and no longer
+  replaces the chosen rows, and Shift with an arrow adds its range to them, from the row last clicked or ticked; such rows no
+  longer show the pointer's hand.
+- **A row's wash fades, and one wash shows at a time.** A row's hover and keyboard wash fade in and out in the items view,
+  the table and the tree; on a wrapped items view the wash lies over the tile's own ground and picture, and `RowHoverable`
+  washes its tiles (it painted nothing). A ghost button in a hovered row brightens under the pointer and shows the pressed
+  wash when pressed; a clickable surface no longer washes and lifts while the pointer is on a control inside it; the ghost,
+  outline and link buttons' border, ink and filter fade with their ground again, and a link's underline fades in.
+- **A table's rules reach its own rows only.** A table nested in another table's row (a data grid's detail) no longer takes
+  the outer table's column tracks, order, hidden columns, pinned offsets, stripes, separators, hover or reorder cursor.
+- **A select-all takes only rows that can be chosen.** The plugin surface's `selection.setSelected`/`setSelectedKeys` pass
+  over disabled rows and rows whose item has `CanSelect = false`. `ItemAbilitiesRenderer.RenderItemAbilities(IHtmlElementBuilder
+  row, IItemAbilitiesModel abilities)` joins the template's overload, and the items host writes an item's refusals through it.
+- **A TabsView caption is pressed anywhere on it** but its close, and washes stronger under the press; a folded menu section
+  holding the current page answers hover and press.
+- **A text field's clear is the pointer's shortcut**: out of the tab order, and hidden while the field is empty; a press on it
+  keeps the caret in the field (a text input's and a search's), and a select's clear keeps the focus on the field. A search's
+  list closed from an option gives the focus back to its field, not to the row that takes none. **A disabled or loading link
+  stays focusable**, taking `tabindex="0"` while it has no `href`.
+- **A search shows the server's answer as it came.** A search with `OnSearch` no longer narrows its list on the client — the
+  list stands until the answer and shows exactly what the server returned (`WebAttributes.SearchAnswered`,
+  `data-ui-search-answered`, on its field); a search over its own options narrows by the menu search's rule — every typed
+  word, in any order, case and accents aside, in an option's name — and hides a group's header with its last option, in the
+  same frame.
+- **Commands reach the server in the order they were raised.** A command raised after an `.OnChange`-kind one (a selection
+  change among them), which waits for its value's answer, no longer overtakes it: a grid's double click sent the row's open
+  ahead of the choice its first click made. A command raised right after one of those now waits that value's round trip.
+- **A table of static items inside a row's template** (a grid's detail) no longer warns, as the template is built, that an
+  item scope is not on the stack: the rows the server drew keep what it wrote.
+- **Enter or Escape in a field hands the keyboard to what holds it, where something does.** The field still leaves,
+  committing, and the focus goes to the holder around it — a dialog's surface, a flyout's panel, a host of rows whose own row
+  holds the field, or a layer a package marks `data-ui-focus-holder` (`WebAttributes.FocusHolder`, `names.focusHolder`); with
+  none the field just blurs and Tab goes on from its place, so a code field and a side drawer's search are no traps. A host's
+  chrome (a grid's band search) is no holder. Escape in a flyout's field closes the flyout first, returning the focus to its
+  anchor. A rename committed by a click elsewhere leaves the focus where the click put it; Enter and Escape give it back. The
+  side drawer opened from the keyboard gives its first control the focus; opened by a press it takes the focus itself, as a
+  holder (no field focused, no on-screen keyboard), and gives it back when it closes. The colour pane is a holder too: Enter
+  in its Hex, R, G or B field keeps the keyboard in the pane. A field's Enter takes its open list with it — a date field's
+  calendar, a search's list — in a flyout, a dialog or a drawer too.
+- **A field holding an edit still takes a read-only.** While a field's value is on its way or held for its form, a push of that
+  value waits as before, but its other properties — a read-only, a placeholder — land; a field used to stay editable under a
+  read-only it was given mid-edit. `states.isReadOnly(element)` (plugin surface) reads the nearest component root's mark, so a
+  component inside a read-only host is read-only only by its own `IsReadOnly`.
+- **A colour input's offers are refusals on the root. Breaking:** `data-ui-color-picker`, `data-ui-color-palette` and
+  `data-ui-color-opacity-shown` (present = offered) became `data-ui-color-no-picker`, `-no-palette` and `-no-opacity` (present =
+  taken away), and `WebAttributes.ColorPicker`/`ColorPalette` became `ColorNoPicker`/`ColorNoPalette`; a stylesheet or script
+  reading the old marks inverts. The first paint said "offered unless false" while a live patch to null took the part away;
+  both now agree that null, the default, offers it. `RenderFlagAttribute`'s live patch lands on the element it marks, as its
+  first paint does — it went to the root, which every caller in the repository passes; **breaking** only for a caller passing
+  a part and relying on the patch reaching the root.
+- **A dragged bar's line is one mixin. Breaking (styling):** `--ui-grid-splitter-line`, `--ui-grid-splitter-offset` and
+  `--ui-table-resizer-line` are replaced by `--ui-drag-bar-line`/`--ui-drag-bar-offset` (`.ui-drag-bar-line()`), and the column
+  resizer's line has the splitter's rounded ends. `--ui-row-wash` is a registered `<color>`: a package setting it to anything
+  else gets `transparent`.
+- **A translatable value travels as its key, and the page translates it. Breaking:** a plain string on a `[Translatable]`
+  property, or a `UIPhrase` on any property, is sent on every push as it is, and the page translates it by its words table — a
+  value a command sets is now shown in the page's language, and a value equal to a key is translated on push as it was at render
+  (mark it `AsContent`, or configure `KeyPrefixes`). A package's value-change handler hears the value as shown; the page's state
+  keeps the key. The first paint is still the server's. **Breaking:** every page carries a hydration block (`words`, `title`), a
+  page without a controller too; the render metadata gains `translatable`, `content` and `words`, and a recorded static word's
+  element carries `data-ui-into-<property>`. The page's first change set, the hydration's too, waits for its table.
+- **The page's words table.** `GET /_ne/words/{language}.json?v=…` — the translator's own listing and the framework's words for
+  one listed language, cached for good under its version, `no-cache` with an ETag without it, compressed once, `404` for a
+  language the translator does not list; `data-ui-strings` stays as the boot subset. A key the table lacks is asked about (hub
+  `TranslateAsync`, ≤ 256 keys of ≤ 512 characters, once per language) where the table is incomplete or missing words are
+  reported for a prefixed key. `ITranslator.ListWords(language)` → `UIWordTable(Words, Complete, KeyPrefixes)` (default:
+  `UIWordTable.Unlisted`); `ITranslationSource.ListWords(language)` (default `null` = cannot list), which
+  `DictionaryTranslationSource` answers.
+- **A language switch in place. Breaking:** switching rewrites the page where it stands — no navigation; numbers and dates keep
+  their culture until the next render, and other tabs of the session keep their language until theirs. `LanguageSwitcherComponent`
+  (`Icon`, `IconSize`, `Display` `Code`/`Name` — `UILanguageDisplay`, in `NE.Standard.UI.Primitives.Styling` — `Languages`,
+  `Type`, `Size`, the surface, border and tooltip blocks): one language draws nothing, two switch on a press, more open a list;
+  each language named in itself (`CultureInfo.NativeName`); every language's words stacked so the button keeps its widest
+  language's width; `aria-label` is `UIStrings.LanguageSwitch`, "Switch language, {language}", which names the language shown.
+  `Type`, `Size` and `IconSize` of the language and theme switchers come from one block, `ISwitcherComponent` (same names,
+  defaults and setters), drawn with `ButtonRendererBase.RenderButtonLook`, every button-shaped control's.
+  `SetLanguageEffect(language)` / `ClientEffectKinds.SetLanguage` (may run in an interaction), `SetLanguageEffect.Href` (the
+  table's address the web platform names on a switch it pushes, so the page calls no hub); hub `SetLanguageAsync({language})`
+  stores the session's language, tells the page's controller as a command does and answers `{language, href}`, refusing a
+  language the translator does not list (`ITranslator.HasLanguage`, the one answer the endpoint, the hub and the switcher ask);
+  a switch to the language shown does nothing, and a session already in the language is left as stored;
+  `UserSessionStoreExtensions.SetLanguageAsync`. `UIControllerBase.OnLanguageChangedAsync(previousLanguage, cancellationToken)`.
+  **Breaking:** `UILanguageDisplay` moved to `NE.Standard.UI.Primitives.Styling`, and an application's translation of
+  `ui.language.switch` takes the `{language}` slot (one without it still reads, without the language).
+- **A command sees the session it changed. Breaking:** `UIContext.UpdateSessionAsync` makes the session it stored the connection's
+  session at once (`UIHandle.Session` can change during a command; a resolver's own `IUserSessionContext` type in the handle is
+  replaced by the stored `UserSessionState`, which now implements `IUserSessionContext`), and `SignInAsync` goes the same way.
+  **Breaking:** a language change made by `UpdateSessionAsync` runs `OnLanguageChangedAsync` inline, before the update returns,
+  and pushes a `SetLanguage` effect to that connection. `UserSessionStoreExtensions.SetThemeModeAsync` writes through
+  `TryUpdateAsync` — it read and saved, which could write back a session signed out or changed meanwhile.
+  `IUserSessionStore.TryUpdateAsync`'s contract says an update answering the very session it was given writes nothing.
+- **Words with arguments and plurals.** `UIPhrase` (`NE.Standard.UI.Primitives.Localization`, a global using of the Primitives
+  package): a key with arguments, always translated on any property; `{"key":…,"args":{…}}` on the wire; an argument a string,
+  number, bool, null or a nested phrase. `UIWords.Format(template, arguments, translateNested)` and `UIWords.Positional`: `{name}`
+  slots (`[A-Za-z0-9_]+`, so `{0}` is positional), an unknown slot kept, no escape, numbers as their shortest invariant text.
+  **Breaking:** no `string` converts to a `UIPhrase` — a key alone is `new UIPhrase(key)` or `UIPhrase.Of(key)`, an author's
+  text `UIPhrase.Text(text)`; a string passed through a helper typed `UIPhrase` became a key silently, and now does not
+  compile. `UIPhrase.FromString` stays.
+  `UIPhrase.Text(text)` / `UIPhrase.IsText`: an author's text as an argument (or a value), looked up by the plain rule — under
+  `KeyPrefixes` only a prefixed one — on both sides, `{"text":…}` on the wire, `strings.format(key, { label: { text } })` on the
+  client; the multi-select chip's "Remove {label}" and the data grid's sort names pass their caption so, and are no longer
+  reported missing under prefixes. `UIPluralRules.Select(language, number)` → `UIPluralCategory` (CLDR 48 for en, de, es, fr,
+  ru, uk, pl, zh; any other language `Other`), `UIPluralRules.Forms` (the six form names in category order); a numeric `count`
+  picks `key.{category}` → `key.other` → key; `ITranslator.TryTranslate(language, key, out words)` probes a key without
+  reporting it missing. `ITranslator.Translate(language, key, arguments)` (a
+  default member doing both), `UIContext.Translate(key, arguments)`, `Translate(key, params object?[])`, `Translate(UIPhrase)`,
+  `WebRenderContext.Translate(key, arguments)`/`Translate(UIPhrase)`. `IUIView.TitleArguments` (virtual on `UIViewBase`) →
+  `CompiledView.TitleArguments`: a title with arguments, re-titled in place by a switch. The multi-select chip's remove, the data
+  grid's sort names and the code input's position are filled through them instead of a hand-spliced `Replace`.
+- **Content and namespaced keys.** `VisualComponentBase.AsContent(params UIProperty[])` and `IBindableComponent.IsContent(UIProperty)`:
+  an instance's translatable property shown as written, bound or static (`CompiledUIBinding.IsTranslatable`;
+  `CompiledUIPropertyValue.IsTranslatable` false for content too); a static `AsContent` property tells the client as well
+  (`WebRenderPropertyMetadata.Content`, `WebRenderMetadata.RegisterRenderedProperty(address, id, content)`, an exposed property's
+  `"content": true`), so a package's `properties.set` there is content. `IContentItem.IsContent` (on `BadgeItem`, so on every
+  built-in item; `"isContent": true` on the wire, only when set): every word read off the item is shown as written, never
+  recorded for a switch or reported missing — a select's options, a menu's entries. `UILocalizationOptions.KeyPrefixes`: a plain
+  string is a key only with one of them (`ui.` always one; empty = every string, as before) — `ITranslator.Translate(language,
+  key)` returns a non-prefixed plain string as it is, and a blank key as itself. A row's value pushed later is content too:
+  `ServerValueUIUpdate.Content` (`content`, only when true) on an item-scoped update read off a content item — the innermost
+  row's item on the value's path, not an ordinary item nested under a content one — and
+  `ServerValidationUIUpdate.Content` on a refusal the input marked content — `MinMaxInputComponentBase.FormatMessage` is
+  `[Translatable]`, so `AsContent` on it no longer throws and keeps the refusal as written. The render reads whether a property
+  is content off `CompiledUIPropertyValue.IsContent` rather than the property register, whose lookup takes a process-wide lock.
+- **Chrome words switch in place.** `WebWords.Write(context, element, attribute, key, arguments?)` / `WebWords.WriteText(...)` (and
+  `ITranslator` + language overloads) write a chrome word marked with its key (`data-ui-words`, `WebAttributes.Words`), and a switch
+  writes it again: the split button's "More", the theme and language switchers, the colour input's words, the file and image
+  inputs', the select's clear and placeholder, the multi-select chip's remove, the text input's clear, the table's captions and
+  resizer, the tree toggle, the splitter, the breadcrumbs, a tab's close, the collapsible toggle, the temporal inputs' picker and
+  period ends, the strip's "More tabs", the side drawer's toggle, a dialog's label. Plugin surface (contract 2):
+  `strings.write(element, attribute, key, args?)`, `strings.resolveText(text)` (an author's text as a plain value is looked up),
+  `strings.onChange(handler)`; `strings.format` picks a plural form by a numeric `count`. `WebAttributes.LanguageSwitcher`,
+  `WebAttributes.Language`; render metadata `WebRenderPropertyDefinitionMetadata.Translatable`, `WebRenderBindingMetadata.Content`,
+  `WebRenderMetadata.Words`/`AddWord`, `RegisterProperty(owner, property, translatable, operations)`, `Bind(context, binding,
+  propertyId, content)`. A renderer writes a translatable property's words with its key through
+  `WebComponentRendererBase.ResolveRenderWord(context, property, out key, out words)` and `WriteRenderWord(context, element,
+  attribute, property)`; `ReadRenderValue`/`ResolveRenderValue` answer the words already translated, never to be marked. The
+  palette's colour names are words, `ui.color.name.<name>` (`UIStrings.ColorNameKey`, English "Iron fog", "Quantum blue"), on a
+  chip's tooltip and `aria-label`, the identifier staying on `data-ui-color-name`. An icon-only button's name from its tooltip
+  is the tooltip's plain text, never its Markdown source (`WebDomConverters.InlineMarkupPlainText`), follows a pushed tooltip
+  and a switch, and a bound title that arrives takes it off — a button with a bound title is named by its tooltip again once the
+  title is pushed empty and the tooltip next pushed or the language switched (`TextContentRendererBase.TooltipNamedAttribute`,
+  `TooltipNameOperation`, `WebTextBodyOptions.TooltipNamesHost`, a protected `WebComponentRendererBase.RenderTooltip(context,
+  target, nameOperation)`); **binary-breaking** only: the protected `TextContentRendererBase.RenderTitle` gains an optional
+  `tooltipNamesHost`. An operation's selector target may name the component's root itself.
+- **The framework's words, listed and checked.** `UIStrings.List(packages)` (the one English floor, duplicate keys refused),
+  `UIStrings.Discover(params Assembly[])` (every public `IUIStringsSource` of the assemblies, no DI),
+  `UIStrings.Missing(source, language, packages)` (the framework and package keys a source lacks), `UIStrings.LanguageSwitch`,
+  and `UIStrings.ItemsEmpty` — **breaking:** an items view's empty text is the key `ui.items.empty`
+  (`DefaultEmptyTemplate.DefaultText`, English "Nothing to show." from the floor), so it translates and switches.
+- **Missing translations reported.** `UILocalizationOptions.ReportMissingWords` (`bool?`; `null` — the default — reports in
+  Development and not in Production on the web platform), `IUIMissingWords` (`Snapshot()`, `Clear()`) with `UIMissingWord(Language,
+  Key)`, resolvable from DI and as `UIApplication.MissingWords`; `UIApplication.Localization`. Each miss is logged once at Warning,
+  at most 4096, then one line saying recording stopped; exact only under `KeyPrefixes`. The hub's `TranslateAsync` no longer
+  records a missing word for every plural form a source that cannot list lacks, and a listed table no longer reports a form its
+  language never picks (`files.one` in zh) beside a `.other` or plain sibling — but does report one its language picks and no
+  table holds (ru's `files.few` and `files.many` beside English's `.one`/`.other`), so an application with such gaps sees new
+  warnings in Development. `UIPluralRules.HasForm(language, category)` is public: whether `Select` ever answers a form.
+- **A collection held for rows built later.** A host declared inside an item template (a select's options in every row), sent
+  while no row wears the template, is held and drawn into every row built later — the collection as the server last sent it, not
+  the one the template was rendered with — and no longer logs "items host was not found".
+- **Validation messages are translatable. Breaking:** `UIValidationMessage.Message`, `UIValidationRule.Message`,
+  `CompiledUIValidationRule.Message` and `WebRenderValidationMetadata.Message` are a `UIPhrase` (were `string`). A string still
+  compiles — `UIValidationMessage.Error("text")`, `Required("text")`, `new UIValidationRule(…, "text")` — and becomes
+  `UIPhrase.Text("text")`, the author's text or a key by the plain rule; code that read `Message` as a string reads
+  `Message.Key` (with `IsText` and `Arguments`). New: `Error`/`Warning`/`Info(UIPhrase)`, a `(severity, UIPhrase)`
+  constructor, and `Required(UIPhrase)`, `Regex(pattern, UIPhrase)`, `Validate(trigger, op, value, UIPhrase)` beside the string
+  ones — `.Regex("^.{0,12}$", UIPhrase.Of("form.name-max", ("max", 12)))`. On the wire a message is `{"text":…}` or
+  `{"key":…,"args":…}`; the client still reads a bare string as an author's text. A rule's message, a bound `Validation` and the
+  runtime's refusal (the input's `FormatMessage`, else the new framework word `ui.value.format`, `UIStrings.ValueFormat`) are
+  shown in the page's language and written again on a switch, the lines another component holds included.
+- **An icon is a name, not a word. Breaking:** `[Translatable]` is off `IconComponent.Icon`, `ITextBaseModel.Icon`/
+  `TextBaseItem.Icon`, `BadgeComponent.Icon` and `IBadgeModel.BadgeIcon`/`BadgeItem.BadgeIcon`: an icon is never looked up and
+  never reported missing. An icon that differs per language is a binding.
+- **Only a tinted picture paints. Breaking:** `.ui-icon::before` paints nothing by default; a tinted picture (`mask:`) wears
+  `ui-icon--mask` (`WebIconValue.MaskClassName`), the one form that paints the box in `currentColor`, while a glyph is text and
+  an untinted picture (`ui-icon--image`) is painted as it is. So an icon whose glyph has no rule — a name nothing registered, a
+  misspelt `ne-` mark, a name from data — draws nothing rather than a filled square in the text colour. `--ui-icon-paint` left
+  the pack contract, which is three properties (`--ui-icon-font`, `--ui-icon-glyph`, `--ui-icon-fill`): a third-party pack that
+  drew by writing `--ui-icon-url` per glyph class writes its rule with `background-color: currentColor` and the mask itself,
+  and a stylesheet that found a tinted picture by `:not(.ui-icon--image)` keys on `.ui-icon--mask`. `WebIconValue.ClassName(value)`
+  ↔ `toIconClassName` give the class a value wears, corpus-pinned.
+- **An icon value that draws nothing marks nothing.** A value with no letter or digit (`"★"` from data) gets no `data-ui-icon`
+  and no mark that says an icon is there — an icon-only button's layout, a field's adornment room, a badge's icon — on the first
+  paint (`IconValueRenderer.Draws`) or on a push (`WebValueCondition.DrawsIcon`); `icons.apply` writes nothing for it instead
+  of throwing; a mask icon with no address paints nothing. `WebIconValue.Names(value)` says whether a value names a glyph or a
+  picture without building its class (`IconValueRenderer.Draws` answers by it), and `WebIconValue.ClassName` trims the value
+  as the client does. A glyph is silent to a screen reader (`content: … / ""`): a titled button is named "Save changes", not
+  "save Save changes", and the theme switcher is not read "light_mode dark_mode".
+- **Fonts are preloaded.** The shell's head preloads every font asset (`<link rel="preload" as="font" type="font/woff2"
+  crossorigin>`) before the stylesheets — the NE Glyphs face, an icon pack's font, and Inter when an entry of the theme's
+  `FontFamily` list is `Inter` (not a substring: "Interstate" is another face) — so an icon is no longer a blank box for an
+  extra round trip on a cold load.
+- **The page names its icon.** The shell always writes `<link rel="icon">`: `WebEndpointOptions.Icon` when the application
+  sets one (an absolute path under its static files, or a `data:` URL), else `data:,`, so a browser asks for no `/favicon.ico`
+  an application never serves.
+- **What a language switch misses, fixed.** Every option of a select inside an item template (a data grid's cell editor)
+  showed the first option's caption after a switch — a word read off an item is now recorded with the rows' keys the render has
+  (`ResolveItemKeys`) and matched from the innermost; a part a package inserted (a grid's open detail) and a package's copy of a
+  component (Graph's parameters panel) are written again too; and a property written over a place the chrome had marked (a
+  code field's line-ending placeholder over "Select…") keeps its value at a switch. The page's boot words and the words table
+  share one cache per language.
+- `UINaming.Humanize` keeps an acronym whole and splits it from the next word ("UI calculator operation", "Parse HTML", "IDs
+  count"), and reads "Is"/"As" after an acronym as a word ("UI is ready", "PDF as image"), so a caption derived from a name with
+  an acronym changes.
+- **The tab strip's "…" list** lists a tab the fit hid and stays open, and Tab from it goes on from the "…".
+- **The language switcher weighs a request against the language asked for**: a second request for the language already on its
+  way is none, and one back to the language shown cancels the pending switch, tells the session and fetches nothing; a
+  two-language toggle asks for the language not requested, so a second press while the first switch loads goes back, and a
+  table still loading for the earlier request is dropped, so the page ends in the language the session holds. Over a
+  page in a language it does not offer, the switcher shows that language as a label that is never a choice and checks none of
+  its own; a toggle then asks for the first language it lists. The switcher's label gives way with an ellipsis.
+- **The image input** answers nothing on its surface while its picture loads, its hover no longer outranks its invalid and
+  focus edges, its name follows a pick, a push and a switch, and its squares carry no native `title`. Under forced colours the
+  colour input's parts are ringed in the system colour; a card header holding only a picture badge stays; a split button of
+  type Link no longer moves its open list.
+- `BadgeRenderer.RenderCountBadge(parent, style, count, configure)`: a bare count badge with no component behind it, for a
+  count a package's script fills.
+- A multi-select option whose title is blank shows its key and no longer fails the render. The web update sink names the
+  words' table on a copy of a pushed command result, never on the runtime's own effects.
+- The demo carries whole zh-Hans and Russian tables of every word it registers — its own, the framework's and the code
+  input's — held by a test, and its shell's words (page tabs, group titles, the Code and Copy tooltips) are `demo.*` keys.
+- `ButtonRendererBase.RenderButtonLook(context, root)` writes the Type/Size classes, one registration for every button-shaped
+  control.
+- `DictionaryTranslationSource.TryTranslate` answers `false` for a blank language or key instead of throwing.
+- **A validation mark without words raises no message line** (`.ui-validation-message:empty`), on every field and
+  presentation; a line filled later shows.
+- `UIStrings.NotFoundPageTitle` (`ui.notfound.page`, "Page not found"): the default not-found page's tab title is that word,
+  not the view type's name.
+- **Breaking:** `TemporalInputRendererBase.RenderRow` is no longer `protected virtual` — the time input draws its row through
+  the base (`HasPicker => false`: a clock's segments and a stepper); a subclass that overrode it answers `HasPicker` instead.
+- Smaller fixes: a read-only time field no longer fills a clicked segment; a Link button (a Link language switcher) no longer
+  throws its open list off-screen under the pointer — a quiet button brightens its parts, never the root a popup inside is
+  placed from; a breadcrumb trail's text separator is set in the trail's font; forced colours mark a chosen colour chip under the
+  keyboard; the Multiple image shelf keeps its invalid and focus edges under the pointer; a chosen wrapped tile keeps its
+  picture; a quote paragraph standing as a wrapped tile keeps its line, drawn in forced colours too; a folded menu group holding
+  the current page keeps its mark under the quiet rule.
+- **The caret at the end of a caption-inside field no longer stands on the last character.** Chromium keeps a caret inside the
+  field's inner editor, so an end-aligned value put it over its last glyph whatever the padding (the 2 px of padding added
+  before is gone). The value is now as wide as its text plus a caret and stands at the trailing edge
+  (`.ui-field-value-at-end()`, `mixins/field.less`, on the plugin surface), where the browser has `field-sizing` and
+  `calc-size`; elsewhere it stays end-aligned.
+- **A press on a field's box reaches its text field.** A press on the box's own empty space — its padding, the gap after a
+  caption inside it — focuses the field with the caret at the end (`field-box-press-engine.ts`); a read-only, disabled or
+  loading field is left alone, and a stepper, a clear or a picker's toggle keeps its own press.
+- **A collapsible that changes both of its sizes slides both.** A panel folded to its switch is a box: its height used to snap on
+  the first frame while its width slid, and a scrolling body lost and regained its scrollbar at the fold's ends. The content is
+  held at its open box on each axis that moves.
+- **A side becomes a drawer on a phone by default. Breaking:** `UIViewOptions.SideDrawers` (and `WebShellContext.SideDrawers`)
+  defaults to `true`, so below the medium breakpoint the left and right sides slide over the content, opened by a button the
+  header carries (the content, where a page has no header). A view that relied on its sides keeping their columns on a phone
+  sets `SideDrawers = false`; an explicit `SideDrawers = true` is now redundant.
+- **A page header's title and line run the full width on a phone. Breaking** for code that read the header's children:
+  `UIPage.Header` holds the title (a `TextComponent`, Display, one line), the description when given (a `ParagraphComponent`,
+  Body, Muted, up to three lines) and the trailing stack, in that order, where it held one paragraph and the trailing stack.
+  From the small breakpoint up the title and the trailing controls share the first row, both centred on it; the line takes
+  the second — the band's whole width below `md`, the title's columns from `md` up — so the line no longer squeezes into a
+  120-pixel column. **Breaking (layout):** below the small breakpoint the title takes the band's whole width and the trailing
+  controls fold to a row of their own under the title and its line, still at the far edge, so the title no longer shrinks to a
+  few letters and an ellipsis beside two switchers.
+- **`UILayout.Columns`, `Split` and `Sidebar` honour a child's `VerticalAlignment`. Breaking (layout):** a cell took `Start`
+  whatever the child said, and as tall as its child it left the child's own alignment nothing to act in — a switch beside a
+  taller select stood 10 px high. The cell now takes the child's alignment (`Start` only where the child has none), and most
+  components carry one (texts, inputs and buttons `Center`, a container `Stretch`); a child that should stay at the top beside
+  a taller sibling says `SetVerticalAlignment(UIAlignment.Start)`.
+- **`UIForm.Row` holds its fields by the top. Breaking (layout):** every cell of a form row is `Start`, whatever its field's own
+  alignment, so a field that grows a validation line no longer moves its neighbour; a plain `UILayout.Columns` cell still
+  follows its child.
+- **A command bar that does not fit puts its trailing commands under a "…".** A bar on one line whose commands pass its room
+  moves them — from the first that does not fit to the end, with a group's separator left with no command after it — into a
+  "…" list, keyboard-reachable, and a pick presses the command's own control — a flyout's or a split button's included, whose
+  popup then opens anchored to the "…" and shows there (`anchored-popup.ts` places a popup anchored inside a command in the
+  list against the stand-in its strip names and marks it `data-ui-popup-stood-in`; a command in the list is out of the flow
+  and `visibility: hidden`, not `display: none`, and a command with no caption is listed by its control's name); the renderer
+  draws the "…" (`ui-command-bar__overflow`,
+  a tab stop) named by a new framework word, `ui.commandbar.more` ("More commands"), which an application with its own word
+  tables adds. A vertical or wrapping bar, and a bar on a narrow screen below `md`, still wrap. **Breaking (look):** a bar's
+  commands no longer shrink to ellipsised labels, so a bar in a narrow column shows fewer commands and a "…".
+  `WebComponentRendererBase.RenderOverflowButton(context, parent, className, word, tabStop)` is the "…" both strips draw.
+  The "…" list of a strip with no current entry, opened by a press, lights no entry and holds the keyboard until the first
+  arrow, as every popup list does; the tabs' list still opens on the current tab. A strip is fitted with its "…" hidden and
+  shows it only once a caption has to go, so a bar only as wide as its commands (end-aligned, a dialog's footer) shows no empty
+  "…" and settles instead of refitting without end.
+- **Muted text reads on the ground it stands on.** A component given a `Background` writes `--ui-faint-base` as that colour's
+  on-colour (a role's `--ui-color-on-<role>`; a raw colour's `on-light` or `on-dark` by its lightness, `light-dark()` for a
+  pair; nothing for a colour no text stands on), and the muted family fades the ground's own text colour, not the page's:
+  the Action's trailing part, a menu's header, shortcut and value, key-value keys, breadcrumbs, the collapsible and expander
+  marks, a separator's label, tab captions, the tabs view's pin and close, the strips' "…", the tree's marks and the slider's
+  readouts — on a filled button or badge too. Popups, the dialog and Raised, Background and Tinted surfaces keep their own
+  ground's ink. Muted words on a filled ground are its on-colour at 87 % rather than 68 %, so they read 4.5:1 on every default
+  fill; the page's own muted text is unchanged. New: `WebCssValues.ThemeOnColor`, the converter `themeOnColorCss`, and in the
+  plugin Less `@ui-text-ink`, `@ui-text-muted`, `@ui-text-muted-share`, `@ui-text-muted-filled-share` and `@ui-faint-lift`,
+  with `.ui-popup-look()` resetting `--ui-faint-base`.
+- **The ground a part stands on has a name.** `--ui-ground`, and `@ui-ground` in the plugin Less (falling back to
+  `--ui-color-surface`), is the ground's own colour, for a part cut out of it — a chart's hollow marker, a pie's sector edge.
+  It is written wherever `--ui-faint-base` is: a `Background` inline (for a colour no text stands on too), a filled button or
+  badge, the temporal picker's selected cells, and as their own colour by popups, the dialog's surface and Raised, Background
+  and Tinted surfaces.
+- **A tinted badge writes its words in the colour's ink.** A badge, or a text's badge, given a semantic `Color` writes
+  `color: var(--ui-color-<role>-ink)` for Primary, Accent, Info, Warning, Success and Danger and mixes its 16 % ground from the
+  raw colour through `--ui-badge-tint`; a raw colour is used for both. A light-theme badge in Warning went from about 1.1:1
+  to the ink's contrast. New: `WebCssValues.ThemeInk`, the converter `themeInkCss`. A tinted badge writes its words in
+  `--ui-color-<role>-ink-on-tint` (new theme variables for Primary, Accent, Info, Warning, Success and Danger: a brand ink
+  56 %, a status ink 80 % toward `--ui-color-on-surface`), 4.5:1 on its own tint over the page, a card and a raised card; the
+  inks elsewhere are unchanged.
+- **The default palette's status inks read 4.5:1 on their tinted badge, over the page and over a card. Breaking (look):**
+  light `SuccessInk` is `AuroraGreen` Shade 2 and `DangerInk` `StellarRed` Shade 1; dark `InfoInk`, `SuccessInk` and
+  `DangerInk` are Tint 4. Every word, icon and link written in those inks is a shade darker (light) or lighter (dark); a palette
+  of an application's own is untouched.
+- **`ShownWhen`, `HiddenWhen` and `EnabledWhen` follow the reader's own edit.** A property-sourced interaction heard only a
+  value the server pushed, and the writer never gets its own value back, so a switch the reader turned on never revealed its
+  panel. It now also runs on the source field's `change`/`toggle`, with the value the field holds — a switch, a checkbox, a
+  text, a field with no binding (its `Value`) — and a value the server refuses puts it back. An `Effect` interaction reading a
+  field that is also a list's filter or sort `Source` runs once per edit (it ran twice), and a rule source's edit is no longer
+  written back into the field it came from. A field's interactions run once per value: a debounced text field's `change` at the
+  reader's pause and the browser's own when the reader leaves no longer run an `Effect` twice.
+- **A link and a Ghost or Outline button take a filled ground's ink.** In a component given a theme `Background` (where
+  `--ui-faint-base` is written) a Ghost or Outline button's words and a link — the Link component, a Link button, an inline
+  `[label](url)`, a Markdown link — are the ground's on-colour rather than the page's ink or the brand ink (2.5:1 and 1:1 on
+  Primary before), a link wearing its underline there; on the page and on a card nothing changes. Plugin Less: `@ui-link-ink`,
+  `@ui-link-rest-underline`, read by `.ui-inline-link()`. **Breaking (look):** a `Background` of `Surface` or `Background`
+  writes `--ui-faint-base: initial` (`WebCssValues.ThemeOnColor`, converter `themeOnColorCss`) instead of the on-surface colour,
+  so a card of the page's own ground keeps the page's muted share and links, and takes the page's inks back inside a filled panel.
+- **A heading in prose may wrap.** `ParagraphComponent.TitleWrap` (`SetTitleWrap(true)`, class `ui-text--title-wrap`): the
+  title runs on to further lines, balanced, instead of ending in an ellipsis — an article's headline. Every other title keeps
+  one line.
+- **A checkbox's and a switch's label is body text. Breaking (look):** `CheckboxComponent` (so `SwitchComponent`) defaults its
+  `TitleType` to Body, as a radio option's label is, so a Medium label grows from 12 to 14 px and no longer reads smaller than
+  its description; the Small size keeps the caption. A Small radio option's text steps to caption the same way; Large stays
+  body.
+- **A key-value list with no border and no fill of its own drops its rows' inline padding**, so its keys line up with a card's
+  or an expander's content; the separators stay. Its default Surface, Background, is no fill of its own — only Raised, Tinted
+  or an inline Background colour keep the inset. A `BorderThickness` of nothing on every side now adds `ui-border--none`
+  (`WebClassNames.BorderNone`, converter `borderNoneClass`) beside the inline `border-width`.
+- **A default floor yields to an authored size.** A Select, Search, MultiSelect or horizontal Slider given a Width below 12rem,
+  and a Separator below 1rem, is that wide; an authored MinWidth still wins. Plugin Less: `.ui-responsive-floor(@property,
+  @variable, @floor, @size-variable)`.
+- **The shell that scrolls its own regions reserves no scrollbar gutter on the document**, so the dialog's backdrop, a sheet
+  and the toasts reach the window's right edge.
+- **A title-aligned icon with no title stands on the description's line**: its box took the absent title's line height and set
+  the glyph 4 px below a Body description.
+- The demo: a group's content lines up with the page's heading, and its code button — a 24 px ghost — stands level with the
+  group's title without an offset, a group's context line on a row of its own under it; a component with one kind draws no tab
+  strip; the command bar's deploy example has its controls under it; a dialog's title and question wrap; the text examples'
+  alignment and picture lines and the menu's context-card explanation no longer end in an ellipsis; the
+  items view's scenario rows are body text and its chat messages wrap; catalogue tiles fill the shelf's line and keep the price
+  and *Add* on one row; stale minimum heights are gone from the semantic colours and home pages; the tree's folder glyphs read
+  in the light theme; the radio group's orientation example is top-aligned; fixed widths that cut titles with room to spare
+  are gone or wider (Text, Menu), the Surface example's title is shorter, and the grid splitter's log pane scrolls. The demo
+  no longer sets `SideDrawers`. TeamRoom's composer field takes the rest of its row, ending where the feed does, and its Files
+  and Chat pages stack their two panes on a phone, the editor and the conversation taking the width.
+- TeamRoom's chat at a tablet's width: a message is as wide as the feed at most below the extra-large width, so its attachments
+  wrap under one another rather than running past the column, and the conversation's search stands under its title there; the
+  640 px cap holds from the extra-large width up. The host no longer calls `UseStaticFiles()` — it serves no file of its own —
+  so it starts without the *WebRootPath was not found* warning.
+- **A collapse goes at once, as a show arrives.** `@ui-root-transition` no longer holds `display`: a component collapsed by a
+  rule (`ShownWhen`, `HiddenWhen`), a bound `Visibility` or a `CollapseEffect` leaves the page in the frame the change lands,
+  where it stayed drawn 200 ms, fading, and then took its room away at once — the page below jumped late. Hide (the room kept)
+  still fades both ways. A search's group header, which set `transition: none` to go with its options, needs nothing of its own.
+- **A list's entries stand 2 px apart** (`@ui-list-entry-gap`, `.ui-entry-list()` on the plugin surface), so a chosen entry and
+  the pointer's read as two: the language switcher's list, a select's, search's and multi-select's options, the "…" lists of a
+  tab strip and a command bar, as a menu's entries and the calendar's cells already stood. A select's list is a flex column now.
+- **A row built into a list is drawn once from the collection it shares.** A select in every row of an items view shares one
+  options collection; a row built while the same set went on to change those options (a planner's resource opened: a new
+  ingredient row, and the opened resource taken out of the choices) had its empty host passed each change, warning *collection
+  remove did not resolve an item*, before the held collection drew it. The waiting host is passed by, and drawn from the held
+  rows as they stand then (`HeldCollections.markWaiting`/`takeWaiting`).
+
 ## 1.2.0
 
 - **A read-only field offers nothing that would change it.** A read-only number input's stepper goes, as the time input's

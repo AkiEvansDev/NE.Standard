@@ -7,9 +7,7 @@ namespace NE.Standard.UI.Shell.Files;
 /// </summary>
 public sealed class UIFileOptions
 {
-    /// <summary>
-    /// Gets or sets the largest single file accepted, in bytes.
-    /// </summary>
+    /// <summary>Gets or sets the largest single file accepted, in bytes.</summary>
     /// <remarks>
     /// Enforced at the endpoint while the part streams, not after buffering it; distinct from <c>FileInputComponent.MaxFileSize</c>,
     /// which is picker chrome a client can ignore.
@@ -21,9 +19,7 @@ public sealed class UIFileOptions
     /// </summary>
     public int MaxFilesPerSelection { get; set; } = 16;
 
-    /// <summary>
-    /// Gets or sets how many bytes of uploads one session may hold at once, until the sweep removes them.
-    /// </summary>
+    /// <summary>Gets or sets how many bytes of uploads one session may hold at once, until the sweep removes them.</summary>
     /// <remarks>
     /// The bound on how much disk a session can fill in <see cref="UploadRetention"/>: a request past it is refused whole, and a
     /// file that would cross it is stopped where it crosses.
@@ -45,12 +41,8 @@ public sealed class UIFileOptions
     /// </summary>
     public TimeSpan UploadRetention { get; set; } = TimeSpan.FromHours(1);
 
-    /// <summary>
-    /// Gets or sets how long a staged download waits to be fetched.
-    /// </summary>
-    /// <remarks>
-    /// Short on purpose: the client fetches it immediately, so anything left here was never collected.
-    /// </remarks>
+    /// <summary>Gets or sets how long a staged download waits to be fetched.</summary>
+    /// <remarks>Short on purpose: the client fetches it immediately, so anything left here was never collected.</remarks>
     public TimeSpan DownloadRetention { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>

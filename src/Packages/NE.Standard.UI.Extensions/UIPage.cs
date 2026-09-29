@@ -14,45 +14,59 @@ public static class UIPage
 {
     /// <summary>
     /// The band a page is headed by: the name in the display role, a muted line under it, and whatever stands at the far
-    /// end (a theme switcher, a signed-in person, the page's buttons).
+    /// end (a theme switcher, a signed-in person, the page's buttons). On a phone the name and the line run the band's full
+    /// width, and the far end folds under them rather than leaving the name a few letters and an ellipsis.
     /// </summary>
     public static ContainerComponent Header(string title, string? description = null, params IVisualComponent[] trailing)
     {
         ArgumentNullException.ThrowIfNull(trailing);
 
-        // A paragraph rather than a text: on a phone the line under the title runs on to three lines rather than ending in an
-        // ellipsis after a few words, and no further, so the page's content is not pushed off the screen.
-        ParagraphComponent heading = new ParagraphComponent()
-            .SetTitle(title)
-            .SetMaxLines(3)
-            .AsDisplay()
-            .SetTitleColor(UIThemeColor.OnBackground)
-            .SetDescriptionType(UITextAppearance.Body)
-            .SetDescriptionColor(UIThemeColor.Muted)
-            .SetPlacement(1, 1, trailing.Length == 0 ? 24 : 23, 1);
+        var span = trailing.Length == 0 ? 24 : 23;
 
-        if (description is not null)
-            _ = heading.SetDescription(description);
-
+        // The name is an interface heading, one line; from the small breakpoint up it stands level with the far end, centred on
+        // the same row.
         ContainerComponent header = new ContainerComponent()
             .SetPadding(UIThickness.All(24, 20, 24, 4))
-            .AddChild(heading);
+            .AddChild(new TextComponent()
+                .SetTitle(title)
+                .AsDisplay()
+                .SetTitleColor(UIThemeColor.OnBackground)
+                .SetVerticalAlignment(UIAlignment.Center)
+                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), sm: UIGridPlacement.At(1, 1, span, 1)))
+            );
+
+        // A paragraph rather than a text: on a phone the line runs on to three lines rather than ending in an ellipsis after a
+        // few words, and no further, so the page's content is not pushed off the screen.
+        if (description is not null)
+        {
+            _ = header.AddChild(new ParagraphComponent()
+                .SetDescription(description)
+                .SetMaxLines(3)
+                .SetDescriptionType(UITextAppearance.Body)
+                .SetDescriptionColor(UIThemeColor.Muted)
+                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(1, 2, span, 1)))
+            );
+        }
 
         if (trailing.Length == 0)
             return header;
 
-        // The last column as wide as what stands in it, so the title keeps the rest — on a phone a third of the band given to one
-        // switch left the title a few letters and an ellipsis.
+        // The last column as wide as what stands in it, so the title keeps the rest — a third of the band given to one switch
+        // left the title a few letters and an ellipsis. On a phone even the rest is too little beside two switchers, so there the
+        // far end takes a row of its own after the name and its line, still at the far edge; the Auto column, spanned by nothing
+        // alone, then takes no width.
+        var foldedRow = description is null ? 2 : 3;
+
         return header
             .SetColumn(24, UIGridUnit.Auto())
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(12)
-                .SetMargin(UIThickness.All(12, 0, 0, 0))
+                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), sm: UIThickness.All(12, 0, 0, 0)))
                 .SetHorizontalAlignment(UIAlignment.End)
-                .SetVerticalAlignment(UIAlignment.Start)
+                .SetVerticalAlignment(UIAlignment.Center)
                 .AddChildren(trailing)
-                .SetPlacement(24, 1, 1, 1)
+                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, foldedRow, 24, 1), sm: UIGridPlacement.At(24, 1, 1, 1)))
             );
     }
 

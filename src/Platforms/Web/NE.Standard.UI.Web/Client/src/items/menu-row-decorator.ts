@@ -1,6 +1,5 @@
-// The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its sub-entries the way a server-rendered
-// one has them, in a wrapper under the entry, so a bound menu whose entries arrive live shows every level; the two must
-// stay one shape, since the group engine and stylesheet both read the wrapper.
+// The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its sub-entries in the same wrapper under the
+// entry; the two must stay one shape, since the group engine and the stylesheet both read it.
 
 import { MenuGroupAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";

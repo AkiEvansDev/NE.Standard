@@ -277,8 +277,6 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
 /// </summary>
 public sealed class KeyValueActionComponent(string? id = null) : KeyValueActionComponent<KeyValueActionComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.key-value-action";
 }

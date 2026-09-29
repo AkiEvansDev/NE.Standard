@@ -8,9 +8,7 @@ using NE.Standard.UI.Generators.Infrastructure;
 
 namespace NE.Standard.UI.Generators.RecursiveMembers;
 
-/// <summary>
-/// Generates change-tracking plumbing for members annotated with <c>[RecursiveMember]</c>.
-/// </summary>
+/// <summary>Generates change-tracking plumbing for members annotated with <c>[RecursiveMember]</c>.</summary>
 /// <remarks>
 /// Symbols are read and validated in the transform (<see cref="RecursiveMemberModelFactory"/>); what reaches the output is
 /// equatable data only, so an edit that changes no model re-emits nothing.
@@ -231,6 +229,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
         _ = builder
+            .AppendLine("    /// <inheritdoc/>")
             .Append("    protected override void PropagateNotifier(global::System.Collections.Generic.HashSet<")
             .Append(RecursiveMemberNames.RecursiveObservableTypeName)
             .AppendLine("> visited)");
@@ -275,6 +274,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
         _ = builder
+            .AppendLine("    /// <inheritdoc/>")
             .Append("    protected override bool TryGetValueCore(global::System.ReadOnlySpan<")
             .Append(RecursiveMemberNames.PathSegmentTypeName)
             .AppendLine("> segments, int offset, out object? value)");
@@ -356,6 +356,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
         _ = builder
+            .AppendLine("    /// <inheritdoc/>")
             .Append("    protected override bool TrySetValueCore(global::System.ReadOnlySpan<")
             .Append(RecursiveMemberNames.PathSegmentTypeName)
             .AppendLine("> segments, int offset, object? value)");

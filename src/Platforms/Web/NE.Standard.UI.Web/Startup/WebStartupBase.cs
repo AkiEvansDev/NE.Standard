@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using NE.Standard.UI.Application;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Updates;
@@ -75,5 +76,11 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
         services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
+
+        // What depends on development is on there and off in production: missing words are reported where someone reads the log.
+        services.TryAddSingleton(static provider => new UIPlatformDefaults
+        {
+            ReportMissingWords = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true
+        });
     }
 }

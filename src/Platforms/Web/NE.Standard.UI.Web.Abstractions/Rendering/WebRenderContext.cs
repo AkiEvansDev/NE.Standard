@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -33,6 +34,21 @@ public sealed class WebRenderContext
     /// </summary>
     public string Translate(string key)
         => Translator.Translate(ViewResolution.Session.Language, key) ?? key;
+
+    /// <summary>
+    /// Translates <paramref name="key"/> for this session's language and fills its <c>{name}</c> slots from
+    /// <paramref name="arguments"/>; a numeric <c>count</c> picks the key's plural form.
+    /// </summary>
+    public string Translate(string key, IReadOnlyDictionary<string, object?>? arguments)
+        => Translator.Translate(ViewResolution.Session.Language, key, arguments) ?? key;
+
+    /// <summary>Translates a phrase — its key with its arguments — for this session's language; an author's text as a plain value.</summary>
+    public string Translate(UIPhrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+
+        return phrase.IsText ? Translate(phrase.Key) : Translate(phrase.Key, phrase.Arguments);
+    }
 
     /// <summary>
     /// This session's values, when the render is painting them rather than leaving them to the client — see <see cref="IWebRenderValues"/>.

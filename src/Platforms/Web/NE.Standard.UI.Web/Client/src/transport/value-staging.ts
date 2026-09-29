@@ -1,28 +1,21 @@
-// A value too large for the hub goes beside it, both ways (docs/VALUES.md §2): the client's is posted as JSON and named
-// in the hub update by the token the post returns; the server's arrives as a token, fetched before it's applied.
+// A value too large for the hub goes beside it both ways (docs/VALUES.md §2): posted as JSON and named by the returned token, or
+// arriving as a token and fetched before it is applied.
 
 import type { ServerChangeSet, ServerValueUIUpdate } from "../metadata/metadata-index";
 
 const StagePath = "/_ne/values";
 
-/**
- * The size past which a value is staged, in bytes of its JSON. A quarter of the hub's 32 KB message cap, leaving room for
- * the envelope and growth between commits, and within a TCP initial window so an inline message never waits to grow.
- */
+/** Bytes of JSON past which a value is staged: a quarter of the hub's 32 KB cap (room for the envelope), inside a TCP initial window. */
 export const LargeValueBytes = 8 * 1024;
 
-/**
- * How long a staged value's trip may take before it is given up. Every change set after a staged one waits for it, and the
- * values after a staged one wait for its post, so one that hangs would stall the page with no error.
- */
+/** How long a staged value's trip may take; everything after it waits for it, so a hang would stall the page silently. */
 const StagedValueTimeoutMilliseconds = 30_000;
 
 /** The value's JSON as bytes when it is too large to travel inline, or null when it goes inline. */
 export function largeValueBody(value: unknown): Uint8Array | null {
     const json = JSON.stringify(value);
 
-    // A character is at most three UTF-8 bytes here (a surrogate pair is two characters for four bytes), so a short text is
-    // answered without encoding it.
+    // At most three UTF-8 bytes a character (a surrogate pair is four for two), so a short text is answered without encoding it.
     if (json === undefined || json.length * 3 <= LargeValueBytes)
         return null;
 

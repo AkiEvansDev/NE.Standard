@@ -15,10 +15,6 @@
     cursor: text;
 }
 
-    .ui-text-input.ui-disabled {
-        .ui-disabled-state();
-    }
-
 // A password's row is a <form>: a block by default, and the row is a flex line.
 form.ui-text-input__row {
     display: flex;
@@ -29,18 +25,14 @@ form.ui-text-input__row {
     .ui-input-field();
 }
 
-    .ui-text-input__field:read-only {
-        cursor: default;
-    }
-
 // Hidden until ShowClearButton is true, so the property is bindable rather than a render-time decision.
 .ui-text-input:not([data-ui-clear-shown]) .ui-text-input__clear {
     display: none;
 }
 
-// A field the reader cannot change has nothing to clear either, whatever ShowClearButton says.
-.ui-text-input.ui-disabled .ui-text-input__clear,
-.ui-text-input:has(.ui-text-input__field:is([readonly], :disabled)) .ui-text-input__clear {
+// Nothing to clear on a field the reader cannot change, or an empty one: every field has a placeholder, so its showing means empty.
+.ui-text-input:is(.ui-disabled, .ui-readonly) .ui-text-input__clear,
+.ui-text-input__field:placeholder-shown ~ .ui-text-input__clear {
     display: none;
 }
 
@@ -54,8 +46,7 @@ form.ui-text-input__row {
     .ui-cross-glyph(@ui-glyph-sm);
 }
 
-// The trailing action: the author's button, sized like the field's own adornments and muted (if ghost) until the pointer
-// reaches it; set half a step into the field's padding, since a wash touching the rounded corner reads as a block stuck to it.
+// The author's trailing button, sized like the adornments; half a step into the padding, as a wash touching the corner reads stuck.
 .ui-text-input__action {
     display: inline-flex;
     flex: 0 0 auto;

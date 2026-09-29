@@ -1,6 +1,5 @@
-// A number field's three texts: the invariant one the value travels as, the one the viewer edits (the culture's decimal separator,
-// nothing else), and the one shown at rest (the author's DisplayFormat in the culture, or the value grouped as typed). Pure, so
-// `node --test` runs it: `.ts` on the value import, `import type` on the rest.
+// A number field's three texts: the invariant one the value travels as, the one the viewer edits, and the one shown at rest.
+// Pure, so `node --test` runs it: `.ts` on the value import, `import type` on the rest.
 import { formatNumber } from "../rendering/number-format.ts";
 import type { NumberCulturePack } from "../rendering/number-format.ts";
 
@@ -38,22 +37,16 @@ export function displayNumberText(invariant: string, culture: NumberCulturePack,
     return formatNumber(value, `${options.thousands ? "N" : "F"}${Math.min(fraction, 99)}`, shown);
 }
 
-/**
- * What the viewer edits: the value with the culture's decimal separator and a plain minus, nothing grouped, no symbol — a percent
- * as the percent it shows, since 25 is what a reader who saw "25 %" types, not 0.25.
- */
+/** What the viewer edits: the culture's decimal separator and a plain minus, nothing grouped, no symbol; a percent as it shows. */
 export function editNumberText(invariant: string, culture: NumberCulturePack, format: string | null): string {
     if (!InvariantShape.test(invariant))
         return invariant;
 
+    // 25 is what a reader who saw "25 %" types, not 0.25.
     return (isPercent(format) ? shiftDecimal(invariant, 2) : invariant).replace(".", culture.decimalSeparator);
 }
 
-/**
- * The invariant text a shown or typed text stands for, or null when it is not a number; empty is empty. Group separators,
- * the currency and percent symbols and spaces are read past, the culture's decimal separator is the point, a percent is the
- * hundredth it shows, and a bracketed number is negative.
- */
+/** The invariant text a shown or typed text stands for — symbols and group separators read past — or null when it is no number. */
 export function parseNumberText(text: string, culture: NumberCulturePack, format: string | null): string | null {
     let rest = text.trim();
 
@@ -98,10 +91,7 @@ export function parseNumberText(text: string, culture: NumberCulturePack, format
     return negative && Number(scaled) !== 0 ? `-${scaled}` : scaled;
 }
 
-/**
- * Keeps what can be part of a number as the viewer types it — digits, the culture's decimal separator once, a leading minus —
- * and where the caret lands among what was kept.
- */
+/** Keeps what can be part of a number as it is typed — digits, one decimal separator, a leading minus — and where the caret lands. */
 export function sanitizeNumberText(raw: string, cursor: number, culture: NumberCulturePack, allowDecimals: boolean, allowNegative: boolean): { readonly value: string; readonly cursor: number } {
     const minus = new Set(["-", "−", culture.negativeSign]);
     let value = "";

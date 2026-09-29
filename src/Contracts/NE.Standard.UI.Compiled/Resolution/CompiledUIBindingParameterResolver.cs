@@ -11,12 +11,8 @@ namespace NE.Standard.UI.Compiled.Resolution;
 /// </summary>
 public static class CompiledUIBindingParameterResolver
 {
-    /// <summary>
-    /// Builds concrete template parameters from fixed and dynamic parameter definitions.
-    /// </summary>
-    /// <remarks>
-    /// Scope parameters fill no template slot, so the result can be shorter than <paramref name="parameters"/>.
-    /// </remarks>
+    /// <summary>Builds concrete template parameters from fixed and dynamic parameter definitions.</summary>
+    /// <remarks>Scope parameters fill no template slot, so the result can be shorter than <paramref name="parameters"/>.</remarks>
     public static object[] Build(CompiledUIBindingParameter[] parameters, object?[] dynamicParameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);

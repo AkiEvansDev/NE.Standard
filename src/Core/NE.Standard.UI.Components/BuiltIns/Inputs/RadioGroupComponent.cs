@@ -48,8 +48,6 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
 /// </summary>
 public sealed class RadioGroupComponent(string? id = null) : RadioGroupComponent<RadioGroupComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.radio-group";
 }

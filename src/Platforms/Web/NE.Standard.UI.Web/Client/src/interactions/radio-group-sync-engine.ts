@@ -1,3 +1,5 @@
+import { ValueBindingAttribute } from "../addressing/dom-attributes";
+import { isItemDisabled } from "./interactive-state";
 import { ownDescendants } from "./own-descendants";
 
 const RadioValueAttribute = "data-ui-radio-value";
@@ -7,8 +9,6 @@ const RadioGroupClass = "ui-radio-group";
 const ItemWrapperClass = "ui-radio-group__item";
 const GroupNameAttribute = "data-ui-radio-group-name";
 const BindValueIdAttribute = "data-ui-radio-bind-value-id";
-const DisabledAttribute = "data-ui-radio-disabled";
-const DisabledClass = "ui-disabled";
 
 export type RadioGroupSyncEngineOptions = {
     readonly root?: ParentNode;
@@ -48,25 +48,22 @@ export class RadioGroupSyncEngine {
                 }
             }
 
-            // Groups first, all of a batch at once, since claiming a name reads every group on the page: an item takes its name
-            // from the group it lands in.
+            // Groups first and all at once: claiming reads every group on the page, and an item takes its group's name.
             this.claimGroupNames(added.flatMap(groupsIn));
 
             for (const node of added)
                 this.decorateAddedItems(node);
         });
 
-        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, DisabledAttribute, "class"], childList: true, subtree: true });
+        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, "class"], childList: true, subtree: true });
     }
 
-    /**
-     * One rendered group, one name: each candidate that finds its name held by another group renames itself and its radios; the
-     * last holder keeps the name. The page's names are counted once, so a template's many copies cost one pass, not one each.
-     */
+    /** Gives each rendered group a name of its own: a candidate sharing one renames itself and its radios; the last holder keeps it. */
     private claimGroupNames(candidates: readonly HTMLElement[]): void {
         if (candidates.length === 0)
             return;
 
+        // Counted once, so a template's many copies cost one pass, not one each.
         const holders = new Map<string, number>();
 
         for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
@@ -112,16 +109,15 @@ export class RadioGroupSyncEngine {
         if (group === null)
             return;
 
-        // No value is a group with nothing chosen, not one to skip: its radios still take the read-only mark.
+        // No value is a group with nothing chosen, not one to skip: its radios still follow their options' Enabled.
         const value = group.getAttribute(RadioValueAttribute);
 
-        const groupDisabled = group.hasAttribute(DisabledAttribute);
-
+        // A read-only group keeps its radios focusable and readable; the refusal engine turns their change away.
         for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[]) {
             radio.checked = radio.value === value;
 
-            // The native radio sits beside the item template, so the template's own `inert` never reaches it.
-            const disabled = groupDisabled || isOptionDisabled(radio);
+            // The native radio sits beside the item template, so the template's own disabled state never reaches it.
+            const disabled = isOptionDisabled(radio);
 
             if (radio.disabled !== disabled)
                 radio.disabled = disabled;
@@ -161,7 +157,7 @@ export class RadioGroupSyncEngine {
         const bindValueId = group.getAttribute(BindValueIdAttribute);
 
         if (bindValueId !== null)
-            input.setAttribute("data-ui-bind-value", bindValueId);
+            input.setAttribute(ValueBindingAttribute, bindValueId);
 
         const dot = document.createElement("span");
 
@@ -181,5 +177,5 @@ function groupsIn(node: HTMLElement): HTMLElement[] {
 function isOptionDisabled(radio: HTMLInputElement): boolean {
     const wrapper = radio.closest<HTMLElement>(`.${ItemWrapperClass}`);
 
-    return wrapper !== null && (wrapper.classList.contains(DisabledClass) || wrapper.querySelector(`:scope > .${DisabledClass}`) !== null);
+    return wrapper !== null && isItemDisabled(wrapper);
 }

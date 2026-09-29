@@ -1,11 +1,5 @@
 @import "../mixins/interactive.less";
 
-// Read-only: the text stays readable, but there is no list to open and nothing to clear, so the two controls go.
-.ui-search__trigger:has(.ui-search__input[readonly]) .ui-select__clear,
-.ui-search__trigger:has(.ui-search__input[readonly]) .ui-select__chevron {
-    display: none;
-}
-
 // Search reuses the Select shell with a live text input as trigger; the browser's cancel button goes, the select's clear stands for it.
 .ui-search__input::-webkit-search-cancel-button {
     display: none;
@@ -15,8 +9,7 @@
     display: none !important;
 }
 
-// Closed with a choice made and no focus, the input hides behind the list's template; with nothing chosen it stays, or the
-// field would show neither. Focus counts like an open list, since the framework can land the keyboard here directly (Tab, a grid cell editor).
+// Closed, chosen and unfocused, the input hides behind the chosen option; focus counts as open, as the keyboard can land here directly.
 .ui-search.ui-search-mode--replace[data-ui-select-value]:not(.ui-select--open, :focus-within) .ui-search__input {
     .ui-visually-hidden();
 }

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
@@ -139,6 +141,9 @@ internal abstract partial class UIRuntimeBase
 
         var value = TryGetControllerValue(path);
 
+        // Every binding here reads the same path, so its row is asked once, by the first binding that needs the answer.
+        bool? content = null;
+
         for (var i = 0; i < bindings.Count; i++)
         {
             CompiledUIBinding binding = bindings[i];
@@ -152,9 +157,44 @@ internal abstract partial class UIRuntimeBase
             AddPendingUpdateNoLock(new ServerValueUIUpdate
             {
                 Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType)
+                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType),
+                Content = AsksRowItem(binding, dynamicParameters) && (content ??= IsReadOffContentItem(path))
             });
         }
+    }
+
+    /// <summary>Whether a binding's pushed value asks its row item for a content mark: only a row's binding, and only a word.</summary>
+    private static bool AsksRowItem(CompiledUIBinding binding, object?[] dynamicParameters)
+        => binding.IsTranslatable && dynamicParameters.Length > 0;
+
+    /// <summary>
+    /// Whether a value is read off a row item that says its words are content (<see cref="IContentItem"/>) — the innermost row on
+    /// the path, the one the first paint and a client-built row ask; an ordinary item nested under a content one is not content.
+    /// </summary>
+    /// <remarks>Walked segment by segment from the controller: the flush path builds no prefix path.</remarks>
+    private bool IsReadOffContentItem(RecursivePath path)
+    {
+        ReadOnlySpan<PathSegment> segments = path.AsSpan();
+        var rowEnd = segments.Length - 1;
+
+        while (rowEnd >= 0 && segments[rowEnd].Kind == PathSegmentKind.Property)
+            rowEnd--;
+
+        if (rowEnd < 0)
+            return false;
+
+        if (Controller is not RecursiveObservable current)
+            return TryGetControllerValue(path.Take(rowEnd + 1)) is IContentItem { IsContent: true };
+
+        object? item = current;
+
+        for (var i = 0; i <= rowEnd; i++)
+        {
+            if (item is not RecursiveObservable observable || !observable.TryGetRecursiveValue(segments[i], out item))
+                return false;
+        }
+
+        return item is IContentItem { IsContent: true };
     }
 
     private void AppendDescendantValueUpdatesNoLock(RecursivePath path)
@@ -177,7 +217,8 @@ internal abstract partial class UIRuntimeBase
             AddPendingUpdateNoLock(new ServerValueUIUpdate
             {
                 Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType)
+                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType),
+                Content = AsksRowItem(binding, dynamicParameters) && IsReadOffContentItem(bindingPath)
             });
         }
     }

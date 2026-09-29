@@ -1,10 +1,11 @@
 // With the extension: `npm test` loads this module directly and node --test resolves a specifier literally.
+import { ComponentIdAttribute, ComponentKeyAttribute } from "../addressing/dom-attributes.ts";
 import type { IdValue, WebRenderBindingMetadata, WebRenderBindingParameterMetadata } from "../metadata/metadata-index.ts";
 import { getBindingParameterKind, getIdValue } from "../metadata/metadata-index.ts";
 import { logWarn } from "../runtime/logger.ts";
 
 export type BindingTemplateResolution =
-    | { readonly ok: true; readonly value: unknown }
+    | { readonly ok: true; readonly value: unknown; /** The item the value was read off: the innermost, or the one a Dynamic parameter names. */ readonly scope?: unknown }
     | { readonly ok: false };
 
 export type ItemStackEntry = {
@@ -24,12 +25,13 @@ export function tryResolveItemTemplateValue(
     const path = template ?? "";
 
     if (path.length === 0 || path === ".")
-        return { ok: true, value: innermostItem };
+        return { ok: true, value: innermostItem, scope: innermostItem };
 
     // Scope parameters index nothing here, and leaving them in would misalign every "[]" the template has.
     const effectiveParameters = (parameters ?? []).filter(parameter => getBindingParameterKind(parameter.kind) !== "Scope");
 
     let current: unknown = innermostItem;
+    let scope: unknown = innermostItem;
     let currentValid = true;
     let parameterIndex = 0;
     let i = 0;
@@ -64,6 +66,7 @@ export function tryResolveItemTemplateValue(
                     return NotResolved;
 
                 current = scoped.value;
+                scope = scoped.value;
                 currentValid = true;
             }
             else {
@@ -105,7 +108,29 @@ export function tryResolveItemTemplateValue(
 
     return expectSegment || parameterIndex !== effectiveParameters.length || !currentValid
         ? NotResolved
-        : { ok: true, value: current };
+        : { ok: true, value: current, scope };
+}
+
+/** Whether a cloned element reads the scope of a row the server drew inside the template (a static list's), whose item the page never holds. */
+export function readsDrawnRow(element: Element, parameters: readonly WebRenderBindingParameterMetadata[] | null | undefined, stack: readonly ItemStackEntry[]): boolean {
+    for (const parameter of parameters ?? []) {
+        if (getBindingParameterKind(parameter.kind) !== "Dynamic")
+            continue;
+
+        const componentId = getIdValue(parameter.componentId);
+
+        if (componentId > 0 && !stack.some(entry => entry.scopeComponentId === componentId) && element.closest(`[${ComponentIdAttribute}="${componentId}"][${ComponentKeyAttribute}]`) !== null)
+            return true;
+    }
+
+    return false;
+}
+
+/** Whether an item says its words are content — shown as written, never looked up (`IContentItem.IsContent` on the server). */
+export function isContentItem(item: unknown): boolean {
+    const resolution = tryReadItemProperty(item, "IsContent");
+
+    return resolution.ok && resolution.value === true;
 }
 
 // One line per component: a miss that does happen would happen for every row of the collection.

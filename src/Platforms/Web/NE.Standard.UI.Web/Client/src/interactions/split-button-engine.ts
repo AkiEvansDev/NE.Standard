@@ -1,17 +1,16 @@
-// A split button's menu: opened from its end part (or its whole, as a menu button), placed under the button, dismissed
-// like every popup, and closed by the chosen entry.
+// A split button's menu: opened from its end part (or its whole, as a menu button), placed under it, closed by the chosen entry.
 
-import { MarkedMenuEntrySelector, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes";
-import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
-import { PopupDismissal } from "./popup-dismissal";
-import { moveFocusInto, restoreFocusTo } from "./popup-focus";
+import { MarkedMenuEntrySelector, MenuItemClass, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { OwnedPopups } from "./owned-popup.ts";
+import { focusOpenedList } from "./popup-focus.ts";
 
 const RootClass = "ui-split-button";
 const MainClass = "ui-split-button__main";
 const ToggleClass = "ui-split-button__toggle";
 const MenuClass = "ui-split-button__menu";
 const OpenClass = "ui-split-button--open";
-const MenuItemClass = "ui-menu-item";
+const ListClass = "ui-menu";
 const MenuGap = 4;
 
 export type SplitButtonEngineOptions = {
@@ -20,8 +19,13 @@ export type SplitButtonEngineOptions = {
 
 export class SplitButtonEngine {
     private readonly root: ParentNode;
-    private open: HTMLElement | null = null;
-    private returnFocus: HTMLElement | null = null;
+
+    // The whole button counts as inside: a press on its opener is this engine's to toggle, not the dismissal's to close.
+    private readonly menus = new OwnedPopups({
+        show: ({ owner }) => owner.classList.add(OpenClass),
+        hide: ({ owner }) => owner.classList.remove(OpenClass),
+        closesWhenReadOnly: false
+    });
 
     public constructor(options: SplitButtonEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -31,12 +35,6 @@ export class SplitButtonEngine {
 
         // On the click, not the press: the entry under the pointer has to activate first.
         document.addEventListener("click", domEvent => this.handleChoice(domEvent), false);
-
-        // The whole button counts as inside: a press on its opener is this engine's to toggle, not the dismissal's to close.
-        new PopupDismissal({
-            openPopups: () => this.open === null ? [] : [this.open],
-            close: () => this.close()
-        });
     }
 
     private handleClick(domEvent: Event): void {
@@ -45,39 +43,43 @@ export class SplitButtonEngine {
         if (opener !== null) {
             domEvent.preventDefault();
 
-            if (this.open === opener)
-                this.close();
+            if (this.menus.isOpen(opener))
+                this.menus.close(opener);
             else
                 this.openMenu(opener);
 
             return;
         }
 
+        const open = this.menus.current;
+
         // The main part pressed while the list is open runs its command and takes the list away with it.
-        if (this.open !== null && domEvent.target instanceof Element && domEvent.target.closest(`.${MainClass}`)?.closest(`.${RootClass}`) === this.open)
-            this.close();
+        if (open !== null && domEvent.target instanceof Element && domEvent.target.closest(`.${MainClass}`)?.closest(`.${RootClass}`) === open)
+            this.menus.close(open);
     }
 
-    /** The arrows open the menu from either opener the way they open a select, landing on the first entry. */
+    /** The arrows open the menu from either opener the way they open a select: ArrowDown on its first entry, ArrowUp on its last. */
     private handleKeyDown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || (domEvent.key !== "ArrowDown" && domEvent.key !== "ArrowUp"))
             return;
 
         const opener = resolveOpener(domEvent.target);
 
-        if (opener === null || this.open === opener)
+        if (opener === null || this.menus.isOpen(opener))
             return;
 
         domEvent.preventDefault();
-        this.openMenu(opener);
+        this.openMenu(opener, domEvent.key === "ArrowUp");
     }
 
     /** An entry chosen closes the menu; a caption or a rule is not a choice, a group's entry opens its block, a check turns in place. */
     private handleChoice(domEvent: Event): void {
-        if (this.open === null || !(domEvent.target instanceof Element))
+        const open = this.menus.current;
+
+        if (open === null || !(domEvent.target instanceof Element))
             return;
 
-        const menu = menuOf(this.open);
+        const menu = menuOf(open);
         const entry = domEvent.target.closest<HTMLElement>(`.${MenuItemClass}`);
 
         if (menu === null || entry === null || !menu.contains(entry))
@@ -86,49 +88,29 @@ export class SplitButtonEngine {
         if (entry.matches(`${PassiveMenuEntrySelector}, ${MarkedMenuEntrySelector}`))
             return;
 
-        this.close();
+        this.menus.close(open);
     }
 
-    private openMenu(button: HTMLElement): void {
-        this.close();
-
+    /** Opens the list afresh — from its first entry (its last for `fromEnd`) for a key, from none for a press — not where it was left. */
+    private openMenu(button: HTMLElement, fromEnd = false): void {
         const menu = menuOf(button);
+        const list = menu?.querySelector<HTMLElement>(`.${ListClass}`) ?? null;
 
-        if (menu === null)
+        if (menu === null || list === null)
             return;
-
-        this.open = button;
-        button.classList.add(OpenClass);
-
-        for (const opener of openersOf(button))
-            opener.setAttribute("aria-expanded", "true");
 
         // Under the whole pill, its end at the button's end: the list belongs to the button, not to the part that opened it.
-        placeAnchoredPopup(button, menu, { placement: "bottom-end", gap: MenuGap });
+        const opened = this.menus.open({
+            owner: button,
+            popup: menu,
+            anchor: button,
+            placement: { placement: "bottom-end", gap: MenuGap },
+            openers: openersOf(button)
+        });
 
-        this.returnFocus = moveFocusInto(menu);
-    }
-
-    private close(): void {
-        const button = this.open;
-
-        if (button === null)
-            return;
-
-        this.open = null;
-        button.classList.remove(OpenClass);
-
-        for (const opener of openersOf(button))
-            opener.setAttribute("aria-expanded", "false");
-
-        const menu = menuOf(button);
-
-        if (menu !== null) {
-            releaseAnchoredPopup(menu);
-            restoreFocusTo(this.returnFocus, menu);
-        }
-
-        this.returnFocus = null;
+        // Once shown: a hidden entry is no candidate for the keyboard.
+        if (opened)
+            focusOpenedList(list, ownDescendants(list, `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`, `.${ListClass}`), fromEnd);
     }
 }
 

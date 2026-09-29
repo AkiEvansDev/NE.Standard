@@ -7,9 +7,7 @@ using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Items;
 
-/// <summary>
-/// Applies a <see cref="UIComparisonOperator"/> to a pair of values.
-/// </summary>
+/// <summary>Applies a <see cref="UIComparisonOperator"/> to a pair of values.</summary>
 /// <remarks>
 /// Follows JavaScript's comparison rules, not .NET's, since that's what the rules already mean on the web: text unless the
 /// operator is numeric, <see langword="null"/> as an empty string.

@@ -147,8 +147,6 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
 /// </summary>
 public sealed class NumberInputComponent(string? id = null) : NumberInputComponent<NumberInputComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.number";
 }

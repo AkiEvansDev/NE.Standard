@@ -26,13 +26,12 @@
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+    transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
     // `.ui-action` and `.ui-menu-item` wear this class too, so the theme flag's ripple reaches every pressable one from here.
     .ui-press-ripple();
 }
 
-// A button with no [data-ui-id] is not a component root, so these custom properties would otherwise inherit from its host; a root
-// resets them in runtime.less, so a non-root button must reset them here.
+// A non-root button would inherit these from its host; a root resets them in runtime.less, this one here.
 .ui-button:not([data-ui-id]) {
     --ui-surface-color: initial;
     .ui-responsive-reset(--ui-max-width);
@@ -99,14 +98,14 @@
         .ui-disabled-state();
     }
 
-    // No dimming: that is what disabled looks like; the ring below signals busy, and `inert` stops the press.
+    // No dimming: that is what disabled looks like; the ring below signals busy, and the client refuses the press.
     .ui-button.ui-loading {
         cursor: progress;
     }
 
         // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead.
         .ui-button.ui-loading:not([data-ui-text-icon]) > .ui-button__content {
-            opacity: 0.35;
+            opacity: @ui-loading-label-opacity;
         }
 
     // Centred by default, but a label with a description is a row of two lines beside its icon, and a row reads from its start.
@@ -130,29 +129,33 @@
     background-color: var(--ui-surface-color, var(--ui-color-primary));
     color: var(--ui-color-on-primary);
     --ui-faint-base: var(--ui-color-on-primary);
+    --ui-ground: var(--ui-surface-color, var(--ui-color-primary));
 }
 
 .ui-button--accent {
     background-color: var(--ui-surface-color, var(--ui-color-accent));
     color: var(--ui-color-on-accent);
     --ui-faint-base: var(--ui-color-on-accent);
+    --ui-ground: var(--ui-surface-color, var(--ui-color-accent));
 }
 
 .ui-button--danger {
     background-color: var(--ui-surface-color, var(--ui-color-danger));
     color: var(--ui-color-on-danger);
     --ui-faint-base: var(--ui-color-on-danger);
+    --ui-ground: var(--ui-surface-color, var(--ui-color-danger));
 }
 
+// The variants with no ground of their own write in the ink of the one they stand on: the page's, or a filled ground's on-colour.
 .ui-button--outline {
     border-color: color-mix(in srgb, currentColor 34%, transparent);
     background-color: var(--ui-surface-color, transparent);
-    color: var(--ui-color-on-surface);
+    color: @ui-text-ink;
 }
 
 .ui-button--ghost {
     background-color: var(--ui-surface-color, transparent);
-    color: var(--ui-color-on-surface);
+    color: @ui-text-ink;
 }
 
 // The only variant that paints without tinting; the ground a row of destinations stands on.
@@ -164,11 +167,19 @@
 .ui-button--link {
     border-color: transparent;
     background-color: var(--ui-surface-color, transparent);
-    color: var(--ui-color-primary-ink);
-    // Its own hue, not the shared neutral wash: a link is a word in the brand colour, not a surface, and a neutral film reads as a ghost.
-    --ui-wash-hover: color-mix(in srgb, var(--ui-color-primary-ink) 10%, transparent);
-    --ui-wash-active: color-mix(in srgb, var(--ui-color-primary-ink) 18%, transparent);
+    color: @ui-link-ink;
+    // Its own hue, not the neutral wash: a link is a word in the brand colour, and a neutral film reads as a ghost.
+    --ui-wash-hover: color-mix(in srgb, @ui-link-ink 10%, transparent);
+    --ui-wash-active: color-mix(in srgb, @ui-link-ink 18%, transparent);
 }
+
+    // On a filled ground its word is the ground's ink, as the text around it, so the underline says it is a link; none on the page.
+    .ui-button--link .ui-text__title {
+        text-decoration-line: underline;
+        text-decoration-color: @ui-link-rest-underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.15em;
+    }
 
 // An inset tint rather than a raised shadow, for the same reason the resting state carries no elevation.
 .ui-button--primary@{ui-button-live}:hover,
@@ -184,8 +195,9 @@
     box-shadow: inset 0 0 0 999px color-mix(in srgb, black 16%, transparent);
 }
 
+// Without the mixin's own transition: it would replace .ui-button's list, and the edge and the ink would snap beside a fading wash.
 .ui-button--outline@{ui-button-live} {
-    .ui-reveal-hover();
+    .ui-reveal-hover(@transition: false);
 }
 
     // 48%, not near-solid: only firms up the hairline edge, since the wash above already says "pointed at".
@@ -200,13 +212,11 @@
 
 .ui-button--ghost@{ui-button-live},
 .ui-button--link@{ui-button-live} {
-    .ui-reveal-hover();
+    .ui-reveal-hover(@transition: false);
 }
 
 // A surface button owns an opaque ground, so the wash is mixed into it rather than laid translucent over the page.
 .ui-button--surface@{ui-button-live} {
-    transition: background-color @ui-motion-fast @ui-motion-ease;
-
     &:hover {
         background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-color, var(--ui-surface-raised)));
     }
@@ -216,8 +226,9 @@
     }
 }
 
-    // Link is the one variant whose label is the brand colour, so hover brightens the text too, via the Link component's mixin.
-    .ui-button--link@{ui-button-live}:hover {
+    // Link is the one variant whose label is the brand colour, so hover brightens the text too, via the Link component's mixin. On
+    // the parts, never the root: a filter makes the root the containing block of a popup inside it (a language list), which would jump.
+    .ui-button--link:not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]) {
         .ui-brighten-hover();
     }
 

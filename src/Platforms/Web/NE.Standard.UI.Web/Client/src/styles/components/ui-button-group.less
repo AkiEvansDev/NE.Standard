@@ -4,28 +4,24 @@
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
 
-// A field's strip cut into segments (button-group-engine.ts chooses among them): ground and edge are the field's, a hairline stands
-// between the segments, and the current one fills primary unless SelectionStyle says otherwise.
+// A field's strip cut into segments: the field's ground and edge, a hairline between segments, the current one filled.
 .ui-button-group {
     display: inline-flex;
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-field-ground();
+    // The field's list after the root's: the strip is a component root, and the field's list alone would stop it fading for Hide.
+    transition: @ui-root-transition, border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
     background-color: var(--ui-surface-color, var(--ui-field-rest));
     .ui-surface-image();
     // Reset on the root carrying [data-ui-id]; the size rules below re-read the chain with their own defaults.
     .ui-selected-scope();
-    // A strip longer than the room it is given — a phone's — scrolls sideways under the finger rather than cutting its last
-    // segments off; the rounded ends still clip what slides under them.
+    // A strip longer than its room scrolls sideways rather than cutting its last segments off; the rounded ends still clip.
     overflow-x: auto;
     overflow-y: clip;
     scrollbar-width: none;
 }
-
-    .ui-button-group.ui-disabled {
-        .ui-disabled-state();
-    }
 
 .ui-button-group--small {
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
@@ -78,14 +74,10 @@
         .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
     }
 
-    // The current segment: the primary fill and its ink by default, the selected vocabulary when the author sets one.
+    // The current segment: primary fill, or the author's selection style; no hover brightening, since the fill already says it.
     .ui-button-group__item[data-ui-selected] > .ui-button {
         .ui-selected-ground(var(--ui-color-primary));
         .ui-selected-ink(var(--ui-color-on-primary));
-    }
-
-    // A chosen segment does not brighten under the pointer: the fill already says what it is.
-    .ui-button-group__item[data-ui-selected] > .ui-button {
         .ui-reveal-hover-off({
             .ui-selected-ground(var(--ui-color-primary));
         });

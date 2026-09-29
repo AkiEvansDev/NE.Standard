@@ -106,11 +106,10 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
-    // The inks are lifted until each clears 4.5:1 on the dark page; Primary stays at Tint 2 since it's nearly always marked current some other way.
-    /// <summary>
-    /// <see cref="Primary"/> as ink: the colour text, icons and badge-text take when using that brand colour, read against
-    /// the page rather than <see cref="OnPrimary"/>. Backgrounds and fills use <see cref="Primary"/> itself.
-    /// </summary>
+    // A status ink is lifted until it clears 4.5:1 on its own 16 % tinted badge over the page and over a card. The brand inks clear
+    // the page (Primary stays at Tint 2 since it's nearly always marked current some other way); a tinted brand badge lifts its own words.
+    /// <summary><see cref="Primary"/> as ink: the colour text, icons and badge-text take when using that brand colour.</summary>
+    /// <remarks>Read against the page rather than <see cref="OnPrimary"/>; backgrounds and fills use <see cref="Primary"/> itself.</remarks>
     public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 2);
 
     /// <summary>
@@ -121,7 +120,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// <see cref="Info"/> as ink — see <see cref="PrimaryInk"/>.
     /// </summary>
-    public ColorVariant InfoInk { get; init; } = new(ColorName.QuantumBlue, ColorAdjustment.Tint, 3);
+    public ColorVariant InfoInk { get; init; } = new(ColorName.QuantumBlue, ColorAdjustment.Tint, 4);
 
     /// <summary>
     /// <see cref="Warning"/> as ink — see <see cref="PrimaryInk"/>.
@@ -131,12 +130,12 @@ public sealed record UIColorPalette
     /// <summary>
     /// <see cref="Success"/> as ink — see <see cref="PrimaryInk"/>.
     /// </summary>
-    public ColorVariant SuccessInk { get; init; } = new(ColorName.AuroraGreen, ColorAdjustment.Tint, 2);
+    public ColorVariant SuccessInk { get; init; } = new(ColorName.AuroraGreen, ColorAdjustment.Tint, 4);
 
     /// <summary>
     /// <see cref="Danger"/> as ink — see <see cref="PrimaryInk"/>.
     /// </summary>
-    public ColorVariant DangerInk { get; init; } = new(ColorName.StellarRed, ColorAdjustment.Tint, 3);
+    public ColorVariant DangerInk { get; init; } = new(ColorName.StellarRed, ColorAdjustment.Tint, 4);
 
     /// <summary>
     /// The color used to indicate a selected item or state.

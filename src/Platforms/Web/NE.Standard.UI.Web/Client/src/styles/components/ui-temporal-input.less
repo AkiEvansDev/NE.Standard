@@ -3,10 +3,11 @@
 @import "../mixins/popup.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
 
 // One clock reading, and the band that stands over the chosen one — the two have to agree to the pixel.
 @ui-temporal-cell-height: 1.75rem;
-@ui-temporal-cell-gap: 2px;
+@ui-temporal-cell-gap: @ui-list-entry-gap;
 // The chosen reading plus two either side: an odd number, since the selection band needs a middle row to sit on.
 @ui-temporal-visible-rows: 5;
 
@@ -21,10 +22,6 @@
     font: inherit;
 }
 
-    .ui-temporal-input.ui-disabled {
-        .ui-disabled-state();
-    }
-
 .ui-temporal-input__row {
     .ui-input-field();
     gap: @ui-space-2;
@@ -34,12 +31,7 @@
         color: var(--ui-text-muted);
     }
 
-    .ui-temporal-input__field:read-only {
-        cursor: default;
-    }
-
-// A period reads as one phrase: each field is as wide as its text, with the dash between them, so the row's spare width
-// stays after the second field instead of pulling the two apart.
+// A period reads as one phrase: each field as wide as its text, so the spare width stays after the second rather than between.
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__field {
     flex: 0 1 auto;
     width: auto;
@@ -47,8 +39,7 @@
     field-sizing: content;
 }
 
-// Too narrow for the phrase on one line (a phone), the end goes under the start rather than both being cut short; the block
-// padding is inside the one-line field's least height, so only two lines grow by it.
+// Too narrow (a phone), the end wraps under the start; the block padding sits inside the one-line least height, so only two lines grow.
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__row {
     flex-wrap: wrap;
     padding-block: @ui-space-1;
@@ -58,8 +49,7 @@
     flex: 0 0 auto;
 }
 
-// The control stays at the field's end, as every other field keeps its (a period's calendar toggle, a time's stepper), so
-// spare width goes between the phrase and the control, not after it.
+// The control stays at the field's end, as every field's does; the spare width goes before it.
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__toggle,
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__stepper {
     margin-inline-start: auto;
@@ -74,11 +64,6 @@
 .ui-temporal-input__toggle {
     .ui-field-adornment();
 }
-
-    .ui-temporal-input__toggle:disabled {
-        cursor: default;
-        opacity: 0.5;
-    }
 
     // The library's own calendar, so the toggle needs no icon package.
     .ui-temporal-input__toggle::before {
@@ -108,11 +93,13 @@
 }
 
     // The fill is this control's own focus affordance; a ring around one segment inside a bordered row reads as a second control.
-    .ui-temporal-input__segment:focus {
+    // A read-only segment is no caret: filled under a key's focus only, as nothing shows a keyboard mark after a pointer action.
+    .ui-temporal-input__segment:focus:is(:not([aria-readonly="true"]), @{ui-keyboard-focus}) {
         outline: none;
         background: var(--ui-color-primary);
         color: var(--ui-color-on-primary);
         --ui-faint-base: var(--ui-color-on-primary);
+        --ui-ground: var(--ui-color-primary);
     }
 
 :where(.ui-temporal-input__segment--empty),
@@ -125,7 +112,7 @@
     .ui-field-stepper();
 }
 
-.ui-temporal-input[data-ui-temporal-readonly] > .ui-temporal-input__row > .ui-temporal-input__stepper {
+.ui-temporal-input.ui-readonly > .ui-temporal-input__row > .ui-temporal-input__stepper {
     display: none;
 }
 
@@ -144,14 +131,14 @@
 .ui-temporal-input__popup {
     .ui-popup-surface();
     .ui-popup-scroll();
-    display: none;
+    .ui-popup-closed();
     flex-direction: column;
     gap: @ui-space-2;
     padding: @ui-space-2;
 }
 
 .ui-temporal-input--open > .ui-temporal-input__popup {
-    display: flex;
+    .ui-popup-open(flex);
 }
 
 // A row of its own for the calendar and clock panes: the popup is fixed and shrink-to-fit, so a footer beside them would inflate it.
@@ -190,7 +177,7 @@
 .ui-temporal-input__days {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
+    gap: @ui-list-entry-gap;
 }
 
 .ui-temporal-input__weekday {
@@ -218,11 +205,53 @@
     .ui-interactive-base();
 }
 
-    .ui-temporal-input__day:hover:not(:disabled),
-    .ui-temporal-input__month:hover:not(:disabled),
-    .ui-temporal-input__time-cell:hover:not(:disabled),
-    .ui-temporal-input__nav:hover:not(:disabled) {
-        background: var(--ui-wash-hover);
+    // The pointer's wash on every cell but a chosen one, which keeps its ground (the dial's reading stands in the band).
+    // A resting pointer's day stays quiet while a key lit another; the pointer takes it by moving (temporal-picker-engine.ts).
+    .ui-temporal-input__day {
+        .ui-entry-hover(~":is(.ui-temporal-input__day--selected, :disabled)");
+    }
+
+    .ui-temporal-input__days {
+        .ui-entry-quiet(~"> .ui-temporal-input__day"; ~""; ~":is(.ui-temporal-input__day--selected, :disabled)");
+    }
+
+    .ui-temporal-input__month {
+        .ui-entry-hover(~":is(.ui-temporal-input__month--selected, :disabled)");
+    }
+
+    .ui-temporal-input__time-cell {
+        .ui-entry-hover(~":is(.ui-temporal-input__time-cell--selected, :disabled)");
+    }
+
+    // A resting pointer's dial cell stays quiet while a key lit another, in any column (temporal-picker-engine.ts).
+    .ui-temporal-input__time-columns {
+        .ui-entry-quiet(~"> .ui-temporal-input__time-column > .ui-temporal-input__time-cell"; ~""; ~":is(.ui-temporal-input__time-cell--selected, :disabled)");
+    }
+
+    .ui-temporal-input__nav {
+        .ui-entry-hover(~":disabled");
+    }
+
+    // The keyboard's cell, lit only while a key put it there; a chosen cell is the keyboard's already.
+    .ui-temporal-input__day {
+        .ui-entry-keyboard(~".ui-temporal-input__day--selected");
+    }
+
+    // A period's day under the keyboard keeps its tint under the keyboard's wash: both are layers.
+    .ui-temporal-input__day:is(.ui-temporal-input__day--within, .ui-temporal-input__day--preview)@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected) {
+        background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
+    }
+
+    .ui-temporal-input__month {
+        .ui-entry-keyboard(~".ui-temporal-input__month--selected");
+    }
+
+    .ui-temporal-input__time-cell {
+        .ui-entry-keyboard(~".ui-temporal-input__time-cell--selected");
+    }
+
+    .ui-temporal-input__nav {
+        .ui-entry-keyboard();
     }
 
     .ui-temporal-input__day:disabled,
@@ -245,21 +274,20 @@
     background: var(--ui-color-primary);
     color: var(--ui-color-on-primary);
     --ui-faint-base: var(--ui-color-on-primary);
+    --ui-ground: var(--ui-color-primary);
 }
 
-// The days between a period's two ends, and the span a click would preview while choosing the second end: the same tint,
-// paler when only a preview, so the ends stay the strongest marks on the grid.
-.ui-temporal-input__day--within {
-    background: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+// The days within a period, paler as a preview so the ends stay strongest; a layer over the ground, so the washes go under it
+// and the quiet rule, which clears the ground, never takes the tint.
+.ui-temporal-input__day--within:not(.ui-temporal-input__day--selected) {
+    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+    background-image: linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
 }
 
 .ui-temporal-input__day--preview:not(.ui-temporal-input__day--selected) {
-    background: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
+    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
+    background-image: linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
 }
-
-    .ui-temporal-input__day--within:hover:not(:disabled) {
-        background: color-mix(in srgb, var(--ui-color-primary) 30%, transparent);
-    }
 
 // Which end the next click on the calendar sets.
 .ui-temporal-input__period-caption {
@@ -270,15 +298,10 @@
     letter-spacing: 0.04em;
 }
 
-    .ui-temporal-input__day--selected:hover:not(:disabled),
-    .ui-temporal-input__month--selected:hover:not(:disabled) {
-        background: var(--ui-color-primary);
-    }
-
 .ui-temporal-input__months {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
+    gap: @ui-list-entry-gap;
 }
 
 .ui-temporal-input__time {
@@ -348,7 +371,7 @@
     }
 }
 
-// A fixed height, not a minimum: the band above uses the same number, and a cell growing with its font would slide out from under it.
+// A fixed height, not a minimum: the band uses the same number, and a growing cell would slide out from under it.
 .ui-temporal-input__time-cell {
     flex: 0 0 auto;
     min-width: 2.75rem;

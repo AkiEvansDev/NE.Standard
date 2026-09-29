@@ -23,9 +23,7 @@ public interface IUIClientEndpoint
     /// </summary>
     Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, UIInstance instance, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// The runtime a page render may read its values from, when the host can say which one this load belongs to.
-    /// </summary>
+    /// <summary>The runtime a page render may read its values from, when the host can say which one this load belongs to.</summary>
     /// <remarks>
     /// Null means "render a fresh page": a render knows the session and address, not the window, so this answers only
     /// when unambiguous without it.
@@ -47,9 +45,7 @@ public interface IUIClientEndpoint
     /// </summary>
     Task<ServerChangeSet> ProcessChangeSetAsync(UIHandle handle, ClientChangeSet changeSet, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Processes a client-originated UI event.
-    /// </summary>
+    /// <summary>Processes a client-originated UI event.</summary>
     /// <remarks>
     /// A background command answered as accepted keeps <paramref name="cancellationToken"/> while it runs on, so a transport
     /// passes one that lives as long as the connection, not the request.

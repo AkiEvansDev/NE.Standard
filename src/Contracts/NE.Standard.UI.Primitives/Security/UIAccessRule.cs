@@ -50,9 +50,7 @@ public sealed class UIAccessRule
     /// <summary>
     /// Validates that the rule contains no empty role or permission entries.
     /// </summary>
-    /// <exception cref="ArgumentException">
-    /// The rule contains an empty role or permission collection, or a null, empty, or whitespace entry.
-    /// </exception>
+    /// <exception cref="ArgumentException">The rule contains an empty role or permission collection, or a null, empty, or whitespace entry.</exception>
     public void Validate()
     {
         if (Roles is not null && Roles.Count == 0)
@@ -68,12 +66,8 @@ public sealed class UIAccessRule
     /// <summary>
     /// Creates access rules from authorization attributes.
     /// </summary>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="attributes"/> or one of its elements is <see langword="null"/>.
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// An attribute contains invalid role or permission values.
-    /// </exception>
+    /// <exception cref="ArgumentNullException"><paramref name="attributes"/> or one of its elements is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">An attribute contains invalid role or permission values.</exception>
     public static UIAccessRule[] FromAttributes(IEnumerable<UIAuthorizeAttribute> attributes)
     {
         ArgumentNullException.ThrowIfNull(attributes);
@@ -103,12 +97,8 @@ public sealed class UIAccessRule
     /// <summary>
     /// Creates access rules from multiple authorization attribute groups.
     /// </summary>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="attributeGroups"/> is <see langword="null"/>.
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// An attribute contains invalid role or permission values.
-    /// </exception>
+    /// <exception cref="ArgumentNullException"><paramref name="attributeGroups"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">An attribute contains invalid role or permission values.</exception>
     public static UIAccessRule[] FromAttributes(params IEnumerable<UIAuthorizeAttribute>[] attributeGroups)
     {
         ArgumentNullException.ThrowIfNull(attributeGroups);

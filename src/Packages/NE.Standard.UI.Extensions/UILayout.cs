@@ -42,6 +42,10 @@ public static class UILayout
     /// two, three, four or six columns divide the grid evenly; anything else is refused.
     /// </summary>
     public static ContainerComponent Columns(double spacing = 16, params IVisualComponent[] children)
+        => Columns(spacing, cellAlignment: null, children);
+
+    // A null alignment lets each cell take its child's; a form row names one for every cell instead.
+    internal static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, IVisualComponent[] children)
     {
         ArgumentNullException.ThrowIfNull(children);
 
@@ -54,7 +58,7 @@ public static class UILayout
         var wide = children.Length > 3;
 
         for (var i = 0; i < children.Length; i++)
-            _ = columns.AddChild(Cell(children[i], i, (i * span) + 1, span, spacing, wide));
+            _ = columns.AddChild(Cell(children[i], i, (i * span) + 1, span, spacing, wide, cellAlignment));
 
         return columns;
     }
@@ -93,7 +97,9 @@ public static class UILayout
 
     // A cell, not a placement on the child (which may be any component). The presets set their own air by margins, leaving the
     // container's Spacing off: a cell's margin is above it while the cells stand one under another, before it once side by side.
-    private static StackPanelComponent Cell(IVisualComponent child, int index, int column, int span, double spacing, bool wide)
+    // The cell is only as tall as its child, so the child's VerticalAlignment has no room to act in it: the cell takes it over,
+    // unless the caller names one alignment for every cell.
+    private static StackPanelComponent Cell(IVisualComponent child, int index, int column, int span, double spacing, bool wide, UIAlignment? alignment = null)
     {
         var air = index == 0 ? 0 : spacing;
         UIThickness under = UIThickness.All(0, air, 0, 0);
@@ -103,7 +109,7 @@ public static class UILayout
 
         return new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(UIAlignment.Start)
+            .SetVerticalAlignment(alignment ?? child.VerticalAlignment ?? UIAlignment.Start)
             .SetMargin(wide ? UIResponsive<UIThickness>.Create(under, xl: beside) : UIResponsive<UIThickness>.Create(under, md: beside))
             .SetPlacement(wide ? UIResponsive<UIGridPlacement>.Create(stacked, xl: placed) : UIResponsive<UIGridPlacement>.Create(stacked, md: placed))
             .AddChild(child);

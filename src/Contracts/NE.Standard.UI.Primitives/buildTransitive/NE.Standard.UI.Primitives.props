@@ -8,6 +8,7 @@
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Constants" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Interaction" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Items" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Localization" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Styling" />
   </ItemGroup>
 

@@ -1,21 +1,18 @@
-// Which rows of a host are chosen, and how a gesture changes that: with one row, the gesture names it; with many, a plain
-// press chooses it alone, Ctrl adds or takes one, Shift takes the range to the anchor (the file manager's rules) — shared by
-// the items view, the table and the tree, from click and keyboard alike.
+// Which rows of a host are chosen and how a gesture changes that, by the file manager's rules (Ctrl adds or takes one, Shift takes
+// the range to the anchor) — for the items view, the table and the tree, by click and key alike.
 
 import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ItemsHostAttribute, SelectedAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute,
-    UnselectableAttribute
-} from "../addressing/dom-attributes";
-import { HiddenClass } from "../items/items-empty-renderer";
-import { isRowDisabled } from "./row-cursor";
-import { writeSelectedKey } from "./selected-key";
+    BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
+    SelectedKeysAttribute, SelectionAttribute, TableRowClass, UnselectableAttribute
+} from "../addressing/dom-attributes.ts";
+import { isItemDisabled } from "./interactive-state.ts";
+import { writeSelectedKey } from "./selected-key.ts";
 
 const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
 
-// The three hosts with rows to choose and the rows themselves; a root's rows are its own shape's, so a table in an items view's row
-// chooses nothing outside itself.
+// A root's rows are its own shape's, so a table in an items view's row chooses nothing outside itself.
 export const SelectionRootSelector = ".ui-items-view, .ui-table, .ui-tree";
-export const SelectionRowSelector = ".ui-items-view__item, .ui-table__row, .ui-tree__row";
+export const SelectionRowSelector = `.ui-items-view__item, .${TableRowClass}, .ui-tree__row`;
 
 /** The modifier keys a choosing gesture carried. */
 export type SelectionGesture = {
@@ -28,14 +25,15 @@ export const PlainGesture: SelectionGesture = { shift: false, ctrl: false };
 // The row a Shift range is measured from, per host: the last row chosen without Shift.
 const anchors = new WeakMap<HTMLElement, string>();
 
-/**
- * Names the row a Shift range is measured from, when no gesture has named one yet — a list reached by Tab has had no click to
- * take an anchor from, so without this every Shift move would range just one row.
- */
+/** Names the Shift range's anchor when no gesture has named one yet. */
 export function ensureAnchor(root: HTMLElement, row: HTMLElement | null): void {
-    if (row === null || anchors.has(root))
-        return;
+    // A list reached by Tab has had no click to take one from, and every Shift move would range just one row.
+    if (row !== null && !anchors.has(root))
+        setAnchor(root, row);
+}
 
+/** Names the row a Shift range is measured from outright: where a click put the cursor on a host whose click chooses nothing. */
+export function setAnchor(root: HTMLElement, row: HTMLElement): void {
     const key = keyOf(row);
 
     if (key.length > 0)
@@ -44,6 +42,29 @@ export function ensureAnchor(root: HTMLElement, row: HTMLElement | null): void {
 
 export function gestureOf(domEvent: MouseEvent | KeyboardEvent): SelectionGesture {
     return { shift: domEvent.shiftKey, ctrl: domEvent.ctrlKey || domEvent.metaKey };
+}
+
+/** The gesture a key makes on a host. */
+export function keyGestureOf(root: Element, domEvent: KeyboardEvent): SelectionGesture {
+    const gesture = gestureOf(domEvent);
+
+    // Where rows are chosen by the host's own (a grid's checkboxes), Shift adds its range: the keyboard must not undo the boxes.
+    return gesture.shift && root.hasAttribute(NoRowSelectAttribute) ? { shift: true, ctrl: true } : gesture;
+}
+
+/** Whether Enter chooses the row it opens: not where the rows are chosen by something of the host's own, whose choice it would replace. */
+export function choosesOnEnter(root: Element): boolean {
+    return !root.hasAttribute(NoRowSelectAttribute);
+}
+
+/** The box a row is drawn as: the row, or the component it wraps where the row is display: contents (a wrap's); null when not drawn. */
+export function rowBox(row: HTMLElement): HTMLElement | null {
+    if (row.getClientRects().length > 0)
+        return row;
+
+    const wrapped = row.querySelector<HTMLElement>(`:scope > [${ComponentIdAttribute}]`);
+
+    return wrapped !== null && wrapped.getClientRects().length > 0 ? wrapped : null;
 }
 
 /** The keys the host's mode reads as chosen. */
@@ -89,7 +110,7 @@ export function selectedRows(rows: readonly HTMLElement[]): HTMLElement[] {
 export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, gesture: SelectionGesture): boolean {
     const key = keyOf(row);
 
-    if (key.length === 0 || row.hasAttribute(UnselectableAttribute))
+    if (!isChoosable(row))
         return false;
 
     switch (root.getAttribute(SelectionAttribute)) {
@@ -149,6 +170,11 @@ function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys
         host.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+/** Whether a row takes a choice at all: it has a key, and is neither disabled nor refusing to be chosen. */
+function isChoosable(row: Element): boolean {
+    return keyOf(row).length > 0 && !row.hasAttribute(UnselectableAttribute) && !isItemDisabled(row);
+}
+
 /** The rows from one to the other, in the host's order, that can be chosen: drawn, enabled, not refusing. */
 function rangeBetween(rows: readonly HTMLElement[], from: HTMLElement, to: HTMLElement): HTMLElement[] {
     const start = rows.indexOf(from);
@@ -157,9 +183,7 @@ function rangeBetween(rows: readonly HTMLElement[], from: HTMLElement, to: HTMLE
     if (start < 0 || end < 0)
         return [to];
 
-    return rows
-        .slice(Math.min(start, end), Math.max(start, end) + 1)
-        .filter(row => row.getClientRects().length > 0 && !isRowDisabled(row) && !row.hasAttribute(UnselectableAttribute) && keyOf(row).length > 0);
+    return rows.slice(Math.min(start, end), Math.max(start, end) + 1).filter(row => rowBox(row) !== null && isChoosable(row));
 }
 
 function readKeyList(host: HTMLElement | null): string[] {
@@ -191,15 +215,12 @@ function keyOf(row: Element): string {
     return row.getAttribute(ComponentKeyAttribute) ?? "";
 }
 
-/**
- * The chosen rows as a package reaches them: the host owns the list (`SelectedKey`/`SelectedKeys` and its binding); these only
- * ask it to change. A package adds the gesture — a grid's checkbox column being the first.
- */
+/** The chosen rows as a package reaches them: the host owns the list and its binding; these only ask it to change. */
 export type ItemSelection = {
     isSelected(row: Element): boolean;
     /** Adds the row to the chosen ones or takes it out, leaving the rest alone. */
     toggle(row: Element): void;
-    /** Takes or clears every row named, in one write; the rows not named keep whatever they were. A row a filter hides is not taken. */
+    /** Takes or clears every row named in one write, leaving the rest; a row a filter hides is not taken. */
     setSelected(root: Element, rows: Iterable<Element>, selected: boolean): void;
     /** The same by key, for rows a virtualized host has not drawn: every key named is taken or cleared in one write. */
     setSelectedKeys(root: Element, keys: Iterable<string>, selected: boolean): void;
@@ -236,16 +257,19 @@ function setKeysSelected(root: Element, keys: Iterable<string>, selected: boolea
     if (!(root instanceof HTMLElement))
         return;
 
+    const rows = selectableRows(root);
+    // A drawn row that refuses a choice keeps what it was; a key with no row drawn (a virtualized host's) is taken as named.
+    const refusing = new Set(rows.filter(row => !isChoosable(row)).map(keyOf));
     const named = new Set<string>();
 
     for (const key of keys) {
-        if (key.length > 0)
+        if (key.length > 0 && !refusing.has(key))
             named.add(key);
     }
 
     const kept = [...readSelectedKeys(root)].filter(key => !named.has(key));
 
-    writeSelectedKeys(root, selectableRows(root), selected ? [...kept, ...named] : kept);
+    writeSelectedKeys(root, rows, selected ? [...kept, ...named] : kept);
 }
 
 /** The host's own rows, a nested list's left to it. */

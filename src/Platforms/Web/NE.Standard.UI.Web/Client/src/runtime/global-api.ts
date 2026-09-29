@@ -32,7 +32,7 @@ type PendingStringsRegistration = Readonly<Record<string, string>>;
 type PendingEngineRegistration = PluginEngine;
 
 /** The plugin contract's version (`ContractVersion` in plugin/ne-standard-ui.d.ts); plugin-api-check.ts holds the two equal. */
-const PluginContractVersion = 1;
+const PluginContractVersion = 2;
 
 export type NEStandardUIGlobalApi = {
     readonly contractVersion: typeof PluginContractVersion;

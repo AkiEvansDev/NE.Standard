@@ -140,18 +140,13 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// The entry for a key, created when there is none; a session at <paramref name="maxPerSession"/> gives up its longest-idle
-    /// disconnected runtime with no command running for it, answered in <paramref name="evicted"/> for the caller to dispose,
-    /// and is refused when every runtime it holds is in use. A page render's runtime (<paramref name="adopted"/> false) past
-    /// <paramref name="maxUnclaimedPerSession"/> gives up the session's longest-idle unclaimed one instead, never an adopted one.
-    /// </summary>
+    /// <summary>The entry for a key, created when there is none, within the session's limits.</summary>
     /// <remarks>
-    /// The factory runs the application's controller constructor, so it runs outside the lock every attach, render lookup,
-    /// flush and cleanup waits on; the entry goes in on a second look, which may find another attach got there first, or the
-    /// session full — then the runtime built is answered in <paramref name="unused"/>, and null when there was no room for it.
-    /// The caller disposes both, asynchronously: a scope holding a service that is only <see cref="IAsyncDisposable"/> refuses
-    /// a synchronous dispose.
+    /// Past a limit the session gives up its longest-idle runtime nobody uses (<paramref name="evicted"/>) — an unclaimed one for a page
+    /// render's (<paramref name="adopted"/> false) — and is refused when every one is in use. The factory runs the application's
+    /// controller constructor, so it runs outside the lock every attach, render lookup, flush and cleanup waits on; a runtime the second
+    /// look finds no place for is <paramref name="unused"/>. The caller disposes both asynchronously: a scope holding a service that is
+    /// only <see cref="IAsyncDisposable"/> refuses a synchronous dispose.
     /// </remarks>
     public UIRuntimeEntry? GetOrAdd(UIRuntimeKey key, string instanceId, Func<IUIRuntime> factory, DateTime utcNow, UIFlushOptions flush, int maxPerSession, int maxUnclaimedPerSession, bool adopted, out bool created, out bool attached, out int activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused)
     {

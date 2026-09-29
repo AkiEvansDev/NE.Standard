@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { chooseDay, isWithinPeriod, orderPeriod } from "../src/interactions/temporal-range.ts";
+import { chooseDay, isWithinChosenPeriod, isWithinPeriod, orderPeriod } from "../src/interactions/temporal-range.ts";
 
 const day = (date: number, hour = 0) => new Date(2026, 8, date, hour, 30);
 
@@ -64,4 +64,17 @@ test("a period typed the wrong way round is put right", () => {
 
     assert.equal(ordered.start?.getDate(), 10);
     assert.equal(ordered.end?.getDate(), 14);
+});
+
+test("a new start short of the old end tints no chosen span until the end is chosen", () => {
+    const started = chooseDay({ start: day(1), end: day(20) }, "start", day(9));
+
+    // The old end stands as the value, but the reader is choosing a new one: only the preview up to the pointer is drawn.
+    assert.equal(started.end?.getDate(), 20);
+    assert.equal(isWithinChosenPeriod(day(15), started, !started.complete), false);
+
+    const ended = chooseDay(started, started.active, day(12));
+
+    assert.equal(isWithinChosenPeriod(day(11), ended, !ended.complete), true);
+    assert.equal(isWithinChosenPeriod(day(15), ended, !ended.complete), false);
 });

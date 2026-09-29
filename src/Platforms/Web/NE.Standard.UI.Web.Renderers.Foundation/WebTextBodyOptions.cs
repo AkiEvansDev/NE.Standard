@@ -18,4 +18,10 @@ public readonly record struct WebTextBodyOptions
 
     /// <summary>Whether the title is a field's caption, which a live title change also writes into the field's accessible name.</summary>
     public bool NamesField { get; init; }
+
+    /// <summary>
+    /// Whether the host may be named by its tooltip while it shows no title — a button: a title that arrives takes that name off,
+    /// since the words it shows name the host then (<see cref="TextContentRendererBase.TooltipNamedAttribute"/>).
+    /// </summary>
+    public bool TooltipNamesHost { get; init; }
 }

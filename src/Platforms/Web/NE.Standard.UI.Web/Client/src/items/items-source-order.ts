@@ -1,5 +1,4 @@
-// The order the source holds a host's items in, kept apart from the host's children, since they stop showing it once a
-// sort or group order is applied, and need to come back to it.
+// The source order of a host's items, kept apart from its children, which lose it under a sort or group and must get it back.
 
 const orderByHost = new WeakMap<Element, Element[]>();
 

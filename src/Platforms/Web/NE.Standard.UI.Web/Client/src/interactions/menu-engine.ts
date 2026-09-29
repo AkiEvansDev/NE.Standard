@@ -1,20 +1,24 @@
 // Walking a menu from the keyboard, and firing an entry from its shortcut.
 
-import { findOpenModalDialog } from "./dialog-engine";
-import { ownDescendants } from "./own-descendants";
-import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
-import { KeyboardShortcut, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut";
-import { logWarn } from "../runtime/logger";
-import { MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes";
+import { findOpenModalDialog } from "./open-dialogs.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { focusByPointer } from "./popup-focus.ts";
+import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
+import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
+import { matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { MenuItemClass as ItemClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 
 const RootClass = "ui-menu";
-const ItemClass = "ui-menu-item";
 const SelectedModifier = "ui-menu-item--selected";
 const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
 
 const ShortcutAttribute = "data-ui-menu-shortcut";
+
+// A popup menu's entries, the only ones rendered as menu items (a check among them as a checkbox of the menu).
+const PopupEntrySelector = "[role='menuitem'], [role='menuitemcheckbox']";
 
 type ShortcutEntry = {
     readonly shortcut: KeyboardShortcut;
@@ -34,18 +38,17 @@ export class MenuEngine {
     public constructor(options: MenuEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        // The arrows are a menu's own, taken before anything else sees them; a shortcut waits for the bubble, so a field that
-        // takes the chord itself (a code field's Ctrl+S) has already prevented it.
+        // The arrows are taken first; a shortcut waits for the bubble, so a field that takes the chord itself has prevented it.
         this.root.addEventListener("keydown", domEvent => this.handleEntryKeydown(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
+        this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
 
         this.applyTabStops();
 
         if (this.root instanceof Node) {
-            // The shortcut registry is only invalidated, so the next press pays for the rebuild; tab stops can't wait for a press.
-            // Hand-rolled rather than observeComponents, since any change stales the shortcuts with no component to collect, while
-            // tab stops rebuild only for a change that touched a menu, not every row a table draws.
+            // Not observeComponents: any change stales the shortcuts (rebuilt on the next press); tab stops, which can't wait for a
+            // press, rebuild only for a change that touched a menu, not every row a table draws.
             const observer = new MutationObserver(mutations => {
                 this.shortcutsStale = true;
 
@@ -96,7 +99,12 @@ export class MenuEngine {
         const item = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
         const menu = item?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (item === null || menu === null)
+        if (item === null) {
+            this.enterFromContainer(domEvent);
+            return;
+        }
+
+        if (menu === null)
             return;
 
         if (domEvent.key === "Enter" || domEvent.key === " ") {
@@ -123,6 +131,26 @@ export class MenuEngine {
         next.focus();
     }
 
+    /** A popup menu the pointer opened holds the keyboard itself, no entry current: the first arrow enters at the near end. */
+    private enterFromContainer(domEvent: KeyboardEvent): void {
+        const container = domEvent.target instanceof HTMLElement && domEvent.target.getAttribute("role") === "menu" ? domEvent.target : null;
+        const menu = container === null ? null : container.matches(`.${RootClass}`) ? container : container.querySelector<HTMLElement>(`.${RootClass}`);
+
+        if (menu === null)
+            return;
+
+        const items = this.ownItems(menu);
+        const next = resolveRovingTarget({ key: domEvent.key, items, current: null, axis: menu.classList.contains(HorizontalClass) ? "horizontal" : "vertical" });
+
+        if (next === null)
+            return;
+
+        domEvent.preventDefault();
+
+        applyRovingTabIndex(items, next);
+        next.focus();
+    }
+
     /** Keeps the menu a single tab stop: whichever entry the user last reached is the one Tab returns to. */
     private handleFocusIn(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
@@ -135,10 +163,23 @@ export class MenuEngine {
             applyRovingTabIndex(this.ownItems(menu), item);
     }
 
-    /**
-     * A shortcut is an accelerator: fires from anywhere on the page, a field included, unless the field took the chord itself. An
-     * unmodified key belongs to the caret's text, and an open modal keeps outside entries out of reach, like the pointer.
-     */
+    /** In a popup menu the pointer moves the keyboard's entry, as in a native menu. */
+    private handlePointerMove(domEvent: Event): void {
+        const item = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${ItemClass}`) : null;
+
+        // A popup's entries only: a sidebar's entry focused on hover would open its tooltip at once and keep it.
+        if (item === null || item === document.activeElement || !item.matches(PopupEntrySelector) || item.matches(PassiveMenuEntrySelector) || !isRovingCandidate(item))
+            return;
+
+        // The menu's keyboard is in it: on an entry, or on the menu itself where the pointer opened it.
+        const active = document.activeElement;
+        const holdsMenu = active instanceof HTMLElement && active.getAttribute("role") === "menu" && active.contains(item);
+
+        if (holdsMenu || item.closest(`.${RootClass}`)?.contains(active) === true)
+            focusByPointer(item);
+    }
+
+    /** Fires an entry from its shortcut anywhere on the page, a field included, unless the field took the chord itself. */
     private handleShortcutKeydown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
             return;
@@ -146,6 +187,7 @@ export class MenuEngine {
         if (this.shortcutsStale)
             this.rebuildShortcuts();
 
+        // An unmodified key belongs to the caret's text.
         if (this.shortcuts.size === 0 || isTypingTarget(domEvent))
             return;
 
@@ -156,6 +198,7 @@ export class MenuEngine {
             if (entry === null || !matchesShortcut(entry.shortcut, domEvent))
                 continue;
 
+            // An open modal keeps outside entries out of reach, as it does the pointer.
             if (!isRovingCandidate(entry.element) || (modal !== null && !modal.contains(entry.element)))
                 return;
 
@@ -209,10 +252,7 @@ export class MenuEngine {
     }
 }
 
-/**
- * The keyboard's press on an entry. An entry is a link, and one without an address has no press of its own for Enter or Space, so
- * the click is raised here; one with an address is the browser's to follow on Enter.
- */
+/** The keyboard's press on an entry; Enter on one with an address is the browser's to follow. */
 function pressEntry(domEvent: KeyboardEvent, entry: HTMLElement): void {
     if (domEvent.target !== entry || domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey || entry.matches(PassiveMenuEntrySelector) || !isRovingCandidate(entry))
         return;
@@ -220,6 +260,7 @@ function pressEntry(domEvent: KeyboardEvent, entry: HTMLElement): void {
     if (entry.hasAttribute("href") && domEvent.key === "Enter")
         return;
 
+    // An entry is a link, and one without an address has no press of its own for Enter or Space.
     domEvent.preventDefault();
 
     if (!domEvent.repeat)

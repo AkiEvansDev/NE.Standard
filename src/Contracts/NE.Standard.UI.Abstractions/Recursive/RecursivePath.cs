@@ -136,9 +136,7 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
     /// <summary>
     /// Parses a recursive path string.
     /// </summary>
-    /// <exception cref="FormatException">
-    /// <paramref name="path"/> is not a valid recursive path.
-    /// </exception>
+    /// <exception cref="FormatException"><paramref name="path"/> is not a valid recursive path.</exception>
     public static RecursivePath Parse(string path)
     {
         ArgumentNullException.ThrowIfNull(path);

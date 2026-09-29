@@ -8,10 +8,10 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
-/// Stages values too large for the hub beside the change set; the client fetches by token before applying (<c>docs/VALUES.md</c>
-/// §2). The one gate for every outgoing change set. A value serialized to measure and found small is reused as-is
-/// (<see cref="WebRawJsonValue"/>), so it's serialized only once.
+/// The one gate for every outgoing change set: stages values too large for the hub beside it, which the client fetches by token
+/// before applying (<c>docs/VALUES.md</c> §2).
 /// </summary>
+/// <remarks>A value serialized to measure and found small is reused as-is (<see cref="WebRawJsonValue"/>), so it's serialized only once.</remarks>
 internal sealed class WebOutgoingValues
 {
     /// <summary>The size past which a value is staged, in bytes of its JSON; the client's own threshold for the other direction.</summary>
@@ -44,8 +44,8 @@ internal sealed class WebOutgoingValues
 
             staged ??= [.. changes.Updates];
             staged[i] = json.Length > LargeValueBytes
-                ? new ServerValueUIUpdate { Address = update.Address, ValueToken = _store.StageOutgoing(sessionId, json, readers), ExceptInstanceId = update.ExceptInstanceId }
-                : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), ExceptInstanceId = update.ExceptInstanceId };
+                ? new ServerValueUIUpdate { Address = update.Address, ValueToken = _store.StageOutgoing(sessionId, json, readers), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId }
+                : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId };
         }
 
         return staged is null ? changes : new ServerChangeSet { Updates = staged };

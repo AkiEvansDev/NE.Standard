@@ -16,8 +16,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>
 /// A table that shows the rows of a keyed collection under a header, one template per column, filtering and sorting by rule,
-/// selecting and scrolling like an items view. Sorting by header, editing and paging are an add-on's.
+/// selecting and scrolling like an items view.
 /// </summary>
+/// <remarks>Sorting by header, editing and paging are an add-on's.</remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
@@ -87,12 +88,12 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
     }
 
-    /// <summary>
-    /// Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties. Defaults to
-    /// <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the table
-    /// scrolls, and pinned columns must lead.
-    /// </summary>
-    /// <remarks>Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column through the same verb.</remarks>
+    /// <summary>Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties.</summary>
+    /// <remarks>
+    /// Defaults to <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the
+    /// table scrolls, and pinned columns must lead. Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column
+    /// through the same verb.
+    /// </remarks>
     public virtual T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false)
         => AddColumn(new UITableColumn(key ?? NextColumnKey(), caption, width ?? UIGridUnit.Auto(), alignment) { Pinned = pinned }, template);
 
@@ -100,10 +101,8 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     protected string NextColumnKey()
         => (_columns.Count + 1).ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Hides the column keyed <paramref name="key"/> below viewport <paramref name="tier"/>; a viewer's chooser may still show it.
-    /// Applied after the column is added, so the adding verbs stay short.
-    /// </summary>
+    /// <summary>Hides the column keyed <paramref name="key"/> below viewport <paramref name="tier"/>; a viewer's chooser may still show it.</summary>
+    /// <remarks>Applied after the column is added, so the adding verbs stay short.</remarks>
     public T HideColumnBelow(string key, UIResponsiveTier tier)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -208,8 +207,6 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
 /// </summary>
 public sealed class TableComponent(string? id = null) : TableComponent<TableComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.table";
 }

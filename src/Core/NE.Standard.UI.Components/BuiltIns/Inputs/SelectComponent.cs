@@ -24,8 +24,6 @@ public abstract class SelectComponent<T>(string? id = null) : SelectComponent<T,
 /// </summary>
 public sealed class SelectComponent(string? id = null) : SelectComponent<SelectComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.select";
 }

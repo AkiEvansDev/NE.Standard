@@ -2,12 +2,8 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Styling;
 
-/// <summary>
-/// What a chosen item looks like: ground, ink, and an edge mark; unset parts keep the control's default.
-/// </summary>
-/// <remarks>
-/// Reaches the stylesheet as four custom properties (<c>--ui-selected-*</c>), shared by custom and built-in looks alike.
-/// </remarks>
+/// <summary>What a chosen item looks like: ground, ink, and an edge mark; unset parts keep the control's default.</summary>
+/// <remarks>Reaches the stylesheet as five custom properties (<c>--ui-selected-*</c>), shared by custom and built-in looks alike.</remarks>
 /// <param name="Background">The ground a chosen item is drawn on.</param>
 /// <param name="Foreground">The ink a chosen item's text takes.</param>
 /// <param name="Mark">The edge a chosen item is marked on.</param>

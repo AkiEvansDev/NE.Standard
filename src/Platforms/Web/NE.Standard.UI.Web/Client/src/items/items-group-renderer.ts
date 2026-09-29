@@ -1,6 +1,6 @@
-import { GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
+import { GroupAttribute, GroupHeaderAttribute, HiddenClass } from "../addressing/dom-attributes";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort";
-import { HiddenClass, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
+import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
 import { resolveHostMode } from "./items-host-mode";
 import { placeInOrder } from "./items-dom-order";
 import { getSourceOrder } from "./items-source-order";

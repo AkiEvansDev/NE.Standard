@@ -14,4 +14,7 @@ internal interface IUIControllerLifecycle
 
     /// <summary>A connection detached.</summary>
     Task DetachedAsync(CancellationToken cancellationToken);
+
+    /// <summary>A connection's session moved to another language; <see cref="Shell.Runtime.UIContext.Handle"/> is that connection.</summary>
+    Task LanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken);
 }

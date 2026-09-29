@@ -1,12 +1,11 @@
 import { DomRegistry } from "../addressing/dom-registry";
 import { getIdValue } from "../metadata/metadata-index";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
-import { PopupDismissal } from "./popup-dismissal";
-import { moveFocusInto, restoreFocusTo } from "./popup-focus";
+import { OwnedPopups } from "./owned-popup";
 import { observeComponents } from "./dom-mutations";
+import { isReadOnly } from "./interactive-state";
 import { PointerDrag } from "./pointer-drag";
-import { clampByte, toHexByte } from "../rendering/color-bytes";
+import { clampByte, onColorToken, toHexByte } from "../rendering/color-bytes";
 
 const RootClass = "ui-color-input";
 const OpenClass = "ui-color-input--open";
@@ -32,10 +31,10 @@ const OpacityAttribute = "data-ui-color-opacity";
 const NameAttribute = "data-ui-color-name";
 const NameSelectedAttribute = "data-ui-color-name-selected";
 const FormatAttribute = "data-ui-color-format";
-const ReadOnlyAttribute = "data-ui-color-readonly";
 const VariantAttribute = "data-ui-color-variant";
-const PickerOfferedAttribute = "data-ui-color-picker";
-const PaletteOfferedAttribute = "data-ui-color-palette";
+// On the root: the pane the author took away; each is offered unless marked.
+const NoPickerAttribute = "data-ui-color-no-picker";
+const NoPaletteAttribute = "data-ui-color-no-palette";
 
 const PopupGap = 4;
 
@@ -77,10 +76,11 @@ export class ColorInputEngine {
     private readonly root: ParentNode;
     private readonly states = new WeakMap<HTMLElement, ColorState>();
 
-    /** What held focus before each popup opened, so closing it can hand focus back. */
-    private readonly returnFocus = new WeakMap<HTMLElement, HTMLElement>();
-
-    private openInput: HTMLElement | null = null;
+    // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
+    private readonly popups = new OwnedPopups({
+        show: ({ owner }) => owner.classList.add(OpenClass),
+        hide: ({ owner }) => owner.classList.remove(OpenClass)
+    });
 
     public constructor(options: ColorInputEngineOptions = {}) {
         this.options = options;
@@ -99,7 +99,7 @@ export class ColorInputEngine {
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [FormatAttribute, ReadOnlyAttribute, VariantAttribute, PickerOfferedAttribute, PaletteOfferedAttribute] },
+            { childList: true, attributeFilter: [FormatAttribute, VariantAttribute, NoPickerAttribute, NoPaletteAttribute] },
             inputs => this.applyAll(inputs));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -109,8 +109,7 @@ export class ColorInputEngine {
         new PointerDrag<ColorDragContext>({
             root: this.root,
             resolveHandle: target => target.closest<HTMLElement>(`[${SquareAttribute}], [${HueAttribute}]`),
-            // Reads the pointer's own position against the box, not a delta from where the press began, so the colour under the
-            // pointer at the press itself is the first one applied.
+            // Read against the box, not as a delta from the press, so the colour under the pointer at the press is the first applied.
             begin: (handle, point) => {
                 const input = handle.closest<HTMLElement>(`.${RootClass}`);
 
@@ -126,12 +125,6 @@ export class ColorInputEngine {
             move: (context, _, point) => this.applyPoint(context, point),
             // Every position along the way was drawn; the colour the pointer let go on is the one sent, not one round trip per move.
             end: (_, context) => this.send(context.input)
-        });
-
-        // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
-        new PopupDismissal({
-            openPopups: () => this.openInput === null ? [] : [this.openInput],
-            close: input => this.setOpen(input, false)
         });
     }
 
@@ -192,13 +185,13 @@ export class ColorInputEngine {
         // On the root rather than the swatch: the swatch, the thumbs and the text across it all read the same colour.
         writeStyle(input, "--ui-color-input-color", state.held ? toRgbaCss(red, green, blue, state.opacity) : "transparent");
         writeStyle(input, "--ui-color-input-solid", toRgbaCss(red, green, blue, 255));
-        writeStyle(input, "--ui-color-input-on-color", state.held ? onColor(red, green, blue, state.opacity) : "inherit");
+        // Judged over white: the swatch composites the colour over a white checkerboard, which is what its text stands on.
+        writeStyle(input, "--ui-color-input-on-color", state.held ? onColorToken(red, green, blue, state.opacity) : "inherit");
         writeTexts(input, state.held ? describe(input, red, green, blue, state.opacity) : "");
 
         this.applyPicker(input, state, red, green, blue);
 
-        // The palette's chip and the pane in front follow the name and the pane alone; a drag across the square changes neither,
-        // and runs on every pointer move.
+        // Only on a change of name or pane: a drag across the square changes neither, and runs on every pointer move.
         if (previous === undefined || previous.name !== state.name || previous.pane !== state.pane || previous.held !== state.held) {
             this.applyPalette(input, state);
             this.applyPanes(input, state);
@@ -419,14 +412,11 @@ export class ColorInputEngine {
         this.commit(input, state => ({ ...state, saturation, value, name: null }), false);
     }
 
-    /**
-     * Draws the new state and writes it into the hidden input; `send` raises the input's ordinary two-way change. A gesture still
-     * moving writes without sending, so a re-read meanwhile (a patched format) reads the colour on screen, and sends once it ends.
-     */
+    /** Draws the new state and writes it into the hidden input, raising its two-way change unless a gesture is still moving. */
     private commit(input: HTMLElement, next: (state: ColorState) => ColorState, send = true): void {
         const state = this.states.get(input);
 
-        if (state === undefined || input.hasAttribute(ReadOnlyAttribute))
+        if (state === undefined || isReadOnly(input))
             return;
 
         // Picking is what makes a control that held nothing hold something, so the flag is set once here.
@@ -439,6 +429,7 @@ export class ColorInputEngine {
         if (valueInput === null)
             return;
 
+        // Written while a gesture still moves too, so a re-read meanwhile (a patched format) reads the colour on screen.
         valueInput.value = toCanonical(updated, this.resolveRgb(input, updated));
 
         if (send)
@@ -447,67 +438,48 @@ export class ColorInputEngine {
 
     /** Sends what the hidden input holds through its two-way change. */
     private send(input: HTMLElement): void {
-        if (input.hasAttribute(ReadOnlyAttribute))
+        if (isReadOnly(input))
             return;
 
         input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     private toggle(input: HTMLElement | null): void {
-        // Nothing to open once the control offers neither pane.
-        if (input === null || input.hasAttribute(ReadOnlyAttribute))
+        // Nothing to open once the control offers neither pane; a read-only one the popups refuse to open.
+        if (input === null || (input.hasAttribute(NoPickerAttribute) && input.hasAttribute(NoPaletteAttribute)))
             return;
 
-        if (!input.hasAttribute(PickerOfferedAttribute) && !input.hasAttribute(PaletteOfferedAttribute))
+        if (this.popups.isOpen(input)) {
+            this.popups.close(input);
             return;
+        }
 
-        this.setOpen(input, !input.classList.contains(OpenClass));
-    }
-
-    private setOpen(input: HTMLElement, open: boolean): void {
         const popup = input.querySelector<HTMLElement>(`.${PopupClass}`);
-
-        if (open && input.hasAttribute(ReadOnlyAttribute))
-            return;
+        const toggle = input.querySelector<HTMLElement>(`[${ToggleAttribute}]`);
 
         if (popup === null)
             return;
 
-        if (this.openInput !== null && this.openInput !== input)
-            this.setOpen(this.openInput, false);
-
-        input.classList.toggle(OpenClass, open);
-        input.querySelector<HTMLElement>(`[${ToggleAttribute}]`)?.setAttribute("aria-expanded", open ? "true" : "false");
-
-        if (!open) {
-            releaseAnchoredPopup(popup);
-            this.openInput = null;
-            restoreFocusTo(this.returnFocus.get(input), popup);
-            this.returnFocus.delete(input);
-            return;
-        }
-
-        this.openInput = input;
-
-        // Anchored to the variant that is showing, not the root, which also holds the label and any stretched height.
+        // The showing variant, not the root, which also holds the label and any stretched height; the focus lands on the showing tab.
         const anchor = input.getAttribute(VariantAttribute) === "swatch"
             ? input.querySelector<HTMLElement>(`.${SwatchButtonClass}`)
             : input.querySelector<HTMLElement>(`.${RowClass}`);
 
-        placeAnchoredPopup(anchor ?? input, popup, { placement: "bottom-end", gap: PopupGap });
-
-        // Focus follows the popup open, landing on the tab that is showing, and comes back when it closes.
-        const previous = moveFocusInto(popup, popup.querySelector<HTMLElement>(`[${TabSelectedAttribute}]`));
-
-        if (previous !== null)
-            this.returnFocus.set(input, previous);
+        this.popups.open({
+            owner: input,
+            popup,
+            anchor: anchor ?? input,
+            placement: { placement: "bottom-end", gap: PopupGap },
+            openers: toggle === null ? [] : [toggle],
+            focus: popup.querySelector<HTMLElement>(`[${TabSelectedAttribute}]`) ?? true
+        });
     }
 }
 
 // Both panes are always in the DOM, so a pane the root no longer offers hands over to the other one.
 function offeredPane(input: HTMLElement, preferred: "picker" | "palette"): "picker" | "palette" {
     const offers = (pane: "picker" | "palette") =>
-        input.hasAttribute(pane === "picker" ? PickerOfferedAttribute : PaletteOfferedAttribute);
+        !input.hasAttribute(pane === "picker" ? NoPickerAttribute : NoPaletteAttribute);
 
     if (offers(preferred))
         return preferred;
@@ -526,27 +498,6 @@ function emptyState(pane: "picker" | "palette"): ColorState {
 
 function sameRgb(left: readonly number[], right: readonly number[]): boolean {
     return left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
-}
-
-/** What reads on top of the colour, by WCAG relative luminance — the same test as `UIColorContrast.IsLight`. */
-function onColor(red: number, green: number, blue: number, opacity: number): string {
-    // Judged on what is behind the text: the swatch composites the colour over a white checkerboard.
-    const alpha = opacity / 255;
-    const over = (channel: number) => (channel * alpha) + (255 * (1 - alpha));
-
-    return relativeLuminance(over(red), over(green), over(blue)) > 0.1791
-        ? "var(--ui-color-on-light)"
-        : "var(--ui-color-on-dark)";
-}
-
-function relativeLuminance(red: number, green: number, blue: number): number {
-    return (0.2126 * linearChannel(red)) + (0.7152 * linearChannel(green)) + (0.0722 * linearChannel(blue));
-}
-
-function linearChannel(channel: number): number {
-    const value = channel / 255;
-
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 
 function readValue(input: HTMLElement): string {

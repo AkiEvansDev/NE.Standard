@@ -1,7 +1,8 @@
-// A button that is a toggle: a press flips its pressed state and raises a `change`, sent like any field's by the value
-// binding engine. Started before the event pipeline, so a click command from the same press already reads the new state.
+// A toggle button: a press flips its pressed state and raises a `change`, sent like any field's.
+// Started before the event pipeline, so a click command from the same press already reads the new state.
 
 import { ValueKindAttribute } from "../addressing/dom-attributes";
+import { isInert } from "./interactive-state";
 
 const PressedKind = "pressed";
 const ButtonSelector = `.ui-button[${ValueKindAttribute}="${PressedKind}"]`;
@@ -23,7 +24,7 @@ export class ToggleButtonEngine {
 
         const button = domEvent.target.closest<HTMLElement>(ButtonSelector);
 
-        if (button === null || button.matches(":disabled, .ui-disabled"))
+        if (button === null || isInert(button))
             return;
 
         button.setAttribute("aria-pressed", button.getAttribute("aria-pressed") === "true" ? "false" : "true");

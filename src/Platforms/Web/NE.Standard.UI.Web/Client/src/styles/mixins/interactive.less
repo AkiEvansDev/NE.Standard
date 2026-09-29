@@ -18,15 +18,17 @@
     border: 0;
 }
 
+// The disabled look. The element stays hit-testable, so its tooltip still says why; what it refuses is the client's, not the pointer's.
 .ui-disabled-state() {
     opacity: var(--ui-disabled-opacity);
     cursor: default;
-    pointer-events: none;
 }
 
-// Mixed from the theme's contrast colour, not currentColor, so the wash is the surface reacting rather than the label's colour.
-.ui-reveal-hover() {
-    transition: background-color @ui-motion-fast @ui-motion-ease;
+// The theme's wash, not currentColor: the surface reacting, not the label. `@transition: false` where the element has its own list.
+.ui-reveal-hover(@transition: true) {
+    & when (@transition = true) {
+        transition: background-color @ui-motion-fast @ui-motion-ease;
+    }
 
     &:hover {
         background-color: var(--ui-wash-hover);
@@ -37,9 +39,12 @@
     }
 }
 
-// A button that answers the pointer: neither disabled, loading, nor natively disabled. Every state rule, and every rule taking
-// one back, spells the guard through this, so the two tie at one specificity.
-@ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled)";
+// A button that answers the pointer: not disabled or loading, nor owning a popup the pointer is in (`:hover` holds on ancestors).
+// State rules and take-backs all spell it, so they tie (the popup part weighs nothing); never inside another `:has()`, dropped whole.
+@ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not(:has([role='menu']:hover, [role='listbox']:hover)))";
+
+// A field root that answers the pointer: not disabled or read-only (a read-only one keeps its focus edge, but lifts nothing).
+@ui-field-live: ~":not(.ui-disabled):not(.ui-readonly)";
 
 // Takes .ui-reveal-hover() off an element reacting another way; the selector chain must match the ghost button's for equal specificity.
 .ui-reveal-hover-off(@rules: {}) {

@@ -108,8 +108,6 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
 /// </summary>
 public sealed class ProgressComponent(string? id = null) : ProgressComponent<ProgressComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.progress";
 }

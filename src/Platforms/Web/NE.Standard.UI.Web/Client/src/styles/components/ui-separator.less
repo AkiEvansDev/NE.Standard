@@ -1,15 +1,16 @@
+@import "../core/tokens.less";
 @import "../mixins/responsive.less";
 
 .ui-separator.ui-orientation--horizontal {
     align-self: stretch;
-    .ui-responsive-property(min-width, --ui-min-width, 1rem);
+    .ui-responsive-floor(min-width, --ui-min-width, 1rem, --ui-width);
     .ui-responsive-property(min-height, --ui-min-height, 1px);
 }
 
 .ui-separator.ui-orientation--vertical {
     align-self: stretch;
     .ui-responsive-property(min-width, --ui-min-width, 1px);
-    .ui-responsive-property(min-height, --ui-min-height, 1rem);
+    .ui-responsive-floor(min-height, --ui-min-height, 1rem, --ui-height);
 }
 
 :where(.ui-separator__line) {
@@ -29,7 +30,7 @@
 }
 
 :where(.ui-separator__line[data-ui-separator-label] .ui-separator__label) {
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
 }
 
 .ui-separator__line[class*="ui-color--"] .ui-separator__label {
@@ -37,7 +38,7 @@
 }
 
 .ui-separator__line.ui-color--muted[data-ui-separator-label] .ui-separator__label {
-    color: color-mix(in srgb, var(--ui-text-muted) 55%, transparent);
+    color: color-mix(in srgb, @ui-text-muted 55%, transparent);
 }
 
 .ui-separator__line[style] .ui-separator__label {

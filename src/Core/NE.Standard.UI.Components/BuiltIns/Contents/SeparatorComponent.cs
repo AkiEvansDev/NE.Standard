@@ -37,8 +37,6 @@ public abstract partial class SeparatorComponent<T>(string? id = null) : VisualC
 /// </summary>
 public sealed class SeparatorComponent(string? id = null) : SeparatorComponent<SeparatorComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.separator";
 }

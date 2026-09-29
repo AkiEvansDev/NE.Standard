@@ -60,6 +60,7 @@ internal static class DemoUI
             ("/actions/action", "demo.nav.actions.action"),
             ("/actions/command-bar", "demo.nav.actions.command-bar"),
             ("/actions/theme-switcher", "demo.nav.actions.theme-switcher"),
+            ("/actions/language-switcher", "demo.nav.actions.language-switcher"),
         ]),
         ("demo.nav.section.inputs", DemoIcons.Outline(DemoIcons.Sliders),
         [
@@ -127,6 +128,7 @@ internal static class DemoUI
         ["/actions/split-button"] = DemoViewKind.Main,
         ["/actions/command-bar"] = DemoViewKind.Main,
         ["/actions/theme-switcher"] = DemoViewKind.Main,
+        ["/actions/language-switcher"] = DemoViewKind.Main,
         ["/contents/badge"] = DemoViewKind.Main,
         ["/contents/icon"] = DemoViewKind.Main,
         ["/contents/image"] = DemoViewKind.Main,
@@ -175,11 +177,16 @@ internal static class DemoUI
         ["/overlays/notification"] = DemoViewKind.Test
     };
 
-    /// <summary>The page band from the preset; the theme switcher is on every page, controller or not, since the theme is the framework's state.</summary>
+    /// <summary>
+    /// The page band from the preset; the theme and language switchers are on every page, controller or not, since the theme and the
+    /// language are the framework's state.
+    /// </summary>
     public static ContainerComponent CreateHeader(string title, string description)
-        => UIPage.Header(title, description, new ThemeSwitcherComponent()
-            .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
-            .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
+        => UIPage.Header(title, description,
+            new LanguageSwitcherComponent(),
+            new ThemeSwitcherComponent()
+                .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
+                .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
         );
 
     /// <summary>
@@ -337,10 +344,11 @@ internal static class DemoUI
     /// The shell every demo page is built from, so a layout fix here lands on every demo route at once.
     /// </summary>
     /// <remarks>
-    /// <paramref name="initControls"/> and its 220px column are optional; <paramref name="contentMinHeight"/>
+    /// <paramref name="initControls"/> and its 220px column are optional, and <paramref name="controlsBelow"/> puts them under the
+    /// content at every width, for a sample that needs the group's whole width; <paramref name="contentMinHeight"/>
     /// reserves nothing unless a caller needs a fixed box; <paramref name="note"/> is the line under the title.
     /// </remarks>
-    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null)
+    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null, bool controlsBelow = false)
     {
         var hasContext = !string.IsNullOrWhiteSpace(context);
         var hasNote = !string.IsNullOrWhiteSpace(note);
@@ -361,27 +369,36 @@ internal static class DemoUI
                 controls = null;
         }
 
-        // Beside the actions from the medium breakpoint up; under them on a phone, which has no room for a column of 220 pixels.
-        var span = controls is null ? 24 : 23;
-        var contentRow = hasNote ? 3 : 2;
+        // Beside the actions from the medium breakpoint up, unless the caller asks for them below; under them on a phone, which has
+        // no room for a column of 220 pixels.
+        var beside = controls is not null && !controlsBelow;
+        var span = beside ? 23 : 24;
+        var contextRow = hasContext ? 2 : 1;
+        var noteRow = contextRow + (hasNote ? 1 : 0);
+        var contentRow = noteRow + 1;
 
-        // No outline of its own: the preview and the options list each draw their own.
+        // No outline of its own: the preview and the options list each draw their own. No inline padding either, so a group's
+        // content starts at the page's own edge, under its heading and tab strip; the page's wrap keeps the groups apart.
+        // The title row is as tall as the code button, so a group with the button starts its content where one without it does.
         ContainerComponent group = new ContainerComponent()
-            .SetPadding(UIThickness.Uniform(12))
-            .SetRow(1, UIGridUnit.Auto(min: hasContext ? 50 : 24))
+            .SetPadding(UIThickness.All(0, 12, 0, 12))
+            .SetRow(1, UIGridUnit.Auto(min: 24))
             .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, columns, 1));
+
+        // Reserved for the message, so one arriving does not move the content.
+        if (hasContext)
+            _ = group.AddRow(UIGridUnit.Auto(min: 26));
 
         if (hasNote)
             _ = group.AddRow(UIGridUnit.Auto());
 
         _ = group.AddRow(UIGridUnit.Star());
 
+        // Centred in its row, as the code button beside it is: both stand on the row's middle with no offset tied to either's size.
         TextComponent header = new TextComponent()
                 .SetTitle(title)
                 .SetTitleType(UITextAppearance.Overline)
-                .SetVerticalAlignment(UIAlignment.Start)
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                .SetVerticalAlignment(UIAlignment.Center)
                 .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1));
 
         // An auto row plus a spacer, not a fixed-height cell: two groups sharing a row must start level.
@@ -391,26 +408,33 @@ internal static class DemoUI
             .AddRow(UIGridUnit.Star())
             .SetPlacement(1, contentRow, 24, 1, md: UIGridPlacement.At(1, contentRow, span, 1));
 
-        if (hasContext)
-        {
-            _ = group.BindContext(context!);
-            _ = header.BindDescription(nameof(DemoGroupContext.Message), UIBindingScope.Relative);
-        }
-
         initContent(content);
 
         _ = group.AddChild(header);
 
+        // A row of its own rather than the title's description: sharing the title's cell would take the title off the row's middle.
+        if (hasContext)
+        {
+            _ = group.BindContext(context!);
+            _ = group.AddChild(new TextComponent()
+                .SetDescriptionType(UITextAppearance.Caption)
+                .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                .SetVerticalAlignment(UIAlignment.Start)
+                .BindDescription(nameof(DemoGroupContext.Message), UIBindingScope.Relative)
+                .SetPlacement(1, contextRow, 24, 1, md: UIGridPlacement.At(1, contextRow, span, 1))
+            );
+        }
+
         // Over the title's own cell rather than a column of its own, which would take a twenty-fourth of the width from every group.
         if (code is not null)
         {
-            _ = header.SetMargin(UIThickness.All(0, 0, 40, 0));
+            _ = header.SetMargin(UIThickness.All(0, 0, 32, 0));
             _ = group.AddChild(CreateCodeFlyout(code).SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1)));
         }
 
         // A note rather than a title: prose wraps, a title ends in an ellipsis.
         if (hasNote)
-            _ = group.AddChild(UIText.Note(note!).SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(1, 2, span, 1)));
+            _ = group.AddChild(UIText.Note(note!).SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, noteRow, 24, 1, md: UIGridPlacement.At(1, noteRow, span, 1)));
 
         _ = group.AddChild(content);
 
@@ -420,12 +444,12 @@ internal static class DemoUI
         // A captioned block rather than a bare column of ghost buttons, and no frame: each control draws its own.
         ContainerComponent panel = new ContainerComponent()
             .SetVerticalAlignment(UIAlignment.Start)
-            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), md: UIThickness.All(12, 0, 0, 0)))
+            .SetMargin(beside ? UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), md: UIThickness.All(12, 0, 0, 0)) : UIThickness.All(0, 12, 0, 0))
             .SetRow(1, UIGridUnit.Auto(min: 24))
             .AddRow(UIGridUnit.Auto())
             // The spacer keeps the frame the height of its rows rather than sharing the column's slack.
             .AddRow(UIGridUnit.Star())
-            .AddChild(UIText.Label("Actions")
+            .AddChild(UIText.Label("demo.group.actions")
                 .SetVerticalAlignment(UIAlignment.Start)
                 .SetPlacement(1, 1, 24, 1)
             )
@@ -435,10 +459,12 @@ internal static class DemoUI
                 .AddChild(controls)
                 .SetPlacement(1, 2, 24, 1)
             )
-            .SetPlacement(1, contentRow + 1, 24, 1, md: UIGridPlacement.At(24, 1, 1, 2));
+            .SetPlacement(1, contentRow + 1, 24, 1, md: beside ? UIGridPlacement.At(24, 1, 1, contentRow) : null);
+
+        if (beside)
+            _ = group.SetColumn(24, UIGridUnit.Absolute(220));
 
         return group
-            .SetColumn(24, UIGridUnit.Absolute(220))
             .AddRow(UIGridUnit.Auto())
             .AddChild(panel);
     }
@@ -454,12 +480,15 @@ internal static class DemoUI
         return new FlyoutComponent()
             .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
             .SetHorizontalAlignment(UIAlignment.End)
-            .SetVerticalAlignment(UIAlignment.Start)
+            .SetVerticalAlignment(UIAlignment.Center)
+            // Smaller than a small button's 28px, to fit the title row a group without the button has.
             .SetAnchor(new ButtonComponent()
                 .SetType(UIButtonType.Ghost)
                 .SetSize(UIButtonSize.Small)
+                .SetMinHeight(UILayoutLength.Absolute(24))
+                .SetPadding(UIThickness.Uniform(2))
                 .SetIcon(DemoIcons.Outline(DemoIcons.Code))
-                .SetTooltip("Code")
+                .SetTooltip("demo.code")
             )
             .SetContent(new ContainerComponent()
                 .SetWidth(UILayoutLength.Absolute(640))
@@ -479,7 +508,7 @@ internal static class DemoUI
                     .SetType(UIButtonType.Ghost)
                     .SetSize(UIButtonSize.Small)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
-                    .SetTooltip("Copy")
+                    .SetTooltip("demo.copy")
                     .SetHorizontalAlignment(UIAlignment.End)
                     .SetVerticalAlignment(UIAlignment.Start)
                     // Clear of the text's vertical scrollbar, which runs down the same edge once the source is longer than the box.
@@ -582,8 +611,8 @@ internal static class DemoUI
     /// The source is the argument's own text, captured by the compiler, so the popup cannot drift from what runs; the price is that a
     /// sample is one expression, and the sample data it takes is named in it rather than shown.
     /// </remarks>
-    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, [CallerArgumentExpression(nameof(example))] string code = "")
-        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code);
+    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, bool controlsBelow = false, [CallerArgumentExpression(nameof(example))] string code = "")
+        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code, controlsBelow);
 
     /// <summary>
     /// The preview half of a component's own page: the component under test, alone, inside a fixed frame.
@@ -623,7 +652,7 @@ internal static class DemoUI
         }
 
         // No "last change" line under the caption: every option row already prints its own value.
-        return CreateGroup(null, "Preview",
+        return CreateGroup(null, "demo.group.preview",
             content => content.AddChild(stack),
             contentMinHeight: contentMinHeight,
             columns: 14
@@ -644,7 +673,7 @@ internal static class DemoUI
             .AddChildren(sections);
 
         // Ten of the twenty-four: a row is a name and a value, and the rest of the width goes to the preview.
-        return CreateGroup(null, "Options",
+        return CreateGroup(null, "demo.group.options",
             content => content.AddChild(accordion),
             columns: 10
         );
@@ -690,10 +719,14 @@ internal static class DemoUI
         (string Label, string Url)[] tabs = new (string Label, string Url)[available.Length];
 
         for (var i = 0; i < available.Length; i++)
-            tabs[i] = (available[i].ToString(), RouteFor(componentRoute, available[i]));
+            tabs[i] = (KindKey(available[i]), RouteFor(componentRoute, available[i]));
 
         return CreateTabs(tabs, RouteFor(componentRoute, current));
     }
+
+    /// <summary>A kind's name as the demo's key: <c>demo.kind.examples</c>.</summary>
+    public static string KindKey(DemoViewKind kind)
+        => "demo.kind." + kind.ToString().ToLowerInvariant();
 
     /// <summary>
     /// The page a kind lives at. A component's first page is its own route: <see cref="DemoViewKind.Main"/>, or

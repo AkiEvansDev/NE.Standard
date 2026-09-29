@@ -11,10 +11,7 @@ type AwaitedResult = {
     readonly reject: (error: unknown) => void;
 };
 
-/**
- * Sends a command and answers with its result, refusing a second press of the same one while it is pending. A background
- * command is answered as accepted at once and pushes its result later; it stays pending until that result arrives.
- */
+/** Sends a command and answers with its result, refusing the same one while it is pending, a background one until its pushed result. */
 export class CommandDispatcher {
     private readonly transport: CommandSender;
     private readonly pendingKeys = new Set<string>();

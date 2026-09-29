@@ -1,6 +1,7 @@
 import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
 import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
 import { ItemStackEntry } from "../items/binding-template-evaluator";
+import { HeldCollections } from "../items/held-collections";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
 import { planRowRemoval } from "../interactions/row-cursor";
@@ -38,6 +39,9 @@ export class UpdateProcessor {
     private readonly validationHandlers: ServerValidationHandler[] = [];
     private readonly fullResyncHandlers: ServerFullResyncHandler[] = [];
 
+    // The collections of hosts declared inside an item template, for the rows built after they arrived.
+    private readonly held = new HeldCollections();
+
     public constructor(
         private readonly metadata: MetadataIndex,
         private readonly propertyPatchEngine: PropertyPatchEngine,
@@ -48,13 +52,46 @@ export class UpdateProcessor {
         private readonly virtualization: ItemsVirtualizationEngine,
         private readonly sinks: CollectionSinkRegistry
     ) {
+        itemsRenderer.setRowFiller(row => this.fillHeldCollections(row));
     }
 
-    /**
-     * Records what every server-rendered row holds — from the render metadata and from the pending insert — before anything is
-     * applied. A row that already holds an item keeps it: on a re-attach it was drawn from that item, and the refill must see the
-     * difference to redraw it, where the snapshot's item recorded over it would read as unchanged.
-     */
+    /** Gives a row just built the collections its hosts share, as the server last sent them rather than as the template was rendered. */
+    private fillHeldCollections(row: Element): void {
+        const waiting: [Element, number][] = [];
+
+        for (const host of row.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+            const componentId = findOwningComponentId(host);
+
+            if (componentId === null || this.held.get(componentId) === undefined)
+                continue;
+
+            // Emptied before the row's bindings are read, so a stale copy's rows are not read against a stack they are not on.
+            host.replaceChildren();
+            this.held.markWaiting(host, componentId);
+            waiting.push([host, componentId]);
+        }
+
+        if (waiting.length === 0)
+            return;
+
+        // Drawn once the row is on the page, where the host's own templates are found, from the held rows as they stand then: a change
+        // later in the same set (the options a new row's select shares, kept in step) is theirs already, and passes the empty host by.
+        queueMicrotask(() => {
+            for (const [host, componentId] of waiting) {
+                const items = this.held.takeWaiting(host);
+
+                if (host.isConnected && items !== undefined)
+                    this.refillHost(host, { componentId, dynamicParameters: [], items });
+            }
+        });
+    }
+
+    /** Whether a collection is shared by every row's copy of a host (no row, a template's component), held for rows built later. */
+    private holdsCollection(componentId: number, dynamicParameters: readonly unknown[]): boolean {
+        return dynamicParameters.length === 0 && this.itemsTemplates.isTemplateComponent(componentId);
+    }
+
+    /** Records what every server-rendered row holds, from the render metadata and the pending insert, before anything is applied. */
     public registerServerRenderedItems(changeSet?: ServerChangeSet | null): void {
         const rowsByHost = new Map<Element, Map<string, Element>>();
         const rowsOf = (host: Element): Map<string, Element> => {
@@ -103,6 +140,7 @@ export class UpdateProcessor {
 
         const element = rows.get(key) ?? null;
 
+        // A row holding an item keeps it: a re-attach drew it from that item, and the refill must see the difference to redraw it.
         if (element !== null && this.readItemScope(element) === undefined)
             this.itemsRenderer.registerItemScope(element, resolveScopeComponentId(element), item);
     }
@@ -181,15 +219,27 @@ export class UpdateProcessor {
 
     /** Applies a reset-then-whole-collection pair by reconciling against the rows on screen, rather than rebuilding them. */
     private applyCollectionRefill(refill: CollectionRefill): void {
+        const holds = this.holdsCollection(refill.componentId, refill.dynamicParameters);
+
+        if (holds)
+            this.held.hold(refill.componentId, refill.items);
+
         const hosts = this.findItemsHosts(refill.componentId, refill.dynamicParameters);
 
         if (hosts.length === 0) {
-            logWarn("items host was not found for a collection refill.", refill.items);
+            // A host inside an item template while no row wears it: held, and drawn into the rows built later.
+            if (holds)
+                logDebug("a collection for a host inside an item template is held until a row draws it.", { componentId: refill.componentId });
+            else
+                logWarn("items host was not found for a collection refill.", refill.items);
+
             return;
         }
 
-        for (const host of hosts)
-            this.refillHost(host, refill);
+        for (const host of hosts) {
+            if (!(holds && this.held.isWaiting(host)))
+                this.refillHost(host, refill);
+        }
     }
 
     private refillHost(host: Element, refill: CollectionRefill): void {
@@ -305,7 +355,8 @@ export class UpdateProcessor {
             return;
         }
 
-        this.propertyPatchEngine.applyPropertyValue(binding, dynamicParameters, update.value, false);
+        // The reference carries the mark on into the state, so a language switch shows the item's words as written as well.
+        this.propertyPatchEngine.applyPropertyValue(update.content === true ? { ...binding, content: true } : binding, dynamicParameters, update.value, false);
     }
 
     /** A server-side refusal of a typed value, delivered into the field's own validation message. */
@@ -352,19 +403,27 @@ export class UpdateProcessor {
 
         this.forgetRowState(componentId, dynamicParameters, update);
 
+        const holds = this.holdsCollection(componentId, dynamicParameters);
+
+        if (holds)
+            this.held.apply(update);
+
         const hosts = this.findItemsHosts(componentId, dynamicParameters);
 
         if (hosts.length === 0) {
-            // An empty reset with nowhere to land is nothing to show: a nested list rendered only when it has entries (a menu's
-            // sub-entries) still gets its initial reset like any collection. Anything else addressed to a missing host is a fault.
-            if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
+            // A template's host holds what it is sent; an empty reset is no fault (a menu's sub-entries render only with entries); else a fault.
+            if (holds)
+                logDebug("a collection change for a host inside an item template is held until a row draws it.", { componentId });
+            else if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
                 logWarn("items host was not found for a collection change update.", update);
 
             return;
         }
 
-        for (const host of hosts)
-            this.applyCollectionChangeToHost(host, componentId, update);
+        for (const host of hosts) {
+            if (!(holds && this.held.isWaiting(host)))
+                this.applyCollectionChangeToHost(host, componentId, update);
+        }
     }
 
     private applyCollectionChangeToHost(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
@@ -459,16 +518,13 @@ export class UpdateProcessor {
         return this.readItemScope(element)?.item;
     }
 
-    /** The component's own host — not the first one under it, which may be a nested component's (a select in a grid's filter row). */
-    /**
-     * The items host of every instance a collection is addressed to: one, or — for a collection bound from the root inside an item
-     * template, which the server sends once with no row key — the host of each row's copy, as a value bound so reaches each.
-     */
+    /** The items host of every instance a collection is addressed to: one, or each row's copy for a template's collection sent once. */
     private findItemsHosts(componentId: number, dynamicParameters: readonly unknown[]): Element[] {
         const hosts: Element[] = [];
 
         for (const root of this.dom.findAllComponents(componentId, dynamicParameters)) {
             for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+                // The component's own host, not a nested component's under it (a select in a grid's filter row).
                 if (findOwningComponentId(host) === componentId) {
                     hosts.push(host);
                     break;
@@ -571,10 +627,7 @@ function applyCollectionRemove(host: Element, items: readonly ServerCollectionIt
     }
 }
 
-/**
- * The element that holds a host's focus and names its cursor row: the items view or the tree around the host, the table past its
- * scroll box; any other host's parent.
- */
+/** The element holding a host's focus and cursor row: the items view, tree or table around it, else its parent. */
 function rowCursorRoot(host: Element): HTMLElement | null {
     const parent = host.parentElement;
     const owner = parent?.closest<HTMLElement>(SelectionRootSelector) ?? null;

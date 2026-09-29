@@ -36,6 +36,10 @@ internal sealed partial class UIViewCompilationContext
         {
             UIBinding? sourceBinding = FindBinding(component, definition.Property);
 
+            // Content marked on the instance is shown as written, so render, metadata and the page's words agree it is no key.
+            var isContent = definition.IsTranslatable && component.IsContent(definition.Property);
+            var isTranslatable = definition.IsTranslatable && !isContent;
+
             if (sourceBinding is not null)
             {
                 EnsureBindableTarget(component, definition.Property, sourceBinding.Value.Mode);
@@ -64,13 +68,15 @@ internal sealed partial class UIViewCompilationContext
                     fullPath,
                     definition.ValueType,
                     definition.Getter(component) ?? definition.DefaultValue,
-                    sourceBinding.Value.Optional
+                    sourceBinding.Value.Optional,
+                    isTranslatable
                 );
 
                 values.Add(new CompiledUIPropertyValue
                 {
                     Property = definition.Property,
-                    IsTranslatable = definition.IsTranslatable,
+                    IsTranslatable = isTranslatable,
+                    IsContent = isContent,
                     IsBind = true,
                     BindingId = compiledBinding.Id
                 });
@@ -80,12 +86,13 @@ internal sealed partial class UIViewCompilationContext
 
             if (TryBuildWindowGeometryPath(component, definition.Property, componentContexts, rootPath, out CompiledPath geometryPath))
             {
-                CompiledUIBinding geometryBinding = AddBinding(bindings, templatesByKey, CompiledUIBindingKind.ComponentProperty, component.Id, definition.Property, UIBindingMode.OneWay, geometryPath, definition.ValueType);
+                CompiledUIBinding geometryBinding = AddBinding(bindings, templatesByKey, CompiledUIBindingKind.ComponentProperty, component.Id, definition.Property, UIBindingMode.OneWay, geometryPath, definition.ValueType, isTranslatable: isTranslatable);
 
                 values.Add(new CompiledUIPropertyValue
                 {
                     Property = definition.Property,
-                    IsTranslatable = definition.IsTranslatable,
+                    IsTranslatable = isTranslatable,
+                    IsContent = isContent,
                     IsBind = true,
                     BindingId = geometryBinding.Id
                 });
@@ -98,7 +105,8 @@ internal sealed partial class UIViewCompilationContext
             values.Add(new CompiledUIPropertyValue
             {
                 Property = definition.Property,
-                IsTranslatable = definition.IsTranslatable,
+                IsTranslatable = isTranslatable,
+                IsContent = isContent,
                 IsBind = false,
                 Value = CompilePropertyValue(value)
             });
@@ -167,7 +175,7 @@ internal sealed partial class UIViewCompilationContext
     private static bool DefinesOwnContext(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts)
         => componentContexts.TryGetValue(component.Id, out ResolvedComponentContext context) && context.DefinesParameter;
 
-    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null, object? targetFallbackValue = null, bool optional = false)
+    private CompiledUIBinding AddBinding(List<CompiledUIBinding> bindings, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, CompiledUIBindingKind kind, string componentId, UIProperty property, UIBindingMode mode, CompiledPath fullPath, Type? targetValueType = null, object? targetFallbackValue = null, bool optional = false, bool isTranslatable = false)
     {
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
@@ -180,6 +188,7 @@ internal sealed partial class UIViewCompilationContext
             TemplateId = template.Id,
             Mode = mode,
             Optional = optional,
+            IsTranslatable = isTranslatable,
             Parameters = fullPath.Parameters,
             DynamicParameterComponentIds = GetDynamicParameterComponentIds(fullPath.Parameters),
             TargetValueType = targetValueType,

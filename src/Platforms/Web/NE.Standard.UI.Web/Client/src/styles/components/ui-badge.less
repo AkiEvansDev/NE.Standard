@@ -2,8 +2,7 @@
 @import "../mixins/responsive.less";
 @import "../mixins/text.less";
 
-// Proportions and gap scale in `em` of the badge's own text, not the page's, so an Overline badge stays small and a Body one a chip.
-// Padding is rounded to the pixel — unrounded, it lands the badge, and the row and card around it, on a half pixel that softens the border.
+// Sized in `em` of its own text, so an Overline badge stays small; padding rounded, or a half pixel softens the border.
 .ui-badge {
     // .ui-badge is worn by both a component root and a nested __badge part; a --ui-* custom property must be gated on [data-ui-id].
     display: inline-flex;
@@ -42,14 +41,12 @@
     display: none;
     // line-height: 1 keeps the text tight to its glyphs so the badge's flex centring splits the leading evenly around it.
     line-height: 1;
-    // Trimmed to the capitals and the baseline, the box is the figures' own ink and the centring is theirs: Chrome rounds a face's
-    // ascent and descent to whole pixels before it lays a line out, which set a 10px line in a 15px circle half a pixel low.
+    // Trimmed to the capitals and baseline so the figures centre: Chrome rounds a face's ascent and descent, setting them low.
     text-box: trim-both cap alphabetic;
-    // The same for the horizontal: a spaced type carries its step after the last glyph too, which reads as a wider end padding.
+    // A spaced type carries its step after the last glyph too, which reads as a wider end padding.
     margin-inline-end: calc(-1 * var(--ui-letter-spacing, 0px));
     .ui-text-nowrap();
-    // The trimmed box is the capitals' height and a round figure overshoots it: clipped across only, the ellipsis stays and the
-    // top of a 6 or a 0 is not shaved off.
+    // A round figure overshoots the trimmed box: clipped across only, so the ellipsis stays and a 6 or a 0 keeps its top.
     overflow: visible;
     overflow-x: clip;
 }
@@ -87,45 +84,61 @@
     background: var(--ui-color-primary);
     color: var(--ui-color-on-primary);
     --ui-faint-base: var(--ui-color-on-primary);
+    --ui-ground: var(--ui-color-primary);
 }
 
 .ui-badge-style--accent {
     background: var(--ui-color-accent);
     color: var(--ui-color-on-accent);
     --ui-faint-base: var(--ui-color-on-accent);
+    --ui-ground: var(--ui-color-accent);
 }
 
 .ui-badge-style--info {
     background: var(--ui-color-info);
     color: var(--ui-color-on-info);
     --ui-faint-base: var(--ui-color-on-info);
+    --ui-ground: var(--ui-color-info);
 }
 
 .ui-badge-style--warning {
     background: var(--ui-color-warning);
     color: var(--ui-color-on-warning);
     --ui-faint-base: var(--ui-color-on-warning);
+    --ui-ground: var(--ui-color-warning);
 }
 
 .ui-badge-style--success {
     background: var(--ui-color-success);
     color: var(--ui-color-on-success);
     --ui-faint-base: var(--ui-color-on-success);
+    --ui-ground: var(--ui-color-success);
 }
 
 .ui-badge-style--danger {
     background: var(--ui-color-danger);
     color: var(--ui-color-on-danger);
     --ui-faint-base: var(--ui-color-on-danger);
+    --ui-ground: var(--ui-color-danger);
 }
 
-// The one style that can sit on a surface ground, so it needs its own edge, drawn from currentColor to follow whatever it is painted in.
+// The one style that can sit on a surface ground, so it draws its own edge, from currentColor.
 .ui-badge-style--surface {
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
 }
 
+// The ground mixes the raw colour; the words are its ink (BadgeRenderer), which on a semantic colour is darker or lighter than it.
 .ui-badge--tinted {
-    background: color-mix(in srgb, currentColor 16%, transparent);
+    background: color-mix(in srgb, var(--ui-badge-tint, currentColor) 16%, transparent);
+    // An ink reads on the page but not on a ground of its own colour over every card (a raised one is darker), so a tinted badge
+    // takes the one lifted for it (the theme's -ink-on-tint, resolved on the theme element, so no cycle here); the page's own inks
+    // stay.
+    --ui-color-primary-ink: var(--ui-color-primary-ink-on-tint);
+    --ui-color-accent-ink: var(--ui-color-accent-ink-on-tint);
+    --ui-color-info-ink: var(--ui-color-info-ink-on-tint);
+    --ui-color-warning-ink: var(--ui-color-warning-ink-on-tint);
+    --ui-color-success-ink: var(--ui-color-success-ink-on-tint);
+    --ui-color-danger-ink: var(--ui-color-danger-ink-on-tint);
 }

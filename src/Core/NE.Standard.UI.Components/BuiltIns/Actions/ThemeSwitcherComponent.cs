@@ -13,7 +13,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>, ISurfaceComponent, IBorderedComponent, ITooltipComponent
+[UIComponentPropertyBlock(typeof(ISwitcherComponent))]
+public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>, ISurfaceComponent, IBorderedComponent, ITooltipComponent, ISwitcherComponent
     where T : ThemeSwitcherComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -36,24 +37,6 @@ public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>
     /// </summary>
     [UIComponentProperty]
     public string? DarkIcon { get; set; }
-
-    /// <summary>
-    /// Gets or sets the size both glyphs are drawn at.
-    /// </summary>
-    [UIComponentProperty]
-    public UIIconSize? IconSize { get; set; }
-
-    /// <summary>
-    /// Gets or sets the button style.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIButtonType.Ghost)]
-    public UIButtonType? Type { get; set; }
-
-    /// <summary>
-    /// Gets or sets the button size — the box the glyph sits in.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIButtonSize.Medium)]
-    public UIButtonSize? Size { get; set; }
 }
 
 /// <summary>
@@ -61,8 +44,6 @@ public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>
 /// </summary>
 public sealed class ThemeSwitcherComponent(string? id = null) : ThemeSwitcherComponent<ThemeSwitcherComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.theme-switcher";
 }

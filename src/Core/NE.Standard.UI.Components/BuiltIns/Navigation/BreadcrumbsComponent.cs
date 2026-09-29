@@ -46,8 +46,6 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
 /// </summary>
 public sealed class BreadcrumbsComponent(string? id = null) : BreadcrumbsComponent<BreadcrumbsComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.breadcrumbs";
 }

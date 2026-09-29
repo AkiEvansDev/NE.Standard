@@ -1,0 +1,25 @@
+@import "../core/tokens.less";
+
+// A modal's veil over the page: the theme's overlay colour, on the framework's backdrop and on a package's native `::backdrop`.
+.ui-dialog-veil() {
+    background: var(--ui-color-overlay, rgba(0, 0, 0, 0.45));
+}
+
+// The dialog's entrance, for a package's own <dialog> too; the keyframes are ui-dialog.less's, reduced motion preferences.less's.
+.ui-dialog-enter() {
+    animation: ui-dialog-surface-in @ui-motion-normal @ui-motion-enter;
+}
+
+.ui-dialog-backdrop-enter() {
+    animation: ui-dialog-backdrop-in @ui-motion-fast @ui-motion-enter;
+}
+
+// Its exit, on the closed rule: a fast fade, `display` and `overlay` held so it is seen; the backdrop's likewise.
+.ui-dialog-exit() {
+    opacity: 0;
+    transition: opacity @ui-motion-fast @ui-motion-exit, display @ui-motion-fast allow-discrete, overlay @ui-motion-fast allow-discrete;
+}
+
+.ui-dialog-backdrop-exit() {
+    .ui-dialog-exit();
+}

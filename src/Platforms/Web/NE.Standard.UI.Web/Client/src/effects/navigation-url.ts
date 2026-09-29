@@ -1,10 +1,7 @@
 // `import type` only: `node --test` loads this module as it is.
 import type { NavigateClientEffect } from "../metadata/metadata-index";
 
-/**
- * The address a Navigate effect goes to: its route with the parameters appended to the query it may already carry, ahead of
- * its fragment. Built as text, not through `URL`, so the caller's local-route check still sees the route as it was written.
- */
+/** A Navigate effect's address: its route with the parameters appended to its query, ahead of its fragment. */
 export function buildNavigationUrl(effect: NavigateClientEffect): string | null {
     const route = effect.request?.route;
 
@@ -16,6 +13,7 @@ export function buildNavigationUrl(effect: NavigateClientEffect): string | null 
     if (search.length === 0)
         return route;
 
+    // Built as text, not through `URL`, so the caller's local-route check still sees the route as it was written.
     const hashAt = route.indexOf("#");
     const base = hashAt < 0 ? route : route.slice(0, hashAt);
     const hash = hashAt < 0 ? "" : route.slice(hashAt);

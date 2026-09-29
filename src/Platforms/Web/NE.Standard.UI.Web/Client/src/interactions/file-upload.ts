@@ -5,7 +5,7 @@ import { logElapsed, logWarn } from "../runtime/logger";
 
 const UploadPath = "/_ne/files/upload";
 
-/** The files within the root's `FileMaxSizeAttribute`, if it carries one; an oversized file is refused before the upload starts, since the server would refuse it anyway. */
+/** The files within the root's size limit, if it carries one: refused before the upload, since the server would refuse them anyway. */
 export function filterWithinFileSizeLimit(root: Element, files: readonly File[]): File[] {
     const limit = Number(root.getAttribute(FileMaxSizeAttribute));
 
@@ -77,10 +77,7 @@ export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: nu
     });
 }
 
-/**
- * The one way a file leaves the browser: the framework's own multipart POST, answering with a selection id. A package must not
- * post to the endpoint itself, since the path and response shape are the framework's own.
- */
+/** The framework's upload, answering with a selection id; a package never posts to the endpoint, whose path and shape are its own. */
 export type FileUploads = {
     uploadAsync(files: Iterable<File>, onProgress?: (percent: number) => void): Promise<UploadedSelection>;
 };

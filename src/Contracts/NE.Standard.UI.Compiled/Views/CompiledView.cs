@@ -15,6 +15,11 @@ public sealed class CompiledView
     public required string Title { get; init; }
 
     /// <summary>
+    /// Gets the arguments of the title's slots, or <see langword="null"/> when it has none.
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? TitleArguments { get; init; }
+
+    /// <summary>
     /// Gets the choices the view makes about its own shell.
     /// </summary>
     public UIViewOptions Options { get; init; } = UIViewOptions.Default;

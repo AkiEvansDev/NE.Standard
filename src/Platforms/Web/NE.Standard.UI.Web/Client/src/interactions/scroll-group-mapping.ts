@@ -1,5 +1,5 @@
-// Where one member of a scroll group stands in another, by the source lines both mark: a scroll offset becomes the source
-// line at the viewport's top edge on one side, and back into an offset on the other, each between the two marks around it.
+// Where one member of a scroll group stands in another: an offset becomes the source line at the top on one side, and back into an
+// offset on the other, each between the two marks around it.
 
 /** A member's marks in order of their lines and their tops, read lazily: a mark's top costs a layout read. */
 export type ScrollAnchors = {

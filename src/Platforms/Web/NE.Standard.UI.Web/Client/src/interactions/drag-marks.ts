@@ -1,10 +1,6 @@
-// A native drag's marks: the class a dragged element wears in the air, and the payload a drag needs to start.
-// A tree's row and a tab's caption drag the same way; what a drop does with them is each engine's.
+// A native drag's marks — the class a dragged element wears, the payload a drag needs to start — for a tree's row and a tab's caption.
 
-/**
- * Marks the element as the one being dragged and gives the drag its payload, clearing any stale mark first. The `companions`
- * travel with it and wear the same mark.
- */
+/** Marks the element and its companions as dragged, clearing any stale mark first, and gives the drag its payload. */
 export function markDragStart(domEvent: Event, scope: Element, element: HTMLElement, draggingClass: string, key: string, companions: Iterable<HTMLElement> = []): void {
     // A drag another listener cancelled ends without dragend, so a stale mark is cleared before the new one is made.
     clearDragMarks(scope, draggingClass);

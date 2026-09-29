@@ -4,9 +4,13 @@ import { CommandDispatcher } from "../transport/command-dispatcher";
 import { EffectRegistry } from "../effects/effect-registry";
 import { EventCatalog } from "../extensions/events";
 import { InteractionEngine } from "../interactions/interaction-engine";
+import { isInert } from "../interactions/interactive-state";
 import { ValidationEngine } from "../interactions/validation-engine";
 import { MetadataIndex } from "../metadata/metadata-index";
+import type { UICommandRequest } from "../metadata/metadata-index";
 import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
+import { CommandTurns } from "./command-turns";
+import type { CommandTurn } from "./command-turns";
 import { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
 import { EventRegistry } from "./event-registry";
 import { EventRequestFactory } from "./event-request-factory";
@@ -53,6 +57,7 @@ export class EventPipeline {
     private readonly root: ParentNode;
     private readonly registry: EventRegistry;
     private readonly requestFactory = new EventRequestFactory();
+    private readonly turns = new CommandTurns();
 
     public constructor(options: EventPipelineOptions) {
         this.options = options;
@@ -136,8 +141,7 @@ export class EventPipeline {
             ? resolvedContext
             : { ...resolvedContext, dynamicParameters: registration.dynamicParameters(resolvedContext) ?? resolvedContext.dynamicParameters };
 
-        // Told whatever happens, a dropped connection included: a package waiting on the answer of the value it sent would
-        // otherwise wait for ever.
+        // Told whatever happens, a dropped connection included, or a package awaiting its sent value's answer would wait for ever.
         try {
             const outcome = await this.runAsync(eventName, registration, resolved.element, context);
 
@@ -154,6 +158,10 @@ export class EventPipeline {
 
     /** The command the event stands for, from the request to its answer; what it came to is what the registration is told. */
     private async runAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext): Promise<EventOutcome> {
+        // A disabled or loading component raises nothing, whatever raised the event inside it — an engine's own click included.
+        if (context.domEvent.target instanceof Element && isInert(context.domEvent.target))
+            return Refused;
+
         this.applyDomPolicy(registration, context);
 
         const request = this.requestFactory.create(registration, context);
@@ -175,6 +183,19 @@ export class EventPipeline {
             return Refused;
         }
 
+        // Taken as raised: an .OnChange command waits for its value's answer, and one raised after it must not reach the server first.
+        const turn = this.turns.take();
+
+        try {
+            return await this.sendInTurnAsync(eventName, registration, element, context, request, turn);
+        }
+        finally {
+            turn.done();
+        }
+    }
+
+    /** Sends the command behind what it waits for — its form's values, its own value's answer, the commands and values before it. */
+    private async sendInTurnAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext, request: UICommandRequest, turn: CommandTurn): Promise<EventOutcome> {
         const submitFormId = element.getAttribute(SubmitFormIdAttribute) ?? (registration.submitsForm === true ? fieldFormId(context) : null);
 
         if (submitFormId !== null) {
@@ -190,7 +211,8 @@ export class EventPipeline {
         if (await this.isRefusedValueEventAsync(registration, element))
             return Refused;
 
-        // Behind every value given before it, a large one still being staged included, so the command meets the values the reader gave.
+        // Behind every command raised before it, then every value given before it, a large one still being staged included.
+        await turn.ahead;
         await this.options.valueBinding?.whenSent();
 
         // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
@@ -204,7 +226,11 @@ export class EventPipeline {
             domEvent: context.domEvent
         });
 
-        const result = await this.options.dispatcher.dispatchAsync(request).catch(error => {
+        const dispatched = this.options.dispatcher.dispatchAsync(request);
+
+        turn.done();
+
+        const result = await dispatched.catch(error => {
             // Still ended: a spinner the press began must not outlive a command the lost connection took with it.
             this.applyAfterEvent(eventName, context);
 
@@ -220,8 +246,7 @@ export class EventPipeline {
         return { dispatched: true, success: result.command?.success !== false, error: result.command?.error ?? null };
     }
 
-    // An .OnChange command must not run for a value the controller never took, so it waits for that value's round-trip; a package's
-    // event says so itself with `settlesValue`.
+    // An .OnChange command waits for its value's round-trip, never running for one the controller refused; a package says `settlesValue`.
     private async isRefusedValueEventAsync(registration: RegisteredEvent, component: Element): Promise<boolean> {
         if (!ValueSettleEventNames.includes(registration.name) && registration.settlesValue !== true)
             return false;

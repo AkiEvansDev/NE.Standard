@@ -341,9 +341,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         }
     }
 
-    /// <summary>
-    /// Replaces the session id once the session has gained an identity, moving its state to a freshly issued id.
-    /// </summary>
+    /// <summary>Replaces the session id once the session has gained an identity, moving its state to a freshly issued id.</summary>
     /// <remarks>
     /// Defends against session fixation; runs only on <see cref="UIViewRequestPhase.Open"/>, the one request that can hand the client its id.
     /// </remarks>
@@ -369,9 +367,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         return new UserSessionContext(rotatedId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions);
     }
 
-    /// <summary>
-    /// Writes the resolved session to the store, which is the authority the live command check reads.
-    /// </summary>
+    /// <summary>Writes the resolved session to the store, which is the authority the live command check reads.</summary>
     /// <remarks>
     /// Done here rather than in the resolver, so it also holds for a custom <see cref="IUserSessionResolver"/>. A session only
     /// a page render has seen, anonymous, stays unclaimed — the short timeout — until a tab attaches: persisted rather than
@@ -1109,6 +1105,30 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         ArgumentNullException.ThrowIfNull(handle);
 
         return GetRequiredRuntimeEntry(handle).Runtime.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Makes a session the page itself stored (its language switcher) this connection's, and on a new language tells the
+    /// controller as a command runs; a page with no controller only has its handle refreshed.
+    /// </summary>
+    /// <remarks>
+    /// The hub's half of what <see cref="UIContext.UpdateSessionAsync"/> does inside a command, where the page, having asked,
+    /// switches itself: no effect is sent back.
+    /// </remarks>
+    internal async Task ApplySessionChangeAsync(UIHandle handle, UserSessionState session, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(session);
+
+        var previousLanguage = handle.Session.Language;
+
+        handle.RefreshSession(session);
+
+        if (string.Equals(previousLanguage, session.Language, StringComparison.Ordinal))
+            return;
+
+        if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) && entry!.Runtime is IUIRuntimeConnectionUpdater updater)
+            await updater.NotifyLanguageChangedAsync(handle, previousLanguage, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -23,9 +23,7 @@ public sealed class UIInstance
     /// </summary>
     public required UINavigationRequest Navigation { get; init; }
 
-    /// <summary>
-    /// Gets the id of the page render this instance belongs to, when the host issued one.
-    /// </summary>
+    /// <summary>Gets the id of the page render this instance belongs to, when the host issued one.</summary>
     /// <remarks>
     /// Lets one runtime serve both halves of a page load; null when the host doesn't prepare one at render time,
     /// and the key falls back to the connection.

@@ -6,16 +6,24 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
-/// <summary>Shared attribute rendering for components that render as a single native <c>&lt;input&gt;</c>.</summary>
+/// <summary>The attribute writers every input renderer shares: name, form, placeholder, read-only, hidden value and file inputs.</summary>
 public static class NativeInputRendererBase
 {
+    /// <summary>
+    /// The root's read-only mark as a patch: every input's <c>IsReadOnly</c> registration carries it beside what its own control
+    /// needs, since a property registers once per component.
+    /// </summary>
+    public static WebDomOperation ReadOnlyMarkOperation { get; } = WebDomOperation.ToggleClass(WebClassNames.ReadOnly, target: "root", condition: WebValueCondition.IsTrue);
+
     private static readonly WebDomOperation[] FormIdOperations = [WebDomOperation.Attribute(WebAttributes.FormId)];
     private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
-    private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue)];
-    private static readonly WebDomOperation[] ReadOnlyAsDisabledOperations = [WebDomOperation.ToggleAttribute("disabled", condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
+    private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
+    private static readonly WebDomOperation[] ReadOnlyMarkOperations = [ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] MaxFileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileMaxSize)];
     private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept")];
     private static readonly WebDomOperation[] SelectionOperations = [WebDomOperation.Property("value")];
@@ -63,16 +71,54 @@ public static class NativeInputRendererBase
         }, PlaceholderOperations);
     }
 
-    public static void RenderIsReadOnly(WebRenderContext context, IHtmlElementBuilder input)
+    /// <summary><c>IsReadOnly</c> as the root's mark and a native text field's own <c>readonly</c>.</summary>
+    public static void RenderIsReadOnly(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder input)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(input);
 
-        _ = WebComponentRendererBase.RenderProperty<bool?>(context, input, IInputComponent.IsReadOnlyProperty, static (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, input, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = target.Attribute("readonly");
+            _ = root.Class(WebClassNames.ReadOnly);
+        }, ReadOnlyOperations);
+    }
+
+    /// <summary>
+    /// <c>IsReadOnly</c> as the root's mark and <c>aria-readonly</c> on a control the browser cannot make read-only itself (a box, a
+    /// range, a trigger): it stays focusable and readable, and the client's engines refuse the change.
+    /// </summary>
+    public static void RenderIsReadOnlyAsAria(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder control)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(control);
+
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, control, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = target.Attribute("aria-readonly", "true");
+            _ = root.Class(WebClassNames.ReadOnly);
+        }, ReadOnlyAriaOperations);
+    }
+
+    /// <summary><c>IsReadOnly</c> as the root's mark alone, for a control whose engine reads it and has no native part to tell.</summary>
+    public static void RenderIsReadOnlyMark(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
         {
             if (value == true)
-                _ = target.Attribute("readonly");
-        }, ReadOnlyOperations);
+                _ = target.Class(WebClassNames.ReadOnly);
+        }, ReadOnlyMarkOperations);
     }
 
     /// <summary>The hidden input a composed control keeps its value in, named for the form like a native field.</summary>
@@ -168,21 +214,5 @@ public static class NativeInputRendererBase
             if (selectionBinding is not null)
                 _ = selection.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
         });
-    }
-
-    /// <summary>
-    /// <see cref="RenderIsReadOnly"/> for controls that ignore <c>readonly</c>; use only there, since
-    /// <c>disabled</c> also drops the control out of the tab order.
-    /// </summary>
-    public static void RenderIsReadOnlyAsDisabled(WebRenderContext context, IHtmlElementBuilder input)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(input);
-
-        _ = WebComponentRendererBase.RenderProperty<bool?>(context, input, IInputComponent.IsReadOnlyProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Attribute("disabled");
-        }, ReadOnlyAsDisabledOperations);
     }
 }

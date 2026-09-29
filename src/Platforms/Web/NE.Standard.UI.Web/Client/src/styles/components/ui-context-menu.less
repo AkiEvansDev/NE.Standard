@@ -5,11 +5,11 @@
 .ui-context-menu {
     .ui-popup-surface(40);
     .ui-popup-scroll();
-    display: none;
+    .ui-popup-closed();
     min-width: 10rem;
     padding: @ui-space-1;
 }
 
 .ui-context-menu--open {
-    display: block;
+    .ui-popup-open();
 }

@@ -1,9 +1,9 @@
-import { VisibilityTierAttributes } from "../addressing/dom-attributes";
+import { ThemeAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensions/value-readers";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
-import { FocusableSelector } from "../interactions/popup-focus";
+import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine } from "../interactions/notification-engine";
 import {
     ClientEffect,
@@ -24,6 +24,7 @@ import {
     getScrollToBlock,
     getThemeMode
 } from "../metadata/metadata-index.ts";
+import { prefersReducedMotion } from "../rendering/motion";
 import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { logError, logWarn } from "../runtime/logger";
 import { buildNavigationUrl } from "./navigation-url";
@@ -45,7 +46,6 @@ export type EffectRegistryOptions = {
 /** What the document declares, which has a third value the enum does not: no preference. */
 export type ThemeName = "light" | "dark" | "auto";
 
-const ThemeAttribute = "data-ui-theme";
 
 export type EffectHandler = (context: EffectContext) => void;
 
@@ -151,7 +151,7 @@ export class EffectRegistry {
             const block = getScrollToBlock(effect.block);
 
             element.scrollIntoView({
-                behavior: behavior === "Smooth" ? "smooth" : "auto",
+                behavior: scrollBehavior(behavior),
                 block: block === "Unknown" ? "nearest" : (block.toLowerCase() as ScrollLogicalPosition)
             });
         });
@@ -192,7 +192,7 @@ export class EffectRegistry {
 
             next = Math.max(0, Math.min(max, next));
 
-            const behavior = getScrollToBehavior(effect.behavior) === "Smooth" ? "smooth" : "auto";
+            const behavior = scrollBehavior(getScrollToBehavior(effect.behavior));
 
             scroller.scrollTo(vertical ? { top: next, behavior } : { left: next, behavior });
         });
@@ -317,6 +317,11 @@ function resolveTarget(context: EffectContext): Element | null {
     return element;
 }
 
+/** Smooth only where the reader has not asked for less motion: a scroll a script asks for is smooth whatever the setting says. */
+function scrollBehavior(behavior: string): ScrollBehavior {
+    return behavior === "Smooth" && !prefersReducedMotion() ? "smooth" : "auto";
+}
+
 /** The nearest scroller to the addressed element: itself first, then inside it, then outwards. */
 function resolveScroller(element: Element, vertical: boolean): Element | null {
     if (isScrollable(element, vertical))
@@ -354,10 +359,10 @@ function focusElement(element: Element): void {
         return;
     }
 
-    // A component root is usually a plain div; focus the first thing inside it that can actually take focus.
-    const focusable = element.querySelector(FocusableSelector);
+    // A component root is usually a plain div; focus the first thing inside it the keyboard can stand on.
+    const focusable = firstFocusable(element);
 
-    if (focusable instanceof HTMLElement) {
+    if (focusable !== null) {
         focusable.focus();
         return;
     }

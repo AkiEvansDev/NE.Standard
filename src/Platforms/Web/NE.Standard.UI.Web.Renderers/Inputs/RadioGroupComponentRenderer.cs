@@ -21,6 +21,14 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-radio-group__item";
+    private const string HostClassName = "ui-radio-group__host";
+
+    // The choice itself says it is read-only; its radios stay focusable and the client refuses their change.
+    private static readonly WebDomOperation[] ReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("aria-readonly", target: $".{HostClassName}", condition: WebValueCondition.IsTrue, value: "true")
+    ];
 
     public override string ComponentTypeKey => RadioGroupComponent.ComponentTypeKey;
 
@@ -54,17 +62,6 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
                 _ = target.Attribute(WebAttributes.RadioValue, value);
         }, [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")]);
 
-        // The mark reaches every radio through RadioGroupSyncEngine, on a bound change and at first render; written here too, so a
-        // page read before the engine runs is already read-only.
-        _ = ResolveRenderValue(context, IInputComponent.IsReadOnlyProperty, out bool? isReadOnly, out _);
-        var readOnly = isReadOnly == true;
-
-        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Attribute(WebAttributes.RadioDisabled);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.RadioDisabled, target: "root", condition: WebValueCondition.IsTrue)]);
-
         NativeInputRendererBase.RenderFormId(context, root);
 
         RenderTemplates(context, root);
@@ -80,28 +77,40 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         if (valueBinding is not null)
             _ = root.Attribute(WebAttributes.RadioBindValueId, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
 
-        RenderOptions(context, root, groupName, currentValue, valueBinding, readOnly);
+        RenderOptions(context, root, groupName, currentValue, valueBinding);
 
         RenderValidationMessage(context, root);
     }
 
-    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
+    private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, string? currentValue, CompiledUIBinding? valueBinding)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
         // Before the option's text, as a checkbox's box is and as RadioGroupSyncEngine prepends it on a row the client builds.
         // The host is the radio group, not the root: the caption and the validation line stand outside the choice itself.
-        RenderItemsHost(context, root, "ui-radio-group__host", items, isBound, ItemClassName, itemElementName: "label",
+        RenderItemsHost(context, root, HostClassName, items, isBound, ItemClassName, itemElementName: "label",
             configureHost: host =>
             {
                 _ = host.Attribute("role", "radiogroup");
                 TextContentRendererBase.RenderFieldLabel(context, host);
+                RenderReadOnly(context, root, host);
             },
-            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, currentValue, valueBinding, readOnly)
+            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, currentValue, valueBinding)
         );
     }
 
-    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, string? currentValue, CompiledUIBinding? valueBinding, bool readOnly)
+    /// <summary>Read-only as the root's mark and the choice's own <c>aria-readonly</c>.</summary>
+    private static void RenderReadOnly(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder host)
+        => _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = target.Class(WebClassNames.ReadOnly);
+            _ = host.Attribute("aria-readonly", "true");
+        }, ReadOnlyOperations);
+
+    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, string? currentValue, CompiledUIBinding? valueBinding)
     {
         var optionId = item is IBindableItem bindableItem ? bindableItem.Id : null;
 
@@ -117,9 +126,6 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             // A bound value is known here on the session's render, so its radio arrives checked rather than when the engine runs.
             if (optionId is not null && optionId == currentValue)
                 _ = input.Attribute("checked");
-
-            if (readOnly)
-                _ = input.Attribute("disabled");
 
             // Each radio carries the group's single Value binding, so a click reports back through the ordinary two-way channel.
             if (valueBinding is not null)

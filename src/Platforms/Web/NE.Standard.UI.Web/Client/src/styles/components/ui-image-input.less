@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/focus.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
@@ -7,8 +8,7 @@
 // A colour of its own, not the field's edge: under Filled the edge is the fill, so a dashed edge in that colour would vanish.
 @ui-image-input-drop-edge: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
 
-// A picture the viewer replaces (image-input-engine.ts): one button is the whole surface — the picture, its glyph placeholder,
-// and a pencil that darkens it on hover — in one of three shapes the root's modifier names.
+// A picture the viewer replaces: one button is the whole surface (picture, placeholder, pencil), in one of three shapes.
 .ui-image-input {
     display: flex;
     flex-direction: column;
@@ -18,10 +18,6 @@
     gap: @ui-space-1;
     font: inherit;
 }
-
-    .ui-image-input.ui-disabled {
-        .ui-disabled-state();
-    }
 
 .ui-image-input__native {
     .ui-visually-hidden();
@@ -45,7 +41,7 @@
 }
 
     // Read-only keeps the surface in the tab order and takes away the pointer's cues; the engine refuses the press itself.
-    .ui-image-input[data-ui-image-readonly] > .ui-image-input__surface {
+    .ui-image-input.ui-readonly > .ui-image-input__surface {
         cursor: default;
     }
 
@@ -63,7 +59,7 @@
     border-radius: inherit;
 }
 
-    // Fit is on the picture, not on a component root: the class's own size chain would read the root's Width, so the box is restated.
+    // Fit is on the picture, not a root: the class's size chain would read the root's Width, so the box is restated.
     .ui-image-input__picture.ui-image-fit--fill,
     .ui-image-input__picture.ui-image-fit--contain,
     .ui-image-input__picture.ui-image-fit--cover,
@@ -94,11 +90,6 @@
     }
 
     .ui-image-input:not([data-ui-icon]) .ui-image-input__placeholder::before {
-        // The icon element paints a mask by default; with no mask named that paint is a grey square behind the glyph, so it is
-        // switched off here.
-        background: none;
-        mask: none;
-        -webkit-mask: none;
         .ui-picture-glyph(1em);
     }
 
@@ -106,12 +97,15 @@
         .ui-person-glyph(1em);
     }
 
+// A surface that answers the pointer: not while its picture is on its way, which refuses a press and a drop as loading does.
+@ui-image-surface-live: ~":not(.ui-loading)";
+
 // The pencil: a veil over the picture, shown under the pointer and to the keyboard, never over an empty surface.
 .ui-image-input__edit {
     .ui-picture-veil(1.5rem);
 }
 
-    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:has(> .ui-image-input__picture[src]):is(:hover, :focus-visible) > .ui-image-input__edit {
+    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]):is(:hover, @{ui-keyboard-focus}) > .ui-image-input__edit {
         opacity: 1;
     }
 
@@ -121,7 +115,7 @@
     display: none;
 }
 
-// A picture: as wide as its column, a drop area's height on its own, and what the root's Height leaves under the caption when one is set.
+// A picture: as wide as its column, a drop area's height, or what the root's Height leaves under the caption.
 .ui-image-input--picture > .ui-image-input__surface {
     flex: 1 1 12rem;
     min-height: 0;
@@ -129,8 +123,7 @@
     border-radius: var(--ui-radius-input);
 }
 
-// An avatar (a small circle) never shrinks: the root spends the same Height, so a caption beneath asks for more space than it
-// has, and a flexible circle would squash into an ellipse.
+// An avatar never shrinks: a caption beneath asks for more than the root's Height, and a flexible circle would squash.
 .ui-image-input--avatar > .ui-image-input__surface {
     flex: 0 0 auto;
     .ui-responsive-property(width, --ui-width, 4rem);
@@ -199,8 +192,7 @@
         .ui-field-pick();
     }
 
-// Written here rather than through `@ui-input-field`, whose sizing would distort the picture and avatar. Ordered with the same
-// weight as the sizes below, so an author's size still overrides the height Ghost and Underline set.
+// Not through `@ui-input-field`, whose sizing would distort the picture and avatar; the sizes' weight, so a size overrides Ghost's height.
 .ui-input--outline.ui-image-input--inline > .ui-image-input__surface {
     --ui-field-fill: var(--ui-field-ground);
     border-color: var(--ui-color-border);
@@ -237,8 +229,7 @@
         border-radius: 3px;
     }
 
-// The caption behaves like any other row's (ui-input.less), restated here since the surface isn't part of `@ui-input-field` and
-// those shared rules don't reach it; text reads from the trailing edge against the caption, as a file input does.
+// A row's caption (ui-input.less), restated since the surface is not in `@ui-input-field`; text reads from the trailing edge.
 :is([data-ui-text-title], [data-ui-text-icon]).ui-image-input--inline > .ui-image-input__surface > .ui-input__header {
     display: grid;
 }
@@ -262,32 +253,27 @@
         text-align: end;
     }
 
-// States come after the appearances, so cascade order settles the ties between them.
-.ui-image-input:not(.ui-image-input--inline, [data-ui-image-readonly], [data-ui-image-dragging]) > .ui-image-input__surface:hover,
-.ui-image-input--inline.ui-input--filled:not([data-ui-image-readonly], [data-ui-image-dragging]) > .ui-image-input__surface:hover {
+// States after the appearances. The hover must outweigh the surface's resting edges, so it steps aside for the invalid and
+// focus edges rather than standing below them by weight as ui-input.less's does.
+@ui-image-edge-hover: ~":not(.ui-invalid, .ui-validation--warning) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
+
+.ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
+.ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
     border-color: var(--ui-field-hover);
 }
 
-.ui-image-input--inline:is(.ui-input--outline, .ui-input--underline):not([data-ui-image-readonly], [data-ui-image-dragging]) > .ui-image-input__surface:hover {
+.ui-image-input--inline:is(.ui-input--outline, .ui-input--underline)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
     border-color: var(--ui-field-hover-accent);
 }
 
-// A ghost's focus is the wash, as any other row's (ui-input.less): that rule looks for a focused element inside the row, and
-// the surface is the focused element itself.
-.ui-input--ghost.ui-image-input--inline:not(.ui-disabled) > .ui-image-input__surface:focus-visible {
-    border-color: transparent;
-    background: var(--ui-wash-hover);
-}
-
-// Dragging over the surface turns the edge primary regardless of appearance; excluded when read-only, since a refused drop
-// keeps its edge — the same exclusion that lets this rule outrank the appearances above.
-.ui-image-input[data-ui-image-dragging]:not([data-ui-image-readonly]) > .ui-image-input__surface {
+// A drag over the surface turns the edge primary in every appearance; not when read-only, since a refused drop keeps its edge.
+.ui-image-input[data-ui-image-dragging]@{ui-field-live} > .ui-image-input__surface {
     border-style: dashed;
     border-color: var(--ui-color-primary);
 }
 
-// One that is not a picture the field takes: the same dashed edge, in the colour of a refusal, and the drop is refused with it.
-.ui-image-input[data-ui-image-dragging="refused"]:not([data-ui-image-readonly]) > .ui-image-input__surface {
+// A file the field does not take: the dashed edge in the refusal's colour.
+.ui-image-input[data-ui-image-dragging="refused"]@{ui-field-live} > .ui-image-input__surface {
     border-color: var(--ui-color-danger);
 }
 
@@ -334,12 +320,11 @@
     flex-basis: 18rem;
 }
 
-    .ui-image-input:not([data-ui-image-readonly]) > .ui-image-input__surface:hover > .ui-image-input__pick {
+    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__pick {
         color: var(--ui-color-on-surface);
     }
 
-// Several pictures at once (Multiple, image-input-engine.ts): the surface is a shelf — a square per picture and a dashed square
-// that picks more — rather than one button; a square darkens under the pointer, behind the cross that removes it.
+// Multiple: the surface is a shelf of squares, one per picture plus a dashed one that picks more, rather than one button.
 .ui-image-input--multiple > .ui-image-input__surface {
     flex: 0 0 auto;
     flex-wrap: wrap;
@@ -352,8 +337,8 @@
     cursor: default;
 }
 
-    // The shelf itself does not answer the pointer: its squares do.
-    .ui-image-input--multiple:not([data-ui-image-readonly], [data-ui-image-dragging]) > .ui-image-input__surface:hover {
+    // The shelf itself does not answer the pointer: its squares do. Spelled as the hover it takes back, so it steps aside for the same edges.
+    .ui-image-input--multiple@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         border-color: @ui-image-input-drop-edge;
     }
 
@@ -410,8 +395,7 @@
         pointer-events: auto;
     }
 
-    // Without a hover there is nothing to bring the veil up: the cross stands in the corner at all times, a small target that
-    // leaves the rest of the picture to look at.
+    // No hover to bring the veil up: the cross stands in the corner at all times, a small target that leaves the picture visible.
     @media (hover: none) {
         .ui-image-input__remove {
             inset: 0.25rem 0.25rem auto auto;
@@ -424,13 +408,12 @@
         }
     }
 
-    .ui-image-input[data-ui-image-readonly] .ui-image-input__remove,
+    .ui-image-input.ui-readonly .ui-image-input__remove,
     .ui-image-input.ui-disabled .ui-image-input__remove {
         display: none;
     }
 
-// While the picture is on its way the remove veil stays down, and the shared loading veil and ring (runtime.less) turn over
-// the square: a ring of the tile's own lost to the shared veil's `::after`, which drew it with the tile's corners beside a second ring.
+// While the picture loads the remove veil stays down and runtime.less's shared veil and ring cover the square; no ring of its own.
 .ui-image-input__tile.ui-loading > .ui-image-input__remove {
     display: none;
 }
@@ -450,12 +433,12 @@
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-image-input:not([data-ui-image-readonly]) .ui-image-input__add:hover {
+    .ui-image-input@{ui-field-live} .ui-image-input__add:hover {
         background: var(--ui-field-hover);
         color: var(--ui-color-on-surface);
     }
 
-    .ui-image-input[data-ui-image-readonly] .ui-image-input__add {
+    .ui-image-input.ui-readonly .ui-image-input__add {
         cursor: default;
     }
 

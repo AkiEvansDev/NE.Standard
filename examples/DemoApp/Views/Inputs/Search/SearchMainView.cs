@@ -7,7 +7,7 @@ namespace DemoApp.Views.Inputs.Search;
 /// <summary>
 /// One search field, and every property that can be bound to it.
 /// </summary>
-/// <remarks>The option list is what the server answered through <c>OnSearch</c>, not a client-side filter.</remarks>
+/// <remarks>The option list is exactly what the server answered through <c>OnSearch</c>; the client narrows nothing.</remarks>
 internal sealed class SearchMainView : DemoMainView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);

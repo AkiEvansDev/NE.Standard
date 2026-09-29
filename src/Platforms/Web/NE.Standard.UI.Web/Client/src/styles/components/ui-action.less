@@ -15,7 +15,7 @@
     text-align: start;
 }
 
-// The same as a menu entry: an action whose label is only a glyph stays a row rather than becoming a square as tall as it is wide.
+// As a menu entry: an action whose label is only a glyph stays a row, not a square.
 .ui-action[data-ui-text-icon]:not([data-ui-text-title]) {
     aspect-ratio: auto;
 }
@@ -46,7 +46,7 @@
 }
 
 :where(.ui-action__trailing) {
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
 }
 
 .ui-action__trailing-text {

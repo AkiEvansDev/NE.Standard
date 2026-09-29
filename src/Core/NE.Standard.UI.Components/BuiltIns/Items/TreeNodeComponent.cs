@@ -86,8 +86,6 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
 /// </summary>
 public sealed class TreeNodeComponent(bool binds = false, string? id = null) : TreeNodeComponent<TreeNodeComponent>(binds, id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tree-node";
 }

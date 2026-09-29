@@ -114,12 +114,16 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
     /// <summary>The button that opens one side as a drawer; the stylesheet shows it only on a narrow screen, and draws its burger.</summary>
     private void RenderDrawerToggle(IHtmlElementBuilder section, string side, UIViewResolution resolution)
-        => _ = section.Element("button", toggle => toggle
-            .Class(DrawerToggleClass)
-            .Attribute("type", "button")
-            .Attribute(WebAttributes.DrawerToggle, side)
-            .Attribute("aria-expanded", "false")
-            .Attribute("aria-label", _translator.Translate(resolution.Session.Language, UIStrings.SideOpen) ?? UIStrings.English[UIStrings.SideOpen]));
+        => _ = section.Element("button", toggle =>
+        {
+            _ = toggle
+                .Class(DrawerToggleClass)
+                .Attribute("type", "button")
+                .Attribute(WebAttributes.DrawerToggle, side)
+                .Attribute("aria-expanded", "false");
+
+            WebWords.Write(_translator, resolution.Session.Language, toggle, "aria-label", UIStrings.SideOpen);
+        });
 
     /// <summary>Renders the component a region or a dialog holds at its root, outside any item.</summary>
     private void RenderRoot(UIViewResolution viewResolution, UIComponentId rootId, IHtmlElementBuilder html, WebRenderMetadata metadata, IWebRenderValues? values)
@@ -195,7 +199,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         .Attribute("tabindex", "-1");
 
                     if (!string.IsNullOrWhiteSpace(dialog.Label))
-                        _ = surface.Attribute("aria-label", _translator.Translate(viewResolution.Session.Language, dialog.Label) ?? dialog.Label);
+                        WebWords.WriteText(_translator, viewResolution.Session.Language, surface, "aria-label", dialog.Label);
 
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.
                     if (dialog.Surface != UISurfaceStyle.Raised)

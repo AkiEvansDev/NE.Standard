@@ -51,8 +51,6 @@ public abstract partial class FileInputComponent<T>(string? id = null) : Affixed
 /// </summary>
 public sealed class FileInputComponent(string? id = null) : FileInputComponent<FileInputComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.file";
 }

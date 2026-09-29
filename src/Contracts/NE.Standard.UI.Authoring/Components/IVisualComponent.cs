@@ -190,10 +190,11 @@ public interface IVisualComponent : IBindableComponent
     /// </summary>
     IVisualComponent On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments);
 
-    /// <summary>
-    /// Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>. Inside an item template, its
-    /// entries scope <c>ArgCurrentItemKey</c> to themselves, not the row; reach the row with a <c>Parent</c>-scoped argument.
-    /// </summary>
+    /// <summary>Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.</summary>
+    /// <remarks>
+    /// Inside an item template, its entries scope <c>ArgCurrentItemKey</c> to themselves, not the row; reach the row with a
+    /// <c>Parent</c>-scoped argument.
+    /// </remarks>
     IVisualComponent? ContextMenu { get; }
 
     /// <summary>
@@ -212,10 +213,10 @@ public interface IVisualComponent : IBindableComponent
     /// </summary>
     static UIProperty ScrollGroupProperty { get; } = new(nameof(ScrollGroup));
 
-    /// <summary>
-    /// Gets the scroll group this component belongs to: every component sharing the name scrolls together, driven by whichever
-    /// one the reader scrolls. Components that mark their shown source lines (e.g. a code field and a Markdown display) sync
-    /// line-for-line; otherwise by scroll fraction.
-    /// </summary>
+    /// <summary>Gets the scroll group this component belongs to: every component sharing the name scrolls together.</summary>
+    /// <remarks>
+    /// Driven by whichever one the reader scrolls. Components that mark their shown source lines (e.g. a code field and a Markdown
+    /// display) sync line-for-line; otherwise by scroll fraction.
+    /// </remarks>
     string? ScrollGroup { get; }
 }

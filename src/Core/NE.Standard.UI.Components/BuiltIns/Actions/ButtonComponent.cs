@@ -158,8 +158,6 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
 /// </summary>
 public sealed class ButtonComponent(string? id = null) : ButtonComponent<ButtonComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.button";
 }

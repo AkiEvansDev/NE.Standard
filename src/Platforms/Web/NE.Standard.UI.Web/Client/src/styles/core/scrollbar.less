@@ -1,5 +1,5 @@
-// One scrollbar everywhere: `scrollbar-color` inherits, so it's set once on `html`; `scrollbar-width` doesn't, so it's set on
-// `*`. The two are mutually exclusive with `::-webkit-scrollbar`, which is gated behind `@supports` for engines lacking both.
+// One scrollbar everywhere: `scrollbar-color` inherits (on `html`), `scrollbar-width` doesn't (on `*`); `::-webkit-scrollbar`
+// excludes both, so it is gated behind `@supports` for engines lacking them.
 html {
     scrollbar-color: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent) transparent;
 }

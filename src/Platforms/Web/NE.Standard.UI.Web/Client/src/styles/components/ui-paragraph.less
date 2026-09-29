@@ -1,7 +1,6 @@
 @import "../core/tokens.less";
 
-// Lifts only the *description* out of .ui-text's one-line rule; pre-line, so an author-written newline still breaks the line.
-// Matches ui-text.less's description selector weight exactly, or its `normal` wrap rule outranks a lighter one here.
+// Lifts the description out of .ui-text's one-line rule, at ui-text.less's weight so it wins by order; pre-line keeps authored breaks.
 .ui-paragraph.ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
     overflow: visible;
     white-space: pre-line;
@@ -26,11 +25,24 @@
     -webkit-box-orient: vertical;
 }
 
-// The quote line runs the block's full height, icon included. Painted as a background under a transparent border rather than
-// a real border+padding, since padding here would shadow the root's responsive Padding chain.
+// The quote line runs the block's full height, in a transparent border, as padding would shadow the root's Padding. A pseudo-element,
+// not the root's background: a wrapped view's tile wash (.ui-tile-wash()) rewrites the root's background-image. Not while loading,
+// when the root's ::before is the loading ring.
 @ui-quote-color: ~"var(--ui-quote-color, color-mix(in srgb, currentColor 25%, transparent))";
+@ui-quote-border: ~"calc(2px + @{ui-space-2})";
 
 .ui-paragraph--quote {
-    border-left: calc(2px + @ui-space-2) solid transparent;
-    background: linear-gradient(@ui-quote-color, @ui-quote-color) 0 0 / 2px 100% no-repeat border-box;
+    position: relative;
+    border-left: @ui-quote-border solid transparent;
 }
+
+    .ui-paragraph--quote:not(.ui-loading)::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: calc(-1 * @ui-quote-border);
+        width: 2px;
+        background-color: @ui-quote-color;
+        pointer-events: none;
+    }

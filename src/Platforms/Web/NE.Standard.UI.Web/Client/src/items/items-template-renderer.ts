@@ -1,16 +1,17 @@
 import {
     BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
-    UnrenamableAttribute, UnselectableAttribute
+    UnrenamableAttribute, UnselectableAttribute, cssAttributeValue, toKebabCase
 } from "../addressing/dom-attributes";
-import { resolveOperationElements } from "../addressing/address-resolver";
+import { resolveOperationElements } from "../addressing/operation-targets";
 import { readComponentId } from "../addressing/dom-registry";
 import { ExtensionRegistry } from "../extensions/extension-registry";
-import { MetadataIndex, getIdValue } from "../metadata/metadata-index";
+import { MetadataIndex, WebRenderBindingMetadata, getIdValue } from "../metadata/metadata-index";
+import { shownValue } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
 import { PropertyStateStore } from "../state/property-state-store";
 import { DomOperationRegistry } from "../updates/dom-operation-registry";
 import {
-    ItemStackEntry, ItemValueStep, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty,
+    isContentItem, ItemStackEntry, ItemValueStep, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty,
     tryResolveItemTemplateValue, tryWriteCollectionItem
 } from "./binding-template-evaluator";
 import { ItemsTemplateRegistry } from "./items-template-registry";
@@ -19,9 +20,14 @@ export class ItemsTemplateRenderer {
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
 
-    // Once per binding, not per row: a row template's abilities are bound on every row, and most items say nothing about
-    // them — the server reads that as nothing, so one line here is what a typo gets.
+    // Warned once per binding, not per row: most items leave a row's abilities unset, and one line is what a typo needs.
     private readonly unresolved = new Set<number>();
+
+    // The item-scoped bindings whose value is looked up as a key, with their elements' selector; built on the first language switch.
+    private translatableRowBindings: readonly (readonly [binding: WebRenderBindingMetadata, selector: string])[] | null = null;
+
+    // What a row built from its template is given before its bindings: the collections its hosts share with every row's copy.
+    private fillRow: ((row: Element) => void) | null = null;
 
     public constructor(
         private readonly metadata: MetadataIndex,
@@ -129,9 +135,56 @@ export class ItemsTemplateRenderer {
         const templateRootComponentId = readComponentId(root);
         const ownEntry: ItemStackEntry = { scopeComponentId: templateRootComponentId, item };
         this.itemStackByRoot.set(root, ownEntry);
+        this.fillRow?.(root);
         this.populateBoundElements(root, [...ancestors, ownEntry]);
 
         return root;
+    }
+
+    /** Names what a row built from its template is given before its bindings (the update processor's held collections). */
+    public setRowFiller(fill: (row: Element) => void): void {
+        this.fillRow = fill;
+    }
+
+    /** Writes every built row's translatable values again in the table's language, each re-read off its item stack. */
+    public rewriteRowWords(root: ParentNode): void {
+        this.translatableRowBindings ??= this.findTranslatableRowBindings();
+
+        for (const [binding, selector] of this.translatableRowBindings) {
+            for (const element of root.querySelectorAll(selector)) {
+                const stack = this.stackOf(element);
+
+                // A row the server drew holds no scope for an item nested in it (a slot's value): the words it was drawn with stay.
+                if (holdsScopes(binding, stack))
+                    this.applyBoundAttribute(element, String(getIdValue(binding.bindingId)), stack);
+            }
+        }
+    }
+
+    /** The item-scoped bindings of a translatable property, by the attribute a row element carries for each. */
+    private findTranslatableRowBindings(): (readonly [WebRenderBindingMetadata, string])[] {
+        const bindings: (readonly [WebRenderBindingMetadata, string])[] = [];
+
+        for (const binding of this.metadata.metadata.bindings) {
+            const definition = this.metadata.getPropertyDefinition(binding.propertyId);
+
+            if (definition === undefined || typeof binding.itemTemplate !== "string" || !this.metadata.isTranslatable(binding))
+                continue;
+
+            const bindingId = getIdValue(binding.bindingId);
+
+            bindings.push([binding, `[${BindingAttributePrefix}${toKebabCase(definition.propertyName)}="${cssAttributeValue(bindingId)}"]`]);
+        }
+
+        return bindings;
+    }
+
+    /** The item scopes an element reads its bindings against, outermost first: those around it, and its own where it is a row's root. */
+    private stackOf(element: Element): ItemStackEntry[] {
+        const stack = this.getAncestorStack(element);
+        const own = this.itemStackByRoot.get(element);
+
+        return own === undefined ? stack : [...stack, own];
     }
 
     /** Populates the bindings an element carries itself, for a composite root built by hand rather than cloned from a template. */
@@ -185,9 +238,19 @@ export class ItemsTemplateRenderer {
                 const attribute = attributes[index];
 
                 if (attribute.name.startsWith(BindingAttributePrefix))
-                    this.applyBoundAttribute(element, attribute.value, stack);
+                    this.populateBoundAttribute(element, attribute.value, stack);
             }
         }
+    }
+
+    /** A cloned element's binding, unless it belongs to a row the server drew inside the template, whose values are written already. */
+    private populateBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[]): void {
+        const binding = this.metadata.getBindingById(Number(bindingIdText));
+
+        if (binding !== undefined && readsDrawnRow(element, binding.itemTemplateParameters, stack))
+            return;
+
+        this.applyBoundAttribute(element, bindingIdText, stack);
     }
 
     private applyBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[]): void {
@@ -216,8 +279,9 @@ export class ItemsTemplateRenderer {
             return;
         }
 
-        // An item that says nothing about a property falls back to what the template component was authored with.
-        const value = resolution.value ?? binding.fallbackValue;
+        // An unset property falls back to the template's value; its words are looked up as a patch's are, unless the item is content.
+        const scope = "scope" in resolution ? resolution.scope : undefined;
+        const value = shownValue(resolution.value ?? binding.fallbackValue, () => this.metadata.isTranslatable(binding) && !isContentItem(scope));
 
         const componentId = getIdValue(binding.componentId);
         const componentRoot = element.closest<Element>(`[${ComponentIdAttribute}="${componentId}"]`);
@@ -258,6 +322,18 @@ export class ItemsTemplateRenderer {
             });
         }
     }
+}
+
+/** Whether every item scope a binding's parameters name is on the stack, so its value can be read again. */
+function holdsScopes(binding: WebRenderBindingMetadata, stack: readonly ItemStackEntry[]): boolean {
+    for (const parameter of binding.itemTemplateParameters ?? []) {
+        const componentId = getIdValue(parameter.componentId);
+
+        if (componentId > 0 && !stack.some(entry => entry.scopeComponentId === componentId))
+            return false;
+    }
+
+    return true;
 }
 
 /** Writes a patched value into an item along a path, in place; an empty path is the item itself, so the new one is returned. */
@@ -325,7 +401,7 @@ export const ItemAbilityAttributes: readonly (readonly [propertyName: string, at
     ["CanShowContextMenu", NoContextMenuAttribute]
 ];
 
-/** The same marks the server writes on its own rows: an item that refuses to be chosen, dragged, removed or renamed says so on its row. */
+/** Marks a row whose item refuses to be chosen, dragged, removed or renamed, as the server marks its own rows. */
 export function applyItemAbilityAttributes(root: Element, item: unknown): void {
     for (const [propertyName, attribute] of ItemAbilityAttributes) {
         const ability = tryReadItemProperty(item, propertyName);

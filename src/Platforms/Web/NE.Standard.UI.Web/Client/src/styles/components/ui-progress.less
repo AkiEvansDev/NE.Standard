@@ -61,8 +61,7 @@
     transition: width @ui-motion-normal @ui-motion-ease;
 }
 
-// The authored size belongs to the ring, not the root: the --ui-width/--ui-height chain is re-declared on the ring's box.
-// Stretched across a column, a ring doesn't grow with it, so it centres in the given width rather than sitting at its start.
+// The authored size is the ring's, re-declared on its box; stretched across a column, the ring centres rather than growing.
 .ui-progress--circular {
     width: auto;
     height: auto;
@@ -85,14 +84,14 @@
     display: none;
 }
 
-// Stroked circles, not a masked conic gradient, so the stroke's viewBox units keep proportions at every size. A circle cut to
-// its share with dot ends (mixins/arc.less), not a dash, which browsers antialias in coarse steps; angles match the renderer's 36-unit box.
+// Stroked circles, not a masked gradient, keep proportions at every size; the share is cut with dot ends (mixins/arc.less), not a dash.
 .ui-progress__ring {
     display: none;
     height: 100%;
     aspect-ratio: 1 / 1;
     --ui-arc-start: -90deg;
     --ui-arc-sweep: 360deg;
+    // Centre and stroke in the renderer's 36-unit viewBox (ProgressComponentRenderer), not the page's pixels: the two change together.
     --ui-arc-origin: 18px 18px;
     --ui-arc-width: 4px;
     --ui-progress-share: clamp(0, calc((var(--ui-progress-value) - var(--ui-progress-min)) / (var(--ui-progress-max) - var(--ui-progress-min))), 1);
@@ -113,10 +112,8 @@
     stroke: color-mix(in srgb, currentColor 18%, transparent);
 }
 
-// A reading of none draws nothing, not a dot where it would start; any share above none shows both ends at once.
 .ui-progress__ring-fill {
-    --ui-arc-to: var(--ui-progress-share);
-    opacity: clamp(0, calc(var(--ui-progress-share) * 1000), 1);
+    .ui-arc-share(var(--ui-progress-share));
 }
 
 .ui-progress__ring-arc {

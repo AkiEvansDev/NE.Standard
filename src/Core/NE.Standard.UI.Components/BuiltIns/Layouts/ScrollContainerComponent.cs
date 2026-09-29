@@ -19,8 +19,6 @@ public abstract partial class ScrollContainerComponent<T>(string? id = null) : C
 /// </summary>
 public sealed class ScrollContainerComponent(string? id = null) : ScrollContainerComponent<ScrollContainerComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.scroll";
 }

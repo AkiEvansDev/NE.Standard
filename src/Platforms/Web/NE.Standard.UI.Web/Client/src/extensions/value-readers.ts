@@ -1,5 +1,6 @@
 import {
     ItemsQueryAttribute,
+    ItemsQueryValueKind,
     SelectedKeyAttribute,
     SelectedKeysAttribute,
     TabCaptionAttribute,
@@ -10,8 +11,8 @@ import {
     TabsSelectedAttribute,
     ValueHolderAttribute,
     ValueKindAttribute
-} from "../addressing/dom-attributes";
-import { logWarn } from "../runtime/logger";
+} from "../addressing/dom-attributes.ts";
+import { logWarn } from "../runtime/logger.ts";
 
 export function toDomString(value: unknown): string {
     if (value === null || value === undefined)
@@ -33,16 +34,15 @@ export function isNullishValue(value: unknown): boolean {
 /** Reads the value an element holds, for the kind named by its `data-ui-value-kind`. */
 export type ValueReader = (element: Element) => unknown;
 
-/**
- * A value read as the framework reads it: off the kind an element names, off what the element is, or off the element a composed
- * control keeps its value on when given the component's own root.
- */
+/** A value read as the framework reads it: by the kind an element names, by what it is, or off a root's value holder. */
 export type ValueReading = {
     read(element: Element): unknown;
     /** Holds an element's value as the reader's until it is sent: a value the server pushes meanwhile is not written into it. */
     hold(element: Element): void;
     /** Lets a held value go, and puts the server's latest value back into the element. */
     release(element: Element): void;
+    /** Writes a value into a bound element the way its binding writes a push, on that element's component alone. */
+    write(element: Element, value: unknown): boolean;
 };
 
 export type ValueReaderRegistration = {
@@ -125,7 +125,7 @@ function readNativeValue(element: Element): unknown {
 
 const NativeValueSelector = "input, textarea, select";
 
-/** The element a component keeps its value on: the one given when it names a kind or is itself a field, else the value holder inside it. */
+/** The element a component keeps its value on: the one given if it names a kind or is a field, else its value holder. */
 export function resolveValueHolder(element: Element): Element | null {
     if (element.hasAttribute(ValueKindAttribute) || element.matches(NativeValueSelector))
         return element;
@@ -155,7 +155,7 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     { kind: "selected-key", read: element => element.getAttribute(SelectedKeyAttribute) },
     { kind: "selected-keys", read: element => readJsonAttribute(element, SelectedKeysAttribute) },
     // the query element every items component renders: the viewer's terms, as an engine wrote them
-    { kind: "items-query", read: element => readJsonAttribute(element, ItemsQueryAttribute) },
+    { kind: ItemsQueryValueKind, read: element => readJsonAttribute(element, ItemsQueryAttribute) },
     // radio-group-sync-engine.ts
     { kind: "checked-radio", read: element => element.querySelector<HTMLInputElement>("input[type=\"radio\"]:checked")?.value ?? null },
     // toggle-button-engine.ts

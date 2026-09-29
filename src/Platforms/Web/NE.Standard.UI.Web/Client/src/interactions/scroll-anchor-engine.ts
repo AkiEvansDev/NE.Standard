@@ -53,8 +53,7 @@ export class ScrollAnchorEngine {
             if (this.pinned.get(container) === false)
                 continue;
 
-            // The end of a window that stops short of the source's end is a spacer: scrolling there would have the window engine
-            // swap the window the server opened on (a search hit) for the newest one.
+            // Short of the source's end the end is a spacer: scrolling there would swap the window opened on (a search hit) for the newest.
             if (holdsOlderWindow(container)) {
                 this.pinned.set(container, false);
                 continue;

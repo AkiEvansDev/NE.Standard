@@ -2,9 +2,7 @@ using System;
 
 namespace NE.Standard.UI.Shell.Runtime;
 
-/// <summary>
-/// Defines how long UI runtime instances are retained.
-/// </summary>
+/// <summary>Defines how long UI runtime instances are retained.</summary>
 /// <remarks>
 /// All three are keyed so a reload always finds the runtime it left; what differs is what happens when the tab leaves the address.
 /// </remarks>
@@ -44,9 +42,7 @@ public sealed class UIPersistenceOptions
     /// </summary>
     public TimeSpan DisconnectedRetention { get; set; } = TimeSpan.FromMinutes(10);
 
-    /// <summary>
-    /// Gets or sets how long a runtime the page render built is kept for the client that page belongs to.
-    /// </summary>
+    /// <summary>Gets or sets how long a runtime the page render built is kept for the client that page belongs to.</summary>
     /// <remarks>
     /// A render nobody ever attaches to (a crawler, a health check, a closed tab) is already dead, so holding it for
     /// <see cref="DisconnectedRetention"/> would waste memory; losing the race only costs a fresh runtime.
@@ -63,9 +59,7 @@ public sealed class UIPersistenceOptions
     /// </summary>
     public int MaxParallelFlushes { get; set; } = Math.Max(1, Environment.ProcessorCount);
 
-    /// <summary>
-    /// Gets or sets how many change sets may wait to reach one runtime's clients before the queue is dropped.
-    /// </summary>
+    /// <summary>Gets or sets how many change sets may wait to reach one runtime's clients before the queue is dropped.</summary>
     /// <remarks>
     /// A client that stops reading builds a queue behind the flush; past this many, the queue is dropped and the runtime is
     /// asked for a full resync instead.
@@ -93,9 +87,7 @@ public sealed class UIPersistenceOptions
     /// </remarks>
     public int MaxUnclaimedRuntimesPerSession { get; set; } = 4;
 
-    /// <summary>
-    /// Gets or sets how often disconnected runtime cleanup runs.
-    /// </summary>
+    /// <summary>Gets or sets how often disconnected runtime cleanup runs.</summary>
     /// <remarks>
     /// The sweep is what ends a retention, so a runtime lives its retention plus up to one sweep. The host runs this at the
     /// shorter of it and <see cref="UnclaimedRenderRetention"/>, so raising it can't outlive that shorter retention.

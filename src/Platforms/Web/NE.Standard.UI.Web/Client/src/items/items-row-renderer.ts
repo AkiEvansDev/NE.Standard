@@ -20,8 +20,7 @@ export function renderItemRow(componentId: number, item: unknown, key: string, a
 
     const row = renderCompositeItem(composite, componentId, item, key, ancestors, renderers.templates, renderers.renderer);
 
-    // The template path decorates inside renderItem; a composite row is built here, so its own decorator runs here too — a
-    // table's rows are composites, and a grid's detail row reached none of them until this.
+    // A composite row (a table's) is built here, not in renderItem, so its decorator runs here too.
     if (row !== null && itemsTemplate?.rowDecorator)
         renderers.renderer.decorateRow(itemsTemplate.rowDecorator, row, item, key, componentId, ancestors);
 

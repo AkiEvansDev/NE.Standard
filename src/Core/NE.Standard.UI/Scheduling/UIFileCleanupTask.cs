@@ -6,12 +6,8 @@ using NE.Standard.UI.Shell.Files;
 
 namespace NE.Standard.UI.Scheduling;
 
-/// <summary>
-/// Sweeps staged upload and download content past its retention.
-/// </summary>
-/// <remarks>
-/// The store is resolved per run rather than captured, since it is registered after this task is constructed.
-/// </remarks>
+/// <summary>Sweeps staged upload and download content past its retention.</summary>
+/// <remarks>The store is resolved per run rather than captured, since it is registered after this task is constructed.</remarks>
 internal sealed partial class UIFileCleanupTask : RuntimeScheduledTask
 {
     private static partial class Log

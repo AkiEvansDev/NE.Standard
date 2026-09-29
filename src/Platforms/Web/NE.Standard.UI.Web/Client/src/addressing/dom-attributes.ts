@@ -25,6 +25,14 @@ export const TabsMenuAttribute = "data-ui-tabs-menu";
 export const TabsRemovesAttribute = "data-ui-tabs-removes";
 /** On a context menu's host: the menu's name, empty for its owner's unnamed one. */
 export const ContextMenuAttribute = "data-ui-context-menu";
+/** On a part of a context menu's owner: the name of the owner's menu a right press there opens. */
+export const ContextMenuUseAttribute = "data-ui-context-menu-use";
+/** On the row the keyboard is on in a host with rows; the host's engine moves it. */
+export const RowFocusAttribute = "data-ui-row-focus";
+/** The words of a component's tooltip, where it shows them, and a mark inside a control the tooltip belongs to instead. */
+export const TooltipAttribute = "data-ui-tooltip";
+export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
+export const TooltipMarkAttribute = "data-ui-tooltip-mark";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
@@ -64,6 +72,8 @@ export const ValueHolderAttribute = "data-ui-value-holder";
 
 /** Names the reader that reads a written value off this element. */
 export const ValueKindAttribute = "data-ui-value-kind";
+/** The value kind of the element a host's query is carried on. */
+export const ItemsQueryValueKind = "items-query";
 
 /** How an items host holds its rows — "virtualized" or "windowed"; a plain host carries nothing. */
 export const HostModeAttribute = "data-ui-host-mode";
@@ -90,6 +100,8 @@ export const WindowOffsetAttribute = "data-ui-window-offset";
 export const WindowTotalAttribute = "data-ui-window-total";
 export const WindowMoreBeforeAttribute = "data-ui-window-more-before";
 export const WindowMoreAfterAttribute = "data-ui-window-more-after";
+/** On a windowed host: the totals over its whole source, as JSON, written with each window. */
+const WindowAggregatesAttribute = "data-ui-window-aggregates";
 export const FormIdAttribute = "data-ui-form-id";
 
 export const VisibilityAttribute = "data-ui-visibility";
@@ -113,12 +125,15 @@ export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
 export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
 export const MenuItemKindAttribute = "data-ui-menu-item-kind";
+/** A menu's entry, and a check entry turned on. */
+export const MenuItemClass = "ui-menu-item";
+const MenuItemCheckedClass = "ui-menu-item--checked";
 /** A menu entry that runs nothing when pressed: a caption or a rule. */
 export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 /** A group's own entry, which opens its block rather than running anything. */
-export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .ui-menu-item`;
-/** A menu entry with a mark of its own — a group's chevron, a check's tick — which is also one a press leaves the menu open on. */
-export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .ui-menu-item[${MenuItemKindAttribute}="check"]`;
+export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .${MenuItemClass}`;
+/** A menu entry with a mark of its own (a group's chevron, a check's tick), which a press also leaves the menu open on. */
+export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .${MenuItemClass}[${MenuItemKindAttribute}="check"]`;
 export const CollapseToggleAttribute = "data-ui-collapse-toggle";
 /** Client-only: on a collapsible while collapsible-engine.ts slides it, so the stylesheet holds the open layout until the slide ends. */
 export const FoldingAttribute = "data-ui-folding";
@@ -136,7 +151,12 @@ export const TableHideBelowAttribute = "data-ui-table-hide-below";
 export const TableFixedAttribute = "data-ui-table-fixed";
 /** Client-only: on a table's root, the indices of the columns hidden now, which the stylesheet puts out of sight. */
 export const TableHiddenAttribute = "data-ui-table-hidden";
-/** Client-only: on a table's root, the index of the column at the end of the row — the one with no edge of its own to drag. */
+/** A table's parts a package reaches: its row, its scrolling box, its header row, a column's resizer. */
+export const TableRowClass = "ui-table__row";
+export const TableScrollClass = "ui-table__scroll";
+export const TableHeaderClass = "ui-table__header";
+export const TableResizerClass = "ui-table__resizer";
+/** Client-only: on a table's root, the index of the row's last column, the one with no edge of its own to drag. */
 export const TableLastAttribute = "data-ui-table-last";
 /** Client-only: on a table's root while a column is being dragged, on the cell being dragged, and on the cell the drop line stands at. */
 export const TableReorderingAttribute = "data-ui-table-reordering";
@@ -159,23 +179,32 @@ export const TreeRenamableAttribute = "data-ui-tree-renamable";
 export const TreeLoadingAttribute = "data-ui-tree-loading";
 /** On a tree node's text: the key of the node it was dropped on. */
 export const TreeDropTargetAttribute = "data-ui-tree-drop-target";
-/** On a tree's row: "hidden" or "shown" where the viewer's remembered fold disagrees with the authored one; the engine takes it off on its first walk. */
+/** On a tree's row: "hidden" or "shown" where the viewer's remembered fold differs from the authored one; the first walk takes it off. */
 export const TreeBootAttribute = "data-ui-tree-boot";
 /** On a tree's root: its nodes may be dragged onto one another; a double click renames rather than opens. */
 export const TreeDraggableAttribute = "data-ui-tree-draggable";
 export const TreeRenameOnDoubleClickAttribute = "data-ui-tree-rename-dblclick";
 /** A key-value row while it is being edited: its value is the input and its action the save/cancel pair. */
 export const RowEditingAttribute = "data-ui-row-editing";
-/** An image input's picture (its Value's URL) and its read-only state, both on the root. */
+/** An image input's picture, its Value's URL, on the root. */
 export const ImageSourceAttribute = "data-ui-image-source";
-export const ImageReadonlyAttribute = "data-ui-image-readonly";
 /** On a file or image input's root: the largest file the server will accept, in bytes; a larger pick is refused on the client. */
 export const FileMaxSizeAttribute = "data-ui-file-max-size";
+/** On a file or image input's control that opens the native file dialog. */
+export const FilePickAttribute = "data-ui-file-pick";
 /** On `<html>`: the theme opts every button, action and menu item into the press ripple. */
 export const PressRippleAttribute = "data-ui-press-ripple";
+/** On `<html>`, or on an element whose subtree keeps a theme of its own: `light`, `dark` or `auto`. */
+export const ThemeAttribute = "data-ui-theme";
+/** An element's chrome words with their keys (`WebWords`, `strings.write`), which a language switch writes again. */
+export const WordsAttribute = "data-ui-words";
+/** The language switcher's root, whose value says what its button shows for a language: `code` or `name`. */
+export const LanguageSwitcherAttribute = "data-ui-language-switcher";
+/** On a language switcher's choice: the language it switches to. */
+export const LanguageAttribute = "data-ui-language";
 /** Client-only: on a splitter while the pointer holds it, for the stylesheet's pressed look. */
 export const SplittingAttribute = "data-ui-splitting";
-/** Client-only: on a handle the pointer focused, so the stylesheet does not draw the keyboard's focus for it; a key or a blur takes it off. */
+/** Client-only: on a handle the pointer focused, so no keyboard focus is drawn for it; a key or a blur takes it off. */
 export const PointerFocusAttribute = "data-ui-pointer-focus";
 
 /** Choosing rows in an items view: the mode, the chosen key(s), and the mark on a chosen row's wrapper. */
@@ -203,6 +232,81 @@ export const VisibilityTierAttributes = [
 ] as const;
 export const SubmitFormIdAttribute = "data-ui-submit-form-id";
 export const ComponentSelector = `[${ComponentIdAttribute}]`;
+
+/** A link's address, kept while the link is disabled or loading and carries no `href` the browser's own menu could open. */
+export const HrefAttribute = "data-ui-href";
+/** On a component's root while its Enabled is false: the look, and the mark every refusal reads. */
+export const DisabledClass = "ui-disabled";
+/** On a component's root while it is Loading. */
+export const LoadingClass = "ui-loading";
+/** On an input's root while its IsReadOnly is true, whatever its own control carries for the browser. */
+export const ReadOnlyClass = "ui-readonly";
+/** On a row a filter keeps out of view; named here, not in the filter, so the empty state reads it without an import cycle. */
+export const HiddenClass = "ui-hidden";
+/** A dialog's panel and a flyout's: each takes the keyboard back from a field inside it. */
+export const DialogSurfaceClass = "ui-dialog__surface";
+export const FlyoutContentClass = "ui-flyout__content";
+/** On a focusable layer a package draws (a canvas, a panel over it): it takes the keyboard back from a field inside it. */
+export const FocusHolderAttribute = "data-ui-focus-holder";
+/** The roles a field-opened popup wears — a select's list, a menu, a dialog — shared by every host that must yield keys to one. */
+export const PopupRoleSelector = "[role='listbox'], [role='menu'], [role='dialog']";
+/** The control that opens a select's, a multi-select's or a search's list — a button in the first two, the field's row in a search. */
+export const ListTriggerClass = "ui-select__trigger";
+const ListTriggerSelector = `.${ListTriggerClass}` as const;
+/** A button's root, a select family's root, a text input's root, and the mark of a field whose value was refused. */
+export const ButtonClass = "ui-button";
+export const SelectClass = "ui-select";
+const TextInputClass = "ui-text-input";
+export const InvalidClass = "ui-invalid";
+
+/** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
+export const pluginDomNames = {
+    componentId: ComponentIdAttribute,
+    key: ComponentKeyAttribute,
+    selected: SelectedAttribute,
+    selectedKey: SelectedKeyAttribute,
+    selectedKeys: SelectedKeysAttribute,
+    unselectable: UnselectableAttribute,
+    rowFocus: RowFocusAttribute,
+    itemsHost: ItemsHostAttribute,
+    valueHolder: ValueHolderAttribute,
+    bindValue: ValueBindingAttribute,
+    noRowOpen: NoRowOpenAttribute,
+    eventBoundary: EventBoundaryAttribute,
+    focusHolder: FocusHolderAttribute,
+    tooltip: TooltipAttribute,
+    tooltipPlacement: TooltipPlacementAttribute,
+    contextMenu: ContextMenuAttribute,
+    contextMenuUse: ContextMenuUseAttribute,
+    disabledClass: DisabledClass,
+    loadingClass: LoadingClass,
+    readOnlyClass: ReadOnlyClass,
+    hiddenClass: HiddenClass,
+    buttonClass: ButtonClass,
+    selectClass: SelectClass,
+    textInputClass: TextInputClass,
+    invalidClass: InvalidClass,
+    sourceLine: SourceLineAttribute,
+    popupSelector: PopupRoleSelector,
+    listTriggerSelector: ListTriggerSelector,
+    tableRowClass: TableRowClass,
+    tableScrollClass: TableScrollClass,
+    tableHeaderClass: TableHeaderClass,
+    tableResizerClass: TableResizerClass,
+    tableHidden: TableHiddenAttribute,
+    hostMode: HostModeAttribute,
+    windowOffset: WindowOffsetAttribute,
+    windowTotal: WindowTotalAttribute,
+    windowSize: WindowSizeAttribute,
+    windowMoreAfter: WindowMoreAfterAttribute,
+    windowAggregates: WindowAggregatesAttribute,
+    itemsQuery: ItemsQueryAttribute,
+    valueKind: ValueKindAttribute,
+    itemsQueryKind: ItemsQueryValueKind,
+    menuItemClass: MenuItemClass,
+    menuItemKind: MenuItemKindAttribute,
+    menuItemCheckedClass: MenuItemCheckedClass
+} as const;
 
 /** A value as the inside of a quoted attribute selector: a quote, a backslash and a control character escaped. */
 export function cssAttributeValue(value: string | number): string {

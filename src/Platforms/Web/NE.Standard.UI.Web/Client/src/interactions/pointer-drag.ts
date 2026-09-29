@@ -1,20 +1,18 @@
 // A pointer dragging a handle (a grid splitter's bar, a table's column edge): press takes the pointer, moves are measured from
 // where it began, release lets go. One gesture for every handle; what it does with the distance is the engine's.
 
-import { PointerFocusAttribute, SplittingAttribute } from "../addressing/dom-attributes";
+import { SplittingAttribute } from "../addressing/dom-attributes";
+import { isInert } from "./interactive-state";
 
 export type PointerDragOptions<TContext> = {
     readonly root: ParentNode;
     /** The handle the press landed on, or null when the press is not a handle's. */
     readonly resolveHandle: (target: Element) => HTMLElement | null;
-    /** What the gesture works on, read afresh at the press; null refuses the press. `point` is where the press landed, for a gesture measured by position rather than distance. */
+    /** What the gesture works on, read at the press, or null to refuse it; `point` is where it landed, for a gesture measured by position. */
     readonly begin: (handle: HTMLElement, point: { readonly x: number; readonly y: number }) => TContext | null;
     /** The pointer coordinate the gesture measures along; omitted when a gesture reads the pointer's own position instead of a delta. */
     readonly coordinate?: (context: TContext) => "clientX" | "clientY";
-    /**
-     * The distance from where the press began along `coordinate`, zero when `coordinate` is omitted; each position is one answer,
-     * so moves don't drift. `point` is the pointer's own position, for a gesture measured against a rectangle, not an origin.
-     */
+    /** The distance from the press along `coordinate` (zero without one), so moves don't drift, and the pointer's own position. */
     readonly move: (context: TContext, delta: number, point: { readonly x: number; readonly y: number }) => void;
     readonly end: (handle: HTMLElement, context: TContext) => void;
 };
@@ -38,10 +36,8 @@ export class PointerDrag<TContext> {
         options.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
         options.root.addEventListener("pointerup", domEvent => this.handlePointerEnd(domEvent), true);
         options.root.addEventListener("pointercancel", domEvent => this.handlePointerEnd(domEvent), true);
-        // On the window, which hears a key before the document does: Escape mid-drag cancels the drag rather than closing the popup
-        // the handle is in (a colour square), which popup-dismissal would otherwise take first.
+        // On the window, first to hear a key: Escape mid-drag cancels the drag rather than closing the popup the handle is in.
         window.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
-        options.root.addEventListener("focusout", domEvent => unmarkPointerFocus(domEvent.target), true);
     }
 
     /** Whether a gesture is in progress — a key on the handle waits for it to end. */
@@ -56,7 +52,8 @@ export class PointerDrag<TContext> {
 
         const handle = this.options.resolveHandle(domEvent.target);
 
-        if (handle === null)
+        // A disabled handle is hit-testable (its tooltip shows) but moves nothing.
+        if (handle === null || isInert(handle))
             return;
 
         const context = this.options.begin(handle, { x: domEvent.clientX, y: domEvent.clientY });
@@ -76,13 +73,9 @@ export class PointerDrag<TContext> {
 
         handle.setAttribute(SplittingAttribute, "");
 
-        // Focused so the arrows can carry on from where the drag ends, and marked as the pointer's doing, since a script-given focus
-        // reads as the keyboard's to the browser and would stay lit after release; removed on a key or blur, so a handle with no
-        // focus (a colour square) is never marked, or nothing would remove it.
-        if (handle.tabIndex >= 0) {
-            handle.setAttribute(PointerFocusAttribute, "");
+        // Focused so the arrows can carry on from where the drag ends; popup-focus.ts marks it as the pointer's, so no ring shows.
+        if (handle.tabIndex >= 0)
             handle.focus({ preventScroll: true });
-        }
 
         this.drag = {
             handle,
@@ -117,9 +110,6 @@ export class PointerDrag<TContext> {
 
     /** Escape cancels the gesture in progress: back to the delta the drag began at, then released like any other end. */
     private handleKeyDown(domEvent: Event): void {
-        // A key on the handle is the keyboard's turn: the handle shows its focus from here on.
-        unmarkPointerFocus(domEvent.target);
-
         if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || this.drag === null)
             return;
 
@@ -140,9 +130,4 @@ export class PointerDrag<TContext> {
 
         this.options.end(handle, context);
     }
-}
-
-function unmarkPointerFocus(target: EventTarget | null): void {
-    if (target instanceof Element && target.hasAttribute(PointerFocusAttribute))
-        target.removeAttribute(PointerFocusAttribute);
 }

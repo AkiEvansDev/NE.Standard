@@ -8,9 +8,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Regions;
 /// </summary>
 public sealed class ExpanderHeaderRegion : TextComponent<ExpanderHeaderRegion>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.expander.header.region";
 
     /// <summary>

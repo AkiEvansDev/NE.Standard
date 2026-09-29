@@ -1,5 +1,6 @@
-import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute, ensureElementId } from "./dom-attributes";
-import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters";
+// `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
+import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute, ensureElementId } from "./dom-attributes.ts";
+import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters.ts";
 
 export type ComponentResolveResult = {
     readonly element: Element;
@@ -27,8 +28,7 @@ export class DomRegistry {
     private readonly componentsById = new Map<number, Element[]>();
     private readonly staticComponentsById = new Map<number, Element>();
 
-    // A templated component's instances by the text of their row keys, built per id on its first keyed lookup: a filter over every
-    // instance would cost a list's length in ancestor walks for each row-scoped patch.
+    // A templated component's instances by row-key text, built per id on first keyed lookup: a filter would walk ancestors per row.
     private readonly keyedComponentsById = new Map<number, Map<string, Element[]>>();
 
     private stale = false;
@@ -92,6 +92,17 @@ export class DomRegistry {
         return componentParts(this.findAllComponents(componentId, dynamicParameters), selector);
     }
 
+    /** Every element of a component, a package's clones included, where `findAllComponents` answers a rowless one by its first alone. */
+    public findEveryComponent(componentId: number): Element[] {
+        if (componentId <= 0)
+            return [];
+
+        if (this.stale)
+            this.rebuild();
+
+        return [...this.componentsById.get(componentId) ?? []];
+    }
+
     public findAllComponents(componentId: number, dynamicParameters: readonly unknown[]): Element[] {
         if (componentId <= 0)
             return [];
@@ -106,8 +117,7 @@ export class DomRegistry {
 
         const indexed = this.keyedComponents(componentId).get(parameterPathKey(dynamicParameters)) ?? [];
 
-        // Checked against the page, since an engine may move a row without invalidating the index; a miss, or a hit that no
-        // longer holds, reads the instances as they stand.
+        // Checked against the page, since an engine may move a row without invalidating the index; a miss reads the instances as they stand.
         if (indexed.length > 0 && indexed.every(candidate => matchesDynamicParameters(candidate, dynamicParameters)))
             return [...indexed];
 

@@ -95,8 +95,6 @@ public abstract class SearchComponent<T>(string? id = null) : SearchComponent<T,
 /// </summary>
 public sealed class SearchComponent(string? id = null) : SearchComponent<SearchComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.search";
 }

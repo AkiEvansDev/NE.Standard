@@ -169,6 +169,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                 .SetItems(CreateReleases())
                 .SetLayoutType(UIItemsLayoutType.Wrap)
                 .SetSpacing(12)
+                .SetRowHoverable(true)
                 .SetTemplate(new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(200))
@@ -191,7 +192,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                         )
                     )
                 ),
-            note: "A tile is a card's shape without a card's regions; the catalogue under Screens is a page of them."
+            note: "A tile is a card's shape without a card's regions; the catalogue under Screens is a page of them. The pointer's wash lies over the tile's own ground, and the arrows walk the tiles on both axes."
         );
     }
 

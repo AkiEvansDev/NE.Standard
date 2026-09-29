@@ -58,18 +58,14 @@ public abstract class RecursiveObservable
     public bool TryGetRecursiveValue(PathSegment segment, out object? value)
         => TryGetValueCore(new ReadOnlySpan<PathSegment>(in segment), 0, out value);
 
-    /// <summary>
-    /// Gets a value by recursive path.
-    /// </summary>
+    /// <summary>Gets a value by recursive path.</summary>
     /// <exception cref="InvalidOperationException">
     /// The path cannot be resolved on this object.
     /// </exception>
     public object? GetRecursiveValue(string path)
         => GetRecursiveValue(RecursivePath.Parse(path));
 
-    /// <summary>
-    /// Gets a value by recursive path.
-    /// </summary>
+    /// <summary>Gets a value by recursive path.</summary>
     /// <exception cref="InvalidOperationException">
     /// The path cannot be resolved on this object.
     /// </exception>
@@ -98,18 +94,14 @@ public abstract class RecursiveObservable
         return TrySetValueCore(path.AsSpan(), 0, value);
     }
 
-    /// <summary>
-    /// Sets a value by recursive path.
-    /// </summary>
+    /// <summary>Sets a value by recursive path.</summary>
     /// <exception cref="InvalidOperationException">
     /// The path cannot be set on this object.
     /// </exception>
     public void SetRecursiveValue(string path, object? value)
         => SetRecursiveValue(RecursivePath.Parse(path), value);
 
-    /// <summary>
-    /// Sets a value by recursive path.
-    /// </summary>
+    /// <summary>Sets a value by recursive path.</summary>
     /// <exception cref="InvalidOperationException">
     /// The path cannot be set on this object.
     /// </exception>
@@ -151,8 +143,9 @@ public abstract class RecursiveObservable
 
     /// <summary>
     /// Throws when this object may not be attached to <paramref name="owner"/> at <paramref name="slot"/>: it already belongs to
-    /// another owner, or to this one in another place. Called before anything changes, so a refused attach changes nothing.
+    /// another owner, or to this one in another place.
     /// </summary>
+    /// <remarks>Called before anything changes, so a refused attach changes nothing.</remarks>
     protected internal void EnsureCanAttach(RecursiveObservable owner, object slot)
     {
         ArgumentNullException.ThrowIfNull(owner);

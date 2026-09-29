@@ -4,9 +4,10 @@
 import { toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
-import { iconImageClassName, readIconSource, toCssUrl, toIconGlyphClassName, toIconSourceCss } from "./icon-value.ts";
-import { clampByte, toHexByte } from "./color-bytes.ts";
+import { toCssUrl, toIconClassName, toIconSourceCss } from "./icon-value.ts";
+import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
+import { inlineMarkupToPlainText } from "./inline-markup.ts";
 
 export type WebDomConverter = (value: unknown) => string | undefined;
 
@@ -146,6 +147,26 @@ const styleVarNames = new Map<string, string>([
     ["overlay", "--ui-color-overlay"]
 ]);
 
+// The roles with an ink of their own for words; the rest are grounds, edges or already text colours.
+const inkVarNames = new Map<string, string>([
+    ["primary", "--ui-color-primary-ink"],
+    ["accent", "--ui-color-accent-ink"],
+    ["info", "--ui-color-info-ink"],
+    ["warning", "--ui-color-warning-ink"],
+    ["success", "--ui-color-success-ink"],
+    ["danger", "--ui-color-danger-ink"]
+]);
+
+// The roles text is meant to stand on, each with the text colour that reads on it.
+const onColorVarNames = new Map<string, string>([
+    ["primary", "--ui-color-on-primary"],
+    ["accent", "--ui-color-on-accent"],
+    ["info", "--ui-color-on-info"],
+    ["warning", "--ui-color-on-warning"],
+    ["success", "--ui-color-on-success"],
+    ["danger", "--ui-color-on-danger"]
+]);
+
 const badgePlacementTokens = ["inline", "trailing"];
 const inputAppearanceTokens = ["filled", "outline", "underline", "ghost"];
 const buttonSizeTokens = ["small", "medium", "large"];
@@ -188,6 +209,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["iconUrlCss", value => toIconSourceCss(value)],
     ["safeUrl", value => toSafeLink(value)],
     ["safeImageSource", value => toSafeImageSource(value)],
+    // Nothing stays nothing, so the attribute it writes is removed rather than emptied.
+    ["inlineMarkupPlainText", value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
     ["iconSizeClass", value => `ui-icon-size--${toToken(value, iconSizeTokens)}`],
     ["textTypeClass", value => `ui-text-type--${toToken(value, textTypeTokens)}`],
     ["textAppearanceClass", value => toTextAppearanceClass(value)],
@@ -224,12 +247,15 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["overflowCss", value => toToken(value, overflowTokens)],
     ["layoutLengthCss", value => toLayoutLength(value)],
     ["thicknessCss", value => toThickness(value)],
+    ["borderNoneClass", value => toBorderNoneClass(value)],
     ["radiusCss", value => toRadius(value)],
     ["gridUnitCss", value => toGridUnit(value)],
     ["pixelsCss", value => toPixels(value)],
     ["gridTemplateCss", value => toGridTemplate(value)],
     ["colorVariantCss", value => toColorVariant(value)],
     ["themeColorCss", value => toThemeColor(value)],
+    ["themeInkCss", value => toThemeInk(value)],
+    ["themeOnColorCss", value => toThemeOnColor(value)],
     // Mirrors ThemeColorRenderer: a style colour is a class (an ink), so it writes no inline colour that would override the class.
     ["themeColorInlineCss", value => isStyleOnlyThemeColor(value) ? "" : toThemeColor(value)],
     ["themeColorCanonical", value => toThemeColorCanonical(value)],
@@ -427,6 +453,27 @@ function toThickness(value: unknown): string {
     const left = model.left ?? 0;
 
     return `${top}px ${right}px ${bottom}px ${left}px`;
+}
+
+// Mirrors WebClassNames.BorderNone: a thickness of nothing on every side says the component draws no edge of its own.
+function toBorderNoneClass(value: unknown): string {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    if (typeof value === "number") {
+        return value === 0 ? "ui-border--none" : "";
+    }
+
+    if (typeof value !== "object") {
+        return "";
+    }
+
+    const model = value as { top?: number; right?: number; bottom?: number; left?: number };
+
+    return (model.top ?? 0) === 0 && (model.right ?? 0) === 0 && (model.bottom ?? 0) === 0 && (model.left ?? 0) === 0
+        ? "ui-border--none"
+        : "";
 }
 
 function toRadius(value: unknown): string {
@@ -646,6 +693,60 @@ function isStyleOnlyThemeColor(value: unknown): boolean {
     return model.light == null && model.dark == null && model.style != null;
 }
 
+// Mirrors WebCssValues.ThemeInk: a semantic role spent on words is its ink, which reads on the page where the raw role may not.
+function toThemeInk(value: unknown): string {
+    if (isStyleOnlyThemeColor(value)) {
+        const varName = inkVarNames.get(toToken((value as { style: unknown }).style, colorTokens));
+
+        if (varName !== undefined) {
+            return `var(${varName})`;
+        }
+    }
+
+    return toThemeColor(value);
+}
+
+// The page's own grounds: no filled ground, so they take back the page's ink from one around them rather than name an on-colour.
+const pageGroundTokens = new Set(["background", "surface"]);
+
+// Mirrors WebCssValues.ThemeOnColor: the text colour that reads on a filled ground of this colour, `initial` on the page's own
+// grounds, empty where no text is meant to stand.
+function toThemeOnColor(value: unknown): string {
+    if (value === null || value === undefined || typeof value !== "object") {
+        return "";
+    }
+
+    if (isColorVariantModel(value)) {
+        return toVariantOnColor(value);
+    }
+
+    const model = value as { style?: unknown; light?: unknown; dark?: unknown };
+    const light = toVariantOnColor(model.light ?? model.dark);
+    const dark = toVariantOnColor(model.dark ?? model.light);
+
+    if (light.length > 0 && dark.length > 0) {
+        return light === dark ? light : `light-dark(${light}, ${dark})`;
+    }
+
+    if (model.style === null || model.style === undefined) {
+        return "";
+    }
+
+    const token = toToken(model.style, colorTokens);
+
+    if (pageGroundTokens.has(token)) {
+        return "initial";
+    }
+
+    const varName = onColorVarNames.get(token);
+    return varName ? `var(${varName})` : "";
+}
+
+function toVariantOnColor(value: unknown): string {
+    const bytes = toColorVariantBytes(value);
+    return bytes === undefined ? "" : onColorToken(bytes[0], bytes[1], bytes[2], bytes[3]);
+}
+
 function toThemeColorClass(value: unknown): string {
     if (value === null || value === undefined || typeof value !== "object") {
         return "";
@@ -799,6 +900,19 @@ function toColorVariant(value: unknown): string {
         return String(value);
     }
 
+    const bytes = toColorVariantBytes(value);
+
+    return bytes === undefined
+        ? ""
+        : `#${toHexByte(bytes[0])}${toHexByte(bytes[1])}${toHexByte(bytes[2])}${toHexByte(bytes[3])}`;
+}
+
+/** A wire-shaped colour variant as its red, green, blue and opacity bytes, adjusted; nothing for what names no colour. */
+function toColorVariantBytes(value: unknown): [number, number, number, number] | undefined {
+    if (value === null || value === undefined || typeof value !== "object") {
+        return undefined;
+    }
+
     const model = value as {
         name?: string | number;
         adjustment?: string | number;
@@ -815,7 +929,7 @@ function toColorVariant(value: unknown): string {
     const color = explicit ?? (name === null ? undefined : colorVariants.get(name));
 
     if (!color) {
-        return "";
+        return undefined;
     }
 
     const adjustment = toColorAdjustmentName(model.adjustment);
@@ -834,7 +948,7 @@ function toColorVariant(value: unknown): string {
         blue = clampByte(blue + ((255 - blue) * factor));
     }
 
-    return `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}${toHexByte(opacity)}`;
+    return [red, green, blue, opacity];
 }
 
 /** A role by the name `UIThemeColor.TryParse` reads, from the number it travels as. */
@@ -879,16 +993,6 @@ function toColorAdjustmentName(value: string | number | undefined): string {
     }
 
     return "None";
-}
-
-function toIconClassName(value: unknown): string {
-    const image = readIconSource(value);
-
-    if (image !== null) {
-        return image.tinted ? "" : iconImageClassName;
-    }
-
-    return toIconGlyphClassName(value);
 }
 
 // The reading is the value, never a percentage: a converter is handed one property and cannot see Min and Max.

@@ -1,14 +1,14 @@
 // A button group's segment: a press or key writes it like a tab strip does, and the arrows walk the strip like a radio group's.
 
-import { BindSelectedKeyAttribute, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
+import { BindSelectedKeyAttribute, ButtonClass, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
+import { isInert } from "./interactive-state";
 import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
 
 const RootClass = "ui-button-group";
 const ItemClass = "ui-button-group__item";
-const ButtonClass = "ui-button";
 
 export type ButtonGroupEngineOptions = {
     readonly root?: ParentNode;
@@ -66,11 +66,13 @@ export class ButtonGroupEngine {
         const item = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
         const root = item?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (item === null || root === null || item.closest(`.${RootClass}`) !== root || root.matches(".ui-disabled"))
+        if (item === null || root === null || item.closest(`.${RootClass}`) !== root || isInert(root))
             return;
 
-        // A disabled segment is inert to the pointer already; the guard is for a press that arrives another way.
-        if (buttonOf(item)?.matches(".ui-disabled, :disabled") === true)
+        // A disabled segment refuses its press before any engine hears it; the guard is for a press that arrives another way.
+        const button = buttonOf(item);
+
+        if (button !== null && isInert(button))
             return;
 
         this.choose(root, item);

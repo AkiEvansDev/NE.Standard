@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
+@import "../mixins/interactive.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/surface-image.less";
@@ -31,27 +32,30 @@
 
 // Deliberately no pointer-events: none on a non-clickable card: it inherits and would block clicks and selection on everything nested.
 
+// The controls a clickable surface may hold, which answer the pointer themselves.
+@ui-surface-inner-control: ~"a, button, input, select, textarea, summary, [role='button']";
+
 // Behaviour only: the states below mix into whichever fill Surface chose, so a flat and a raised card both react without a shared look.
 .ui-surface--clickable {
     cursor: pointer;
-    transition: background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
+    transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
 }
 
-    // Ghost-button wash weights (10% hover, 16% press) mixed into --ui-surface-fill, so a tinted surface reacts as its own colour.
-    .ui-surface--clickable:hover {
+    // The ghost wash mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over an inner control.
+    .ui-surface--clickable@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
         background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
     }
 
-    .ui-surface--clickable.ui-surface--raised:hover {
+    .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
         .ui-elevation-2();
     }
 
 // :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
-.ui-surface--clickable:active:not(:has(:is(a, button, input, select, textarea, summary, [role="button"]):active)) {
+.ui-surface--clickable@{ui-button-live}:active:not(:has(:is(@{ui-surface-inner-control}):active)) {
     background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-fill));
 }
 
-    .ui-surface--clickable.ui-surface--raised:active:not(:has(:is(a, button, input, select, textarea, summary, [role="button"]):active)) {
+    .ui-surface--clickable.ui-surface--raised@{ui-button-live}:active:not(:has(:is(@{ui-surface-inner-control}):active)) {
         .ui-elevation-1();
     }
 
@@ -59,11 +63,16 @@
 .ui-surface--background {
     --ui-surface-fill: var(--ui-surface-color, var(--ui-color-background));
     background-color: var(--ui-surface-fill);
+    // An opaque ground of its own; a Background's on-colour and colour, written inline, still win.
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-surface-fill);
 }
 
 .ui-surface--raised {
     --ui-surface-fill: var(--ui-surface-color, var(--ui-surface-raised));
     background-color: var(--ui-surface-fill);
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-surface-fill);
     .ui-elevation-1();
 }
 
@@ -71,4 +80,8 @@
 .ui-surface--tinted {
     --ui-surface-fill: color-mix(in srgb, var(--ui-surface-color, var(--ui-color-primary)) 20%, var(--ui-color-background));
     background-color: var(--ui-surface-fill);
+    // A fifth of the colour over the page reads in the page's ink, so the Background's on-colour written inline must not apply,
+    // nor its colour as the ground: the ground is the mix.
+    --ui-faint-base: initial !important;
+    --ui-ground: var(--ui-surface-fill) !important;
 }

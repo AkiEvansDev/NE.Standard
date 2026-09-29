@@ -22,6 +22,13 @@ public interface IParagraphModel : ITextModel
     [UIComponentProperty(Contract = typeof(IParagraphComponent), DefaultValue = null, GenerateSetter = false)]
     int? MaxLines { get; }
 
+    /// <summary>
+    /// Whether the title runs on to further lines too: a heading in prose (an article's headline, a dialog's question) that must
+    /// not lose its end. Unset, the title keeps one line and ends in an ellipsis, as every interface heading does.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(IParagraphComponent), DefaultValue = false)]
+    bool? TitleWrap { get; }
+
     /// <summary>Whether a line stands beside the description, the way a quotation is set off; the description moves in behind it.</summary>
     [UIComponentProperty(Contract = typeof(IParagraphComponent), DefaultValue = false)]
     bool? ShowQuoteLine { get; }

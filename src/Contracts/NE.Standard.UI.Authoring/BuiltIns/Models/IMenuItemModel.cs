@@ -25,10 +25,8 @@ public interface IMenuItemModel : ITextBaseModel
     /// </summary>
     bool? Selected { get; }
 
-    /// <summary>
-    /// Gets whether this entry's sub-entries start out open; meaningless on an entry with none. This is the
-    /// initial position only — the live state afterwards is kept client-side.
-    /// </summary>
+    /// <summary>Gets whether this entry's sub-entries start out open; meaningless on an entry with none.</summary>
+    /// <remarks>The initial position only — the live state afterwards is kept client-side.</remarks>
     bool? Expanded { get; }
 
     /// <summary>

@@ -1,19 +1,92 @@
 @import "../core/tokens.less";
 @import "./elevation.less";
+@import "./focus.less";
 
-// Shared look for every floating panel; fixed, because layout panels are overflow: hidden and would clip anything inside them.
+// A floating panel's look alone — edge, corners, ground, elevation — for a panel not placed as a popup (a find panel in its field).
+.ui-popup-look() {
+    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
+    border-radius: var(--ui-radius-input);
+    background: var(--ui-color-surface);
+    // A field inside mixes its fill into the popup's colour, not the page's.
+    --ui-surface-fill: var(--ui-color-surface);
+    // Muted text inside fades the popup's own ink, not a filled ground the popup's anchor stands on.
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-color-surface);
+    .ui-elevation-2();
+}
+
+// Every floating panel: the look and the fade, placed fixed because layout panels clip (`overflow: hidden`).
 .ui-popup-surface(@z-index: 30) {
     position: fixed;
     top: 0;
     left: 0;
     z-index: @z-index;
-    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-input);
-    background: var(--ui-color-surface);
-    // A popup is a surface, and what stands on it steps off that; without this a field inside would mix its fill into the
-    // page's colour instead of the popup's.
-    --ui-surface-fill: var(--ui-color-surface);
-    .ui-elevation-2();
+    .ui-popup-look();
+    .ui-popup-fade();
+}
+
+// A floating panel's fade in and, with `.ui-popup-closed()`/`.ui-popup-open()`, out. Opacity alone, so anchored-popup.ts measures
+// the real box; `display` and `overlay` are held so the exit is seen.
+.ui-popup-fade() {
+    transition:
+        opacity @ui-motion-fast @ui-motion-enter,
+        display @ui-motion-fast allow-discrete,
+        overlay @ui-motion-fast allow-discrete;
+}
+
+// A popup's closed rule: gone, fading out on the exit curve, and taking no press while it fades.
+.ui-popup-closed() {
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+    transition-timing-function: @ui-motion-exit;
+}
+
+// A popup's open rule: shown in its own display, fading in on the enter curve.
+.ui-popup-open(@display: block) {
+    display: @display;
+    opacity: 1;
+    // Inherited, not forced on: a popup inside something that takes no press stays without.
+    pointer-events: inherit;
+    transition-timing-function: @ui-motion-enter;
+
+    // Coming from display: none it has no style to fade from. Here, not in the fade: at the resting rule's weight the open rule's
+    // opacity would win the starting style too.
+    @starting-style {
+        opacity: 0;
+    }
+}
+
+// The keyboard's entry in a list, washed as the pointer's would be, but not the `@current` one (already marked). The pointer's own
+// wash stays off it, so two never stack to a press's strength and nothing changes as the pointer crosses it; a press still shows.
+.ui-entry-keyboard(@current: ~"[aria-selected='true']") {
+    &@{ui-keyboard-focus}:not(@{current}) {
+        outline: none;
+        background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
+    }
+
+    &@{ui-keyboard-focus}:not(@{current}):hover:not(:active) {
+        background-color: transparent;
+    }
+}
+
+// A list whose entry follows the pointer: while the keyboard stands on an entry, the resting pointer's entry stays quiet, so two
+// never look current. `@entry` the entries (`~"> .x"`), `@live` their hover guard, `@current` the one keeping its ground.
+.ui-entry-quiet(@entry; @live: ~""; @current: ~"[aria-selected='true']") {
+    &:has(@{entry}@{ui-keyboard-focus}) @{entry}@{live}:not(@{ui-keyboard-focus}, @{current}):hover:not(:active) {
+        background-color: transparent;
+    }
+}
+
+// A list of entries, a flex column whose entries stand the list gap apart; its open rule shows it as `flex`. The entries keep their
+// height when the list is capped, since an entry clipping its own content would shrink to the room.
+.ui-entry-list() {
+    flex-direction: column;
+    gap: @ui-list-entry-gap;
+
+    > * {
+        flex-shrink: 0;
+    }
 }
 
 // Caps a list-shaped popup to the viewport height; skip it where a tail is drawn outside the box, since overflow would clip it.

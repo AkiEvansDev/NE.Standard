@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
 
 .ui-command-bar {
@@ -15,12 +16,56 @@
     .ui-responsive-property(gap, --ui-command-bar-spacing, @ui-space-2);
 }
 
-    // On a narrow screen a row of commands goes on onto a second line rather than past the page's edge.
+    // On a narrow screen a row of commands goes onto a second line rather than past the page's edge.
     @media (max-width: (@ui-breakpoint-md - 0.02px)) {
         .ui-command-bar:not(.ui-orientation--vertical) .ui-command-bar__host {
             flex-wrap: wrap;
         }
     }
+
+// A bar on one line keeps every label whole: it does not shrink its commands to fit, command-bar-engine.ts moves the ones past its
+// room into the "…" list. The host gives way to the bar instead, so the room measured is the bar's own.
+.ui-command-bar:has(> .ui-command-bar__overflow) > .ui-command-bar__host {
+    min-width: 0;
+}
+
+    .ui-command-bar:has(> .ui-command-bar__overflow) > .ui-command-bar__host > .ui-command-bar__item {
+        flex-shrink: 0;
+    }
+
+// Out of the row whatever the part's own display: a command in the list, or a separator left with none after it. Out of the flow
+// and out of sight rather than `display: none`, under which a command picked from the list could not show the popup it opens at
+// the "…" (anchored-popup.ts marks that popup visible again). Hidden, it takes no press and no Tab; a zero clipping box, it adds
+// no scroll to the page, while a `position: fixed` popup inside is not clipped by it.
+.ui-command-bar__host > .ui-command-bar__overflowed {
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden;
+    visibility: hidden;
+}
+
+// The "…": hidden until the engine finds the bar short of room, then a square ghost the row's height, whatever size the commands are.
+.ui-command-bar > .ui-command-bar__overflow {
+    .ui-ellipsis-glyph();
+    display: none;
+    flex: 0 0 auto;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    .ui-responsive-property(margin-inline-start, --ui-command-bar-spacing, @ui-space-2);
+    color: @ui-text-muted;
+}
+
+.ui-command-bar--overflowing > .ui-command-bar__overflow {
+    display: inline-flex;
+}
 
 .ui-command-bar.ui-orientation--vertical .ui-command-bar__host {
     flex-direction: column;

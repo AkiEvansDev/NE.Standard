@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
@@ -15,6 +16,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -41,14 +43,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     private static readonly WebDomOperation[] EnabledOperations =
     [
-        WebDomOperation.ToggleClass("ui-disabled", condition: WebValueCondition.IsFalse),
-        WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsFalse)
+        WebDomOperation.ToggleClass(WebClassNames.Disabled, condition: WebValueCondition.IsFalse),
+        WebDomOperation.ToggleAttribute("aria-disabled", condition: WebValueCondition.IsFalse, value: "true")
     ];
 
     private static readonly WebDomOperation[] LoadingOperations =
     [
-        WebDomOperation.ToggleClass("ui-loading"),
-        WebDomOperation.ToggleAttribute("inert", condition: WebValueCondition.IsTrue)
+        WebDomOperation.ToggleClass(WebClassNames.Loading),
+        WebDomOperation.ToggleAttribute("aria-busy", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
@@ -87,9 +89,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         WebDomOperation.Style("--ui-placement-xxl-row-span", converter: WebDomConverters.GridPlacementXxlRowSpanCss)
     ];
 
-    private static readonly WebDomOperation[] TooltipOperations = [WebDomOperation.Attribute(WebAttributes.Tooltip)];
+    private static readonly WebDomOperation TooltipOperation = WebDomOperation.Attribute(WebAttributes.Tooltip);
+    private static readonly WebDomOperation[] TooltipOperations = [TooltipOperation];
     private static readonly WebDomOperation[] TooltipPlacementOperations = [WebDomOperation.Attribute(WebAttributes.TooltipPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
     private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
+    private static readonly WebDomOperation[] LinkAddressOperations = [WebDomOperation.Attribute(WebAttributes.Href, converter: WebDomConverters.SafeUrl)];
     private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label")];
 
     // The four custom properties one placement tier writes, named once per tier.
@@ -166,18 +170,19 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             RenderVisibilityTier(target, WebAttributes.VisibilityXxl, tier);
         }, VisibilityOperations);
 
-        // The class is the look, `inert` the fact: a class cannot take the keyboard away, and `inert` covers the whole subtree.
+        // The class is the look and the fact the client reads: it makes the root's children inert and refuses a press on the root
+        // itself (refusal-engine.ts). Not `inert` on the root, which would take away its tooltip and its place for a screen reader.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.EnabledProperty, static (target, value) =>
         {
             if (value == false)
-                _ = target.Class("ui-disabled").Attribute("inert");
+                _ = target.Class(WebClassNames.Disabled).Attribute("aria-disabled", "true");
         }, EnabledOperations);
 
-        // Loading keeps its own colour but still takes `inert`; the client refcounts that attribute across this and Enabled.
+        // Loading keeps its own colour, and refuses the reader the way a disabled component does.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.LoadingProperty, static (target, value) =>
         {
             if (value == true)
-                _ = target.Class("ui-loading").Attribute("inert");
+                _ = target.Class(WebClassNames.Loading).Attribute("aria-busy", "true");
         }, LoadingOperations);
 
         // Off, the menu stays in the tree and the engine refuses the right-click; on a host with rows, every row's.
@@ -445,17 +450,26 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <summary>The "…" control at the end of a tab strip, shown by the client once captions are hidden for want of room; it lists every tab.</summary>
     protected static void RenderTabOverflowButton(WebRenderContext context, IHtmlElementBuilder parent)
+        => RenderOverflowButton(context, parent, "ui-tab-overflow ui-button ui-button--ghost ui-button--small", UIStrings.TabsMore, tabStop: false);
+
+    /// <summary>
+    /// The "…" control a strip shows once what it holds no longer fits, opening a menu of what was put away; the stylesheet hides
+    /// it until the client marks the strip. Out of the tab order in a roving strip (tabs), a tab stop where each item is one.
+    /// </summary>
+    protected static void RenderOverflowButton(WebRenderContext context, IHtmlElementBuilder parent, string className, string word, bool tabStop)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(parent);
 
         _ = parent.Element("button", button =>
         {
-            _ = button.Class("ui-tab-overflow ui-button ui-button--ghost ui-button--small");
+            _ = button.Class(className);
             _ = button.Attribute("type", "button");
-            _ = button.Attribute("aria-label", context.Translate(UIStrings.TabsMore));
+            WebWords.Write(context, button, "aria-label", word);
             RenderPopupTrigger(button, "menu");
-            _ = button.Attribute("tabindex", "-1");
+
+            if (!tabStop)
+                _ = button.Attribute("tabindex", "-1");
         });
     }
 
@@ -485,6 +499,16 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <inheritdoc cref="RenderTooltip(WebRenderContext, IHtmlElementBuilder)"/>
     public static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, UIProperty placementProperty)
+        => RenderTooltip(context, target, property, placementProperty, TooltipOperations);
+
+    /// <summary>
+    /// The tooltip of a control it also names — an icon-only button: <paramref name="nameOperation"/> joins the tooltip's own
+    /// operations, so the name follows a push and a language switch (<see cref="TextContentRendererBase.TooltipNameOperation"/>).
+    /// </summary>
+    protected static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, WebDomOperation nameOperation)
+        => RenderTooltip(context, target, ITooltipComponent.TooltipProperty, ITooltipComponent.TooltipPlacementProperty, [TooltipOperation, nameOperation]);
+
+    private static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, UIProperty placementProperty, ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
@@ -493,7 +517,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = element.Attribute(WebAttributes.Tooltip, value);
-        }, TooltipOperations);
+        }, operations);
 
         // Written even for the default, so a bound and an unbound tooltip carry the same attribute.
         _ = RenderProperty<UIPopupPlacement?>(context, target, placementProperty, static (element, value) =>
@@ -548,8 +572,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             _ = line.Attribute("aria-live", "polite");
 
-            if (validation is { } text)
-                _ = line.Text(text.Message);
+            // Marked with the author's words, so a language switch writes it again; the validation engine keeps the mark once it writes.
+            if (validation is { Message: { IsText: true } text })
+                WebWords.WriteText(context, line, null, text.Key);
+            else if (validation is { Message: { } phrase })
+                WebWords.Write(context, line, null, phrase.Key, phrase.Arguments);
         });
     }
 
@@ -582,6 +609,32 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             _ => "danger"
         };
 
+    /// <summary>
+    /// A link's address: kept on <see cref="WebAttributes.Href"/> always, and as <c>href</c> only while the component is enabled and
+    /// not loading, so a disabled link opens from nowhere — the browser's own menu included. The client moves <c>href</c> with the state.
+    /// </summary>
+    /// <remarks>An anchor with no <c>href</c> leaves the tab order, so meanwhile it takes <c>tabindex="0"</c>, as a disabled button stays focusable.</remarks>
+    public static void RenderLinkAddress(WebRenderContext context, IHtmlElementBuilder target, UIProperty urlProperty)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(target);
+
+        var live = ReadRenderValue(context, IVisualComponent.EnabledProperty, true) && !ReadRenderValue(context, IVisualComponent.LoadingProperty, false);
+
+        _ = RenderProperty<string?>(context, target, urlProperty, (element, value) =>
+        {
+            if (!WebUrlSafety.IsSafeLink(value))
+                return;
+
+            _ = element.Attribute(WebAttributes.Href, value);
+
+            if (live)
+                _ = element.Attribute("href", value);
+            else
+                _ = element.Attribute("tabindex", "0");
+        }, LinkAddressOperations);
+    }
+
     /// <summary>A control that opens a popup: the kind it opens, and closed until its engine says otherwise.</summary>
     protected static void RenderPopupTrigger(IHtmlElementBuilder trigger, string popupKind)
     {
@@ -591,7 +644,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         _ = trigger.Attribute("aria-expanded", "false");
     }
 
-    /// <summary>A boolean property as an attribute on the target, present when the condition holds; a bound one flips live.</summary>
+    /// <summary>A boolean property as an attribute on the target, present when the condition holds; a live patch lands on the same element.</summary>
     protected static void RenderFlagAttribute(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string attribute, WebValueCondition condition = WebValueCondition.IsTrue)
     {
         var whenTrue = condition == WebValueCondition.IsTrue;
@@ -600,10 +653,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (value == whenTrue)
                 _ = element.Attribute(attribute);
-        }, FlagAttributeOperations.GetOrAdd((attribute, condition), static key => [WebDomOperation.ToggleAttribute(key.Name, target: "root", condition: key.Condition)]));
+        }, FlagAttributeOperations.GetOrAdd((attribute, condition), static key => [WebDomOperation.ToggleAttribute(key.Name, condition: key.Condition)]));
     }
 
-    /// <summary>A boolean property as a modifier class on the target, worn when the condition holds; a bound one flips live.</summary>
+    /// <summary>A boolean property as a modifier class on the target, worn when the condition holds; a live patch lands on the same element.</summary>
     protected static void RenderFlagClass(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string className, WebValueCondition condition = WebValueCondition.IsTrue)
     {
         var whenTrue = condition == WebValueCondition.IsTrue;
@@ -637,16 +690,16 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
         ArgumentNullException.ThrowIfNull(renderStatic);
 
-        WebRenderValueKind kind = ResolveRenderValue(context, property, out T? value, out CompiledUIBinding? binding);
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out T? value, out CompiledUIBinding? binding, out RenderedWord word);
         UIPropertyAddress address = new(context.Node.ComponentId, property);
-        var propertyId = context.Metadata.RegisterProperty(propertyOwnerTypeKey, property, operations);
-        context.Metadata.RegisterRenderedProperty(address, propertyId);
+        var propertyId = context.Metadata.RegisterProperty(propertyOwnerTypeKey, property, word.Translatable, operations);
+        context.Metadata.RegisterRenderedProperty(address, propertyId, word.Content);
 
         switch (kind)
         {
             case WebRenderValueKind.Static:
                 renderStatic(target, value);
-                RenderIntoMark(context, target, address);
+                RenderIntoMark(context, target, address, RecordWord(context, propertyId, word));
                 break;
 
             case WebRenderValueKind.Binding:
@@ -658,7 +711,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 }
 
                 _ = target.Attribute(CreateBindingAttributeName(property), binding!.Id.Value.ToString(CultureInfo.InvariantCulture));
-                context.Metadata.Bind(context, binding, propertyId);
+                context.Metadata.Bind(context, binding, propertyId, word.Content);
 
                 // Painting the first value as well, so the page arrives finished rather than filling itself in later.
                 if (context.Values is not null)
@@ -667,7 +720,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             default:
             case WebRenderValueKind.Missing:
-                RenderIntoMark(context, target, address);
+                RenderIntoMark(context, target, address, recordedWord: false);
                 break;
         }
 
@@ -675,15 +728,47 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>
-    /// Marks the element an unbound property lands on, for patches that still reach it (a field's validation words, an exposed
-    /// property); without a mark, a patch lands on the root.
+    /// A static translatable value recorded for the page, so a language switch writes it again: once for every instance when it is
+    /// the component's own, per row when it was read off the row's item. Only where the page can switch to another language.
     /// </summary>
-    private static void RenderIntoMark(WebRenderContext context, IHtmlElementBuilder target, UIPropertyAddress address)
+    private static bool RecordWord(WebRenderContext context, string propertyId, RenderedWord word)
+    {
+        if (word.Key is null || context.IsPresentationCopy || context.Translator.Languages.Count < 2)
+            return false;
+
+        context.Metadata.AddWord(context.Node.ComponentId, propertyId, word.FromItem ? ResolveItemKeys(context) : null, word.Key);
+        return true;
+    }
+
+    /// <summary>
+    /// The keys of the rows a value read off an item belongs to, innermost last: the whole address on the page, only the inner rows'
+    /// inside a template the client clones into rows of its own (a grid's cell editor) — the client matches them from the innermost.
+    /// </summary>
+    private static object?[]? ResolveItemKeys(WebRenderContext context)
+    {
+        var count = Math.Min(context.Node.ContextParameterCount, context.Parameters.Count);
+
+        if (count <= 0)
+            return null;
+
+        var keys = new object?[count];
+
+        for (var i = 0; i < count; i++)
+            keys[i] = context.Parameters[context.Parameters.Count - count + i].Key;
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Marks the element an unbound property lands on, for patches that still reach it (a field's validation words, an exposed
+    /// property, a recorded word a language switch writes again); without a mark, a patch lands on the root.
+    /// </summary>
+    private static void RenderIntoMark(WebRenderContext context, IHtmlElementBuilder target, UIPropertyAddress address, bool recordedWord)
     {
         if (context.IsPresentationCopy)
             return;
 
-        if (context.ViewResolution.View.Validations.IsMessageTarget(address) || context.Metadata.IsExposed(address))
+        if (recordedWord || context.ViewResolution.View.Validations.IsMessageTarget(address) || context.Metadata.IsExposed(address))
             _ = target.Attribute(IntoAttributeNames.GetOrAdd(address.Property.Name, static name => WebAttributes.IntoPrefix + WebNaming.ToKebabCase(name)));
     }
 
@@ -699,7 +784,58 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     protected static WebRenderValueKind RenderValue<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property)
         => RenderProperty<T>(context, target, propertyOwnerTypeKey, property, static (_, _) => { }, DataOperations);
 
-    /// <summary>A property's render-time value, or <paramref name="fallback"/> where it is missing, bound with no value yet, or null.</summary>
+    /// <summary>A translatable property's render-time value both ways: the author's key or <see cref="UIPhrase"/>, and the page's words.</summary>
+    /// <remarks>
+    /// <paramref name="key"/> is null where this instance shows the value as written or it is bound. For a word a renderer hands the
+    /// client to translate again after a switch (a unit, a caption in a model).
+    /// </remarks>
+    public static WebRenderValueKind ResolveRenderWord(WebRenderContext context, UIProperty property, out object? key, out string? words)
+    {
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out words, out _, out RenderedWord word);
+
+        key = word.Key;
+        return kind;
+    }
+
+    /// <summary>
+    /// Writes a translatable property's words on <paramref name="attribute"/>, or as the element's text, marked with the author's key
+    /// (<see cref="WebWords"/>) so a language switch writes them again.
+    /// </summary>
+    /// <remarks>
+    /// Content, and a bound value's first paint, are written as they stand. For chrome that repeats a property's words elsewhere.
+    /// </remarks>
+    public static WebRenderValueKind WriteRenderWord(WebRenderContext context, IHtmlElementBuilder element, string? attribute, UIProperty property)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+
+        WebRenderValueKind kind = ResolveRenderWord(context, property, out var key, out var words);
+
+        switch (key)
+        {
+            case UIPhrase { IsText: true } text:
+                WebWords.WriteText(context, element, attribute, text.Key);
+                break;
+            case UIPhrase phrase:
+                WebWords.Write(context, element, attribute, phrase.Key, phrase.Arguments);
+                break;
+            case string text:
+                WebWords.WriteText(context, element, attribute, text);
+                break;
+            default:
+                if (string.IsNullOrWhiteSpace(words))
+                    break;
+
+                _ = attribute is null ? element.Text(words) : element.Attribute(attribute, words);
+                break;
+        }
+
+        return kind;
+    }
+
+    /// <summary>
+    /// A property's render-time value — translated for the page where it is a key — or <paramref name="fallback"/> where it is
+    /// missing, bound with no value yet, or null.
+    /// </summary>
     protected static T ReadRenderValue<T>(WebRenderContext context, UIProperty property, T fallback)
     {
         _ = ResolveRenderValue(context, property, out T? value, out _);
@@ -707,19 +843,33 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         return value ?? fallback;
     }
 
-    /// <summary>Reads a property's render-time value.</summary>
+    /// <summary>
+    /// Reads a property's render-time value, translated for the page where it is a key or a phrase: the words the page shows, not
+    /// the author's key — <see cref="ResolveRenderWord"/> gives both.
+    /// </summary>
     public static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding)
+        => ResolveRenderValue(context, property, out value, out binding, out _);
+
+    /// <summary>
+    /// Reads a property's render-time value, translated where it is a key, and says which key it was — what the page records to
+    /// write the value again in another language.
+    /// </summary>
+    private static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding, out RenderedWord word)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
 
         value = default;
         binding = null;
+        word = default;
 
         CompiledView view = context.ViewResolution.View;
 
         if (!view.State.TryGetValue(context.Node.ComponentId, property, out CompiledUIPropertyValue? propertyValue))
             return WebRenderValueKind.Missing;
+
+        // The compiler's answer, carried on the value: asking the property register here would take its lock per property.
+        word = new RenderedWord(propertyValue.IsTranslatable, propertyValue.IsContent, null, FromItem: false);
 
         if (propertyValue.IsBind)
         {
@@ -728,11 +878,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             binding = view.Bindings.GetRequired(bindingId);
 
-            if (TryResolveStaticBindingValue(context, binding, out var bindingValue))
+            if (TryResolveStaticBindingValue(context, binding, out var bindingValue, out var scopeItem))
             {
-                // Translated here too: an author-declared item reaches its template through a binding.
-                if (propertyValue.IsTranslatable && bindingValue is string bindingText)
-                    bindingValue = context.Translate(bindingText);
+                // Translated here too: an author-declared item reaches its template through a binding — unless the item says its
+                // words are content.
+                var translatable = propertyValue.IsTranslatable && !IsContentItem(scopeItem);
+
+                word = word with { Key = ReadWordKey(translatable, bindingValue), FromItem = true };
+                bindingValue = TranslateRenderedValue(context, translatable, bindingValue);
 
                 value = CastRenderedValue<T>(bindingValue, property);
                 return WebRenderValueKind.Static;
@@ -747,15 +900,51 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
         var rawValue = propertyValue.Value;
 
-        if (propertyValue.IsTranslatable && rawValue is string text)
-            rawValue = context.Translate(text);
+        word = word with { Key = ReadWordKey(propertyValue.IsTranslatable, rawValue) };
+        rawValue = TranslateRenderedValue(context, propertyValue.IsTranslatable, rawValue);
 
         value = CastRenderedValue<T>(rawValue, property);
         return WebRenderValueKind.Static;
     }
 
-    protected static bool TryResolveStaticBindingValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
+    /// <summary>The key a rendered value was translated from — a phrase, or a plain string on a translatable property — else none.</summary>
+    private static object? ReadWordKey(bool translatable, object? value)
     {
+        if (value is UIPhrase)
+            return value;
+
+        return translatable && value is string text && !string.IsNullOrWhiteSpace(text) ? value : null;
+    }
+
+    /// <summary>
+    /// A phrase is always translated; a plain string only on a translatable property this instance does not show as written, read
+    /// off no item marked content.
+    /// </summary>
+    private static object? TranslateRenderedValue(WebRenderContext context, bool translatable, object? value)
+        => value switch
+        {
+            UIPhrase phrase => context.Translate(phrase),
+            string text when translatable => context.Translate(text),
+            _ => value
+        };
+
+    /// <summary>Whether the item a value was read off says its words are content (<see cref="IContentItem"/>).</summary>
+    private static bool IsContentItem(object? item)
+        => item is IContentItem { IsContent: true };
+
+    /// <summary>
+    /// Whether a property's value is translatable here, whether it is translatable text this instance shows as written, the key a
+    /// static value was translated from, and whether that value was read off the row's item rather than the component's own.
+    /// </summary>
+    private readonly record struct RenderedWord(bool Translatable, bool Content, object? Key, bool FromItem);
+
+    protected static bool TryResolveStaticBindingValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
+        => TryResolveStaticBindingValue(context, binding, out value, out _);
+
+    /// <summary>A bound value read off the items in scope, and the item it was read off.</summary>
+    private static bool TryResolveStaticBindingValue(WebRenderContext context, CompiledUIBinding binding, out object? value, out object? scopeItem)
+    {
+        scopeItem = null;
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(binding);
 
@@ -767,16 +956,17 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (source.Kind != CompiledUIBindingSourceKind.ComponentItems)
             return false;
 
-        return TryReadItemScopeValue(context, binding, out value);
+        return TryReadItemScopeValue(context, binding, out value, out scopeItem);
     }
 
     /// <summary>
     /// A bound value read off the items in scope, innermost first — an author-declared item's, or a bound row's own for a binding
-    /// with a Dynamic parameter.
+    /// with a Dynamic parameter — and the item that answered.
     /// </summary>
-    private static bool TryReadItemScopeValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
+    private static bool TryReadItemScopeValue(WebRenderContext context, CompiledUIBinding binding, out object? value, out object? scopeItem)
     {
         value = null;
+        scopeItem = null;
 
         if (context.Parameters.Count == 0)
             return false;
@@ -787,6 +977,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (new ItemContext(context.Parameters[i].Item).TryResolveBindingTemplate(template, binding.Parameters, context.Parameters, out value))
             {
+                scopeItem = context.Parameters[i].Item;
+
                 // An item saying nothing about a property is not an item saying "nothing": fall back to the template's literal.
                 value ??= binding.TargetFallbackValue;
                 return true;
@@ -807,11 +999,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         // A Dynamic parameter's value travels as the row and never updates on its own, so the binding decides the shape
         // rather than a lookup that can't hit.
         object? raw;
+        var translatable = propertyValue.IsTranslatable;
 
         if (HasDynamicParameter(binding))
         {
-            if (!TryReadItemScopeValue(context, binding, out raw))
+            if (!TryReadItemScopeValue(context, binding, out raw, out var scopeItem))
                 return false;
+
+            translatable &= !IsContentItem(scopeItem);
         }
         else
         {
@@ -821,8 +1016,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 return false;
         }
 
-        if (propertyValue.IsTranslatable && raw is string text)
-            raw = context.Translate(text);
+        raw = TranslateRenderedValue(context, translatable, raw);
 
         if (raw is null)
             return true;

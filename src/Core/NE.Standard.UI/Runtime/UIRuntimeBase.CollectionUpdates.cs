@@ -14,12 +14,8 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    /// <summary>
-    /// Withdraws updates still queued for an item a <see cref="RecursiveChangeKind.Replace"/> is about to replace.
-    /// </summary>
-    /// <remarks>
-    /// The replacement itself travels as the ordinary collection <c>Replace</c> update that follows.
-    /// </remarks>
+    /// <summary>Withdraws updates still queued for an item a <see cref="RecursiveChangeKind.Replace"/> is about to replace.</summary>
+    /// <remarks>The replacement itself travels as the ordinary collection <c>Replace</c> update that follows.</remarks>
     private void RemoveReplacedItemPendingUpdatesNoLock(RecursiveChange change)
     {
         if (_pendingFullResync)
@@ -156,9 +152,7 @@ internal abstract partial class UIRuntimeBase
                string.Equals(templateKeyProperty, propertyName, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.
-    /// </summary>
+    /// <summary>Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.</summary>
     /// <remarks>
     /// No components live inside its item template for a value update to reach, so any property change on an item must arrive
     /// as a full replace, not a value alone.
@@ -168,12 +162,8 @@ internal abstract partial class UIRuntimeBase
            !value.IsBind &&
            value.Value is true;
 
-    /// <summary>
-    /// Whether the property is the item's group, on a host that actually draws groups.
-    /// </summary>
-    /// <remarks>
-    /// Gated on the group template; a host without one lays items out flat regardless.
-    /// </remarks>
+    /// <summary>Whether the property is the item's group, on a host that actually draws groups.</summary>
+    /// <remarks>Gated on the group template; a host without one lays items out flat regardless.</remarks>
     private bool IsGroupProperty(UIComponentId componentId, string propertyName)
         => string.Equals(propertyName, nameof(IBindableGroup.Group), StringComparison.Ordinal) &&
            View.Graph.TryGetSlot(componentId, UIComponentSlotKind.GroupTemplate, out _);
@@ -303,9 +293,7 @@ internal abstract partial class UIRuntimeBase
         return result;
     }
 
-    /// <summary>
-    /// The item a collection change carries, addressed by the key recorded when the change was raised.
-    /// </summary>
+    /// <summary>The item a collection change carries, addressed by the key recorded when the change was raised.</summary>
     /// <remarks>
     /// Falls back to index only when the change carried no key; by flush time a later change in the same batch may have moved items.
     /// </remarks>

@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 @import "../mixins/popup.less";
 @import "../mixins/text.less";
 
@@ -15,7 +16,7 @@
     min-height: 0;
     height: 2rem;
     padding: 0;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
 }
 
 .ui-tabs--overflowing > .ui-tabs__strip > .ui-tab-overflow,
@@ -27,15 +28,15 @@
 .ui-tab-overflow__menu {
     .ui-popup-surface(40);
     .ui-popup-scroll();
-    display: none;
-    flex-direction: column;
+    .ui-popup-closed();
+    .ui-entry-list();
     min-width: 10rem;
     max-width: 20rem;
     padding: @ui-space-1;
 }
 
 .ui-tab-overflow__menu--open {
-    display: flex;
+    .ui-popup-open(flex);
 }
 
 .ui-tab-overflow__entry {
@@ -48,4 +49,13 @@
 
 .ui-tab-overflow__entry--current {
     font-weight: 600;
+}
+
+// The entry the arrows reached, lit only while a key put it there; a resting pointer's entry stays quiet (strip-overflow.ts).
+.ui-tab-overflow__entry@{ui-button-live} {
+    .ui-entry-keyboard();
+}
+
+.ui-tab-overflow__menu {
+    .ui-entry-quiet(~"> .ui-tab-overflow__entry"; @ui-button-live);
 }

@@ -1,8 +1,9 @@
 import { ResolvedPropertyAddress } from "../addressing/address-resolver";
 import { isNullishValue, toDomString } from "../extensions/value-readers";
 import { getDomOperationKind, getValueCondition, WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index";
-import { isIconClassName } from "../rendering/icon-value";
+import { isIconClassName, toIconClassName } from "../rendering/icon-value";
 import { applyInlineMarkup } from "../rendering/inline-markup";
+import { forgetWords } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
 
 export type DomOperationContext = {
@@ -23,9 +24,8 @@ export type DomOperationRegistration = {
 
 const classOperationState = new WeakMap<Element, Map<string, string>>();
 
-// A class the server's render wrote is not in the state above until the client writes one itself, so the first write would leave it
-// standing beside the new one. A converter whose classes are a family names it here, and its first write clears the member the page
-// arrived with: an icon that turned from a picture into a glyph kept the picture's class, and the glyph never showed.
+// Class families whose first client write clears the member the server rendered, which the state above does not know: an icon
+// turned from a picture into a glyph would keep the picture's class, and the glyph would never show.
 const classFamilies = new Map<string, (className: string) => boolean>([["iconClass", isIconClassName]]);
 const attributeOperationState = new WeakMap<Element, Map<string, Set<string>>>();
 
@@ -56,20 +56,26 @@ export class DomOperationRegistry {
     }
 
     private registerDefaults(): void {
-        // Every write below is guarded by what the element already holds: an attach replays the whole change set.
+        // Every write is guarded by what the element holds, since an attach replays the whole change set; a text or an attribute a
+        // property writes is the property's from then on, so a word the chrome marked there is forgotten.
         this.register("Text", context => {
             const text = toDomString(context.convertedValue);
 
             if (context.target.textContent !== text)
                 context.target.textContent = text;
+
+            forgetWords(context.target, null);
         });
 
         this.register("Markup", context => {
             applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
+            forgetWords(context.target, null);
         });
 
         this.register("Attribute", context => {
             const name = requireOperationName(context.operation);
+
+            forgetWords(context.target, name);
 
             // The raw value decides whether the attribute belongs there at all: an empty attribute is not an absent one.
             if (isNullishValue(context.value) || isNullishValue(context.convertedValue)) {
@@ -81,7 +87,10 @@ export class DomOperationRegistry {
         });
 
         this.register("RemoveAttribute", context => {
-            removeAttributeIfPresent(context.target, requireOperationName(context.operation));
+            const name = requireOperationName(context.operation);
+
+            forgetWords(context.target, name);
+            removeAttributeIfPresent(context.target, name);
         });
 
         this.register("ToggleAttribute", context => {
@@ -158,12 +167,14 @@ function evaluateCondition(value: unknown, condition: WebValueCondition): boolea
             return value === true;
         case "IsFalse":
             return value === false;
+        case "DrawsIcon":
+            return toIconClassName(value).length > 0;
         default:
             return !isNullishValue(value);
     }
 }
 
-// An attribute two properties both assert (`inert`, from Enabled and Loading) stays until neither wants it.
+// An attribute two properties both assert stays until neither wants it.
 function toggleTrackedAttribute(element: Element, key: string, name: string, enabled: boolean, value: string): void {
     let state = attributeOperationState.get(element);
 

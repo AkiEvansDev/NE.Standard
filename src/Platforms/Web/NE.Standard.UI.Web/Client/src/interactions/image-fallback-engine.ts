@@ -1,5 +1,4 @@
-// A picture with a stand-in shows it whenever its own source is missing or fails — at load, on a null bound source, or an
-// error response. The stand-in's attribute stays, so the next failing source finds it again.
+// A picture shows its stand-in whenever its own source is missing or fails; the stand-in's attribute stays for the next failure.
 
 import { observeComponents } from "./dom-mutations";
 
@@ -24,8 +23,7 @@ export class ImageFallbackEngine {
                 applyFallback(image);
         }
 
-        // A bound source written after the page is up is an attribute change, not an event; a row stamped later brings its
-        // pictures as added nodes — the observer catches both.
+        // A source bound later is an attribute change, a row stamped later brings added nodes: the observer catches both.
         observeComponents(this.root, Selector, { childList: true, attributeFilter: ["src"] }, images => {
             for (const image of images) {
                 if (image instanceof HTMLImageElement && isMissing(image))

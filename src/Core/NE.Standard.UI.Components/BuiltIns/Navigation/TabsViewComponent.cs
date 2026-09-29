@@ -15,9 +15,7 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
-/// <summary>
-/// A strip of captions over pages that come from a collection — a document-tab control.
-/// </summary>
+/// <summary>A strip of captions over pages that come from a collection — a document-tab control.</summary>
 /// <remarks>
 /// The strip is sorted on <see cref="ITabItemModel.Order"/>, so the collection's own order never changes for a drag to stick. A
 /// right press on a caption opens <see cref="TabMenu"/> — the built-in entries <see cref="TabMenuEntries"/> chose and the
@@ -59,14 +57,12 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     [UIComponentProperty(DefaultValue = false)]
     public bool? Draggable { get; set; }
 
-    /// <summary>
-    /// Gets or sets the built-in entries the tab menu offers, none by default; assigning it directly skips the refusal of Close and
-    /// Delete together that <see cref="SetTabMenuEntries"/> applies.
-    /// </summary>
+    /// <summary>Gets or sets the built-in entries the tab menu offers, none by default.</summary>
     /// <remarks>
-    /// Pin sets the tab's <see cref="ITabItemModel.Pinned"/> and moves it to the boundary of the pinned tabs, written back as a drag
-    /// writes its order. The remove entry raises what the tab's cross does, so it needs <see cref="OnItemRemove(string, string)"/>
-    /// and is never offered on a pinned tab.
+    /// Assigning it directly skips the refusal of Close and Delete together that <see cref="SetTabMenuEntries"/> applies. Pin sets
+    /// the tab's <see cref="ITabItemModel.Pinned"/> and moves it to the boundary of the pinned tabs, written back as a drag writes
+    /// its order. The remove entry raises what the tab's cross does, so it needs <see cref="OnItemRemove(string, string)"/> and is
+    /// never offered on a pinned tab.
     /// </remarks>
     [UIComponentProperty(DefaultValue = UITabMenuEntries.None, GenerateSetter = false)]
     public UITabMenuEntries? TabMenuEntries { get; set; }
@@ -127,10 +123,11 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         _ = TabMenu.SetItems(items);
     }
 
-    /// <summary>
-    /// Gets the menu a right press on a caption opens: Rename and Pin or Unpin, the entries <see cref="AddTabMenuEntries"/> added,
-    /// then Close or Delete, each group fenced by a rule — as <see cref="TabMenuEntries"/> chose them and the tab allows.
-    /// </summary>
+    /// <summary>Gets the menu a right press on a caption opens.</summary>
+    /// <remarks>
+    /// Rename and Pin or Unpin, the entries <see cref="AddTabMenuEntries"/> added, then Close or Delete, each group fenced by a rule —
+    /// as <see cref="TabMenuEntries"/> chose them and the tab allows.
+    /// </remarks>
     public MenuComponent TabMenu { get; }
 
     /// <inheritdoc/>
@@ -151,10 +148,10 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         return Self;
     }
 
-    /// <summary>
-    /// Adds entries to the tab menu, between Pin and the remove entry with a rule on either side; a click on one raises
-    /// <see cref="OnTabMenuEntry(string, string, string)"/>'s command with the entry's key and the tab's.
-    /// </summary>
+    /// <summary>Adds entries to the tab menu, between Pin and the remove entry with a rule on either side.</summary>
+    /// <remarks>
+    /// A click on one raises <see cref="OnTabMenuEntry(string, string, string)"/>'s command with the entry's key and the tab's.
+    /// </remarks>
     public T AddTabMenuEntries(params MenuItem[] entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -178,8 +175,9 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
 
     /// <summary>
     /// Registers a command invoked when an entry <see cref="AddTabMenuEntries"/> appended is clicked, passing the entry's key and
-    /// the key of the tab the menu was opened on. The built-in entries never reach it.
+    /// the key of the tab the menu was opened on.
     /// </summary>
+    /// <remarks>The built-in entries never reach it.</remarks>
     public T OnTabMenuEntry(string command, string entryArgumentName = "entry", string tabArgumentName = "id")
         => OnTabMenuEntry(command, UITabMenu.Entry(entryArgumentName), UITabMenu.Tab(tabArgumentName));
 
@@ -238,8 +236,6 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
 /// </summary>
 public sealed class TabsViewComponent(string? id = null) : TabsViewComponent<TabsViewComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tabs-view";
 }

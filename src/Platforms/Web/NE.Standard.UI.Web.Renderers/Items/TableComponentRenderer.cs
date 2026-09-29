@@ -333,7 +333,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             _ = caption.Class(CaptionClassName);
 
             if (!string.IsNullOrEmpty(column.Caption))
-                _ = caption.Text(context.Translate(column.Caption));
+                WebWords.WriteText(context, caption, null, column.Caption);
         });
     }
 
@@ -353,7 +353,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             _ = resizer.Attribute("role", "separator");
             _ = resizer.Attribute("tabindex", "0");
             _ = resizer.Attribute("aria-orientation", "vertical");
-            _ = resizer.Attribute("aria-label", context.Translate(UIStrings.TableResizeColumn));
+            WebWords.Write(context, resizer, "aria-label", UIStrings.TableResizeColumn);
             _ = resizer.Attribute(WebAttributes.TableColumn, index.ToString(CultureInfo.InvariantCulture));
         });
     }

@@ -26,8 +26,6 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
 /// </summary>
 public sealed class TimeInputComponent(string? id = null) : TimeInputComponent<TimeInputComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.time";
 }

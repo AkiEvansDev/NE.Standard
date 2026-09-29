@@ -1,13 +1,10 @@
 // `.ts` on the value import, and the two renderer types kept as `import type`: `node --test` runs this module directly.
-import { EmptyPlaceholderAttribute, GroupHeaderAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
+import { EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
 
 // Children of a host that are not items, which a collection index does not count.
 const NonItemSelector = `:scope > [${EmptyPlaceholderAttribute}], :scope > [${GroupHeaderAttribute}], :scope > [${WindowSpacerAttribute}]`;
-
-/** Lives here rather than beside the filter that applies it, so the empty state reads it without a cycle. */
-export const HiddenClass = "ui-hidden";
 
 export function getRealItemElements(host: Element): Element[] {
     const excluded = new Set(host.querySelectorAll(NonItemSelector));
@@ -23,8 +20,7 @@ export function findEmptyPlaceholder(host: Element): Element | null {
     return host.querySelector<Element>(`:scope > [${EmptyPlaceholderAttribute}]`);
 }
 
-// Visible items, not existing ones: a filter only toggles a class, so it must run before this. A virtualized host says
-// itself whether it has any, since what it draws isn't what it holds.
+// Counts visible items, so a filter (a class toggle) runs first; a virtualized host passes its own answer, since it draws less than it holds.
 export function ensureEmptyState(host: Element, componentId: number, templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, hasItems?: boolean): void {
     hasItems ??= getRealItemElements(host).some(item => !item.classList.contains(HiddenClass));
     const placeholder = findEmptyPlaceholder(host);

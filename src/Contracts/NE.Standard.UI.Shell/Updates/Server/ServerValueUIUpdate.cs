@@ -22,6 +22,13 @@ public sealed class ServerValueUIUpdate : ServerUIUpdate
     public object? Value { get; init; }
 
     /// <summary>
+    /// Gets whether the value is words read off an item that says they are content (<c>IContentItem</c>): the page shows them as
+    /// written rather than looking them up. Sent only when true.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Content { get; init; }
+
+    /// <summary>
     /// Gets the token a value too large to travel inline was staged under, fetched by the client in its place; null when
     /// <see cref="Value"/> carries it.
     /// </summary>

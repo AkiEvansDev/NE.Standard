@@ -5,9 +5,7 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Styling;
 
-/// <summary>
-/// A grid track's size, with the floor and ceiling a splitter may move it between.
-/// </summary>
+/// <summary>A grid track's size, with the floor and ceiling a splitter may move it between.</summary>
 /// <remarks>
 /// A fixed track's bounds only limit dragging; a star or content track's bounds also constrain what the platform's layout resolves it to.
 /// </remarks>

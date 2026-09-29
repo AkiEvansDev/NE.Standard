@@ -39,8 +39,6 @@ public abstract class DefaultButtonTemplate<TTemplate> : ButtonComponent<TTempla
 /// </summary>
 public sealed class DefaultButtonTemplate(string? itemPath = null, bool binds = false) : DefaultButtonTemplate<DefaultButtonTemplate>(itemPath, binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.button.template";
 }

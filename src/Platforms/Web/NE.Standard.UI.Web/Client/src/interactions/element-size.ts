@@ -1,7 +1,4 @@
-/**
- * Calls back whenever an element's box changes, via `ResizeObserver` or, failing that, the window's resize event. The initial
- * size is not reported. Returns a function that stops it.
- */
+/** Calls back whenever an element's box changes — `ResizeObserver`, else the window's resize — and returns what stops it. */
 export function observeSize(element: Element, handler: (element: Element) => void): () => void {
     if (typeof ResizeObserver === "function") {
         const observer = new ResizeObserver(() => handler(element));

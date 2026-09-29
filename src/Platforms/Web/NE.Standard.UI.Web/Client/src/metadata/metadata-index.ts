@@ -1,3 +1,5 @@
+import type { AuthorText, Phrase } from "../runtime/words.ts";
+
 /** A compiled id, a bare number on the wire. */
 export type IdValue = number;
 
@@ -13,6 +15,17 @@ export type WebUIMetadata = {
     readonly items: readonly WebRenderItemsTemplateMetadata[];
     readonly itemsFilterSort: readonly WebRenderItemsFilterSortMetadata[];
     readonly itemValues: readonly WebRenderItemValuesMetadata[];
+    // The translatable values the page was rendered with rather than bound to, which a language switch writes again.
+    readonly words?: readonly WebRenderWordMetadata[];
+};
+
+/** A static translatable value by where it landed: its component, property and row keys, and its key — a string or a phrase. */
+export type WebRenderWordMetadata = {
+    readonly componentId: IdValue;
+    readonly propertyId: string;
+    // Absent for a value every instance shares, inside an item template included.
+    readonly dynamicParameters?: readonly unknown[] | null;
+    readonly key: unknown;
 };
 
 export type WebRenderPropertyDefinitionMetadata = {
@@ -20,6 +33,8 @@ export type WebRenderPropertyDefinitionMetadata = {
     readonly componentTypeKey: string;
     readonly propertyName: string;
     readonly operations: readonly WebDomOperation[];
+    // The value is localizable text, looked up in the page's words before it is written.
+    readonly translatable?: boolean | null;
 };
 
 /** A field that writes its validation words into another component property instead of showing them itself. */
@@ -32,6 +47,8 @@ export type WebRenderPropertyReferenceMetadata = {
     readonly componentId: IdValue;
     readonly propertyId: string;
     readonly dynamicParameterComponentIds?: readonly IdValue[];
+    /** The property is translatable but this instance shows it as written (`AsContent`): a value set there is never looked up. */
+    readonly content?: boolean;
 };
 
 export type WebRenderBindingMetadata = WebRenderPropertyReferenceMetadata & {
@@ -198,7 +215,8 @@ export type WebRenderValidationMetadata = {
     readonly operator: WebInteractionOperator;
     readonly value?: unknown;
     readonly severity: WebValidationSeverity;
-    readonly message: string;
+    // The author's text (`{text}`) or a phrase (`{key, args}`), resolved in the page's language when the rule fails.
+    readonly message: AuthorText | Phrase;
 };
 
 export type WebDomOperation = {
@@ -232,7 +250,9 @@ export type WebValueConditionName =
     | "HasValue"
     | "HasText"
     | "IsTrue"
-    | "IsFalse";
+    | "IsFalse"
+    // An icon value that draws: a glyph name with a letter or digit, or a picture the page may load (`toIconClassName`).
+    | "DrawsIcon";
 export type WebValueCondition = WebValueConditionName | number;
 
 type UIComponentAddress = {
@@ -270,6 +290,8 @@ export type ServerValueUIUpdate = {
     readonly value?: unknown;
     /** The token of a value staged beside the hub, fetched before the change set is applied; the value comes that way instead. */
     readonly valueToken?: string;
+    /** Words read off an item marked content: shown as written, never looked up — at this push or a later switch. */
+    readonly content?: boolean;
 };
 
 export type ServerValidationUIUpdate = {
@@ -277,6 +299,8 @@ export type ServerValidationUIUpdate = {
     readonly address: UIPropertyAddress;
     readonly message?: string | null;
     readonly severity?: WebValidationSeverity;
+    /** The input's own refusal words marked content (`AsContent`): shown as written, never looked up. */
+    readonly content?: boolean;
 };
 
 export type CollectionUpdateActionName =
@@ -355,7 +379,8 @@ export type ClientEffectKindName =
     | "RenameTab"
     | "RenameNode"
     | "CopyToClipboard"
-    | "DiscardForm";
+    | "DiscardForm"
+    | "SetLanguage";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -377,7 +402,8 @@ export const ClientEffectKinds = {
     RenameTab: "RenameTab",
     RenameNode: "RenameNode",
     CopyToClipboard: "CopyToClipboard",
-    DiscardForm: "DiscardForm"
+    DiscardForm: "DiscardForm",
+    SetLanguage: "SetLanguage"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -451,6 +477,13 @@ export type DialogClientEffect = ClientEffect & {
 };
 
 export type ThemeModeName = "Light" | "Dark";
+
+/** Switches the page to a language in place, and — raised on the page — tells the session. */
+export type SetLanguageClientEffect = ClientEffect & {
+    readonly language?: string;
+    // Where the words are, named by the server on a switch it pushed for a session that already holds the language.
+    readonly href?: string | null;
+};
 
 export type SetThemeClientEffect = ClientEffect & {
     // Absent is the third answer and not a member of the enum: no preference means follow the platform.
@@ -562,6 +595,23 @@ export class MetadataIndex {
 
     public getBindingById(bindingId: number): WebRenderBindingMetadata | undefined {
         return this.bindingsById.get(bindingId);
+    }
+
+    /** Whether a value written to the property is looked up as a key: translatable text its instance does not show as written. */
+    public isTranslatable(reference: WebRenderPropertyReferenceMetadata): boolean {
+        if (this.propertyDefinitionsById.get(reference.propertyId)?.translatable !== true || reference.content === true)
+            return false;
+
+        const binding = "bindingId" in reference
+            ? reference as WebRenderBindingMetadata
+            : this.getBindingByComponentAndPropertyId(getIdValue(reference.componentId), reference.propertyId);
+
+        return binding?.content !== true;
+    }
+
+    /** The translatable values the page was rendered with, which a language switch writes again. */
+    public getWords(): readonly WebRenderWordMetadata[] {
+        return this.metadata.words ?? [];
     }
 
     /** Whether the compiled view registered any binding at all on this component. */
@@ -765,7 +815,7 @@ export function getDomOperationKind(value: WebDomOperationKind | null | undefine
 }
 
 export function getValueCondition(value: WebValueCondition | null | undefined): WebValueConditionName | "Unknown" {
-    return resolveEnumName(value, ["None", "HasValue", "HasText", "IsTrue", "IsFalse"] as const);
+    return resolveEnumName(value, ["None", "HasValue", "HasText", "IsTrue", "IsFalse", "DrawsIcon"] as const);
 }
 
 export function getCollectionUpdateAction(value: CollectionUpdateAction | null | undefined): CollectionUpdateActionName | "Unknown" {

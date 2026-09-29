@@ -26,7 +26,9 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// <summary>Which surfaces the popup opens with: <c>date</c>, <c>time</c> or <c>date-time</c>.</summary>
     protected abstract string TemporalMode { get; }
 
-    /// <summary>Whether this control opens a picker popup at all.</summary>
+    /// <summary>
+    /// Whether this control opens a picker popup at all; one without edits its value in place — a clock's segments and a stepper.
+    /// </summary>
     protected virtual bool HasPicker => true;
 
     /// <summary>The display format used when the author set no <c>DisplayFormat</c>.</summary>
@@ -142,24 +144,25 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         return isRange == true;
     }
 
-    /// <summary>Renders the visible display field — two of them for a period — the hidden canonical value inputs and the popup toggle.</summary>
-    protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string defaultDisplayFormat)
+    /// <summary>
+    /// Renders the row a value is entered in — two parts for a period — and the hidden canonical value inputs: a text field and the
+    /// popup's toggle where there is a picker, a clock's segments and a stepper where the value is edited in place.
+    /// </summary>
+    private void RenderRow(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string defaultDisplayFormat)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(root);
-
         var format = ResolveDisplayFormat(context, defaultDisplayFormat);
         var isRange = IsRange(context);
+        var partElement = HasPicker ? "input" : "span";
 
-        IHtmlElementBuilder? field = null;
-        IHtmlElementBuilder? endField = null;
+        IHtmlElementBuilder? startPart = null;
+        IHtmlElementBuilder? endPart = null;
         IHtmlElementBuilder? toggle = null;
 
         _ = root.Element("span", row =>
         {
             _ = row.Class($"{SharedClassName}__row");
 
-            // A period's two fields are one answer to one caption: the row is the group the caption names.
+            // A period's two parts are one answer to one caption: the row is the group the caption names.
             if (isRange)
             {
                 _ = row.Attribute("role", "group");
@@ -172,59 +175,81 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            _ = row.Element("input", input =>
+            _ = row.Element(partElement, part =>
             {
-                field = input;
-                RenderDisplayField(context, input, format, end: false);
+                startPart = part;
+                RenderPart(context, part, format, end: false);
             });
 
+            // A period's two parts share the row, and its toggle or stepper, which drives whichever part has focus.
             if (isRange)
             {
                 RenderRangeSeparator(row);
 
-                _ = row.Element("input", input =>
+                _ = row.Element(partElement, part =>
                 {
-                    endField = input;
-                    RenderDisplayField(context, input, format, end: true);
+                    endPart = part;
+                    RenderPart(context, part, format, end: true);
                 });
             }
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
-            RenderPopupToggle(row, $"{SharedClassName}__toggle", WebAttributes.TemporalToggle, button =>
+            if (HasPicker)
             {
-                toggle = button;
-                _ = button.Attribute("tabindex", "-1");
-                _ = button.Attribute("aria-label", context.Translate(UIStrings.PickerOpen));
-            });
+                RenderPopupToggle(row, $"{SharedClassName}__toggle", WebAttributes.TemporalToggle, button =>
+                {
+                    toggle = button;
+                    _ = button.Attribute("tabindex", "-1");
+                    WebWords.Write(context, button, "aria-label", UIStrings.PickerOpen);
+                });
+            }
+            else
+            {
+                _ = row.Element("span", stepper =>
+                {
+                    _ = stepper.Class($"{SharedClassName}__stepper");
+
+                    RenderStepButton(stepper, $"{SharedClassName}__step", WebAttributes.TemporalStepDirection, "up");
+                    RenderStepButton(stepper, $"{SharedClassName}__step", WebAttributes.TemporalStepDirection, "down");
+                });
+            }
         });
 
         // The tree is written out only once the whole component is built, so writing onto these after their own
         // element callbacks returned is safe.
-        IHtmlElementBuilder displayField = field!;
-        IHtmlElementBuilder? endDisplayField = endField;
-        IHtmlElementBuilder toggleButton = toggle!;
+        IHtmlElementBuilder startDisplay = startPart!;
+        IHtmlElementBuilder? endDisplay = endPart;
 
-        // One registration, every target: a property renders once per component, so this can't be several RenderProperty calls;
-        // the end field's target is optional since not every instance is a period.
-        _ = RenderProperty<bool?>(context, displayField, IInputComponent.IsReadOnlyProperty, (target, value) =>
-        {
-            if (value != true)
-                return;
+        // Without a picker, read-only is the root's mark alone: the stepper and the segments both read it, and the segments stay in
+        // the tab order.
+        if (HasPicker)
+            RenderFieldReadOnly(context, root, startDisplay, endDisplay, toggle!);
+        else
+            NativeInputRendererBase.RenderIsReadOnlyMark(context, root);
 
-            _ = target.Attribute("readonly");
-            _ = endDisplayField?.Attribute("readonly");
-            _ = toggleButton.Attribute("disabled");
-        }, [
-            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field:not([{WebAttributes.TemporalEnd}])", condition: WebValueCondition.IsTrue),
-            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field[{WebAttributes.TemporalEnd}]", condition: WebValueCondition.IsTrue, optional: true),
-            WebDomOperation.ToggleAttribute("disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue)
-        ]);
+        // A text field shows the value as its own; a clock's segments as their text.
+        Action<IHtmlElementBuilder, string> writeDisplay = HasPicker ? static (part, text) => _ = part.Attribute("value", text) : static (part, text) => _ = part.Text(text);
 
-        RenderValueInput(context, root, culture, format, text => _ = displayField.Attribute("value", text));
+        RenderValueInput(context, root, culture, format, text => writeDisplay(startDisplay, text));
 
         if (isRange)
-            RenderEndValueInput(context, root, culture, format, text => _ = endDisplayField!.Attribute("value", text));
+            RenderEndValueInput(context, root, culture, format, text => writeDisplay(endDisplay!, text));
+    }
+
+    /// <summary>The part a value — or a period's start or end — is entered in: a text field, or a clock's segments.</summary>
+    private void RenderPart(WebRenderContext context, IHtmlElementBuilder part, string format, bool end)
+    {
+        if (HasPicker)
+        {
+            RenderDisplayField(context, part, format, end);
+            return;
+        }
+
+        _ = part.Class($"{SharedClassName}__segments");
+        _ = part.Attribute("role", "group");
+
+        RenderPartLabel(context, part, end);
     }
 
     private static void RenderDisplayField(WebRenderContext context, IHtmlElementBuilder input, string format, bool end)
@@ -239,6 +264,31 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         RenderPartLabel(context, input, end);
     }
 
+    /// <summary>
+    /// A picker's read-only: the text fields read-only and the toggle saying it does nothing, rather than turning disabled, which
+    /// would drop a focus it holds; the refusal engine turns its press away.
+    /// </summary>
+    private static void RenderFieldReadOnly(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder field, IHtmlElementBuilder? endField, IHtmlElementBuilder toggle)
+    {
+        // One registration, every target: a property renders once per component, so this can't be several RenderProperty calls;
+        // the end field's target is optional since not every instance is a period.
+        _ = RenderProperty<bool?>(context, field, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = root.Class(WebClassNames.ReadOnly);
+            _ = target.Attribute("readonly");
+            _ = endField?.Attribute("readonly");
+            _ = toggle.Attribute("aria-disabled", "true");
+        }, [
+            NativeInputRendererBase.ReadOnlyMarkOperation,
+            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field:not([{WebAttributes.TemporalEnd}])", condition: WebValueCondition.IsTrue),
+            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field[{WebAttributes.TemporalEnd}]", condition: WebValueCondition.IsTrue, optional: true),
+            WebDomOperation.ToggleAttribute("aria-disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue, value: "true")
+        ]);
+    }
+
     /// <summary>Names the part a value is entered in: a period's start or end by its own word, a single value by the field's caption.</summary>
     protected static void RenderPartLabel(WebRenderContext context, IHtmlElementBuilder part, bool end)
     {
@@ -247,7 +297,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
         // A period's two parts are told apart by name, since their caption names the period rather than either end.
         if (IsRange(context))
-            _ = part.Attribute("aria-label", context.Translate(end ? UIStrings.PickerEnd : UIStrings.PickerStart));
+            WebWords.Write(context, part, "aria-label", end ? UIStrings.PickerEnd : UIStrings.PickerStart);
         else
             RenderFieldLabel(context, part);
 

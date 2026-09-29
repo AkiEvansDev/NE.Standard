@@ -5,7 +5,7 @@
 .ui-tooltip {
     // Above everything, including an open popup. No scroll cap — the tail below is drawn outside the box.
     .ui-popup-surface(60);
-    display: none;
+    .ui-popup-closed();
     max-width: 20rem;
     padding: @ui-space-1 @ui-space-2;
     color: var(--ui-color-on-surface);
@@ -13,12 +13,12 @@
     line-height: var(--ui-text-caption-line-height);
     // Reachable with the pointer: its text is allowed to carry a link, and TooltipEngine keeps it open while the pointer is inside it.
     overflow-wrap: anywhere;
-    // A tooltip a caller composed may be more than one line — a chart naming every series at one x; the line it wrote is the line shown.
+    // A composed tooltip may be several lines (a chart naming every series at one x).
     white-space: pre-line;
 }
 
 .ui-tooltip--visible {
-    display: block;
+    .ui-popup-open();
 }
 
 // The tail is the tooltip's corner rotated onto its edge; --ui-popup-arrow is the anchor's centre, so a shifted tooltip still aims at it.

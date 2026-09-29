@@ -1,11 +1,15 @@
-// The one turning ring, used by the spinner and by loading controls in place of their icon; a border, not a glyph, so no icon pack.
+// One turn of the ring; preferences.less restores it under reduced motion, which stops every other animation.
+@ui-loading-ring-turn: 800ms;
+
+// The one turning ring (spinner, loading controls): a border, not a glyph. Its wearers are listed in @ui-loading-rings, which keeps
+// it turning under reduced motion.
 .ui-loading-ring() {
     width: 1em;
     height: 1em;
     border: 0.14em solid color-mix(in srgb, currentColor 28%, transparent);
     border-top-color: currentColor;
     border-radius: 999px;
-    animation: ui-spin 800ms linear infinite;
+    animation: ui-spin @ui-loading-ring-turn linear infinite;
 }
 
 @keyframes ui-spin {

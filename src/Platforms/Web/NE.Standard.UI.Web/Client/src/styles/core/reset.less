@@ -21,6 +21,12 @@ html {
     interpolate-size: allow-keywords;
 }
 
+// A shell that scrolls its own regions never scrolls the document, and a reserved gutter there only cuts every fixed layer —
+// the backdrop, a sheet, the toasts — short of the window's edge; the regions keep their own gutters.
+html:has(> body > [data-ui-root][data-ui-scroll-content]) {
+    scrollbar-gutter: auto;
+}
+
 body {
     background: var(--ui-color-background);
     color: var(--ui-color-on-background);
@@ -54,8 +60,15 @@ video {
     outline: none;
 }
 
-:focus-visible {
+// Not on a handle the pointer focused (data-ui-pointer-focus), which the browser counts as the keyboard's.
+@{ui-ring-focus} {
     .ui-focus-ring();
+}
+
+// A layer holding the keyboard (popup-focus.ts) and a list opened by the pointer, whose container holds it until an arrow, are no
+// controls: no ring, as on a dialog's surface.
+:is([data-ui-focus-holder], .ui-context-menu, .ui-split-button__menu > .ui-menu, .ui-language-switcher__menu):focus {
+    outline: none;
 }
 
 // Selected text follows the theme instead of the UA's own blue; translucent, so the covered text keeps its own colour and stays readable.

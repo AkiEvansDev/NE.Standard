@@ -29,11 +29,7 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, StackPanelComponent.SpacingProperty, "--ui-stack-panel-spacing");
 
-        _ = RenderProperty<bool?>(context, root, StackPanelComponent.WrapProperty, static (target, value) =>
-        {
-            if (value is true)
-                _ = target.Class("ui-stack-panel--wrap");
-        }, [WebDomOperation.ToggleClass("ui-stack-panel--wrap")]);
+        RenderFlagClass(context, root, StackPanelComponent.WrapProperty, "ui-stack-panel--wrap");
 
         RenderChildren(context, root);
     }

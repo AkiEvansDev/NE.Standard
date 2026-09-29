@@ -48,10 +48,10 @@ public interface IScrollableComponent : IVisualComponent
     [UIComponentProperty(DefaultValue = UIScrollSnapMode.Disabled)]
     UIScrollSnapMode? ScrollSnap { get; }
 
-    /// <summary>
-    /// Gets or sets how the viewport reacts when its content grows; applies to the component's own scrolling element, reaching
-    /// a windowed host a wrapping <c>ScrollContainer</c> could not.
-    /// </summary>
+    /// <summary>Gets or sets how the viewport reacts when its content grows.</summary>
+    /// <remarks>
+    /// Applies to the component's own scrolling element, reaching a windowed host a wrapping <c>ScrollContainer</c> could not.
+    /// </remarks>
     [UIComponentProperty(DefaultValue = UIScrollAnchor.None)]
     UIScrollAnchor? ScrollAnchor { get; set; }
 }

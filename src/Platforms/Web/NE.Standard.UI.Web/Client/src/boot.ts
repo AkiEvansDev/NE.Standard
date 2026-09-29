@@ -60,13 +60,11 @@
             // Every element the selector names, not the first: a tree's fold marks many rows with one patch.
             const targets = patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
-            // A selector's targets may still be arriving — the parser hands a long tree over in chunks — so it is never done
-            // before the document is: the rows parsed after the first match would otherwise paint unpatched.
+            // Never done before the document: the parser hands a long tree over in chunks, and later rows would paint unpatched.
             if (patch.selector !== undefined || targets.length === 0)
                 complete = false;
 
-            // A patch is the viewer's own past write read back out of storage, but the parser still trusts it sight unseen —
-            // the same allowlist a compromised or hand-edited entry cannot widen.
+            // A patch is the viewer's own write read back from storage, yet allowlisted: a compromised or hand-edited entry cannot widen it.
             for (const target of targets) {
                 for (const [name, value] of Object.entries(patch.attributes ?? {})) {
                     if (!isAllowedAttributeName(name))

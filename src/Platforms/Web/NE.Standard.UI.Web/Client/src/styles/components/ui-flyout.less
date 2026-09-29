@@ -14,17 +14,21 @@
     min-width: 0;
 }
 
-// A region the framework lays out is a container (see @ui-placement-hosts in ui-container.less): the content is placed on the
-// twenty-four columns like anything else, closed by display alone.
+// A container (@ui-placement-hosts in ui-container.less): the content is placed on the 24 columns.
 .ui-flyout__content {
     .ui-popup-surface();
     .ui-popup-scroll();
     .ui-placement-host();
-    display: none;
+    .ui-popup-closed();
     min-width: 12rem;
     padding: @ui-space-3;
 }
 
 .ui-flyout--open > .ui-flyout__content {
-    display: grid;
+    .ui-popup-open(grid);
+}
+
+// A focus holder (popup-focus.ts), not a control: no ring, as on a dialog's surface.
+.ui-flyout__content:focus {
+    outline: none;
 }

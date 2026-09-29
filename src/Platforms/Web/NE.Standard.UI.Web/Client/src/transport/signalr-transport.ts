@@ -125,8 +125,7 @@ export class SignalRTransport {
             return result;
         }
         catch (error) {
-            // A gate nobody ever marks attached would hang every later call forever; failing it lets a call already waiting behind it
-            // reject, and the gate re-arms at once so a retried attach can still succeed.
+            // A gate never marked attached would hang every call: failing it rejects the waiting ones and re-arms it for a retried attach.
             this.gate.failAttach(error);
 
             throw error;
@@ -148,14 +147,25 @@ export class SignalRTransport {
         await this.invokeAsync<void>("SetThemeAsync", [{ theme }]);
     }
 
+    /** Tells the session the language the page switches to; answers where that language's words are. */
+    public async setLanguageAsync(language: string): Promise<{ readonly language: string; readonly href: string }> {
+        return await this.invokeAsync<{ readonly language: string; readonly href: string }>("SetLanguageAsync", [{ language }]);
+    }
+
+    /** Asks for the words of keys the page's table lacked, in one language; answers the ones the server has, plural forms among them. */
+    public async translateAsync(language: string, keys: readonly string[]): Promise<Readonly<Record<string, string>>> {
+        const answer = await this.invokeAsync<{ readonly words?: Readonly<Record<string, string>> }>("TranslateAsync", [{ language, keys }]);
+
+        return answer?.words ?? {};
+    }
+
     /** Settles once the window's rows are applied. */
     public async requestItemWindowAsync(request: WebUIItemWindowRequest): Promise<void> {
         await this.invokeAsync<ServerChangeSet>("RequestItemWindowAsync", [request], invoked => this.inbound.answered(invoked, changes => changes, noChanges));
     }
 
     private async invokeAsync<TResult>(methodName: string, args: readonly unknown[], answered?: (invoked: Promise<TResult>) => Promise<TResult>): Promise<TResult> {
-        // A call made before the attach is answered waits in silence; past this long the wait is logged, so a click that
-        // seems to go nowhere can be told from one that was never made.
+        // A long wait behind the attach is logged, so a click that seems to go nowhere can be told from one never made.
         const stalled = window.setTimeout(() => logWarn("call waiting behind the attach.", { methodName }), AttachStallWarningMilliseconds);
 
         try {
@@ -167,8 +177,7 @@ export class SignalRTransport {
         return await this.invokeCoreAsync<TResult>(methodName, args, answered);
     }
 
-    // Rethrown without a log of its own, since every caller already logs the failure in its own words; a bare rethrow here
-    // would say the same thing twice.
+    // Rethrown without a log of its own: every caller already logs the failure in its own words.
     private async invokeCoreAsync<TResult>(methodName: string, args: readonly unknown[], answered?: (invoked: Promise<TResult>) => Promise<TResult>): Promise<TResult> {
         // A connection given up is not started again by a call: the reader has been offered a reload instead.
         const lost = this.gate.failure;

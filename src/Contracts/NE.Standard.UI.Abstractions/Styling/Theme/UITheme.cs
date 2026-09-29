@@ -32,10 +32,8 @@ public sealed record UITheme
     /// </summary>
     public bool FocusRing { get; init; }
 
-    /// <summary>
-    /// Whether a press on a button, action row or menu entry answers with a wash spreading from the pointer; on by default,
-    /// ignored by platforms that can't animate and by reduced-motion viewers.
-    /// </summary>
+    /// <summary>Whether a press on a button, action row or menu entry answers with a wash spreading from the pointer; on by default.</summary>
+    /// <remarks>Ignored by platforms that can't animate and by reduced-motion viewers.</remarks>
     public bool PressRipple { get; init; } = true;
 
     /// <summary>

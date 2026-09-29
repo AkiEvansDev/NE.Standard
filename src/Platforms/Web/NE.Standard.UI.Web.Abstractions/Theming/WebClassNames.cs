@@ -1,10 +1,20 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
 public static class WebClassNames
 {
+    /// <summary>On a component's root while its <c>Enabled</c> is false.</summary>
+    public const string Disabled = "ui-disabled";
+
+    /// <summary>On a component's root while it is <c>Loading</c>.</summary>
+    public const string Loading = "ui-loading";
+
+    /// <summary>On an input's root while its <c>IsReadOnly</c> is true, whatever its own control carries for the browser.</summary>
+    public const string ReadOnly = "ui-readonly";
+
     public static string Color(UIColorStyle value)
         => value switch
         {
@@ -128,6 +138,13 @@ public static class WebClassNames
             UIGroupSeparator.Rule => "ui-command-bar--separator-rule",
             _ => string.Empty
         };
+
+    /// <summary>
+    /// <c>ui-border--none</c> for a thickness of nothing on every side — a component that draws no edge of its own, which the
+    /// stylesheet cannot read off the inline <c>border-width</c>; empty otherwise.
+    /// </summary>
+    public static string BorderNone(UIThickness value)
+        => value is { Left: 0, Top: 0, Right: 0, Bottom: 0 } ? "ui-border--none" : string.Empty;
 
     public static string SurfaceStyle(UISurfaceStyle value)
         => value switch

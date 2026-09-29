@@ -8,9 +8,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Regions;
 /// </summary>
 public sealed class CardHeaderRegion : TextComponent<CardHeaderRegion>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.card.header.region";
 
     /// <summary>

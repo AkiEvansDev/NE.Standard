@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Localization;
@@ -430,20 +432,54 @@ public sealed class UIApplicationBuilder
         _files.Validate();
 
         UIRouteRegistry routeRegistry = Routes.Build(services, _security);
+        UILocalizationOptions localization = CloneLocalizationOptions(_localization);
+        UIMissingWords? missingWords = BuildMissingWords(services, localization);
 
         return new UIApplication(
             routeRegistry,
             ClonePersistenceOptions(_persistence),
-            BuildTranslator(services),
+            BuildTranslator(services, localization, missingWords),
             _theme.Build(),
             CloneErrorHandlingOptions(_errorHandling),
             CloneSecurityOptions(_security),
             CloneSessionOptions(_sessions),
             CloneFileOptions(_files),
+            localization,
+            missingWords,
             services.GetService<IUIContentAddressResolver>(),
             [.. _viewFilters.OrderBy(static filter => filter.Order)],
             [.. _commandFilters.OrderBy(static filter => filter.Order)]
         );
+    }
+
+    /// <inheritdoc cref="CloneSecurityOptions" />
+    private static UILocalizationOptions CloneLocalizationOptions(UILocalizationOptions source)
+    {
+        UILocalizationOptions copy = new()
+        {
+            DefaultLanguage = source.DefaultLanguage,
+            ReportMissingWords = source.ReportMissingWords
+        };
+
+        foreach (var prefix in source.KeyPrefixes)
+            copy.KeyPrefixes.Add(prefix);
+
+        return copy;
+    }
+
+    /// <summary>
+    /// The collector of missing words when the options turn it on, or, left to the platform, when the platform's defaults do.
+    /// </summary>
+    private static UIMissingWords? BuildMissingWords(IServiceProvider services, UILocalizationOptions localization)
+    {
+        var report = localization.ReportMissingWords ?? services.GetService<UIPlatformDefaults>()?.ReportMissingWords ?? false;
+
+        if (!report)
+            return null;
+
+        ILoggerFactory? loggers = services.GetService<ILoggerFactory>();
+
+        return new UIMissingWords(loggers is null ? NullLogger.Instance : loggers.CreateLogger<UIMissingWords>());
     }
 
     private static UIPersistenceOptions ClonePersistenceOptions(UIPersistenceOptions source)
@@ -464,7 +500,7 @@ public sealed class UIApplicationBuilder
     /// A registered <see cref="ITranslator"/> wins outright; only when none is registered is one built from the
     /// builder's own sources and default language.
     /// </summary>
-    private ITranslator BuildTranslator(IServiceProvider services)
+    private ITranslator BuildTranslator(IServiceProvider services, UILocalizationOptions localization, UIMissingWords? missingWords)
     {
         if (services.GetService<ITranslator>() is ITranslator registered)
             return registered;
@@ -476,7 +512,7 @@ public sealed class UIApplicationBuilder
 
         sources.AddRange(_translationSources);
 
-        return new UITranslationRegistry(_localization.DefaultLanguage, sources, [.. services.GetServices<IUIStringsSource>()]);
+        return new UITranslationRegistry(localization.DefaultLanguage, sources, [.. services.GetServices<IUIStringsSource>()], [.. localization.KeyPrefixes], missingWords);
     }
 
     /// <inheritdoc cref="CloneSecurityOptions" />

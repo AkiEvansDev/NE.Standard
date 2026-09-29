@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { inlineMarkupToPlainText, parseInlineMarkup } from "../src/rendering/inline-markup.ts";
+import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
 type CorpusSegment = { readonly text: string; readonly styles: number; readonly url: string | null; readonly icon?: string | null; readonly fold?: string | null };
 type CorpusCase = { readonly name: string; readonly input: string; readonly segments: readonly CorpusSegment[] };
@@ -34,6 +35,15 @@ for (const testCase of corpus.cases) {
 
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");
+});
+
+test("inline markup: a tooltip's words name an icon-only button as plain text, never as their markup; none leaves no name", () => {
+    const toName = webDomConverters.get("inlineMarkupPlainText");
+
+    assert.ok(toName !== undefined);
+    assert.equal(toName("Shown **and** on focus — see [the docs](https://docs.example)."), "Shown and on focus — see the docs.");
+    assert.equal(toName(null), undefined);
+    assert.equal(toName(undefined), undefined);
 });
 
 test("inline markup: marks left open cost a single pass", () => {

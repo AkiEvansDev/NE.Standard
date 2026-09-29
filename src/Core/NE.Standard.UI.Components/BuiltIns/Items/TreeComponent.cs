@@ -12,11 +12,11 @@ using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
-/// <summary>
-/// A tree on the file list's model: thin rows with a glyph and title, folded by a chevron kept on the client, selected like an
-/// items view, opened by double click or Enter, renamed in place, with a menu by kind.
-/// </summary>
-/// <remarks>Nodes are a flat keyed list in walking order, each naming the node above it.</remarks>
+/// <summary>A tree on the file list's model: thin rows with a glyph and title, folded by a chevron kept on the client.</summary>
+/// <remarks>
+/// Selected like an items view, opened by double click or Enter, renamed in place, with a menu by kind. Nodes are a flat keyed list
+/// in walking order, each naming the node above it.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
@@ -208,8 +208,6 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
 /// </summary>
 public sealed class TreeComponent(string? id = null) : TreeComponent<TreeComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tree";
 }

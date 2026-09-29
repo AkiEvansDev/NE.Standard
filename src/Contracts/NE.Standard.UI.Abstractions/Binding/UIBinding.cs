@@ -47,9 +47,7 @@ public readonly record struct UIBinding
     /// <summary>
     /// Creates a binding for a component property.
     /// </summary>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="path"/> is <see langword="null"/>.
-    /// </exception>
+    /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
     public static UIBinding Property(UIProperty property, RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -59,9 +57,7 @@ public readonly record struct UIBinding
     /// <summary>
     /// Creates a binding for a component data context.
     /// </summary>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="path"/> is <see langword="null"/>.
-    /// </exception>
+    /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
     public static UIBinding Context(RecursivePath path, UIBindingScope scope = UIBindingScope.Relative, UIBindingMode mode = UIBindingMode.OneWay)
     {
         ArgumentNullException.ThrowIfNull(path);

@@ -103,6 +103,6 @@ public sealed class UIValidationIndex
         if (rule.Target.Component.Id.IsEmpty)
             throw new InvalidOperationException("Validation target component id is invalid.");
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(rule.Message);
+        ArgumentNullException.ThrowIfNull(rule.Message);
     }
 }

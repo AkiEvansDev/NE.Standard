@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -34,23 +35,13 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         if (IsButtonElement)
             _ = root.Attribute("type", "button");
 
-        // On the button, not on its label.
-        RenderTooltip(context, root);
+        // On the button, not on its label; an icon-only button's name follows it too (RenderButtonLabel marks the named element).
+        RenderTooltip(context, root, TextContentRendererBase.TooltipNameOperation);
 
         if (RendersOverflow)
             OverflowStyleRenderer.RenderOverflow(context, root);
 
-        _ = RenderProperty<UIButtonType?>(context, root, ButtonComponent.TypeProperty, static (target, value) =>
-        {
-            if (value is UIButtonType type)
-                _ = target.Class(WebClassNames.ButtonClass(type));
-        }, TypeOperations);
-
-        _ = RenderProperty<UIButtonSize?>(context, root, ButtonComponent.SizeProperty, static (target, value) =>
-        {
-            if (value is UIButtonSize size)
-                _ = target.Class(WebClassNames.ButtonSize(size));
-        }, SizeOperations);
+        RenderButtonLook(context, root);
 
         _ = RenderProperty<string?>(context, root, ButtonComponent.SubmitFormIdProperty, static (target, value) =>
         {
@@ -63,6 +54,25 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         SurfaceStyleRenderer.RenderBackground(context, root, ButtonComponent.BackgroundProperty);
 
         BorderStyleRenderer.RenderBorderStyle(context, root);
+    }
+
+    /// <summary>
+    /// A button's look on <paramref name="root"/>, kept in step with its <c>Type</c> and <c>Size</c>: the classes <c>ui-button.less</c>
+    /// draws by — every button-shaped control's, the page switchers' among them.
+    /// </summary>
+    public static void RenderButtonLook(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        _ = RenderProperty<UIButtonType?>(context, root, ButtonComponent.TypeProperty, static (target, value) =>
+        {
+            if (value is UIButtonType type)
+                _ = target.Class(WebClassNames.ButtonClass(type));
+        }, TypeOperations);
+
+        _ = RenderProperty<UIButtonSize?>(context, root, ButtonComponent.SizeProperty, static (target, value) =>
+        {
+            if (value is UIButtonSize size)
+                _ = target.Class(WebClassNames.ButtonSize(size));
+        }, SizeOperations);
     }
 
     /// <summary>
@@ -88,19 +98,33 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
             {
                 IncludeTextLayout = true,
-                DefaultBadgePlacement = UITextBadgePlacement.Trailing
+                DefaultBadgePlacement = UITextBadgePlacement.Trailing,
+                TooltipNamesHost = true
             });
         });
 
-        // An icon-only control is named by its tooltip; a titled control keeps its title regardless. Decided at render since a
-        // property's operations can't read another property.
-        _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
-        _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _);
-
-        if (string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(tooltip))
-            _ = host.Attribute("aria-label", tooltip);
+        // An icon-only control is named by its tooltip; a titled control keeps its title regardless. The mark lets the tooltip's
+        // pushes and a language switch rename it, and a bound title that arrives unname it — so a bound title wears it even while
+        // it shows, for the day it is pushed empty.
+        WebRenderValueKind titled = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
 
         // Words the button does not show outrank both: a switch drawn as "Aa" is "Match case" to a screen reader.
+        WebRenderValueKind named = ResolveRenderValue(context, IAccessibleNameComponent.AccessibleNameProperty, out string? name, out _);
+
+        var untitled = string.IsNullOrWhiteSpace(title);
+
+        if ((untitled || titled == WebRenderValueKind.Binding) && named != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(name))
+        {
+            _ = host.Attribute(TextContentRendererBase.TooltipNamedAttribute);
+
+            // The words a reader sees, not the Markdown source; unmarked, since a switch writes it through the tooltip's own name
+            // operation, which the tooltip's recorded word or binding drives.
+            _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _);
+
+            if (untitled && !string.IsNullOrWhiteSpace(tooltip))
+                _ = host.Attribute("aria-label", UIInlineMarkup.ToPlainText(tooltip));
+        }
+
         RenderAccessibleName(context, host);
     }
 }

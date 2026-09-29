@@ -59,10 +59,10 @@ public interface ITemplatedComponent : IVisualComponent
     /// </summary>
     string? FallbackTemplateKey { get; }
 
-    /// <summary>
-    /// The composite slots, keyed by base variant, with the item property naming each slot's typed variant (a tree's
-    /// <c>node</c> is keyed by <c>Kind</c>: a <c>folder</c> row wears <c>node:folder</c>). The runtime reads it to know which
+    /// <summary>The composite slots, keyed by base variant, with the item property naming each slot's typed variant.</summary>
+    /// <remarks>
+    /// A tree's <c>node</c> is keyed by <c>Kind</c>: a <c>folder</c> row wears <c>node:folder</c>. The runtime reads it to know which
     /// variant's nested collections a row holds.
-    /// </summary>
+    /// </remarks>
     IReadOnlyDictionary<string, string> CompositeSlotKeyProperties { get; }
 }

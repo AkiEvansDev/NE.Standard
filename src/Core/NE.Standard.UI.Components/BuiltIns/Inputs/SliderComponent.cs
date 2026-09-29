@@ -113,8 +113,6 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
 /// </summary>
 public sealed class SliderComponent(string? id = null) : SliderComponent<SliderComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.slider";
 }

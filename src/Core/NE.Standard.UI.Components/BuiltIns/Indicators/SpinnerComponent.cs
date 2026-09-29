@@ -48,8 +48,6 @@ public abstract partial class SpinnerComponent<T> : VisualComponentBase<T>
 /// </summary>
 public sealed class SpinnerComponent(string? id = null) : SpinnerComponent<SpinnerComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.spinner";
 }

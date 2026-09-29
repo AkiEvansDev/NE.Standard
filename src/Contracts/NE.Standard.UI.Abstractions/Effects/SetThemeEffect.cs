@@ -3,7 +3,7 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
-/// Puts the client into a theme and makes it the session's from then on — the only effect with a server side to it.
+/// Puts the client into a theme and makes it the session's from then on.
 /// </summary>
 public sealed class SetThemeEffect(UIThemeMode? mode = null) : ClientEffect
 {

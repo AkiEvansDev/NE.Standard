@@ -67,17 +67,9 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<bool?>(context, root, SelectComponent.ShowClearButtonProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class(ClearableClassName);
-        }, [WebDomOperation.ToggleClass(ClearableClassName, condition: WebValueCondition.IsTrue)]);
+        RenderFlagClass(context, root, SelectComponent.ShowClearButtonProperty, ClearableClassName);
 
-        _ = RenderProperty<bool?>(context, root, SelectComponent.ShowChevronProperty, static (target, value) =>
-        {
-            if (value == false)
-                _ = target.Class(NoChevronClassName);
-        }, [WebDomOperation.ToggleClass(NoChevronClassName, condition: WebValueCondition.IsFalse)]);
+        RenderFlagClass(context, root, SelectComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);
 
         _ = ResolveRenderValue(context, SelectComponent.PopupPlacementProperty, out UIPopupPlacement? placement, out _);
 
@@ -132,7 +124,8 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
             RenderPopupTrigger(trigger, "listbox");
 
-            NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, trigger);
+            // Read-only keeps the trigger focusable and its value readable, as the multi-select's; the engine offers no list.
+            NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, trigger);
 
             // A select-only combobox: the caption is its name and the chosen option drawn inside it is its value.
             _ = trigger.Attribute("role", "combobox");
@@ -177,11 +170,14 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             if (hidden)
                 _ = placeholder.Style("display", "none");
 
-            var fallback = context.Translate(UIStrings.SelectPlaceholder);
-
-            _ = RenderProperty<string?>(context, placeholder, IPlaceholderInputComponent.PlaceholderProperty, (target, value)
-                => _ = target.Text(string.IsNullOrEmpty(value) ? fallback : value)
-            , [WebDomOperation.Text()]);
+            // The framework's word is marked, so a language switch writes it again; the author's is the property's own.
+            _ = RenderProperty<string?>(context, placeholder, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
+            {
+                if (string.IsNullOrEmpty(value))
+                    WebWords.Write(context, target, null, UIStrings.SelectPlaceholder);
+                else
+                    _ = target.Text(value);
+            }, [WebDomOperation.Text()]);
         });
     }
 
@@ -196,7 +192,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             _ = clear.Class("ui-select__clear");
             _ = clear.Attribute(WebAttributes.SelectClear);
             _ = clear.Attribute("role", "button");
-            _ = clear.Attribute("aria-label", context.Translate(UIStrings.SelectClear));
+            WebWords.Write(context, clear, "aria-label", UIStrings.SelectClear);
         });
     }
 

@@ -5,12 +5,8 @@ using NE.Standard.UI.Shell.Navigation;
 
 namespace NE.Standard.UI.Navigation;
 
-/// <summary>
-/// Runs a filter attribute that builds its real filter from the service provider.
-/// </summary>
-/// <remarks>
-/// Created per request, not once at registration, so it does not capture the wrong service scope.
-/// </remarks>
+/// <summary>Runs a filter attribute that builds its real filter from the service provider.</summary>
+/// <remarks>Created per request, not once at registration, so it does not capture the wrong service scope.</remarks>
 internal sealed class UIViewFilterFactoryAdapter(IUIViewFilterFactory factory) : IUIViewFilter
 {
     public int Order => factory.Order;

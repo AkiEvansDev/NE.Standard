@@ -1,5 +1,5 @@
 using System;
-using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -19,9 +19,6 @@ public static class IconValueRenderer
     ];
 
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
-
-    // The characters a glyph class keeps; a name with none of them names no glyph (WebIconClassName.FromIconName).
-    private static readonly SearchValues<char> GlyphCharacters = SearchValues.Create("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
 
     /// <summary>Writes the size class and colour a glyph wears.</summary>
     public static void RenderIconAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty sizeProperty, UIProperty colorProperty)
@@ -50,16 +47,27 @@ public static class IconValueRenderer
         _ = parent.Element("span", element =>
         {
             _ = element.Class(className is null ? "ui-icon" : $"ui-icon {className}");
-            // `.ui-icon::before` stays hidden until this says there is a glyph to draw.
-            _ = element.Attribute(WebAttributes.Icon);
+
+            // `.ui-icon::before` stays hidden until this says there is something to draw.
+            if (Draws(icon))
+                _ = element.Attribute(WebAttributes.Icon);
+
             _ = element.Attribute("aria-hidden", "true");
             RenderIconValue(element, icon);
         });
     }
 
     /// <summary>
-    /// Writes the icon onto <paramref name="target"/>: a glyph as its pack's class, a picture as the image URL; a name with no letter or
-    /// digit (an emoji, a stray symbol) writes nothing.
+    /// Whether an icon value names something to draw — a glyph name with a letter or digit, or a picture the page may load; the
+    /// server's twin of <see cref="WebValueCondition.DrawsIcon"/>.
+    /// </summary>
+    /// <remarks>Names, not draws: a pack's rule for the name is the stylesheet's business, which neither side can see.</remarks>
+    public static bool Draws([NotNullWhen(true)] string? value)
+        => WebIconValue.Names(value);
+
+    /// <summary>
+    /// Writes the icon onto <paramref name="target"/>: a glyph as its pack's class, a picture as the image URL and its form's class; a
+    /// name with no letter or digit (an emoji, a stray symbol) writes nothing.
     /// </summary>
     public static void RenderIconValue(IHtmlElementBuilder target, string value)
     {
@@ -68,15 +76,14 @@ public static class IconValueRenderer
         if (WebIconValue.TryReadImage(value, out var source, out var tinted))
         {
             _ = target.Style(WebIconValue.ImageSourceProperty, WebIconValue.ImageSourceCss(source));
-
-            if (!tinted)
-                _ = target.Class(WebIconValue.ImageClassName);
-
+            _ = target.Class(tinted ? WebIconValue.MaskClassName : WebIconValue.ImageClassName);
             return;
         }
 
-        // Nothing rather than a refusal, as icon-value.ts answers: the value may be data, and data must not fail the page.
-        if (value.AsSpan().ContainsAny(GlyphCharacters))
-            _ = target.Class(WebIconClassName.FromIconName(value));
+        // A glyph's class, or nothing for a value that names none.
+        var className = WebIconValue.ClassName(value);
+
+        if (className.Length > 0)
+            _ = target.Class(className);
     }
 }

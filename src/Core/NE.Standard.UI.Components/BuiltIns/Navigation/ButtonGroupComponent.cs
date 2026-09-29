@@ -9,13 +9,11 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
-/// <summary>
-/// A strip of segments pressed flush together, one of them current — switches a view's mode. Navigation, not an input: the
-/// chosen segment is a key, never a validated value.
-/// </summary>
+/// <summary>A strip of segments pressed flush together, one of them current — switches a view's mode.</summary>
 /// <remarks>
-/// Segments are <see cref="IButtonModel"/>s drawn as ghost buttons on the field's ground, ruled between segments; the current
-/// one fills primary unless <c>SelectionStyle</c> says otherwise. Always horizontal.
+/// Navigation, not an input: the chosen segment is a key, never a validated value. Segments are <see cref="IButtonModel"/>s drawn
+/// as ghost buttons on the field's ground, ruled between segments; the current one fills primary unless <c>SelectionStyle</c> says
+/// otherwise. Always horizontal.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
@@ -55,8 +53,6 @@ public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IB
 /// </summary>
 public sealed class ButtonGroupComponent(string? id = null) : ButtonGroupComponent<ButtonGroupComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.button-group";
 }

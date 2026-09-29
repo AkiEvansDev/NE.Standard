@@ -1,12 +1,13 @@
-// A picture chosen by file: shown at once from the file itself, uploaded beside the hub, and kept until the controller answers
-// with its own picture. A shelf (Multiple) keeps a square per file, each uploaded as its own selection, handles sent as a list.
+// A picture chosen by file: shown at once, uploaded beside the hub, and kept until the controller answers with its own picture.
+// A shelf (Multiple) keeps a square per file, each uploaded as its own selection, the handles sent as a list.
 
-import { ImageCaptionAttribute, ImageReadonlyAttribute, ImageSourceAttribute, SelectedKeysAttribute } from "../addressing/dom-attributes";
-import { clientStrings } from "../runtime/client-strings";
+import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes";
+import { clientStrings, forgetWords } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
 import { observeComponents } from "./dom-mutations";
 import { DraftDroppedEventName } from "./draft-events";
 import { attachFileDrop } from "./file-drop";
+import { isInert, isReadOnly } from "./interactive-state";
 import { filterWithinFileSizeLimit, publishSelection, uploadFilesAsync } from "./file-upload";
 
 const RootClass = "ui-image-input";
@@ -20,12 +21,10 @@ const SelectionsClass = "ui-image-input__selections";
 const TilesClass = "ui-image-input__tiles";
 const TileClass = "ui-image-input__tile";
 const RemoveClass = "ui-image-input__remove";
-const PickAttribute = "data-ui-file-pick";
 
 /** Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it. */
 const PreviewAttribute = "data-ui-image-preview";
 const DraggingAttribute = "data-ui-image-dragging";
-const LoadingClass = "ui-loading";
 
 type Tile = {
     readonly element: HTMLElement;
@@ -49,8 +48,7 @@ export class ImageInputEngine {
     // What each shelf has sent and not yet seen come back: the controller's echo of a list is not the controller dropping a square.
     private readonly published = new WeakMap<HTMLElement, string[]>();
 
-    // The root's list as last read, per shelf: the observer also wakes for unrelated changes, and pruning by an unchanged list
-    // would take every newly landed square off again.
+    // The root's list as last read: the observer wakes for unrelated changes too, and pruning by an unchanged list drops new squares.
     private readonly seenKeys = new WeakMap<HTMLElement, string | null>();
 
     public constructor(options: ImageInputEngineOptions = {}) {
@@ -58,8 +56,7 @@ export class ImageInputEngine {
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        // The picture follows the root's source attribute (written by a Value patch); a preview outranks it until the source changes.
-        // A shelf follows the root's list of handles: a dropped handle takes its square with it.
+        // The picture follows the root's source (a Value patch), outranked by a preview until it changes; a shelf follows its handles.
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => this.applyAll(roots));
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
@@ -69,17 +66,23 @@ export class ImageInputEngine {
         // An editor that closed on a cancel lets the chosen picture go too: the controller's own picture is painted again.
         this.root.addEventListener(DraftDroppedEventName, domEvent => this.handleDraftDropped(domEvent));
 
-        // A file dragged onto the surface is chosen the way a picked one is; one file, whatever was dragged, unless the surface is a shelf.
+        // A drop is a pick, of one file unless a shelf; a loading surface refuses it, or a second file would race the first to the controller.
         attachFileDrop({
             root: this.root,
             draggingAttribute: DraggingAttribute,
             resolveTarget: target => {
-                const root = target.closest<HTMLElement>(`.${SurfaceClass}`)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const surface = target.closest<HTMLElement>(`.${SurfaceClass}`);
+                const root = surface?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-                if (root === null || root.hasAttribute(ImageReadonlyAttribute) || root.matches(".ui-disabled"))
+                if (surface === null || root === null)
                     return null;
 
-                return { host: root, accept: root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.getAttribute("accept") ?? "", multiple: isShelf(root) };
+                return {
+                    host: root,
+                    accept: root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.getAttribute("accept") ?? "",
+                    multiple: isShelf(root),
+                    refused: isReadOnly(root) || isInert(surface)
+                };
             },
             onFiles: (root, files) => void (isShelf(root) ? this.takeManyAsync(root, files) : this.takeFileAsync(root, files[0]))
         });
@@ -120,6 +123,8 @@ export class ImageInputEngine {
         // The controller's own word for the picture outranks whatever its address ends in.
         if (!answered)
             writeText(root, root.getAttribute(ImageCaptionAttribute) ?? fileNameOf(source));
+
+        nameSurface(root, source.length > 0);
     }
 
     /** The controller's list of handles is the shelf's truth once written: a square whose handle is gone from it goes too. */
@@ -135,8 +140,7 @@ export class ImageInputEngine {
         if (tiles === undefined || text === null)
             return;
 
-        // A list the shelf itself sent, back from the server: two squares landing close together send two lists, and the first
-        // echo can arrive after the second square lands — pruning by it would take that square off, so older lists are forgotten with it.
+        // The shelf's own list echoed: an older echo can arrive after a later square lands, so pruning by it would drop that square.
         const sent = this.published.get(root) ?? [];
         const echo = sent.indexOf(text);
 
@@ -173,7 +177,7 @@ export class ImageInputEngine {
         const trigger = domEvent.target.closest<HTMLElement>(`[${PickAttribute}]`);
         const root = trigger?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (trigger === null || root === null || trigger.hasAttribute("disabled") || root.hasAttribute(ImageReadonlyAttribute))
+        if (trigger === null || root === null || isReadOnly(root) || isInert(trigger))
             return;
 
         root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.click();
@@ -186,7 +190,7 @@ export class ImageInputEngine {
         const remove = domEvent.target.closest<HTMLElement>(`.${RemoveClass}`);
         const root = remove?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (remove === null || root === null || root.hasAttribute(ImageReadonlyAttribute) || root.matches(".ui-disabled"))
+        if (remove === null || root === null || isReadOnly(root) || isInert(root))
             return;
 
         domEvent.preventDefault();
@@ -259,6 +263,7 @@ export class ImageInputEngine {
         picture.setAttribute("src", preview);
 
         writeText(root, file.name);
+        nameSurface(root, true);
         surface.classList.add(LoadingClass);
 
         try {
@@ -269,7 +274,7 @@ export class ImageInputEngine {
                 publishSelection(selection, uploaded.selectionId);
         }
         catch (error) {
-            writeText(root, clientStrings.text("ui.file.failed"));
+            writeFailure(root);
 
             publishSelection(selection, "");
             logWarn("picture upload failed.", error);
@@ -279,7 +284,7 @@ export class ImageInputEngine {
         }
     }
 
-    /** A square per file on the shelf at once, each sent on its own so one can leave without the others; the list goes out as each lands. */
+    /** Puts a square per file on the shelf, each sent on its own so one can leave without the others; the list goes out as each lands. */
     private async takeManyAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
         const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
         const accepted = filterWithinFileSizeLimit(root, files);
@@ -378,20 +383,42 @@ function createTile(file: File): Tile {
     picture.alt = file.name;
     remove.type = "button";
     remove.className = RemoveClass;
-    remove.setAttribute("aria-label", clientStrings.text("ui.image.remove"));
-    remove.title = file.name;
+    clientStrings.write(remove, "aria-label", "ui.image.remove");
 
     element.append(picture, remove);
 
     return { element, url, selectionId: null };
 }
 
-/** The inline row's text — written only when it changes, since the engine watches the subtree and would answer its own write. */
+/** Writes the inline row's text — a file's name or the controller's caption — only when it changes. */
 function writeText(root: HTMLElement, value: string): void {
     const text = root.querySelector<HTMLElement>(`.${TextClass}`);
 
-    if (text !== null && text.textContent !== value)
+    if (text === null)
+        return;
+
+    // No word of the chrome's: a failure's mark comes off, so a language switch leaves it alone.
+    forgetWords(text, null);
+
+    // The engine watches the subtree and would answer its own write.
+    if (text.textContent !== value)
         text.textContent = value;
+}
+
+/** The inline row's failure: the chrome's word, marked so a language switch writes it again. */
+function writeFailure(root: HTMLElement): void {
+    const text = root.querySelector<HTMLElement>(`.${TextClass}`);
+
+    if (text !== null)
+        clientStrings.write(text, null, "ui.file.failed");
+}
+
+/** The surface's name says what a press does now — choose a picture, or change the one shown — and follows a switch by its mark. */
+function nameSurface(root: HTMLElement, shows: boolean): void {
+    const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
+
+    if (surface !== null)
+        clientStrings.write(surface, "aria-label", shows ? "ui.image.change" : "ui.image.choose");
 }
 
 /** The name a picture's URL ends in, for the inline row's text; a data or blob URL has none, and so has an address ending in a key. */

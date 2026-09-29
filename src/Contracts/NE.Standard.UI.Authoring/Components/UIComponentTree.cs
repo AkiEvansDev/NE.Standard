@@ -5,12 +5,12 @@ namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
 /// Walks an authored component tree: children, regions, templates and their variants, the empty and group template, and the
-/// context menu, in no promised order. A component's own dialogs (<see cref="IDialogOwnerComponent"/>) are not walked; a view
-/// collects them separately.
+/// context menu, in no promised order.
 /// </summary>
 /// <remarks>
-/// The compiler walks the same slots independently (<c>UIViewCompilationContext.AddComponentContent</c>); a slot added here
-/// must be added there too, or its dialogs go uncollected.
+/// A component's own dialogs (<see cref="IDialogOwnerComponent"/>) are not walked; a view collects them separately. The compiler
+/// walks the same slots independently (<c>UIViewCompilationContext.AddComponentContent</c>); a slot added here must be added there
+/// too, or its dialogs go uncollected.
 /// </remarks>
 public static class UIComponentTree
 {

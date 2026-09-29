@@ -72,15 +72,21 @@ internal sealed class TabsViewExamplesView : DemoExamplesView, IUIViewDefinition
         };
 
     /// <summary>
-    /// A card whose faces come from data: one incident, and a page per section the runbook has.
+    /// A card whose faces come from data: one incident, and a page per section the runbook has — the postmortem's off until it is written.
     /// </summary>
     private static ContainerComponent CreateCardGroup()
     {
+        DemoDocumentItem postmortem = CreateDocument("postmortem", DemoIcons.Edit, "Postmortem", 4, string.Empty, "Written once the incident is closed.");
+
+        // Off: dimmed, skipped by the arrows, and offered by the "…" list as a disabled entry.
+        postmortem.Enabled = false;
+
         DemoDocumentItem[] sections =
         [
             CreateDocument("summary", DemoIcons.FileText, "Summary", 1, string.Empty, "Error rate doubled in eu-west at 11:52. The scheduler paused the rollout on its own."),
             CreateDocument("timeline", DemoIcons.History, "Timeline", 2, string.Empty, "11:52 alert fired · 11:54 rollout paused · 12:10 root cause found · 12:31 fixed forward"),
-            CreateDocument("runbook", DemoIcons.List, "Runbook", 3, string.Empty, "1. Confirm the region.\n2. Pause the rollout.\n3. Compare the two releases' configuration.")
+            CreateDocument("runbook", DemoIcons.List, "Runbook", 3, string.Empty, "1. Confirm the region.\n2. Pause the rollout.\n3. Compare the two releases' configuration."),
+            postmortem
         ];
 
         return DemoUI.CreateExample("Inside a card",

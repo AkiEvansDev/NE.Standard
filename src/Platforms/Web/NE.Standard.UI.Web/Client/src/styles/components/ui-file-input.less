@@ -14,10 +14,6 @@
     font: inherit;
 }
 
-    .ui-file-input.ui-disabled {
-        .ui-disabled-state();
-    }
-
 .ui-file-input__row {
     .ui-input-field();
     overflow: hidden;
@@ -45,7 +41,9 @@
     cursor: pointer;
 }
 
-.ui-file-input__field {
+// Always read-only, and the row's press target all the same: the row's hand, not the read-only field's arrow.
+.ui-file-input__field,
+.ui-file-input__field:read-only {
     cursor: inherit;
     text-overflow: ellipsis;
 }
@@ -67,12 +65,12 @@
 }
 
     // Ink alone: the row is the surface that lifts under the pointer.
-    .ui-file-input__pick:hover:not(:disabled) {
+    .ui-file-input__pick:hover:not([aria-disabled='true']) {
         color: var(--ui-color-on-surface);
     }
 
     // Read-only: dimmed as a date field's calendar toggle is, so a pick that does nothing does not look like one that would.
-    .ui-file-input__pick:disabled {
+    .ui-file-input__pick[aria-disabled='true'] {
         cursor: default;
-        opacity: 0.5;
+        opacity: @ui-field-idle-part-opacity;
     }

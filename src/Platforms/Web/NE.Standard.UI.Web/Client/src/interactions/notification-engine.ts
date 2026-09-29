@@ -1,3 +1,4 @@
+import { motion, prefersReducedMotion } from "../rendering/motion";
 import { toColorToken } from "../rendering/web-dom-converters";
 import { clientStrings } from "../runtime/client-strings";
 
@@ -9,7 +10,6 @@ const ActionClass = "ui-notification__action";
 const CloseClass = "ui-notification__close";
 
 const DefaultDurationMs = 5000;
-const LeaveDurationMs = 160;
 
 // The severities that carry an accent bar; anything else takes the default border colour.
 const AccentedSeverities = new Set(["info", "success", "warning", "danger", "primary", "accent"]);
@@ -42,8 +42,7 @@ export class NotificationEngine {
         this.root = options.root ?? document;
         this.durationMs = options.durationMs ?? DefaultDurationMs;
 
-        // Up before the first toast: the host is the live region polite toasts are announced through, and a region inserted along
-        // with its words is not reliably read.
+        // Up before the first toast: the host is the live region, and one inserted along with its words is not reliably read.
         this.ensureHost();
     }
 
@@ -55,8 +54,7 @@ export class NotificationEngine {
             ? `${NotificationClass} ${NotificationClass}--${severity}`
             : NotificationClass;
 
-        // Only Danger interrupts a screen reader, as an alert, which is announced as it arrives; anything else is spoken politely by
-        // the host's live region.
+        // Only Danger interrupts a screen reader, as an alert; the rest is spoken politely by the host's live region.
         if (severity === "danger")
             element.setAttribute("role", "alert");
 
@@ -82,8 +80,7 @@ export class NotificationEngine {
         if (request.sticky === true)
             return element;
 
-        // Auto-dismiss pauses while hovered or while the keyboard is on one of its buttons, so a toast cannot vanish out from under
-        // someone reading it, nor take the focus down with it.
+        // Paused while hovered or holding the keyboard, so a toast neither vanishes under a reader nor takes the focus down with it.
         let hovered = false;
         let focused = false;
         let timer = window.setTimeout(() => this.dismiss(element), this.durationMs);
@@ -120,13 +117,19 @@ export class NotificationEngine {
         return element;
     }
 
+    /** Fades the toast (the stylesheet's leaving animation), then closes the gap it leaves, so the stack slides rather than jumps. */
     public dismiss(element: HTMLElement): void {
         if (!element.isConnected || element.classList.contains(LeavingClass))
             return;
 
         element.classList.add(LeavingClass);
 
-        window.setTimeout(() => element.remove(), LeaveDurationMs);
+        if (prefersReducedMotion() || typeof element.animate !== "function") {
+            element.remove();
+            return;
+        }
+
+        window.setTimeout(() => collapse(element), motion.fast);
     }
 
     private ensureHost(): HTMLElement {
@@ -150,6 +153,27 @@ export class NotificationEngine {
 
         return host;
     }
+}
+
+/** Slides a faded toast's height, padding, edge and gap to its neighbour down to nothing, then removes it. */
+function collapse(element: HTMLElement): void {
+    if (!element.isConnected)
+        return;
+
+    const style = getComputedStyle(element);
+    const gap = element.parentElement === null ? 0 : parseFloat(getComputedStyle(element.parentElement).rowGap) || 0;
+
+    element.style.overflow = "hidden";
+
+    // Measured and slid, as the collapsible's fold is: an auto height is not a length CSS can interpolate.
+    const animation = element.animate([
+        { height: style.height, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, borderTopWidth: style.borderTopWidth, borderBottomWidth: style.borderBottomWidth, marginTop: "0px" },
+        { height: "0px", paddingTop: "0px", paddingBottom: "0px", borderTopWidth: "0px", borderBottomWidth: "0px", marginTop: `${-gap}px` }
+    ], { duration: motion.fast, easing: motion.exit, fill: "forwards" });
+
+    const remove = (): void => element.remove();
+
+    void animation.finished.then(remove, remove);
 }
 
 function createAction(action: NotificationAction): HTMLButtonElement {

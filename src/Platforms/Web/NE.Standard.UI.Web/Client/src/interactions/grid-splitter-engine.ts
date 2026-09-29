@@ -6,6 +6,7 @@ import { currentResponsiveTier, ResponsiveTier, responsiveTiers, responsiveVaria
 import { OnceWarner } from "../runtime/logger";
 import { ClientBootPatch, ClientStore } from "../state/client-store";
 import { observeComponents } from "./dom-mutations";
+import { isInert } from "./interactive-state";
 import { PointerDrag } from "./pointer-drag";
 import {
     applyGridTrackLimits,
@@ -160,7 +161,7 @@ export class GridSplitterEngine {
 
         const splitter = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
 
-        if (splitter === null || this.drag.active)
+        if (splitter === null || this.drag.active || isInert(splitter))
             return;
 
         const context = this.resolveContext(splitter);

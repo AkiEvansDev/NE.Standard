@@ -1,0 +1,123 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
+@import "../mixins/popup.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../mixins/text.less";
+
+// One press wearing .ui-button's look; the padding lands on the press, not the root, so the list inside the root is not padded.
+.ui-language-switcher {
+    .ui-responsive-property(padding, --ui-padding, 0);
+    align-items: stretch;
+}
+
+// One language offers nothing to switch to, and the renderer draws nothing inside.
+.ui-language-switcher--single {
+    display: none;
+}
+
+    .ui-language-switcher__trigger {
+        display: inline-flex;
+        flex: 1 1 auto;
+        align-items: center;
+        justify-content: center;
+        gap: @ui-space-1;
+        min-width: 0;
+        min-height: 0;
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-3);
+        border: 0;
+        border-radius: inherit;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        .ui-interactive-base();
+    }
+
+    .ui-button--small.ui-language-switcher .ui-language-switcher__trigger {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    }
+
+    .ui-button--large.ui-language-switcher .ui-language-switcher__trigger {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
+    }
+
+    // Every language's words stacked in one cell, one shown: as wide as the widest, so a switch moves nothing beside it; narrow, it gives way first.
+    .ui-language-switcher__label {
+        display: inline-grid;
+        grid-template-columns: minmax(0, auto);
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+        .ui-language-switcher__label-text {
+            grid-area: 1 / 1;
+            justify-self: center;
+            max-width: 100%;
+            .ui-text-nowrap();
+        }
+
+        .ui-language-switcher__label-text:not(.ui-language-switcher__label-text--current) {
+            visibility: hidden;
+        }
+
+    // No glyph named, no room taken: the icon is the author's to add.
+    .ui-language-switcher__icon:not([data-ui-icon]) {
+        display: none;
+    }
+
+    .ui-language-switcher__chevron {
+        .ui-glyph-host();
+    }
+
+        .ui-language-switcher__chevron::before {
+            .ui-chevron(@ui-glyph-sm);
+            .ui-chevron-down();
+        }
+
+        .ui-language-switcher--open .ui-language-switcher__chevron::before {
+            .ui-chevron-up();
+        }
+
+// The list: the context menu's surface, shown while the switcher is open and placed by language-switcher-engine.ts.
+.ui-language-switcher__menu {
+    .ui-popup-surface(40);
+    .ui-popup-scroll();
+    .ui-popup-closed();
+    .ui-entry-list();
+    min-width: 10rem;
+    padding: @ui-space-1;
+    text-align: start;
+    cursor: default;
+    // The pointer moves the current language (language-switcher-engine.ts), so it stays quiet while a key holds another.
+    .ui-entry-quiet(~"> .ui-language-switcher__choice"; ~""; ~"[aria-checked='true']");
+}
+
+.ui-language-switcher--open > .ui-language-switcher__menu {
+    .ui-popup-open(flex);
+}
+
+    // A language as a menu's entry; the list's own height, not the root's MinHeight, which is the button's.
+    .ui-language-switcher__choice {
+        display: flex;
+        align-items: center;
+        min-height: @ui-list-row-height;
+        padding: @ui-space-1 @ui-space-2;
+        border: 0;
+        border-radius: var(--ui-radius-button);
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: start;
+        white-space: nowrap;
+        cursor: pointer;
+        .ui-interactive-base();
+        .ui-entry-hover(~"[aria-checked='true']");
+        .ui-entry-keyboard(~"[aria-checked='true']");
+    }
+
+    .ui-language-switcher__choice[aria-checked="true"] {
+        .ui-selected-ground();
+        .ui-selected-ink();
+    }

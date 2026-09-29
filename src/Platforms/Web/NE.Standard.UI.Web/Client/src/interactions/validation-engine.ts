@@ -1,35 +1,28 @@
-// Shows what a field has to say about its value: client rules, a bound message, and the runtime's refusal of a value it
-// couldn't take. The strongest of the three is what shows.
+// Shows the strongest of a field's messages — client rules, a bound message, the runtime's refusal, a package's mark — in the
+// page's language: each kept as it came and written with its mark, so a language switch writes it again.
 
-import { cssAttributeValue, FormIdAttribute } from "../addressing/dom-attributes";
-import { DomRegistry } from "../addressing/dom-registry";
-import { ValueReaderRegistry } from "../extensions/value-readers";
-import {
-    getIdValue,
-    getValidationSeverity,
-    getValidationTrigger,
-    MetadataIndex,
-    ServerValidationUIUpdate,
-    WebRenderValidationMetadata,
-    WebValidationSeverityName
-} from "../metadata/metadata-index";
-import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
-import { UpdateProcessor } from "../updates/update-processor";
-import { observeComponents } from "./dom-mutations";
-import { evaluateOperator } from "./interaction-evaluator";
-import { PopupRoleSelector } from "./own-control";
-import { pinTooltip, updateTooltip } from "./tooltip-engine";
+// `node --test` loads this module as it is: `.ts` on the value imports.
+import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute } from "../addressing/dom-attributes.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
+import { getIdValue, getValidationTrigger } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
+import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
+import type { AuthorText, Phrase } from "../runtime/words.ts";
+import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
+import type { UpdateProcessor } from "../updates/update-processor.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { evaluateOperator } from "./interaction-evaluator.ts";
+import { pinTooltip, updateTooltip } from "./tooltip-engine.ts";
+import { messageWords, readValidationMessage, toSeverityName } from "./validation-words.ts";
+import type { ValidationDisplay } from "./validation-words.ts";
 
-const ErrorClass = "ui-invalid";
 const WarningClass = "ui-validation--warning";
 const InfoClass = "ui-validation--info";
 const MessageAttribute = "data-ui-validation-message";
 const MarkerClass = "ui-validation-message--marker";
-const TooltipAttribute = "data-ui-tooltip";
-const PlacementAttribute = "data-ui-tooltip-placement";
-const MarkAttribute = "data-ui-tooltip-mark";
-// Right edge on the mark, above it: the mark sits at the corner of a field at the end of a cell, where a centred
-// tooltip would hang off the page.
+// Right edge on the mark: it sits at a field's corner at the end of a cell, where a centred tooltip would hang off the page.
 const MarkerPlacement = "top-end";
 const MarkerHostProperty = "--ui-validation-marker-host";
 const MirrorClass = "ui-validation-mark";
@@ -37,7 +30,7 @@ const PresentationProperty = "--ui-validation-presentation";
 const SeverityColorProperty = "--ui-validation-color";
 const ValidationPropertyName = "Validation";
 /** The native controls a field reads its value through, which carry `aria-invalid` for the reader; a popup's own fields are not the field. */
-const FieldControlSelector = "input:not([type='hidden']), textarea, select, .ui-select__trigger[role='combobox'], [role='spinbutton']";
+const FieldControlSelector = `input:not([type='hidden']), textarea, select, .${ListTriggerClass}[role='combobox'], [role='spinbutton']`;
 
 /** Highest first, which is the order two messages on one field are settled in. */
 const SeverityRank: Readonly<Record<WebValidationSeverityName, number>> = { Error: 0, Warning: 1, Info: 2 };
@@ -54,6 +47,19 @@ const MirrorSeverityClass: Readonly<Record<WebValidationSeverityName, string>> =
     Info: `${MirrorClass}--info`
 };
 
+/** A severity as the plugin surface spells it. */
+export type FieldMarkSeverity = "error" | "warning" | "info";
+
+/** A package's mark's words: a key filled from its arguments, or an author's text. */
+export type FieldMarkWords = Phrase | AuthorText;
+
+/** A package's own field marked through this engine: what the plugin surface hands out as `validation`. */
+export type FieldValidation = {
+    mark(field: Element, severity: FieldMarkSeverity | null, words?: FieldMarkWords | null): void;
+};
+
+const MarkSeverity: Readonly<Record<FieldMarkSeverity, WebValidationSeverityName>> = { error: "Error", warning: "Warning", info: "Info" };
+
 export type ValidationEngineOptions = {
     readonly root?: ParentNode;
     readonly metadata: MetadataIndex;
@@ -63,25 +69,24 @@ export type ValidationEngineOptions = {
     readonly valueReaders: ValueReaderRegistry;
 };
 
-type ValidationDisplay = {
-    readonly message: string;
-    readonly severity: WebValidationSeverityName;
+/** The lines another component's property holds for the fields that name it, and that property. */
+type MessageLines = {
+    readonly target: WebRenderPropertyReferenceMetadata;
+    readonly lines: Map<Element, ValidationDisplay>;
 };
 
-export class ValidationEngine {
+export class ValidationEngine implements FieldValidation {
     private readonly options: ValidationEngineOptions;
     private readonly root: ParentNode;
     private readonly failingRulesByElement = new WeakMap<Element, Set<WebRenderValidationMetadata>>();
     private readonly refusalByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly boundMessageByElement = new WeakMap<Element, ValidationDisplay>();
+    private readonly packageMarkByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly touchedElements = new WeakSet<Element>();
-    /** The copy of a field's mark that stands in the cell the field shares, one per field for as long as the field is in the page. */
+    /** The copy of a field's mark standing in the cell the field shares, one per field. */
     private readonly markerMirrors = new WeakMap<HTMLElement, HTMLElement>();
-    /**
-     * The lines a shared message target holds: one per rendered field that wrote there, in the order the fields first spoke — by
-     * element, since a field in an item template has one component id across all its rows.
-     */
-    private readonly messageLines = new Map<string, Map<Element, string>>();
+    /** The lines a shared message target holds, one per field element — a templated field has one id across its rows. */
+    private readonly messageLines = new Map<string, MessageLines>();
 
     public constructor(options: ValidationEngineOptions) {
         this.options = options;
@@ -98,6 +103,12 @@ export class ValidationEngine {
         // A message that came rendered has never been through applyPresentation, so nothing has asked the stylesheet whether it is a mark.
         this.applyRenderedMessages(this.root.querySelectorAll<HTMLElement>(RenderedSelector));
         observeComponents(this.root, RenderedSelector, { childList: true }, components => this.applyRenderedMessages(components));
+
+        // The lines were written again by their marks; a mark's tooltip and the lines another property holds are this engine's.
+        clientStrings.onChange(() => {
+            this.applyRenderedMessages(this.root.querySelectorAll<HTMLElement>(RenderedSelector));
+            this.rewriteMessageLines();
+        });
     }
 
     private applyRenderedMessages(elements: Iterable<HTMLElement>): void {
@@ -168,10 +179,10 @@ export class ValidationEngine {
         const message = update.message ?? "";
 
         for (const element of this.options.dom.findAllComponents(componentId, dynamicParameters)) {
-            if (message.length === 0) {
+            if (typeof message !== "string" || message.length === 0) {
                 this.refusalByElement.delete(element);
             } else {
-                this.refusalByElement.set(element, { message, severity: toSeverityName(update.severity) });
+                this.refusalByElement.set(element, { message, severity: toSeverityName(update.severity), content: update.content === true });
                 this.touchedElements.add(element);
             }
 
@@ -184,7 +195,18 @@ export class ValidationEngine {
         return this.refusalByElement.has(component);
     }
 
-    /** Shows the strongest message the element has: the runtime's refusal, the controller's, or a failing rule's. */
+    /** Puts a package's mark on a field's root, weighed as a bound message is; null takes it off. */
+    public mark(field: Element, severity: FieldMarkSeverity | null, words?: FieldMarkWords | null): void {
+        if (severity === null)
+            this.packageMarkByElement.delete(field);
+        else
+            this.packageMarkByElement.set(field, { message: words ?? null, severity: MarkSeverity[severity] });
+
+        // A field a package drew in the framework's classes is no component (id 0): it has no rules and no message target.
+        this.applyCurrentState(readComponentId(field), field);
+    }
+
+    /** Shows the strongest message the element has: the runtime's refusal, the controller's, a package's, or a failing rule's. */
     private applyCurrentState(componentId: number, element: Element): void {
         const display = this.resolveDisplay(componentId, element);
 
@@ -192,10 +214,7 @@ export class ValidationEngine {
         this.writeMessageElsewhere(componentId, element, display);
     }
 
-    /**
-     * A field told to put its words in another component property writes them there and shows nothing of its own. Several fields
-     * may name one property; each holds a line of it, and the property reads them one under the other.
-     */
+    /** Writes a field's words as its line of the other component property it names, showing nothing of its own. */
     private writeMessageElsewhere(componentId: number, element: Element, display: ValidationDisplay | undefined): void {
         const target = this.options.metadata.getValidationTarget(componentId);
 
@@ -203,44 +222,57 @@ export class ValidationEngine {
             return;
 
         const key = `${getIdValue(target.message.componentId)}:${target.message.propertyId}`;
-        let lines = this.messageLines.get(key);
+        let held = this.messageLines.get(key);
 
         if (display !== undefined) {
-            if (lines === undefined) {
-                lines = new Map<Element, string>();
-                this.messageLines.set(key, lines);
+            if (held === undefined) {
+                held = { target: target.message, lines: new Map<Element, ValidationDisplay>() };
+                this.messageLines.set(key, held);
             }
 
-            lines.set(element, display.message);
+            held.lines.set(element, display);
         }
         else {
-            if (lines === undefined || !lines.delete(element))
+            if (held === undefined || !held.lines.delete(element))
                 return;
 
-            if (lines.size === 0)
+            if (held.lines.size === 0)
                 this.messageLines.delete(key);
         }
 
-        // A field taken out of the page without putting itself right first leaves no line behind: the lines of fields no longer in the
-        // page go at the next write.
-        for (const field of [...lines.keys()]) {
+        this.writeLines(held);
+    }
+
+    /** Writes a property's lines in the page's language; a field taken out of the page without putting itself right first leaves none. */
+    private writeLines(held: MessageLines): void {
+        for (const field of [...held.lines.keys()]) {
             if (!field.isConnected)
-                lines.delete(field);
+                held.lines.delete(field);
         }
 
-        this.options.propertyPatchEngine.applyPropertyValue(target.message, [], [...lines.values()].join("\n"), true);
+        // The lines are the page's words already: the target shows them as written rather than looking them up a second time.
+        this.options.propertyPatchEngine.applyPropertyValue({ ...held.target, content: true }, [],[...held.lines.values()].map(messageWords).join("\n"), true);
+    }
+
+    private rewriteMessageLines(): void {
+        for (const held of this.messageLines.values())
+            this.writeLines(held);
     }
 
     private resolveDisplay(componentId: number, element: Element): ValidationDisplay | undefined {
         const candidates: ValidationDisplay[] = [];
         const refusal = this.refusalByElement.get(element);
         const bound = this.boundMessageByElement.get(element);
+        const packageMark = this.packageMarkByElement.get(element);
 
         if (refusal !== undefined)
             candidates.push(refusal);
 
         if (bound !== undefined)
             candidates.push(bound);
+
+        if (packageMark !== undefined)
+            candidates.push(packageMark);
 
         const failing = this.failingRulesByElement.get(element);
 
@@ -313,7 +345,7 @@ export class ValidationEngine {
         return allValid;
     }
 
-    // The controller's own message does not gate a submit: the controller wrote it and will judge the value again.
+    // A controller's or a package's message gates no submit: its author judged the value and will judge it again.
     private hasError(componentId: number, element: Element): boolean {
         if (this.refusalByElement.get(element)?.severity === "Error")
             return true;
@@ -353,27 +385,11 @@ export class ValidationEngine {
     }
 }
 
-function readValidationMessage(value: unknown): ValidationDisplay | undefined {
-    if (value === null || typeof value !== "object")
-        return undefined;
-
-    const record = value as { readonly severity?: unknown; readonly message?: unknown };
-    const message = typeof record.message === "string" ? record.message : "";
-
-    return message.length === 0 ? undefined : { message, severity: toSeverityName(record.severity) };
-}
-
 function renderedSeverity(element: Element): WebValidationSeverityName {
     if (element.classList.contains(WarningClass))
         return "Warning";
 
     return element.classList.contains(InfoClass) ? "Info" : "Error";
-}
-
-function toSeverityName(value: unknown): WebValidationSeverityName {
-    const name = getValidationSeverity(value as never);
-
-    return name === "Unknown" ? "Error" : name;
 }
 
 function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, element: Element, display: ValidationDisplay | undefined): void {
@@ -394,7 +410,15 @@ function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, elemen
     if (messageTarget === null)
         return;
 
-    messageTarget.textContent = display?.message ?? "";
+    // Words marked content are written as they came and carry no mark, so a language switch leaves them alone.
+    if (display?.content === true) {
+        forgetWords(messageTarget, null);
+        messageTarget.textContent = String(display.message ?? "");
+    }
+    else {
+        clientStrings.writeValue(messageTarget, null, display?.message ?? null);
+    }
+
     applyPresentation(mirrors, htmlElement, messageTarget, display);
 }
 
@@ -413,10 +437,7 @@ function markInvalid(element: Element, invalid: boolean): void {
     }
 }
 
-/**
- * Where the stylesheet put the message (a line, or a mark in a grid cell) is read off the message's own variable once shown;
- * as a mark it speaks in a tooltip, kept open for as long as the field holds focus.
- */
+/** Reads where the stylesheet put the message — a line, or a mark speaking in a tooltip while the field holds focus. */
 function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, message: HTMLElement, display: ValidationDisplay | undefined): void {
     const style = getComputedStyle(message);
     const marker = display !== undefined && style.getPropertyValue(PresentationProperty).trim() === "marker";
@@ -424,13 +445,13 @@ function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     message.classList.toggle(MarkerClass, marker);
 
     if (display !== undefined && marker) {
-        message.setAttribute(TooltipAttribute, display.message);
+        // The line's own words, which the page wrote in its language.
+        message.setAttribute(TooltipAttribute, message.textContent ?? "");
         message.setAttribute(PlacementAttribute, MarkerPlacement);
         root.setAttribute(MarkAttribute, "");
-        applyMarkerMirror(mirrors, root, display, style.getPropertyValue(MarkerHostProperty).trim());
+        applyMarkerMirror(mirrors, root, display, message.textContent ?? "", style.getPropertyValue(MarkerHostProperty).trim());
 
-        // A rule answered as the reader types puts the mark there while the field already holds focus, so no focus event is
-        // coming to open it: it speaks straight away and stays until the reader leaves.
+        // A mark appearing as the reader types has no focus event coming to open it: it speaks straight away.
         if (root.contains(document.activeElement))
             pinTooltip(message);
         else
@@ -442,17 +463,14 @@ function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     message.removeAttribute(TooltipAttribute);
     message.removeAttribute(PlacementAttribute);
     root.removeAttribute(MarkAttribute);
-    applyMarkerMirror(mirrors, root, undefined, "");
+    applyMarkerMirror(mirrors, root, undefined, "", "");
 
     // The mark may be the one on screen: with nothing left to say it closes rather than standing over the field with a stale line.
     updateTooltip(message);
 }
 
-/**
- * A field that shares its cell with the value it edits (a key-value row's) goes with the row's editing flag; a copy of its
- * mark stands in the cell the stylesheet names. Only one of the two cells is shown, so only one mark is.
- */
-function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, display: ValidationDisplay | undefined, hostClassName: string): void {
+/** Copies the mark of a field sharing its cell with the value it edits into the value's cell; only one of the two is shown. */
+function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, display: ValidationDisplay | undefined, words: string, hostClassName: string): void {
     const existing = mirrors.get(root);
     const host = display === undefined || hostClassName.length === 0 ? null : findMarkerHost(root, hostClassName);
 
@@ -464,11 +482,10 @@ function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
 
     const mirror = existing ?? document.createElement("span");
 
-    // The message is the mark's own text, hidden by the stylesheet the way the field's mark is: a reader on the value's line
-    // hears it there rather than from a field not on the page.
+    // The mark's own text, hidden as the field's is: a reader on the value's line hears it there, not from a hidden field.
     mirror.className = `${MirrorClass} ${MirrorSeverityClass[display.severity]}`;
-    mirror.textContent = display.message;
-    mirror.setAttribute(TooltipAttribute, display.message);
+    mirror.textContent = words;
+    mirror.setAttribute(TooltipAttribute, words);
     mirror.setAttribute(PlacementAttribute, MarkerPlacement);
 
     if (mirror.parentElement !== host)

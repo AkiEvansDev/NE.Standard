@@ -1,5 +1,5 @@
-import { ComponentNameAttribute } from "../addressing/dom-attributes";
-import { logDebug, logWarn } from "../runtime/logger";
+import { ComponentNameAttribute } from "../addressing/dom-attributes.ts";
+import { logDebug, logWarn } from "../runtime/logger.ts";
 
 const KeyPrefix = "ne.ui";
 const BootSlot = "boot";
@@ -54,7 +54,7 @@ export class ClientStore {
             this.writeBoot(component, slot, value === null ? null : boot ?? null);
     }
 
-    /** One boot record per component, a patch per slot: the shape the boot script reads. A slot with no stored value of its own may carry one too. */
+    /** One boot record per component, a patch per slot, as the boot script reads it; a slot with no stored value may carry one too. */
     public writeBoot(component: Element, slot: string, patch: ClientBootPatch | null): void {
         const key = this.resolveKey(component, BootSlot);
 

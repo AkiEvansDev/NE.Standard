@@ -18,6 +18,11 @@ public interface IParagraphComponent : ITextComponent, IParagraphModel
     /// </summary>
     static UIProperty MaxLinesProperty { get; } = new(nameof(MaxLines));
 
+    /// <summary>
+    /// Gets the registered property key for <see cref="IParagraphModel.TitleWrap"/>.
+    /// </summary>
+    static UIProperty TitleWrapProperty { get; } = new(nameof(TitleWrap));
+
     static UIProperty ShowQuoteLineProperty { get; } = new(nameof(ShowQuoteLine));
 
     static UIProperty QuoteLineColorProperty { get; } = new(nameof(QuoteLineColor));

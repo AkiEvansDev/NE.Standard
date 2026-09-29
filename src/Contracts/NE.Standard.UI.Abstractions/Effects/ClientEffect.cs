@@ -22,6 +22,7 @@ public static class ClientEffectKinds
     public const string DownloadFile = "DownloadFile";
     public const string Scroll = "Scroll";
     public const string SetTheme = "SetTheme";
+    public const string SetLanguage = "SetLanguage";
     public const string RenameTab = "RenameTab";
     public const string RenameNode = "RenameNode";
     public const string CopyToClipboard = "CopyToClipboard";

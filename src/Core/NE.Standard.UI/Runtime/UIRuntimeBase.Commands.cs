@@ -384,12 +384,8 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    /// <summary>
-    /// Sends a command's result to the tab that raised it, through the sink every pushed result takes.
-    /// </summary>
-    /// <remarks>
-    /// The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.
-    /// </remarks>
+    /// <summary>Sends a command's result to the tab that raised it, through the sink every pushed result takes.</summary>
+    /// <remarks>The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.</remarks>
     protected Task PushCommandResultAsync(UIHandle invoker, UICommandExecutionResult result, CancellationToken cancellationToken)
         => Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
 
@@ -444,12 +440,8 @@ internal abstract partial class UIRuntimeBase
         );
     }
 
-    /// <summary>
-    /// Gives a failed command something the user can see, since a bare failure is otherwise ignored by both channels.
-    /// </summary>
-    /// <remarks>
-    /// Skipped when the result already carries effects: returning its own is how a command takes over the reporting.
-    /// </remarks>
+    /// <summary>Gives a failed command something the user can see, since a bare failure is otherwise ignored by both channels.</summary>
+    /// <remarks>Skipped when the result already carries effects: returning its own is how a command takes over the reporting.</remarks>
     private UICommandResult WithFailureNotification(UICommandResult result, Exception? exception)
     {
         if (result.Success || result.Effects.Length != 0 || !_application.ErrorHandling.NotifyOnCommandFailure)

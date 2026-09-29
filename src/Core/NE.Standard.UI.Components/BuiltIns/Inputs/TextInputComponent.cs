@@ -101,8 +101,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
 /// </summary>
 public sealed class TextInputComponent(string? id = null) : TextInputComponent<TextInputComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.text";
 }

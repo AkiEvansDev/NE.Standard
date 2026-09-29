@@ -42,8 +42,6 @@ public abstract class DefaultTabItemTemplate<TTemplate> : TabItemComponent<TTemp
 /// </summary>
 public sealed class DefaultTabItemTemplate(string? itemPath = null, bool binds = false) : DefaultTabItemTemplate<DefaultTabItemTemplate>(itemPath, binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.tab-item.template";
 }

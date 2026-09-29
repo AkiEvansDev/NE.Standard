@@ -38,11 +38,9 @@ export function readTabMenuChoice(attribute: string | null): TabMenuChoice {
     return { rename: tokens.includes("rename"), pin: tokens.includes("pin"), close: tokens.includes("close"), delete: tokens.includes("delete") };
 }
 
-/**
- * Which built-in entries show for a tab: what the strip chose, as the tab allows it. The remove entry is what the cross does, so a
- * pinned tab has none; given Close and Delete both, as a binding can, Delete stands, being the word a deleting strip means.
- */
+/** Which built-in entries show for a tab: what the strip chose, as the tab allows it. */
 export function tabMenuEntries(choice: TabMenuChoice, tab: TabMenuTab): ReadonlyMap<string, boolean> {
+    // The remove entry is what the cross does, so a pinned tab has none; given Close and Delete both, Delete is the word meant.
     const removes = !tab.pinned && tab.removable;
 
     return new Map<string, boolean>([

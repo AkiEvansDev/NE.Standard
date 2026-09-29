@@ -1,5 +1,6 @@
-import { ComponentKeyAttribute, ComponentParameterCountAttribute } from "./dom-attributes";
-import { logWarn } from "../runtime/logger";
+// With extensions: the node test runner loads this module as is.
+import { ComponentKeyAttribute, ComponentParameterCountAttribute } from "./dom-attributes.ts";
+import { logWarn } from "../runtime/logger.ts";
 
 export function readParameterCount(element: Element): number {
     return readNumberAttribute(element, ComponentParameterCountAttribute);
@@ -54,6 +55,27 @@ export function matchesDynamicParameters(element: Element, expectedParameters: r
     }
 
     return true;
+}
+
+/** Whether the element's row keys end with `keys`, innermost last, so one in a template matches its inner part; no keys match all. */
+export function endsWithDynamicParameters(element: Element, keys: readonly unknown[]): boolean {
+    let index = keys.length - 1;
+    let current: Element | null = element;
+
+    while (current !== null && index >= 0) {
+        const key = readDynamicParameter(current);
+
+        if (key !== undefined) {
+            if (key !== String(keys[index] ?? ""))
+                return false;
+
+            index--;
+        }
+
+        current = current.parentElement;
+    }
+
+    return index < 0;
 }
 
 export function readNumberAttribute(element: Element, name: string): number {

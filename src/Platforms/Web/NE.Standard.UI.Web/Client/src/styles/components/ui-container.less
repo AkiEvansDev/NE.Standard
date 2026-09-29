@@ -8,11 +8,9 @@
 
 .ui-container {
     display: grid;
-    // Spacing is the container's own and no other placement host's: reset here, or a nested container would take its parent's.
-    // The column gap is capped at a twenty-fourth of the room the fixed columns leave (`--ui-container-fixed-columns`, their
-    // absolute widths and floors), so a narrow container closes its columns up instead of overflowing. By 24, not by the 23
-    // gaps: 23 would hand the gaps all of that room and leave the star columns none, a sub-pixel rounding from overflow.
-    // An auto column's content is not in the sum. The row gap has no count of tracks to fit.
+    // Reset here, or a nested container takes its parent's spacing. The column gap is capped at a 24th of the room the fixed
+    // columns leave, so a narrow container closes up; by 24, not 23, or the star columns get none and round into overflow.
+    // The row gap has no track count to fit, so it stays uncapped.
     .ui-responsive-reset(--ui-container-spacing);
     --ui-container-fixed-columns: initial;
     .ui-responsive-property(--ui-container-gap, --ui-container-spacing, 0px);
@@ -24,8 +22,7 @@
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 
-    // `--ui-columns`/`--ui-rows` are the authored tracks; a splitter's division sits over them. Reset here, or a nested
-    // container would lay out on its parent's tracks.
+    // The authored tracks, reset here or a nested container lays out on its parent's; a splitter's division sits over them.
     --ui-columns: initial;
     --ui-rows: initial;
     .ui-responsive-reset(--ui-split-columns);
@@ -73,10 +70,8 @@
     .ui-responsive-grid-line-base(grid-row, --ui-placement, row, row-span, 1);
 }
 
-// A width the author wrote for a wide page — a card of 460 pixels, a panel of 380 — is capped at the room its parent lays it out
-// in, rather than pushing past its edge and being cut off there, on a phone above all. Only where a child is laid out in the
-// flow: a popup is placed against an anchor and keeps its own width. A MaxWidth of the author's own still rules, and what a
-// scroll container holds keeps its size: it is there to be scrolled.
+// An authored width is capped at the parent's room, so it is not cut off on a phone; in-flow children only (a popup keeps its
+// width), an authored MaxWidth still rules, and a scroll container's content keeps its size.
 :is(@{ui-placement-hosts}, .ui-stack-panel, .ui-wrap-panel, [data-ui-region]) > [data-ui-id] {
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }

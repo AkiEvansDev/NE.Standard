@@ -1,5 +1,5 @@
-// The client half of `WebUrlSafety`: the same gate a renderer applies before a bound value becomes an `href` or `src`, applied
-// again when a patch brings a new value, so a `javascript:` scheme can't reach the DOM from either direction.
+// The client half of `WebUrlSafety`: the renderer's gate on a bound `href` or `src`, applied again to a patched value, so a
+// `javascript:` scheme reaches the DOM from neither side.
 
 import { isAllowedImageSource } from "./icon-value.ts";
 
@@ -36,16 +36,14 @@ export function toSafeLink(value: unknown): string | undefined {
     return isSafeLink(value) ? String(value) : undefined;
 }
 
-/**
- * Whether a navigation target is a path of this site: it starts with one slash. `//host` and `/\host` start with one too, and a
- * browser reads both as another site, so a sign-in page's return address could otherwise send the reader anywhere. A control
- * character is refused anywhere: the URL parser drops a tab or a line break, so `/\t/host` is `//host` by the time it navigates.
- */
+/** Whether a navigation target is a path of this site, so a return address cannot send the reader to another. */
 export function isLocalRoute(value: unknown): boolean {
+    // A control character anywhere is refused: the URL parser drops a tab or a line break, so `/\t/host` navigates as `//host`.
     // oxlint-disable-next-line no-control-regex -- a control character is what it refuses
     if (typeof value !== "string" || !value.startsWith("/") || /[\x00-\x1f\x7f]/.test(value))
         return false;
 
+    // `//host` and `/\host` start with one slash too, and a browser reads both as another site.
     return value.length === 1 || (value[1] !== "/" && value[1] !== "\\");
 }
 

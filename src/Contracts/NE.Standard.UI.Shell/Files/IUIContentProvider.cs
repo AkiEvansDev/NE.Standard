@@ -6,13 +6,11 @@ using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Shell.Files;
 
-/// <summary>
-/// Answers the application's own protected content (a stored picture, an attachment) by key, for the session asking;
-/// served at <see cref="IUIContentAddressResolver.AddressOf"/> so an <c>&lt;img&gt;</c> or link can name it.
-/// </summary>
+/// <summary>Answers the application's own protected content (a stored picture, an attachment) by key, for the session asking.</summary>
 /// <remarks>
-/// The provider is the whole authorization: answering <see langword="null"/> for anything the session may not have keeps
-/// the host at "not found", never "forbidden", so a key's existence is never disclosed.
+/// Served at <see cref="IUIContentAddressResolver.AddressOf"/> so an <c>&lt;img&gt;</c> or link can name it. The provider is the whole
+/// authorization: answering <see langword="null"/> for anything the session may not have keeps the host at "not found", never
+/// "forbidden", so a key's existence is never disclosed.
 /// </remarks>
 public interface IUIContentProvider
 {
@@ -33,10 +31,11 @@ public sealed class UIContentRequest
     /// </summary>
     public required UserSessionState Session { get; init; }
 
-    /// <summary>
-    /// Gets the key, decoded from the requested URL: what <see cref="IUIContentAddressResolver.AddressOf"/> was given for a genuine
-    /// address, but any text a client typed for a forged one — untrusted, so a provider never maps it to a file path unchecked.
-    /// </summary>
+    /// <summary>Gets the key, decoded from the requested URL.</summary>
+    /// <remarks>
+    /// What <see cref="IUIContentAddressResolver.AddressOf"/> was given for a genuine address, but any text a client typed for a forged
+    /// one — untrusted, so a provider never maps it to a file path unchecked.
+    /// </remarks>
     public required string Key { get; init; }
 }
 

@@ -1,17 +1,14 @@
-import { ComponentSelector } from "../addressing/dom-attributes";
+import { ComponentSelector, DialogSurfaceClass } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 import { isInRenameField } from "./inline-rename";
 import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
-import { FocusableSelector, moveFocusInto, restoreFocusTo } from "./popup-focus";
-import { isRovingCandidate } from "./roving-focus";
-
-const DialogAttribute = "data-ui-dialog";
-const ModalAttribute = "data-ui-dialog-modal";
+import { firstFocusable, FocusableSelector, liveFocusReturn, moveFocusInto, restoreFocusTo } from "./popup-focus";
+import { isFocusable } from "./interactive-state";
+import { DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
 const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
 const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
 const BackdropAttribute = "data-ui-dialog-backdrop";
-const SurfaceClass = "ui-dialog__surface";
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
@@ -42,7 +39,7 @@ export class DialogEngine {
         dialog.removeAttribute("hidden");
 
         // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind.
-        const previous = moveFocusInto(dialog.querySelector<HTMLElement>(`.${SurfaceClass}`) ?? dialog, dialog.querySelector<HTMLElement>(FocusableSelector));
+        const previous = moveFocusInto(dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog, firstFocusable(dialog));
 
         if (previous !== null)
             this.returnFocusByKey.set(key, previous);
@@ -65,8 +62,10 @@ export class DialogEngine {
 
         this.returnFocusByKey.delete(key);
 
-        // Before the dialog hides, while the focus is still inside it; the opener may have been re-rendered away meanwhile.
-        restoreFocusTo(returnFocus?.isConnected === true ? returnFocus : null, dialog);
+        // Before the dialog hides, while the focus is still inside it; the opener may have been re-rendered away or hidden meanwhile.
+        // Only then asked, since finding a live return may make a component's root focusable for it.
+        if (dialog.contains(document.activeElement))
+            restoreFocusTo(liveFocusReturn(returnFocus, this.root), dialog);
         dialog.setAttribute("hidden", "");
 
         return true;
@@ -109,9 +108,7 @@ export class DialogEngine {
         if (topmost === null)
             return;
 
-        // A popup open inside the dialog — a select's list, a picker, a menu — takes the first Escape, and so does an editor that
-        // cancels on it (a rename field, a key-value row being edited), which hears the key only after this capture listener; the
-        // dialog takes the next.
+        // A popup open inside, or an editor that cancels on Escape (it hears the key after this capture listener), takes the first one.
         if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !isInRenameField(domEvent.target) && !isInEditingRow(domEvent.target)) {
             const key = topmost.getAttribute(DialogAttribute);
 
@@ -127,7 +124,7 @@ export class DialogEngine {
             this.trapTab(topmost, domEvent);
     }
 
-    /** Escape and a backdrop press close the dialog and raise a bubbling `close` (`OnClose`); a server-driven close raises nothing, since the server already knows. */
+    /** Closes on Escape or a backdrop press and raises a bubbling `close` (`OnClose`); the server's own close raises none, as it knows. */
     private closeFromViewer(key: string): void {
         const dialog = this.find(key);
         const wasOpen = dialog !== null && !dialog.hasAttribute("hidden");
@@ -146,7 +143,7 @@ export class DialogEngine {
 
     private trapTab(dialog: HTMLElement, domEvent: KeyboardEvent): void {
         const focusable = [...dialog.querySelectorAll<HTMLElement>(FocusableSelector)].filter(
-            element => isRovingCandidate(element) || element === document.activeElement
+            element => isFocusable(element) || element === document.activeElement
         );
 
         if (focusable.length === 0) {
@@ -170,18 +167,4 @@ export class DialogEngine {
             last.focus();
         }
     }
-}
-
-/** The open dialog on top: open state lives on the DOM `hidden` attribute, not a parallel set, so document order is the stack order. */
-function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {
-    const open = root.querySelectorAll<HTMLElement>(`[${DialogAttribute}]:not([hidden])`);
-
-    return open.length === 0 ? null : open[open.length - 1];
-}
-
-/** The open modal dialog the page stands behind, or null: nothing outside it may take a key. */
-export function findOpenModalDialog(root: ParentNode): HTMLElement | null {
-    const topmost = findTopmostOpenDialog(root);
-
-    return topmost !== null && topmost.hasAttribute(ModalAttribute) ? topmost : null;
 }

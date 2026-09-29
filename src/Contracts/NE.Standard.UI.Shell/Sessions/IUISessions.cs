@@ -11,11 +11,11 @@ namespace NE.Standard.UI.Shell.Sessions;
 /// </summary>
 public interface IUISessions
 {
-    /// <summary>
-    /// Ends a session everywhere: its stored record and uploads go, and every page open under it is sent to
-    /// <c>Security.SignInRoute</c> (reloaded, where none is configured) and its runtime ended — all but the runtime of
-    /// <paramref name="except"/>, the page that asked, which finishes its own answer.
-    /// </summary>
+    /// <summary>Ends a session everywhere but <paramref name="except"/>, the page that asked, which finishes its own answer.</summary>
+    /// <remarks>
+    /// Its stored record and uploads go, and every other page open under it is sent to <c>Security.SignInRoute</c> (reloaded, where
+    /// none is configured) and its runtime ended.
+    /// </remarks>
     Task EndSessionAsync(string sessionId, UIHandle? except = null, CancellationToken cancellationToken = default);
 
     /// <summary>

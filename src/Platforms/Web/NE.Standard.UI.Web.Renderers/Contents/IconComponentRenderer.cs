@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class IconComponentRenderer : WebComponentRendererBase
 {
-    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.DrawsIcon)];
 
     public override string ComponentTypeKey => IconComponent.ComponentTypeKey;
 
@@ -27,7 +27,8 @@ public sealed class IconComponentRenderer : WebComponentRendererBase
 
         _ = RenderProperty<string?>(context, root, IconComponent.IconProperty, (target, value) =>
         {
-            if (!string.IsNullOrWhiteSpace(value))
+            // The mark only where the value draws: a name from data with no letter or digit gets none, as icons.apply answers.
+            if (IconValueRenderer.Draws(value))
             {
                 _ = root.Attribute(WebAttributes.Icon);
                 IconValueRenderer.RenderIconValue(target, value);

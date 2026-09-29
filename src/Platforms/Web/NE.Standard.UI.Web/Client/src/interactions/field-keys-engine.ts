@@ -1,8 +1,13 @@
-// Enter and Escape leave a field, blurring it to commit the value the way leaving by pointer does; listened in the bubble phase
-// so a nearer control's own idea of Enter wins. Enter in a form field also presses the form's submit button, value first.
+// Enter and Escape leave a field — a blur commits it as leaving by pointer does — and hand the keyboard to the holder around it; the
+// bubble phase lets a nearer control's own Enter win. Enter in a form field then presses the form's submit button.
 
-import { FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
-import { isCaretInput } from "./caret-fields";
+import { FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import { isCaretInput } from "./caret-fields.ts";
+import { isInert } from "./interactive-state.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { focusAsLastInput, focusHolderAround } from "./popup-focus.ts";
+import { rowKeyTarget, setRowFocus } from "./row-cursor.ts";
+import { SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 export type FieldKeysEngineOptions = {
     readonly root?: ParentNode;
@@ -11,8 +16,7 @@ export type FieldKeysEngineOptions = {
 export class FieldKeysEngine {
     private readonly root: ParentNode;
 
-    // What the field held on focus, and whether leaving raised a change: the browser only raises one for typed input, so any
-    // other arrival is committed here.
+    // The browser raises a change only for typed input, so these tell whether any other arrival still needs committing.
     private valueOnFocus = "";
     private changes = 0;
 
@@ -59,16 +63,35 @@ export class FieldKeysEngine {
 
         const button = this.root.querySelector<HTMLElement>(`[${SubmitFormIdAttribute}="${CSS.escape(formId)}"]`);
 
-        if (button !== null && !button.hasAttribute("inert") && !(button as HTMLButtonElement).disabled)
+        if (button !== null && !isInert(button))
             button.click();
     }
 
     private leave(field: HTMLInputElement | HTMLTextAreaElement): void {
         const changesBefore = this.changes;
+        const holder = focusHolderAround(field);
 
         field.blur();
 
         if (this.changes === changesBefore && field.value !== this.valueOnFocus)
             field.dispatchEvent(new Event("change", { bubbles: true }));
+
+        this.keepKeyboard(field, holder);
+    }
+
+    /** Gives the keyboard to the holder around the field (a row host's cursor moved to its row), else leaves it blurred. */
+    private keepKeyboard(field: HTMLInputElement | HTMLTextAreaElement, holder: HTMLElement | null): void {
+        const active = document.activeElement;
+
+        // Nothing moves where the blur or the change already put the focus; with no holder, Tab carries on from the field's place.
+        if (holder?.isConnected !== true || (active !== null && active !== document.body))
+            return;
+
+        const row = rowKeyTarget(field);
+
+        if (row?.root === holder && row.row !== null)
+            setRowFocus(holder, ownDescendants(holder, SelectionRowSelector, SelectionRootSelector), row.row);
+
+        focusAsLastInput(holder);
     }
 }

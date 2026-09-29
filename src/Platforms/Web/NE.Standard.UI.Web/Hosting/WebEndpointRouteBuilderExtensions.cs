@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -55,14 +54,8 @@ public static partial class WebEndpointRouteBuilderExtensions
     /// <summary>The address of the hub the client connects to.</summary>
     internal const string HubPath = "/_ne/hub";
 
-    // How many languages' words are kept serialized; past it a page serializes its own, since the language comes from the session.
-    private const int MaxHeldStringLanguages = 64;
-
     // Renders of a cache key under way, so the requests that miss one key together render it once and write its files once.
     private static readonly ConcurrentDictionary<(IWebViewRenderCache Cache, string Key), Task<WebCachedViewRender>> RendersInFlight = [];
-
-    // The framework's words serialized per language, per translator: they change with neither the page nor the session.
-    private static readonly ConditionalWeakTable<ITranslator, ConcurrentDictionary<string, string>> StringsJson = [];
 
     public static Task<IEndpointRouteBuilder> MapStandardUIWebAsync(this IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
     {
@@ -83,6 +76,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
         WebContentEndpoint.Map(group);
+        WebWordsEndpoint.Map(group);
 
         UseResponseCompression(endpoints);
 
@@ -186,7 +180,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     }
 
     /// <summary>Brotli where the browser takes it, else Gzip, else none: an encoding it refused with <c>q=0</c> is not taken.</summary>
-    private static string? ChooseEncoding(StringValues acceptEncoding, WebAssetCompression.Compressed compressed)
+    internal static string? ChooseEncoding(StringValues acceptEncoding, WebAssetCompression.Compressed compressed)
     {
         if (!StringWithQualityHeaderValue.TryParseList(acceptEncoding, out IList<StringWithQualityHeaderValue>? accepted))
             return null;
@@ -299,7 +293,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         var shaped = Stopwatch.GetTimestamp();
 
         WebHydration hydration = await WebHydration
-            .PrepareAsync(host, resolution, shape, http.RequestAborted)
+            .PrepareAsync(host, resolution, shape, WebPageWords.For(application, resolution, packageStrings), http.RequestAborted)
             .ConfigureAwait(false);
 
         var hydrated = Stopwatch.GetTimestamp();
@@ -333,7 +327,8 @@ public static partial class WebEndpointRouteBuilderExtensions
             Theme = application.Theme,
             Assets = assets.Assets,
             Language = resolution.Session.Language,
-            Title = string.IsNullOrWhiteSpace(resolution.View.Title) ? null : application.Translator.Translate(resolution.Session.Language, resolution.View.Title) ?? resolution.View.Title,
+            Title = TranslateTitle(application.Translator, resolution),
+            Icon = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.Icon,
             Content = content,
             NotificationPlacement = resolution.View.Options.NotificationPlacement,
             NotificationWidth = resolution.View.Options.NotificationWidth,
@@ -341,7 +336,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             ShellLayout = resolution.View.Options.ShellLayout,
             SideDrawers = resolution.View.Options.SideDrawers,
             MetadataJson = metadataJson,
-            StringsJson = ResolveStringsJson(application.Translator, resolution.Session.Language, packageStrings),
+            StringsJson = WebWordsEndpoint.Resolve(application.Translator, WebWordsEndpoint.TableLanguage(application.Translator, resolution.Session.Language), packageStrings, application.MissingWords is not null).StringsJson,
             HydrationJson = hydration.Json,
             StandInNavigation = string.Equals(UIRoutePath.Normalize(resolution.Navigation.Route), requestedRoute, StringComparison.Ordinal) ? null : resolution.Navigation
         };
@@ -349,19 +344,17 @@ public static partial class WebEndpointRouteBuilderExtensions
         return new ShellDocumentResult(shell, resolution, metrics, logger, started, shaped, hydrated, painted);
     }
 
-    private static string ResolveStringsJson(ITranslator translator, string language, IEnumerable<IUIStringsSource> packageStrings)
+    /// <summary>The view's title in the session's language: a plain key, or a key filled with the view's own arguments.</summary>
+    private static string? TranslateTitle(ITranslator translator, UIViewResolution resolution)
     {
-        ConcurrentDictionary<string, string> held = StringsJson.GetValue(translator, static _ => new ConcurrentDictionary<string, string>(StringComparer.Ordinal));
+        var title = resolution.View.Title;
 
-        if (held.TryGetValue(language, out var json))
-            return json;
+        if (string.IsNullOrWhiteSpace(title))
+            return null;
 
-        json = WebShellRenderer.SerializeStrings(UIStrings.Resolve(translator, language, packageStrings));
-
-        if (held.Count < MaxHeldStringLanguages)
-            _ = held.TryAdd(language, json);
-
-        return json;
+        return resolution.View.TitleArguments is { Count: > 0 } arguments
+            ? translator.Translate(resolution.Session.Language, title, arguments) ?? title
+            : translator.Translate(resolution.Session.Language, title) ?? title;
     }
 
     /// <summary>

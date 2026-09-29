@@ -44,12 +44,12 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIGridUnit> Rows => _rows;
 
-    /// <summary>
-    /// Gets or sets the spacing between children, across columns and down rows, optionally overridden per breakpoint.
-    /// A container too narrow for twenty-four columns of it narrows the space between columns instead of overflowing, less
-    /// what its absolute columns and floors take; an auto column's content is not counted, so a container with auto columns
-    /// wants a responsive spacing with a small base on a narrow screen.
-    /// </summary>
+    /// <summary>Gets or sets the spacing between children, across columns and down rows, optionally overridden per breakpoint.</summary>
+    /// <remarks>
+    /// A container too narrow for twenty-four columns of it narrows the space between columns instead of overflowing, less what its
+    /// absolute columns and floors take; an auto column's content is not counted, so a container with auto columns wants a responsive
+    /// spacing with a small base on a narrow screen.
+    /// </remarks>
     // No default of its own: the stylesheet's zero stands, and a container that is given none writes nothing.
     [UIComponentProperty(DefaultValue = null)]
     public UIResponsive<double>? Spacing { get; set; }
@@ -96,8 +96,6 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
 /// </summary>
 public sealed class ContainerComponent(string? id = null) : ContainerComponent<ContainerComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.container";
 }

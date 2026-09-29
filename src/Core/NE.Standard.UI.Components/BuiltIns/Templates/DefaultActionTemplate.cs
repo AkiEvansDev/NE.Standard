@@ -15,8 +15,6 @@ public abstract class DefaultActionTemplate<TTemplate>(bool binds = false) : Def
 /// </summary>
 public sealed class DefaultActionTemplate(bool binds = false) : DefaultActionTemplate<DefaultActionTemplate>(binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.action.template";
 }

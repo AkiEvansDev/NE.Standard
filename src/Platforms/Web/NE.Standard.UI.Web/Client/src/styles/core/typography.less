@@ -1,5 +1,5 @@
-// Each type states `text-transform` explicitly, even `none`, so Overline's `uppercase` can't inherit into a nested type. Each
-// also republishes its step as `--ui-letter-spacing` (always a length, never `normal`), so code that centres text can subtract it back.
+// Each type states `text-transform`, even `none`, so Overline's can't inherit into a nested type, and republishes its spacing as a
+// length in `--ui-letter-spacing`, so code centring text can subtract it.
 
 .ui-text-type--display {
     text-transform: none;

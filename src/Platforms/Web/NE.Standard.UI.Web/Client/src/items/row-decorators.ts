@@ -1,5 +1,5 @@
-// What a component's own renderer puts beside a row that the row's template cannot (a menu's sub-entries under its entry) has
-// a client half here: a client-built row goes through the decorator the items template metadata names, by kind, after its template.
+// The client half of what a renderer adds beside a row that its template cannot (a menu's sub-entries): the decorator the items
+// template names, run on a client-built row after its template.
 
 import type { ItemStackEntry } from "./binding-template-evaluator";
 import type { ItemsTemplateRegistry } from "./items-template-registry";

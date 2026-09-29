@@ -1,3 +1,4 @@
+import { ThemeAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { EffectRegistry } from "../effects/effect-registry";
 import { ClientEffectKinds } from "../metadata/metadata-index";
@@ -9,7 +10,6 @@ export type ThemeSwitcherEngineOptions = {
 };
 
 const SwitcherSelector = "[data-ui-theme-switcher]";
-const ThemeAttribute = "data-ui-theme";
 
 /** Reads the theme the page is resolved to and raises the effect that puts it in the other one. */
 export class ThemeSwitcherEngine {

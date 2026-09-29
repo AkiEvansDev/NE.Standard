@@ -14,9 +14,14 @@ public sealed class CompiledUIPropertyValue
     public required UIProperty Property { get; init; }
 
     /// <summary>
-    /// Gets whether the static value is localizable text.
+    /// Gets whether the value is localizable text: the property is translatable and the instance did not mark it content.
     /// </summary>
     public bool IsTranslatable { get; init; }
+
+    /// <summary>
+    /// Gets whether the property is translatable text this instance shows as written (marked content), so the page never looks it up.
+    /// </summary>
+    public bool IsContent { get; init; }
 
     /// <summary>
     /// Gets whether the property value is provided by a binding.

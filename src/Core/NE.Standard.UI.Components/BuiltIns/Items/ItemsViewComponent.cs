@@ -159,8 +159,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
 /// </summary>
 public sealed class ItemsViewComponent(string? id = null) : ItemsViewComponent<ItemsViewComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.items-view";
 }

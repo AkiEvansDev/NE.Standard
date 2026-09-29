@@ -12,13 +12,11 @@ using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Hosting;
 
-/// <summary>
-/// The framework's instruments under <see cref="UIDiagnostics.Name"/>. Recording costs nothing measurable while no listener is
-/// attached, which is why the flush pass records every interval.
-/// </summary>
+/// <summary>The framework's instruments under <see cref="UIDiagnostics.Name"/>.</summary>
 /// <remarks>
-/// The observed counts are read only when a listener collects, so walking a store for its size is a cost of being measured,
-/// not of serving. A store the application replaced reports nothing: its size is its own to measure.
+/// Recording costs nothing measurable while no listener is attached, which is why the flush pass records every interval. The
+/// observed counts are read only when a listener collects, so walking a store for its size is a cost of being measured, not of
+/// serving. A store the application replaced reports nothing: its size is its own to measure.
 /// </remarks>
 internal sealed class UIMetrics : IDisposable
 {

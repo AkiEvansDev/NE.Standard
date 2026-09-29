@@ -1,0 +1,43 @@
+@import "../core/tokens.less";
+@import "./focus.less";
+
+// The ::before line down a dragged bar's positioned hit area (splitter, column resizer): a hairline thickening under the pointer,
+// the keyboard or a drag. `@axis` the way it runs (vertical: between columns), `@rest` its colour at rest, `@live` the hover guard.
+.ui-drag-bar-line(@axis; @rest; @live: ~"") {
+    // An offset, not translate(-50%): a transformed box is not pixel-snapped, and a 1px line smeared over 2px.
+    &::before {
+        content: "";
+        position: absolute;
+        --ui-drag-bar-line: 1px;
+        --ui-drag-bar-offset: calc(50% - (var(--ui-drag-bar-line) + 1px) / 2);
+        background: @rest;
+        border-radius: 999px;
+        transition: background-color @ui-motion-fast @ui-motion-ease, width @ui-motion-fast @ui-motion-ease, height @ui-motion-fast @ui-motion-ease, left @ui-motion-fast @ui-motion-ease, top @ui-motion-fast @ui-motion-ease;
+    }
+
+    & when (@axis = vertical) {
+        &::before {
+            top: 0;
+            bottom: 0;
+            left: var(--ui-drag-bar-offset);
+            width: var(--ui-drag-bar-line);
+        }
+    }
+
+    & when (@axis = horizontal) {
+        &::before {
+            left: 0;
+            right: 0;
+            top: var(--ui-drag-bar-offset);
+            height: var(--ui-drag-bar-line);
+        }
+    }
+
+    // The keyboard predicate, not :focus: a press focuses the handle too, and the bar must rest once the pointer leaves.
+    &@{live}:hover::before,
+    &@{ui-keyboard-focus}::before,
+    &[data-ui-splitting]::before {
+        --ui-drag-bar-line: 3px;
+        background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+    }
+}

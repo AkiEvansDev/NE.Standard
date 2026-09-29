@@ -23,6 +23,13 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
+    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; both shapes' pick is the one [data-ui-file-pick].
+    private static readonly WebDomOperation[] ReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("aria-disabled", target: $"[{WebAttributes.FilePick}]", condition: WebValueCondition.IsTrue, value: "true")
+    ];
+
     public override string ComponentTypeKey => ImageInputComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-image-input";
@@ -50,14 +57,14 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         if (multiple == true)
         {
             _ = root.Class(MultipleClassName);
-            RenderShelf(context, root);
-            RenderNative(context, root, multiple: true);
+            IHtmlElementBuilder add = RenderShelf(context, root);
+            RenderNative(context, root, add, multiple: true);
             RenderSelections(context, root);
         }
         else
         {
-            IHtmlElementBuilder picture = RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
-            RenderNative(context, root, multiple: false);
+            (IHtmlElementBuilder surface, IHtmlElementBuilder picture) = RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
+            RenderNative(context, root, surface, multiple: false);
             RenderValues(context, root, picture);
         }
 
@@ -65,12 +72,14 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The button the viewer presses or drops on: the picture, the glyph shown without one, the text of the inline row, the pencil.</summary>
-    private IHtmlElementBuilder RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
+    private (IHtmlElementBuilder Surface, IHtmlElementBuilder Picture) RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
     {
+        IHtmlElementBuilder? surfaceElement = null;
         IHtmlElementBuilder? pictureElement = null;
 
         _ = root.Element("button", surface =>
         {
+            surfaceElement = surface;
             _ = surface.Class($"{ClassName}__surface");
             _ = surface.Attribute("type", "button");
             _ = surface.Attribute(WebAttributes.FilePick);
@@ -83,7 +92,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
                 RenderInputHeaderInside(context, root, surface);
 
             _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? value, out _);
-            _ = surface.Attribute("aria-label", context.Translate(string.IsNullOrEmpty(value) ? UIStrings.ImageChoose : UIStrings.ImageChange));
+            WebWords.Write(context, surface, "aria-label", string.IsNullOrEmpty(value) ? UIStrings.ImageChoose : UIStrings.ImageChange);
 
             _ = surface.Element("img", picture =>
             {
@@ -118,13 +127,15 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             _ = surface.Element("span", pick => pick.Class($"{ClassName}__pick"));
         });
 
-        // The tree is written out only once the whole component is built, so the value writes onto this after its callback returned.
-        return pictureElement!;
+        // The tree is written out only once the whole component is built, so the value writes onto these after their callbacks returned.
+        return (surfaceElement!, pictureElement!);
     }
 
     /// <summary>The shelf the viewer drops on: the squares the engine keeps, the square that opens the picker, the words while it is empty.</summary>
-    private void RenderShelf(WebRenderContext context, IHtmlElementBuilder root)
+    private IHtmlElementBuilder RenderShelf(WebRenderContext context, IHtmlElementBuilder root)
     {
+        IHtmlElementBuilder? addElement = null;
+
         _ = root.Element("div", surface =>
         {
             _ = surface.Class($"{ClassName}__surface");
@@ -135,16 +146,19 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
             _ = surface.Element("button", add =>
             {
+                addElement = add;
                 _ = add.Class($"{ClassName}__add");
                 _ = add.Attribute("type", "button");
                 _ = add.Attribute(WebAttributes.FilePick);
-                _ = add.Attribute("aria-label", context.Translate(UIStrings.ImageChoose));
+                WebWords.Write(context, add, "aria-label", UIStrings.ImageChoose);
 
                 RenderPlaceholderGlyph(context, root, add);
             });
 
             RenderPlaceholderText(context, surface);
         });
+
+        return addElement!;
     }
 
     /// <summary>The stand-in glyph: the shape's own drawn one until an icon is named; the attribute on the root is what the stylesheet reads.</summary>
@@ -157,14 +171,14 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
             _ = RenderProperty<string?>(context, placeholder, ImageInputComponent.PlaceholderIconProperty, (target, icon) =>
             {
-                if (string.IsNullOrWhiteSpace(icon))
+                if (!IconValueRenderer.Draws(icon))
                     return;
 
                 _ = root.Attribute(WebAttributes.Icon);
                 IconValueRenderer.RenderIconValue(target, icon);
             }, [
                 .. IconValueRenderer.Operations,
-                WebDomOperation.ToggleAttribute(WebAttributes.Icon, target: "root", condition: WebValueCondition.HasText)
+                WebDomOperation.ToggleAttribute(WebAttributes.Icon, target: "root", condition: WebValueCondition.DrawsIcon)
             ]);
         });
     }
@@ -185,7 +199,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The native picker, present but hidden: only a real file input opens the OS dialog.</summary>
-    private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, bool multiple)
+    private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder pick, bool multiple)
     {
         NativeInputRendererBase.RenderFilePicker(context, root, $"{ClassName}__native", ImageInputComponent.AcceptProperty, native =>
         {
@@ -193,13 +207,16 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
                 _ = native.Attribute("multiple");
         });
 
-        // Read-only is one mark on the root: the engine refuses press and drop, the stylesheet cues the pointer; the surface
-        // stays focusable, like a read-only field.
-        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
+        // Read-only is the root's mark: the engine refuses press and drop, the stylesheet cues the pointer; the pick stays focusable,
+        // like a read-only field, and says it does nothing.
+        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
-            if (value == true)
-                _ = target.Attribute(WebAttributes.ImageReadonly);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.ImageReadonly, target: "root", condition: WebValueCondition.IsTrue)]);
+            if (value != true)
+                return;
+
+            _ = target.Class(WebClassNames.ReadOnly);
+            _ = pick.Attribute("aria-disabled", "true");
+        }, ReadOnlyOperations);
     }
 
     /// <summary>The picture's URL and the upload's handle, each on a hidden input the value engine writes and reads.</summary>

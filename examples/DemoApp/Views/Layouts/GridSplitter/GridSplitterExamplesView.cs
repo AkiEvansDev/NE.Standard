@@ -157,13 +157,13 @@ internal sealed class GridSplitterExamplesView : DemoExamplesView, IUIViewDefini
                 )
                 .AddChild(new GridSplitterComponent().SetOrientation(UIOrientation.Horizontal).SetPlacement(1, 2, 24, 1))
                 // The side panes are a tone off the page and square-edged, the way an editor's tool windows sit beside its document.
-                .AddChild(new SurfaceComponent()
+                // A scroller, not a surface: pulled down towards its floor the pane still reads to its last line.
+                .AddChild(new ScrollContainerComponent()
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetVerticalAlignment(UIAlignment.Stretch)
-                    .SetBorderThickness(UIThickness.Uniform(0))
-                    .SetBorderRadius(UICornerRadius.Uniform(0))
                     .SetPadding(UIThickness.Uniform(12))
-                    .SetContent(UILayout.Stack(4)
+                    .VerticalScrollOnly()
+                    .AddChild(UILayout.Stack(4)
                         .AddChild(UIText.Label("Log"))
                         .AddChild(new TextComponent().SetTitle("12:04:10  pulled image billing:4821").SetTitleType(UITextAppearance.Caption))
                         .AddChild(new TextComponent().SetTitle("12:04:31  migrations applied (3)").SetTitleType(UITextAppearance.Caption))

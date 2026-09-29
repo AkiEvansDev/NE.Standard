@@ -32,11 +32,11 @@ public sealed class UISessionOptions
     /// </summary>
     public string ClientKey { get; set; } = "ne.ui.session";
 
-    /// <summary>
-    /// Gets or sets how long the client keeps the session id, from its last page load; <see langword="null"/> ties it to
-    /// the client's own lifetime, signing the person out when that ends. Set it to how long a stored session may survive
-    /// across app restarts.
-    /// </summary>
+    /// <summary>Gets or sets how long the client keeps the session id, from its last page load.</summary>
+    /// <remarks>
+    /// <see langword="null"/> ties it to the client's own lifetime, signing the person out when that ends. Set it to how long a stored
+    /// session may survive across app restarts.
+    /// </remarks>
     public TimeSpan? ClientKeyLifetime { get; set; }
 
     /// <summary>

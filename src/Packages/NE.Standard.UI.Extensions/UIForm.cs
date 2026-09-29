@@ -24,7 +24,10 @@ public static class UIForm
             .AddChild(UIText.Note(hint));
     }
 
-    /// <summary>Fields side by side on one line — a city and its postcode, a first name and a last — in equal columns.</summary>
+    /// <summary>
+    /// Fields side by side on one line — a city and its postcode, a first name and a last — in equal columns, their tops level.
+    /// </summary>
     public static ContainerComponent Row(params IVisualComponent[] fields)
-        => UILayout.Columns(16, fields);
+        // Held by the top, not centred like a plain cell: a field growing its validation line must not push its neighbour down.
+        => UILayout.Columns(16, UIAlignment.Start, fields);
 }

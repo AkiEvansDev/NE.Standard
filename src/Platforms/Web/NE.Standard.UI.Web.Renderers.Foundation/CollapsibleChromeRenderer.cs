@@ -45,7 +45,7 @@ public static class CollapsibleChromeRenderer
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? show, out _);
 
-        // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child, as ever.
+        // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child.
         if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent))
         {
             if (show == true)
@@ -80,7 +80,7 @@ public static class CollapsibleChromeRenderer
             _ = toggle.Attribute(ToggleAttribute);
             _ = toggle.Attribute("aria-expanded", expanded == false ? "false" : "true");
             // Drawn in CSS, so the button has no text of its own to be read out.
-            _ = toggle.Attribute("aria-label", context.Translate(UIStrings.CollapseToggle));
+            WebWords.Write(context, toggle, "aria-label", UIStrings.CollapseToggle);
         });
     }
 }

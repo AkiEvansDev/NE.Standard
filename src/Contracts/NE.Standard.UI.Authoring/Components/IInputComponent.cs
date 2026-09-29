@@ -60,17 +60,15 @@ public interface IInputComponent : IVisualComponent
     [UIComponentProperty(DefaultValue = null)]
     UIValidationMessage? Validation { get; }
 
-    /// <summary>
-    /// Where the message goes: a line under the field, or an edge mark with the message in a tooltip. Decided once at render;
-    /// <see cref="UIValidationPresentation.Auto"/> is the line except in a grid cell.
-    /// </summary>
+    /// <summary>Where the message goes: a line under the field, or an edge mark with the message in a tooltip.</summary>
+    /// <remarks>Decided once at render; <see cref="UIValidationPresentation.Auto"/> is the line except in a grid cell.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIValidationPresentation.Auto)]
     UIValidationPresentation? ValidationPresentation { get; }
 
-    /// <summary>
-    /// Redirects the message away from the field, to a component property named like an items rule's source; the field then
-    /// shows only its edge, in the severity's colour. When several fields target the same property, the last to change wins.
-    /// </summary>
+    /// <summary>Redirects the message away from the field, to a component property named like an items rule's source.</summary>
+    /// <remarks>
+    /// The field then shows only its edge, in the severity's colour. When several fields target the same property, the last to change wins.
+    /// </remarks>
     UIPropertyReference? ValidationTarget { get; set; }
 
     /// <summary>

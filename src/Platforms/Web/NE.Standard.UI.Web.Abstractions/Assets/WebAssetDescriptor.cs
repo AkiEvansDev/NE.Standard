@@ -16,7 +16,7 @@ public enum UIWebAssetKind
     Css = 3,
 
     /// <summary>
-    /// A font file the shell serves but never links — a stylesheet's own <c>@font-face</c> points at it instead.
+    /// A woff2 font file: a stylesheet's own <c>@font-face</c> names it, and the shell preloads it from the head.
     /// </summary>
     Font = 4,
 

@@ -1,10 +1,16 @@
-// Resolves one authoring property through a five-tier var() chain, widest first; a flat literal on the same element would win the cascade.
+// One authoring property through a five-tier var() chain, widest first; a flat literal on the same element would win the cascade.
 .ui-responsive-property(@property, @variable, @default) {
     @{property}: var(~"@{variable}-xxl", var(~"@{variable}-xl", var(~"@{variable}-md", var(~"@{variable}-sm", var(~"@{variable}", @default)))));
 }
 
-// Resets a property's five tiers where a component root re-declares them, and fences each tier into its band there — once
-// per variable per root, exactly where the fence belongs.
+// A component's default floor (a min-width, a min-height) that yields to the authored size it bounds: a floor wins over a smaller
+// width in CSS, so without the min() a Width below the floor would be silently ignored. An authored floor still wins over both.
+.ui-responsive-floor(@property, @variable, @floor, @size-variable) {
+    @size: ~"var(@{size-variable}-xxl, var(@{size-variable}-xl, var(@{size-variable}-md, var(@{size-variable}-sm, var(@{size-variable}, @{floor})))))";
+    .ui-responsive-property(@property, @variable, ~"min(@{floor}, @{size})");
+}
+
+// Resets a property's five tiers on a component root that re-declares them, and fences each into its band there.
 .ui-responsive-reset(@variable) {
     @{variable}: initial;
     @{variable}-sm: initial;
@@ -14,8 +20,8 @@
     .ui-responsive-fence(@variable);
 }
 
-// Fences a tier's inline value into its own width band: below its breakpoint the variable is taken back with `!important`,
-// the only thing that outranks an inline custom property — without it, the widest tier written would win at every width.
+// Fences a tier's inline value to its width band: `!important` below its breakpoint, the only thing outranking an inline property,
+// or the widest tier written would win at every width.
 .ui-responsive-fence(@variable) {
     @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
         @{variable}-sm: initial !important;

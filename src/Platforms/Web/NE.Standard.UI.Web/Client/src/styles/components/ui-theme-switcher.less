@@ -13,8 +13,7 @@
     cursor: pointer;
 }
 
-    // Both classes together, since this file loads after ui-button.less: its own default would otherwise outrank a size
-    // class by source order.
+    // Both classes, or this file's default, after ui-button.less, would outrank the size class by order.
     .ui-theme-switcher.ui-button--small {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1);
     }
@@ -32,11 +31,9 @@
     display: none;
 }
 
-// With no icon named, the library's own sun/moon draws on the same pseudo-element `.ui-icon::before` uses, stepping aside
-// once `data-ui-icon` names a pack glyph. The base rule paints a mask (currentColor); a glyph is text and paints nothing behind itself.
+// With no icon named, the sun/moon on `.ui-icon::before`'s pseudo-element, until `data-ui-icon` names a glyph.
 .ui-theme-switcher__icon:not([data-ui-icon])::before {
     display: block;
-    background-color: transparent;
 }
 
 .ui-theme-switcher__icon--light:not([data-ui-icon])::before {

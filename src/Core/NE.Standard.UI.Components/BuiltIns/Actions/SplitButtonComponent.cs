@@ -117,8 +117,6 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
 /// </summary>
 public sealed class SplitButtonComponent(string? id = null) : SplitButtonComponent<SplitButtonComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.split-button";
 }

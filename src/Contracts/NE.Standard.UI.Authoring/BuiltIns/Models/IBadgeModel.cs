@@ -37,7 +37,6 @@ public interface IBadgeModel : IBindableItem
     /// <summary>
     /// Gets the icon shown beside the badge text, by name from the registered icon font/set.
     /// </summary>
-    [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
     string? BadgeIcon { get; }
 

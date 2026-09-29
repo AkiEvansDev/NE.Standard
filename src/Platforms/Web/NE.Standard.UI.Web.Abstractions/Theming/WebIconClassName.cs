@@ -3,8 +3,10 @@ using System.Text;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
+/// <summary>The class a glyph name wears; kept in step with <c>icon-value.ts</c>.</summary>
 public static class WebIconClassName
 {
+    /// <summary>The glyph class for an icon value — lower-cased, separators folded to one dash, anything else dropped.</summary>
     public static string FromIconName(string icon)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(icon);

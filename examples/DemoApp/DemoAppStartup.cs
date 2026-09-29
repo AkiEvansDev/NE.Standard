@@ -100,6 +100,10 @@ public sealed class DemoAppStartup : UIStartupBase
 
         _ = application.AddLocalizationSource(DemoTranslations.Build());
 
+        // Only a string starting "demo." is a key: every other string on a translatable property is content, so the missing-word
+        // report in Development names only words the demo has not translated.
+        _ = application.ConfigureLocalization(options => options.KeyPrefixes.Add(DemoTranslations.KeyPrefix));
+
         _ = application.Route<HomeView>("/");
 
         // Screens
@@ -130,6 +134,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<CommandBarMainView, CommandBarMainController>("/actions/command-bar");
         _ = application.Route<CommandBarExamplesView, CommandBarExamplesController>("/actions/command-bar/examples");
         _ = application.Route<ThemeSwitcherMainView, ThemeSwitcherMainController>("/actions/theme-switcher");
+        _ = application.Route<LanguageSwitcherMainView, LanguageSwitcherMainController>("/actions/language-switcher");
         _ = application.Route<SplitButtonMainView, SplitButtonMainController>("/actions/split-button");
         _ = application.Route<SplitButtonExamplesView, SplitButtonExamplesController>("/actions/split-button/examples");
 

@@ -1,3 +1,6 @@
+@import "../core/tokens.less";
+@import "./color.less";
+
 // One mixin, not three lines repeated: overflow: hidden, text-overflow: ellipsis and white-space: nowrap only work together.
 .ui-text-nowrap() {
     overflow: hidden;
@@ -5,8 +8,29 @@
     white-space: nowrap;
 }
 
-// The field a rename is typed into, laid over a title in the title's own type (a tab's caption, a tree node's title). No
-// ring, since a ring would be a box around the title, which this field exists not to be.
+// A one-line description tight under its title, as a Text draws one. The gap is the line-height's, since a negative margin overlaps
+// selection highlights; overflow-clip-margin keeps descenders, which containers clip.
+.ui-text-description-line() {
+    line-height: 1;
+    padding-bottom: 0.2em;
+    overflow: clip;
+    overflow-clip-margin: 0.25em;
+}
+
+// A link in running text (`[label](url)`, Markdown): accent and underline, brightening under the pointer by a filter; on a filled
+// ground the ground's ink, the underline still saying it is a link.
+.ui-inline-link() {
+    color: @ui-link-ink;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    transition: filter @ui-motion-fast @ui-motion-ease;
+
+    &:hover {
+        .ui-brighten-hover();
+    }
+}
+
+// The rename field laid over a title in its own type. No ring: it exists not to be a box around the title.
 .ui-inline-rename-field() {
     position: absolute;
     margin: 0;

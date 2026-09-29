@@ -153,9 +153,7 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         }
     }
 
-    /// <summary>
-    /// Starts every task that is due, without waiting for it.
-    /// </summary>
+    /// <summary>Starts every task that is due, without waiting for it.</summary>
     /// <remarks>
     /// Tasks don't queue behind each other: the flush runs every 50 ms while sweeps run every minute over a whole store, so
     /// serial waiting would let a slow sweep delay every session's flush. A task still running at its next turn is skipped

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Constants;
@@ -33,11 +34,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         RenderInputHeader(context, root, titleCanGoInside: true);
 
         // Whether the clear button shows, on the root: the button itself is always rendered.
-        _ = RenderProperty<bool?>(context, root, TextInputComponent.ShowClearButtonProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Attribute(ClearShownAttribute);
-        }, [WebDomOperation.ToggleAttribute(ClearShownAttribute, condition: WebValueCondition.IsTrue)]);
+        RenderFlagAttribute(context, root, TextInputComponent.ShowClearButtonProperty, ClearShownAttribute);
 
         _ = root.Element("span", row =>
         {
@@ -75,13 +72,14 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Attribute("autocomplete")]);
 
                 NativeInputRendererBase.RenderPlaceholder(context, input);
-                NativeInputRendererBase.RenderIsReadOnly(context, input);
 
-                _ = RenderProperty<bool?>(context, input, TextInputComponent.TrimInputProperty, static (target, value) =>
-                {
-                    if (value == true)
-                        _ = target.Attribute(WebAttributes.TrimInput);
-                }, [WebDomOperation.ToggleAttribute(WebAttributes.TrimInput, condition: WebValueCondition.IsTrue)]);
+                // A blank one where the author gave none, so :placeholder-shown says the field is empty and the clear goes.
+                if (string.IsNullOrEmpty(ReadRenderValue<string?>(context, IPlaceholderInputComponent.PlaceholderProperty, null)))
+                    _ = input.Attribute("placeholder", " ");
+
+                NativeInputRendererBase.RenderIsReadOnly(context, root, input);
+
+                RenderFlagAttribute(context, input, TextInputComponent.TrimInputProperty, WebAttributes.TrimInput);
 
                 // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
                 _ = RenderProperty<int?>(context, input, TextInputComponent.DebounceMillisecondsProperty, static (target, value) =>
@@ -105,12 +103,14 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
-            // Always rendered, shown by the root's own attribute.
+            // Always rendered: the bindable ShowClearButton shows it by the root's own mark. A pointer's shortcut and no tab stop: the
+            // keyboard empties the field in the field itself.
             _ = row.Element("button", clear =>
             {
                 _ = clear.Class($"{ClassName}__clear");
                 _ = clear.Attribute("type", "button");
-                _ = clear.Attribute("aria-label", context.Translate(UIStrings.InputClear));
+                _ = clear.Attribute("tabindex", "-1");
+                WebWords.Write(context, clear, "aria-label", UIStrings.InputClear);
                 _ = clear.Attribute(WebAttributes.Clear);
             });
 

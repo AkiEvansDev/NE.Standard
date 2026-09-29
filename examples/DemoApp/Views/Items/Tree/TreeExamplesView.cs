@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Items.Tree;
 using DemoApp.Views.Base;
-using NE.Colors;
 
 namespace DemoApp.Views.Items.Tree;
 
@@ -59,7 +58,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetRenameOnDoubleClick(true)
                     .SetDraggable(true)
                     .AddNodeKind(DemoStorageTree.FolderKind, node => node
-                        .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
+                        .SetIconColor(DemoIcons.Warm)
                         // The menu's entry names the action; the node the menu was opened on is the entry's parent scope.
                         .SetContextMenu(new MenuComponent()
                             .SetItems(
@@ -122,7 +121,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
             new TreeComponent()
                 .BindItems($"{MenuGroup}.{nameof(TreeMenuGroupContext.Items)}")
                 .ConfigureDefaultNode(node => node
-                    .SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2))
+                    .SetIconColor(DemoIcons.Warm)
                     .SetContextMenu(new MenuComponent()
                         .BindItems(nameof(DemoActionNode.Actions), UIBindingScope.Relative)
                         .OnItemClick(nameof(TreeExamplesController.NodeMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
@@ -141,7 +140,7 @@ internal sealed class TreeExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateExample("Filled in as it opens",
             new TreeComponent()
                 .BindItems($"{LazyGroup}.{nameof(TreeLazyGroupContext.Items)}")
-                .ConfigureDefaultNode(node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
+                .ConfigureDefaultNode(node => node.SetIconColor(DemoIcons.Warm))
                 .OnNodeUnfoldWithItemKey(nameof(TreeExamplesController.LoadChildren)),
             columns: 24,
             note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same.",

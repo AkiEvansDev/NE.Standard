@@ -1,6 +1,5 @@
-// Deliberately not Intl: this must render identically to the server's `WebNumberFormat`, from the pack .NET wrote, so a
-// grid's cell and a controller's message read the same number. `.ts` on the value import, `import type` on the rest, since
-// `node --test` resolves files literally.
+// Not Intl: it must render as the server's `WebNumberFormat` does, from .NET's pack, so a cell and a message read the same number.
+// `.ts` on the value import, `import type` on the rest: `node --test` resolves files literally.
 import { NumberCultureAttribute } from "../addressing/dom-attributes.ts";
 
 /** What `WebNumberCulturePack` carries: .NET's `NumberFormatInfo`, the parts a formatted number reads. */
@@ -81,10 +80,7 @@ export function readNumberCulture(element: Element): NumberCulturePack {
     }
 }
 
-/**
- * Formats a number by a standard .NET format of the shared subset (`N`, `F`, `C`, `P` or `D`, optional precision) or, with no
- * format, as the value is, with the culture's separator and sign. Throws on a format outside the subset, as the server does.
- */
+/** Formats a number by a .NET format of the shared subset (`N`, `F`, `C`, `P`, `D`), or plainly; throws outside it, as the server does. */
 export function formatNumber(value: number, format: string | null | undefined, culture: NumberCulturePack): string {
     if (!Number.isFinite(value))
         return String(value);

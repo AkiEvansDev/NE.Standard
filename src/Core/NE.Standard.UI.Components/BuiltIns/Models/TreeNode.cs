@@ -32,8 +32,9 @@ public partial class TreeNode : TextBaseItem, ITreeNodeModel
 
     /// <summary>
     /// Flattens a nested structure into the flat list a tree takes, each node followed by its children with <see cref="ParentId"/>
-    /// set. <paramref name="toNode"/> builds the node; <paramref name="children"/> gives what sits under a source.
+    /// set.
     /// </summary>
+    /// <remarks><paramref name="toNode"/> builds the node; <paramref name="children"/> gives what sits under a source.</remarks>
     public static IReadOnlyList<TreeNode> Flatten<TSource>(IEnumerable<TSource> roots, Func<TSource, IEnumerable<TSource>?> children, Func<TSource, TreeNode> toNode)
     {
         ArgumentNullException.ThrowIfNull(roots);

@@ -8,7 +8,7 @@ using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
-/// <summary>Writes <c>SelectionStyle</c> as the four custom properties the <c>selected</c> mixins read.</summary>
+/// <summary>Writes <c>SelectionStyle</c> as the five custom properties the <c>selected</c> mixins read.</summary>
 public static class SelectionStyleRenderer
 {
     public const string BackgroundVariable = "--ui-selected-background";

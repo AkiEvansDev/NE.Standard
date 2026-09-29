@@ -11,8 +11,7 @@
     .ui-surface-image();
 }
 
-// A container, like a card's content band — see @ui-placement-hosts in ui-container.less.
-// Always clipped, with room for a child's shadow, so the slide collapsible-engine.ts plays has an edge to close against.
+// A container (@ui-placement-hosts), always clipped with room for a child's shadow, so the fold's slide has an edge to close against.
 .ui-collapsible-panel__content {
     .ui-placement-host();
     flex: 1 1 auto;
@@ -28,8 +27,7 @@
     visibility: hidden;
 }
 
-// Zeroes both axes, not only the fold's own: zeroing one alone still lets text wrap to a one-word column, and a side panel's
-// rail would size to that. Skipped while [data-ui-folding], since collapsible-engine.ts then holds the other axis at its open size.
+// Both axes, or text wraps to a one-word column the rail sizes to; not while folding, when the engine holds the other axis open.
 .ui-collapsible-panel[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible-panel__content {
     inline-size: 0;
     block-size: 0;

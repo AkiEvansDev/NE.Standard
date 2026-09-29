@@ -1,5 +1,7 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
+import { motion } from "../rendering/motion.ts";
+
 export type AnchoredPopupPlacement =
     | "top-start" | "top" | "top-end"
     | "bottom-start" | "bottom" | "bottom-end"
@@ -46,6 +48,23 @@ const tracked = new Map<HTMLElement, TrackedPopup>();
 let listening = false;
 let resizeObserver: ResizeObserver | null = null;
 
+// The elements that stand for a part put out of sight: a popup anchored inside it is placed against the stand-in meanwhile.
+const standIns = new WeakMap<Element, Element>();
+
+// On a popup placed against a stand-in: its part is `visibility: hidden`, and the popup shows itself over that.
+const StoodInAttribute = "data-ui-popup-stood-in";
+
+/**
+ * Names what a popup anchored inside `part` is placed against while `part` is out of sight — a command in a bar's "…" list, the
+ * "…" — or, with `null`, puts the part back in its own place.
+ */
+export function setAnchorStandIn(part: Element, standIn: Element | null): void {
+    if (standIn === null)
+        standIns.delete(part);
+    else
+        standIns.set(part, standIn);
+}
+
 export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
     tracked.set(popup, { anchor, options });
     attachListeners();
@@ -57,14 +76,20 @@ export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options:
 // On a popup lifted into the top layer, for the stylesheet to take the popover's own box back off it.
 const LiftedAttribute = "data-ui-popup-lifted";
 
-/**
- * A popup under a transformed ancestor is fixed to it and scaled with it, not the viewport; lifting it into the top layer as a
- * manual popover fixes that, without moving it in the document, so its engine still finds its options under it.
- */
+/** Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer. */
 function liftOutOfTransform(popup: HTMLElement): void {
-    if (popup.hasAttribute(LiftedAttribute) || !hasTransformedAncestor(popup))
+    // Still lifted from the last opening, its fade out not over yet: shown again where it stands.
+    if (popup.hasAttribute(LiftedAttribute)) {
+        if (!popup.matches(":popover-open"))
+            popup.showPopover();
+
+        return;
+    }
+
+    if (!hasTransformedAncestor(popup))
         return;
 
+    // A manual popover rather than a move in the document: its engine still finds its options under it.
     popup.setAttribute("popover", "manual");
     popup.setAttribute(LiftedAttribute, "");
     popup.showPopover();
@@ -81,6 +106,7 @@ function hasTransformedAncestor(element: Element): boolean {
     return false;
 }
 
+/** Hides a lifted popup and takes it off the top layer once its fade is over; one opened again meanwhile stays lifted. */
 function lowerIntoPlace(popup: HTMLElement): void {
     if (!popup.hasAttribute(LiftedAttribute))
         return;
@@ -88,8 +114,14 @@ function lowerIntoPlace(popup: HTMLElement): void {
     if (popup.matches(":popover-open"))
         popup.hidePopover();
 
-    popup.removeAttribute("popover");
-    popup.removeAttribute(LiftedAttribute);
+    // Not at once: it would drop from under its own fade to wherever the transformed ancestor puts it.
+    window.setTimeout(() => {
+        if (popup.matches(":popover-open") || tracked.has(popup))
+            return;
+
+        popup.removeAttribute("popover");
+        popup.removeAttribute(LiftedAttribute);
+    }, motion.fast);
 }
 
 export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): void {
@@ -137,25 +169,31 @@ function repositionAll(): void {
     }
 }
 
-function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
+function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
     // An anchor the page redrew away measures as a zero box at the corner: the popup stays where it stood rather than jumping there.
-    if (!anchor.isConnected)
+    if (!placed.isConnected)
         return;
+
+    const anchor = resolveStandIn(placed);
+    const stoodIn = anchor !== placed;
+
+    // Written only on change, as the placement is. Left on at a close: the closed popup is not displayed, and the next opening rewrites it.
+    if (popup.hasAttribute(StoodInAttribute) !== stoodIn)
+        popup.toggleAttribute(StoodInAttribute, stoodIn);
 
     if (options.minAnchorWidth === true)
         popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
 
     // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
     const anchorRect = anchor.getBoundingClientRect();
-    const crossRect = (options.crossAnchor ?? anchor).getBoundingClientRect();
+    const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
     const popupRect = popup.getBoundingClientRect();
     const side = resolveSide(anchorRect, popupRect, options);
 
     let top = topOffset(anchorRect, crossRect, popupRect, side, options.gap);
     let left = leftOffset(anchorRect, crossRect, popupRect, side, options.gap);
 
-    // An end-aligned popup over a small mark would clamp the arrow away from the mark's centre: the popup moves instead, so the
-    // arrow lands on the anchor's centre.
+    // The popup moves so the arrow lands on the anchor's centre; clamped instead, it would miss a small mark's.
     if (options.arrow === true) {
         if (isVertical(side))
             left = aimAtAnchor(left, crossRect.left + (crossRect.width / 2), popupRect.width);
@@ -169,12 +207,30 @@ function position(anchor: Element, popup: HTMLElement, options: AnchoredPopupOpt
     popup.style.top = `${top}px`;
     popup.style.left = `${left}px`;
 
-    // The side actually used, not the one asked for: an arrow has to know which way it points after a flip. Written only when it
-    // moves, since every write is a mutation record, and an engine observing its popup would answer each scroll frame.
+    // The side used after a flip, for the arrow; written only on change, or an engine observing its popup answers every scroll frame.
     if (popup.dataset.uiPlacement !== side)
         popup.dataset.uiPlacement = side;
 
     setArrowOffset(popup, crossRect, popupRect, side, top, left);
+}
+
+
+/**
+ * The stand-in named for a part around the anchor that is out of sight, else the anchor itself — also for an anchor inside a popup
+ * shown over that part (a submenu's item), which is in sight.
+ */
+function resolveStandIn(anchor: Element): Element {
+    for (let current: Element | null = anchor; current !== null; current = current.parentElement) {
+        if (current.hasAttribute(StoodInAttribute))
+            return anchor;
+
+        const standIn = standIns.get(current);
+
+        if (standIn !== undefined)
+            return standIn;
+    }
+
+    return anchor;
 }
 
 // The cross-axis offset that keeps the anchor's centre at least an arrow's inset inside the popup's edge.

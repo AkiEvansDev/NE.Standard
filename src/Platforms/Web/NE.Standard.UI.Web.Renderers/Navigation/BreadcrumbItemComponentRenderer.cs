@@ -26,11 +26,7 @@ public sealed class BreadcrumbItemComponentRenderer : ButtonRendererBase
 
         RenderButtonChrome(context, root);
 
-        _ = RenderProperty<string?>(context, root, BreadcrumbItemComponent.UrlProperty, static (target, value) =>
-        {
-            if (WebUrlSafety.IsSafeLink(value))
-                _ = target.Attribute("href", value);
-        }, [WebDomOperation.Attribute("href", converter: WebDomConverters.SafeUrl)]);
+        RenderLinkAddress(context, root, BreadcrumbItemComponent.UrlProperty);
 
         RenderButtonLabel(context, root);
     }

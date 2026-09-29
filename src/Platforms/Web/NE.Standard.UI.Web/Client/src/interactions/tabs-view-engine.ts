@@ -1,6 +1,4 @@
-// The items variant of a tabs strip: captions and pages come from one collection, so a tab's key is the item's own key. The strip
-// runs its own tab menu: the built-in entries it chose, as the tab it was opened on allows, and the application's entries raised
-// with the tab's key.
+// The items variant of a tabs strip: captions and pages from one collection, keyed by the item, with a tab menu of its own.
 
 import {
     BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemKindAttribute, PassiveMenuEntrySelector,
@@ -15,8 +13,10 @@ import { ContextMenuOpeningDetail, ContextMenuOpeningEventName } from "./context
 import { happenedInside, observeComponents } from "./dom-mutations";
 import { markDragStart } from "./drag-marks";
 import { isLaidOut } from "./element-visibility";
-import { openInlineRename } from "./inline-rename";
+import { isInRenameField, openInlineRename } from "./inline-rename";
+import { isInert } from "./interactive-state";
 import { ownDescendants } from "./own-descendants";
+import { focusAsLastInput } from "./popup-focus";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
 import { OverflowButtonClass, StripFitter } from "./strip-overflow";
@@ -70,8 +70,7 @@ export class TabsViewEngine {
     // Where the dragged tab's row sat before the drag, so a cancelled drop can put it back rather than commit the live reorder.
     private dragStart: { readonly parent: Node; readonly next: Node | null } | null = null;
 
-    // The strip and the key of the tab its menu was last opened on, which the menu's entries act on: a key, since the tab's row
-    // may be drawn again while the menu stands open.
+    // The strip and tab the menu was opened on: a key, since the tab's row may be drawn again while the menu stands open.
     private menuTab: { readonly root: HTMLElement; readonly key: string } | null = null;
 
     public constructor(options: TabsViewEngineOptions = {}) {
@@ -79,7 +78,7 @@ export class TabsViewEngine {
         this.fitter = new StripFitter({
             rootClass: RootClass,
             overflowingClass: OverflowingModifier,
-            wrapsClass: NoOverflowModifier,
+            wraps: root => root.classList.contains(NoOverflowModifier),
             hiddenClass: OverflowedModifier,
             refit: root => this.apply(root),
             pick: (root, key) => this.pickFromOverflow(root, key)
@@ -118,9 +117,8 @@ export class TabsViewEngine {
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // Tabs arrive with the collection, so childList counts as much as the selected attribute; a strip whose Draggable switches
-        // live rewrites every caption's draggable flag, so that's watched too. What happens inside a page is the page's own: a table
-        // patched there must not re-measure the strip with a forced layout on every push.
+        // Tabs arrive with the collection, and a live Draggable switch rewrites every caption's flag.
+        // What happens inside a page is its own: a table patched there must not force a strip layout on every push.
         observeComponents(
             this.root,
             `.${RootClass}`,
@@ -206,10 +204,7 @@ export class TabsViewEngine {
         applyRovingTabIndex(labels, current);
     }
 
-    /**
-     * How much of the host the strip took, written on the host as a variable the stylesheet reads. The strip and page are lines of
-     * one wrapping flex, so a page has no way of its own to fill what's left; this variable gives it one.
-     */
+    /** Writes the strip's height on the host, so a page — a line of one wrapping flex with it — can fill what's left. */
     private writeStripHeight(root: HTMLElement, page: HTMLElement | null): void {
         const host = this.hostOf(root);
 
@@ -248,15 +243,13 @@ export class TabsViewEngine {
             return this.ownItems(root).filter(isLaidOut).map(item => ({
                 key: tabKey(item),
                 title: item.querySelector(`.${LabelClass}`)?.textContent?.trim() ?? tabKey(item),
-                current: tabKey(item) === selected
+                current: tabKey(item) === selected,
+                disabled: isInert(item.querySelector(`.${LabelClass}`) ?? item)
             }));
         });
     }
 
-    /**
-     * Leaves in the tab menu what the strip chose and the tab it was opened on allows, and a rule only between two shown entries; a
-     * menu left with nothing to offer stays shut.
-     */
+    /** Leaves in the tab menu what the strip chose and the tab allows; a menu with nothing to offer stays shut. */
     private prepareMenu(domEvent: Event): void {
         const menu = domEvent.target;
 
@@ -348,10 +341,7 @@ export class TabsViewEngine {
         return true;
     }
 
-    /**
-     * Pins or unpins a tab and moves it to the boundary of the pinned ones, the strip's head; both are written back through the
-     * tab's own values, the pin as its state and the place as its order, the way a drag writes its order.
-     */
+    /** Pins or unpins a tab and moves it to the pinned head, both written back through the tab's own values as a drag does. */
     private setPinned(root: HTMLElement, item: HTMLElement, pinned: boolean): void {
         if (item.hasAttribute(TabPinnedAttribute) === pinned)
             return;
@@ -402,10 +392,10 @@ export class TabsViewEngine {
             return;
         }
 
-        const label = domEvent.target.closest<HTMLElement>(`.${LabelClass}`);
+        const label = captionLabel(domEvent.target);
         const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (label === null || root === null || label.matches(":disabled, .ui-disabled"))
+        if (label === null || root === null || isInert(label))
             return;
 
         const item = label.closest<HTMLElement>(`.${ItemClass}`);
@@ -416,6 +406,10 @@ export class TabsViewEngine {
 
         domEvent.preventDefault();
         this.select(root, tabKey(item));
+
+        // A press on the caption around the label focuses nothing by itself; the keyboard carries on from the tab it chose.
+        if (document.activeElement !== label)
+            focusAsLastInput(label);
     }
 
     /** Fires the tab's own `remove` event, which carries its key by sitting inside it. */
@@ -444,7 +438,7 @@ export class TabsViewEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const label = domEvent.target.closest<HTMLElement>(`.${LabelClass}`);
+        const label = captionLabel(domEvent.target);
         const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
         if (label === null || root === null || !root.hasAttribute(TabsRenamableAttribute))
@@ -475,7 +469,7 @@ export class TabsViewEngine {
                 label.dispatchEvent(new Event("change", { bubbles: true }));
                 label.dispatchEvent(new Event("rename", { bubbles: true }));
             },
-            done: () => label.focus()
+            refocus: () => focusAsLastInput(label)
         });
     }
 
@@ -526,8 +520,7 @@ export class TabsViewEngine {
         if (item === null)
             return;
 
-        // A tab whose item refuses to be dragged, and a pinned one, stay where they are; only its own drag is refused, since
-        // this listener sees every drag on the page.
+        // Unmovable or pinned tabs stay; only their own drag is refused, since this listener sees every drag on the page.
         if (rowOf(item).hasAttribute(UndraggableAttribute) || item.hasAttribute(TabPinnedAttribute)) {
             domEvent.preventDefault();
             return;
@@ -555,8 +548,7 @@ export class TabsViewEngine {
         if (dragging === null)
             return;
 
-        // Accepted over every tab of the strip, the dragged one included, since a drop the browser wasn't told to accept ends the
-        // drag as cancelled and the live reorder would be put back.
+        // Accepted over every tab, the dragged one included: an unaccepted drop cancels and puts the live reorder back.
         domEvent.preventDefault();
 
         if (domEvent.dataTransfer !== null)
@@ -618,8 +610,7 @@ export class TabsViewEngine {
             return;
         }
 
-        // Decided by where the tab stands against where it started, not by comparing orders, since the order read off the element
-        // can be one the server has since moved, missing a move judged "no change" by it.
+        // By where the tab stands, not by orders: the element's order may be one the server has since moved.
         const row = rowOf(item);
 
         if (start !== null && row.parentNode === start.parent && row.nextSibling === start.next)
@@ -663,13 +654,11 @@ function isRemovable(root: HTMLElement, item: HTMLElement): boolean {
     return !root.hasAttribute(TabsUnremovableAttribute) && !rowOf(item).hasAttribute(UnremovableAttribute) && !item.hasAttribute(UnremovableAttribute);
 }
 
-/**
- * The built-in entries of the tab menu a tab is offered: what the strip chose, as the tab allows. Rename needs only the item's
- * `CanRename`, not the strip's `Renamable`, which governs the double click and F2; the remove entry needs a remove command and a removable tab.
- */
+/** The built-in tab-menu entries a tab is offered: what the strip chose, as the tab allows. */
 function offeredEntries(root: HTMLElement, item: HTMLElement): ReadonlyMap<string, boolean> {
     return tabMenuEntries(readTabMenuChoice(root.getAttribute(TabsMenuAttribute)), {
         pinned: item.hasAttribute(TabPinnedAttribute),
+        // The item's CanRename alone: the strip's Renamable governs the double click and F2.
         renamable: !rowOf(item).hasAttribute(UnrenamableAttribute),
         removable: root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item)
     });
@@ -698,6 +687,15 @@ function rowOf(item: HTMLElement): HTMLElement {
         : item;
 }
 
+/** The label of the caption a press landed on — anywhere but its close or an open rename field. */
+function captionLabel(target: Element): HTMLElement | null {
+    if (target.closest(`.${CloseClass}`) !== null || isInRenameField(target))
+        return null;
+
+    // The caption washes under the pointer as a whole, so it answers the press as a whole.
+    return target.closest<HTMLElement>(`.${CaptionClass}`)?.querySelector<HTMLElement>(`:scope > .${LabelClass}`) ?? null;
+}
+
 function draggedItem(domEvent: Event): HTMLElement | null {
     if (!(domEvent.target instanceof Element))
         return null;
@@ -707,10 +705,7 @@ function draggedItem(domEvent: Event): HTMLElement | null {
     return caption?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
 }
 
-/**
- * Writes the orders a move leaves a strip with — `items` in their new order, the moved tab at `index`: the moved tab's own
- * between its neighbours, so no other tab is renumbered where that holds, each through the tab's two-way `Order`.
- */
+/** Writes the orders a move leaves, through each tab's two-way `Order`, renumbering no other tab where the moved one fits between. */
 function writeOrders(items: readonly HTMLElement[], index: number): void {
     for (const [place, order] of ordersAfterMove(items.map(stripTab), index)) {
         items[place].setAttribute(TabOrderAttribute, String(order));

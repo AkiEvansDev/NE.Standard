@@ -1,15 +1,17 @@
-// Choosing rows in an items view, a table or a tree: a click or key marks rows and sends the key back; the items view and
-// table also handle the keyboard here, while a tree walks its own rows since its arrows also fold. How a gesture changes the
-// chosen set is `row-selection.ts`, shared with the tree.
+// Choosing rows in an items view, a table or a tree by click or key; the tree walks its own rows, since its arrows also fold.
+// How a gesture changes the chosen set is `row-selection.ts`'s.
 
 import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 import { ownControlOf } from "./own-control";
 import { ownDescendants } from "./own-descendants";
 import { isRovingKey } from "./roving-focus";
-import { dispatchRowEvent, focusedRow, isRowDisabled, resolveRowTarget, setRowFocus } from "./row-cursor";
+import { isInert, isItemDisabled } from "./interactive-state";
+import type { RowAxis } from "./row-cursor";
+import { dispatchRowEvent, focusedRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import {
-    chooseRow, ensureAnchor, gestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector
+    chooseRow, choosesOnEnter, ensureAnchor, gestureOf, keyGestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector,
+    SelectionRowSelector as ItemSelector, setAnchor
 } from "./row-selection";
 
 // The two whose keyboard is this engine's; the tree's is its own.
@@ -53,20 +55,6 @@ export class ItemsSelectionEngine {
         markSelectedRows(root, this.ownItems(root));
     }
 
-    /** The row and its host a press landed in, scoped to the host that owns the row: a list nested in another's row must not choose the outer one. */
-    private resolveRow(domEvent: Event, rootSelector: string): { readonly root: HTMLElement; readonly item: HTMLElement } | null {
-        if (!(domEvent.target instanceof Element))
-            return null;
-
-        const item = domEvent.target.closest<HTMLElement>(ItemSelector);
-        const root = item?.closest<HTMLElement>(RootSelector) ?? null;
-
-        if (item === null || root === null || item.closest(RootSelector) !== root || !root.matches(rootSelector) || root.matches(".ui-disabled"))
-            return null;
-
-        return ownControlOf(domEvent.target, item) === null && !isRowDisabled(item) ? { root, item } : null;
-    }
-
     private handleClick(domEvent: Event): void {
         const resolved = this.resolveRow(domEvent, RootSelector);
 
@@ -76,22 +64,36 @@ export class ItemsSelectionEngine {
         const { root, item } = resolved;
         const rows = this.ownItems(root);
 
-        // The keyboard's row follows the pointer, in the tree as well, so the arrows carry on from the row that was clicked. The host
-        // takes the focus with it, like a file manager's list; a host that chooses nothing is not focusable, so nothing is taken there.
+        // The cursor follows the pointer so the arrows carry on from the clicked row; the host takes the focus, as a file manager's list does.
         setRowFocus(root, rows, item);
         root.focus({ preventScroll: true });
 
-        // A host whose rows are chosen by something of its own (a grid's checkboxes) keeps the click for whatever else the row
-        // does; the keyboard still chooses, being the only way there without a pointer.
-        if (root.hasAttribute(NoRowSelectAttribute))
+        // A host choosing by a control of its own (a grid's checkboxes) leaves the click; its keyboard's Shift ranges from the clicked row.
+        if (root.hasAttribute(NoRowSelectAttribute)) {
+            setAnchor(root, item);
             return;
+        }
 
         // A row that refuses to be chosen leaves the click to whatever else the row does.
         if (chooseRow(root, rows, item, gestureOf(domEvent)))
             domEvent.preventDefault();
     }
 
-    /** A double click anywhere on the row but its own controls opens it, as Enter does; a cell that edits on a double click says so and keeps it. */
+    /** The row a press landed in and the host that owns it: a list nested in another's row must not choose the outer one. */
+    private resolveRow(domEvent: Event, rootSelector: string): { readonly root: HTMLElement; readonly item: HTMLElement } | null {
+        if (!(domEvent.target instanceof Element))
+            return null;
+
+        const item = domEvent.target.closest<HTMLElement>(ItemSelector);
+        const root = item?.closest<HTMLElement>(RootSelector) ?? null;
+
+        if (item === null || root === null || item.closest(RootSelector) !== root || !root.matches(rootSelector) || isInert(root))
+            return null;
+
+        return ownControlOf(domEvent.target, item) === null && !isItemDisabled(item) ? { root, item } : null;
+    }
+
+    /** Opens a row double-clicked anywhere but on its own controls, as Enter does, unless the cell edits on a double click. */
     private handleDoubleClick(domEvent: Event): void {
         const resolved = this.resolveRow(domEvent, KeyboardRootSelector);
 
@@ -106,22 +108,20 @@ export class ItemsSelectionEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
-        // A key typed into a control of a row's own is that control's.
-        const item = domEvent.target.closest(ItemSelector);
+        // The nearest host of any kind, so a tree in a list's row keeps its arrows; a key in a row's control or the host's chrome is theirs.
+        const found = rowKeyTarget(domEvent.target);
 
-        if (item !== null && ownControlOf(domEvent.target, item) !== null)
+        if (found === null || (found.row !== null && ownControlOf(domEvent.target, found.row) !== null))
             return;
 
-        // The nearest host of any kind: a tree inside a list's row walks its own rows, and must not have its arrows taken by the list.
-        const root = domEvent.target.closest<HTMLElement>(RootSelector);
+        const { root } = found;
 
-        if (root === null || !root.matches(KeyboardRootSelector) || root.matches(".ui-disabled"))
+        if (!root.matches(KeyboardRootSelector) || isInert(root))
             return;
 
-        // A horizontal list walks with Left and Right as well as Up and Down; a table only up and down.
-        const axis = root.matches(".ui-orientation--horizontal") ? "both" : "vertical";
+        const axis = axisOf(root);
 
-        if (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, axis))
+        if (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, axis === "grid" ? "both" : axis))
             return;
 
         const rows = this.ownItems(root);
@@ -132,19 +132,18 @@ export class ItemsSelectionEngine {
             domEvent.preventDefault();
             setRowFocus(root, rows, next);
 
-            // With one row to choose, a move chooses it too, like a file list; with many, Shift extends the range from where the
-            // cursor stood, or the anchor if no click set one.
+            // A single-choice move chooses, like a file list; with many, Shift extends from the anchor, or where the cursor stood.
             if (root.getAttribute(SelectionAttribute) === "one" || domEvent.shiftKey) {
                 if (domEvent.shiftKey)
                     ensureAnchor(root, current);
 
-                chooseRow(root, rows, next, gestureOf(domEvent));
+                chooseRow(root, rows, next, keyGestureOf(root, domEvent));
             }
 
             return;
         }
 
-        if (current === null || isRowDisabled(current))
+        if (current === null || isItemDisabled(current))
             return;
 
         switch (domEvent.key) {
@@ -154,16 +153,14 @@ export class ItemsSelectionEngine {
                     return;
                 break;
             case "Enter":
-                // Enter is the keyboard's click: chooses like a click, opens like a double click. A cursor inside a chosen group
-                // leaves the group standing, since Delete reads that same group.
-                if (!selectedRows(rows).includes(current))
+                // The keyboard's click and double click; a chosen group under the cursor stands, since Delete reads that same group.
+                if (choosesOnEnter(root) && !selectedRows(rows).includes(current))
                     chooseRow(root, rows, current, PlainGesture);
 
                 dispatchRowEvent(current, "open");
                 break;
             case "Delete": {
-                // The chosen rows go together when the cursor is on one of them; an unremovable row raises nothing, and whether a
-                // removable one is removed is the controller's answer. With nothing to remove the key is the page's again.
+                // The chosen group goes together; the controller decides each removal, and with nothing removable the key is the page's.
                 const removable = removableRows(rows, current);
 
                 if (removable.length === 0)
@@ -186,10 +183,19 @@ export class ItemsSelectionEngine {
     }
 }
 
+/** How the host's rows lie for the arrows: a wrap in lines whatever its orientation, a horizontal list both ways, the rest up and down. */
+function axisOf(root: HTMLElement): RowAxis {
+    if (root.matches(".ui-items-view--wrap"))
+        return "grid";
+
+    return root.matches(".ui-orientation--horizontal") ? "both" : "vertical";
+}
+
 /** The rows a Delete on `current` removes: every chosen row that allows it when `current` is among them, else `current` alone. */
 export function removableRows(rows: readonly HTMLElement[], current: HTMLElement): HTMLElement[] {
     const chosen = selectedRows(rows);
     const group = chosen.includes(current) ? chosen : [current];
 
-    return group.filter(row => !row.hasAttribute(UnremovableAttribute));
+    // A row chosen before it was disabled stays chosen, but a disabled row is never acted on.
+    return group.filter(row => !row.hasAttribute(UnremovableAttribute) && !isItemDisabled(row));
 }

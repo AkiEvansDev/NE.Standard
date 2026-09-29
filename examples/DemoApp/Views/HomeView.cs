@@ -38,8 +38,6 @@ internal sealed class HomeView : DemoView, IUIViewDefinition
                 }
 
                 _ = content.AddChild(list);
-            },
-            contentMinHeight: 80
-        );
+            });
     }
 }

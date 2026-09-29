@@ -2,10 +2,8 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 
 namespace NE.Standard.UI.Authoring.Components;
 
-/// <summary>
-/// An items component that draws no rows, taking its bound collection as values (a chart's points, a canvas's nodes). With no
-/// item template to target, item changes arrive as a full collection replace.
-/// </summary>
+/// <summary>An items component that draws no rows, taking its bound collection as values (a chart's points, a canvas's nodes).</summary>
+/// <remarks>With no item template to target, item changes arrive as a full collection replace.</remarks>
 public interface IItemValuesComponent
 {
     /// <summary>

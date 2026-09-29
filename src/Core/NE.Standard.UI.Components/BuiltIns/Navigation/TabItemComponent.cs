@@ -49,10 +49,12 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     public double? Order { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the tab is pinned: drawn with a pin, without its close control, and left where it is by a drag. Whether a
-    /// close from elsewhere is refused is the controller's answer.
+    /// Gets or sets whether the tab is pinned: drawn with a pin, without its close control, and left where it is by a drag.
     /// </summary>
-    /// <remarks>Two-way: the strip's tab menu pins and unpins, writing the new state back as a drag writes the order.</remarks>
+    /// <remarks>
+    /// Whether a close from elsewhere is refused is the controller's answer. Two-way: the strip's tab menu pins and unpins, writing the
+    /// new state back as a drag writes the order.
+    /// </remarks>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
@@ -109,8 +111,6 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
 /// </summary>
 public sealed class TabItemComponent(string? id = null) : TabItemComponent<TabItemComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tab-item";
 }

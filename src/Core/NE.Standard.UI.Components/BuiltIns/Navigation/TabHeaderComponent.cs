@@ -33,8 +33,6 @@ public abstract partial class TabHeaderComponent<T> : ButtonComponent<T>
 /// </summary>
 public sealed class TabHeaderComponent(string? id = null) : TabHeaderComponent<TabHeaderComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tab-header";
 }

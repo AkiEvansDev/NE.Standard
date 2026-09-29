@@ -13,7 +13,7 @@
     flex-direction: column;
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(height, --ui-height, fit-content);
-    .ui-responsive-property(min-width, --ui-min-width, 12rem);
+    .ui-responsive-floor(min-width, --ui-min-width, 12rem, --ui-width);
     gap: @ui-space-1;
     font: inherit;
 }
@@ -43,8 +43,7 @@
     color: var(--ui-text-muted);
 }
 
-// The same cross as the text input's clear, a step smaller to sit beside the chevron; shown only with a value to clear, and never
-// on a read-only select, whose trigger IsReadOnly renders disabled.
+// The text input's clear cross, a step smaller beside the chevron; only with a value, never on a read-only select.
 .ui-select__clear {
     .ui-field-adornment();
     .ui-cross-glyph(@ui-glyph-xs);
@@ -53,7 +52,7 @@
     height: 1rem;
 }
 
-.ui-select--clearable[data-ui-select-value]:not([data-ui-select-value=""]) .ui-select__trigger:not(:disabled) .ui-select__clear {
+.ui-select--clearable[data-ui-select-value]:not([data-ui-select-value=""]):not(.ui-readonly) .ui-select__trigger .ui-select__clear {
     display: inline-flex;
 }
 
@@ -61,12 +60,11 @@
     display: none;
 }
 
-// Read-only (IsReadOnly renders the trigger disabled): the value stays readable, but there is no list to open, so the chevron
-// goes with the clear above, as a read-only search's and multi-select's do.
-.ui-select__trigger:disabled {
+// Read-only (select, search, multi-select): focusable and readable, but no list, clear or chip removal, and no hand.
+.ui-select.ui-readonly > .ui-select__trigger {
     cursor: default;
 
-    > .ui-select__chevron {
+    :is(.ui-select__clear, .ui-select__chevron, .ui-multi-select__chip-remove) {
         display: none;
     }
 }
@@ -88,23 +86,23 @@
 .ui-select__popup {
     .ui-popup-surface();
     .ui-popup-scroll();
-    display: none;
+    .ui-popup-closed();
+    .ui-entry-list();
     max-height: min(16rem, calc(100vh - 2 * @ui-popup-viewport-margin));
     padding: @ui-space-1;
 }
 
 .ui-select--open > .ui-select__popup {
-    display: block;
+    .ui-popup-open(flex);
 }
 
-    // The chosen option is drawn through the list's own template, so the template's own child must take the content's room too, or a trailing badge has nothing to push against.
+    // The chosen option is the list's template: its child takes the content's room, or a trailing badge has nothing to push against.
     .ui-select__trigger-content > * {
         flex: 1 1 auto;
         min-width: 0;
     }
 
-    // The chosen option is the field's value, so it's set in the field's own font size, as a text field's is, not the body
-    // size its option template carries.
+    // The chosen option is the field's value: the field's font size, not its template's body size.
     .ui-select__trigger-content > .ui-text {
         font-size: inherit;
     }
@@ -127,6 +125,7 @@
     padding: @ui-space-2 @ui-space-3;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
     // A small field's list is as dense as the field: caption text, and half the padding.
@@ -139,28 +138,29 @@
             line-height: var(--ui-text-caption-line-height);
         }
 
-    .ui-select__option:hover {
-        background: var(--ui-wash-hover);
-    }
-
-// Marks which option Enter would choose, via the attribute rather than `:focus`, since the engine owns the roving tab stop.
+// The list's current option (Enter's), marked by attribute since a search keeps the focus in its field; the pointer moves the mark,
+// so there is no hover wash of its own. The pointer's mark shows only while the pointer is on it.
 .ui-select__option[data-ui-active] {
     outline: none;
+}
+
+.ui-select__option@{ui-list-current}:not([aria-selected="true"]) {
     background: var(--ui-wash-hover);
+}
+
+// A press is stronger than the pointer's rest, on any option but the chosen one.
+.ui-select__option:not([aria-selected="true"]):not([aria-disabled="true"]):active {
+    background: var(--ui-wash-active);
 }
 
 .ui-select__option[aria-selected="true"] {
     .ui-selected-ground();
 }
 
-// A disabled option says so by looking spent, and takes no pointer of its own.
+// A disabled option says so by looking spent, and takes no pointer of its own; the pointer never makes it current.
 .ui-select__option[aria-disabled="true"] {
     cursor: default;
 }
-
-    .ui-select__option[aria-disabled="true"]:hover {
-        background: transparent;
-    }
 
 // The empty state needs room around it, not just the muted caption text.
 .ui-select__popup > [data-ui-empty-placeholder] {

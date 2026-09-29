@@ -59,17 +59,11 @@ public sealed class UICommandFilterContext
     /// </summary>
     public CancellationToken CancellationToken { get; init; }
 
-    /// <summary>
-    /// Gets whether the command itself ran.
-    /// </summary>
-    /// <remarks>
-    /// False until <c>next</c> is awaited, and still false if an inner filter short-circuited instead of running it.
-    /// </remarks>
+    /// <summary>Gets whether the command itself ran.</summary>
+    /// <remarks>False until <c>next</c> is awaited, and still false if an inner filter short-circuited instead of running it.</remarks>
     public bool Invoked { get; private set; }
 
-    /// <summary>
-    /// Gets or sets the result the invocation returns.
-    /// </summary>
+    /// <summary>Gets or sets the result the invocation returns.</summary>
     /// <remarks>
     /// This is what the caller receives: a filter may replace it after <c>next</c>, or set it directly to short-circuit —
     /// leaving it unset while short-circuiting is an error.

@@ -13,6 +13,7 @@ using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
+using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Html;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -25,6 +26,9 @@ public static class WebShellRenderer
     private const string FullHeightSidesAttribute = "data-ui-full-height-sides";
     private const string SideDrawersAttribute = "data-ui-side-drawers";
     private const string DrawerBackdropClass = "ui-shell__drawer-backdrop";
+
+    // An icon of no bytes: the browser shows its own blank and fetches nothing.
+    private const string EmptyIcon = "data:,";
 
     private static readonly JsonSerializerOptions MetadataJsonOptions = WebWireJson.CreateOptions();
 
@@ -81,9 +85,34 @@ public static class WebShellRenderer
         if (context.Title is not null)
             _ = head.Element("title", title => title.Text(context.Title));
 
+        // Always named: without a link a browser asks for /favicon.ico, which an application serving none answers with a 404.
+        _ = head.Element("link", link =>
+        {
+            _ = link.Attribute("rel", "icon");
+            _ = link.Attribute("href", string.IsNullOrWhiteSpace(context.Icon) ? EmptyIcon : context.Icon);
+        });
+
         _ = head.Element("style", style => style.Raw(ThemeCss.GetValue(context.Theme, WebThemeCssBuilder.Build)));
         // The view's own, beside the theme's: a number the options checked, so nothing in it needs escaping.
         _ = head.Element("style", style => style.Raw(string.Create(CultureInfo.InvariantCulture, $":root{{--ui-notification-width:{context.NotificationWidth}px}}")));
+
+        // A face is otherwise asked for only once a rule using it is matched, after its stylesheet: a glyph face is `font-display:
+        // block`, so every icon would be a blank box for that extra round trip. `crossorigin`, as a font is always fetched in CORS
+        // mode: a preload without it is not the request the `@font-face` makes, and the face would download twice.
+        foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.Font))
+        {
+            if (!IsDrawnWith(asset, context.Theme))
+                continue;
+
+            _ = head.Element("link", link =>
+            {
+                _ = link.Attribute("rel", "preload");
+                _ = link.Attribute("href", ResolvePublicPath(asset));
+                _ = link.Attribute("as", "font");
+                _ = link.Attribute("type", "font/woff2");
+                _ = link.Attribute("crossorigin");
+            });
+        }
 
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.Css))
         {
@@ -105,6 +134,23 @@ public static class WebShellRenderer
             .Where(asset => asset.Kind == kind)
             .OrderBy(static asset => asset.Order)
             .ThenBy(static asset => asset.Key, StringComparer.Ordinal);
+
+    // Inter is only the default theme's face: a theme naming another never draws with it, and a preload would fetch it for nothing.
+    private static bool IsDrawnWith(WebAssetDescriptor font, UITheme theme)
+        => !string.Equals(font.Key, StandardWebAssetDescriptors.Font.Key, StringComparison.Ordinal)
+        || NamesFamily(theme.Typography.FontFamily, "Inter");
+
+    // An entry of the family list, not a substring: "Interstate" is another face. A theme's family holds no quotes to strip.
+    private static bool NamesFamily(string families, string family)
+    {
+        foreach (var entry in families.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (string.Equals(entry, family, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
 
     private static string ResolvePublicPath(WebAssetDescriptor asset)
         => asset.ResolveVersionedPublicPath();
@@ -239,12 +285,11 @@ public static class WebShellRenderer
 
         var model = new
         {
-            propertyDefinitions = metadata.PropertyDefinitions.Select(static property => new
-            {
-                propertyId = property.PropertyId,
-                componentTypeKey = property.ComponentTypeKey,
-                propertyName = property.PropertyName,
-                operations = property.Operations.Select(static operation => Written(
+            propertyDefinitions = metadata.PropertyDefinitions.Select(static property => Written(
+                ("propertyId", property.PropertyId),
+                ("componentTypeKey", property.ComponentTypeKey),
+                ("propertyName", property.PropertyName),
+                ("operations", property.Operations.Select(static operation => Written(
                     ("kind", operation.Kind),
                     ("target", operation.Target),
                     ("name", operation.Name),
@@ -252,8 +297,9 @@ public static class WebShellRenderer
                     ("condition", operation.Condition?.ToString()),
                     ("value", operation.Value),
                     ("optional", operation.Optional ? true : null)
-                ))
-            }),
+                ))),
+                ("translatable", property.Translatable ? true : null)
+            )),
             // No `kind`: nothing on the client reads it. `mode` only when it is not the default.
             bindings = metadata.Bindings.Select(static binding => Written(
                 ("bindingId", binding.BindingId.Value),
@@ -270,7 +316,8 @@ public static class WebShellRenderer
                     ("value", parameter.Value)
                 ))),
                 ("optional", binding.Optional ? true : null),
-                ("fallbackValue", binding.FallbackValue)
+                ("fallbackValue", binding.FallbackValue),
+                ("content", binding.Content ? true : null)
             )),
             items = metadata.ItemsTemplates.Select(static itemsTemplate => Written(
                 ("componentId", itemsTemplate.ComponentId.Value),
@@ -350,11 +397,11 @@ public static class WebShellRenderer
                 severity = validation.Severity.ToString(),
                 message = validation.Message
             }),
-            exposedProperties = metadata.ExposedProperties.Select(static property => new
-            {
-                componentId = property.ComponentId.Value,
-                propertyId = property.PropertyId
-            }),
+            exposedProperties = metadata.ExposedProperties.Select(static property => Written(
+                ("componentId", property.ComponentId.Value),
+                ("propertyId", property.PropertyId),
+                ("content", property.Content ? true : null)
+            )),
             validationTargets = metadata.ValidationTargets.Select(static target => new
             {
                 componentId = target.ComponentId.Value,
@@ -373,6 +420,13 @@ public static class WebShellRenderer
                     key = item.Key,
                     item = item.Item
                 }))
+            )),
+            // The key as it came: a string, or a phrase in its own wire shape.
+            words = metadata.Words.Select(static word => Written(
+                ("componentId", word.ComponentId.Value),
+                ("propertyId", word.PropertyId),
+                ("dynamicParameters", word.DynamicParameters.Count == 0 ? null : word.DynamicParameters),
+                ("key", word.Key)
             )),
             itemsFilterSort = metadata.ItemsFilterSort.Select(static itemsFilterSort => new
             {

@@ -25,6 +25,7 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.DownloadFile] = typeof(DownloadFileEffect),
         [ClientEffectKinds.Scroll] = typeof(CompiledScrollEffect),
         [ClientEffectKinds.SetTheme] = typeof(SetThemeEffect),
+        [ClientEffectKinds.SetLanguage] = typeof(SetLanguageEffect),
         [ClientEffectKinds.RenameTab] = typeof(CompiledRenameEffect),
         [ClientEffectKinds.RenameNode] = typeof(CompiledRenameEffect),
         [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect),

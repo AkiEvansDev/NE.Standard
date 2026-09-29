@@ -11,8 +11,7 @@
     font: inherit;
 }
 
-// Same field as every other, minus the row: a <textarea> holds its own text, so it wears .ui-field-box for its ground and states
-// instead of a flex box.
+// A <textarea> holds its own text, so it wears .ui-field-box for its ground and states instead of a row.
 .ui-text-area__field {
     width: 100%;
     max-width: 100%;
@@ -20,7 +19,3 @@
     padding: @ui-space-2 @ui-space-3;
     font: inherit;
 }
-
-    .ui-text-area__field:read-only {
-        cursor: default;
-    }

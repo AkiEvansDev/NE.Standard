@@ -33,9 +33,6 @@ if (app.Services.GetRequiredService<QuickSignIn>().Enabled)
     app.Services.GetRequiredService<AccountService>().SeedTestAccounts();
 app.Services.GetRequiredService<ChatService>().Seed();
 
-app.UseStaticFiles();
-app.UseRouting();
-
 await app.MapStandardUIWebAsync().ConfigureAwait(false);
 
 await app.RunAsync().ConfigureAwait(false);

@@ -68,14 +68,14 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
         _ = RenderProperty<string?>(context, icon, ActionComponent.TrailingIconProperty, (target, value) =>
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (!IconValueRenderer.Draws(value))
                 return;
 
             _ = root.Attribute(TrailingIconAttribute);
             IconValueRenderer.RenderIconValue(target, value);
         }, [
             .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(TrailingIconAttribute, target: "root", condition: WebValueCondition.HasText)
+            WebDomOperation.ToggleAttribute(TrailingIconAttribute, target: "root", condition: WebValueCondition.DrawsIcon)
         ]);
     }
 }

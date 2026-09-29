@@ -40,8 +40,6 @@ public abstract partial class ParagraphComponent<T> : TextComponentBase<T>, IPar
 /// </summary>
 public sealed class ParagraphComponent(string? id = null) : ParagraphComponent<ParagraphComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.paragraph";
 }

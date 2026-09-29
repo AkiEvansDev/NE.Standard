@@ -46,8 +46,7 @@ export class ItemsWindowEngine {
     private readonly options: ItemsWindowEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<Element, WindowState>();
-    // A reconnect or a controller-asked rebuild calls start() again; only the very first call may snap the viewport to the
-    // window read on the server — after that, the viewer's scroll position is realigned to, not overridden.
+    // Only the first start() snaps the viewport to the server's window; a reconnect or rebuild realigns to the viewer's scroll instead.
     private started = false;
 
     public constructor(options: ItemsWindowEngineOptions) {
@@ -82,15 +81,13 @@ export class ItemsWindowEngine {
     private revealWindow(host: Element): void {
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
-        // An end-anchored feed opened on an older part of its source is read up to that window's last row, so that row goes to
-        // the bottom edge, as the newest one would.
+        // An end-anchored feed opened on an older window puts that window's last row at the bottom edge, as the newest one would be.
         if (offset !== null && isEndAnchored(host) && isTrue(host.getAttribute(WindowMoreAfterAttribute))) {
             scrollHostTo(host, Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height));
             return;
         }
 
-        // A window that starts at the source's own start is already in view; scrolling to its first row would push whatever stands
-        // above the rows in the same scroller out of sight (a wide table's band and header are inside its root).
+        // Already in view at the source's start; scrolling to its first row would hide what stands above it (a wide table's header).
         if (offset === null || offset === 0)
             return;
 
@@ -112,17 +109,13 @@ export class ItemsWindowEngine {
         for (const host of this.hosts()) {
             this.layout(host);
 
-            // While a read is in flight the window still describes where the viewer was: following it would undo their scroll.
-            // The read realigns once it lands.
+            // A window with a read in flight is where the viewer was; following it would undo their scroll, and the read realigns.
             if (!this.getState(host).pending)
                 this.realign(host);
         }
     }
 
-    /**
-     * Puts the viewport back on the window when the server moved it out from under the viewer, e.g. a changed rule re-anchoring
-     * the window at the start, leaving the old scroll position over an empty spacer. Does nothing while rows are in view.
-     */
+    /** Puts the viewport back on a window the server moved from under the viewer (a changed rule); nothing while rows are in view. */
     private realign(host: Element): void {
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
         const items = itemElements(host);
@@ -316,7 +309,7 @@ export class ItemsWindowEngine {
             return;
         }
 
-        // The window's whole span over the items it stands as tall as, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
+        // The window's whole span over its items, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {
             const measured = boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
 
@@ -356,11 +349,9 @@ function isTrue(value: string | null): boolean {
     return value !== null && value.toLowerCase() === "true";
 }
 
-/**
- * How many items tall a window stands: its rows times the items one row holds. A stack answers its own count; a wrapping
- * host would otherwise average a row's height over every tile and read each item as a fraction of its real size.
- */
+/** How many items tall a window stands: its rows times the items one row holds. */
 function rowSpan(items: Element[]): number {
+    // Counted by rows: a wrapping host's row height averaged over every tile would read each item as a fraction of its size.
     const top = boxOf(items[0]).top;
     let perRow = 1;
 
@@ -371,13 +362,11 @@ function rowSpan(items: Element[]): number {
     return Math.ceil(items.length / perRow) * perRow;
 }
 
-/**
- * The box an item occupies. A wrapping host drops the row wrapper out of layout with `display: contents`, so the template's
- * own root takes the grid cell — a wrapper laid out that way measures as nothing.
- */
+/** The box an item occupies. */
 function boxOf(item: Element): DOMRect {
     const box = item.getBoundingClientRect();
 
+    // A wrapping host's row wrapper is `display: contents` and measures as nothing; the template's root takes the cell.
     return box.height > 0 || item.firstElementChild === null ? box : item.firstElementChild.getBoundingClientRect();
 }
 

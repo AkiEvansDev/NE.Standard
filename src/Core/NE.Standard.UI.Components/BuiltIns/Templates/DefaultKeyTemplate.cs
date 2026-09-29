@@ -15,8 +15,6 @@ public abstract class DefaultKeyTemplate<TTemplate>(bool binds = false) : Defaul
 /// </summary>
 public sealed class DefaultKeyTemplate(bool binds = false) : DefaultKeyTemplate<DefaultKeyTemplate>(binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.key.template";
 }

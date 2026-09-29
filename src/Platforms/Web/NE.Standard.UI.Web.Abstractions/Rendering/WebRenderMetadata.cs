@@ -24,6 +24,7 @@ public sealed class WebRenderMetadata
     private readonly Dictionary<(string OwnerTypeKey, string PropertyName), string> _propertyDefinitionIds = [];
     private readonly Dictionary<string, WebRenderPropertyDefinitionMetadata> _propertyDefinitionsById = [];
     private readonly Dictionary<UIPropertyAddress, string> _renderedPropertyIds = [];
+    private readonly HashSet<UIPropertyAddress> _contentAddresses = [];
     private readonly Dictionary<CompiledUIInteraction, WebRenderInteractionMetadata> _interactionMetadata = [];
     private readonly List<(CompiledUIItemsFilter Compiled, WebRenderItemsFilterMetadata Metadata)> _pendingItemsFilters = [];
     private readonly List<(CompiledUIItemsSort Compiled, WebRenderItemsSortMetadata Metadata)> _pendingItemsSorts = [];
@@ -44,6 +45,10 @@ public sealed class WebRenderMetadata
     private readonly List<WebRenderItemsTemplateMetadata> _itemsTemplates = [];
     private readonly List<WebRenderItemsFilterSortMetadata> _itemsFilterSort = [];
     private readonly List<WebRenderItemValuesMetadata> _itemValues = [];
+    private readonly List<WebRenderWordMetadata> _words = [];
+
+    // One entry per component, property and row keys: a value inside an item template renders once per row and says the same.
+    private readonly HashSet<(UIComponentId Component, string PropertyId, string Keys)> _wordKeys = [];
 
     public IReadOnlyList<WebRenderPropertyDefinitionMetadata> PropertyDefinitions
         => [.. _propertyDefinitions.Where(definition => _usedPropertyDefinitionIds.Contains(definition.PropertyId))];
@@ -67,6 +72,9 @@ public sealed class WebRenderMetadata
 
     public IReadOnlyList<WebRenderItemValuesMetadata> ItemValues => _itemValues;
 
+    /// <summary>The translatable values the page was rendered with rather than bound to, which a language switch writes again.</summary>
+    public IReadOnlyList<WebRenderWordMetadata> Words => _words;
+
     public IReadOnlyList<UIBindingId> InitBindingIds
         => _bindings
             .Select(static binding => binding.BindingId)
@@ -82,6 +90,12 @@ public sealed class WebRenderMetadata
     /// for a given property discard it.
     /// </remarks>
     public string RegisterProperty(string propertyOwnerTypeKey, UIProperty property, params ReadOnlySpan<WebDomOperation> operations)
+        => RegisterProperty(propertyOwnerTypeKey, property, translatable: false, operations);
+
+    /// <summary>
+    /// Registers what a property does to the DOM, and whether its value is localizable text the page looks up before writing it.
+    /// </summary>
+    public string RegisterProperty(string propertyOwnerTypeKey, UIProperty property, bool translatable, params ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyOwnerTypeKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
@@ -95,6 +109,9 @@ public sealed class WebRenderMetadata
             if (!OperationsEqual(existing.Operations, operations))
                 throw new InvalidOperationException($"Property '{propertyOwnerTypeKey}.{property.Name}' was registered with different DOM operations.");
 
+            // Kept once any instance says so: a registration that does not know (a package's older call) must not take it away.
+            existing.Translatable |= translatable;
+
             return propertyId;
         }
 
@@ -105,7 +122,8 @@ public sealed class WebRenderMetadata
             PropertyId = propertyId,
             ComponentTypeKey = propertyOwnerTypeKey,
             PropertyName = property.Name,
-            Operations = operations.ToArray()
+            Operations = operations.ToArray(),
+            Translatable = translatable
         };
 
         metadata.Validate();
@@ -118,6 +136,12 @@ public sealed class WebRenderMetadata
     }
 
     public void Bind(WebRenderContext context, CompiledUIBinding binding, string propertyId)
+        => Bind(context, binding, propertyId, content: false);
+
+    /// <summary>
+    /// Records a binding; <paramref name="content"/> says the property is translatable text this instance shows as written.
+    /// </summary>
+    public void Bind(WebRenderContext context, CompiledUIBinding binding, string propertyId, bool content)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(binding);
@@ -152,7 +176,8 @@ public sealed class WebRenderMetadata
             ItemTemplateParameters = itemTemplateParameters,
             Optional = binding.Optional,
             // Only set for a binding read out of an item — every other value already reaches the client substituted.
-            FallbackValue = itemTemplate is null ? null : binding.TargetFallbackValue
+            FallbackValue = itemTemplate is null ? null : binding.TargetFallbackValue,
+            Content = content
         };
 
         metadata.Validate();
@@ -211,6 +236,45 @@ public sealed class WebRenderMetadata
         metadata.Validate();
 
         _itemValues.Add(metadata);
+    }
+
+    /// <summary>
+    /// Records a translatable value the page was rendered with — a key or a phrase — so a language switch writes it again; once per
+    /// component, property and row keys.
+    /// </summary>
+    public void AddWord(UIComponentId componentId, string propertyId, IReadOnlyList<object?>? dynamicParameters, object key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyId);
+        ArgumentNullException.ThrowIfNull(key);
+
+        IReadOnlyList<object?> keys = dynamicParameters ?? [];
+
+        if (!_wordKeys.Add((componentId, propertyId, JoinKeys(keys))))
+            return;
+
+        _ = _usedPropertyDefinitionIds.Add(propertyId);
+
+        WebRenderWordMetadata word = new()
+        {
+            ComponentId = componentId,
+            PropertyId = propertyId,
+            DynamicParameters = keys,
+            Key = key
+        };
+
+        word.Validate();
+
+        _words.Add(word);
+    }
+
+    // The same text the client compares row keys by — a key sent as a number and one read off the page as digits are one row —
+    // each key prefixed with its length, so no key can run into the next.
+    private static string JoinKeys(IReadOnlyList<object?> keys)
+    {
+        if (keys.Count == 0)
+            return string.Empty;
+
+        return string.Concat(keys.Select(static key => Convert.ToString(key, CultureInfo.InvariantCulture) is { } text ? $"{text.Length}:{text};" : "-;"));
     }
 
     public void RegisterItemsFilterSort(UIComponentId componentId, CompiledUIItemsView itemsView)
@@ -297,7 +361,15 @@ public sealed class WebRenderMetadata
         }
     }
 
+    /// <summary>Records the id a rendered property answers to.</summary>
     public void RegisterRenderedProperty(UIPropertyAddress address, string propertyId)
+        => RegisterRenderedProperty(address, propertyId, content: false);
+
+    /// <summary>
+    /// Records the id a rendered property answers to; <paramref name="content"/> says it is translatable text this instance shows as
+    /// written, which a reference to it carries to the client (a package's <c>properties.set</c>).
+    /// </summary>
+    public void RegisterRenderedProperty(UIPropertyAddress address, string propertyId, bool content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyId);
 
@@ -316,6 +388,9 @@ public sealed class WebRenderMetadata
         }
 
         _renderedPropertyIds.Add(address, propertyId);
+
+        if (content)
+            _ = _contentAddresses.Add(address);
     }
 
     public void AddInteractions(IReadOnlyList<CompiledUIInteraction> interactions)
@@ -436,6 +511,9 @@ public sealed class WebRenderMetadata
 
         for (var i = 0; i < _itemsFilterSort.Count; i++)
             _itemsFilterSort[i].Validate();
+
+        for (var i = 0; i < _words.Count; i++)
+            _words[i].Validate();
     }
 
     private bool TryCreatePropertyMetadata(UIPropertyAddress address, out WebRenderPropertyMetadata? metadata)
@@ -451,7 +529,8 @@ public sealed class WebRenderMetadata
         metadata = new()
         {
             ComponentId = address.Component.Id,
-            PropertyId = propertyId
+            PropertyId = propertyId,
+            Content = _contentAddresses.Contains(address)
         };
 
         return true;

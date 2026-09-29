@@ -22,6 +22,9 @@ public sealed class WebShellContext
     /// <summary>Gets the document's title — the view's, translated for the page's language — or none.</summary>
     public string? Title { get; init; }
 
+    /// <summary>Gets the <c>href</c> of the page's icon (<see cref="WebEndpointOptions.Icon"/>), or none for an empty one.</summary>
+    public string? Icon { get; init; }
+
     public string RootElementId { get; init; } = "ui-root";
 
     /// <summary>
@@ -50,9 +53,9 @@ public sealed class WebShellContext
     public UIShellLayout ShellLayout { get; init; }
 
     /// <summary>
-    /// Gets whether the sides slide over the content as drawers on a narrow screen.
+    /// Gets whether the sides slide over the content as drawers on a narrow screen; on by default, as in <c>UIViewOptions</c>.
     /// </summary>
-    public bool SideDrawers { get; init; }
+    public bool SideDrawers { get; init; } = true;
 
     public WebRenderMetadata? Metadata { get; init; }
 

@@ -16,9 +16,7 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
-/// <summary>
-/// A list of navigation entries, vertical or horizontal, that folds to its icons alone.
-/// </summary>
+/// <summary>A list of navigation entries, vertical or horizontal, that folds to its icons alone.</summary>
 /// <remarks>
 /// <c>Surface</c> names the popup's fill — the context menu, split button list, or sub-entry flyout — unset elsewhere. One
 /// collection carries entries, captions, rules, checks and selects via <see cref="IMenuItemModel.Kind"/>; checks and selects
@@ -66,11 +64,11 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
     public UIResponsive<double>? Spacing { get; set; }
 
-    /// <summary>
-    /// Gets or sets the ground the menu paints, unset by default: a sidebar menu draws no ground, while a popup menu (context
-    /// menu, split-button list, flyout) wears the popup's surface colour.
-    /// </summary>
-    /// <remarks>Declared here rather than through the property block, whose default (<c>Background</c>) would paint every menu.</remarks>
+    /// <summary>Gets or sets the ground the menu paints, unset by default.</summary>
+    /// <remarks>
+    /// A sidebar menu draws no ground, while a popup menu (context menu, split-button list, flyout) wears the popup's surface
+    /// colour. Declared here rather than through the property block, whose default (<c>Background</c>) would paint every menu.
+    /// </remarks>
     [UIComponentProperty(Contract = typeof(ISurfaceStyleComponent), DefaultValue = null)]
     public UISurfaceStyle? Surface { get; set; }
 
@@ -113,10 +111,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         return Self;
     }
 
-    /// <summary>
-    /// Puts a search beside the menu's switch: what is typed narrows the entries in the browser by the words they show — a group
-    /// stays, open, while one of its sub-entries matches, and a caption while an entry under it does.
-    /// </summary>
+    /// <summary>Puts a search beside the menu's switch: what is typed narrows the entries in the browser by the words they show.</summary>
+    /// <remarks>A group stays, open, while one of its sub-entries matches, and a caption while an entry under it does.</remarks>
     public T SetSearch(string? placeholder = null)
     {
         _ = SetToggleContent(new TextInputComponent()
@@ -221,9 +217,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
 /// </summary>
 public sealed class MenuComponent(string? id = null, bool nested = false) : MenuComponent<MenuComponent>(id, nested), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.menu";
 
     /// <summary>The menu an entry's sub-entries are shown through.</summary>

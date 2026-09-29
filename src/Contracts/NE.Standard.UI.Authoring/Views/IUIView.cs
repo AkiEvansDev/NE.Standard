@@ -14,6 +14,12 @@ public interface IUIView
     string Title { get; }
 
     /// <summary>
+    /// Gets the arguments of the title's <c>{name}</c> slots, the title then being a translation key; <see langword="null"/> when
+    /// it has none.
+    /// </summary>
+    IReadOnlyDictionary<string, object?>? TitleArguments => null;
+
+    /// <summary>
     /// Gets the regions declared by the view.
     /// </summary>
     IReadOnlyList<UIRegion> Regions { get; }

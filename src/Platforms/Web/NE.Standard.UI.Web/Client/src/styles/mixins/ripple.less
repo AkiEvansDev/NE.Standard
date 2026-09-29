@@ -1,8 +1,9 @@
-// The press ripple: opt-in per theme (press-ripple-engine.ts adds `.ui-pressing` only under the flag), so mixing this in
-// costs nothing beyond an idle pseudo-element until then. `--ui-press-x/y` are the pointer's offset, written at `pointerdown`.
+@import "../core/tokens.less";
+
+// The press ripple, which press-ripple-engine.ts starts (`.ui-pressing`, `--ui-press-x/y`) unless a theme turns it off.
 .ui-press-ripple() {
-    // Clipped only while the ripple plays, so a rounded corner isn't spilled over and an adornment's own overhang stays untouched at rest.
-    // Not while loading: the veil in runtime.less is the same pseudo-element, and a ripple winning it would flash behind the label for a moment.
+    // Clipped to the corners only while it plays, so an adornment's overhang is untouched at rest.
+    // Not while loading: runtime.less's veil is the same pseudo-element, and the ripple would flash behind the label.
     &.ui-pressing:not(.ui-loading) {
         overflow: hidden;
     }
@@ -18,7 +19,7 @@
         background: radial-gradient(circle, var(--ui-wash-active) 0%, transparent 70%);
         transform: translate(-50%, -50%) scale(0);
         pointer-events: none;
-        animation: ui-press-ripple 250ms ease-out;
+        animation: ui-press-ripple @ui-motion-ripple @ui-motion-enter;
     }
 }
 
@@ -31,12 +32,5 @@
     to {
         transform: translate(-50%, -50%) scale(1);
         opacity: 0;
-    }
-}
-
-// The scale is the whole effect, so turning it off is turning the ripple off outright rather than leaving a static disc.
-@media (prefers-reduced-motion: reduce) {
-    .ui-pressing::after {
-        display: none;
     }
 }

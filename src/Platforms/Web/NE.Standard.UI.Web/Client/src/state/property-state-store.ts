@@ -2,15 +2,19 @@ import { getIdValue } from "../metadata/metadata-index.ts";
 import type { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
 import { areValuesEqual } from "./value-equality.ts";
 
-/**
- * A row an entry was written under: the items host's component, the host's own dynamic parameters (the keys of the rows it
- * stands in, outermost first) and the row's key. A templated host shares its id with every copy of itself, so the parameters
- * are what tell one outer row's list from another's.
- */
+/** A row an entry was written under: the items host's component, the host's own dynamic parameters and the row's key. */
 export type PropertyStateRow = {
     readonly host: number;
+    // Outermost first; a templated host shares its id with every copy, so these tell one outer row's list from another's.
     readonly hostParameters: readonly unknown[];
     readonly key: string;
+};
+
+/** One recorded value with the address it was written at — the value as it came, a translatable key or a phrase included. */
+export type PropertyStateEntry = {
+    readonly reference: WebRenderPropertyReferenceMetadata;
+    readonly dynamicParameters: readonly unknown[];
+    readonly value: unknown;
 };
 
 type RowState = {
@@ -27,17 +31,16 @@ type UnplacedRow = {
 };
 
 export class PropertyStateStore {
-    private readonly values = new Map<string, unknown>();
+    private readonly values = new Map<string, PropertyStateEntry>();
     // Rows by host instance, each with the entries written under it, so a row that leaves takes its entries with it.
     private readonly scopes = new Map<string, Map<string, RowState>>();
-    // Entries written with no row element, by the path of their address's keys: a row that leaves must take them too, or a
-    // later push equal to a departed row's value reads as no change. The path names no host, so forgetting one host's row
-    // also forgets a sibling host's row of the same key — which only makes that row's next value a first one again.
+    // Entries written with no row element, by their keys' path: a leaving row takes them, or a later equal push reads as no change.
+    // The path names no host, so a sibling host's row of the same key goes too; its next value merely counts as a first one.
     private readonly unplaced = new Map<string, UnplacedRow>();
     private readonly unplacedPathByEntry = new Map<string, string>();
 
     public get(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[] = []): unknown {
-        return this.values.get(this.createKey(reference, dynamicParameters));
+        return this.values.get(this.createKey(reference, dynamicParameters))?.value;
     }
 
     public has(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[] = []): boolean {
@@ -47,7 +50,7 @@ export class PropertyStateStore {
     /** Records a value; `rows` are the rows its element stands in, innermost first. */
     public set(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, rows: readonly PropertyStateRow[] = []): boolean {
         const key = this.createKey(reference, dynamicParameters);
-        const previousValue = this.values.get(key);
+        const previous = this.values.get(key);
 
         if (rows.length > 0) {
             this.recordRows(key, rows);
@@ -57,12 +60,17 @@ export class PropertyStateStore {
             this.recordUnplaced(key, dynamicParameters);
         }
 
-        if (this.values.has(key) && areValuesEqual(previousValue, value))
+        if (previous !== undefined && areValuesEqual(previous.value, value))
             return false;
 
-        this.values.set(key, value);
+        this.values.set(key, { reference, dynamicParameters, value });
 
         return true;
+    }
+
+    /** Every value recorded, with its address: what a language switch writes again from the keys it holds. */
+    public entries(): IterableIterator<PropertyStateEntry> {
+        return this.values.values();
     }
 
     /** Forgets what the named rows of one host instance held, once the rows are gone: their next value is a first one again. */

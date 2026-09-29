@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
@@ -26,7 +27,7 @@
 .ui-menu__host {
     display: flex;
     flex: 1 1 auto;
-    .ui-responsive-property(gap, --ui-menu-spacing, 2px);
+    .ui-responsive-property(gap, --ui-menu-spacing, @ui-list-entry-gap);
     min-width: 0;
 }
 
@@ -50,8 +51,7 @@
     min-width: 0;
 }
 
-// An entry wears .ui-button for hover, active, disabled and variants; left here is only the row shape and current/caption/rule.
-// Rounded corners on every entry but the current one, a slice of the rail that stays square.
+// An entry's states are .ui-button's; here its row shape: rounded, but for the current entry, a square slice of the rail.
 .ui-menu-item {
     justify-content: flex-start;
     border-radius: var(--ui-radius-button);
@@ -67,21 +67,23 @@
     border-radius: 0;
 }
 
+// The current entry keeps its ground under the pointer: restated at the ghost button's hover specificity, which this file wins by order.
+// It is square, its mark a straight line on the edge the sidebar hangs off, unless the author moved or removed it.
 .ui-menu-item--selected {
     .ui-selected-ground();
     .ui-selected-ink();
+    border-radius: 0;
+    .ui-reveal-hover-off({ .ui-selected-ground(); });
 }
 
-    // Restated at the ghost button's hover specificity (this file comes after ui-button.less, so the tie is ours): a plain
-    // `:hover` lost to it and the current entry turned the neutral wash under the pointer.
-    .ui-menu-item--selected {
-        .ui-reveal-hover-off({ .ui-selected-ground(); });
-    }
+// The entry the arrows reached, lit only while a key put it there; the current entry is the keyboard's place already.
+.ui-menu-item@{ui-button-live} {
+    .ui-entry-keyboard(~".ui-menu-item--selected");
+}
 
-// The current entry is square all round, its mark a straight line on the edge the sidebar hangs off, unless the author moved
-// it or took it away.
-.ui-menu-item--selected {
-    border-radius: 0;
+// In a popup the keyboard's entry is the one current entry: the pointer takes its place by moving (menu-engine.ts).
+:is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) {
+    .ui-entry-quiet(~".ui-menu-item"; @ui-button-live; ~".ui-menu-item--selected");
 }
 
 .ui-menu.ui-side--left .ui-menu-item--selected {
@@ -105,27 +107,49 @@
     .ui-selected-mark(@ui-selected-mark-bottom);
 }
 
-// Collapsed, an entry keeps its horizontal padding so the glyph stays where it stood beside the title, aligned with the page
-// title's edge. Excludes the flyout, whose entries keep their titles and row shape.
+// Collapsed, an entry keeps its padding so the glyph stays in line with the page title's edge; not in the flyout, which keeps titles.
 @{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *) {
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
-// The indent is on the wrapper, not the entry's own padding, a responsive authoring property that would swallow it on the next render.
+// Indented on the wrapper: an entry's padding is a responsive property the next render rewrites. Clipped on the block axis only, for the unfold.
 .ui-menu__submenu {
     display: none;
     flex-direction: column;
-    .ui-responsive-property(gap, --ui-menu-spacing, 2px);
+    .ui-responsive-property(gap, --ui-menu-spacing, @ui-list-entry-gap);
     padding-left: @ui-space-4;
-    padding-top: 2px;
+    block-size: 0;
+    // A flex item of its entry's column: the automatic minimum (its content's height) would hold `block-size`, and nothing would fold.
+    min-block-size: 0;
+    overflow-y: clip;
 }
 
-[data-ui-menu-group][data-ui-menu-open] > .ui-menu__submenu {
+// The air over the first entry opens with the section: on a closed one it would stand 2 px outside the fold, and in a folded rail.
+[data-ui-menu-group][data-ui-menu-open] > .ui-menu__submenu:not([data-ui-menu-flyout]) {
     display: flex;
+    padding-top: @ui-list-entry-gap;
+    block-size: auto;
 }
 
-// The mark that an entry has more under it; lighter than a control's chevron, since it's a note on a row, not its control.
-// Matches the fold-mark size used elsewhere, kept to a whole pixel count so the unrotated mask doesn't read as cut off.
+// A section unfolds in place as an expander does (interpolate-size is on in reset.less), `display` held until the fold is over.
+// Not a select's choices or a folded rail's groups: they fly out, and one closing must not play a fold in the rail. One curve both
+// ways, as an accordion's: the section opening and the one closing with it cancel frame by frame.
+.ui-menu:not([data-ui-collapsed]) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+    transition:
+        block-size @ui-motion-normal @ui-motion-ease,
+        padding-top @ui-motion-normal @ui-motion-ease,
+        display @ui-motion-normal allow-discrete;
+}
+
+    // From nothing only once the reader unfolded a section (menu-group-engine.ts): the one a page opens on stands open, not sliding.
+    .ui-menu[data-ui-menu-unfolded] [data-ui-menu-group][data-ui-menu-open] > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+        @starting-style {
+            padding-top: 0;
+            block-size: 0;
+        }
+    }
+
+// The mark that an entry has more under it: lighter than a control's chevron, a note on a row; whole pixels, or the mask reads cut off.
 [data-ui-menu-group] > .ui-menu-item::after {
     .ui-chevron(@ui-glyph-md);
     .ui-chevron-right();
@@ -137,17 +161,26 @@
     .ui-chevron-down();
 }
 
-// Collapsed, a group has nowhere for sub-entries inline, so the block sits beside the icon; the entries stay where they are in the DOM.
+// In step with the section folding under it, as an expander's chevron, not at the fast tempo of a chevron with nothing to follow.
+.ui-menu:not([data-ui-collapsed]) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
+    transition-duration: @ui-motion-normal;
+}
+
+// Collapsed, a group's entries fly out beside the icon; the flyout mark outlasts the open one by the fade (menu-group-engine.ts).
 .ui-menu__submenu[data-ui-menu-flyout] {
     .ui-popup-surface(40);
     .ui-popup-scroll();
-    display: flex;
+    .ui-popup-closed();
+    block-size: auto;
     min-width: 10rem;
     padding: @ui-space-1;
 }
 
-// An entry whose label is only a glyph is still a row: a button turns square there, and a square as wide as the rail is a row
-// as tall as the rail is wide.
+[data-ui-menu-open] > .ui-menu__submenu[data-ui-menu-flyout] {
+    .ui-popup-open(flex);
+}
+
+// A glyph-only entry is still a row: a button turns square there, and a square as wide as the rail would be as tall.
 .ui-menu-item[data-ui-text-icon]:not([data-ui-text-title]) {
     aspect-ratio: auto;
 }
@@ -157,13 +190,12 @@
     margin-top: @ui-space-3;
     padding-bottom: 0;
     background: none;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     .ui-text-type--overline();
     pointer-events: none;
 }
 
-    // The caption's text body wears TitleType and would re-declare its five properties over the entry's word, so the role is
-    // reapplied here — the same reason as the selected tab's weight and the current step's.
+    // The caption's text wears TitleType, which would re-declare the type over the entry's, so the role is reapplied (as for a selected tab).
     .ui-menu-item[data-ui-menu-item-kind="header"] .ui-text {
         .ui-text-type--overline();
     }
@@ -172,7 +204,7 @@
     margin-top: 0;
 }
 
-// A rule carries no content, but the content region is still rendered, so it is taken out of the flow rather than left to occupy a line.
+// A rule has no content, but its content region still renders: out of the flow, so it takes no line.
 .ui-menu-item[data-ui-menu-item-kind="separator"] {
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
@@ -198,7 +230,7 @@
 .ui-menu-item__shortcut {
     margin-left: auto;
     padding-left: @ui-space-4;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     font-size: var(--ui-text-caption-font-size);
     white-space: nowrap;
 }
@@ -227,8 +259,7 @@
         margin-right: 0;
     }
 
-    // One track and no gap, or the hidden body's track would push the glyph off centre. A trailing-badge entry is stretched full
-    // width by ui-button.less; collapsed, with the badge hidden too, centring must be restated here.
+    // One track, no gap, or the hidden body's track pushes the glyph off centre; restated as ui-button.less stretches a badge entry.
     @{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *) > .ui-text {
         grid-template-columns: auto;
         gap: 0;
@@ -253,11 +284,17 @@
     display: none;
 }
 
-// A group whose sub-entries are out of sight says so on its own entry, since the current mark inside would otherwise be nowhere on screen.
+// A group whose current entry is out of sight carries the mark itself, as a layer over its ground: the pointer's and a press's
+// washes stay that ground, as on its neighbours, so a rule quieting them (a key holding this entry or another) never takes the mark.
 .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected),
 @{ui-menu-collapsed} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
-    background: var(--ui-wash-descendant);
+    background-image: linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
     color: var(--ui-color-primary-ink);
+
+    // The keyboard's wash over the mark, not in its place.
+    &@{ui-button-live}@{ui-keyboard-focus} {
+        background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
+    }
 }
 
 @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] {
@@ -288,12 +325,11 @@
     opacity: 1;
 }
 
-// A select entry's value sits at the row's end, muted like a shortcut, with the group's chevron a step after it. The chevron
-// keeps pointing right while open, since choices fly out beside the entry rather than unfolding under it.
+// A select entry's value sits at the row's end, muted like a shortcut; its chevron stays right while open, as the choices fly out.
 .ui-menu-item__value {
     margin-left: auto;
     padding-left: @ui-space-4;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     font-size: var(--ui-text-caption-font-size);
     white-space: nowrap;
 }
@@ -302,8 +338,7 @@
         display: none;
     }
 
-// A row ending in both a word and a mark (shortcut+check, value+chevron) has two `margin-left: auto`, which split the free
-// space and would strand the word mid-row rather than against the mark.
+// A word and a mark (shortcut+check, value+chevron) would split the free space between two `margin-left: auto`, stranding the word.
 .ui-menu-item:has(> :is(.ui-menu-item__shortcut, .ui-menu-item__value):not(:empty))::after {
     margin-left: @ui-space-2;
 }
@@ -317,8 +352,7 @@
     padding-left: @ui-space-1;
 }
 
-// The sub-entries are a nested menu of their own inside the submenu block: a column like the outer's, taking the block's width and
-// nothing of the outer's chrome.
+// The sub-entries are a nested menu: a column taking the block's width and none of the outer's chrome.
 .ui-menu--nested {
     display: flex;
     flex-direction: column;
@@ -329,8 +363,7 @@
         flex-direction: column;
     }
 
-// The menu's Surface names the fill of the popup it opens in (context menu, split-button list, flyout), so a menu can sit on
-// the page's ground or a raised surface instead of the default popup surface.
+// The menu's Surface names the fill of the popup it opens in (context menu, split-button list, flyout).
 .ui-context-menu:has(> .ui-menu.ui-surface--background),
 .ui-split-button__menu:has(> .ui-menu.ui-surface--background),
 .ui-menu.ui-surface--background .ui-menu__submenu[data-ui-menu-flyout] {
@@ -349,16 +382,14 @@
     background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
 }
 
-// The search beside the switch fills the width the entries give the menu and asks for none of its own: an input's own width is
-// twenty characters whatever the menu holds, which would widen a sidebar for a field.
-// It starts where an entry's glyph does, past the entry's 1px button border and its padding, so it stands in the entries' column.
+// The search takes the entries' width and asks for none: an input's own twenty characters would widen a sidebar.
+// It starts past an entry's 1px border and padding, in the entries' glyph column.
 .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content {
     width: 0;
     padding-inline-start: calc(1px + @ui-space-2);
 }
 
-    // A small field's glyph is a size under an entry's; centred in a box an entry's glyph wide, it sits on the glyphs below it
-    // and the field's text on their titles.
+    // A small field's glyph, centred in a box an entry's glyph wide, lines up with the glyphs below and its text with their titles.
     .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-input__affix-icon--prefix {
         justify-content: center;
         inline-size: var(--ui-text-body-font-size);

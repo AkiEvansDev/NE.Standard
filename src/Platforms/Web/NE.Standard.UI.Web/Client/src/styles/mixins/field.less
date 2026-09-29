@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "./focus.less";
 @import "./glyphs.less";
 @import "./interactive.less";
 
@@ -11,8 +12,7 @@
     --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
     // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
     --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
-    // What Outline and Underline lift their border to on hover. A control that doesn't lift (a code field, not a list row) sets
-    // this to its rest, so the hover rule still runs but has no visible effect.
+    // Outline's and Underline's border on hover; a control that doesn't lift (a code field) sets it to its rest.
     --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
     border: var(--ui-border-width, 1px) solid var(--ui-field-rest);
     border-radius: var(--ui-radius-input);
@@ -32,8 +32,32 @@
     .ui-field-ground();
 }
 
-// A glyph button inside a field (text input's clear, temporal input's picker toggle): round, borderless, muted. It answers
-// hover with its ink alone, since the field's row is the surface that lifts — a wash on the glyph too would read as a button on a button.
+// A field's value read from its trailing edge. Where the browser can, the field is as wide as its text plus a caret and stands at
+// the edge, start-aligned: an end-aligned value ends on the edge Chromium clamps the caret inside, so the caret at the end stood
+// on the last character whatever the padding. A press on the box's empty space still reaches the field (field-box-press-engine.ts).
+.ui-field-value-at-end() {
+    text-align: end;
+
+    @supports (field-sizing: content) and (width: calc-size(auto, size)) {
+        flex: 0 1 auto;
+        // The caret's own width past the text; sized to the text alone, the caret at the end is clamped back over the last character.
+        width: ~"calc-size(auto, size + 1px)";
+        min-width: 0;
+        margin-inline-start: auto;
+        text-align: start;
+        field-sizing: content;
+    }
+}
+
+// A field's part that does nothing now (a read-only field's toggle or pick), dimmed so it does not look live.
+@ui-field-idle-part-opacity: 0.5;
+
+// An adornment that answers the pointer: not disabled, natively or by `aria-`. Its hover and every take-back spell it, so they tie;
+// never inside a `:has()`, which the browser drops whole.
+@ui-adornment-live: ~":not(:disabled, [aria-disabled='true'])";
+
+// A glyph button inside a field (a clear, a picker toggle): round, borderless, muted. Hover moves its ink alone — the row already
+// lifts, and a wash too would read as a button on a button — and nothing while `aria-disabled` (a read-only field's toggle).
 .ui-field-adornment() {
     position: relative;
     display: inline-flex;
@@ -51,13 +75,17 @@
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
-    &:hover {
+    &@{ui-adornment-live}:hover {
         color: var(--ui-color-on-surface);
+    }
+
+    &:is(:disabled, [aria-disabled='true']) {
+        cursor: default;
+        opacity: @ui-field-idle-part-opacity;
     }
 }
 
-// The veil over a picture a viewer may replace (the picture field, a package's picture surface): a pencil on dark glass,
-// shown under the pointer or keyboard, never over an empty surface. When it shows is the caller's rule.
+// The veil over a replaceable picture: a pencil on dark glass, hidden; the caller shows it (pointer, keyboard, never when empty).
 .ui-picture-veil(@glyph: 1.5rem) {
     position: absolute;
     inset: 0;
@@ -112,8 +140,7 @@
     }
 }
 
-// The pick control at a file field's end (a file input's, an inline image input's): the drawn ellipsis behind the same divider a
-// stepper draws, answering the pointer with its ink alone.
+// The pick control at a file field's end: an ellipsis behind a stepper's divider, answering the pointer with its ink alone.
 .ui-field-pick() {
     .ui-ellipsis-glyph();
     display: inline-flex;
@@ -134,7 +161,28 @@
     line-height: 1;
 }
 
-// A shared variable, not repeated per file, since a row missing from one silently half-applies. `@ui-input-field-state` adds
-// `.ui-field-box` (box-shaped fields) and the image input's surface, which want the invalid/focus border but not this sizing, which would distort their shape.
+// A field's state edges, for ui-input.less and a field-shaped non-input (a band button): hover, and focus or an open popup.
+.ui-field-edge-hover(@color: var(--ui-field-hover)) {
+    border-color: @color;
+}
+
+.ui-field-edge-active(@color: var(--ui-color-primary)) {
+    border-color: @color;
+    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) @color;
+}
+
+// The states of an own field-shaped control on `.ui-field-ground()`: hover, and the active edge on a field's focus or an open popup.
+.ui-field-states(@hover: var(--ui-field-hover)) {
+    &@{ui-button-live}:hover {
+        .ui-field-edge-hover(@hover);
+    }
+
+    &@{ui-button-live}:is(@{ui-field-focus}, [aria-expanded="true"]) {
+        .ui-field-edge-active();
+    }
+}
+
+// Shared, not repeated per file: a row missing from one silently half-applies. The state list adds box-shaped fields, which take
+// the invalid/focus border but not this sizing, which would distort them.
 @ui-input-field: ~".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger";
 @ui-input-field-state: ~"@{ui-input-field}, .ui-field-box, .ui-image-input__surface";

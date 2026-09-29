@@ -61,8 +61,6 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
 /// </summary>
 public sealed class ImageComponent(string? id = null) : ImageComponent<ImageComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.image";
 }

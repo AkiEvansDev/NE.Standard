@@ -21,7 +21,7 @@
 }
 
 // The input is hidden, so the ring it would wear goes on the track it stands for.
-.ui-switch__input:focus-visible ~ .ui-switch__box {
+.ui-switch__input@{ui-keyboard-focus} ~ .ui-switch__box {
     .ui-focus-ring();
 }
 
@@ -30,8 +30,7 @@
     border-color: var(--ui-color-primary);
 }
 
-// Whole pixels at the root size (0.75rem is 12px, 0.1875rem 3px), centred by auto margins rather than translate(-50%): a
-// 12.8px knob moved half a pixel by a transform, which the pixel grid does not snap, rendered with a soft edge.
+// Whole pixels at the root size, centred by auto margins: translate(-50%) leaves a half pixel the grid does not snap, a soft edge.
 .ui-switch__box::after {
     content: "";
     position: absolute;
@@ -46,8 +45,7 @@
     transition: left @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
-// The far rim is a percentage of the box's padding box, not a flat rem, so it resolves correctly whatever the browser rounds
-// the border pair to — a flat value overshoots the room the two borders leave for the knob's travel.
+// A percentage of the padding box, not a flat rem, which overshoots the travel whatever the browser rounds the borders to.
 .ui-switch__input:checked ~ .ui-switch__box::after {
     background: var(--ui-color-on-primary);
     left: calc(100% - 0.1875rem - 0.75rem);

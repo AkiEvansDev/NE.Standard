@@ -15,18 +15,47 @@ public static class UserSessionStoreExtensions
     /// Records the theme a session moved to, so the next page render starts in it; answers <see langword="false"/> when the
     /// session no longer exists or already carries this theme, meaning nothing was saved.
     /// </summary>
+    /// <remarks>
+    /// Through <see cref="IUserSessionStore.TryUpdateAsync"/>: a read and a save of its own would write back a session signed out
+    /// or changed meanwhile.
+    /// </remarks>
     public static async ValueTask<bool> SetThemeModeAsync(this IUserSessionStore store, string sessionId, UIThemeMode? mode, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        UserSessionState? session = await store.TryGetAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var changed = false;
 
-        if (session is null || session.ThemeMode == mode)
-            return false;
+        var existed = await store.TryUpdateAsync(sessionId, session =>
+        {
+            changed = session.ThemeMode != mode;
 
-        await store.SaveAsync(session with { ThemeMode = mode, IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
+            return changed ? session with { ThemeMode = mode, IsUnclaimed = false } : session;
+        }, cancellationToken).ConfigureAwait(false);
 
-        return true;
+        return existed && changed;
+    }
+
+    /// <summary>
+    /// Moves a session to a language, answering the session as stored — left as it was where it already had the language, as the
+    /// theme's is — or <see langword="null"/> when it no longer exists.
+    /// </summary>
+    /// <remarks>
+    /// The page's own switch: the caller makes the answer the connection's session (<c>UIHost.ApplySessionChangeAsync</c>). Through
+    /// <see cref="IUserSessionStore.TryUpdateAsync"/>, as every change is.
+    /// </remarks>
+    public static async ValueTask<UserSessionState?> SetLanguageAsync(this IUserSessionStore store, string sessionId, string language, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+
+        UserSessionState? written = null;
+
+        var existed = await store.TryUpdateAsync(sessionId, session => written = string.Equals(session.Language, language, StringComparison.Ordinal) && !session.IsUnclaimed
+            ? session
+            : session with { Language = language, IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
+
+        return existed ? written : null;
     }
 }

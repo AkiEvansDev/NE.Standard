@@ -61,8 +61,6 @@ public abstract partial class ColorInputComponent<T>(string? id = null) : FieldI
 /// </summary>
 public sealed class ColorInputComponent(string? id = null) : ColorInputComponent<ColorInputComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.color";
 }

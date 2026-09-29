@@ -2,12 +2,8 @@ using NE.Colors;
 
 namespace NE.Standard.UI.Abstractions.Styling;
 
-/// <summary>
-/// Whether a colour reads as light, and therefore which of a theme's two text colours belongs on top of it.
-/// </summary>
-/// <remarks>
-/// Relative luminance as WCAG defines it, not a plain channel average, which gets mid-tones wrong.
-/// </remarks>
+/// <summary>Whether a colour reads as light, and therefore which of a theme's two text colours belongs on top of it.</summary>
+/// <remarks>Relative luminance as WCAG defines it, not a plain channel average, which gets mid-tones wrong.</remarks>
 public static class UIColorContrast
 {
     private const double Threshold = 0.1791;

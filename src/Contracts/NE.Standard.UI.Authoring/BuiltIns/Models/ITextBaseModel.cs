@@ -28,7 +28,6 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     /// <summary>
     /// Gets the icon shown before the title, by name from the registered icon font/set.
     /// </summary>
-    [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
     string? Icon { get; }
 

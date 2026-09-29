@@ -41,10 +41,12 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? Culture { get; set; }
 
-    /// <summary>
-    /// Gets or sets the message shown when what the user typed does not match <see cref="Format"/>.
-    /// </summary>
-    /// <remarks>Not translatable and unbindable: the runtime reads it once off the compiled state while rejecting a value.</remarks>
+    /// <summary>Gets or sets the message shown when what the user typed does not match <see cref="Format"/>.</summary>
+    /// <remarks>
+    /// Unbindable: the runtime reads it once off the compiled state while rejecting a value. The page translates it as it does a
+    /// label; <c>AsContent</c> keeps it as written.
+    /// </remarks>
+    [Translatable]
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? FormatMessage { get; set; }
 

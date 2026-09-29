@@ -1,5 +1,7 @@
 // Arrowing between siblings, skipping the ones that are not really there; which element the key moves to, leaving the rest to the caller.
 
+import { isInert } from "./interactive-state.ts";
+
 export type RovingAxis = "vertical" | "horizontal" | "both";
 
 export type RovingRequest = {
@@ -59,13 +61,10 @@ export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLE
         item.tabIndex = item === active ? 0 : -1;
 }
 
-/** Whether an element can take the caret: rendered, and not disabled. */
+/** Whether an element can take the caret: rendered, and neither disabled itself nor inside something disabled or loading. */
 export function isRovingCandidate(item: HTMLElement): boolean {
     // Client rects rather than offsetParent, which is also null for the position:fixed of an open context menu.
-    if (item.getClientRects().length === 0)
-        return false;
-
-    return !item.matches(":disabled, .ui-disabled, [aria-disabled='true']");
+    return item.getClientRects().length > 0 && !isInert(item);
 }
 
 function resolveEdge(key: string): "first" | "last" | null {

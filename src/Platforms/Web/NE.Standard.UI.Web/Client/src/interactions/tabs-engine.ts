@@ -1,12 +1,13 @@
 // Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
-import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
-import { happenedInside, observeComponents } from "./dom-mutations";
-import { isLaidOut } from "./element-visibility";
-import { ownDescendants } from "./own-descendants";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
-import { writeSelectedKey } from "./selected-key";
-import { OverflowButtonClass, StripFitter } from "./strip-overflow";
+import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { happenedInside, observeComponents } from "./dom-mutations.ts";
+import { isLaidOut } from "./element-visibility.ts";
+import { isInert } from "./interactive-state.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { writeSelectedKey } from "./selected-key.ts";
+import { OverflowButtonClass, StripFitter } from "./strip-overflow.ts";
 
 const RootClass = "ui-tabs";
 const HeaderClass = "ui-tab-header";
@@ -32,7 +33,7 @@ export class TabsEngine {
         this.fitter = new StripFitter({
             rootClass: RootClass,
             overflowingClass: OverflowingModifier,
-            wrapsClass: NoOverflowModifier,
+            wraps: root => root.classList.contains(NoOverflowModifier),
             hiddenClass: OverflowedModifier,
             refit: root => this.apply(root),
             pick: (root, key) => this.pickFromOverflow(root, key)
@@ -43,9 +44,8 @@ export class TabsEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // A server patch writes the same attribute a click does, as does a caption hidden or shown; a tabs view that arrives whole
-        // (a row the client built) had its attribute written before it joined the document, so it's applied on arrival. What happens
-        // inside a page is the page's own: a table patched there must not re-measure the strip with a forced layout on every push.
+        // A patch, a caption hidden or shown, or a strip arriving whole with its attribute already written all apply again.
+        // What happens inside a page is its own: a table patched there must not force a strip layout on every push.
         observeComponents(
             this.root,
             `.${RootClass}`,
@@ -65,8 +65,8 @@ export class TabsEngine {
         const headers = this.ownHeaders(root);
         const selectedHeader = headers.find(header => (header.getAttribute(TabKeyAttribute) ?? "") === selected) ?? null;
 
-        if (selectedHeader !== null && !isLaidOut(selectedHeader)) {
-            const fallback = headers.find(isLaidOut);
+        if (selectedHeader !== null && !isShown(selectedHeader)) {
+            const fallback = headers.find(isShown);
 
             if (fallback !== undefined) {
                 this.select(root, fallback.getAttribute(TabKeyAttribute) ?? "");
@@ -86,7 +86,7 @@ export class TabsEngine {
                 current = header;
         }
 
-        this.fitHeaders(root, headers.filter(isLaidOut), current);
+        this.fitHeaders(root, headers.filter(isShown), current);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
         applyRovingTabIndex(headers.filter(header => !header.classList.contains(OverflowedModifier)), current);
@@ -114,10 +114,10 @@ export class TabsEngine {
         this.fitter.toggleList(root, button, () => {
             const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
 
-            return this.ownHeaders(root).filter(isLaidOut).map(header => {
+            return this.ownHeaders(root).filter(isShown).map(header => {
                 const key = header.getAttribute(TabKeyAttribute) ?? "";
 
-                return { key, title: header.textContent?.trim() ?? key, current: key === selected };
+                return { key, title: header.textContent?.trim() ?? key, current: key === selected, disabled: isInert(header) };
             });
         });
     }
@@ -137,7 +137,7 @@ export class TabsEngine {
 
         const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);
 
-        if (header === null || header.matches(":disabled, .ui-disabled"))
+        if (header === null || isInert(header))
             return;
 
         const root = header.closest<HTMLElement>(`.${RootClass}`);
@@ -190,4 +190,10 @@ export class TabsEngine {
     private ownPages(root: HTMLElement): HTMLElement[] {
         return ownDescendants(root, `[${PageAttribute}]`, `.${RootClass}`);
     }
+}
+
+/** A caption its author shows: laid out, or hidden only by the fit. */
+function isShown(header: HTMLElement): boolean {
+    // By layout alone, a caption the fitter hid would drop out of the next fit and stay hidden with no "…" to reach it.
+    return header.classList.contains(OverflowedModifier) || isLaidOut(header);
 }

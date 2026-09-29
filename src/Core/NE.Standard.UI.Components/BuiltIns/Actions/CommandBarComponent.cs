@@ -59,8 +59,6 @@ public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase
 /// </summary>
 public sealed class CommandBarComponent(string? id = null) : CommandBarComponent<CommandBarComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.command-bar";
 }

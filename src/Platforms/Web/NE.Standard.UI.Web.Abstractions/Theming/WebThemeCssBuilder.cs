@@ -8,8 +8,15 @@ using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
+/// <summary>Writes a theme as the page's custom properties.</summary>
 public static class WebThemeCssBuilder
 {
+    // How much of its own ink a tinted badge's words keep, the rest the text colour: the least that reads 4.5:1 on every default
+    // palette's tint over the page, a card and a raised card (WebThemeInkContrastTests).
+    private const string BrandInkOnTintShare = "56%";
+    private const string StatusInkOnTintShare = "80%";
+
+    /// <summary>The theme's custom properties as the page's stylesheet: <c>:root</c> and each <c>data-ui-theme</c> palette.</summary>
     public static string Build(UITheme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -168,10 +175,23 @@ public static class WebThemeCssBuilder
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
         Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
         Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 68%, transparent)");
+        // An ink on a ground tinted with its own colour (a tinted badge), pulled toward the text colour until it reads 4.5:1 there
+        // over the page, a card and a raised card; the page's inks themselves are left as they are. Resolved here, so a badge may
+        // put it in the ink's place. A brand ink is its raw fill, lighter in the dark theme, so it moves further than a status ink,
+        // which the palette already shades for its tint.
+        AppendInkOnTint(builder, "primary", BrandInkOnTintShare);
+        AppendInkOnTint(builder, "accent", BrandInkOnTintShare);
+        AppendInkOnTint(builder, "info", StatusInkOnTintShare);
+        AppendInkOnTint(builder, "warning", StatusInkOnTintShare);
+        AppendInkOnTint(builder, "success", StatusInkOnTintShare);
+        AppendInkOnTint(builder, "danger", StatusInkOnTintShare);
         // A whole device pixel at the common density; a declared 1.5px draws as 1px there, throwing off any layout sized
         // against the declared value.
         Append(builder, "border-width", "1px");
     }
+
+    private static void AppendInkOnTint(StringBuilder builder, string role, string share)
+        => Append(builder, $"color-{role}-ink-on-tint", $"color-mix(in srgb, var(--ui-color-{role}-ink) {share}, var(--ui-color-on-surface))");
 
     private static void Append(StringBuilder builder, string name, ColorVariant value)
     {

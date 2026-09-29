@@ -1,9 +1,8 @@
-// `.ts` on value imports, type-only ones kept as `import type`: `node --test` resolves files literally, and a type-only
-// import kept as a value would drag its module's whole graph in just to erase it.
+// `.ts` on value imports and `import type` on the rest: `node --test` resolves files literally and would load a type-only module whole.
 import { readItemPropertyPath } from "./binding-template-evaluator.ts";
-import { ComponentSelector, ItemsQueryAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, HiddenClass, ItemsQueryAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../runtime/logger.ts";
-import { getRealItemElements, HiddenClass } from "./items-empty-renderer.ts";
+import { getRealItemElements } from "./items-empty-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import { evaluateOperator } from "../interactions/interaction-evaluator.ts";
 import { getItemsSortDirection } from "../metadata/metadata-index.ts";
@@ -141,11 +140,7 @@ function isRuleActive(
     return evaluateOperator(state.get(source, []), activeOperator, activeValue);
 }
 
-/**
- * One item property against another, as one order over every value a column can hold: nothing first (null, undefined, blank
- * text), then everything that reads as a number, by value, then the rest by locale-aware text. Deciding number or text per pair
- * instead made "2" < "10" < "1a" < "2", an order no sort can keep.
- */
+/** Orders two values in one order over a column: nothing first, then numbers by value, then the rest as locale-aware text. */
 export function compareValues(left: unknown, right: unknown): number {
     if (left === right)
         return 0;
@@ -153,6 +148,7 @@ export function compareValues(left: unknown, right: unknown): number {
     const leftRank = rankOf(left);
     const rightRank = rankOf(right);
 
+    // Ranked before compared: number-or-text decided per pair gives "2" < "10" < "1a" < "2", which no sort can keep.
     if (leftRank !== rightRank)
         return leftRank - rightRank;
 

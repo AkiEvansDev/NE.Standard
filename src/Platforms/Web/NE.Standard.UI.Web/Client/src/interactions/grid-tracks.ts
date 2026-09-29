@@ -23,7 +23,7 @@ export type GridSplitRuns = {
     readonly after: readonly number[];
 };
 
-/** Reads the template `ContainerComponentRenderer` writes (`repeat()`, `minmax()`, `fit-content()`, `auto`, `px`) or one a drag wrote; null when unreadable. */
+/** Reads a template the renderer (`repeat()`, `minmax()`, `fit-content()`, `auto`, `px`) or a drag wrote; null when unreadable. */
 export function parseGridTracks(template: string): GridTrack[] | null {
     const tracks: GridTrack[] = [];
 
@@ -116,8 +116,7 @@ function splitTopLevel(template: string): string[] {
     return tokens;
 }
 
-/** The template a track list writes back: what the renderer would have written for the same tracks. */
-/** `content` is how a bare content track is written: `max-content` where the container may grow past its box to hold it. */
+/** The template the renderer would write for these tracks; `content` is a bare content track's, `max-content` where the container may grow. */
 export function formatGridTracks(tracks: readonly GridTrack[], content: "auto" | "max-content" = "auto"): string {
     return tracks.map(track => formatGridTrack(track, content)).join(" ");
 }
@@ -211,10 +210,7 @@ function range(start: number, end: number): number[] {
     return indices;
 }
 
-/**
- * Moves the boundary between `runs.before` and `runs.after` by `delta` pixels. A run of stars is re-weighted proportionally to
- * survive a resize; a fixed or content run is written in pixels, clamped so no track leaves its bounds. Null when nothing can move.
- */
+/** Moves the boundary between the two runs by `delta` pixels, within every track's bounds; null when nothing can move. */
 export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number): GridTrack[] | null {
     const before = measureRun(tracks, sizes, runs.before);
     const after = measureRun(tracks, sizes, runs.after);
@@ -239,7 +235,7 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
     const afterStars = runs.after.every(index => tracks[index].kind === "star");
 
     if (beforeStars && afterStars) {
-        // Both runs are stars: the weight the two share stays, and is re-divided by the new sizes.
+        // Both runs are stars: their shared weight is re-divided by the new sizes, so the division survives a resize.
         const weight = sumWeight(runs.before, tracks) + sumWeight(runs.after, tracks);
         const total = before.total + after.total;
 
@@ -247,7 +243,7 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
         reweight(next, tracks, after, weight * (after.total - clamped) / total);
     }
     else {
-        // A star run beside a pixel run keeps its weights and takes what the pixel run leaves.
+        // A fixed or content run is written in pixels; a star run beside it keeps its weights and takes what it leaves.
         if (!beforeStars)
             resize(next, before, before.total + clamped);
 

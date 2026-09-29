@@ -194,9 +194,7 @@ internal abstract partial class UIRuntimeBase
         return UIComparisonEvaluator.Evaluate(sourceValue, source.ActiveOperator, source.ActiveValue);
     }
 
-    /// <summary>
-    /// The controller value behind a rule's source component property.
-    /// </summary>
+    /// <summary>The controller value behind a rule's source component property.</summary>
     /// <remarks>
     /// Only a bound source can be read; parameterized bindings are refused, since a host's rules belong to the host, not a row.
     /// </remarks>

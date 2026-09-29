@@ -25,7 +25,8 @@ export function readWebUIMetadata(documentRoot: ParentNode = document): WebUIMet
         exposedProperties: parsed.exposedProperties ?? [],
         items: parsed.items ?? [],
         itemsFilterSort: parsed.itemsFilterSort ?? [],
-        itemValues: parsed.itemValues ?? []
+        itemValues: parsed.itemValues ?? [],
+        words: parsed.words ?? []
     };
 }
 

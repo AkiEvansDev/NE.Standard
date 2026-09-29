@@ -16,7 +16,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
-internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnectionUpdater
+internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnectionUpdater, IUILanguageChangeListener
 {
     private static partial class Log
     {
@@ -150,9 +150,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     /// <summary>
     /// Marks the runtime to go and answers whether the caller disposes it now: no command running, and no one else disposing.
     /// </summary>
-    /// <remarks>
-    /// Both counters go through full fences, so a command entering either sees the request or is seen by it.
-    /// </remarks>
+    /// <remarks>Both counters go through full fences, so a command entering either sees the request or is seen by it.</remarks>
     private bool RequestDispose()
     {
         _ = Interlocked.Exchange(ref _disposeRequested, 1);

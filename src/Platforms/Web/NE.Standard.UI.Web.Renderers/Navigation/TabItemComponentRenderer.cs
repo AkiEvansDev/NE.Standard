@@ -45,7 +45,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
                 _ = target.Attribute(WebAttributes.TabOrder, order.ToString(CultureInfo.InvariantCulture));
         }, [WebDomOperation.Attribute(WebAttributes.TabOrder, target: "root")]);
 
-        // Null where the render cannot know which tab is open: then every mark waits for the engine, as before.
+        // Null where the render cannot know which tab is open: then every mark waits for the engine.
         var own = IsSelectedTab(context, root);
 
         if (own == true)
@@ -104,7 +104,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
             {
                 _ = close.Class(CloseClass);
                 _ = close.Attribute("type", "button");
-                _ = close.Attribute("aria-label", context.Translate(UIStrings.TabClose));
+                WebWords.Write(context, close, "aria-label", UIStrings.TabClose);
                 _ = close.Attribute("tabindex", "-1");
             });
         });

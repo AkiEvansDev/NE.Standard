@@ -2,18 +2,17 @@ import { componentParts } from "../addressing/dom-registry";
 import { formatTemporal, TemporalCulturePack } from "../rendering/temporal-format";
 import { clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
-import { restoreFocusTo } from "./popup-focus";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
-import { PopupDismissal } from "./popup-dismissal";
+import { OwnedPopups } from "./owned-popup";
+import { focusAsLastInput, focusByPointer } from "./popup-focus";
 import {
     clampPushedValue, clampToRange, defaultMoment, isEndPart, isRange, MaxAttribute, MinAttribute, orderPeriod,
     parseCanonical, PickerAttributes, readBound, readCulturePack, readFormat, readMode, readStep, readValue, readValueOf, RootClass,
     TemporalMode, TimeStep, TimeUnit, toCanonical, valueInputOf, writeValueOf
 } from "./temporal-dom";
-import { chooseDay as choosePeriodDay, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
-import { turnWheel } from "./wheel-notches";
+import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
+import { turnWheel, wheelPixels } from "./wheel-notches";
 
 const FieldClass = "ui-temporal-input__field";
 const PopupClass = "ui-temporal-input__popup";
@@ -50,6 +49,8 @@ type PickerState = {
     activeEnd: PeriodEnd;
     /** The day under the pointer while an end is being chosen, for the span drawn ahead of the click. */
     hoverDay: Date | null;
+    /** A start was chosen on the calendar and its end not yet: the span to an end kept from before is not tinted meanwhile. */
+    choosingEnd: boolean;
 };
 
 export type TemporalPickerEngineOptions = {
@@ -64,7 +65,24 @@ export class TemporalPickerEngine {
     private readonly states = new WeakMap<HTMLElement, PickerState>();
     // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
     private readonly written = new WeakSet<HTMLInputElement>();
-    private openPicker: HTMLElement | null = null;
+
+    // Waits for the click, not the press: choosing an hour re-renders the popup from inside that very click.
+    private readonly popups = new OwnedPopups({
+        show: ({ owner, popup }) => {
+            owner.classList.add(OpenClass);
+            popup.addEventListener("wheel", this.onColumnWheel, { passive: false });
+            this.renderPopup(owner, true);
+        },
+        hide: ({ owner, popup }) => {
+            for (const settle of this.columnSettles.values())
+                window.clearTimeout(settle);
+
+            this.columnSettles.clear();
+            this.wheelTurns.clear();
+            popup.removeEventListener("wheel", this.onColumnWheel);
+            owner.classList.remove(OpenClass);
+        }
+    });
 
     // One settle per clock column: a flick across two columns must commit both, not let the second cancel the first.
     private readonly columnSettles = new Map<HTMLElement, number>();
@@ -101,9 +119,7 @@ export class TemporalPickerEngine {
             }
         });
 
-        // A picker may arrive after the page started (a row the client builds, a cell's editor), so its field is written here, not
-        // by the markup it was drawn from. Its own observer writes no children, since rendering the popup replaces them and a
-        // handler that drew children here would wake itself forever.
+        // A picker may arrive late (a built row, a cell's editor), so its field is written here; drawing children here would wake itself forever.
         observeComponents(this.root, `.${RootClass}`, { childList: true }, pickers => this.applyDisplay(pickers));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -117,17 +133,18 @@ export class TemporalPickerEngine {
         this.root.addEventListener("mouseover", domEvent => this.handleDayHover(domEvent), true);
         this.root.addEventListener("mouseout", domEvent => this.handleDayHover(domEvent), true);
 
+        // Moving, not hovering: a grid a key redrew under a resting pointer raises mouseover only, so the key's day stays.
+        this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
+
         // A clock column is a dial: what a scroll brings to its middle is chosen. Capture, because scroll does not bubble.
         this.root.addEventListener("scroll", domEvent => this.handleColumnScroll(domEvent), true);
 
         // Capture, because blur does not bubble.
         this.root.addEventListener("blur", domEvent => this.handleFieldBlur(domEvent), true);
+    }
 
-        // Waits for the click, not the press: choosing an hour re-renders the popup from inside that very click.
-        new PopupDismissal({
-            openPopups: () => this.openPicker === null ? [] : [this.openPicker],
-            close: () => this.close()
-        });
+    private get openPicker(): HTMLElement | null {
+        return this.popups.current;
     }
 
     // Formatted here, not server-side, so a live patch and the initial render produce the same string; formatTemporal mirrors WebTemporalFormat.
@@ -137,8 +154,7 @@ export class TemporalPickerEngine {
             clampPushedValue(picker);
 
             for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
-                // What the reader is doing in the field is left alone (a text half typed, a text cleared) once the field has been
-                // written at all; a picker drawn and focused in the same breath (a cell's editor) reaches this still unwritten.
+                // The reader's text is left alone once written; a picker drawn and focused at once (a cell's editor) is still unwritten.
                 if (field === document.activeElement && this.written.has(field))
                     continue;
 
@@ -170,6 +186,10 @@ export class TemporalPickerEngine {
         if (picker === null || valueInput === null)
             return;
 
+        // A typed end is an end chosen, as a click on the calendar is.
+        if (isEndPart(domEvent.target))
+            this.getState(picker).choosingEnd = false;
+
         valueInput.value = domEvent.target.value.trim();
         valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -191,12 +211,12 @@ export class TemporalPickerEngine {
     private handleDayHover(domEvent: Event): void {
         const picker = this.openPicker;
 
-        if (picker === null || !isRange(picker) || !(domEvent.target instanceof Element))
+        if (picker === null || !(domEvent.target instanceof Element))
             return;
 
         const day = domEvent.type === "mouseover" ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}]`) : null;
 
-        if (day !== null && !picker.contains(day))
+        if ((day !== null && !picker.contains(day)) || !isRange(picker))
             return;
 
         const state = this.getState(picker);
@@ -207,6 +227,33 @@ export class TemporalPickerEngine {
 
         state.hoverDay = hovered;
         applyPeriodPreview(picker, state);
+    }
+
+    private handlePointerMove(domEvent: Event): void {
+        const picker = this.openPicker;
+        const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}], .${TimeCellClass}`) : null;
+
+        if (picker === null || entry === null || !picker.contains(entry) || entry === document.activeElement || entry.matches(":disabled"))
+            return;
+
+        if (entry.classList.contains(TimeCellClass))
+            followPointerInDial(entry);
+        else
+            this.followPointer(picker, entry);
+    }
+
+    /** The day under the pointer takes the keyboard's while the calendar holds the focus, as a native list's entry does. */
+    private followPointer(picker: HTMLElement, day: HTMLElement): void {
+        const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
+        const moment = parseCanonical(day.getAttribute(DayAttribute) ?? "", "date");
+
+        if (popup === null || moment === null || !popup.contains(document.activeElement))
+            return;
+
+        // So no day under a resting pointer is lit beside the keyboard's.
+        this.getState(picker).focusedDay = moment;
+        applyRovingTabIndex([...popup.querySelectorAll<HTMLElement>(`.${DayClass}`)], day);
+        focusByPointer(day);
     }
 
     private handleFieldBlur(domEvent: Event): void {
@@ -287,6 +334,7 @@ export class TemporalPickerEngine {
                 state.pane = state.pane === "days" ? "months" : "days";
                 break;
             case "now":
+                state.choosingEnd = false;
                 this.commit(picker, defaultMoment(picker), state.activeEnd === "end");
                 return;
             case "clear":
@@ -297,6 +345,7 @@ export class TemporalPickerEngine {
                     this.commit(picker, null, true);
 
                 state.activeEnd = "start";
+                state.choosingEnd = false;
                 this.close();
                 return;
             case "done":
@@ -328,8 +377,7 @@ export class TemporalPickerEngine {
         state.focusedDay = next;
         // A day picked from the fringe of the grid belongs to the month beside it, and the grid turns to that month.
         state.view = startOfMonth(next);
-        // Nothing closes here, in any mode: a day chosen is a value written, and the popup goes with Done or a press outside — a
-        // date-only picker behaves the same, and a mis-picked day is one more press from the right one.
+        // Nothing closes here, in any mode: the popup goes with Done or a press outside, so a mis-picked day is one press from the right one.
         this.commit(picker, next);
     }
 
@@ -341,6 +389,7 @@ export class TemporalPickerEngine {
         state.focusedDay = choice.end ?? choice.start;
         state.view = startOfMonth(day);
         state.activeEnd = choice.active;
+        state.choosingEnd = !choice.complete;
         state.hoverDay = null;
 
         // The end first: writing a start past the old end would show an inverted period for a change set.
@@ -442,10 +491,7 @@ export class TemporalPickerEngine {
         }, ScrollSettleDelay));
     }
 
-    /**
-     * The wheel over a column is taken whole: a notch is one reading. Left to the scroll it was a guess, since a short column (a
-     * half-hour step) has little travel, and the snap or a Min/Max bound could make the same turn choose or not at random.
-     */
+    /** The wheel over a column steps one reading per notch. */
     private handleColumnWheel(domEvent: WheelEvent): void {
         if (this.openPicker === null || domEvent.deltaY === 0 || !(domEvent.target instanceof Element))
             return;
@@ -456,9 +502,10 @@ export class TemporalPickerEngine {
         if (column === null || unit === null || !this.openPicker.contains(column))
             return;
 
+        // Taken whole: left to the scroll, a short column's snap or a Min/Max bound would make a turn choose at random.
         domEvent.preventDefault();
 
-        const { steps, carried } = turnWheel(this.wheelTurns.get(unit) ?? 0, domEvent.deltaY, domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL);
+        const { steps, carried } = turnWheel(this.wheelTurns.get(unit) ?? 0, wheelPixels(domEvent).y);
 
         this.wheelTurns.set(unit, carried);
 
@@ -502,7 +549,9 @@ export class TemporalPickerEngine {
     }
 
     private toggle(picker: HTMLElement | null, activeEnd?: PeriodEnd): void {
-        if (picker === null)
+        const popup = picker?.querySelector<HTMLElement>(`.${PopupClass}`) ?? null;
+
+        if (picker === null || popup === null)
             return;
 
         if (this.openPicker === picker) {
@@ -511,10 +560,6 @@ export class TemporalPickerEngine {
         }
 
         this.close();
-
-        // A read-only field offers no calendar to choose from, whether its toggle or ArrowDown in the field asked for one.
-        if (picker.querySelector<HTMLInputElement>(`.${FieldClass}`)?.readOnly === true)
-            return;
 
         const state = this.getState(picker);
 
@@ -525,6 +570,7 @@ export class TemporalPickerEngine {
             state.activeEnd = "start";
 
         state.hoverDay = null;
+        state.choosingEnd = false;
 
         const value = readValueOf(picker, state.activeEnd === "end") ?? readValue(picker);
 
@@ -533,53 +579,28 @@ export class TemporalPickerEngine {
         state.view = startOfMonth(value ?? clampToRange(picker, new Date()));
         state.focusedDay = value;
 
-        picker.classList.add(OpenClass);
-        picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`)?.setAttribute("aria-expanded", "true");
-        picker.querySelector<HTMLElement>(`.${PopupClass}`)?.addEventListener("wheel", this.onColumnWheel, { passive: false });
-        this.openPicker = picker;
+        const toggle = picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`);
 
-        this.renderPopup(picker, true);
+        // Anchored to the row, not the centred toggle, which would put the popup over the field; a read-only field is refused here.
+        this.popups.open({
+            owner: picker,
+            popup,
+            anchor: picker.querySelector<HTMLElement>(`.${RootClass}__row`) ?? picker,
+            placement: { placement: "bottom-end", gap: PopupGap },
+            openers: toggle === null ? [] : [toggle],
+            returnFocus: () => fieldOf(picker, this.getState(picker).activeEnd === "end")
+        });
     }
 
     private close(): void {
-        if (this.openPicker === null)
-            return;
-
-        const picker = this.openPicker;
-        const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
-
-        for (const settle of this.columnSettles.values())
-            window.clearTimeout(settle);
-
-        this.columnSettles.clear();
-        this.wheelTurns.clear();
-
-        // Before the popup hides: hiding it drops focus on the body, and then there is nothing to bring back — to the end being set.
-        if (popup !== null) {
-            restoreFocusTo(fieldOf(picker, this.getState(picker).activeEnd === "end"), popup);
-            popup.removeEventListener("wheel", this.onColumnWheel);
-        }
-
-        picker.classList.remove(OpenClass);
-        picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`)?.setAttribute("aria-expanded", "false");
-        releaseAnchoredPopup(popup);
-        this.openPicker = null;
-    }
-
-    // Anchored to the row rather than the toggle, which sits centred inside it and would put the popup over the field.
-    private positionPopup(picker: HTMLElement): void {
-        const row = picker.querySelector<HTMLElement>(`.${RootClass}__row`);
-        const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
-
-        if (row !== null && popup !== null)
-            placeAnchoredPopup(row, popup, { placement: "bottom-end", gap: PopupGap });
+        this.popups.close();
     }
 
     private getState(picker: HTMLElement): PickerState {
         let state = this.states.get(picker);
 
         if (state === undefined) {
-            state = { view: startOfMonth(readValue(picker) ?? new Date()), pane: "days", focusedDay: readValue(picker), activeEnd: "start", hoverDay: null };
+            state = { view: startOfMonth(readValue(picker) ?? new Date()), pane: "days", focusedDay: readValue(picker), activeEnd: "start", hoverDay: null, choosingEnd: false };
             this.states.set(picker, state);
         }
 
@@ -599,8 +620,7 @@ export class TemporalPickerEngine {
         const range = isRange(picker);
         const value = readValueOf(picker, range && state.activeEnd === "end");
 
-        // The rebuild throws away the element holding focus, so what it was is remembered across it: a clock column, a button of
-        // the header or footer, or anything else in the popup, which lands on the calendar's day.
+        // The rebuild throws away the focused element, so what it was is remembered; anything else lands on the calendar's day.
         const focusedUnit = activeTimeUnit(popup);
         const focusedNav = activeNavAction(popup);
         const focusWasInside = popup.contains(document.activeElement);
@@ -630,10 +650,12 @@ export class TemporalPickerEngine {
         fitTimeColumns(popup);
         centreTimeColumns(popup);
         restoreTimeFocus(popup, focusedUnit);
-        navTarget?.focus({ preventScroll: true });
+
+        if (navTarget !== null)
+            focusAsLastInput(navTarget);
 
         // Re-placed after every render: the height changes between panes, and a fixed popup does not re-lay-out.
-        this.positionPopup(picker);
+        this.popups.reposition(picker);
     }
 }
 
@@ -695,7 +717,7 @@ function renderDayGrid(picker: HTMLElement, state: PickerState, culture: Tempora
             cell.setAttribute("aria-selected", "true");
         }
 
-        if (isWithinPeriod(day, periodStart, periodEnd))
+        if (isWithinChosenPeriod(day, { start: periodStart, end: periodEnd }, state.choosingEnd))
             cell.classList.add(`${DayClass}--within`);
 
         if (isDayDisabled(picker, day))
@@ -876,7 +898,10 @@ function restoreTimeFocus(popup: HTMLElement, unit: string | null): void {
 
     const column = popup.querySelector<HTMLElement>(`.${TimeColumnClass}[${UnitAttribute}="${unit}"]`);
 
-    column?.querySelector<HTMLElement>(`.${TimeCellClass}--selected`)?.focus({ preventScroll: true });
+    const cell = column?.querySelector<HTMLElement>(`.${TimeCellClass}--selected`) ?? null;
+
+    if (cell !== null)
+        focusAsLastInput(cell);
 }
 
 function renderFooter(mode: TemporalMode): HTMLElement {
@@ -964,9 +989,17 @@ function applyRovingDay(popup: HTMLElement, state: PickerState, value: Date | nu
 
     applyRovingTabIndex(cells, focused);
 
-    // preventScroll: every cell is already visible, and scrolling would yank the page out from under the field.
+    // A day the pointer chose is focused again as the pointer's, so the grid shows no keyboard mark for it.
     if (moveFocus)
-        focused.focus({ preventScroll: true });
+        focusAsLastInput(focused);
+}
+
+/** The dial's cell under the pointer takes the keyboard's while a dial cell holds the focus, as a day does in the grid. */
+function followPointerInDial(cell: HTMLElement): void {
+    const active = document.activeElement;
+
+    if (active instanceof HTMLElement && active.classList.contains(TimeCellClass))
+        focusByPointer(cell);
 }
 
 /** Roving focus inside the clock: up and down move within a column, left and right move between them. */
@@ -1062,7 +1095,7 @@ function readFirstDay(picker: HTMLElement): number {
     return Number.isInteger(firstDay) && firstDay >= 0 && firstDay <= 6 ? firstDay : 1;
 }
 
-/** The day a key moves to; Home and End are the ends of the row as the grid lays it out, from the culture's first day of the week. */
+/** The day a key moves to; Home and End are the ends of the row from the culture's first day of the week. */
 function moveByKey(day: Date, key: string, firstDay: number): Date | null {
     const column = ((day.getDay() - firstDay) + 7) % 7;
 

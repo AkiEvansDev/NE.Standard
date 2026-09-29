@@ -18,8 +18,6 @@ public abstract partial class AccordionComponent<T>(string? id = null) : Contain
 /// </summary>
 public sealed class AccordionComponent(string? id = null) : AccordionComponent<AccordionComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.accordion";
 }

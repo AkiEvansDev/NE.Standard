@@ -51,9 +51,7 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
         return UserSessionContext.Authenticated(ResolveSessionId(initData), language, themeMode, userId, roles, permissions);
     }
 
-    /// <summary>
-    /// Resolves the session id from the one the client presented, the connection id, or a generated value.
-    /// </summary>
+    /// <summary>Resolves the session id from the one the client presented, the connection id, or a generated value.</summary>
     /// <remarks>
     /// Deliberately never derived from <c>Credential</c>: it doesn't vary per visitor and would collapse every session onto one id.
     /// </remarks>

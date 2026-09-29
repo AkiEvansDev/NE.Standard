@@ -1,15 +1,14 @@
 @import "../core/tokens.less";
 
-// The core's own glyph set (Client/fonts/NEGlyphs.woff2, from Client/glyphs/build.mjs): a font, not masks, so a host needs no
-// icon pack. Sizes below are rem, not em of the surrounding text — a mark on a fractional pixel rasterises differently from its twin.
+// The core's glyph font (fonts/NEGlyphs.woff2, from glyphs/build.mjs), so a host needs no icon pack. Sizes in rem, not em: a mark
+// on a fractional pixel rasterises unlike its twin.
 @ui-glyph-font: "NE Glyphs";
 @ui-glyph-xs: 0.75rem; // 12px — a mark inside a field's own row: a stepper, a separator between crumbs
 @ui-glyph-sm: 0.875rem; // 14px — a field's trailing control: a select's chevron, a clear cross, a picker's toggle
 @ui-glyph-md: 1rem; // 16px — a mark beside a line of text: a menu entry, an expander, a tree node
 @ui-glyph-lg: 1.25rem; // 20px — a mark standing on its own, over a picture or in a corner
 
-// Addressed by codepoint, never by ligature name: the face carries no letters. The table is Google's own
-// (google/material-design-icons, variablefont/MaterialSymbolsRounded[...].codepoints); build.mjs holds the same set.
+// By codepoint, not ligature: the face has no letters. From MaterialSymbolsRounded's .codepoints; build.mjs holds the same set.
 @ui-glyph-chevron: "\e5cf"; // expand_more, drawn pointing down; the others turn it
 @ui-glyph-close: "\e5cd";
 @ui-glyph-more-horizontal: "\e5d3";
@@ -40,7 +39,7 @@
 @ui-glyph-fit: "\ea10"; // fit_screen
 @ui-glyph-replace: "\e881"; // find_replace
 @ui-glyph-replace-all: "\e877"; // done_all — the doubled mark of a thing done to every one of them
-// The value kinds a node canvas offers every application: a number, a text, a switch, a text made of anything, a view, a note.
+// The value kinds a node canvas offers every application.
 @ui-glyph-numbers: "\eac7";
 @ui-glyph-text: "\e262"; // text_fields
 @ui-glyph-toggle: "\e9f6"; // toggle_on
@@ -48,7 +47,7 @@
 @ui-glyph-visibility: "\e8f4";
 @ui-glyph-note: "\f1fc"; // sticky_note_2
 @ui-glyph-hourglass: "\ebff";
-// The file kinds and a node that keeps a state of its own: a folder, a text file, a save, the reset of a kept value, a counter.
+// The file kinds, and a node that keeps a state of its own.
 @ui-glyph-folder-open: "\e2c8";
 @ui-glyph-description: "\e873";
 @ui-glyph-save: "\e161";
@@ -59,8 +58,7 @@
 @ui-glyph-fast-forward: "\e01f";
 @ui-glyph-stop: "\e047";
 @ui-glyph-dice: "\eb40"; // casino
-// The kinds that decide, walk a list, cut a text and count with dates: a fork, the two joins, a refusal, an equals sign, a
-// numbered list, a repeat, sorted lines, a fingerprint (one of each), squeezed ends, scissors, digits, a pattern, and the dates'.
+// The kinds that decide, walk a list, cut a text and count with dates.
 @ui-glyph-route: "\f184"; // alt_route
 @ui-glyph-join-inner: "\eaf4"; // join_inner
 @ui-glyph-join-full: "\f84f"; // join_full
@@ -102,8 +100,7 @@
 @ui-glyph-warning: "\f083";
 @ui-glyph-error: "\f8b6";
 @ui-glyph-help: "\e8fd";
-// What a control's chrome offers: copy, undo and redo, refresh, settings, a link out and in, a file sent and fetched, a secret
-// shown, zoom, the whole screen, a handle to drag by, a fold, and what came before.
+// What a control's chrome offers.
 @ui-glyph-copy: "\e14d"; // content_copy
 @ui-glyph-undo: "\e166";
 @ui-glyph-redo: "\e15a";
@@ -122,8 +119,7 @@
 @ui-glyph-drag-indicator: "\e945";
 @ui-glyph-unfold-less: "\e5d6";
 @ui-glyph-history: "\e8b3";
-// Files and data, and an application's own frame: a folder, a new one, a new file, code, an object, a terminal, the cloud, a store,
-// a lock shut and open, a star, home, and the way out.
+// Files and data, and an application's own frame.
 @ui-glyph-folder: "\e2c7";
 @ui-glyph-create-new-folder: "\e2cc";
 @ui-glyph-note-add: "\e89c";
@@ -138,8 +134,7 @@
 @ui-glyph-home: "\e9b2";
 @ui-glyph-logout: "\e9ba";
 
-// The mark itself, on a pseudo-element: the glyph face's character, an em square, said to a screen reader as nothing (the
-// slash form of `content`), with none of the host's own text settings.
+// The mark, on a pseudo-element: an em square, silent to a screen reader (`content`'s slash form), free of the host's text settings.
 .ui-glyph(@code; @size; @fill: 0) {
     content: ~'"@{code}" / ""';
     display: block;
@@ -160,8 +155,7 @@
     user-select: none;
 }
 
-// An element whose whole content is a glyph on its `::before`: a centring box, so the mark sits in the middle of whatever
-// size the element was given.
+// An element whose whole content is a glyph on its `::before`: centres the mark in whatever size it was given.
 .ui-glyph-host() {
     display: inline-flex;
     flex: 0 0 auto;
@@ -187,8 +181,7 @@
     transform: rotate(180deg);
 }
 
-// On the control itself: the cross is its `::before`, and the control centres it — every clear and close control is the same
-// cross at the same weight.
+// On the control itself, the cross its `::before`: every clear and close control draws the same cross.
 .ui-cross-glyph(@size: @ui-glyph-sm) {
     &::before {
         .ui-glyph(@ui-glyph-close; @size);
@@ -210,8 +203,7 @@
     }
 }
 
-// The pictorial marks, on a pseudo-element, filled where the drawn ones were filled shapes. The pencil takes `@fill: 0` for
-// its outline, since a filled one over a picture reads as a blot rather than a mark.
+// The pictorial marks, on a pseudo-element. `@fill: 0` outlines the pencil, since a filled one over a picture reads as a blot.
 .ui-pencil-glyph(@size: @ui-glyph-sm; @fill: 1) {
     .ui-glyph(@ui-glyph-edit; @size; @fill);
 }

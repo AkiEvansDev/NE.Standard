@@ -1,12 +1,21 @@
-import { getIdValue, getInteractionSourceKind, MetadataIndex, normalizeEventName, WebRenderInteractionMetadata } from "../metadata/metadata-index";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { getIdValue, getInteractionSourceKind, normalizeEventName } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, WebRenderInteractionMetadata } from "../metadata/metadata-index.ts";
+
+/** The property an input's value is: the one `data-ui-bind-value` names when it is bound. */
+const ValuePropertyName = "Value";
 
 export class InteractionIndex {
     private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly eventNames = new Set<string>();
     private readonly eventComponentIdsByName = new Map<string, Set<number>>();
     private readonly propertyInteractions = new Map<string, WebRenderInteractionMetadata[]>();
+    private readonly valueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
+    private readonly metadata: MetadataIndex;
 
     public constructor(metadata: MetadataIndex) {
+        this.metadata = metadata;
+
         for (const interaction of metadata.metadata.interactions)
             this.addInteraction(interaction);
     }
@@ -36,6 +45,11 @@ export class InteractionIndex {
 
     public getPropertyInteractions(componentId: number, propertyId: string): readonly WebRenderInteractionMetadata[] {
         return this.propertyInteractions.get(createPropertyKey(componentId, propertyId)) ?? [];
+    }
+
+    /** The interactions reading a component's value: what an edit of an unbound field, which names no property, changes. */
+    public getValueInteractions(componentId: number): readonly WebRenderInteractionMetadata[] {
+        return this.valueInteractions.get(componentId) ?? [];
     }
 
     private addInteraction(interaction: WebRenderInteractionMetadata): void {
@@ -80,6 +94,13 @@ export class InteractionIndex {
                 }
 
                 bucket.push(interaction);
+
+                if (this.metadata.getPropertyDefinition(propertyId)?.propertyName === ValuePropertyName) {
+                    const values = this.valueInteractions.get(componentId) ?? [];
+
+                    values.push(interaction);
+                    this.valueInteractions.set(componentId, values);
+                }
             }
         }
     }

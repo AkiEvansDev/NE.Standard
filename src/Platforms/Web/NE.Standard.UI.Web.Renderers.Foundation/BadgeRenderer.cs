@@ -39,12 +39,15 @@ public static class BadgeRenderer
 {
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string IconShownAttribute = "data-ui-badge-icon";
+    private const string TintVariable = "--ui-badge-tint";
 
     private static readonly WebDomOperation[] StyleOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeStyleClass)];
 
+    // Tinted by a colour: the words in its ink, the ground mixed from the raw colour in --ui-badge-tint.
     private static readonly WebDomOperation[] ColorOperations =
     [
-        WebDomOperation.Style("color", converter: WebDomConverters.ThemeColorCss),
+        WebDomOperation.Style("color", converter: WebDomConverters.ThemeInkCss),
+        WebDomOperation.Style(TintVariable, converter: WebDomConverters.ThemeColorCss),
         WebDomOperation.ToggleClass("ui-badge--tinted", condition: WebValueCondition.HasValue)
     ];
 
@@ -72,7 +75,9 @@ public static class BadgeRenderer
             {
                 if (value is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
                 {
-                    _ = target.Style("color", css);
+                    // A semantic colour spent on words is its ink: the raw warning on its own 16 % ground is about 1.1:1.
+                    _ = target.Style("color", WebCssValues.ThemeInk(color));
+                    _ = target.Style(TintVariable, css);
                     _ = target.Class("ui-badge--tinted");
                 }
             }, ColorOperations);
@@ -92,7 +97,7 @@ public static class BadgeRenderer
 
             _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, options.IconProperty, (target, value) =>
             {
-                if (!string.IsNullOrWhiteSpace(value))
+                if (IconValueRenderer.Draws(value))
                 {
                     _ = badgeRoot.Attribute(IconShownAttribute);
                     IconValueRenderer.RenderIconValue(target, value);
@@ -117,9 +122,37 @@ public static class BadgeRenderer
         });
     }
 
+    /// <summary>
+    /// A bare count badge with no component behind it, whose figure a package's own script writes and hides; <paramref name="configure"/>
+    /// adds the package's own class or mark.
+    /// </summary>
+    public static void RenderCountBadge(IHtmlElementBuilder parent, UIBadgeType style, string? count = null, Action<IHtmlElementBuilder>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+
+        _ = parent.Element("span", badge =>
+        {
+            _ = badge.Class("ui-badge");
+            _ = badge.Class(WebClassNames.BadgeStyle(style));
+
+            if (!string.IsNullOrWhiteSpace(count))
+                _ = badge.Attribute(WebAttributes.BadgeText, BadgeTextFit(count));
+
+            configure?.Invoke(badge);
+
+            _ = badge.Element("span", text =>
+            {
+                _ = text.Class("ui-badge__text");
+
+                if (!string.IsNullOrWhiteSpace(count))
+                    _ = text.Text(count);
+            });
+        });
+    }
+
     private sealed class BadgeStateOperations(string target)
     {
-        public WebDomOperation[] Icon { get; } = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.HasText)];
+        public WebDomOperation[] Icon { get; } = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.DrawsIcon)];
 
         public WebDomOperation[] Text { get; } =
         [

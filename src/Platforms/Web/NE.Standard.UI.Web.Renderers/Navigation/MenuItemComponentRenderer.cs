@@ -17,8 +17,6 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
     private const string ValueClass = "ui-menu-item__value";
     private const string CheckedClass = "ui-menu-item--checked";
 
-    private static readonly WebDomOperation[] UrlOperations = [WebDomOperation.Attribute("href", converter: WebDomConverters.SafeUrl)];
-
     private static readonly WebDomOperation[] SelectedOperations =
     [
         WebDomOperation.ToggleClass("ui-menu-item--selected", condition: WebValueCondition.IsTrue),
@@ -55,11 +53,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         if (popup)
             RenderPopupRole(root, kind);
 
-        _ = RenderProperty<string?>(context, root, MenuItemComponent.UrlProperty, static (target, value) =>
-        {
-            if (WebUrlSafety.IsSafeLink(value))
-                _ = target.Attribute("href", value);
-        }, UrlOperations);
+        RenderLinkAddress(context, root, MenuItemComponent.UrlProperty);
 
         // aria-current is the accessible half of the same state the modifier class paints.
         _ = RenderProperty<bool?>(context, root, MenuItemComponent.SelectedProperty, static (target, value) =>

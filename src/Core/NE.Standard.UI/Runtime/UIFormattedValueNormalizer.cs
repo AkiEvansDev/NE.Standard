@@ -18,9 +18,7 @@ internal enum UIFormattedValueNormalization
     Rejected
 }
 
-/// <summary>
-/// Turns what a user typed into a form the ordinary value coercion understands.
-/// </summary>
+/// <summary>Turns what a user typed into a form the ordinary value coercion understands.</summary>
 /// <remarks>
 /// Never produces a typed value: it hands back an invariant canonical string, since the runtime does not know the target CLR type.
 /// </remarks>

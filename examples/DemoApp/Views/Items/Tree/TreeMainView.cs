@@ -1,7 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.Tree;
 using DemoApp.Views.Base;
-using NE.Colors;
 
 namespace DemoApp.Views.Items.Tree;
 
@@ -28,7 +27,7 @@ internal sealed class TreeMainView : DemoMainView, IUIViewDefinition
         => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("bucket-objects")
             .BindItems($"{NodesGroup}.{nameof(TreeNodesGroupContext.Items)}")
             // A folder's glyph in the warm yellow of a file list; a file keeps the primary ink.
-            .AddNodeKind(DemoStorageTree.FolderKind, node => node.SetIconColor(UIThemeColor.FromColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2)))
+            .AddNodeKind(DemoStorageTree.FolderKind, node => node.SetIconColor(DemoIcons.Warm))
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
             .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
             .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")

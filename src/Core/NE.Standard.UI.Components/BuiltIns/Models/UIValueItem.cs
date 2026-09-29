@@ -4,9 +4,7 @@ using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
 
-/// <summary>
-/// Wraps a plain value as a bindable item, taking the item's identity from the value itself.
-/// </summary>
+/// <summary>Wraps a plain value as a bindable item, taking the item's identity from the value itself.</summary>
 /// <remarks>
 /// The identity is the value, so a list holding the same value twice is refused; use <see cref="UIOptionValue{T}"/>
 /// for <c>Select</c>/<c>Search</c>/<c>RadioGroup</c>.

@@ -232,10 +232,11 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
         return true;
     }
 
-    /// <summary>
-    /// The canonical wire form <see cref="TryParse"/> reads: the explicit colour when there is one, as it wins over the role; a
-    /// colour that differs between light and dark themes travels as its light variant, since the wire carries only one colour.
-    /// </summary>
+    /// <summary>The canonical wire form <see cref="TryParse"/> reads.</summary>
+    /// <remarks>
+    /// The explicit colour when there is one, as it wins over the role; a colour that differs between light and dark themes travels as
+    /// its light variant, since the wire carries only one colour.
+    /// </remarks>
     public string ToCanonical()
     {
         if ((Light ?? Dark) is ColorVariant value)

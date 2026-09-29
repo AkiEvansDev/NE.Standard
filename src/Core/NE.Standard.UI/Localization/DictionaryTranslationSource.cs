@@ -48,12 +48,12 @@ public sealed class DictionaryTranslationSource : ITranslationSource
     public IReadOnlyList<string> Languages { get; }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// A blank language or key is no key: answered <see langword="false"/>, as the registry answers it.
+    /// </remarks>
     public bool TryTranslate(string language, string key, [NotNullWhen(true)] out string? value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(language);
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-
-        if (!_translations.TryGetValue(language, out FrozenDictionary<string, string>? translations))
+        if (string.IsNullOrWhiteSpace(language) || string.IsNullOrWhiteSpace(key) || !_translations.TryGetValue(language, out FrozenDictionary<string, string>? translations))
         {
             value = null;
             return false;
@@ -68,4 +68,10 @@ public sealed class DictionaryTranslationSource : ITranslationSource
         value = result;
         return true;
     }
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, string>? ListWords(string language)
+        => !string.IsNullOrWhiteSpace(language) && _translations.TryGetValue(language, out FrozenDictionary<string, string>? translations)
+            ? translations
+            : FrozenDictionary<string, string>.Empty;
 }

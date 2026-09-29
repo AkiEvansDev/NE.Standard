@@ -13,9 +13,7 @@ namespace NE.Standard.UI.Sessions;
 /// Resolves the session the client presented from <see cref="IUserSessionStore"/>, issuing a new one when it
 /// presented none, an unknown one, or one that has gone idle.
 /// </summary>
-/// <remarks>
-/// The session id always comes from the store, never from anything the client supplies.
-/// </remarks>
+/// <remarks>The session id always comes from the store, never from anything the client supplies.</remarks>
 internal sealed class StoredUserSessionResolver : IUserSessionResolver
 {
     private readonly IUserSessionStore _store;
@@ -72,9 +70,7 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
         return stored.IsIdle(_application.Sessions, utcNow) ? null : stored;
     }
 
-    /// <summary>
-    /// Overlays the host's principal onto the session when the application has made claims the authority.
-    /// </summary>
+    /// <summary>Overlays the host's principal onto the session when the application has made claims the authority.</summary>
     /// <remarks>
     /// Authoritative in both directions: an authenticated principal refreshes roles on every request and its absence signs
     /// the user out; does nothing under <see cref="UIIdentitySource.Session"/>.

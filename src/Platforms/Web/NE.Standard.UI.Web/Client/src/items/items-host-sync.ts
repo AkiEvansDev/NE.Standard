@@ -22,8 +22,7 @@ export type ItemsHostSyncContext = {
 
 /** Brings an items host back in step after a change; the order below is load-bearing — filter, then empty state, then regroup. */
 export function syncItemsHost(host: Element, componentId: number, context: ItemsHostSyncContext): void {
-    // A tree's rows are one flat list under a walk of their own: a filter keeps a match's ancestors and a sort orders
-    // siblings, so the plain pass, which would hide a folder whose child matches, doesn't run here.
+    // A tree runs its own walk (a filter keeps a match's ancestors); the plain pass would hide a folder whose child matches.
     if (host.parentElement?.classList.contains(TreeRootClass) === true) {
         host.dispatchEvent(new Event(TreeRulesEventName, { bubbles: true }));
         return;

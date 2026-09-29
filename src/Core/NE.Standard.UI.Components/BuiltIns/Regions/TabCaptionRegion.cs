@@ -10,9 +10,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Regions;
 /// </summary>
 public sealed class TabCaptionRegion : TextComponent<TabCaptionRegion>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tab.caption.region";
 
     /// <summary>

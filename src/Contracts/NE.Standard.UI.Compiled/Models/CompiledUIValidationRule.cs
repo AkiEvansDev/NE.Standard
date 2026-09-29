@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Compiled.Models;
 
@@ -34,7 +35,7 @@ public sealed class CompiledUIValidationRule
     public required UIValidationSeverity Severity { get; init; }
 
     /// <summary>
-    /// Gets the validation message shown when the rule fails.
+    /// Gets the validation message shown when the rule fails: the author's text (<see cref="UIPhrase.IsText"/>) or a phrase.
     /// </summary>
-    public required string Message { get; init; }
+    public required UIPhrase Message { get; init; }
 }

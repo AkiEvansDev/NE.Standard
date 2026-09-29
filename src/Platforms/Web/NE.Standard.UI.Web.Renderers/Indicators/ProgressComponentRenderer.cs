@@ -48,11 +48,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
             _ = target.Style("--ui-progress-max", max).Attribute("aria-valuemax", max);
         }, [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")]);
 
-        _ = RenderProperty<bool?>(context, root, ProgressComponent.ShowValueProperty, (target, value) =>
-        {
-            if (value == true)
-                _ = root.Attribute(ValueShownAttribute);
-        }, [WebDomOperation.ToggleAttribute(ValueShownAttribute, condition: WebValueCondition.IsTrue)]);
+        RenderFlagAttribute(context, root, ProgressComponent.ShowValueProperty, ValueShownAttribute);
 
         _ = root.Element("span", label =>
         {

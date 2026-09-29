@@ -69,9 +69,7 @@ public sealed class RecursivePathTemplate
     /// <summary>
     /// Materializes the template using index or key parameters.
     /// </summary>
-    /// <exception cref="ArgumentException">
-    /// The number of parameters does not match <see cref="ParameterCount"/>, or a parameter is not an <see cref="int"/> or <see cref="string"/>.
-    /// </exception>
+    /// <exception cref="ArgumentException">The number of parameters does not match <see cref="ParameterCount"/>, or a parameter is not an <see cref="int"/> or <see cref="string"/>.</exception>
     public RecursivePath Materialize(params object[] parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
@@ -112,9 +110,7 @@ public sealed class RecursivePathTemplate
     /// <summary>
     /// Parses a recursive path template.
     /// </summary>
-    /// <exception cref="FormatException">
-    /// <paramref name="template"/> is not a valid path template.
-    /// </exception>
+    /// <exception cref="FormatException"><paramref name="template"/> is not a valid path template.</exception>
     public static RecursivePathTemplate Parse(string template)
     {
         ArgumentNullException.ThrowIfNull(template);

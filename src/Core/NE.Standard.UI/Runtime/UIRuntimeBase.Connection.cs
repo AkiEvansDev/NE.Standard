@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -11,6 +13,8 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
+    private const string LanguageChangedOperation = "LanguageChanged";
+
     private readonly Lock _connectionsLock = new();
     // Each attached instance's handle, so the connection outside a command can pass to a tab still attached when its own leaves.
     private readonly Dictionary<string, UIHandle> _attachedHandles = new(StringComparer.Ordinal);
@@ -186,6 +190,64 @@ internal abstract partial class UIRuntimeBase
         {
             // The controller's failure is its own to report; the page still attaches.
             _ = await HandleRuntimeExceptionAsync(exception, "Attached", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// A command's code switched its connection's language: the controller's hook inline — the command already runs outside the
+    /// lock, and waits for it — then the page is told to switch.
+    /// </summary>
+    async Task IUILanguageChangeListener.LanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (Controller is IUIControllerLifecycle lifecycle)
+        {
+            try
+            {
+                await lifecycle.LanguageChangedAsync(previousLanguage, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // The language did switch; the hook's failure is the controller's to report, not the command's.
+                _ = await HandleRuntimeExceptionAsync(exception, LanguageChangedOperation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await PushCommandResultAsync(handle, new UICommandExecutionResult
+        {
+            Command = UICommandResult.Ok([new SetLanguageEffect(handle.Session.Language)]),
+            Changes = ServerChangeSet.Empty
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task NotifyLanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentException.ThrowIfNullOrWhiteSpace(previousLanguage);
+
+        if (Controller is not IUIControllerLifecycle lifecycle)
+            return;
+
+        // As a command runs, the way an attach is told: under the state lock, its writes queued, the switching connection its handle.
+        using IDisposable invocation = BeginInvocation(handle);
+
+        try
+        {
+            _ = await InvokeAsync(cancellation => lifecycle.LanguageChangedAsync(previousLanguage, cancellation), cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _ = await HandleRuntimeExceptionAsync(exception, LanguageChangedOperation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
         }
     }
 

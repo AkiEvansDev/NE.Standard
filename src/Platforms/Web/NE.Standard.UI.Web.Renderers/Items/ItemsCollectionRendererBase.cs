@@ -702,22 +702,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = itemRoot.Attribute(WebAttributes.Group, group.Group);
 
         if (item is IItemAbilitiesModel abilities)
-        {
-            if (abilities.CanSelect == false)
-                _ = itemRoot.Attribute(WebAttributes.Unselectable);
-
-            if (abilities.CanDrag == false)
-                _ = itemRoot.Attribute(WebAttributes.Undraggable);
-
-            if (abilities.CanRemove == false)
-                _ = itemRoot.Attribute(WebAttributes.Unremovable);
-
-            if (abilities.CanRename == false)
-                _ = itemRoot.Attribute(WebAttributes.Unrenamable);
-
-            if (abilities.CanShowContextMenu == false)
-                _ = itemRoot.Attribute(WebAttributes.NoContextMenu);
-        }
+            ItemAbilitiesRenderer.RenderItemAbilities(itemRoot, abilities);
     }
 
     private static bool TryResolveItemTemplate(WebRenderContext context, object? item, [NotNullWhen(true)] out UIComponentSlot? slot)

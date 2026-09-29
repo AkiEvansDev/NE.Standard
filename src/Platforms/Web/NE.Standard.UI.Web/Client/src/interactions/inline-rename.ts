@@ -1,5 +1,4 @@
-// The field a rename is typed into, laid over the title rather than editing it, so a refused rename leaves it as it was.
-// A tab's caption, a tree node's title and a package's title (via the plugin surface) share this one field.
+// The one rename field — for a tab's caption, a tree node's title and a package's — laid over the title so a refusal leaves it as it was.
 
 export type InlineRenameOptions = {
     /** The positioned element the field is appended to; the title must be inside it. */
@@ -12,8 +11,10 @@ export type InlineRenameOptions = {
     readonly commit: (value: string) => void;
     /** Whether an emptied field commits as an empty name, for a title that falls back to one of its own; unset, it is refused. */
     readonly allowEmpty?: boolean;
-    /** Runs after the field closes, committed or not — where the focus goes back to. */
+    /** Runs after the field closes, committed or not. */
     readonly done?: () => void;
+    /** Where the focus goes back after Enter or Escape; not after a blur, where it would take the focus from what was clicked. */
+    readonly refocus?: () => void;
 };
 
 /** The rename field as the plugin surface hands it to a package. */
@@ -48,7 +49,7 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
 
     let settled = false;
 
-    const finish = (commit: boolean): void => {
+    const finish = (commit: boolean, byKey: boolean): void => {
         if (settled)
             return;
 
@@ -64,6 +65,9 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
             options.commit(value);
 
         options.done?.();
+
+        if (byKey)
+            options.refocus?.();
     };
 
     input.addEventListener("keydown", keyEvent => {
@@ -71,9 +75,9 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
             return;
 
         if (keyEvent.key === "Enter")
-            finish(true);
+            finish(true, true);
         else if (keyEvent.key === "Escape")
-            finish(false);
+            finish(false, true);
         else
             return;
 
@@ -81,7 +85,7 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
         keyEvent.stopPropagation();
     });
 
-    input.addEventListener("blur", () => finish(true));
+    input.addEventListener("blur", () => finish(true, false));
 
     title.style.visibility = "hidden";
     container.appendChild(input);
@@ -96,12 +100,10 @@ function placeOver(element: HTMLElement, target: HTMLElement, container: HTMLEle
     const bounds = target.getBoundingClientRect();
     const origin = container.getBoundingClientRect();
     const style = getComputedStyle(target);
-    // A container under a scale — a zoomed canvas's node — measures on screen in scaled pixels, while the field is laid out
-    // in unscaled ones; the computed style is already unscaled.
+    // A scaled container (a zoomed canvas's node) measures in scaled pixels, the field lays out in unscaled ones, as the computed style.
     const scale = container.offsetWidth > 0 && origin.width > 0 ? origin.width / container.offsetWidth : 1;
 
-    // From the padding edge, what an absolute child is placed against: a bordered container — a canvas's node — would put the
-    // field a border's width off from the title.
+    // From the padding edge, where an absolute child is placed: a bordered container would put the field a border's width off.
     element.style.left = `${(bounds.left - origin.left) / scale - container.clientLeft}px`;
     element.style.top = `${(bounds.top - origin.top) / scale - container.clientTop}px`;
     element.style.width = `${bounds.width / scale}px`;

@@ -19,7 +19,6 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     /// <summary>
     /// Gets or sets the icon rendered, by name from the registered icon font/set.
     /// </summary>
-    [Translatable]
     [UIComponentProperty(DefaultValue = null)]
     public string? Icon { get; set; }
 
@@ -47,8 +46,6 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
 /// </summary>
 public sealed class IconComponent(string? id = null) : IconComponent<IconComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.icon";
 }

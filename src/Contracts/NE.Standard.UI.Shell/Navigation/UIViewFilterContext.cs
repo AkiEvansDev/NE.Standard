@@ -47,17 +47,11 @@ public sealed class UIViewFilterContext
     /// </summary>
     public IServiceProvider Services { get; }
 
-    /// <summary>
-    /// Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>.
-    /// </summary>
-    /// <remarks>
-    /// A filter with a side effect has to test this, because one page load resolves the view twice.
-    /// </remarks>
+    /// <summary>Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>.</summary>
+    /// <remarks>A filter with a side effect has to test this, because one page load resolves the view twice.</remarks>
     public UIViewRequestPhase Phase { get; }
 
-    /// <summary>
-    /// Gets the resolved view, available to a filter after it has awaited the rest of the pipeline.
-    /// </summary>
+    /// <summary>Gets the resolved view, available to a filter after it has awaited the rest of the pipeline.</summary>
     /// <remarks>
     /// Observation only: assigning this does not change what the request returns — use <see cref="Redirect"/> to divert
     /// it and skip the next filter.

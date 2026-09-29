@@ -1,6 +1,6 @@
 @import "../core/tokens.less";
 
-// Its own mixin because -webkit- and -moz- name the track differently and an unknown one drops the rule; the second stop is transparent.
+// Its own mixin: -webkit- and -moz- name the track differently, and an unknown one drops the whole rule.
 .ui-range-fill() {
     background-image: linear-gradient(
         var(--ui-range-fill-angle, 90deg),
@@ -9,17 +9,19 @@
     );
 }
 
-// Not accent-color: the UA derives the track's rest and hover colour itself, which came out flecked and near-black under the pointer.
+// A range that answers the pointer: neither disabled nor read-only (a read-only range stays focusable, so it is not `disabled`).
+@ui-range-live: ~":not(:disabled):not([aria-readonly='true'])";
+
+// Not accent-color: the UA's own derived track colours come out flecked and near-black under the pointer.
 .ui-range-input() {
     height: 1.25rem;
-    // The UA gives input[type=range] a 2px margin of its own, insetting the track from the column every other field fills and
-    // moving it out from under the thumb anchor that measures the track.
+    // The UA's own 2px margin would inset the track from the field column and from under the thumb anchor measuring it.
     margin: 0;
     background: transparent;
     appearance: none;
     cursor: pointer;
 
-    // Colour is background-image alone, so a slider drawing its own track can replace it and keep everything else this mixin says.
+    // background-image alone, so a slider drawing its own track replaces just that.
     &::-webkit-slider-runnable-track {
         height: 0.35rem;
         border-radius: 999px;
@@ -59,15 +61,21 @@
     }
 
     // A ring rather than a colour change: darkening the thumb under the pointer read as disabled.
-    &:hover::-webkit-slider-thumb {
+    &@{ui-range-live}:hover::-webkit-slider-thumb {
         box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
     }
 
-    &:hover::-moz-range-thumb {
+    &@{ui-range-live}:hover::-moz-range-thumb {
         box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
     }
 
-    &:disabled {
+    // On the thumb as well as the input: the thumb is what the pointer is over, and it carries its own hand.
+    &:is(:disabled, [aria-readonly='true']),
+    &:is(:disabled, [aria-readonly='true'])::-webkit-slider-thumb {
+        cursor: default;
+    }
+
+    &:is(:disabled, [aria-readonly='true'])::-moz-range-thumb {
         cursor: default;
     }
 }

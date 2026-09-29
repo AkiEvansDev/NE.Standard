@@ -57,14 +57,14 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
     protected override void DrawColorsContent(WrapPanelComponent container)
     {
         _ = container
-            .AddChild(CreatePairGroup("Brand", BrandRoles, contentMinHeight: 300))
-            .AddChild(CreatePairGroup("Surfaces", SurfaceRoles, contentMinHeight: 300))
-            .AddChild(CreatePairGroup("Status", StatusRoles, contentMinHeight: 620))
+            .AddChild(CreatePairGroup("Brand", BrandRoles))
+            .AddChild(CreatePairGroup("Surfaces", SurfaceRoles))
+            .AddChild(CreatePairGroup("Status", StatusRoles))
             .AddChild(CreateInkGroup())
             .AddChild(CreateChromeGroup());
     }
 
-    private static ContainerComponent CreatePairGroup(string title, RolePair[] roles, double contentMinHeight)
+    private static ContainerComponent CreatePairGroup(string title, RolePair[] roles)
     {
         return DemoUI.CreateGroup(null, title,
             content =>
@@ -77,9 +77,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreatePairCard(role));
 
                 _ = content.AddChild(grid);
-            },
-            contentMinHeight: contentMinHeight
-        );
+            });
     }
 
     private static StackPanelComponent CreatePairCard(RolePair role)
@@ -147,9 +145,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreateInkCard(role));
 
                 _ = content.AddChild(grid);
-            },
-            contentMinHeight: 300
-        );
+            });
     }
 
     private static StackPanelComponent CreateInkCard(SingleRole role)
@@ -203,9 +199,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreateSingleCard(role));
 
                 _ = content.AddChild(grid);
-            },
-            contentMinHeight: 300
-        );
+            });
     }
 
     private static StackPanelComponent CreateSingleCard(SingleRole role)

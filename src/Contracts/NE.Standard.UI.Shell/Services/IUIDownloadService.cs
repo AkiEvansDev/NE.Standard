@@ -11,9 +11,7 @@ namespace NE.Standard.UI.Shell.Services;
 /// </summary>
 public interface IUIDownloadService
 {
-    /// <summary>
-    /// Sends a stream as a downloadable file.
-    /// </summary>
+    /// <summary>Sends a stream as a downloadable file.</summary>
     /// <remarks>
     /// No <c>IProgress</c>: the server stages the content and the client fetches it, so the server cannot observe the download itself.
     /// </remarks>

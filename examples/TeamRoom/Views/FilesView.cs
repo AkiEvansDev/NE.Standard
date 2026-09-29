@@ -14,21 +14,28 @@ public sealed class FilesView : TeamRoomView, IUIViewDefinition
 
     protected override string PageDescription => "What the team keeps written down.";
 
+    // Side by side from the medium width up, where the shell's sides stop folding into drawers; below it one above the other, the
+    // tree as tall as its rows and the editor taking the page's width and the height left, with no splitter to drag.
     protected override IVisualComponent CreatePage()
         => new ContainerComponent("files-panes")
             .SetColumn(1, UIGridUnit.Absolute(280, min: 200, max: 520))
             .SetColumn(2, UIGridUnit.Auto())
+            .SetRow(1, UIGridUnit.Auto())
+            .AddRow(UIGridUnit.Star())
             .SetOverflow(UIOverflow.Hidden)
             .SetHeight(UILayoutLength.Fill())
-            .AddChild(CreateTreePane().SetPlacement(1, 1, 1, 1))
-            .AddChild(new GridSplitterComponent().SetPlacement(2, 1, 1, 1))
-            .AddChild(CreateEditorPane().SetPlacement(3, 1, 22, 1));
+            .AddChild(CreateTreePane().SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 1, 2)))
+            .AddChild(new GridSplitterComponent()
+                .SetVisibility(UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible))
+                .SetPlacement(2, 1, 1, 2)
+            )
+            .AddChild(CreateEditorPane().SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(3, 1, 22, 2)));
 
     private static StackPanelComponent CreateTreePane()
         => new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
             .SetSpacing(8)
-            .SetMargin(UIThickness.All(0, 0, 8, 0))
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 0, 0, 8), md: UIThickness.All(0, 0, 8, 0)))
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(4)
@@ -90,7 +97,7 @@ public sealed class FilesView : TeamRoomView, IUIViewDefinition
             .BindItems(nameof(FilesController.Documents))
             .BindSelectedKey(nameof(FilesController.SelectedDocumentKey))
             .SetDraggable(true)
-            .SetMargin(UIThickness.All(8, 0, 0, 0))
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.Uniform(0), md: UIThickness.All(8, 0, 0, 0)))
             .OnItemRemove(nameof(FilesController.CloseDocument))
             // A row for the toolbar and a star row for the editor, so the text reaches the bottom of the pane rather than stopping at a
             // row count with the page's own ground under it.

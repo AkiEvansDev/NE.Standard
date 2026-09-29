@@ -55,8 +55,6 @@ public abstract partial class DefaultRowTemplate<TTemplate> : ContainerComponent
 /// </summary>
 public sealed class DefaultRowTemplate : DefaultRowTemplate<DefaultRowTemplate>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.row.template";
 }

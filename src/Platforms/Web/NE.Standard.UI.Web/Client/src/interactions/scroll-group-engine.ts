@@ -17,10 +17,7 @@ export type ScrollGroupEngineOptions = {
 /** How long a group's members are trusted before the root is asked again: longer than the gap between two scroll events of one flick. */
 const MembersLifetime = 250;
 
-/**
- * Scrolls every member of a scroll group with the one the reader scrolls: two members that both mark source lines are kept line
- * against line, any other pair by the share scrolled. The scroll is client-only state; nothing travels to the server.
- */
+/** Scrolls every member of a scroll group with the one the reader scrolls: line against line where both mark lines, else by share. */
 export class ScrollGroupEngine {
     private readonly root: ParentNode;
 

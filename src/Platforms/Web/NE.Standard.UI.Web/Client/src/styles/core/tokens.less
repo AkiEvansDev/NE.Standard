@@ -22,6 +22,9 @@
 // A line in a list that is scanned, not pressed - a menu entry, a breadcrumb step, a calendar cell: read-down height, not press-target.
 @ui-list-row-height: 1.75rem;
 
+// The air between two entries of a list, so two grounds side by side (the chosen one, the pointer's) read as two, not one block.
+@ui-list-entry-gap: 2px;
+
 // How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
 @ui-popup-viewport-margin: 4px;
 
@@ -30,13 +33,51 @@
 @ui-row-height-sm: 2.5rem;
 @ui-row-height-lg: 4rem;
 
-// One shared step off a row's own ground, used by a table's header, stripe and footer alike, so the three never drift apart
-// as separate literals would.
+// One step off a row's ground for a table's header, stripe and footer, so the three never drift apart.
 @ui-table-tint: 6%;
+@ui-table-ground: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
 
+// The ink of the ground a part stands on, and its muted fade. `--ui-faint-base` is the ground's on-colour where the ground is filled
+// (a filled button or badge, a Background) and is reset where a ground of its own is opaque (a popup, a raised surface); the root's
+// `--ui-text-muted` is fixed to the page's ink and never sees it, so a part that can stand on a filled ground reads these.
+@ui-text-ink: var(--ui-faint-base, var(--ui-color-on-surface));
+// Muted is the ink at 68% on the page and at 87% on a filled ground, which reads 4.5:1 on every theme fill (Success, the lowest,
+// 4.6:1). One expression rather than a second property to set beside every base: the base's own veil, mixed under the page's
+// share, lifts the ink only where a base is set — unset or reset, the veil is transparent and the page's muted is what it was.
+@ui-text-muted-share: 0.68;
+@ui-text-muted-filled-share: 0.87;
+@ui-faint-lift: color-mix(in srgb, var(--ui-faint-base, transparent) percentage(((@ui-text-muted-filled-share - @ui-text-muted-share) / (1 - @ui-text-muted-share))), transparent);
+@ui-text-muted: color-mix(in srgb, @ui-text-ink percentage(@ui-text-muted-share), @ui-faint-lift);
+
+// The ground a part stands on, for a part cut out of it (a chart's hollow marker, the edge between two sectors). `--ui-ground` is
+// written where `--ui-faint-base` is: a Background's colour inline, a filled button's or badge's fill, and the own colour of a
+// ground that is opaque (a popup, the dialog, a Background, Raised or Tinted surface); unset, the ground is the page's surface.
+@ui-ground: var(--ui-ground, var(--ui-color-surface));
+
+// A link on a filled ground: the brand ink could be the ground's own colour (1:1 on Primary), so there it takes the ground's ink,
+// as the text around it does, and its underline — at rest only there; on the page the hue says "link" and a hover draws the line.
+// On the page and on a card (`--ui-faint-base` unset or reset) a link is the brand ink, as before.
+@ui-link-ink: var(--ui-faint-base, var(--ui-color-primary-ink));
+@ui-link-rest-underline: var(--ui-faint-base, transparent);
+
+// A thing being dragged stays in its place as a ghost (a column's caption, a tab, a tree row), so the gap it will leave is what moves.
+@ui-drag-ghost-opacity: 0.45;
+// A label a loading ring stands beside rather than replacing (a button with no icon to turn into the ring) fades under it.
+@ui-loading-label-opacity: 0.35;
+
+// Code and anything else set in a fixed-width face: the platform's own monospace first.
+@ui-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+// A script that animates by itself reads these from rendering/motion.ts, which MotionSyncTests holds to the same numbers.
 @ui-motion-fast: 120ms;
 @ui-motion-normal: 200ms;
+// The press ripple: long enough to read as a flash, short enough not to outlast a quick click.
+@ui-motion-ripple: 250ms;
 @ui-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
 // The standard enter/exit pair. Use @ui-motion-ease where two boxes move against each other and their heights have to cancel.
 @ui-motion-enter: cubic-bezier(0, 0, 0.2, 1);
 @ui-motion-exit: cubic-bezier(0.4, 0, 1, 1);
+
+// Every component root's fade for Show and Hide, `visibility` held to its end; an own transition list starts with it, or the root
+// stops fading. No `display`: a collapse goes at once as a show arrives at once, or the page below would jump 200 ms late.
+@ui-root-transition: opacity @ui-motion-normal @ui-motion-ease, visibility @ui-motion-normal allow-discrete;

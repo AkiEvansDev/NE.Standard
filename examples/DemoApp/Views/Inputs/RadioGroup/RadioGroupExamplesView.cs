@@ -45,18 +45,21 @@ internal sealed class RadioGroupExamplesView : DemoExamplesView, IUIViewDefiniti
     /// </summary>
     private static ContainerComponent CreateOrientationGroup()
     {
+        // Both from the top: a row centres its children, which would drop the shorter group's title below the taller one's.
         return DemoUI.CreateExample("Laid out down, or across",
             UILayout.Row(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Vertical — the default")
                     .SetOptions(Plans())
                     .SetValue("standard")
+                    .SetVerticalAlignment(UIAlignment.Start)
                 )
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Horizontal")
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetOptions(Plans())
                     .SetValue("standard")
+                    .SetVerticalAlignment(UIAlignment.Start)
                 ),
             note: "Horizontal is for answers of a word or two: a second line under one of them puts the row's baselines out."
         );

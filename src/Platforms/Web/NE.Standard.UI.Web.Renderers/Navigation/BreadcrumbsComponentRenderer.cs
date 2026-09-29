@@ -25,7 +25,7 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Attribute("aria-label", context.Translate(UIStrings.BreadcrumbsLabel));
+        WebWords.Write(context, root, "aria-label", UIStrings.BreadcrumbsLabel);
 
         // An author's own separator is a CSS string on a pseudo-element; with none set the stylesheet draws its chevron.
         _ = ResolveRenderValue(context, BreadcrumbsComponent.SeparatorProperty, out string? separator, out _);

@@ -54,7 +54,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
             _ = toggle.Attribute("type", "button");
             // The row is what the keyboard walks; the chevron is reached through it.
             _ = toggle.Attribute("tabindex", "-1");
-            _ = toggle.Attribute("aria-label", context.Translate(UIStrings.TreeToggle));
+            WebWords.Write(context, toggle, "aria-label", UIStrings.TreeToggle);
             // A press folds the node and nothing else — never the click of the row it sits in.
             _ = toggle.Attribute(WebAttributes.EventBoundary);
         });

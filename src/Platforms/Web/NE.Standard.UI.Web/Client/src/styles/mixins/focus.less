@@ -5,3 +5,21 @@
     outline: var(--ui-focus-ring-width, 0) solid var(--ui-color-focus-ring);
     outline-offset: @ui-focus-ring-offset;
 }
+
+// The predicates every keyboard mark is drawn under: none lights for a focus popup-focus.ts marks as the pointer's (a caret field
+// is never marked). Those with a `:has()` never go inside another `:has()`, which the browser drops whole.
+
+// A focus a key gave, on the element itself: a list's keyboard entry, a bar's line, a ring.
+@ui-keyboard-focus: ~":focus-visible:not([data-ui-pointer-focus])";
+
+// A focus a field's edge answers: any in it but a marked one. In :where(), so it weighs a bare `:focus-within` and the ladder stands.
+@ui-field-focus: ~":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
+
+// The ring (reset.less): any focus but a marked one, weightless, so a component taking it off ties and wins by order.
+@ui-ring-focus: ~":focus-visible:where(:not([data-ui-pointer-focus]))";
+
+// A list's current option: an attribute, since a search keeps the focus in its field; the arrows' mark, or the pointer's on it.
+@ui-list-current: ~"[data-ui-active]:is(:not([data-ui-pointer-focus]), :hover)";
+
+// A row host holds the keyboard: `:focus`, since `:focus-within` lights a stale row and `:focus-visible` outlives a click.
+@ui-row-cursor-focus: ~":focus:not([data-ui-pointer-focus])";

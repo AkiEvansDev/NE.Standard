@@ -25,11 +25,7 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.FlyoutOpen);
-        _ = RenderProperty<bool?>(context, root, FlyoutComponent.IsOpenProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-flyout--open");
-        }, [WebDomOperation.ToggleClass("ui-flyout--open")]);
+        RenderFlagClass(context, root, FlyoutComponent.IsOpenProperty, "ui-flyout--open");
 
         _ = RenderProperty<UIPopupPlacement?>(context, root, FlyoutComponent.FlyoutPlacementProperty, static (target, value) =>
         {
@@ -37,17 +33,9 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
                 _ = target.Class(WebClassNames.FlyoutPlacement(placement));
         }, [WebDomOperation.Class(converter: WebDomConverters.FlyoutPlacementClass)]);
 
-        _ = RenderProperty<bool?>(context, root, FlyoutComponent.CloseOnBackdropProperty, static (target, value) =>
-        {
-            if (value == false)
-                _ = target.Attribute(WebAttributes.FlyoutNoBackdropClose);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.FlyoutNoBackdropClose, condition: WebValueCondition.IsFalse)]);
+        RenderFlagAttribute(context, root, FlyoutComponent.CloseOnBackdropProperty, WebAttributes.FlyoutNoBackdropClose, WebValueCondition.IsFalse);
 
-        _ = RenderProperty<bool?>(context, root, FlyoutComponent.CloseOnEscapeProperty, static (target, value) =>
-        {
-            if (value == false)
-                _ = target.Attribute(WebAttributes.FlyoutNoEscapeClose);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.FlyoutNoEscapeClose, condition: WebValueCondition.IsFalse)]);
+        RenderFlagAttribute(context, root, FlyoutComponent.CloseOnEscapeProperty, WebAttributes.FlyoutNoEscapeClose, WebValueCondition.IsFalse);
 
         if (HasRegion(context, RegionNames.Anchor))
             FlyoutRenderer.RenderAnchor(root, anchor => RenderRegion(context, anchor, RegionNames.Anchor));

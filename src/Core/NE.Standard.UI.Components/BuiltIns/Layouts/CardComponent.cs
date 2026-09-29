@@ -8,9 +8,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
 /// A <see cref="SurfaceComponent{T}"/> with optional header and footer bands; the header may carry a control at its far edge.
-/// Fill, edge and click come from the surface.
 /// </summary>
-/// <remarks>No header region until one is asked for, or the card draws an empty band above its content.</remarks>
+/// <remarks>
+/// Fill, edge and click come from the surface. No header region until one is asked for, or the card draws an empty band above its
+/// content.
+/// </remarks>
 public abstract partial class CardComponent<T>(string? id = null) : SurfaceComponent<T>(id)
     where T : CardComponent<T>, IUIComponentDefinition
 {
@@ -66,8 +68,6 @@ public abstract partial class CardComponent<T>(string? id = null) : SurfaceCompo
 /// </summary>
 public sealed class CardComponent(string? id = null) : CardComponent<CardComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.card";
 }

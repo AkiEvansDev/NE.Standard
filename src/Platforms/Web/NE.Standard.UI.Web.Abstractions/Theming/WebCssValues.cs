@@ -10,6 +10,9 @@ namespace NE.Standard.UI.Web.Abstractions.Theming;
 
 public static class WebCssValues
 {
+    // A custom property's reset: the var() reading it falls back to the page's ink, as under an opaque surface of its own.
+    private const string PageGroundOnColor = "initial";
+
     public static string ThemeName(UIThemeMode mode)
         => mode switch
         {
@@ -53,7 +56,6 @@ public static class WebCssValues
             _ => string.Empty
         };
 
-    // `clip`, not `hidden`: `hidden` also makes the element a scroll container, reachable by script-driven scrolling.
     /// <summary>The <c>background-size</c> a fit stands for.</summary>
     public static string ImageFitSize(UIImageFit value)
         => value switch
@@ -68,6 +70,7 @@ public static class WebCssValues
     public static string Overflow(UIOverflow value)
         => value switch
         {
+            // `clip`, not `hidden`: `hidden` also makes the element a scroll container, reachable by script-driven scrolling.
             UIOverflow.Hidden => "clip",
             UIOverflow.Show => "visible",
             _ => string.Empty
@@ -243,6 +246,40 @@ public static class WebCssValues
     public static string OnColorToken(bool isLight)
         => isLight ? "var(--ui-color-on-light)" : "var(--ui-color-on-dark)";
 
+    /// <summary>A colour spent on words: a semantic role's ink, which reads on the page where the raw role may not; otherwise <see cref="ThemeColor"/>.</summary>
+    public static string ThemeInk(UIThemeColor value)
+        => value.Light is null && value.Dark is null && value.Style is UIColorStyle style && InkVar(style) is string ink
+            ? $"var({ink})"
+            : ThemeColor(value);
+
+    /// <summary>
+    /// The text colour that reads on a filled ground of this colour: a role's on-colour, a raw colour's on-light or on-dark by its
+    /// lightness; <c>initial</c> for the page's own grounds (Background, Surface), which are no filled ground and take back the page's
+    /// ink from one around them; empty for a colour no text is meant to stand on (Muted, the On* roles, Border…).
+    /// </summary>
+    public static string ThemeOnColor(UIThemeColor value)
+    {
+        ColorVariant? light = value.Light ?? value.Dark;
+        ColorVariant? dark = value.Dark ?? value.Light;
+
+        if (light is not null && dark is not null)
+        {
+            var lightCss = OnColorToken(light.Value.IsLightOverWhite());
+            var darkCss = OnColorToken(dark.Value.IsLightOverWhite());
+
+            return lightCss == darkCss
+                ? lightCss
+                : $"light-dark({lightCss}, {darkCss})";
+        }
+
+        if (value.Style is UIColorStyle.Background or UIColorStyle.Surface)
+            return PageGroundOnColor;
+
+        return value.Style is UIColorStyle style && OnStyleVar(style) is string varName
+            ? $"var({varName})"
+            : string.Empty;
+    }
+
     /// <summary>
     /// CSS custom property backing a semantic <see cref="UIColorStyle"/> role; null for <see cref="UIColorStyle.Default"/>/
     /// <see cref="UIColorStyle.Muted"/>, which have none.
@@ -271,6 +308,31 @@ public static class WebCssValues
             UIColorStyle.Border => "--ui-color-border",
             UIColorStyle.Shadow => "--ui-color-shadow",
             UIColorStyle.Overlay => "--ui-color-overlay",
+            _ => null
+        };
+
+    // The roles with an ink of their own for words; the rest are grounds, edges or already text colours.
+    private static string? InkVar(UIColorStyle style)
+        => style switch
+        {
+            UIColorStyle.Primary => "--ui-color-primary-ink",
+            UIColorStyle.Accent => "--ui-color-accent-ink",
+            UIColorStyle.Info => "--ui-color-info-ink",
+            UIColorStyle.Warning => "--ui-color-warning-ink",
+            UIColorStyle.Success => "--ui-color-success-ink",
+            UIColorStyle.Danger => "--ui-color-danger-ink",
+            _ => null
+        };
+
+    private static string? OnStyleVar(UIColorStyle style)
+        => style switch
+        {
+            UIColorStyle.Primary => "--ui-color-on-primary",
+            UIColorStyle.Accent => "--ui-color-on-accent",
+            UIColorStyle.Info => "--ui-color-on-info",
+            UIColorStyle.Warning => "--ui-color-on-warning",
+            UIColorStyle.Success => "--ui-color-on-success",
+            UIColorStyle.Danger => "--ui-color-on-danger",
             _ => null
         };
 }

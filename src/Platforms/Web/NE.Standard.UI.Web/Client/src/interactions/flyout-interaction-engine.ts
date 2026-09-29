@@ -1,14 +1,12 @@
-import { ensureElementId } from "../addressing/dom-attributes";
-import { AnchoredPopupPlacement, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
+import { ensureElementId, FlyoutContentClass } from "../addressing/dom-attributes";
+import { AnchoredPopupPlacement, isAnchoredPopupPlacement } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
-import { PopupDismissal } from "./popup-dismissal";
-import { FocusableSelector, moveFocusInto, restoreFocusTo } from "./popup-focus";
+import { OwnedPopups } from "./owned-popup";
+import { FocusableSelector } from "./popup-focus";
 
 const FlyoutClass = "ui-flyout";
 const OpenClass = "ui-flyout--open";
 const AnchorClass = "ui-flyout__anchor";
-const ContentClass = "ui-flyout__content";
-const OpenFlyoutSelector = `.${FlyoutClass}.${OpenClass}`;
 const NoBackdropCloseAttribute = "data-ui-flyout-no-backdrop-close";
 const NoEscapeCloseAttribute = "data-ui-flyout-no-escape-close";
 
@@ -24,12 +22,14 @@ export type FlyoutInteractionEngineOptions = {
 export class FlyoutInteractionEngine {
     private readonly root: ParentNode;
 
-    /** Where focus was when each flyout opened, so closing it puts the viewer back where they were. */
-    private readonly returnFocus = new WeakMap<HTMLElement, HTMLElement>();
-
-    // The flyouts seen open, so focus moves in once, as one opens: a class changing inside an open one must not pull focus back
-    // from wherever the viewer took it.
-    private readonly seenOpen = new WeakSet<HTMLElement>();
+    // Several at once: a flyout may open inside another. `close` is raised only for the client's own take-down, not a server patch's.
+    private readonly flyouts = new OwnedPopups({
+        show: ({ owner }) => owner.classList.add(OpenClass),
+        hide: ({ owner }, reason) => this.markClosed(owner, reason !== "owner"),
+        single: false,
+        closesWhenReadOnly: false,
+        canDismiss: ({ owner }, reason) => !owner.hasAttribute(reason === "escape" ? NoEscapeCloseAttribute : NoBackdropCloseAttribute)
+    });
 
     public constructor(options: FlyoutInteractionEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -45,80 +45,45 @@ export class FlyoutInteractionEngine {
         });
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
-        this.root.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), true);
-
-        // The open set is re-read from the document rather than tracked: a server IsOpen patch bypasses this engine.
-        new PopupDismissal({
-            openPopups: () => this.root.querySelectorAll<HTMLElement>(OpenFlyoutSelector),
-            canDismiss: (flyout, reason) => !flyout.hasAttribute(reason === "escape" ? NoEscapeCloseAttribute : NoBackdropCloseAttribute),
-            close: flyout => this.setOpen(flyout, false)
-        });
     }
 
+    /** Follows the flyout's open class, whoever set it: an open one placed, its focus taken in once as it opens; a closed one taken down. */
     private place(flyout: HTMLElement): void {
-        const content = flyout.querySelector<HTMLElement>(`:scope > .${ContentClass}`);
+        const content = flyout.querySelector<HTMLElement>(`:scope > .${FlyoutContentClass}`);
         const anchor = flyout.querySelector<HTMLElement>(`:scope > .${AnchorClass}`);
 
         if (content === null)
             return;
 
-        const open = flyout.classList.contains(OpenClass);
+        const opener = describeAnchor(anchor, content);
 
-        this.describeAnchor(anchor, content, open);
-
-        if (!open) {
-            releaseAnchoredPopup(content);
-
-            if (this.seenOpen.has(flyout))
-                restoreFocusTo(this.returnFocus.get(flyout), flyout);
-
-            this.seenOpen.delete(flyout);
-            this.returnFocus.delete(flyout);
+        if (!flyout.classList.contains(OpenClass)) {
+            this.flyouts.close(flyout);
+            opener?.setAttribute("aria-expanded", "false");
             return;
         }
 
-        placeAnchoredPopup(resolveAnchorBox(anchor) ?? flyout, content, { placement: readPlacement(flyout), gap: ContentGap });
+        // Not a focus trap: Tab may leave, closing it unless `canDismiss` keeps it; one that may not stay open is taken down again.
+        const open = this.flyouts.open({
+            owner: flyout,
+            popup: content,
+            anchor: resolveAnchorBox(anchor) ?? flyout,
+            placement: { placement: readPlacement(flyout), gap: ContentGap },
+            openers: opener === null ? [] : [opener],
+            focus: true
+        });
 
-        if (this.seenOpen.has(flyout))
-            return;
-
-        this.seenOpen.add(flyout);
-
-        // Not a focus trap: a popover lets Tab leave, and `handleFocusOut` closes it behind the viewer.
-        const previous = moveFocusInto(content);
-
-        if (previous !== null)
-            this.returnFocus.set(flyout, previous);
+        if (!open)
+            this.markClosed(flyout);
     }
 
-    /** Writes what the flyout is and whether it is open onto the focusable control inside the anchor. */
-    private describeAnchor(anchor: HTMLElement | null, content: HTMLElement, open: boolean): void {
-        if (anchor === null)
+    /** Takes the open class off a flyout the client closes, and says so the way a toggle does; `close` only where it can run. */
+    private markClosed(flyout: HTMLElement, raisesClose = true): void {
+        if (!flyout.classList.contains(OpenClass))
             return;
 
-        const target = anchor.querySelector<HTMLElement>(FocusableSelector) ?? anchor;
-
-        target.setAttribute("aria-haspopup", "dialog");
-        target.setAttribute("aria-expanded", open ? "true" : "false");
-        target.setAttribute("aria-controls", ensureElementId(content, "ui-flyout-content"));
-    }
-
-    private handleFocusOut(domEvent: Event): void {
-        if (!(domEvent instanceof FocusEvent))
-            return;
-
-        const flyout = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(OpenFlyoutSelector) : null;
-
-        if (flyout === null || flyout.hasAttribute(NoBackdropCloseAttribute))
-            return;
-
-        // Null when focus leaves the document altogether: switching windows is not leaving the flyout.
-        const next = domEvent.relatedTarget;
-
-        if (next === null || (next instanceof Node && flyout.contains(next)))
-            return;
-
-        this.setOpen(flyout, false);
+        flyout.classList.remove(OpenClass);
+        announce(flyout, false, raisesClose);
     }
 
     private handleClick(domEvent: Event): void {
@@ -128,19 +93,42 @@ export class FlyoutInteractionEngine {
         const anchor = domEvent.target.closest<HTMLElement>(`.${AnchorClass}`);
         const flyout = anchor?.closest<HTMLElement>(`.${FlyoutClass}`) ?? null;
 
-        if (flyout !== null)
-            this.setOpen(flyout, !flyout.classList.contains(OpenClass));
-    }
-
-    private setOpen(flyout: HTMLElement, open: boolean): void {
-        if (flyout.classList.contains(OpenClass) === open)
+        if (flyout === null)
             return;
 
-        flyout.classList.toggle(OpenClass, open);
+        if (this.flyouts.isOpen(flyout)) {
+            this.flyouts.close(flyout);
+            return;
+        }
+
+        flyout.classList.add(OpenClass);
         this.place(flyout);
-        flyout.dispatchEvent(new Event("toggle", { bubbles: true }));
-        flyout.dispatchEvent(new Event(open ? "open" : "close", { bubbles: true }));
+
+        if (this.flyouts.isOpen(flyout))
+            announce(flyout, true);
     }
+}
+
+/** Writes what the flyout is onto the focusable control inside the anchor, and answers with that control. */
+function describeAnchor(anchor: HTMLElement | null, content: HTMLElement): HTMLElement | null {
+    if (anchor === null)
+        return null;
+
+    const target = anchor.querySelector<HTMLElement>(FocusableSelector) ?? anchor;
+
+    target.setAttribute("aria-haspopup", "dialog");
+    target.setAttribute("aria-controls", ensureElementId(content, "ui-flyout-content"));
+
+    return target;
+}
+
+/** Raises a flyout's `toggle` for its two-way IsOpen, and its `open`/`close` for the application's handlers where asked. */
+function announce(flyout: HTMLElement, open: boolean, raisesCommand = true): void {
+    flyout.dispatchEvent(new Event("toggle", { bubbles: true }));
+
+    // Not when its owner turned disabled or loading: the `close` a disabled component raised would be refused.
+    if (raisesCommand)
+        flyout.dispatchEvent(new Event(open ? "open" : "close", { bubbles: true }));
 }
 
 /** The component put in the anchor slot, not the slot itself: the slot is a grid cell as wide as its column. */

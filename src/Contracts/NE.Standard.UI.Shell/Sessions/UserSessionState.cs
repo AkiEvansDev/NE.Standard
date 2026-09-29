@@ -5,14 +5,12 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Shell.Sessions;
 
-/// <summary>
-/// A user session as it is stored between requests.
-/// </summary>
+/// <summary>A user session as it is stored between requests.</summary>
 /// <remarks>
 /// Immutable: sign a session in by saving a modified copy (<c>session with { IsAuthenticated = true }</c>), not by
-/// writing to the one you were given.
+/// writing to the one you were given. What a command wrote into the session is its connection's session from then on.
 /// </remarks>
-public sealed record UserSessionState
+public sealed record UserSessionState : IUserSessionContext
 {
     /// <summary>
     /// Gets the session identifier issued by the store.
@@ -49,20 +47,17 @@ public sealed record UserSessionState
     /// </summary>
     public IReadOnlySet<string> Permissions { get; init; } = FrozenSet<string>.Empty;
 
-    /// <summary>
-    /// Gets whether the session id must be replaced at the next shell render.
-    /// </summary>
-    /// <remarks>
-    /// Acted on in the <c>UIViewRequestPhase.Open</c> phase, the one request that can hand the client its id.
-    /// </remarks>
+    /// <summary>Gets whether the session id must be replaced at the next shell render.</summary>
+    /// <remarks>Acted on in the <c>UIViewRequestPhase.Open</c> phase, the one request that can hand the client its id.</remarks>
     public bool PendingIdRotation { get; init; }
 
     /// <summary>
     /// Gets whether no client has used the session yet: a page render issued it, and no tab has attached nor anything been
-    /// written into it. Such a session lives only <see cref="UISessionOptions.UnclaimedIdleTimeout"/>.
+    /// written into it.
     /// </summary>
     /// <remarks>
-    /// Unset means claimed, so a store that does not keep the flag keeps every session for the full idle timeout.
+    /// Such a session lives only <see cref="UISessionOptions.UnclaimedIdleTimeout"/>. Unset means claimed, so a store that does not
+    /// keep the flag keeps every session for the full idle timeout.
     /// </remarks>
     public bool IsUnclaimed { get; init; }
 

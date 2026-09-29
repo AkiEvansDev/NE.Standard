@@ -32,7 +32,6 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     /// <summary>
     /// Gets or sets the icon shown beside the badge text, by name from the registered icon font/set.
     /// </summary>
-    [Translatable]
     [UIComponentProperty(DefaultValue = null)]
     public string? Icon { get; set; }
 
@@ -76,8 +75,6 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
 /// </summary>
 public sealed class BadgeComponent(string? id = null) : BadgeComponent<BadgeComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.badge";
 }

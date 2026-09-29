@@ -128,8 +128,6 @@ public abstract partial class FlyoutComponent<T>(string? id = null) : RegionCont
 /// </summary>
 public sealed class FlyoutComponent(string? id = null) : FlyoutComponent<FlyoutComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.flyout";
 }

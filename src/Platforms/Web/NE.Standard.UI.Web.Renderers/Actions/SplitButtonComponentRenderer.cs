@@ -88,6 +88,6 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
         _ = opener.Attribute(WebAttributes.EventBoundary);
 
         if (named)
-            _ = opener.Attribute("aria-label", context.Translate(UIStrings.SplitButtonMore));
+            WebWords.Write(context, opener, "aria-label", UIStrings.SplitButtonMore);
     }
 }

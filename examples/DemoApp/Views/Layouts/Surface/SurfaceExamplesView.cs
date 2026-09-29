@@ -223,7 +223,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(260))
                     .SetContent(UILayout.Stack(8)
                         .AddChild(new TextComponent()
-                            .SetTitle("Change request · CHG-482")
+                            .SetTitle("Request CHG-482")
                             .SetDescription("Resize db-us-east-2 to Dedicated")
                             .SetDescriptionType(UITextAppearance.Caption)
                             .SetDescriptionColor(UIThemeColor.Muted)
@@ -253,7 +253,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetWidth(UILayoutLength.Absolute(260))
                     .ConfigureDefaultHeader(header => header
-                        .SetTitle("Change request · CHG-482")
+                        .SetTitle("Request CHG-482")
                         .SetDescription("Resize db-us-east-2 to Dedicated")
                     )
                     .SetContent(new ParagraphComponent()

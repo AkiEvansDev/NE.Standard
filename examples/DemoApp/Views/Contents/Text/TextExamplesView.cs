@@ -159,22 +159,20 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAlignmentEdgesGroup()
     {
+        // One to a line at the group's width: a fixed width cut the lines short with the column's room to spare.
         return DemoUI.CreateExample("Alignment, where it is not obvious",
-            UILayout.Row(16)
+            UILayout.Stack(16)
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoIcons.Shield)
                     .SetIconAlignment(UITextIconAlignment.Title)
-                    .SetDescription($"Icon Title, no title — {Description}")
+                    .SetDescription("Icon Title, no title — the glyph stands on this line.")
                 )
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoIcons.Shield)
                     .SetIconAlignment(UITextIconAlignment.Content)
-                    .SetDescription($"Icon Content, no title — {Description}")
+                    .SetDescription("Icon Content, no title — the glyph centred on the block.")
                 )
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetBadgeAlignment(UITextBadgeAlignment.Title)
                     .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     .SetBadgeText("Review")
@@ -182,7 +180,6 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetTitle("Badge Title, one line")
                 )
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetBadgeAlignment(UITextBadgeAlignment.Content)
                     .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     .SetBadgeText("Review")
@@ -198,22 +195,20 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
     /// <remarks>With no size given, text content draws the picture as a square the height of the block.</remarks>
     private static ContainerComponent CreatePictureIconGroup()
     {
+        // One to a line at the group's width: a fixed width cut the lines short with the column's room to spare.
         return DemoUI.CreateExample("An icon that is a picture",
-            UILayout.Row(16)
+            UILayout.Stack(16)
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoImages.Avatar)
                     .SetTitle("Robin Hale")
-                    .SetDescription("A square photograph — no size given, so a square the height of the block.")
+                    .SetDescription("A square photograph, no size given: a tile the block's height.")
                 )
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoImages.SunsetRuins)
                     .SetTitle("A landscape")
                     .SetDescription("Wider than it is tall, in the same square tile.")
                 )
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoImages.Logo)
                     .SetTitle("A size given")
                     .SetDescription("The picture obeys it, like a glyph — no tile, no square.")
@@ -221,7 +216,6 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                 )
                 // A line that is already coloured does not get muted on top: it would fall below contrast.
                 .AddChild(new TextComponent()
-                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetIcon(DemoImages.Mask(DemoImages.Mark))
                     .SetTitle("Tinted picture")
                     .SetDescription("Written mask: — a monochrome SVG follows the text's colour.")

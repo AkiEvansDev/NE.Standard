@@ -3,9 +3,7 @@ using System.Threading.Tasks;
 
 namespace NE.Standard.UI.Shell.Commands;
 
-/// <summary>
-/// Intercepts the execution of a command, so a controller can carry cross-cutting behaviour of its own.
-/// </summary>
+/// <summary>Intercepts the execution of a command, so a controller can carry cross-cutting behaviour of its own.</summary>
 /// <remarks>
 /// A filter can change what is reported, not undo what already happened: blocking an effect requires short-circuiting before it runs.
 /// </remarks>

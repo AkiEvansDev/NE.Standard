@@ -32,17 +32,9 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                 _ = target.Class(WebClassNames.Orientation(orientation));
         }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
 
-        _ = RenderProperty<bool?>(context, root, SliderComponent.ShowValueProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-slider--show-value");
-        }, [WebDomOperation.ToggleClass("ui-slider--show-value")]);
+        RenderFlagClass(context, root, SliderComponent.ShowValueProperty, "ui-slider--show-value");
 
-        _ = RenderProperty<bool?>(context, root, SliderComponent.ShowRangeProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class("ui-slider--show-range");
-        }, [WebDomOperation.ToggleClass("ui-slider--show-range")]);
+        RenderFlagClass(context, root, SliderComponent.ShowRangeProperty, "ui-slider--show-range");
 
         // One RenderProperty call per property, driving every target at once: registering the same property twice is rejected.
         _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out decimal? initialValue, out _);
@@ -100,7 +92,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                     NativeInputRendererBase.RenderFormId(context, input);
                     NativeInputRendererBase.RenderFieldName(context, input);
 
-                    NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, input);
+                    NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, input);
                     RenderFieldLabel(context, input);
 
                     // Clamped on the way out: a range input clamps silently, so an out-of-range value would leave

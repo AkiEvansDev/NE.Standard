@@ -30,7 +30,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         _ = root.Attribute("role", "separator");
         _ = root.Attribute("tabindex", "0");
         _ = root.Attribute("aria-orientation", resolved == UIOrientation.Vertical ? "vertical" : "horizontal");
-        _ = root.Attribute("aria-label", context.Translate(UIStrings.SplitterLabel));
+        WebWords.Write(context, root, "aria-label", UIStrings.SplitterLabel);
 
         _ = RenderProperty<double?>(context, root, GridSplitterComponent.StepProperty, static (target, value) =>
         {

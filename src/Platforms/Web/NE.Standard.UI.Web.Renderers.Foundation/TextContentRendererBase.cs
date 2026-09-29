@@ -46,6 +46,17 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     // On the element a field's caption names (RenderFieldLabel): what a live title change rewrites the aria-label of.
     private const string LabelledAttribute = "data-ui-labelled";
 
+    /// <summary>
+    /// On the element a control's tooltip names while the control shows no title — an icon-only button, or a split button's press:
+    /// what a pushed tooltip renames (<see cref="TooltipNameOperation"/>) and a title that arrives unnames.
+    /// </summary>
+    public const string TooltipNamedAttribute = "data-ui-tooltip-named";
+
+    // The named element is the component's root or a press just under it (a split button's); either way the root's title mark
+    // decides. `:scope` keeps each half to its own case: the root only matches itself, and a descendant only below the root.
+    private const string TooltipNamedUntitledTarget = $":scope[{TooltipNamedAttribute}]:not([{TitleShownAttribute}]), :scope:not([{TitleShownAttribute}]) > [{TooltipNamedAttribute}]";
+    private const string TooltipNamedTitledTarget = $":scope[{TooltipNamedAttribute}][{TitleShownAttribute}], :scope[{TitleShownAttribute}] > [{TooltipNamedAttribute}]";
+
     // A text body is drawn per row, so its operation lists are built once rather than per body.
     private static readonly WebDomOperation[] TextAlignmentOperations = [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)];
     private static readonly WebDomOperation[] SelectableOperations = [WebDomOperation.ToggleClass($"{TextClassPrefix}--selectable")];
@@ -53,13 +64,14 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] AffixTextOperations = [WebDomOperation.Text()];
     private static readonly WebDomOperation[] InputAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
     private static readonly WebDomOperation[] InputSizeOperations = [WebDomOperation.Class(converter: WebDomConverters.InputSizeClass)];
-    private static readonly WebDomOperation[] PrefixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(PrefixIconShownAttribute, target: "root", condition: WebValueCondition.HasText)];
-    private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] PrefixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(PrefixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
+    private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] WrapModeOperations = [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)];
+    private static readonly WebDomOperation[] TitleWrapOperations = [WebDomOperation.ToggleClass(TitleWrapClassName, condition: WebValueCondition.IsTrue)];
     private static readonly WebDomOperation[] MaxLinesOperations = [WebDomOperation.Style(MaxLinesVariable), WebDomOperation.ToggleClass(MaxLinesClassName, condition: WebValueCondition.HasValue)];
     private static readonly WebDomOperation[] QuoteLineOperations = [WebDomOperation.ToggleClass(QuoteClassName, condition: WebValueCondition.IsTrue)];
     private static readonly WebDomOperation[] QuoteLineColorOperations = [WebDomOperation.Style(QuoteColorVariable, converter: WebDomConverters.ThemeColorCss)];
-    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] TitleOperations = [WebDomOperation.Text(), WebDomOperation.ToggleAttribute(TitleShownAttribute, target: "root", condition: WebValueCondition.HasText)];
 
     // Optional: a field that names nothing of its own (a package's editor, a picture button) carries no mark.
@@ -68,6 +80,18 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         .. TitleOperations,
         new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = $"[{LabelledAttribute}]", Optional = true }
     ];
+    // After the title's mark is written: a title shown names the host by its words, so the tooltip's name comes off.
+    private static readonly WebDomOperation[] TooltipNamedTitleOperations =
+    [
+        .. TitleOperations,
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.RemoveAttribute), Name = "aria-label", Target = TooltipNamedTitledTarget, Optional = true }
+    ];
+
+    /// <summary>
+    /// The operation a control's tooltip names it by: the tooltip's words as the <c>aria-label</c> of the element
+    /// <see cref="TooltipNamedAttribute"/> marks, while the control shows no title — its plain text, never the Markdown source.
+    /// </summary>
+    public static WebDomOperation TooltipNameOperation { get; } = new() { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = TooltipNamedUntitledTarget, Converter = WebDomConverters.InlineMarkupPlainText, Optional = true };
     private static readonly WebDomOperation[] DescriptionOperations = [WebDomOperation.Markup(), WebDomOperation.ToggleAttribute(DescriptionShownAttribute, target: "root", condition: WebValueCondition.HasText)];
 
     private static readonly WebBadgeRenderOptions TextBadgeOptions = new()
@@ -113,7 +137,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             {
                 _ = header.Class($"{TextClassPrefix}__header");
 
-                _ = header.Element("span", title => RenderTitle(context, root, title, options.NamesField));
+                _ = header.Element("span", title => RenderTitle(context, root, title, options.NamesField, options.TooltipNamesHost));
 
                 options.Trailing?.Invoke(header);
 
@@ -207,12 +231,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// Makes <paramref name="field"/> the control the caption names — or the component's <c>AccessibleName</c>, where it sets one: its
-    /// accessible name, whether it is required, the validation line
-    /// that describes it, and invalid where the render already knows the value was refused. For the element a screen reader lands on —
-    /// the native field, a picker's trigger, the group a period's two fields stand in.
+    /// Names <paramref name="field"/> by the caption, or the component's <c>AccessibleName</c>, and marks it required, described by its
+    /// validation line and invalid where the render already knows the value was refused.
     /// </summary>
-    /// <remarks>The caption drawn beside a field is not its label for a screen reader: most fields' roots are not a label element.</remarks>
+    /// <remarks>
+    /// For the element a screen reader lands on (the native field, a picker's trigger, a period's group): the caption drawn beside a
+    /// field is not its label, since most fields' roots are not a label element.
+    /// </remarks>
     public static void RenderFieldLabel(WebRenderContext context, IHtmlElementBuilder field)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -318,7 +343,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         _ = RenderProperty<string?>(context, icon, property, (target, value) =>
         {
-            if (!string.IsNullOrWhiteSpace(value))
+            if (IconValueRenderer.Draws(value))
             {
                 _ = root.Attribute(attribute);
                 IconValueRenderer.RenderIconValue(target, value);
@@ -362,7 +387,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         });
     }
 
-    /// <summary>How a paragraph is allowed to run — wrap mode and maximum lines.</summary>
+    /// <summary>How a paragraph is allowed to run — wrap mode, a title that wraps too, and maximum lines.</summary>
     protected static void RenderParagraphFlow(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -374,6 +399,12 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UITextWrapMode wrapMode)
                 _ = target.Class(WebClassNames.TextWrap(wrapMode));
         }, WrapModeOperations);
+
+        _ = RenderProperty<bool?>(context, container, IParagraphComponent.TitleWrapProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Class(TitleWrapClassName);
+        }, TitleWrapOperations);
 
         _ = RenderProperty<int?>(context, root, IParagraphComponent.MaxLinesProperty, static (target, value) =>
         {
@@ -396,6 +427,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     private const string MaxLinesClassName = "ui-text--max-lines";
     private const string MaxLinesVariable = "--ui-text-max-lines";
+    private const string TitleWrapClassName = "ui-text--title-wrap";
     private const string QuoteClassName = "ui-paragraph--quote";
     private const string QuoteColorVariable = "--ui-quote-color";
 
@@ -412,7 +444,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         _ = RenderProperty<string?>(context, icon, ITextBaseComponent.IconProperty, (target, value) =>
         {
-            if (!string.IsNullOrWhiteSpace(value))
+            if (IconValueRenderer.Draws(value))
             {
                 _ = root.Attribute(IconOnlyButtonAttribute);
                 IconValueRenderer.RenderIconValue(target, value);
@@ -420,7 +452,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         }, IconOperations);
     }
 
-    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title, bool namesField = false)
+    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title, bool namesField = false, bool tooltipNamesHost = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -437,7 +469,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 _ = root.Attribute(TitleShownAttribute);
                 _ = target.Text(value);
             }
-        }, namesField ? FieldTitleOperations : TitleOperations);
+        }, namesField ? FieldTitleOperations : tooltipNamesHost ? TooltipNamedTitleOperations : TitleOperations);
     }
 
     /// <summary>Applies <c>TitleColor</c> to <paramref name="titleScope"/>, which must contain the icon so the glyph inherits it.</summary>

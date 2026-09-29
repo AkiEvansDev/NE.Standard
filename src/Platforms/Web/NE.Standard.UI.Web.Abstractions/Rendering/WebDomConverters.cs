@@ -45,6 +45,9 @@ public static class WebDomConverters
     public const string OverflowCss = "overflowCss";
     public const string LayoutLengthCss = "layoutLengthCss";
     public const string ThicknessCss = "thicknessCss";
+
+    /// <summary>A border thickness as <c>WebClassNames.BorderNone</c>: the class when every side is nothing, else none.</summary>
+    public const string BorderNoneClass = "borderNoneClass";
     public const string RadiusCss = "radiusCss";
     public const string GridUnitCss = "gridUnitCss";
     public const string PixelsCss = "pixelsCss";
@@ -53,11 +56,18 @@ public static class WebDomConverters
     public const string ThemeColorCss = "themeColorCss";
     /// <summary>A foreground colour as inline CSS — only for a variant; a style colour is a class, so the class rule (an ink) is not overridden.</summary>
     public const string ThemeColorInlineCss = "themeColorInlineCss";
-    public const string SelectionModeAttribute = "selectionModeAttribute";
+
+    /// <summary>A colour spent on words as inline CSS: a semantic role as its ink (<c>WebCssValues.ThemeInk</c>), anything else as itself.</summary>
+    public const string ThemeInkCss = "themeInkCss";
 
     /// <summary>
-    /// The four halves of a <c>UISelectionStyle</c>, one custom property each.
+    /// The text colour that reads on a filled ground of this colour (<c>WebCssValues.ThemeOnColor</c>); <c>initial</c> for the page's
+    /// own grounds; nothing where there is none.
     /// </summary>
+    public const string ThemeOnColorCss = "themeOnColorCss";
+    public const string SelectionModeAttribute = "selectionModeAttribute";
+
+    /// <summary>The parts of a <c>UISelectionStyle</c>, one custom property each.</summary>
     public const string SelectionBackgroundCss = "selectionBackgroundCss";
     public const string SelectionForegroundCss = "selectionForegroundCss";
     public const string SelectionMarkColorCss = "selectionMarkColorCss";
@@ -81,6 +91,9 @@ public static class WebDomConverters
     public const string ImageFitSizeCss = "imageFitSizeCss";
     public const string ProgressVariantClass = "progressVariantClass";
     public const string ProgressValueText = "progressValueText";
+
+    /// <summary>Inline markup as the plain text a reader sees — for an attribute that repeats a tooltip's words (<c>aria-label</c>).</summary>
+    public const string InlineMarkupPlainText = "inlineMarkupPlainText";
     public const string SearchSelectionModeClass = "searchSelectionModeClass";
     public const string TextAreaResizeCss = "textAreaResizeCss";
     public const string FlyoutPlacementClass = "flyoutPlacementClass";

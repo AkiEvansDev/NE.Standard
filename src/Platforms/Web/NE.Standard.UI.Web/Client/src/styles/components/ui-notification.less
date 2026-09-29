@@ -40,7 +40,7 @@
     color: var(--ui-color-on-surface);
     pointer-events: auto;
     .ui-elevation-3();
-    animation: ui-notification-in @ui-motion-normal @ui-motion-ease;
+    animation: ui-notification-in @ui-motion-normal @ui-motion-enter;
 }
 
     // The severity, and the only place it shows.
@@ -56,7 +56,7 @@
     }
 
 .ui-notification--leaving {
-    animation: ui-notification-out @ui-motion-fast @ui-motion-ease forwards;
+    animation: ui-notification-out @ui-motion-fast @ui-motion-exit forwards;
 }
 
 .ui-notification__message {
@@ -76,14 +76,17 @@
 
 .ui-notification__close {
     .ui-glyph-host();
-    // The message beside it is a body line and the toast aligns the two at their tops, so the box is a line tall to sit on its centre.
+    // A body line tall: the toast aligns it with the message at their tops, so it sits on the first line's centre.
     height: var(--ui-text-body-line-height);
+    aspect-ratio: 1;
     padding: 0;
     border: none;
+    border-radius: 999px;
     background: none;
     color: inherit;
     cursor: pointer;
     opacity: 0.7;
+    transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
     .ui-notification__close {
@@ -92,6 +95,12 @@
 
 .ui-notification__close:hover {
     opacity: 1;
+}
+
+// A press answers as every button's does, with the pressed wash, on a round plate as a chip's cross has.
+.ui-notification__close:active {
+    opacity: 1;
+    background-color: var(--ui-wash-active);
 }
 
 // Severity sets the bar, not the surface, so a toast reads as one of this application's panels.
@@ -117,13 +126,6 @@
 
 .ui-notification--accent {
     --ui-notification-accent: var(--ui-color-accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .ui-notification,
-    .ui-notification--leaving {
-        animation: none;
-    }
 }
 
 @keyframes ui-notification-in {

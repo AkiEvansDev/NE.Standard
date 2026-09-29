@@ -46,8 +46,6 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
 /// </summary>
 public sealed class SurfaceComponent(string? id = null) : SurfaceComponent<SurfaceComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.surface";
 }

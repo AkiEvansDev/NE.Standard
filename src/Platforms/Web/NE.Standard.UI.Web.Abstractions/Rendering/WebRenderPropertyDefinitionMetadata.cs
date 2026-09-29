@@ -13,6 +13,11 @@ public sealed class WebRenderPropertyDefinitionMetadata
 
     public IReadOnlyList<WebDomOperation> Operations { get; init; } = [];
 
+    /// <summary>
+    /// Gets whether the property's value is localizable text, which the page looks up in its words table before it writes it.
+    /// </summary>
+    public bool Translatable { get; internal set; }
+
     public void Validate()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(PropertyId);

@@ -7,12 +7,8 @@ namespace NE.Standard.UI.Shell.Files;
 /// </summary>
 public sealed class UIUploadFile
 {
-    /// <summary>
-    /// Gets the file id issued by the store.
-    /// </summary>
-    /// <remarks>
-    /// Server-issued, never taken from the client: a client-chosen id could collide with or guess at another client's.
-    /// </remarks>
+    /// <summary>Gets the file id issued by the store.</summary>
+    /// <remarks>Server-issued, never taken from the client: a client-chosen id could collide with or guess at another client's.</remarks>
     public required string FileId { get; init; }
 
     /// <summary>

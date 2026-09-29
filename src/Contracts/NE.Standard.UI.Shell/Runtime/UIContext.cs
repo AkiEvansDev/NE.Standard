@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Localization;
@@ -64,9 +65,7 @@ public sealed class UIContext
     /// </summary>
     public ITranslator Translator { get; }
 
-    /// <summary>
-    /// Resolves the address a piece of registered content is served at.
-    /// </summary>
+    /// <summary>Resolves the address a piece of registered content is served at.</summary>
     /// <exception cref="InvalidOperationException">
     /// No platform has registered an <see cref="IUIContentAddressResolver"/>.
     /// </exception>
@@ -82,12 +81,8 @@ public sealed class UIContext
     public IUIRuntimeAccess Runtime
         => _runtime ?? throw new InvalidOperationException("Runtime access is not attached.");
 
-    /// <summary>
-    /// Gets the route this controller is running on.
-    /// </summary>
-    /// <remarks>
-    /// Fixed for the lifetime of the runtime, unlike <see cref="Handle"/>, which follows the connection.
-    /// </remarks>
+    /// <summary>Gets the route this controller is running on.</summary>
+    /// <remarks>Fixed for the lifetime of the runtime, unlike <see cref="Handle"/>, which follows the connection.</remarks>
     public UIRouteDefinition Route { get; }
 
     // Swapped whole: under PerClient, a reattach can replace it while a command reads it; four separate properties could
@@ -102,9 +97,7 @@ public sealed class UIContext
     /// </summary>
     public UIHandle Handle => _invokingHandle.Value ?? _connection.Handle;
 
-    /// <summary>
-    /// Marks the connection a command is running for.
-    /// </summary>
+    /// <summary>Marks the connection a command is running for.</summary>
     /// <remarks>
     /// Ambient because it must reach a controller that never asked for it; per-flow because a background command
     /// runs beside others on the same runtime.
@@ -139,9 +132,7 @@ public sealed class UIContext
     /// </summary>
     public IUIUploadService Uploads => _connection.Uploads;
 
-    /// <summary>
-    /// Sends client effects to the connection this is running for, without waiting for a command to answer.
-    /// </summary>
+    /// <summary>Sends client effects to the connection this is running for, without waiting for a command to answer.</summary>
     /// <remarks>
     /// A command's own effects apply only once it answers, so long-running work (a node network, a long import) needs this
     /// channel instead. A runtime answering a single request, not holding a connection, drops them.
@@ -175,17 +166,44 @@ public sealed class UIContext
             ?? throw new InvalidOperationException($"'{nameof(IUIUpdateSink)}' is not registered.");
 
     /// <summary>
-    /// Translates a key using the current session language.
+    /// Translates a plain value using the current session language — under key prefixes, only a prefixed one.
     /// </summary>
     public string? Translate(string? key)
         => Translator.Translate(Handle.Session.Language, key);
+
+    /// <summary>
+    /// Translates a key using the current session language and fills its <c>{name}</c> slots; a numeric <c>count</c> picks the
+    /// plural form.
+    /// </summary>
+    public string Translate(string key, IReadOnlyDictionary<string, object?>? arguments)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        return Translator.Translate(Handle.Session.Language, key, arguments) ?? key;
+    }
+
+    /// <summary>
+    /// Translates a key using the current session language and fills its numbered slots — <c>{0}</c>, <c>{1}</c>, … — in order.
+    /// </summary>
+    public string Translate(string key, params object?[] arguments)
+        => Translate(key, UIWords.Positional(arguments));
+
+    /// <summary>
+    /// Translates a phrase — its key and its arguments — using the current session language; an author's text as a plain value.
+    /// </summary>
+    public string Translate(UIPhrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+
+        return phrase.IsText ? Translate(phrase.Key) ?? phrase.Key : Translate(phrase.Key, phrase.Arguments);
+    }
 
     /// <summary>
     /// Reads the stored session behind this connection, or <see langword="null"/> when it has been signed out
     /// or has expired.
     /// </summary>
     /// <remarks>
-    /// Read from the store, not <see cref="UIHandle.Session"/>, a snapshot that does not move until this connection attaches again.
+    /// Read from the store, not <see cref="UIHandle.Session"/>, which moves only when this connection itself updates the session.
     /// </remarks>
     public ValueTask<UserSessionState?> GetSessionAsync(CancellationToken cancellationToken = default)
         => Sessions.TryGetAsync(Handle.Session.SessionId, cancellationToken);
@@ -218,9 +236,7 @@ public sealed class UIContext
         Validate();
     }
 
-    /// <summary>
-    /// Marks this session authenticated, giving it roles and permissions the route and command access checks read.
-    /// </summary>
+    /// <summary>Marks this session authenticated, giving it roles and permissions the route and command access checks read.</summary>
     /// <remarks>
     /// Only marks the session for id rotation; the actual rotation happens on the next full page load, so sign-in must end in a navigation.
     /// </remarks>
@@ -237,12 +253,11 @@ public sealed class UIContext
             cancellationToken
         );
 
-    /// <summary>
-    /// Ends the session: every later command under it is refused, the files uploaded under it go, and every other page open
-    /// under it is sent to sign in and its runtime ended; this page keeps running to finish its own answer.
-    /// </summary>
+    /// <summary>Ends the session; this page keeps running to finish its own answer.</summary>
     /// <remarks>
-    /// Through <see cref="IUISessions"/> where the host registers one; without it, only the stored session and its files go.
+    /// Every later command under it is refused, the files uploaded under it go, and every other page open under it is sent to sign in
+    /// and its runtime ended — through <see cref="IUISessions"/> where the host registers one; without it, only the stored session and
+    /// its files go.
     /// </remarks>
     public async ValueTask SignOutAsync(CancellationToken cancellationToken = default)
     {
@@ -266,15 +281,28 @@ public sealed class UIContext
     /// outlive this connection.
     /// </summary>
     /// <remarks>
-    /// A no-op when the session is already gone, so signing out twice is not an error.
+    /// A no-op when the session is gone. What was stored is this connection's <see cref="UIHandle.Session"/> for the rest of the
+    /// command; a new language runs the controller's language hook and switches this page before it returns.
     /// </remarks>
     public async ValueTask UpdateSessionAsync(Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
 
+        UIHandle handle = Handle;
+        var previousLanguage = handle.Session.Language;
+        UserSessionState? written = null;
+
         // Applied to what the store holds at the write, so a change made meanwhile from elsewhere is not overwritten; and never
         // recreating a session signed out since. Something written into a session is a client using it: the full idle timeout.
-        _ = await Sessions.TryUpdateAsync(Handle.Session.SessionId, session => (update(session) ?? throw new InvalidOperationException("A session update returned no session.")) with { IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
+        var stored = await Sessions.TryUpdateAsync(handle.Session.SessionId, session => written = (update(session) ?? throw new InvalidOperationException("A session update returned no session.")) with { IsUnclaimed = false }, cancellationToken).ConfigureAwait(false);
+
+        if (!stored || written is null)
+            return;
+
+        handle.RefreshSession(written);
+
+        if (!string.Equals(previousLanguage, written.Language, StringComparison.Ordinal) && _runtime is IUILanguageChangeListener listener)
+            await listener.LanguageChangedAsync(handle, previousLanguage, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

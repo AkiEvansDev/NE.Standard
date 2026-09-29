@@ -22,4 +22,10 @@ public sealed class WebEndpointOptions
     /// deliberately serves active content turns it off.
     /// </summary>
     public bool InertContent { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the page's icon: the <c>href</c> of the shell's <c>link rel="icon"</c> — an absolute path under the application's
+    /// static files, or a <c>data:</c> URL. Unset, the shell names an empty icon, so a browser asks for no <c>/favicon.ico</c>.
+    /// </summary>
+    public string? Icon { get; set; }
 }

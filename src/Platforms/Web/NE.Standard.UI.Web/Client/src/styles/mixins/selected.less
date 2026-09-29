@@ -1,3 +1,5 @@
+@import "./color.less";
+@import "./focus.less";
 @import "./interactive.less";
 
 // Reads the --ui-selected-* properties on a control's root; they inherit, so each control fences its own with .ui-selected-scope().
@@ -10,9 +12,10 @@
     --ui-selected-font-weight: initial;
 }
 
-// The wash is named too (--ui-row-wash): a cell that paints its own ground over the row's — a table's pinned column — paints the same wash.
-.ui-selected-ground(@default: var(--ui-wash-selected)) {
-    background: var(--ui-selected-background, @default);
+// Named as --ui-row-wash too, so a cell painting its own ground (a pinned column) paints the same wash. `@property` is
+// `background-color` where a picture under the ground must stay.
+.ui-selected-ground(@default: var(--ui-wash-selected); @property: background) {
+    @{property}: var(--ui-selected-background, @default);
     --ui-row-wash: var(--ui-selected-background, @default);
 }
 
@@ -35,15 +38,37 @@
     box-shadow: var(--ui-selected-mark, @default);
 }
 
-// A chosen row of a host with rows — an items view's, a table's, a tree's: the three pieces together, the ink inherited.
+// A chosen row: ground, inherited ink, mark, and the cursor's layer — transparent until `.ui-row-cursor-layer()`, so it fades both ways.
 .ui-selected-row() {
     .ui-selected-ground();
+    background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent));
     .ui-selected-ink(inherit);
     .ui-selected-mark();
 }
 
-// A row under the pointer: --ui-wash-hover mixes into whatever is behind it, since the host may have no surface of its own.
-// One wash: a ghost button in the row answers with its ink, not a second wash over the row's.
+// A chosen tile: a chosen row over the tile's own picture, which the row's `background` shorthand would reset (`.ui-tile-wash()`
+// keeps it too).
+.ui-selected-tile() {
+    .ui-selected-ground(@property: background-color);
+    background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), var(--ui-surface-image, none);
+    .ui-selected-ink(inherit);
+    .ui-selected-mark();
+}
+
+// A row that answers the pointer: neither it nor its template root (as `isItemDisabled` reads it) disabled or loading. In :where(),
+// so the chosen row's ground still wins; never inside another `:has()`, which the browser drops whole.
+@ui-row-live: ~":where(:not(.ui-disabled, .ui-loading):not(:has(> [data-ui-id]:is(.ui-disabled, .ui-loading), > :not([data-ui-id]) > [data-ui-id]:is(.ui-disabled, .ui-loading))))";
+
+// A row at rest: its wash fenced from nested hosts and faded both ways (`--ui-row-wash` is registered, ui-table.less); a row may be
+// a component's root, so the root's fade leads the list.
+.ui-row-ground() {
+    --ui-row-wash: transparent;
+    --ui-row-cursor-wash: transparent;
+    transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, --ui-row-wash @ui-motion-fast @ui-motion-ease, --ui-row-cursor-wash @ui-motion-fast @ui-motion-ease;
+}
+
+// A row under the pointer: a wash, since the host may have no surface of its own. A quiet button in it brightens instead of a second
+// wash (a filter: its ink is already the row's); its press, stronger than any hover, takes the pressed wash.
 .ui-row-hover() {
     background-color: var(--ui-wash-hover);
     --ui-row-wash: var(--ui-wash-hover);
@@ -51,13 +76,65 @@
     .ui-button--ghost {
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
+
+    .ui-button--outline {
+        .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
+    }
+
+    .ui-button--link {
+        .ui-reveal-hover-off();
+    }
+
+    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover,
+    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        background-color: transparent;
+    }
+
+    // The parts, never a root (a split button's hovered part alone): a filter makes the root the containing block of a popup inside
+    // it, which would jump.
+    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
+    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        .ui-brighten-hover();
+    }
+
+    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:active,
+    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
+        background-color: var(--ui-wash-active);
+    }
 }
 
-// The keyboard's row washes like the pointer's while the host holds focus, except with a single choice, whose chosen row
-// already is the keyboard's. `:focus`, not `:focus-within`, since a click in another row must not light a stale one. `@via` is
-// the child path from the host to its items host where that is not a direct child (a table's scrolling box), ending in " > ".
+// A wrapped view's tile (its row is display: contents): the row's inherited wash over the tile's own ground and picture. Painted at
+// rest too, transparent, so the wash fades out when the pointer leaves rather than going with the layer.
+.ui-tile-wash() {
+    background-image: linear-gradient(var(--ui-row-wash), var(--ui-row-wash)), var(--ui-surface-image, none);
+}
+
+// The pointer's wash on a list's entry, but not on the `@current` one, which keeps its ground so two never look current.
+.ui-entry-hover(@current: ~"[aria-selected='true']") {
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+
+    &:not(@{current}):hover {
+        background-color: var(--ui-wash-hover);
+    }
+
+    &:not(@{current}):active {
+        background-color: var(--ui-wash-active);
+    }
+}
+
+// The keyboard's row washes like the pointer's (not under a single choice, whose chosen row is the cursor); on a chosen row, as a
+// layer, so it still reads as chosen. `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
 .ui-row-cursor(@host; @row; @via: ~"") {
-    @{host}:focus:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus] {
+    @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
         .ui-row-hover();
     }
+
+    @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
+        .ui-row-cursor-layer();
+    }
+}
+
+// The keyboard's wash laid over a chosen ground rather than replacing it: the layer `.ui-selected-row()` paints, lit.
+.ui-row-cursor-layer() {
+    --ui-row-cursor-wash: var(--ui-wash-hover);
 }

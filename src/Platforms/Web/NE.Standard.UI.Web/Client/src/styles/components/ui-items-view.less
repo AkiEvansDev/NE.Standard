@@ -45,8 +45,7 @@
     flex-direction: column;
 }
 
-// The wrap panel's flow, not a grid: a spanless item takes its content's width and wraps where room ends; a span is the same
-// share of 24 columns a wrap panel's child takes (a grid stretches an unplaced item across the row, reading as a stack).
+// The wrap panel's flow, not a grid, which stretches an unplaced item across the row: a spanless item takes its content's width.
 .ui-items-view--wrap > .ui-items-view__host,
 .ui-items-view--wrap > [data-ui-items-host] {
     display: flex;
@@ -63,12 +62,13 @@
     .ui-responsive-reset-infix(--ui-placement, column-span);
 
     display: contents;
+    // The tile's wash lays the tile's own picture back under itself; a tile with none must not find an ancestor's here.
+    --ui-surface-image: none;
 }
 
 @ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";
 
-// With no span the calc is invalid at computed-value time and the basis takes its initial auto, the content's width; the gap is
-// subtracted the way the wrap panel does.
+// With no span the calc is invalid and the basis falls back to auto, the content's width; the gap is subtracted as the wrap panel does.
 :is(@{ui-wrap-items}) {
     --ui-items-view-span: var(--ui-placement-column-span);
 
@@ -111,8 +111,7 @@
     flex-basis: 100%;
 }
 
-// The empty state's description line clips a shade under its ink (ui-text.less); a scroller ending exactly there still counts
-// that pixel as scrollable, so this pixel of room keeps the ink inside instead.
+// A pixel of room under the empty state's clipped description, or a scroller ending there counts that pixel as scrollable.
 .ui-items-view > .ui-items-view__host > [data-ui-empty-placeholder],
 .ui-items-view > [data-ui-items-host] > [data-ui-empty-placeholder] {
     padding-bottom: 1px;
@@ -180,6 +179,7 @@
     min-width: 0;
     min-height: 0;
     scroll-snap-align: start;
+    .ui-row-ground();
 }
 
 .ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > .ui-items-view__item,
@@ -187,8 +187,7 @@
     width: 100%;
 }
 
-// A row's own inset, so the selected wash and the hover have something to stand in — only where a row takes either: a list of a
-// form's fields would otherwise stand indented from the fields around it.
+// A row's inset for the selected wash and the hover, only where a row takes either, or a list of fields stands indented.
 .ui-items-view--stack.ui-orientation--vertical:is([data-ui-selection="one"], [data-ui-selection="many"], .ui-items-view--row-hover) > .ui-items-view__host > .ui-items-view__item,
 .ui-items-view--stack.ui-orientation--vertical:is([data-ui-selection="one"], [data-ui-selection="many"], .ui-items-view--row-hover) > [data-ui-items-host] > .ui-items-view__item {
     padding: @ui-space-1 @ui-space-2;
@@ -199,24 +198,28 @@
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }
 
-// The row wrapper wears the selected look in a stack; in a wrap it's display: contents, so the look moves to the template root.
-.ui-items-view[data-ui-selection="one"] > [data-ui-items-host] > .ui-items-view__item,
-.ui-items-view[data-ui-selection="many"] > [data-ui-items-host] > .ui-items-view__item {
+// The row wrapper wears the selected look (a wrap's template root, the wrapper being display: contents); not with no-row-select.
+.ui-items-view[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-items-view__item@{ui-row-live},
+.ui-items-view[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-items-view__item@{ui-row-live} {
     cursor: pointer;
 }
 
-.ui-items-view--row-hover .ui-items-view__item:hover {
+// The pointer's and the keyboard's wash: a stack's row paints it, a wrap's tile as a layer over its own ground (below).
+.ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover {
     .ui-row-hover();
 }
 
-.ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected],
-.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id] {
+.ui-row-cursor(~".ui-items-view", ~".ui-items-view__item");
+
+.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id] {
+    .ui-tile-wash();
+}
+
+// After the tile's wash, which it ties with: the chosen ground takes the wash's place, so a chosen tile does not brighten.
+.ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] {
     .ui-selected-row();
 }
 
-.ui-row-cursor(~".ui-items-view:not(.ui-items-view--wrap)", ~".ui-items-view__item");
-
-// A wrapped item is display: contents, so the keyboard's wash lands on the component it wraps.
-.ui-items-view--wrap:focus:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
-    .ui-row-hover();
+.ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id] {
+    .ui-selected-tile();
 }

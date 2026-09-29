@@ -46,7 +46,7 @@ internal sealed class SearchExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetDebounceMilliseconds(200)
                     .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("Every keystroke asks the controller for a list; nothing is filtered on the client."))
+                .AddChild(UIText.Note("Every keystroke asks the controller for a list, and the box shows exactly what it answered: nothing is narrowed on the client."))
         );
     }
 

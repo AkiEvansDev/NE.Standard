@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Localization;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
@@ -17,7 +18,7 @@ namespace NE.Standard.UI.Application;
 /// </summary>
 public sealed class UIApplication
 {
-    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
+    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILocalizationOptions localization, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
     {
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentNullException.ThrowIfNull(persistence);
@@ -27,6 +28,7 @@ public sealed class UIApplication
         ArgumentNullException.ThrowIfNull(security);
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(files);
+        ArgumentNullException.ThrowIfNull(localization);
         ArgumentNullException.ThrowIfNull(viewFilters);
         ArgumentNullException.ThrowIfNull(commandFilters);
 
@@ -41,6 +43,8 @@ public sealed class UIApplication
         Security = security;
         Sessions = sessions;
         Files = files;
+        Localization = localization;
+        MissingWords = missingWords;
         ContentOrNull = content;
         ViewFilters = viewFilters;
         CommandFilters = commandFilters;
@@ -62,6 +66,17 @@ public sealed class UIApplication
     /// Gets the application translator.
     /// </summary>
     public ITranslator Translator { get; }
+
+    /// <summary>
+    /// Gets the localization options the application was built with.
+    /// </summary>
+    public UILocalizationOptions Localization { get; }
+
+    /// <summary>
+    /// Gets the words asked for and missing, when <see cref="UILocalizationOptions.ReportMissingWords"/> is on; otherwise
+    /// <see langword="null"/>.
+    /// </summary>
+    public IUIMissingWords? MissingWords { get; }
 
     /// <summary>
     /// Gets application theme tokens for both light and dark modes.
@@ -88,9 +103,7 @@ public sealed class UIApplication
     /// </summary>
     public UIFileOptions Files { get; }
 
-    /// <summary>
-    /// Resolves the address a piece of registered content is served at.
-    /// </summary>
+    /// <summary>Resolves the address a piece of registered content is served at.</summary>
     /// <exception cref="InvalidOperationException">
     /// No platform has registered an <see cref="IUIContentAddressResolver"/>.
     /// </exception>

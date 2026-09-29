@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/dialog.less";
 @import "../mixins/elevation.less";
 @import "../mixins/responsive.less";
 
@@ -9,22 +10,24 @@
     inset: 0;
     z-index: @ui-dialog-z;
     display: grid;
-    // One track the size of the screen, named: an implicit auto track grows to the panel, and a panel's percentage guard
-    // would then measure the panel itself.
+    // Named, since an implicit auto track grows to the panel and the panel's percentage guard would measure itself.
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     place-items: center;
 }
 
+// Fades out as one; the pointer goes at once, so a closing dialog takes no press meant for the page behind.
 .ui-dialog[hidden] {
     display: none;
+    pointer-events: none;
+    .ui-dialog-exit();
 }
 
 .ui-dialog__backdrop {
     position: absolute;
     inset: 0;
-    background: var(--ui-color-overlay, rgba(0, 0, 0, 0.45));
-    animation: ui-dialog-backdrop-in @ui-motion-fast @ui-motion-ease;
+    .ui-dialog-veil();
+    .ui-dialog-backdrop-enter();
 }
 
 .ui-dialog:not([data-ui-dialog-modal]) .ui-dialog__backdrop {
@@ -34,12 +37,10 @@
 
 .ui-dialog__surface {
     position: relative;
-    // A column, so the one child inside becomes a flex item; a block would sit it on a line box, leaving the descender's gap
-    // and uneven padding.
+    // A flex column: a block would sit the child on a line box, leaving the descender's gap.
     display: flex;
     flex-direction: column;
-    // The overlay's one placed child carries the same Width/Height/alignment/Margin tiers as a component; unset, it centres
-    // and sizes to its content within the viewport, margined off the screen.
+    // The panel takes a component's size and alignment tiers; unset, it centres and sizes to its content within the screen.
     .ui-responsive-reset(--ui-width);
     .ui-responsive-reset(--ui-min-width);
     .ui-responsive-reset(--ui-max-width);
@@ -61,28 +62,31 @@
     border-radius: var(--ui-radius-card);
     background: var(--ui-surface-raised);
     color: var(--ui-color-on-surface);
+    // A ground of its own: muted text inside fades this ink, not a filled panel's the dialog was declared in.
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-surface-raised);
     .ui-elevation-4();
-    animation: ui-dialog-surface-in @ui-motion-normal @ui-motion-ease;
+    .ui-dialog-enter();
 }
 
-// The other two surfaces mirror the card's own: "background" sits flat on the page with a border instead of elevation, and
-// "tinted" mixes like a tinted surface.
+// The other two surfaces, as the card's: "background" flat with a border, "tinted" mixed like a tinted surface.
 .ui-dialog__surface[data-ui-dialog-surface="background"] {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: var(--ui-color-background);
+    --ui-ground: var(--ui-color-background);
 }
 
 .ui-dialog__surface[data-ui-dialog-surface="tinted"] {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+    --ui-ground: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
 }
 
 .ui-dialog__surface:focus {
     outline: none;
 }
 
-// Below the phone breakpoint a centred dialog fills the screen less a thin margin, since a content-sized panel reads as a
-// card lost in the middle; an authored width or margin still wins, since these are the same tiers' defaults.
+// On a phone a centred dialog fills the screen less a margin, not a card lost in the middle; an authored width still wins.
 @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
     .ui-dialog:not([data-ui-dialog-placement]) > .ui-dialog__surface {
         .ui-responsive-property(width, --ui-width, calc(100% - (@ui-space-2 * 2)));
@@ -93,8 +97,7 @@
     }
 }
 
-// A sheet: the panel stands against one edge, filling its length — a drawer for a hidden menu or details pane. Placement is
-// a shortcut over the same tiers, so an authored width, height or alignment still wins over its edge/stretch/cap defaults.
+// A sheet against one edge, filling its length; defaults over the same tiers, so an authored size or alignment still wins.
 .ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {
     .ui-responsive-property(margin, --ui-margin, 0);
     border-radius: 0;
@@ -144,13 +147,6 @@
 
 .ui-dialog[data-ui-dialog-placement="bottom"] {
     --ui-dialog-sheet-from: translateY(100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .ui-dialog__backdrop,
-    .ui-dialog__surface {
-        animation: none;
-    }
 }
 
 @keyframes ui-dialog-backdrop-in {

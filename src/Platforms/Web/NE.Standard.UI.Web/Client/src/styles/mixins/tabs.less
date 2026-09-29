@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "./selected.less";
 
 // The selected mark is drawn on the element, not as a border, so it lies over the strip's rule rather than stacking a second line.
 
@@ -13,11 +14,9 @@
 // Captions are spaced by their own padding rather than a strip gap, so the mark and the rule stay visually attached to the caption.
 .ui-tab-caption() {
     position: relative;
-    // A pixel short at the top, which the button's top border takes back, so the caption keeps four pixels of air on each
-    // side and the line fills the content box exactly at the small control height.
+    // A pixel short on top, given back by the top border, so the line fills the box exactly at the small control height.
     padding: calc(@ui-space-1 - 1px) @ui-space-3 @ui-space-1;
-    // No bottom border of the button's: the mark is placed from the padding edge, and a border under it lifted the mark a pixel
-    // above the strip's own rule.
+    // No bottom border: the mark is placed from the padding edge, and a border would lift it a pixel above the strip's rule.
     border-bottom-width: 0;
 }
 
@@ -30,4 +29,26 @@
     height: @ui-tab-rule-width;
     background: transparent;
     transition: background-color @ui-motion-fast @ui-motion-ease;
+}
+
+// A caption's states, one look on every strip (Tabs, TabsView, the colour panes). A TabsView caption also fills under the pointer:
+// it holds a close control, and the fill shows the whole caption as one target.
+.ui-tab-caption-rest-ink() {
+    color: @ui-text-muted;
+}
+
+.ui-tab-caption-hover-ink() {
+    color: @ui-text-ink;
+}
+
+.ui-tab-caption-hover-mark() {
+    background: var(--ui-mark-hover);
+}
+
+.ui-tab-caption-selected-ink() {
+    .ui-selected-ink(@ui-text-ink; 600);
+}
+
+.ui-tab-caption-selected-mark() {
+    background: @ui-selected-mark-color;
 }

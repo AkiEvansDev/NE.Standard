@@ -11,6 +11,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -19,8 +20,6 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    private const string DefaultFormatMessage = "The value does not match the expected format.";
-
     /// <summary>
     /// Addresses currently showing a refusal, so a later valid value sends exactly one "clear". Guarded by <c>_stateLock</c>.
     /// </summary>
@@ -213,10 +212,16 @@ internal abstract partial class UIRuntimeBase
 
         _ = _rejectedValueAddresses.Add(address);
 
+        var message = View.State.TryGetValue(binding.Address.Component.Id, IFormattedInputComponent.FormatMessageProperty, out CompiledUIPropertyValue? authored) && authored is { IsBind: false, Value: string text }
+            ? text
+            : null;
+
         return new ServerValidationUIUpdate
         {
             Address = address,
-            Message = TryGetComponentText(binding.Address.Component.Id, IFormattedInputComponent.FormatMessageProperty) ?? DefaultFormatMessage
+            // The author's words or the framework's key, as written: the page translates the refusal as it does a label.
+            Message = message ?? UIStrings.ValueFormat,
+            Content = message is not null && authored!.IsContent
         };
     }
 
@@ -265,7 +270,7 @@ internal abstract partial class UIRuntimeBase
                     continue;
                 }
 
-                _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, ExceptInstanceId = held.InstanceId } };
+                _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, Content = pending.Content, ExceptInstanceId = held.InstanceId } };
                 break;
             }
         }

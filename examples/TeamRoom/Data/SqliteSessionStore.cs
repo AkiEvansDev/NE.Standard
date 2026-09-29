@@ -115,6 +115,10 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
         if (!string.Equals(updated.SessionId, sessionId, StringComparison.Ordinal))
             throw new InvalidOperationException("An update cannot change the session's id.");
 
+        // The session it was given: a language or theme it already has, nothing to write.
+        if (ReferenceEquals(updated, current))
+            return true;
+
         await WriteAsync(connection, updated, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 

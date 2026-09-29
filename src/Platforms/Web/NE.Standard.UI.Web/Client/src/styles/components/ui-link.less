@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/color.less";
+@import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 
 // An anchor around the shared text body; the body sits in __content, since on the anchor its inherit default would overwrite the link hue.
@@ -10,14 +11,14 @@
     border-radius: var(--ui-radius-button);
     text-decoration: none;
     cursor: pointer;
-    transition: filter @ui-motion-fast @ui-motion-ease;
+    transition: @ui-root-transition, filter @ui-motion-fast @ui-motion-ease;
 }
 
 :where(.ui-link) {
-    color: var(--ui-color-primary-ink);
+    color: @ui-link-ink;
 }
 
-.ui-link:hover {
+.ui-link@{ui-button-live}:hover {
     .ui-brighten-hover();
 }
 
@@ -26,14 +27,16 @@
     max-width: 100%;
 }
 
-// Underlined on hover only, and only the word: the glyph and the badge beside it are not text to underline.
+// Underlined on hover, the word only; the line is always there and only its colour comes, so it fades in with the ink. On a filled
+// ground, where the word is the ground's ink, the line stays.
 .ui-link .ui-text__title {
-    text-decoration-line: none;
+    text-decoration-line: underline;
+    text-decoration-color: @ui-link-rest-underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.15em;
-    transition: text-decoration-color 120ms ease;
+    transition: text-decoration-color @ui-motion-fast @ui-motion-ease;
 }
 
-.ui-link:hover .ui-text__title {
-    text-decoration-line: underline;
+.ui-link@{ui-button-live}:hover .ui-text__title {
+    text-decoration-color: currentColor;
 }

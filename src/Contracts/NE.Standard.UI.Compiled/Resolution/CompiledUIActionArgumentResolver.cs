@@ -19,12 +19,12 @@ public static class CompiledUIActionArgumentResolver
     public static CompiledUIActionArgumentResolution Resolve(CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, object?[] dynamicParameters)
         => Resolve(argument, sources, templates, dynamicParameters, null);
 
-    /// <summary>
-    /// Resolves an action argument using runtime dynamic binding parameters. <paramref name="scopes"/> names the item scope each
-    /// key of <paramref name="dynamicParameters"/> belongs to, outermost first: the argument takes the keys of the scopes it reads
-    /// wherever they stand in the chain — the middle key of three for a value of the middle row. Without it, or when it does not
-    /// name every scope the argument reads, the argument takes the chain's first keys.
-    /// </summary>
+    /// <summary>Resolves an action argument using runtime dynamic binding parameters.</summary>
+    /// <remarks>
+    /// <paramref name="scopes"/> names the item scope each key of <paramref name="dynamicParameters"/> belongs to, outermost first:
+    /// the argument takes the keys of the scopes it reads wherever they stand in the chain — the middle key of three for a value of
+    /// the middle row. Without it, or when it does not name every scope the argument reads, the argument takes the chain's first keys.
+    /// </remarks>
     public static CompiledUIActionArgumentResolution Resolve(CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, object?[] dynamicParameters, IReadOnlyList<UIComponentId>? scopes)
     {
         ArgumentNullException.ThrowIfNull(argument);

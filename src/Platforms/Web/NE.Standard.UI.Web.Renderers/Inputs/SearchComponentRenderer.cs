@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -71,7 +72,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            RenderSearchInput(context, trigger);
+            RenderSearchInput(context, root, trigger);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
 
@@ -80,7 +81,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         });
     }
 
-    private static void RenderSearchInput(WebRenderContext context, IHtmlElementBuilder trigger)
+    private static void RenderSearchInput(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder trigger)
     {
         _ = trigger.Element("input", input =>
         {
@@ -117,13 +118,13 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
                     _ = target.Attribute(WebAttributes.SearchMinLength, length.ToString(CultureInfo.InvariantCulture));
             }, [WebDomOperation.Attribute(WebAttributes.SearchMinLength)]);
 
-            _ = RenderProperty<bool?>(context, input, SearchComponent.AutoSearchProperty, static (target, value) =>
-            {
-                if (value == false)
-                    _ = target.Attribute(WebAttributes.SearchManual);
-            }, [WebDomOperation.ToggleAttribute(WebAttributes.SearchManual, condition: WebValueCondition.IsFalse)]);
+            RenderFlagAttribute(context, input, SearchComponent.AutoSearchProperty, WebAttributes.SearchManual, WebValueCondition.IsFalse);
 
-            NativeInputRendererBase.RenderIsReadOnly(context, input);
+            // The list is the server's answer: the client narrows nothing, or a refill it did not match would be hidden by its own filter.
+            if (context.ViewResolution.View.Events.TryGet(new CompiledUIEventAddress(context.Node.ComponentId, EventNames.Search), out _))
+                _ = input.Attribute(WebAttributes.SearchAnswered);
+
+            NativeInputRendererBase.RenderIsReadOnly(context, root, input);
             TextContentRendererBase.RenderFieldLabel(context, input);
         });
     }

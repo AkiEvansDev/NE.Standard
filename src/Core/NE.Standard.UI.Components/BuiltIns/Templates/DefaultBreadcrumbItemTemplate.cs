@@ -37,8 +37,6 @@ public abstract class DefaultBreadcrumbItemTemplate<TTemplate> : BreadcrumbItemC
 /// </summary>
 public sealed class DefaultBreadcrumbItemTemplate(string? itemPath = null, bool binds = false) : DefaultBreadcrumbItemTemplate<DefaultBreadcrumbItemTemplate>(itemPath, binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.breadcrumb-item.template";
 }

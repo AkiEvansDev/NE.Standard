@@ -135,15 +135,15 @@
 
     justify-self: var(--ui-align-h, normal);
     align-self: var(--ui-align-v, normal);
-    transition: opacity @ui-motion-normal @ui-motion-ease, display @ui-motion-normal allow-discrete;
+    transition: @ui-root-transition;
 }
 
 :where([data-ui-id]) {
     color: inherit;
 }
 
-// A popup lifted into the top layer (anchored-popup.ts) is a manual popover, whose browser default box (centred, bordered,
-// padded) would override everything the popup's own rules leave unset; reset at zero specificity, so every class rule still wins.
+// A lifted popup is a manual popover whose default box (centred, bordered, padded) would fill in what its rules leave unset;
+// reset at zero specificity, so every class rule still wins.
 :where([data-ui-popup-lifted]) {
     inset: auto;
     width: auto;
@@ -154,6 +154,12 @@
     overflow: visible;
     color: inherit;
     background: none;
+}
+
+// A popup placed against a stand-in (anchored-popup.ts) opens from a part put out of sight — a command in a bar's "…" list — and
+// would inherit its `visibility: hidden`. A closed popup is `display: none`, so the mark left on after a close shows nothing.
+[data-ui-popup-stood-in] {
+    visibility: visible;
 }
 
 // The client's own way of taking something out of a list, distinct from the author-facing Visibility property.
@@ -201,15 +207,23 @@
 
 .ui-disabled {
     opacity: var(--ui-disabled-opacity);
+}
+
+// A disabled or loading root stays hit-testable, so its tooltip shows; its children are out of the pointer's way even before the
+// script makes them inert, and the state's cursor outranks any component's hand.
+:is(.ui-disabled, .ui-loading) > * {
     pointer-events: none;
 }
 
-.ui-loading {
-    cursor: progress;
+.ui-disabled {
+    cursor: default !important;
 }
 
-// Chrome is pressed, opened and dragged, never selected: a drag on a tab's caption mustn't start a text selection, nor a
-// press on a menu entry leave its words highlighted. Selectable is for prose: a Selectable text inside chrome is not selectable either.
+.ui-loading {
+    cursor: progress !important;
+}
+
+// Chrome is pressed and dragged, never selected (a caption's drag, a menu entry's press); Selectable is for prose, not inside chrome.
 @ui-chrome-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-key-value-action__action";
 
 :is(@{ui-chrome-hosts}),
@@ -217,10 +231,10 @@
     user-select: none;
 }
 
-// Loading fades the ground and turns the ring; an icon opts out, and a button with no icon dims its label instead
-// (ui-button.less), since Chrome paints a <button>'s label box over the veil pseudo-element, leaving a lighter rectangle behind.
-@ui-loading-ringed: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon)";
-@ui-loading-veiled: ~".ui-loading:not(.ui-button):not([data-ui-input-prefix-icon]):not(.ui-icon)";
+// Loading fades the ground and turns the ring. A button without an icon dims its label instead (Chrome paints its label box over the
+// veil); a tab item's root is display: contents, so its caption carries the look.
+@ui-loading-ringed: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon):not(.ui-tab-item)";
+@ui-loading-veiled: ~".ui-loading:not(.ui-button):not([data-ui-input-prefix-icon]):not(.ui-icon):not(.ui-tab-item)";
 
 @{ui-loading-ringed} {
     position: relative;

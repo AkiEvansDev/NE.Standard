@@ -71,6 +71,10 @@ public abstract class UIStartupBase
         services.TryAddSingleton<IUserClaimsMapper, StandardUserClaimsMapper>();
         services.TryAddSingleton<IUIAuthorizationService, StandardAuthorizationService>();
         services.TryAddSingleton<IResolveExceptionViewHandler, StandardResolveExceptionViewHandler>();
+
+        // The application's own collector, so a test or a page reads what the translator records; resolves to nothing while
+        // the report is off.
+        services.TryAddSingleton(static provider => provider.GetRequiredService<UIApplication>().MissingWords!);
     }
 
     private static void ValidateRequiredServices(IServiceCollection services)

@@ -7,12 +7,8 @@ using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Sessions;
 
-/// <summary>
-/// Keeps user sessions in the process's own memory.
-/// </summary>
-/// <remarks>
-/// Correct only for a single process; a host swaps it by registering its own <see cref="IUserSessionStore"/> first.
-/// </remarks>
+/// <summary>Keeps user sessions in the process's own memory.</summary>
+/// <remarks>Correct only for a single process; a host swaps it by registering its own <see cref="IUserSessionStore"/> first.</remarks>
 internal sealed class InMemoryUserSessionStore : IUserSessionStore
 {
     private readonly ConcurrentDictionary<string, UserSessionState> _sessions = new(StringComparer.Ordinal);

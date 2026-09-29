@@ -7,11 +7,11 @@ using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
-/// <summary>
-/// A panel that folds away toward one edge and back — a sidebar, properties pane, or bottom log — with its own switch.
-/// Collapsed, it shows only the switch.
-/// </summary>
-/// <remarks>Place it in a track that can give the room back (<c>UIGridUnit.Auto</c>); a fixed track won't shrink with the panel.</remarks>
+/// <summary>A panel that folds away toward one edge and back — a sidebar, properties pane, or bottom log — with its own switch.</summary>
+/// <remarks>
+/// Collapsed, it shows only the switch. Place it in a track that can give the room back (<c>UIGridUnit.Auto</c>); a fixed track
+/// won't shrink with the panel.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
@@ -63,8 +63,6 @@ public abstract partial class CollapsiblePanelComponent<T>(string? id = null) : 
 /// </summary>
 public sealed class CollapsiblePanelComponent(string? id = null) : CollapsiblePanelComponent<CollapsiblePanelComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.collapsible-panel";
 }

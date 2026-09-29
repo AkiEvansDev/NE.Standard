@@ -1,58 +1,189 @@
-// What the reader asked of the system rather than of the page: less motion, and the forced palette of a high-contrast mode.
-// Imported last in ui.less, so these win the ties with every component's own rules.
+@import "../mixins/loading-ring.less";
+@import "../mixins/popup.less";
+@import "../mixins/range.less";
+@import "../mixins/selected.less";
 
-// Movement goes and its end state stays: an expander opens, a drawer is open, a tab's line is under the new tab, all at once.
-// The loading ring keeps turning, as the one sign that something is under way.
+// What the reader asked of the system: less motion, and a high-contrast mode's forced palette. Imported last, so these win ties.
+
+// Every loading ring on the page, by its wearer: the one thing both answers below keep.
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before";
+
+// Movement goes, its end state stays. On every element, a package's too, so none keeps a guard of its own; a script's own animation
+// asks rendering/motion.ts, since this reaches no Web Animation.
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
-    *::after {
+    *::after,
+    *::backdrop {
         transition-duration: 0s !important;
         transition-delay: 0s !important;
+        animation-duration: 0s !important;
+        animation-iteration-count: 1 !important;
+    }
+
+    // The loading ring keeps turning, as the one sign that something is under way.
+    @{ui-loading-rings} {
+        animation-duration: @ui-loading-ring-turn !important;
+        animation-iteration-count: infinite !important;
     }
 }
 
-// Forced colours drop every box-shadow and force every ground to Canvas, so a state drawn only as a wash, an inset mark or a
-// filled pseudo-element vanishes. Each is redrawn in the system's own colours, which the mode leaves as they are.
+// Forced colours drop box-shadows and force grounds to Canvas, so a state drawn as a wash, an inset mark or a filled pseudo-element
+// vanishes: each is redrawn in system colours.
 @media (forced-colors: active) {
+    // The keyboard's place is all this reader has to go by: the ring gets a width whatever the theme says.
+    :root {
+        --ui-focus-ring-width: 2px;
+    }
+
     // A chosen row, option, entry or segment: an outline in the selection colour stands for the wash and the edge mark.
     .ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected],
     .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id],
-    .ui-table [data-ui-items-host] > .ui-table__row[data-ui-selected],
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected],
     .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-selected],
     .ui-select__option[aria-selected="true"],
     .ui-menu-item--selected,
+    .ui-language-switcher__choice[aria-checked="true"],
     .ui-button-group__item[data-ui-selected] > .ui-button,
     .ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
         outline: 2px solid Highlight;
         outline-offset: -2px;
     }
 
-    // The keyboard's row while its host holds the focus: dashed, so it tells apart from a chosen row, and in the selection
-    // colour when it is one.
-    .ui-items-view:not(.ui-items-view--wrap):focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
-    .ui-items-view--wrap:focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
-    .ui-table:focus > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
-    .ui-tree:focus > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus] {
+    // The keyboard's row and a list's current option: dashed, to tell it from a chosen one, in the selection colour when it is one.
+    .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
+    .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
+    .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
+    .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus],
+    .ui-select__option@{ui-list-current} {
         outline: 2px dashed CanvasText;
         outline-offset: -2px;
     }
 
-        .ui-items-view:not(.ui-items-view--wrap):focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
-        .ui-items-view--wrap:focus > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
-        .ui-table:focus > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
-        .ui-tree:focus > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected] {
+        .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
+        .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
+        .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
+        .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected],
+        .ui-select__option@{ui-list-current}[aria-selected="true"] {
             outline-color: Highlight;
         }
 
-    // The current tab's line is a pseudo-element's ground.
+    // A pinned cell's opaque ground covers the row's outline, so such a row draws it again on a layer above its cells.
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-table__cell--pinned) {
+        position: relative;
+    }
+
+        .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-table__cell--pinned)::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            outline: inherit;
+            outline-offset: inherit;
+            pointer-events: none;
+        }
+
+    // The keyboard's entry in a list (.ui-entry-keyboard()), a wash the mode drops: a dashed mark instead; a chosen entry keeps its own.
+    .ui-menu-item@{ui-button-live}@{ui-keyboard-focus}:not(.ui-menu-item--selected),
+    .ui-tab-overflow__entry@{ui-button-live}@{ui-keyboard-focus},
+    .ui-language-switcher__choice@{ui-keyboard-focus}:not([aria-checked='true']),
+    .ui-temporal-input__day@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected),
+    .ui-temporal-input__month@{ui-keyboard-focus}:not(.ui-temporal-input__month--selected),
+    .ui-temporal-input__time-cell@{ui-keyboard-focus}:not(.ui-temporal-input__time-cell--selected),
+    .ui-temporal-input__nav@{ui-keyboard-focus} {
+        outline: 2px dashed Highlight;
+        outline-offset: -2px;
+    }
+
+    // A folded section holding the current page: a thinner mark than the page's entry; not under the dashed mark it would replace.
+    .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}),
+    @{ui-menu-collapsed} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}) {
+        outline: 1px solid Highlight;
+        outline-offset: -1px;
+    }
+
+    // Where a dragged tree node would land, the node or the tree's own ground.
+    .ui-tree__row[data-ui-tree-drop],
+    .ui-tree__host[data-ui-tree-drop] {
+        outline: 2px dashed Highlight;
+        outline-offset: -2px;
+    }
+
+    // The current tab's line is a pseudo-element's ground, the colour popup's chosen pane's too.
     .ui-tab-header--selected::after,
-    .ui-tab-item--selected .ui-tab-item__caption::after {
+    .ui-tab-item--selected .ui-tab-item__caption::after,
+    .ui-color-input__tab[data-ui-color-tab-selected]::after {
         forced-color-adjust: none;
         background: Highlight;
     }
 
-    // A checked box, track or dot is a filled ground the mode would take away; the mark on it takes the text colour that goes with it.
+    // The calendar's chosen day or month filled; a period's days tinted, and today ringed.
+    .ui-temporal-input__day--selected,
+    .ui-temporal-input__month--selected,
+    .ui-temporal-input__day--selected:hover:not(:disabled),
+    .ui-temporal-input__month--selected:hover:not(:disabled) {
+        forced-color-adjust: none;
+        background: Highlight;
+        color: HighlightText;
+    }
+
+    // Not under the keyboard's dashed mark, which the same outline would replace.
+    .ui-temporal-input__day--within:not(.ui-temporal-input__day--selected):not(@{ui-keyboard-focus}),
+    .ui-temporal-input__day--preview:not(.ui-temporal-input__day--selected):not(@{ui-keyboard-focus}) {
+        outline: 1px dashed Highlight;
+        outline-offset: -1px;
+    }
+
+    .ui-temporal-input__day--today:not(.ui-temporal-input__day--selected):not(@{ui-keyboard-focus}) {
+        outline: 1px solid CanvasText;
+        outline-offset: -1px;
+    }
+
+    // The time dial's band across the chosen readings, and a time segment holding the focus, which is the field's only caret.
+    .ui-temporal-input__time-columns::before {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    .ui-temporal-input__segment:focus:is(:not([aria-readonly="true"]), @{ui-keyboard-focus}) {
+        forced-color-adjust: none;
+        background: Highlight;
+        color: HighlightText;
+    }
+
+    // A splitter's or resize edge's line is a pseudo-element's ground: text colour at rest, selection colour while live.
+    .ui-grid-splitter::before {
+        forced-color-adjust: none;
+        background: CanvasText;
+    }
+
+    .ui-grid-splitter@{ui-button-live}:hover::before,
+    .ui-grid-splitter@{ui-keyboard-focus}::before,
+    .ui-grid-splitter[data-ui-splitting]::before,
+    .ui-table__resizer:hover::before,
+    .ui-table__resizer@{ui-keyboard-focus}::before,
+    .ui-table__resizer[data-ui-splitting]::before {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+
+    // A colour chip keeps its colour, which is the value (ui-color-input.less); the chosen one is outlined in the selection colour.
+    .ui-color-input__chip[data-ui-color-name-selected] {
+        outline-color: Highlight;
+    }
+
+    // The colour parts keep their colours, the theme's ring colour too, so their keyboard ring takes the system's.
+    :is(.ui-color-input__swatch--button, .ui-color-input__chip, .ui-color-input__slider-input)@{ui-keyboard-focus} {
+        outline-color: CanvasText;
+    }
+
+        // Both at once, as a chosen row under the keyboard: the selection colour, dashed.
+        .ui-color-input__chip[data-ui-color-name-selected]@{ui-keyboard-focus} {
+            outline-color: Highlight;
+            outline-style: dashed;
+        }
+
+    // A checked box, track or dot is a filled ground the mode would drop; its mark takes the matching text colour.
     .ui-checkbox__input:checked ~ .ui-checkbox__box,
     .ui-switch__input:checked ~ .ui-switch__box {
         forced-color-adjust: none;
@@ -91,4 +222,64 @@
         forced-color-adjust: none;
         background: Highlight;
     }
+
+    // A slider's tinted track and gradient fill are dropped, leaving a handle on nothing. One prefix per rule: an unknown one drops it.
+    .ui-slider__input::-webkit-slider-runnable-track,
+    .ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
+        .ui-forced-range-track();
+    }
+
+    .ui-slider__input::-moz-range-track,
+    .ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
+        .ui-forced-range-track();
+    }
+
+    .ui-slider__input::-webkit-slider-thumb {
+        .ui-forced-range-thumb();
+    }
+
+    .ui-slider__input::-moz-range-thumb {
+        .ui-forced-range-thumb();
+    }
+
+        .ui-slider__input@{ui-range-live}:hover::-webkit-slider-thumb {
+            box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+        }
+
+        .ui-slider__input@{ui-range-live}:hover::-moz-range-thumb {
+            box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+        }
+
+    // A tinted picture is a mask's filled ground, forced to Canvas: the mode's text colour fills it. Glyphs and plain pictures keep theirs.
+    .ui-icon--mask::before {
+        forced-color-adjust: none;
+        background-color: currentColor;
+    }
+
+    // The ring's two colours are forced to one, and a turning circle of one colour shows no turning.
+    @{ui-loading-rings} {
+        forced-color-adjust: none;
+        border-color: CanvasText;
+        border-top-color: Highlight;
+    }
+
+    // The quote line is a pseudo-element's ground, which the mode forces to Canvas and so hides.
+    .ui-paragraph--quote:not(.ui-loading)::before {
+        forced-color-adjust: none;
+        background-color: CanvasText;
+    }
+}
+
+.ui-forced-range-track() {
+    forced-color-adjust: none;
+    background-color: Canvas;
+    background-image: linear-gradient(var(--ui-range-fill-angle, 90deg), Highlight 0 calc(var(--ui-slider-fraction, 0) * 100%), transparent 0);
+    box-shadow: inset 0 0 0 1px CanvasText;
+}
+
+.ui-forced-range-thumb() {
+    forced-color-adjust: none;
+    border-color: Canvas;
+    background: Highlight;
+    box-shadow: 0 0 0 1px CanvasText;
 }

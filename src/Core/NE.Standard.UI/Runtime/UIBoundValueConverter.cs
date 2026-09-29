@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Runtime;
 
@@ -14,7 +15,8 @@ internal static class UIBoundValueConverter
 {
     public static object? Convert(object? value, Type? targetType)
     {
-        if (value is null || targetType is null)
+        // A text is a key and its arguments for the page to translate, whatever the property declares.
+        if (value is null or UIPhrase || targetType is null)
             return value;
 
         return RecursiveValueCoercion.TryCoerce(value, targetType, out var coerced) ? coerced : value;

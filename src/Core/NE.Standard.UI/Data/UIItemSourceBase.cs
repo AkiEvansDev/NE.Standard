@@ -62,21 +62,13 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     public abstract Task<bool> TryWriteAsync(string key, string itemProperty, object? value, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Base class for a source of items too many to hold at once, windowed one page at a time.
-/// </summary>
-/// <remarks>
-/// Raises no events; changing <see cref="Items"/> directly is the change notification.
-/// </remarks>
+/// <summary>Base class for a source of items too many to hold at once, windowed one page at a time.</summary>
+/// <remarks>Raises no events; changing <see cref="Items"/> directly is the change notification.</remarks>
 public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     where TItem : RecursiveObservable, IBindableItem
 {
-    /// <summary>
-    /// Gets the realized window — the items the client currently holds, in the order they are shown.
-    /// </summary>
-    /// <remarks>
-    /// Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.
-    /// </remarks>
+    /// <summary>Gets the realized window — the items the client currently holds, in the order they are shown.</summary>
+    /// <remarks>Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.</remarks>
     [RecursiveMember(false)]
     public RecursiveCollection<TItem> Items { get; } = [];
 

@@ -1,6 +1,6 @@
-using System;
 using System.Linq;
 using System.Reflection;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 
 namespace DemoApp;
 
@@ -64,20 +64,20 @@ public static class DemoIcons
     public const string Star = MaterialIcons.Star;
 
     /// <summary>
+    /// The warm yellow of a folder in a file list, as the default themes' warning ink: the raw tint read 1.3:1 on the light page.
+    /// </summary>
+    public static readonly UIThemeColor Warm = UIThemeColor.Create(UIThemeDefaults.LightPalette.WarningInk, UIThemeDefaults.DarkPalette.WarningInk);
+
+    /// <summary>
     /// The outlined drawing of a glyph, which is what a control wears; the filled one is for content.
     /// </summary>
     public static string Outline(string icon)
         => MaterialIcons.Outlined(icon);
 
     /// <summary>Every name above, for the host to register with the pack.</summary>
-    /// <remarks>A registered name serves both drawings, so a value naming one comes back to its base first.</remarks>
     public static string[] All()
         => [.. typeof(DemoIcons)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(field => field.IsLiteral && field.FieldType == typeof(string))
-            .Select(field => (string)field.GetRawConstantValue()!)
-            .Select(name => name.EndsWith(MaterialIcons.OutlinedSuffix, StringComparison.Ordinal)
-                ? name[..^MaterialIcons.OutlinedSuffix.Length]
-                : name)
-            .Distinct(StringComparer.Ordinal)];
+            .Select(field => (string)field.GetRawConstantValue()!)];
 }

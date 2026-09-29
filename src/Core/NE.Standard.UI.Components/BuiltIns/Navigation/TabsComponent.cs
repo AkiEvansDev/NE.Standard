@@ -73,9 +73,7 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
 /// </summary>
 public sealed class TabsComponent(string? id = null) : TabsComponent<TabsComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.tabs";
 }
 

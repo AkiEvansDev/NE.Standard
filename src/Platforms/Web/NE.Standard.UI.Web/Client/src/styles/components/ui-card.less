@@ -2,10 +2,10 @@
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 
-@ui-card-empty-header: ~'.ui-card__header:not(:has(> .ui-card__header-action)):not(:has(.ui-text[data-ui-text-title], .ui-text[data-ui-text-description], .ui-text[data-ui-text-icon], .ui-badge__text:not(:empty), .ui-badge__icon[class*="ui-icon-glyph--"]))';
+// A badge counts by the mark its renderer writes while its icon draws — a glyph or a picture alike.
+@ui-card-empty-header: ~'.ui-card__header:not(:has(> .ui-card__header-action)):not(:has(.ui-text[data-ui-text-title], .ui-text[data-ui-text-description], .ui-text[data-ui-text-icon], .ui-badge__text:not(:empty), .ui-badge[data-ui-badge-icon]))';
 
-// A flex column stacks the bands — the one part of a card's shape that is not the surface's.
-// No padding of its own: each band brings its inset, so a header's or footer's rule reaches the edge whatever Padding says.
+// A column of bands with no padding of its own: each band brings its inset, so a header's rule reaches the edge.
 .ui-card {
     display: flex;
     flex-direction: column;
@@ -46,8 +46,7 @@
         display: none;
     }
 
-// The two author-filled bands are containers: 24 columns, a placementless child spans all. No gap: the columns are the spacing.
-// The card's Padding is this band's.
+// The author-filled bands are 24-column containers with no gap (the columns are the spacing); the card's Padding is this band's.
 .ui-card__content {
     .ui-placement-host();
     flex: 1 1 auto;

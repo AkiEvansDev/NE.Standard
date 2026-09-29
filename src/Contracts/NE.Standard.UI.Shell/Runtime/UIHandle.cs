@@ -19,7 +19,7 @@ public sealed class UIHandle
         instance.Validate();
 
         Instance = instance;
-        Session = session;
+        _session = session;
     }
 
     /// <summary>
@@ -28,7 +28,23 @@ public sealed class UIHandle
     public UIInstance Instance { get; }
 
     /// <summary>
-    /// Gets the user session.
+    /// Gets the user session: the one the connection attached with, or what a command running for it last wrote into the store.
     /// </summary>
-    public IUserSessionContext Session { get; }
+    public IUserSessionContext Session => _session;
+
+    // Swapped whole by the command that changed the session, so a reader never sees half of two sessions.
+    private volatile IUserSessionContext _session;
+
+    /// <summary>
+    /// Makes <paramref name="session"/> this connection's session — the one its command just stored.
+    /// </summary>
+    internal void RefreshSession(IUserSessionContext session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        if (!string.Equals(session.SessionId, _session.SessionId, StringComparison.Ordinal))
+            throw new InvalidOperationException("A connection's session can be refreshed, not replaced by another.");
+
+        _session = session;
+    }
 }

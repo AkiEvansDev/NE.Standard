@@ -8,12 +8,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
 /// A track boundary the viewer can drag, placed in its own track inside a <see cref="ContainerComponent"/> to re-divide the
-/// room on either side. Its position lives on the client, under the container's authored id, never on the controller.
+/// room on either side.
 /// </summary>
 /// <remarks>
-/// Give it an <c>UIGridUnit.Auto()</c> or fixed track — a star track fails to compile, like a splitter on the container's
-/// edge. Neighboring stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores
-/// the authored layout.
+/// Its position lives on the client, under the container's authored id, never on the controller. Give it an
+/// <c>UIGridUnit.Auto()</c> or fixed track — a star track fails to compile, like a splitter on the container's edge. Neighboring
+/// stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores the authored layout.
 /// </remarks>
 public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>, IGridSplitterComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
@@ -48,8 +48,6 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
 /// </summary>
 public sealed class GridSplitterComponent(string? id = null) : GridSplitterComponent<GridSplitterComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.grid-splitter";
 }

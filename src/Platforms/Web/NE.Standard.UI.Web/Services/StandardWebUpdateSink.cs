@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Application;
 using NE.Standard.UI.Shell.Commands;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -25,16 +29,20 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
     private readonly IHubContext<WebUIHub> _hub;
     private readonly WebOutgoingValues _outgoing;
+    private readonly IServiceProvider _services;
     private readonly ILogger<StandardWebUpdateSink> _logger;
 
-    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, WebOutgoingValues outgoing, ILogger<StandardWebUpdateSink> logger)
+    // The services a pushed language switch is completed from are read when one is pushed: the application is built after the sink.
+    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, WebOutgoingValues outgoing, IServiceProvider services, ILogger<StandardWebUpdateSink> logger)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(outgoing);
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(logger);
 
         _hub = hub;
         _outgoing = outgoing;
+        _services = services;
         _logger = logger;
     }
 
@@ -68,9 +76,48 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         Log.SendingCommandResult(_logger, handle.Instance.Id, handle.Instance.WindowId);
 
+        UICommandExecutionResult sent = NameWordsOfStoredLanguage(handle, result);
+
         await _hub.Clients
             .Client(handle.Instance.Id)
-            .SendAsync("ui.commandResult", _outgoing.Stage(result, handle.Session.SessionId, 1), cancellationToken)
+            .SendAsync("ui.commandResult", _outgoing.Stage(sent, handle.Session.SessionId, 1), cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A switch pushed for a session that already holds the language — a command's own <c>UpdateSessionAsync</c> — names where the
+    /// words are, so the page fetches them without telling the session again. On a copy: the runtime's own result stays as it was.
+    /// </summary>
+    private UICommandExecutionResult NameWordsOfStoredLanguage(UIHandle handle, UICommandExecutionResult result)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        ClientEffect[]? named = null;
+
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is not SetLanguageEffect { Href: null } effect || !string.Equals(effect.Language, handle.Session.Language, StringComparison.Ordinal))
+                continue;
+
+            UIApplication application = _services.GetRequiredService<UIApplication>();
+            ITranslator translator = application.Translator;
+            var language = WebWordsEndpoint.TableLanguage(translator, effect.Language);
+
+            named ??= [.. effects];
+            named[i] = new SetLanguageEffect(effect.Language)
+            {
+                Href = WebWordsEndpoint.Resolve(translator, language, _services.GetServices<IUIStringsSource>(), application.MissingWords is not null).Href
+            };
+        }
+
+        if (named is null)
+            return result;
+
+        return new UICommandExecutionResult
+        {
+            Command = result.Command.Success ? UICommandResult.Ok(named) : UICommandResult.Fail(result.Command.Error!, named),
+            Changes = result.Changes,
+            Accepted = result.Accepted,
+            RequestId = result.RequestId
+        };
     }
 }

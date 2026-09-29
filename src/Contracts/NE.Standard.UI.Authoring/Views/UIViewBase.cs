@@ -17,6 +17,9 @@ public abstract class UIViewBase : IUIView
     public virtual string Title => GetType().Name;
 
     /// <inheritdoc />
+    public virtual IReadOnlyDictionary<string, object?>? TitleArguments => null;
+
+    /// <inheritdoc />
     public virtual UIViewOptions Options => UIViewOptions.Default;
 
     /// <inheritdoc />

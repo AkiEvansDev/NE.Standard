@@ -1,13 +1,18 @@
-// Marks the last visible step of a breadcrumb trail as the current page.
+// Marks a trail's last step as the current page, and writes on each wrapper the tiers its step is collapsed in, so the stylesheet
+// drops the separator before a collapsed tail with one `:has()` — a `:has()` inside a `:has()` is dropped whole by the browser.
+// A step Visibility collapses keeps its place and mark (the step before it is still a page above); only `ui-hidden` takes one out.
 
-import { observeComponents } from "./dom-mutations";
-import { ownDescendants } from "./own-descendants";
+import { VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { ownDescendants } from "./own-descendants.ts";
 
 const RootClass = "ui-breadcrumbs";
 const ItemClass = "ui-breadcrumbs__item";
 const StepClass = "ui-breadcrumb";
 const CurrentModifier = "ui-breadcrumb--current";
 const HiddenClass = "ui-hidden";
+/** Client-only: on a step's wrapper, the tiers its step is collapsed in — `base`, `sm`, `md`, `xl`, `xxl`. */
+const CollapsedTiersAttribute = "data-ui-step-collapsed";
 
 export type BreadcrumbsEngineOptions = {
     readonly root?: ParentNode;
@@ -21,8 +26,8 @@ export class BreadcrumbsEngine {
 
         this.applyAll();
 
-        // Both a new child and a changed class can move which step is last.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: ["class"] }, trails => {
+        // A new child, a changed class and a step's Visibility can each move which step is last or which one shows a mark.
+        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: ["class", ...VisibilityTierAttributes] }, trails => {
             for (const trail of trails)
                 this.apply(trail);
         });
@@ -34,7 +39,12 @@ export class BreadcrumbsEngine {
     }
 
     private apply(root: HTMLElement): void {
-        const steps = ownDescendants(root, `.${ItemClass}`, `.${RootClass}`)
+        const items = ownDescendants(root, `.${ItemClass}`, `.${RootClass}`);
+
+        for (const item of items)
+            markCollapsedTiers(item);
+
+        const steps = items
             .filter(item => !item.classList.contains(HiddenClass))
             .map(item => item.querySelector<HTMLElement>(`.${StepClass}`))
             .filter((step): step is HTMLElement => step !== null && !step.classList.contains(HiddenClass));
@@ -57,4 +67,18 @@ export class BreadcrumbsEngine {
             }
         }
     }
+}
+
+/** Writes the tiers a wrapper's step is collapsed in; written only when they change, since the engine watches the trail. */
+function markCollapsedTiers(item: HTMLElement): void {
+    const step = item.querySelector<HTMLElement>(`:scope > .${StepClass}`);
+    const tiers = step === null ? "" : VisibilityTierAttributes
+        .filter(attribute => step.getAttribute(attribute) === "collapsed")
+        .map(attribute => attribute === VisibilityTierAttributes[0] ? "base" : attribute.slice(attribute.lastIndexOf("-") + 1))
+        .join(" ");
+
+    if (tiers.length === 0)
+        item.removeAttribute(CollapsedTiersAttribute);
+    else if (item.getAttribute(CollapsedTiersAttribute) !== tiers)
+        item.setAttribute(CollapsedTiersAttribute, tiers);
 }

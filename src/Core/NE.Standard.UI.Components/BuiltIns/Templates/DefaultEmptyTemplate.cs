@@ -10,11 +10,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Templates;
 public abstract class DefaultEmptyTemplate<TTemplate> : DefaultTextTemplate<TTemplate>
     where TTemplate : DefaultEmptyTemplate<TTemplate>, IUIComponentDefinition
 {
-    /// <summary>
-    /// The text shown when an items view has nothing to render.
-    /// </summary>
-    /// <remarks>A plain literal, not a translation key: an untranslated key would surface to the user as the key itself.</remarks>
-    public const string DefaultText = "Nothing to show.";
+    /// <summary>The words shown when an items view has nothing to render.</summary>
+    /// <remarks>
+    /// <c>UIStrings.ItemsEmpty</c>, spelled here since the components reference no shell — the framework's own English
+    /// ("Nothing to show.") wherever the application has no word for it.
+    /// </remarks>
+    public const string DefaultText = "ui.items.empty";
 
     /// <summary>
     /// Initializes the empty template, giving it its default text unless it binds to an item instead.
@@ -35,8 +36,6 @@ public abstract class DefaultEmptyTemplate<TTemplate> : DefaultTextTemplate<TTem
 /// </summary>
 public sealed class DefaultEmptyTemplate(string? itemPath = null, bool binds = false) : DefaultEmptyTemplate<DefaultEmptyTemplate>(itemPath, binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.empty.template";
 }

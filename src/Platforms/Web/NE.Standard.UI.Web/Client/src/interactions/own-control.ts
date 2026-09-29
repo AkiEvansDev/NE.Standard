@@ -1,12 +1,10 @@
-// A control of a row's own: a press or key typed into it is the control's, never the row's. One list for every host with
-// rows, naming the framework's own popups and field boxes as well as native tags — e.g. a select's option is a div, not a
-// <select>, and a click on it must choose the option, not the row it sits in.
+// A control of a row's own: a press or key in it is the control's, never the row's. One list for every host with rows, naming the
+// framework's popups and field boxes beside native tags, since a select's option is a div, not a <select>.
 
-/** The roles a field-opened popup wears — a select's list, a menu, a dialog — shared by every host that must yield keys to one. */
-export const PopupRoleSelector = "[role='listbox'], [role='menu'], [role='dialog']";
+import { ListTriggerClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
 
 // The box a field draws around its input and its marks: `@ui-input-field-state` in styles/mixins/field.less, which a new field shape joins too.
-const FieldBoxSelector = ".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger, .ui-field-box";
+export const FieldBoxSelector = `.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .${ListTriggerClass}, .ui-field-box`;
 
 const OwnControlSelector = `button, a, input, select, textarea, label, [contenteditable=''], [contenteditable='true'], ${FieldBoxSelector}, ${PopupRoleSelector}`;
 

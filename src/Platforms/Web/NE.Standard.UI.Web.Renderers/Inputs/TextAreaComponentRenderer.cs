@@ -64,16 +64,12 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
 
             // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
-            _ = RenderProperty<bool?>(context, textarea, TextAreaComponent.TrimInputProperty, static (target, value) =>
-            {
-                if (value == true)
-                    _ = target.Attribute(WebAttributes.TrimInput);
-            }, [WebDomOperation.ToggleAttribute(WebAttributes.TrimInput, condition: WebValueCondition.IsTrue)]);
+            RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);
 
             NativeInputRendererBase.RenderPlaceholder(context, textarea);
             NativeInputRendererBase.RenderFormId(context, textarea);
             NativeInputRendererBase.RenderFieldName(context, textarea);
-            NativeInputRendererBase.RenderIsReadOnly(context, textarea);
+            NativeInputRendererBase.RenderIsReadOnly(context, root, textarea);
             RenderFieldLabel(context, textarea);
 
             _ = RenderProperty<string?>(context, textarea, IInputComponent.ValueProperty, static (target, value) =>

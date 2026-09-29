@@ -6,6 +6,7 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
@@ -53,14 +54,21 @@ public static class InputComponentExtensions
         => component.On(EventNames.Blur, command, arguments);
 
     /// <summary>
-    /// Adds a required-value validation rule.
+    /// Adds a required-value validation rule; its message is the author's text or a key.
     /// </summary>
     public static T Required<T>(this T component, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
         where T : IInputComponent
         => component.Validate(trigger, UIComparisonOperator.Required, null, message, severity);
 
     /// <summary>
-    /// Adds a regular-expression validation rule.
+    /// Adds a required-value validation rule whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T Required<T>(this T component, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+        => component.Validate(trigger, UIComparisonOperator.Required, null, message, severity);
+
+    /// <summary>
+    /// Adds a regular-expression validation rule; its message is the author's text or a key.
     /// </summary>
     public static T Regex<T>(this T component, string pattern, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
         where T : IInputComponent
@@ -70,12 +78,33 @@ public static class InputComponentExtensions
     }
 
     /// <summary>
-    /// Adds a validation rule.
+    /// Adds a regular-expression validation rule whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T Regex<T>(this T component, string pattern, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern);
+        return component.Validate(trigger, UIComparisonOperator.Regex, pattern, message, severity);
+    }
+
+    /// <summary>
+    /// Adds a validation rule; its message is the author's text or a key, looked up as a plain value on a translatable property is.
     /// </summary>
     public static T Validate<T>(this T component, UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, string message, UIValidationSeverity severity = UIValidationSeverity.Error)
         where T : IInputComponent
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        component.AddValidation(new UIValidationRule(trigger, @operator, value, severity, message));
+        return component;
+    }
+
+    /// <summary>
+    /// Adds a validation rule whose message is a phrase: a key with its arguments — a limit's <c>{max}</c> — or <see cref="UIPhrase.Text"/>.
+    /// </summary>
+    public static T Validate<T>(this T component, UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, UIPhrase message, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentNullException.ThrowIfNull(message);
         component.AddValidation(new UIValidationRule(trigger, @operator, value, severity, message));
         return component;
     }

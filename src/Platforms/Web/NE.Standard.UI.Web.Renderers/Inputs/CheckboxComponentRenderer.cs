@@ -19,10 +19,10 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
         => RenderCheckable(context, root, ClassName);
 
     /// <summary>
-    /// Renders the label/hidden-input/box/text-body shell shared by a checkbox and a switch; <c>BadgePlacement</c> is not honoured,
-    /// since an inline-flex toggle has no free space in its row. <paramref name="role"/> is what the native box is to a screen reader
-    /// when it is not a checkbox — a switch.
+    /// Renders the label, hidden input, box and text body a checkbox and a switch share; <paramref name="role"/> names the box to a
+    /// screen reader when it is not a checkbox.
     /// </summary>
+    /// <remarks><c>BadgePlacement</c> is not honoured: an inline-flex toggle has no free space in its row.</remarks>
     public static void RenderCheckable(WebRenderContext context, IHtmlElementBuilder root, string classPrefix, string? role = null)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -40,7 +40,8 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
             if (role is not null)
                 _ = input.Attribute("role", role);
 
-            NativeInputRendererBase.RenderIsReadOnlyAsDisabled(context, input);
+            // Not `disabled`: a read-only box stays in the tab order and readable, and the client refuses its change.
+            NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, input);
 
             NativeInputRendererBase.RenderFormId(context, input);
             NativeInputRendererBase.RenderFieldName(context, input);

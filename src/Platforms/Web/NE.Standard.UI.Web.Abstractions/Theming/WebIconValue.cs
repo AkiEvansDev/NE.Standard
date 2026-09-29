@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
@@ -11,18 +13,35 @@ public static class WebIconValue
     /// <summary>Asks for the tinted form of a picture: masked with <c>currentColor</c>, like a glyph.</summary>
     public const string MaskPrefix = "mask:";
 
-    /// <summary>The class an untinted picture wears; a glyph and a tinted picture wear none of their own.</summary>
+    /// <summary>The class an untinted picture wears: painted as it is.</summary>
     public const string ImageClassName = "ui-icon--image";
 
-    /// <summary>The slot both modes fill — a pack writes it per glyph class, a picture inline.</summary>
+    /// <summary>The class a tinted picture wears: the one form <c>.ui-icon::before</c> paints, a mask filled with the text colour.</summary>
+    public const string MaskClassName = "ui-icon--mask";
+
+    /// <summary>The slot a picture fills, inline on the element.</summary>
     public const string ImageSourceProperty = "--ui-icon-url";
 
+    // The characters a glyph class keeps; a name with none of them names no glyph (WebIconClassName.FromIconName).
+    private static readonly SearchValues<char> GlyphCharacters = SearchValues.Create("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
     /// <summary>
-    /// Reads an icon value as a picture; false for a glyph name or an unsupported scheme.
+    /// The class an icon value wears — a glyph's, or a picture's form — or empty for a value that names nothing; mirrors
+    /// <c>toIconClassName</c> in <c>icon-value.ts</c>, which trims the value first too.
     /// </summary>
-    public static bool TryReadImage(string? value, out string source, out bool tinted)
+    public static string ClassName(string? value)
     {
-        source = string.Empty;
+        if (TryReadImageSource(value, out _, out var tinted))
+            return tinted ? MaskClassName : ImageClassName;
+
+        // Nothing rather than a refusal: the value may be data (an emoji, a stray symbol), and data must not fail the page.
+        return value is not null && value.AsSpan().ContainsAny(GlyphCharacters) ? WebIconClassName.FromIconName(value.Trim()) : string.Empty;
+    }
+
+    /// <summary><see cref="TryReadImage"/> over the value's own characters, so a caller that needs no source text allocates none.</summary>
+    private static bool TryReadImageSource(string? value, out ReadOnlySpan<char> source, out bool tinted)
+    {
+        source = default;
         tinted = false;
 
         if (string.IsNullOrWhiteSpace(value))
@@ -42,8 +61,26 @@ public static class WebIconValue
             return false;
         }
 
-        source = candidate.ToString();
+        source = candidate;
         return true;
+    }
+
+    /// <summary>
+    /// Whether an icon value names something to draw — a glyph name with a letter or digit (whether or not a pack draws it), or a
+    /// picture the page may load: <see cref="ClassName"/> answering a class, without building it.
+    /// </summary>
+    public static bool Names([NotNullWhen(true)] string? value)
+        => value is not null && (value.AsSpan().ContainsAny(GlyphCharacters) || TryReadImageSource(value, out _, out _));
+
+    /// <summary>
+    /// Reads an icon value as a picture; false for a glyph name or an unsupported scheme.
+    /// </summary>
+    public static bool TryReadImage(string? value, out string source, out bool tinted)
+    {
+        var image = TryReadImageSource(value, out ReadOnlySpan<char> candidate, out tinted);
+
+        source = image ? candidate.ToString() : string.Empty;
+        return image;
     }
 
     /// <summary>

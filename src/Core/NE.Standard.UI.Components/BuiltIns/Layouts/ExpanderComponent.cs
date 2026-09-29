@@ -107,8 +107,6 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
 /// </summary>
 public sealed class ExpanderComponent(string? id = null) : ExpanderComponent<ExpanderComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.expander";
 }

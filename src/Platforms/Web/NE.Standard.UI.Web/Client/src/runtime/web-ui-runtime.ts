@@ -1,6 +1,6 @@
 import { AddressResolver } from "../addressing/address-resolver";
 import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { ClientStrings, clientStrings } from "./client-strings";
+import { ClientWords, clientStrings, forEachSubtree } from "./client-strings";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
 import { InteractionEngine } from "../interactions/interaction-engine";
@@ -13,6 +13,7 @@ import { ItemSelection, itemSelection } from "../interactions/row-selection";
 import { ImageInputEngine } from "../interactions/image-input-engine";
 import { KeyValueActionEngine } from "../interactions/key-value-action-engine";
 import { ToggleButtonEngine } from "../interactions/toggle-button-engine";
+import { FieldBoxPressEngine } from "../interactions/field-box-press-engine";
 import { FieldKeysEngine } from "../interactions/field-keys-engine";
 import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
 import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
@@ -23,6 +24,7 @@ import { RangeValueEngine } from "../interactions/range-value-engine";
 import { NumberInputEngine } from "../interactions/number-input-engine";
 import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
+import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine";
 import { ContextMenuEngine } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
@@ -34,6 +36,7 @@ import { SplitButtonEngine } from "../interactions/split-button-engine";
 import { ButtonGroupEngine } from "../interactions/button-group-engine";
 import { AccordionEngine } from "../interactions/accordion-engine";
 import { TabsEngine } from "../interactions/tabs-engine";
+import { CommandBarEngine } from "../interactions/command-bar-engine";
 import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
 import { ColorInputEngine } from "../interactions/color-input-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
@@ -44,11 +47,15 @@ import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
 import { PressRippleEngine } from "../interactions/press-ripple-engine";
-import { ComponentSelector, PressRippleAttribute } from "../addressing/dom-attributes";
+import { startRefusals } from "../interactions/refusal-engine";
+import { ComponentIdAttribute, ComponentSelector, cssAttributeValue, pluginDomNames, PressRippleAttribute } from "../addressing/dom-attributes";
+import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
 import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
 import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
 import { Popups, popups } from "../interactions/popup-service";
 import { rovingFocus } from "../interactions/roving-focus";
+import { componentStates } from "../interactions/interactive-state";
+import { wheel } from "../interactions/wheel-notches";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
@@ -56,7 +63,9 @@ import { ItemsSelectionEngine } from "../interactions/items-selection-engine";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
-import { ClientEffectKinds, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, WebUIAttachRequest, WebUIAttachResult, getIdValue } from "../metadata/metadata-index";
+import {
+    ClientEffectKinds, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, WebUIAttachRequest, WebUIAttachResult, getIdValue
+} from "../metadata/metadata-index";
 import { readWebUIMetadata } from "../metadata/metadata-reader";
 import { readHydration } from "./web-hydration";
 import { CommandDispatcher } from "../transport/command-dispatcher";
@@ -72,7 +81,7 @@ import { NotificationEngine } from "../interactions/notification-engine";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
 import { UpdateProcessor } from "../updates/update-processor";
-import { ValidationEngine } from "../interactions/validation-engine";
+import { FieldValidation, ValidationEngine } from "../interactions/validation-engine";
 import { ValueBindingEngine } from "../updates/value-binding-engine";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
@@ -115,12 +124,9 @@ export type Badges = {
     writeCount(badge: Element, count: number): void;
 };
 
-/**
- * What a package's engine starts from: the same services a built-in engine gets, plus what it can't import from its own
- * bundle — the page's words, the observer shapes, the dialogs, the store, and the engines reached by name.
- */
+/** What a package's engine starts from: a built-in engine's services, plus what it cannot import from its own bundle. */
 export type PluginEngineContext = EngineContext & {
-    readonly strings: ClientStrings;
+    readonly strings: ClientWords;
     readonly observeComponents: typeof observeComponents;
     readonly observeSize: typeof observeSize;
     readonly dialogs: DialogEngine;
@@ -140,6 +146,10 @@ export type PluginEngineContext = EngineContext & {
     readonly selection: ItemSelection;
     readonly popups: Popups;
     readonly roving: typeof rovingFocus;
+    readonly states: typeof componentStates;
+    readonly validation: FieldValidation;
+    readonly wheel: typeof wheel;
+    readonly names: typeof pluginDomNames;
 };
 
 export type PluginEngine = (context: PluginEngineContext) => unknown;
@@ -149,14 +159,15 @@ export type PropertyWriting = {
     set(element: Element, propertyName: string, value: unknown): boolean;
 };
 
-// Every engine that needs only the root and the shared services, named for the console should its start throw, and started in this order;
-// the order matters in one place, and that place says so.
+// Engines needing only the root and the shared services, named for the console if one throws; where their order matters, it says so.
 const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
+    ["refusal", ({ root }) => startRefusals(root)],
     ["file input", ({ root }) => new FileInputEngine({ root })],
     ["image input", ({ root }) => new ImageInputEngine({ root })],
     ["key value action", ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine })],
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
     ["field keys", ({ root }) => new FieldKeysEngine({ root })],
+    ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
     ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
     ["select interaction", ({ root }) => new SelectInteractionEngine({ root })],
@@ -168,6 +179,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["color input", ({ root, propertyPatchEngine, dom }) => new ColorInputEngine({ root, propertyPatchEngine, dom })],
     ["temporal picker", ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine })],
     ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
+    ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
     ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
     ["context menu", ({ root }) => new ContextMenuEngine({ root })],
     ["split button", ({ root }) => new SplitButtonEngine({ root })],
@@ -183,6 +195,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["accordion", ({ root }) => new AccordionEngine({ root })],
     ["tabs", ({ root }) => new TabsEngine({ root })],
     ["tabs view", ({ root, effects }) => new TabsViewEngine({ root, effects })],
+    ["command bar", ({ root }) => new CommandBarEngine({ root })],
     ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
@@ -231,6 +244,9 @@ export class WebUIRuntime {
     // A package's engine registered before hydration, started once it is done; null once the page is hydrated.
     private enginesAwaitingHydration: PluginEngine[] | null = [];
 
+    // Bumped by every language switch, so one that began later wins over one still waiting on the server.
+    private languageSwitches = 0;
+
     public constructor(options: WebUIRuntimeOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
@@ -239,9 +255,13 @@ export class WebUIRuntime {
 
         // Before any engine: the first thing one draws may already need a word.
         clientStrings.load(this.root);
+        clientStrings.setLanguage(document.documentElement.lang);
 
         if (options.strings !== undefined)
             clientStrings.register(options.strings);
+
+        // Every change set, the hydration's first, waits for the table, so a value arrives in its words rather than as its key.
+        this.gateInbound(this.hydration?.words === null || this.hydration?.words === undefined ? null : clientStrings.loadTableAsync(this.hydration.words.href));
 
         this.extensions = new ExtensionRegistry(options.converters, options.eventDefinitions, options.domOperations, options.valueReaders);
         this.extensions.registerRowDecorator(MenuRowDecorator);
@@ -249,7 +269,7 @@ export class WebUIRuntime {
         const operations = this.extensions.operations;
         const propertyState = new PropertyStateStore();
         const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
-        this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine);
+        this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders });
         // Built before the interaction engine, whose own effects go through the same registry a command's do.
         this.dialogs = new DialogEngine({ root: this.root });
         this.notifications = new NotificationEngine({ root: this.root });
@@ -267,8 +287,11 @@ export class WebUIRuntime {
         let valueBinding: ValueBindingEngine | undefined;
 
         const interactionEngine = new InteractionEngine(interactionIndex, propertyPatchEngine, new InteractionEvaluator(), {
+            root: this.root,
             effects: this.effects,
             dom: this.dom,
+            metadata: this.metadata,
+            valueReaders: this.extensions.valueReaders,
             writeBack: (target, dynamicParameters, value) => {
                 void valueBinding?.syncPropertyAsync(getIdValue(target.componentId), target.propertyId, dynamicParameters, value)
                     .catch(error => logWarn("writing an interaction's value back failed.", error));
@@ -297,6 +320,9 @@ export class WebUIRuntime {
             this.extensions.collectionSinks
         );
 
+        // First among the listeners, before any engine's: the page's words are written again before a package hears the change.
+        clientStrings.onChange(() => this.rewriteWords(propertyPatchEngine, itemsRenderer));
+
         // Everything that can put a host out of step with its own rules goes through this one watcher.
         new ItemsRuleWatcher({
             root: this.root,
@@ -306,13 +332,30 @@ export class WebUIRuntime {
             state: propertyState,
             propertyPatchEngine,
             reactiveSources: this.reactiveSources,
-            valueReaders: this.extensions.valueReaders,
             virtualization: this.virtualization
         });
 
         // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts).
         this.transport = new SignalRTransport(this.windowId, changes => this.applyChanges(changes), options.signalR);
         this.dispatcher = new CommandDispatcher(this.transport);
+
+        // A key the table lacks is asked about once per language — a translator that cannot list every word, or a missing word reported.
+        clientStrings.setAsker((language, keys) => this.transport.translateAsync(language, keys));
+
+        // Raised on the page, it asks the server where the words are, which stores the language on the session; pushed, it names them.
+        this.effects.register(ClientEffectKinds.SetLanguage, context => {
+            const effect = context.effect as SetLanguageClientEffect;
+            const language = effect.language;
+
+            if (typeof language !== "string" || language.trim().length === 0) {
+                logWarn("set language effect carries no language.", context.effect);
+                return;
+            }
+
+            const href = typeof effect.href === "string" && effect.href.length > 0 ? effect.href : null;
+
+            void this.switchLanguageAsync(language, href).catch(error => logWarn("switching the page's language failed.", error));
+        });
 
         // Value sync is independent of the event pipeline: a component with both does two round-trips on one "change".
         const valueChangeDispatcher = new ValueChangeDispatcher(this.transport);
@@ -322,7 +365,7 @@ export class WebUIRuntime {
             dom: this.dom,
             dispatcher: valueChangeDispatcher,
             valueReaders: this.extensions.valueReaders,
-            recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordSentValue(reference, dynamicParameters, value)
+            recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordValue(reference, dynamicParameters, value)
         });
         propertyPatchEngine.setHeldTargets(target => valueBinding?.isHeld(target) === true);
 
@@ -401,12 +444,12 @@ export class WebUIRuntime {
                 release: element => {
                     if (valueBinding?.release(element) === true)
                         propertyPatchEngine.restoreBoundValue(element, this.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
-                }
+                },
+                write: (element, value) => propertyPatchEngine.writeBoundValue(element, value)
             },
             properties: {
                 set: (element, propertyName, value) => {
-                    // The element's own component by its markup, not the page's index: a package may set a part before it's on the page,
-                    // or have drawn several from one template, each set alone.
+                    // By markup, not the page's index: a part may be set before it is on the page, or drawn several times from one template.
                     const component = element.closest(ComponentSelector);
                     const reference = component === null ? undefined : this.metadata.getExposedProperty(readComponentId(component), propertyName);
 
@@ -426,16 +469,18 @@ export class WebUIRuntime {
             uploads: fileUploads,
             selection: itemSelection,
             popups,
-            roving: rovingFocus
+            roving: rovingFocus,
+            states: componentStates,
+            validation: validationEngine,
+            wheel,
+            names: pluginDomNames
         };
 
         this.transport.onChanges(changes => void this.applyChanges(changes));
 
-        // The server strips effects from a client-invoked command's returned copy, so both channels cannot double-apply; a
-        // background command's pushed result ends the dispatch waiting for it, which applies its effects as it would an invoke's.
+        // An invoke's returned copy carries no effects, so nothing applies twice; a background command's pushed result settles its dispatch.
         this.transport.onCommandResult(result => {
-            // The changes here, in the order the messages arrived, as an answer's are: handed through the dispatch they would land
-            // a few turns late, behind a push that came after them. The dispatch is settled once they are applied, without them.
+            // Applied here in arrival order: through the dispatch they would land behind a later push. The dispatch settles without them.
             const { changes, ...rest } = result;
 
             // The effects after the changes, a staged value among them: an effect acts on the page those changes produced.
@@ -468,10 +513,132 @@ export class WebUIRuntime {
         this.transport.onClosed(error => this.loseConnection(error ?? new Error("the connection to the server closed.")));
     }
 
-    /**
-     * The connection is gone for good: every call fails at once rather than waiting, and the reader is offered a reload — the page
-     * does not reconnect by itself. Said once, however many ways the loss is reported.
-     */
+    /** Holds every change set until `ready` settles — the page's words — and lets them through once it has, failed or not. */
+    private gateInbound(ready: Promise<unknown> | null): void {
+        if (ready === null)
+            return;
+
+        const gate = ready.then(() => undefined, () => undefined);
+
+        this.inbound = gate;
+        void gate.then(() => {
+            if (this.inbound === gate)
+                this.inbound = null;
+        });
+    }
+
+    /** Switches the page's language in place: the session told unless the server named the words, the table fetched, every word rewritten. */
+    private async switchLanguageAsync(language: string, stored: string | null): Promise<void> {
+        // Weighed against the switch under way, not against the language still shown.
+        if (language === clientStrings.requestedLanguage)
+            return;
+
+        const switchNumber = ++this.languageSwitches;
+        let href = stored;
+        let target = language;
+
+        clientStrings.setRequested(language);
+
+        try {
+            if (href === null) {
+                try {
+                    const answer = await this.transport.setLanguageAsync(language);
+
+                    href = answer.href;
+                    target = answer.language;
+                }
+                catch (error) {
+                    // The page still switches for as long as it lives; the next page renders in the session's language.
+                    logWarn("the session was not told the page's language.", { language, error });
+                }
+            }
+
+            // A later switch wins, one back to the language shown included, which fetches nothing.
+            if (switchNumber !== this.languageSwitches || target === clientStrings.language || !await clientStrings.switchToAsync(target, href))
+                return;
+
+            clientStrings.notifyChanged();
+        }
+        finally {
+            if (switchNumber === this.languageSwitches)
+                clientStrings.setRequested(null);
+        }
+    }
+
+    /** Writes the page's words again in the table's language — marks, rendered values, sent values, built rows — then the title and lang. */
+    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer): void {
+        const started = performance.now();
+
+        // A package may have put parts on the page meanwhile (a grid's open detail) that the index has not seen.
+        this.dom.invalidate();
+        // Later over earlier: a row's own words last.
+        clientStrings.rewriteMarks(this.root);
+        this.rewriteStaticWords(propertyPatchEngine);
+        propertyPatchEngine.rewriteWords();
+        itemsRenderer.rewriteRowWords(this.root);
+
+        const title = this.hydration?.title ?? null;
+
+        if (title !== null) {
+            const words = String(clientStrings.resolve(title, true));
+
+            if (document.title !== words)
+                document.title = words;
+        }
+
+        if (clientStrings.language.length > 0 && document.documentElement.lang !== clientStrings.language)
+            document.documentElement.lang = clientStrings.language;
+
+        logElapsed("page's words written again", started, { language: clientStrings.language });
+    }
+
+    /** The values the page was rendered with, on every instance and inside the templates rows are built from. */
+    private rewriteStaticWords(propertyPatchEngine: PropertyPatchEngine): void {
+        const words = this.metadata.getWords();
+
+        if (words.length === 0)
+            return;
+
+        const templates: ParentNode[] = [];
+
+        forEachSubtree(this.root, subtree => {
+            if (subtree !== this.root)
+                templates.push(subtree);
+        });
+
+        for (const word of words) {
+            const componentId = getIdValue(word.componentId);
+            const reference = { componentId, propertyId: word.propertyId };
+            const parameters = word.dynamicParameters ?? [];
+
+            for (const component of this.findWordInstances(componentId, parameters))
+                propertyPatchEngine.rewriteStatic(component, reference, word.key);
+
+            for (const template of templates) {
+                for (const component of template.querySelectorAll(`[${ComponentIdAttribute}="${cssAttributeValue(componentId)}"]`)) {
+                    if (endsWithDynamicParameters(component, parameters))
+                        propertyPatchEngine.rewriteStatic(component, reference, word.key);
+                }
+            }
+        }
+    }
+
+    /** The instances a recorded word belongs to: every copy for one without row keys, else those whose rows end with its keys. */
+    private findWordInstances(componentId: number, parameters: readonly unknown[]): Element[] {
+        // A word with no row keys is every copy's: a package's clones of the component as well as the one the server drew.
+        if (parameters.length === 0)
+            return this.dom.findEveryComponent(componentId);
+
+        const exact = this.dom.findAllComponents(componentId, parameters);
+
+        if (exact.length > 0)
+            return exact;
+
+        // A word inside a template names only its inner rows' keys (a cell editor's option): it is that option in every row's copy.
+        return this.dom.findAllComponents(componentId, []).filter(component => endsWithDynamicParameters(component, parameters));
+    }
+
+    /** The connection is gone for good: calls fail at once and a reload is offered, as the page never reconnects itself; said once. */
     private loseConnection(reason: unknown): void {
         if (this.connectionLost)
             return;
@@ -491,10 +658,7 @@ export class WebUIRuntime {
         });
     }
 
-    /**
-     * The page was rendered from another compile of its view, and the server refused it. Reloaded once: a page that comes back
-     * with the same compile and is refused again (two servers of two builds) is left alone, logged.
-     */
+    /** Reloads a page rendered from another compile of its view, once: refused again (two servers of two builds), it is left, logged. */
     private reloadForView(view: string): void {
         if (readReloadedView() === view) {
             logError("the page was rendered from another compile of its view, and a reload did not change that; giving up.", { view });
@@ -513,25 +677,18 @@ export class WebUIRuntime {
     public async startAsync(): Promise<void> {
         exposeGlobalApi(this, this.options.handlerGlobalKey);
 
-        // A package's module runs after this one and registers its converters, operations and sinks as it does; the browser has
-        // run every module by DOMContentLoaded, so hydration waits rather than meeting a package half-registered.
+        // A package's module registers as it runs, after this one; every module has run by DOMContentLoaded, so hydration waits for it.
         await documentParsedAsync();
 
-        // Before the connection: the markup is already the finished page, and this takes the client's copy of it.
-        this.hydrate();
+        // Opened while the page hydrates: the hydration waits for the page's words, and the connection need not wait for either.
+        const connected = this.connectAsync();
+
+        // Before the attach: the markup is already the finished page, and this takes the client's copy of it.
+        await this.hydrateAsync();
         this.startEnginesAwaitingHydration();
 
-        // The automatic reconnect covers a connection that was open; one that never opened is lost from the start.
-        try {
-            const connecting = performance.now();
-
-            await this.transport.startAsync();
-            logElapsed("SignalR connection opened", connecting);
-        }
-        catch (error) {
-            this.loseConnection(error);
+        if (!await connected)
             return;
-        }
 
         await this.attachAsync();
 
@@ -540,21 +697,38 @@ export class WebUIRuntime {
             logDebug(`page live ${formatMilliseconds(performance.now())} after the navigation started.`);
     }
 
+    /** Opens the connection; the automatic reconnect covers a connection that was open, and one that never opened is lost from the start. */
+    private async connectAsync(): Promise<boolean> {
+        try {
+            const connecting = performance.now();
+
+            await this.transport.startAsync();
+            logElapsed("SignalR connection opened", connecting);
+
+            return true;
+        }
+        catch (error) {
+            this.loseConnection(error);
+            return false;
+        }
+    }
+
     /** Takes the client's copy of the values the page was rendered with, changing nothing the reader sees. */
-    private hydrate(): void {
+    private async hydrateAsync(): Promise<void> {
         if (this.hydration === null)
             return;
 
         const started = performance.now();
+        const changes = this.hydration.changes;
 
         this.dom.rebuild();
 
         // Before the change set: its reconcile keeps a row only if it can read what the row holds.
-        this.updateProcessor.registerServerRenderedItems(this.hydration.changes);
-        void this.applyChanges(this.hydration.changes);
+        this.updateProcessor.registerServerRenderedItems(changes);
+        await this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
-        logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: this.hydration.changes?.updates?.length ?? 0 });
+        logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: changes?.updates?.length ?? 0 });
     }
 
     private startEnginesAwaitingHydration(): void {
@@ -594,10 +768,7 @@ export class WebUIRuntime {
         clientStrings.register(words);
     }
 
-    /**
-     * Starts a package's engine after every built-in one, on the same root and services. Registered before hydration (which waits
-     * for the module), but started after, since an engine reads the page as hydrated.
-     */
+    /** Starts a package's engine after every built-in one; one registered before hydration starts after it, reading the page hydrated. */
     public addEngine(start: PluginEngine): void {
         if (this.enginesAwaitingHydration !== null) {
             this.enginesAwaitingHydration.push(start);
@@ -607,10 +778,7 @@ export class WebUIRuntime {
         startEngine(nameOfPackageEngine(start), start, this.pluginContext);
     }
 
-    /**
-     * Every change set goes through here. One naming a value staged beside the hub waits for it to be fetched, and every set
-     * after it waits in turn, so the page takes them in order; the rest apply at once, as always.
-     */
+    /** Applies a change set; one naming a value staged beside the hub waits for its fetch, and every later set waits in turn, in order. */
     private applyChanges(changes: ServerChangeSet | undefined): void | Promise<void> {
         if (this.inbound === null && !hasStagedValues(changes)) {
             this.applyNow(changes);
@@ -677,8 +845,7 @@ export class WebUIRuntime {
         if (this.connectionLost)
             return false;
 
-        // The server pushes this connection only what came after the snapshot the attach answers with, and may push it before
-        // the answer lands: every change set arriving from here on waits until the snapshot is on the page.
+        // What followed the attach's snapshot may be pushed before the answer lands: every change set from here waits for the snapshot.
         const hold = this.holdInbound();
         const started = performance.now();
 
@@ -750,10 +917,7 @@ export class WebUIRuntime {
         }
     }
 
-    /**
-     * Retries a failed attach a few times with a growing backoff, so a hub call that throws without dropping the socket
-     * doesn't need a page reload to recover. `null` after the last attempt means every retry failed, and the connection is given up.
-     */
+    /** Retries a failed attach with a growing backoff, so a hub call throwing on a live socket needs no reload; null once all failed. */
     private async attachWithRetryAsync(): Promise<WebUIAttachResult | null> {
         // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
         const standIn = readStandInNavigation();

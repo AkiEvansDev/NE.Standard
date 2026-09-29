@@ -1,5 +1,5 @@
-// The picture a surface wears over its colour: mixed in after `background-color`, never a `background` shorthand, which
-// would reset the image. Reset here first, or the properties inherit — a bubble in a feed wore the feed's own picture.
+// A surface's picture, mixed in after `background-color` (a `background` shorthand would reset it); reset first, since the
+// properties inherit and a nested surface would wear its host's picture.
 .ui-surface-image() {
     --ui-surface-image: none;
     --ui-surface-image-size: cover;

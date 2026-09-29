@@ -1,5 +1,6 @@
-import { BindingAttributePrefix, ComponentSelector, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes";
+import { BindingAttributePrefix, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes";
 import { DomRegistry } from "./dom-registry";
+import { resolveOperationElements } from "./operation-targets";
 import {
     MetadataIndex,
     UIPropertyAddress,
@@ -35,6 +36,11 @@ export class AddressResolver {
 
     public getPropertyName(propertyId: string): string | undefined {
         return this.metadata.getPropertyDefinition(propertyId)?.propertyName;
+    }
+
+    /** Whether a plain string written to the property is a key the page looks up (`MetadataIndex.isTranslatable`). */
+    public isTranslatable(reference: WebRenderPropertyReferenceMetadata): boolean {
+        return this.metadata.isTranslatable(reference);
     }
 
     /** Whether the referenced component has any element on the page at all, regardless of which instance. */
@@ -102,8 +108,7 @@ export class AddressResolver {
     /** Every element the operation lands on, not the first: one property may be rendered onto several elements. */
     public resolveOperationTargets(resolved: ResolvedPropertyAddress, operation: WebDomOperation): Element[] {
         return resolveOperationElements(resolved.component, operation, () => {
-            // An unbound property is patched only as a field's validation target, and the renderer marked its element for that;
-            // a property with neither mark is the root's own.
+            // An unbound property is patched only as a validation target, whose element the renderer marked; with neither mark, the root's.
             if (resolved.bindingSelector === null) {
                 const into = resolved.component.querySelector<Element>(`[${IntoAttributePrefix}${toKebabCase(resolved.propertyName)}]`);
 
@@ -118,24 +123,4 @@ export class AddressResolver {
             return elements;
         });
     }
-}
-
-/** The elements an operation lands on: the component root, the descendant it names, or the caller's bound elements. */
-export function resolveOperationElements(component: Element, operation: WebDomOperation, bound: () => Element[]): Element[] {
-    const target = operation.target;
-
-    if (target === "root")
-        return [component];
-
-    if (target !== null && target !== undefined && target.trim().length > 0) {
-        // The component's own part, not the first match under it: a grid's filter-band select has its own items host that must be skipped.
-        for (const element of component.querySelectorAll<Element>(target)) {
-            if (element.closest(ComponentSelector) === component)
-                return [element];
-        }
-
-        return [];
-    }
-
-    return bound();
 }

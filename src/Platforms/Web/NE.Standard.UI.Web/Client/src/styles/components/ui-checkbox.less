@@ -11,8 +11,7 @@
     .ui-toggle-root();
 }
 
-    // A checkbox drawn by hand — a package's editor — is no component root, and the height it reads is then its host's (ui-button.less
-    // says why); taken back here.
+    // A hand-drawn checkbox (a package's) is no root and would read its host's height (see ui-button.less); taken back here.
     .ui-checkbox:not([data-ui-id]) {
         .ui-responsive-reset(--ui-height);
     }
@@ -32,7 +31,7 @@
 }
 
 // The input is hidden, so the ring it would wear goes on the box it stands for.
-.ui-checkbox__input:focus-visible ~ .ui-checkbox__box {
+.ui-checkbox__input@{ui-keyboard-focus} ~ .ui-checkbox__box {
     .ui-focus-ring();
 }
 

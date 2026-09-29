@@ -3,8 +3,7 @@
 @import "../mixins/field.less";
 @import "../mixins/text.less";
 
-// The select's shell (ui-select.less) with the chosen options as chips inside the field. The chips wrap onto more lines rather
-// than overflow, and with none chosen the field keeps an input's height, since a chip is shorter than the field's own line.
+// The select's shell (ui-select.less) with the chosen options as chips that wrap; empty, the field keeps an input's height, a chip being shorter.
 
 .ui-multi-select__chips {
     display: flex;
@@ -51,7 +50,7 @@
     height: 1.125rem;
     color: inherit;
 
-    &:hover {
+    &@{ui-adornment-live}:hover {
         color: inherit;
         background: color-mix(in srgb, currentColor 16%, transparent);
     }
@@ -81,21 +80,13 @@
 }
 
 // The clear button shows once a chip stands in the field.
-.ui-multi-select.ui-select--clearable > .ui-select__trigger:not([aria-readonly="true"]):has(.ui-multi-select__chip) > .ui-select__clear {
+.ui-multi-select.ui-select--clearable:not(.ui-readonly) > .ui-select__trigger:has(.ui-multi-select__chip) > .ui-select__clear {
     display: inline-flex;
 }
 
-// Read-only: the chips stay readable, but there is no list to open and nothing to take out, so the controls go.
-.ui-multi-select__trigger[aria-readonly="true"] {
-    cursor: default;
-
-    :is(.ui-select__clear, .ui-select__chevron, .ui-multi-select__chip-remove) {
-        display: none;
-    }
-
-    .ui-multi-select__chip {
-        padding-right: @ui-space-2;
-    }
+// Read-only: the chips stay readable and lose their remove (ui-select.less), so each keeps even air on both sides.
+.ui-multi-select.ui-readonly .ui-multi-select__chip {
+    padding-right: @ui-space-2;
 }
 
 // An option says it is chosen by the check at its end, its room kept either way so the list lines up, as a menu's check entries do.
@@ -120,8 +111,8 @@
         opacity: 1;
     }
 
-    // The check says it alone: several chosen rows washed would read as one block. The pointer's and the arrows' wash stay.
-    .ui-multi-select .ui-select__option[aria-selected="true"]:not(:hover, [data-ui-active]) {
+    // The check says it alone: several washed rows would read as one block. The current option keeps its ground (ui-select.less).
+    .ui-multi-select .ui-select__option[aria-selected="true"]:not(@{ui-list-current}) {
         background: none;
     }
 

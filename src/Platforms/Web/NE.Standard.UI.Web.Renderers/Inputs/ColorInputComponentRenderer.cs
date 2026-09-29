@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -22,7 +21,15 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     private const string PickerPane = "picker";
     private const string PalettePane = "palette";
     // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
-    private const string OpacityShownAttribute = "data-ui-color-opacity-shown";
+    private const string NoOpacityAttribute = "data-ui-color-no-opacity";
+
+    // One operation per toggle: an operation's selector lands on the first part it matches.
+    private static readonly WebDomOperation[] ReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("aria-disabled", target: ".ui-color-input__toggle", condition: WebValueCondition.IsTrue, value: "true"),
+        WebDomOperation.ToggleAttribute("aria-disabled", target: ".ui-color-input__swatch--button", condition: WebValueCondition.IsTrue, value: "true")
+    ];
 
     public override string ComponentTypeKey => ColorInputComponent.ComponentTypeKey;
 
@@ -41,15 +48,16 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
 
         RenderTextFormat(context, root);
         RenderPresentation(context, root);
-        RenderReadOnly(context, root);
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
 
         // Both variants and both panes are always rendered, the root says which show: no DOM operation swaps elements.
         List<IHtmlElementBuilder> texts = [];
+        List<IHtmlElementBuilder> toggles = [];
 
-        RenderRow(context, root, texts.Add);
-        RenderSwatchButton(context, root, texts.Add);
+        RenderRow(context, root, texts.Add, toggles.Add);
+        RenderSwatchButton(context, root, texts.Add, toggles.Add);
+        RenderReadOnly(context, root, toggles);
         RenderPopup(context, root);
         RenderValueInput(context, root, format, texts);
         RenderValidationMessage(context, root);
@@ -63,39 +71,39 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             [WebDomOperation.Attribute(WebAttributes.ColorFormat, converter: WebDomConverters.ColorTextFormatAttribute)]);
     }
 
-    /// <summary>Which variant shows, and which of the popup's parts are offered — all four on the root.</summary>
+    /// <summary>Which variant shows, and which of the popup's parts are refused — all four on the root.</summary>
     private static void RenderPresentation(WebRenderContext context, IHtmlElementBuilder root)
     {
         _ = RenderProperty<UIColorInputVariant?>(context, root, ColorInputComponent.VariantProperty, static (target, value)
             => target.Attribute(WebAttributes.ColorVariant, value == UIColorInputVariant.Swatch ? "swatch" : "field"),
             [WebDomOperation.Attribute(WebAttributes.ColorVariant, converter: WebDomConverters.ColorInputVariantAttribute)]);
 
-        RenderOffered(context, root, ColorInputComponent.ShowPickerProperty, WebAttributes.ColorPicker);
-        RenderOffered(context, root, ColorInputComponent.ShowPaletteProperty, WebAttributes.ColorPalette);
-        RenderOffered(context, root, ColorInputComponent.ShowOpacityProperty, OpacityShownAttribute);
+        // A refusal rather than an offer: each defaults to shown, so an unset or null value, first paint and live patch alike, marks nothing.
+        RenderFlagAttribute(context, root, ColorInputComponent.ShowPickerProperty, WebAttributes.ColorNoPicker, WebValueCondition.IsFalse);
+        RenderFlagAttribute(context, root, ColorInputComponent.ShowPaletteProperty, WebAttributes.ColorNoPalette, WebValueCondition.IsFalse);
+        RenderFlagAttribute(context, root, ColorInputComponent.ShowOpacityProperty, NoOpacityAttribute, WebValueCondition.IsFalse);
     }
 
-    private static void RenderOffered(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string attribute)
+    /// <summary>
+    /// Read-only on the root, because it is the whole control that stops answering; its two toggles stay focusable, as a read-only
+    /// field does, and say they do nothing.
+    /// </summary>
+    private static void RenderReadOnly(WebRenderContext context, IHtmlElementBuilder root, List<IHtmlElementBuilder> toggles)
     {
-        _ = RenderProperty<bool?>(context, root, property, (target, value) =>
+        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
-            if (value != false)
-                _ = target.Attribute(attribute);
-        }, [WebDomOperation.ToggleAttribute(attribute, condition: WebValueCondition.IsTrue)]);
-    }
+            if (value != true)
+                return;
 
-    /// <summary>Read-only on the root, because it is the whole control that stops answering.</summary>
-    private static void RenderReadOnly(WebRenderContext context, IHtmlElementBuilder root)
-    {
-        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Attribute(WebAttributes.ColorReadonly);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.ColorReadonly, condition: WebValueCondition.IsTrue)]);
+            _ = target.Class(WebClassNames.ReadOnly);
+
+            foreach (IHtmlElementBuilder toggle in toggles)
+                _ = toggle.Attribute("aria-disabled", "true");
+        }, ReadOnlyOperations);
     }
 
     /// <summary>The field variant: a swatch, the colour written beside it, and the button that opens the picker.</summary>
-    private static void RenderRow(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText)
+    private static void RenderRow(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText, Action<IHtmlElementBuilder> onToggle)
     {
         _ = root.Element("span", row =>
         {
@@ -113,16 +121,21 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 onText(element);
             });
 
-            RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle, button => button.Attribute("aria-label", context.Translate(UIStrings.ColorChoose)));
+            RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle, button =>
+            {
+                onToggle(button);
+                WebWords.Write(context, button, "aria-label", UIStrings.ColorChoose);
+            });
         });
     }
 
     /// <summary>The swatch variant: the colour itself, with its own text across it, and nothing else.</summary>
-    private static void RenderSwatchButton(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText)
+    private static void RenderSwatchButton(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText, Action<IHtmlElementBuilder> onToggle)
     {
         RenderPopupToggle(root, "ui-color-input__swatch ui-color-input__swatch--button", WebAttributes.ColorToggle, button =>
         {
-            _ = button.Attribute("aria-label", context.Translate(UIStrings.ColorChoose));
+            onToggle(button);
+            WebWords.Write(context, button, "aria-label", UIStrings.ColorChoose);
 
             BorderStyleRenderer.RenderBorderStyle(context, button);
 
@@ -141,6 +154,10 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             _ = popup.Class("ui-color-input__popup");
             _ = popup.Attribute("role", "dialog");
 
+            // A holder, as a flyout's panel is: Enter in its Hex or channel field hands it the keyboard, never the page's body.
+            _ = popup.Attribute("tabindex", "-1");
+            _ = popup.Attribute(WebAttributes.FocusHolder);
+
             RenderTabs(context, popup);
             RenderPickerPane(context, popup);
             RenderPalettePane(context, popup);
@@ -153,19 +170,19 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         {
             _ = tabs.Class("ui-color-input__tabs");
 
-            RenderTab(tabs, PickerPane, context.Translate(UIStrings.ColorPicker));
-            RenderTab(tabs, PalettePane, context.Translate(UIStrings.ColorPalette));
+            RenderTab(context, tabs, PickerPane, UIStrings.ColorPicker);
+            RenderTab(context, tabs, PalettePane, UIStrings.ColorPalette);
         });
     }
 
-    private static void RenderTab(IHtmlElementBuilder tabs, string pane, string caption)
+    private static void RenderTab(WebRenderContext context, IHtmlElementBuilder tabs, string pane, string captionKey)
     {
         _ = tabs.Element("button", tab =>
         {
             _ = tab.Class("ui-color-input__tab");
             _ = tab.Attribute("type", "button");
             _ = tab.Attribute(WebAttributes.ColorTab, pane);
-            _ = tab.Text(caption);
+            WebWords.Write(context, tab, null, captionKey);
         });
     }
 
@@ -200,10 +217,10 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             {
                 _ = fields.Class("ui-color-input__fields");
 
-                RenderTextField(fields, "hex", context.Translate(UIStrings.ColorHex), WebAttributes.ColorHex);
-                RenderChannelField(fields, context.Translate(UIStrings.ColorRed), "r");
-                RenderChannelField(fields, context.Translate(UIStrings.ColorGreen), "g");
-                RenderChannelField(fields, context.Translate(UIStrings.ColorBlue), "b");
+                RenderTextField(context, fields, "hex", UIStrings.ColorHex, WebAttributes.ColorHex);
+                RenderChannelField(context, fields, UIStrings.ColorRed, "r");
+                RenderChannelField(context, fields, UIStrings.ColorGreen, "g");
+                RenderChannelField(context, fields, UIStrings.ColorBlue, "b");
             });
 
             RenderOpacitySlider(context, pane);
@@ -223,36 +240,38 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 _ = grid.Class("ui-color-input__grid");
 
                 foreach (ColorName name in Enum.GetValues<ColorName>())
-                    RenderChip(grid, name);
+                    RenderChip(context, grid, name);
             });
 
-            RenderSlider(pane, context.Translate(UIStrings.ColorFactor), WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
+            RenderSlider(context, pane, UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
 
             RenderOpacitySlider(context, pane);
         });
     }
 
-    private static void RenderChip(IHtmlElementBuilder grid, ColorName name)
+    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder grid, ColorName name)
     {
         _ = grid.Element("button", chip =>
         {
             _ = chip.Class("ui-color-input__chip");
             _ = chip.Attribute("type", "button");
-            // The palette name is the colour's identifier on both sides of the wire, shown as spelled; since the tooltip engine
-            // reads to nobody else, the name doubles as the label.
-            _ = chip.Attribute(WebAttributes.Tooltip, name.ToString());
-            _ = chip.Attribute("aria-label", name.ToString());
+            // The palette name is the colour's identifier on the wire, and a word to the reader; since the tooltip engine reads to
+            // nobody else, the word doubles as the label.
+            var key = UIStrings.ColorNameKey(name);
+
+            WebWords.Write(context, chip, WebAttributes.Tooltip, key);
+            WebWords.Write(context, chip, "aria-label", key);
             _ = chip.Attribute(WebAttributes.ColorName, name.ToString());
             _ = chip.Style("--ui-color-input-chip", new ColorVariant(name).ToHex());
         });
     }
 
-    private static void RenderTextField(IHtmlElementBuilder fields, string key, string label, string attribute)
+    private static void RenderTextField(WebRenderContext context, IHtmlElementBuilder fields, string key, string labelKey, string attribute)
     {
         _ = fields.Element("label", field =>
         {
             _ = field.Class("ui-color-input__field");
-            _ = field.Element("span", caption => caption.Class("ui-color-input__field-label").Text(label));
+            _ = field.Element("span", caption => WebWords.Write(context, caption.Class("ui-color-input__field-label"), null, labelKey));
             _ = field.Element("input", input =>
             {
                 _ = input.Class($"ui-color-input__field-input ui-color-input__field-input--{key}");
@@ -263,12 +282,12 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         });
     }
 
-    private static void RenderChannelField(IHtmlElementBuilder fields, string label, string channel)
+    private static void RenderChannelField(WebRenderContext context, IHtmlElementBuilder fields, string labelKey, string channel)
     {
         _ = fields.Element("label", field =>
         {
             _ = field.Class("ui-color-input__field");
-            _ = field.Element("span", caption => caption.Class("ui-color-input__field-label").Text(label));
+            _ = field.Element("span", caption => WebWords.Write(context, caption.Class("ui-color-input__field-label"), null, labelKey));
             _ = field.Element("input", input =>
             {
                 _ = input.Class("ui-color-input__field-input ui-color-input__field-input--channel");
@@ -281,14 +300,14 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     }
 
     private static void RenderOpacitySlider(WebRenderContext context, IHtmlElementBuilder pane)
-        => RenderSlider(pane, context.Translate(UIStrings.ColorOpacity), WebAttributes.ColorOpacity, 0, 255, 255);
+        => RenderSlider(context, pane, UIStrings.ColorOpacity, WebAttributes.ColorOpacity, 0, 255, 255);
 
-    private static void RenderSlider(IHtmlElementBuilder pane, string label, string attribute, int min, int max, int value)
+    private static void RenderSlider(WebRenderContext context, IHtmlElementBuilder pane, string labelKey, string attribute, int min, int max, int value)
     {
         _ = pane.Element("label", row =>
         {
             _ = row.Class("ui-color-input__slider");
-            _ = row.Element("span", caption => caption.Class("ui-color-input__field-label").Text(label));
+            _ = row.Element("span", caption => WebWords.Write(context, caption.Class("ui-color-input__field-label"), null, labelKey));
             _ = row.Element("input", input =>
             {
                 _ = input.Class("ui-color-input__slider-input");

@@ -15,6 +15,9 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
 
     protected override void DrawColorsContent(WrapPanelComponent container)
     {
+        // Swatch cards, not groups: they keep the tight gap of a grid of like things rather than the page's gap between groups.
+        _ = container.SetSpacing(16);
+
         foreach (ColorName name in Enum.GetValues<ColorName>())
             _ = container.AddChild(CreateColorCard(name));
     }

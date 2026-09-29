@@ -1,13 +1,17 @@
-import { BindingAttributePrefix, ComponentSelector, ValueBindingAttribute } from "../addressing/dom-attributes";
-import { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry";
-import { ValueReaderRegistry, clearElementValue } from "../extensions/value-readers";
-import { DraftDroppedEventName } from "../interactions/draft-events";
-import { MetadataIndex, WebBindingMode, WebRenderPropertyReferenceMetadata, getBindingMode } from "../metadata/metadata-index";
-import { logError, logWarn } from "../runtime/logger";
-import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { BindingAttributePrefix, ComponentSelector, FormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
+import { clearElementValue } from "../extensions/value-readers.ts";
+import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
+import { isCaretField } from "../interactions/caret-fields.ts";
+import { DraftDroppedEventName } from "../interactions/draft-events.ts";
+import { focusAsLastInput } from "../interactions/popup-focus.ts";
+import { getBindingMode } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, WebBindingMode, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
+import { logError, logWarn } from "../runtime/logger.ts";
+import type { ValueChangeDispatcher } from "../transport/value-change-dispatcher.ts";
 
 const ClearAttribute = "data-ui-clear";
-const FormIdAttribute = "data-ui-form-id";
 
 export const ValueSyncEventNames: readonly string[] = ["change", "toggle"];
 
@@ -23,6 +27,37 @@ function isWritableMode(mode: WebBindingMode | undefined): boolean {
 
 function isBufferedMode(mode: WebBindingMode | undefined): boolean {
     return getBindingMode(mode) === "OnSubmit";
+}
+
+/** The binding an element's own value goes through; `binding` is undefined where its id names none the metadata knows. */
+export type WritableBinding = {
+    readonly bindingId: string;
+    readonly binding: WebRenderBindingMetadata | undefined;
+    readonly buffered: boolean;
+};
+
+/** The binding an element writes back through, read off the element: one element carries one writable value; null when it has none. */
+export function resolveWritableBinding(element: Element, metadata: Pick<MetadataIndex, "getBindingById">): WritableBinding | null {
+    const value = element.getAttribute(ValueBindingAttribute);
+
+    if (value !== null) {
+        const bound = metadata.getBindingById(Number(value));
+
+        return { bindingId: value, binding: bound, buffered: bound !== undefined && isBufferedMode(bound.mode) };
+    }
+
+    for (const name of element.getAttributeNames()) {
+        if (!name.startsWith(BindingAttributePrefix))
+            continue;
+
+        const bindingId = element.getAttribute(name) ?? "";
+        const binding = metadata.getBindingById(Number(bindingId));
+
+        if (binding !== undefined && isWritableMode(binding.mode))
+            return { bindingId, binding, buffered: isBufferedMode(binding.mode) };
+    }
+
+    return null;
 }
 
 export type ValueBindingEngineOptions = {
@@ -41,12 +76,10 @@ export class ValueBindingEngine {
     private readonly root: ParentNode;
     private readonly pendingSyncByComponent = new WeakMap<Element, Promise<void>>();
 
-    // Elements, not values: an `OnSubmit` value is read at submit time, so a later edit still travels. An element a package holds
-    // is here too, until its value is sent.
+    // Elements, not values: an `OnSubmit` value is read at submit, so a later edit still travels; a package's held element too, until sent.
     private readonly bufferedElements = new Set<Element>();
 
-    // Fields whose value is on its way and not yet answered, by how many sends: a push meanwhile — an attach's snapshot among
-    // them, taken before the value arrived — is recorded but not written, or it would put back what the reader just replaced.
+    // Fields with sends not yet answered, by count: a push meanwhile (an attach's snapshot too) is recorded but not written over the edit.
     private readonly unanswered = new Map<Element, number>();
 
     public constructor(options: ValueBindingEngineOptions) {
@@ -61,10 +94,16 @@ export class ValueBindingEngine {
             }, true);
         }
 
-        // Held from the first keystroke, not the first `change`, which waits for blur: a push before then must not overwrite the edit.
+        // Held from the first keystroke, not the `change` that waits for blur: a push before then must not overwrite the edit.
         this.root.addEventListener("input", domEvent => this.holdEdited(domEvent), true);
         this.root.addEventListener(DraftDroppedEventName, domEvent => this.releaseDropped(domEvent));
         this.root.addEventListener("click", domEvent => this.handleClear(domEvent), true);
+
+        // The clear takes no focus on its press: it hides once the field is empty, and a focus on it would fall to the page's body.
+        this.root.addEventListener("mousedown", domEvent => {
+            if (domEvent.target instanceof Element && domEvent.target.closest(`[${ClearAttribute}]`) !== null)
+                domEvent.preventDefault();
+        }, true);
     }
 
     private holdEdited(domEvent: Event): void {
@@ -72,7 +111,7 @@ export class ValueBindingEngine {
         if (!(domEvent.target instanceof Element) || this.bufferedElements.has(domEvent.target) || !domEvent.target.hasAttribute(FormIdAttribute))
             return;
 
-        if (this.resolveWritableBinding(domEvent.target)?.buffered === true)
+        if (resolveWritableBinding(domEvent.target, this.options.metadata)?.buffered === true)
             this.bufferValue(domEvent.target);
     }
 
@@ -119,7 +158,7 @@ export class ValueBindingEngine {
         return this.bufferedElements.delete(element);
     }
 
-    /** Whether an element holds a value the server has not taken yet — an unsent `OnSubmit` edit, or one sent and not answered; a push is not written into it. */
+    /** Whether an element holds a value the server has not taken yet (unsent or unanswered); a push is not written into it. */
     public isHeld(element: Element): boolean {
         return this.bufferedElements.has(element) || this.unanswered.has(element);
     }
@@ -136,8 +175,7 @@ export class ValueBindingEngine {
 
         const componentRoot = trigger.closest(ComponentSelector);
 
-        // A field nobody binds still clears: the value element is the field's own control, and the change it dispatches is what
-        // a rule or interaction reading the field listens for.
+        // An unbound field still clears its own control: its change is what a rule or interaction reading the field listens for.
         const target = componentRoot?.querySelector(`[${ValueBindingAttribute}]`) ?? componentRoot?.querySelector("input, textarea, select");
 
         if (target === null || target === undefined || isUneditable(target))
@@ -145,13 +183,17 @@ export class ValueBindingEngine {
 
         clearElementValue(target);
         target.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // The caret stays in the field, or arrives there from a clear pressed while it was elsewhere, so typing goes on at once.
+        if (isCaretField(target) && document.activeElement !== target)
+            focusAsLastInput(target);
     }
 
     private async handleValueEventAsync(domEvent: Event): Promise<void> {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const writable = this.resolveWritableBinding(domEvent.target);
+        const writable = resolveWritableBinding(domEvent.target, this.options.metadata);
 
         if (writable === null)
             return;
@@ -200,36 +242,13 @@ export class ValueBindingEngine {
             if (!element.isConnected)
                 continue;
 
-            const writable = this.resolveWritableBinding(element);
+            const writable = resolveWritableBinding(element, this.options.metadata);
 
             if (writable !== null)
                 pending.push(this.syncValueAsync(element, writable.bindingId));
         }
 
         await Promise.all(pending);
-    }
-
-    /** The binding this element writes back through, read off the element: one element carries one writable value. */
-    private resolveWritableBinding(element: Element): { readonly bindingId: string; readonly buffered: boolean } | null {
-        const value = element.getAttribute(ValueBindingAttribute);
-
-        if (value !== null) {
-            const bound = this.options.metadata.getBindingById(Number(value));
-
-            return { bindingId: value, buffered: bound !== undefined && isBufferedMode(bound.mode) };
-        }
-
-        for (const attribute of Array.from(element.attributes)) {
-            if (!attribute.name.startsWith(BindingAttributePrefix))
-                continue;
-
-            const binding = this.options.metadata.getBindingById(Number(attribute.value));
-
-            if (binding !== undefined && isWritableMode(binding.mode))
-                return { bindingId: attribute.value, buffered: isBufferedMode(binding.mode) };
-        }
-
-        return null;
     }
 
     private async syncValueAsync(element: Element, bindingIdText: string): Promise<void> {
@@ -305,10 +324,7 @@ export class ValueBindingEngine {
             this.unanswered.set(element, count - 1);
     }
 
-    /**
-     * Sends a value an interaction wrote on the client, when the property is bound to write back — the same trip a field's
-     * change makes, so state the page changed by itself is the server's state too.
-     */
+    /** Sends a value an interaction wrote, when its property binds back, so state the page changed itself is the server's too. */
     public async syncPropertyAsync(componentId: number, propertyId: string, dynamicParameters: readonly unknown[], value: unknown): Promise<void> {
         const binding = this.options.metadata.getBindingByComponentAndPropertyId(componentId, propertyId);
 

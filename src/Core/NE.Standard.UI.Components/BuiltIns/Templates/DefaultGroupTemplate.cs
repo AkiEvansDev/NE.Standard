@@ -26,8 +26,6 @@ public abstract class DefaultGroupTemplate<TTemplate> : SeparatorComponent<TTemp
 /// </summary>
 public sealed class DefaultGroupTemplate(bool binds = false) : DefaultGroupTemplate<DefaultGroupTemplate>(binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.group.template";
 }

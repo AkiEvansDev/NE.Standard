@@ -1,11 +1,15 @@
-// The framework's floating-panel plumbing for packages: placed by `anchored-popup.ts`, closed by `popup-dismissal.ts` the same
-// way the framework's own popups close. One shared dismissal instance tracks every popup opened here, across every package.
+// The framework's floating-panel plumbing for packages, on the core's owned popup: placed, dismissed and closed with its owner as
+// every popup is. `onDismiss` hears why whenever the framework closed it.
 
-import { AnchoredPopupOptions, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
-import { PopupDismissReason, PopupDismissal } from "./popup-dismissal";
+import type { AnchoredPopupOptions } from "./anchored-popup.ts";
+import { OwnedPopups } from "./owned-popup.ts";
+import type { PopupDismissReason } from "./popup-dismissal.ts";
+import { liveFocusReturn } from "./popup-focus.ts";
 
 export type PopupOptions = AnchoredPopupOptions & {
-    /** Told when the framework itself closes the popup — an outside press or Escape; a caller's own `close()` does not raise it. */
+    /** The component whose state decides whether the popup may stay; by default the anchor, or the popup for a non-HTML anchor. */
+    readonly owner?: HTMLElement;
+    /** Told when the framework itself closes the popup, and why; a caller's own `close()` does not raise it. */
     readonly onDismiss: (reason: PopupDismissReason) => void;
 };
 
@@ -19,66 +23,53 @@ type PopupHandle = {
 
 export type Popups = {
     open(anchor: Element, popup: HTMLElement, options: PopupOptions): PopupHandle;
+    focusReturn(opener: HTMLElement | null): HTMLElement | null;
 };
 
-type TrackedPopup = {
-    readonly anchor: Element;
-    readonly options: PopupOptions;
-};
+// What each open popup was opened with, for the reason its `onDismiss` hears.
+const dismissals = new WeakMap<HTMLElement, PopupOptions["onDismiss"]>();
 
-const open = new Map<HTMLElement, TrackedPopup>();
+// On the press: a package's popup is a list to choose from, not text to select. The anchor is inside, its click the toggle; the owner
+// is not, as a press elsewhere in a code field moves its caret off the word. One per owner, several side by side.
+const owned = new OwnedPopups({
+    show: () => undefined,
+    hide: ({ popup }, reason) => {
+        const onDismiss = dismissals.get(popup);
 
-// Closes on the press, not the click that follows: a package's popup here is a list to choose from, not a field to select
-// text in. The anchor counts as inside, since its own click is the toggle.
-new PopupDismissal({
-    openPopups: () => connectedPopups(),
-    close: (popup, reason) => dismiss(popup, reason),
-    // Read afresh per popup: an `onDismiss` run for one may already have closed another in the same press.
-    isInside: (popup, path) => {
-        const tracked = open.get(popup);
+        dismissals.delete(popup);
 
-        return path.includes(popup) || (tracked !== undefined && path.includes(tracked.anchor));
+        if (reason !== undefined)
+            onDismiss?.(reason);
     },
+    single: false,
+    isInside: ({ popup, anchor }, path) => path.includes(popup) || (anchor !== undefined && path.includes(anchor)),
     onPress: true
 });
 
-/** The popups still in the page; one a package threw away without closing is forgotten quietly, its owner having moved on. */
-function connectedPopups(): HTMLElement[] {
-    const connected: HTMLElement[] = [];
-
-    for (const popup of [...open.keys()]) {
-        if (popup.isConnected)
-            connected.push(popup);
-        else
-            stopTracking(popup);
-    }
-
-    return connected;
-}
-
-function dismiss(popup: HTMLElement, reason: PopupDismissReason): void {
-    const tracked = open.get(popup);
-
-    if (tracked === undefined)
-        return;
-
-    stopTracking(popup);
-    tracked.options.onDismiss(reason);
-}
-
-function stopTracking(popup: HTMLElement): void {
-    open.delete(popup);
-    releaseAnchoredPopup(popup);
-}
-
 export const popups: Popups = {
     open(anchor, popup, options) {
-        open.set(popup, { anchor, options });
-        placeAnchoredPopup(anchor, popup, options);
+        const owner = options.owner ?? (anchor instanceof HTMLElement ? anchor : popup);
+
+        const isOpen = (): boolean => owned.popupOf(owner) === popup;
+
+        dismissals.set(popup, options.onDismiss);
+
+        // An owner that could not keep it gets none, as a core popup does: the package hears it as the owner's dismissal.
+        if (!owned.open({ owner, popup, anchor, placement: options })) {
+            dismissals.delete(popup);
+            queueMicrotask(() => options.onDismiss("owner"));
+        }
 
         return {
-            reposition: () => placeAnchoredPopup(anchor, popup, options),
-            close: () => stopTracking(popup)
+            reposition: () => {
+                if (isOpen())
+                    owned.reposition(owner);
+            },
+            close: () => {
+                if (isOpen())
+                    owned.close(owner);
+            }
         };
-    }
+    },
+    focusReturn: opener => liveFocusReturn(opener)
 };

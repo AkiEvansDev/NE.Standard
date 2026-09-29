@@ -38,8 +38,7 @@ export class RangeValueEngine {
         this.root.addEventListener("focusin", domEvent => this.placeBubble(domEvent.target), true);
         this.root.addEventListener("focusout", domEvent => this.releaseBubble(domEvent.target), true);
 
-        // A pushed value, minimum or maximum moves the fill and the readings as a drag does. A range input silently clamps what
-        // it's handed, so the browser's clamp is reported back through the two-way channel.
+        // A push moves the fill and readings as a drag does; the browser's silent clamp is reported back through the two-way channel.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             // The handler is told about every property a slider has.
             if (!ReadingPropertyNames.has(change.propertyName))
@@ -100,8 +99,7 @@ export class RangeValueEngine {
 
         input.closest<HTMLElement>(`.${RangeTrackClass}`)?.style.setProperty(FractionProperty, String(fractionOf(input)));
 
-        // After the fraction, which moved the anchor the bubble stands over. Only a bubble the stylesheet is actually showing is
-        // placed, so a pushed value on an untouched slider doesn't leave the popup tracker watching a bubble nobody sees.
+        // After the fraction, which moved the bubble's anchor; only a shown bubble is placed, so none is tracked unseen.
         if (input.matches(":active, :focus-visible"))
             this.placeBubble(input);
         else

@@ -15,6 +15,9 @@ internal sealed class DefaultNotFoundView : UIViewBase, IUIViewDefinition
 {
     public static string ViewKey => "standard.not-found";
 
+    /// <summary>A word, so the tab reads in the page's language rather than the type's name.</summary>
+    public override string Title => UIStrings.NotFoundPageTitle;
+
     protected override IVisualComponent CreateContent()
         => new ContainerComponent()
             .SetPadding(UIThickness.Uniform(24))

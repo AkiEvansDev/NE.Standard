@@ -107,10 +107,11 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                 .SetDescription("Loosen a filter or two.")
             );
 
+    /// <summary>A share of the shelf's line rather than a fixed width, so the tiles end where the filter band does.</summary>
     private static SurfaceComponent CreateTile()
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
-            .SetWidth(UILayoutLength.Absolute(232))
+            .SetPlacement(1, 1, 24, 1, sm: UIGridPlacement.At(1, 1, 12, 1), xl: UIGridPlacement.At(1, 1, 6, 1))
             .SetPadding(UIThickness.Uniform(0))
             .SetContent(UILayout.Stack(0,
                 new ImageComponent()
@@ -126,23 +127,27 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                         .BindDescription(nameof(DemoOfferItem.Description), UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted),
                     // The badge sits by the price, where there is room; beside the title it would cost the title its end.
-                    UILayout.Split(
-                        new TextComponent()
+                    // A plain row, not a Split: a Split flips on the viewport's width, which says nothing about a tile's own.
+                    new ContainerComponent()
+                        .SetColumn(24, UIGridUnit.Auto())
+                        .AddChild(new TextComponent()
                             .BindTitle(nameof(DemoOfferItem.PriceLine), UIBindingScope.Relative)
                             .AsSubtitle()
                             .BindBadgeText(nameof(DemoOfferItem.BadgeText), UIBindingScope.Relative)
                             .BindBadgeStyle(nameof(DemoOfferItem.BadgeStyle), UIBindingScope.Relative)
-                            .SetVerticalAlignment(UIAlignment.Center),
-                        new ButtonComponent()
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(new ButtonComponent()
                             .SetType(UIButtonType.Outline)
                             .SetSize(UIButtonSize.Small)
                             .SetTitle("Add")
-                            .SetHorizontalAlignment(UIAlignment.End)
+                            .SetMargin(UIThickness.All(8, 0, 0, 0))
+                            .SetVerticalAlignment(UIAlignment.Center)
                             .BindEnabled(nameof(DemoOfferItem.Available), UIBindingScope.Relative)
-                            .OnClick(nameof(CatalogueController.AddToOrder), UIAction.ArgCurrentItemKey("id")),
-                        sideSpan: 7,
-                        spacing: 8
-                    )
+                            .OnClick(nameof(CatalogueController.AddToOrder), UIAction.ArgCurrentItemKey("id"))
+                            .SetPlacement(24, 1, 1, 1)
+                        )
                 )
                 .SetPadding(UIThickness.All(12, 10, 12, 12))
                 )

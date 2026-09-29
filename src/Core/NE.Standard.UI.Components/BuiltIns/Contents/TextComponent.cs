@@ -19,8 +19,6 @@ public abstract partial class TextComponent<T>(string? id = null) : TextComponen
 /// </summary>
 public sealed class TextComponent(string? id = null) : TextComponent<TextComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.text";
 }

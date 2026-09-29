@@ -36,7 +36,6 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
     public partial bool? CanShowContextMenu { get; set; }
 
     /// <inheritdoc />
-    [Translatable]
     [RecursiveMember]
     public partial string? Icon { get; set; }
 

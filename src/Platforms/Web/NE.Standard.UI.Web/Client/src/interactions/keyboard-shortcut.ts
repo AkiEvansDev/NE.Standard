@@ -54,15 +54,12 @@ export function parseShortcut(value: string | null | undefined): KeyboardShortcu
     return code === null ? null : { code, ctrl, shift, alt, meta };
 }
 
-/**
- * Whether a key event is this shortcut. Modifiers must match exactly, except that an authored Ctrl also answers to Cmd on a
- * Mac, where Ctrl is not the platform's own modifier; an authored Meta still means only Meta. `isMac` is a parameter, not
- * read from `navigator`, so the rule stays testable.
- */
+/** Whether a key event is this shortcut: modifiers match exactly, but an authored Ctrl also answers to Cmd on a Mac. */
 export function matchesShortcut(shortcut: KeyboardShortcut, domEvent: KeyboardEvent, isMac: boolean = isMacPlatform()): boolean {
     if (domEvent.code !== shortcut.code || domEvent.shiftKey !== shortcut.shift || domEvent.altKey !== shortcut.alt)
         return false;
 
+    // Ctrl is not a Mac's own modifier; `isMac` is a parameter rather than read here, so the rule stays testable.
     if (shortcut.ctrl && !shortcut.meta && isMac)
         return domEvent.ctrlKey !== domEvent.metaKey;
 

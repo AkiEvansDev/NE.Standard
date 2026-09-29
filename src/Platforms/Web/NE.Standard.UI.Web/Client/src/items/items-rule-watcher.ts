@@ -1,14 +1,8 @@
-import { ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, ItemsHostAttribute, ItemsQueryAttribute, ValueKindAttribute, cssAttributeValue } from "../addressing/dom-attributes";
+import { ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, ItemsHostAttribute, ItemsQueryAttribute, ItemsQueryValueKind, ValueKindAttribute, cssAttributeValue } from "../addressing/dom-attributes";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry";
 import { observeComponents } from "../interactions/dom-mutations";
 import { collectDynamicParameters, matchesDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
-import { ValueReaderRegistry } from "../extensions/value-readers";
-import { ValueSyncEventNames } from "../updates/value-binding-engine";
-import {
-    MetadataIndex,
-    WebRenderPropertyReferenceMetadata,
-    getIdValue
-} from "../metadata/metadata-index";
+import { MetadataIndex, getIdValue } from "../metadata/metadata-index";
 import { PropertyStateStore } from "../state/property-state-store";
 import { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
 import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
@@ -30,18 +24,11 @@ export type ItemsRuleWatcherOptions = {
     readonly state: PropertyStateStore;
     readonly propertyPatchEngine: PropertyPatchEngine;
     readonly reactiveSources: ReactiveSourceRegistry;
-    readonly valueReaders: ValueReaderRegistry;
     readonly virtualization: ItemsVirtualizationEngine;
-};
-
-/** The source a rule reads, keyed by the component that holds it. */
-type RuleSource = {
-    readonly reference: WebRenderPropertyReferenceMetadata;
 };
 
 /** Keeps an items host in step with the values its filter, sort and grouping rules are made of. */
 export class ItemsRuleWatcher {
-    private readonly sources = new Map<number, RuleSource>();
     private readonly options: ItemsRuleWatcherOptions;
 
     // A native drag's source while it is in the air, and the hosts it moves within that a rule asked to bring in step meanwhile.
@@ -60,26 +47,19 @@ export class ItemsRuleWatcher {
             const rules = [...config.filters, ...config.sorts];
             const resync = (): void => this.syncComponentHosts(componentId);
 
+            // A source the reader edits is heard there too: the registry records the edit, as no push will.
             for (const rule of rules) {
-                if (rule.source === null || rule.source === undefined)
-                    continue;
-
-                options.reactiveSources.watch(rule.source, resync);
-                this.sources.set(getIdValue(rule.source.componentId), { reference: rule.source });
+                if (rule.source !== null && rule.source !== undefined)
+                    options.reactiveSources.watch(rule.source, resync);
             }
-        }
-
-        for (const eventName of ValueSyncEventNames) {
-            options.root.addEventListener(eventName, domEvent => this.handleSourceValueEvent(domEvent), true);
         }
 
         // A strip being reordered by hand is not re-sorted under the pointer: its host waits for the drag to land.
         options.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
         options.root.addEventListener("dragend", () => this.land(), true);
 
-        // The viewer's query lives on its element as an attribute, which a server patch and an engine's write both land on. Found by
-        // its value kind, not the attribute: an emptied query takes the attribute off, and the element must still be found then.
-        observeComponents(options.root, `[${ValueKindAttribute}="items-query"]`, { attributeFilter: [ItemsQueryAttribute] }, elements => {
+        // The viewer's query attribute, found by value kind: an emptied query takes the attribute off, and must still be seen.
+        observeComponents(options.root, `[${ValueKindAttribute}="${ItemsQueryValueKind}"]`, { attributeFilter: [ItemsQueryAttribute] }, elements => {
             for (const element of elements) {
                 const componentId = findOwningComponentId(element);
 
@@ -87,20 +67,6 @@ export class ItemsRuleWatcher {
                     this.syncComponentHosts(componentId);
             }
         });
-    }
-
-    /** Reads a rule's source straight off the element that changed, so an unbound source works and a bound one acts at once. */
-    private handleSourceValueEvent(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
-            return;
-
-        const componentId = findOwningComponentId(domEvent.target);
-        const source = componentId === null ? undefined : this.sources.get(componentId);
-
-        if (source === undefined)
-            return;
-
-        this.options.propertyPatchEngine.applyPropertyValue(source.reference, [], this.options.valueReaders.readBound(domEvent.target), true);
     }
 
     private handleDragStart(domEvent: Event): void {
@@ -113,16 +79,14 @@ export class ItemsRuleWatcher {
         });
     }
 
-    /**
-     * The drag is over: the hosts it held are brought in step a task later, once every dragend listener has run — the strip's own
-     * drop commits its new order there, and a sync before it would put the old one back first.
-     */
+    /** Ends a drag: the hosts it held are brought in step a task later. */
     private land(): void {
         this.dragged = null;
 
         if (this.deferred.size === 0)
             return;
 
+        // After every dragend listener: the strip's drop commits its order there, and a sync before it would put the old one back.
         window.setTimeout(() => {
             const deferred = [...this.deferred];
 
@@ -210,10 +174,7 @@ export class ItemsRuleWatcher {
         return draws;
     }
 
-    /**
-     * Whether a patch to a virtualized host's value changes what it shows as a whole: a new item redraws its row, a rule or
-     * the group re-runs; any other property already reached a drawn row through its own patch, and waits in the value otherwise.
-     */
+    /** Whether a patch to a virtualized host's value redraws it: a new item, or a property a rule or the group reads. */
     private redrawsVirtualized(hostComponentId: number, path: ItemValuePath): boolean {
         return path.steps.length === 0 || this.feedsRule(hostComponentId, path);
     }

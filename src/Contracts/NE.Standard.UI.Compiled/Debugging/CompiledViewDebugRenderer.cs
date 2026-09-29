@@ -10,6 +10,7 @@ using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Compiled.Debugging;
 
@@ -579,9 +580,40 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 .Append(" severity=")
                 .Append(validation.Severity)
                 .Append(" message=");
-            AppendObject(builder, validation.Message);
+            AppendPhrase(builder, validation.Message);
             _ = builder.AppendLine();
         }
+    }
+
+    // An author's text reads quoted as any string does; a phrase is its key and its arguments, by name so the output is stable.
+    private static void AppendPhrase(StringBuilder builder, UIPhrase phrase)
+    {
+        if (phrase.IsText)
+        {
+            AppendObject(builder, phrase.Key);
+            return;
+        }
+
+        _ = builder.Append(phrase.Key);
+
+        if (phrase.Arguments is null)
+            return;
+
+        _ = builder.Append('(');
+
+        var first = true;
+
+        foreach (KeyValuePair<string, object?> argument in phrase.Arguments.OrderBy(static argument => argument.Key, StringComparer.Ordinal))
+        {
+            if (!first)
+                _ = builder.Append(", ");
+
+            first = false;
+            _ = builder.Append(argument.Key).Append('=');
+            AppendObject(builder, argument.Value);
+        }
+
+        _ = builder.Append(')');
     }
 
     private void AppendStateBindings(StringBuilder builder, CompiledView view)

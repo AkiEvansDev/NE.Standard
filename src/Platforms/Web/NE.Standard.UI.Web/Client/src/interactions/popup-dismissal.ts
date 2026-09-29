@@ -1,7 +1,11 @@
 // Closing a popup from outside: a click outside or Escape, judged by composedPath so a re-render during the click can't lie.
-// Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest.
+// Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest. A popup behind an
+// open modal dialog is left alone: a press in the dialog is not outside it, and Escape is the dialog's.
 
-export type PopupDismissReason = "outside" | "escape" | "blur";
+import { isBehindModal } from "./open-dialogs.ts";
+
+/** Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it. */
+export type PopupDismissReason = "outside" | "escape" | "blur" | "focus" | "owner";
 
 export type PopupDismissalOptions = {
     /** The popups open right now, asked on every press: the engine answers from whatever it tracks. */
@@ -11,6 +15,8 @@ export type PopupDismissalOptions = {
     readonly canDismiss?: (popup: HTMLElement, reason: PopupDismissReason) => boolean;
     /** Whether a press is inside this popup. Default: the popup is on the event's path. */
     readonly isInside?: (popup: HTMLElement, path: readonly EventTarget[]) => boolean;
+    /** Whether an open modal dialog stands over this popup. Default: the dialog does not contain it (`isBehindModal`). */
+    readonly isBehind?: (popup: HTMLElement) => boolean;
     /** Closes on the press rather than on the click that follows it; a popup with a text field wants the click. Default false. */
     readonly onPress?: boolean;
     /** Closes when the window loses focus. Default false. */
@@ -19,8 +25,7 @@ export type PopupDismissalOptions = {
 
 const instances = new Set<PopupDismissal>();
 
-// The order Escape first found popups open in, a tie-breaker between unrelated popups only: two opened between one Escape and the
-// next are numbered together, in the order their dismissals were built. A popup seen closed is forgotten and re-numbered when it reopens.
+// The order Escape first found popups open in, a tie-break between unrelated popups only; one seen closed is renumbered on reopening.
 const openOrder = new Map<HTMLElement, number>();
 let openSequence = 0;
 let escapeInstalled = false;
@@ -41,11 +46,11 @@ function installEscape(): void {
     }, true);
 }
 
-/** Whether any popup is open right now — what a dialog asks before taking Escape for itself. */
+/** Whether any popup the reader can reach is open right now — what a dialog asks before taking Escape for itself. */
 export function hasOpenPopups(): boolean {
     for (const instance of instances) {
         for (const popup of instance.openPopups()) {
-            if (popup.isConnected)
+            if (popup.isConnected && !instance.isBehind(popup))
                 return true;
         }
     }
@@ -87,11 +92,9 @@ function dismissNewest(): boolean {
     return false;
 }
 
-/**
- * The order Escape tries open popups in: a popup opened inside another (a select's list in a flyout) always before the one around
- * it, since it can only have opened later; otherwise the newest first.
- */
+/** The order Escape tries open popups in: one opened inside another before the one around it, otherwise the newest first. */
 export function orderForEscape<T>(entries: readonly T[], sequenceOf: (entry: T) => number, contains: (outer: T, inner: T) => boolean): T[] {
+    // A popup inside another (a select's list in a flyout) can only have opened later, whatever its number says.
     const remaining = [...entries].sort((left, right) => sequenceOf(right) - sequenceOf(left));
     const ordered: T[] = [];
 
@@ -115,6 +118,8 @@ export class PopupDismissal {
         this.options = options;
 
         document.addEventListener("pointerdown", domEvent => this.handlePress(domEvent), true);
+        // However a context menu is asked for, a list waiting for its click closes first; this listener is in before its engine's.
+        document.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
 
         if (options.onPress !== true)
             document.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -131,15 +136,26 @@ export class PopupDismissal {
         return [...this.options.openPopups()];
     }
 
+    /** A press other than the primary one closes at once wherever it waits for the click: none follows a right press. */
     private handlePress(domEvent: Event): void {
         const path = domEvent.composedPath();
+        const atOnce = this.options.onPress === true || (domEvent instanceof MouseEvent && domEvent.button !== 0);
 
         this.pressedInside.clear();
 
         for (const popup of [...this.options.openPopups()]) {
             if (this.isInside(popup, path))
                 this.pressedInside.add(popup);
-            else if (this.options.onPress === true)
+            else if (atOnce)
+                this.dismiss(popup, "outside");
+        }
+    }
+
+    private handleContextMenu(domEvent: Event): void {
+        const path = domEvent.composedPath();
+
+        for (const popup of [...this.options.openPopups()]) {
+            if (!this.isInside(popup, path))
                 this.dismiss(popup, "outside");
         }
     }
@@ -168,9 +184,14 @@ export class PopupDismissal {
         return dismissed;
     }
 
-    /** Closes one popup if the reason applies to it; answers whether it did. */
+    /** Whether an open modal dialog stands over the popup, which is then out of the reader's reach. */
+    public isBehind(popup: HTMLElement): boolean {
+        return this.options.isBehind === undefined ? isBehindModal(popup) : this.options.isBehind(popup);
+    }
+
+    /** Closes one popup if the reason applies to it and no modal dialog stands over it; answers whether it did. */
     public dismiss(popup: HTMLElement, reason: PopupDismissReason): boolean {
-        if (this.options.canDismiss?.(popup, reason) === false)
+        if (this.isBehind(popup) || this.options.canDismiss?.(popup, reason) === false)
             return false;
 
         this.options.close(popup, reason);

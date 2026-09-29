@@ -21,14 +21,14 @@
     border: 0;
     border-radius: var(--ui-radius-button);
     background: none;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     cursor: pointer;
-    .ui-reveal-hover();
+    .ui-reveal-hover(@transition: false);
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 }
 
     .ui-collapsible__toggle:hover {
-        color: var(--ui-color-on-surface);
+        color: @ui-text-ink;
     }
 
     .ui-collapsible__toggle::before {
@@ -53,8 +53,7 @@
     align-self: flex-start;
 }
 
-// Content set beside the switch stands in one row with it: the content takes the room, the switch keeps its edge. Collapsed, the
-// row is the switch alone; while the fold slides the content stays, clipped with the rest.
+// Content beside the switch shares its row and takes the room; collapsed, the row is the switch alone, clipped while it slides.
 .ui-collapsible__bar {
     display: flex;
     flex: 0 0 auto;
@@ -84,15 +83,14 @@
     justify-content: center;
 }
 
-// While collapsible-engine.ts slides the fold, the open layout stays and the edge clips it; the collapsed rules below wait for the end.
-// The authored minimum is let go for the slide, or it would hold the edge where it was.
+// While the fold slides, the open layout stays and the edge clips it; the authored minimum goes, or it would hold the edge in place.
 .ui-collapsible[data-ui-folding] {
     overflow: clip;
     min-width: 0;
     min-height: 0;
 }
 
-// Collapsed, the panel is a rail the width of its switch; this outranks the responsive size chain, which returns when the attribute goes.
+// Collapsed, the panel is a rail the width of its switch, over the responsive size chain.
 .ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) {
     min-width: 0;
     width: fit-content;

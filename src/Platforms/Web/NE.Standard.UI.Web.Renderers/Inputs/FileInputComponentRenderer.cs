@@ -4,11 +4,12 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>Renders a read-only selection field with a pick button over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
+/// <summary>Renders a display-only field of the chosen names, with a pick button over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
 public sealed class FileInputComponentRenderer : TextContentRendererBase
 {
     public override string ComponentTypeKey => FileInputComponent.ComponentTypeKey;
@@ -52,11 +53,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
             {
                 native = input;
 
-                _ = RenderProperty<bool?>(context, input, FileInputComponent.MultipleProperty, static (target, value) =>
-                {
-                    if (value == true)
-                        _ = target.Attribute("multiple");
-                }, [WebDomOperation.ToggleAttribute("multiple", condition: WebValueCondition.IsTrue)]);
+                RenderFlagAttribute(context, input, FileInputComponent.MultipleProperty, "multiple");
             });
 
             _ = row.Element("input", input =>
@@ -95,7 +92,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
                 _ = button.Class($"{ClassName}__pick");
                 _ = button.Attribute("type", "button");
-                _ = button.Attribute("aria-label", context.Translate(UIStrings.FileChoose));
+                WebWords.Write(context, button, "aria-label", UIStrings.FileChoose);
                 _ = button.Attribute(WebAttributes.FilePick);
             });
         });
@@ -103,16 +100,20 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
         IHtmlElementBuilder nativeInput = native!;
         IHtmlElementBuilder pickButton = pick!;
 
-        // IsReadOnly reaches all three elements, so it is applied after every one of them exists.
+        // IsReadOnly marks the root, says the pick does nothing rather than disabling it, which would drop a focus it holds, and
+        // disables the hidden native picker, which must be; applied after both exist. The names field is display-only and stays
+        // focusable either way.
         _ = RenderProperty<bool?>(context, field!, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
             if (value != true)
                 return;
 
-            _ = pickButton.Attribute("disabled");
+            _ = root.Class(WebClassNames.ReadOnly);
+            _ = pickButton.Attribute("aria-disabled", "true");
             _ = nativeInput.Attribute("disabled");
         }, [
-            WebDomOperation.ToggleAttribute("disabled", target: $".{ClassName}__pick", condition: WebValueCondition.IsTrue),
+            NativeInputRendererBase.ReadOnlyMarkOperation,
+            WebDomOperation.ToggleAttribute("aria-disabled", target: $".{ClassName}__pick", condition: WebValueCondition.IsTrue, value: "true"),
             WebDomOperation.ToggleAttribute("disabled", target: $".{ClassName}__native", condition: WebValueCondition.IsTrue)
         ]);
     }

@@ -4,9 +4,7 @@ using NE.Standard.UI.Abstractions.Identity;
 
 namespace NE.Standard.UI.Shell.Data;
 
-/// <summary>
-/// A client asking a windowed items host for the part of its source it can show.
-/// </summary>
+/// <summary>A client asking a windowed items host for the part of its source it can show.</summary>
 /// <remarks>
 /// Separate from a client update: reading a window awaits the author's code, which the change-set path cannot do while
 /// holding its lock.

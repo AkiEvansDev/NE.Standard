@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Views;
@@ -27,6 +28,7 @@ internal static class UIViewCompiler
         return new CompiledView
         {
             Title = view.Title,
+            TitleArguments = view.TitleArguments is { Count: > 0 } arguments ? arguments.ToFrozenDictionary(StringComparer.Ordinal) : null,
             Options = view.Options,
             Regions = result.Regions,
             Dialogs = result.Dialogs,

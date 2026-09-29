@@ -2,6 +2,10 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using NE.Colors;
 
 namespace NE.Standard.UI.Shell.Localization;
 
@@ -25,6 +29,7 @@ public static class UIStrings
     public const string PickerEnd = "ui.picker.end";
     public const string NotificationClose = "ui.notification.close";
     public const string TabsMore = "ui.tabs.more";
+    public const string CommandBarMore = "ui.commandbar.more";
     public const string TabClose = "ui.tab.close";
     public const string TabRename = "ui.tab.rename";
     public const string TabPin = "ui.tab.pin";
@@ -60,24 +65,36 @@ public static class UIStrings
     public const string RowCancel = "ui.row.cancel";
     public const string TableResizeColumn = "ui.table.resize";
     public const string TreeToggle = "ui.tree.toggle";
+    public const string ItemsEmpty = "ui.items.empty";
     public const string CollapseToggle = "ui.collapse.toggle";
     public const string SideOpen = "ui.side.open";
     public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
+    public const string LanguageSwitch = "ui.language.switch";
     public const string NotFoundTitle = "ui.notfound.title";
     public const string NotFoundDescription = "ui.notfound.description";
+
+    /// <summary>The not-found page's tab title.</summary>
+    public const string NotFoundPageTitle = "ui.notfound.page";
     public const string ErrorTitle = "ui.error.title";
     public const string ErrorMessage = "ui.error.message";
     public const string CommandRefused = "ui.command.refused";
     public const string CommandFailed = "ui.command.failed";
+    public const string ValueFormat = "ui.value.format";
     public const string TreeLoading = "ui.tree.loading";
     public const string ConnectionLost = "ui.connection.lost";
     public const string ConnectionReload = "ui.connection.reload";
 
+    private const string ColorNamePrefix = "ui.color.name.";
+
+    // Before English, which lists them: static initializers run in the order they are written.
+    private static readonly FrozenDictionary<ColorName, string> ColorNameKeys = Enum.GetValues<ColorName>()
+        .ToFrozenDictionary(static name => name, static name => ColorNamePrefix + SplitName(name.ToString(), '-', lowerFirst: true));
+
     /// <summary>
     /// The English text by key. A <c>{name}</c> in a value is a placeholder the writer fills.
     /// </summary>
-    public static FrozenDictionary<string, string> English { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    public static FrozenDictionary<string, string> English { get; } = WithColorNames(new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [PickerToday] = "Today",
         [PickerNow] = "Now",
@@ -93,6 +110,7 @@ public static class UIStrings
         [PickerEnd] = "End",
         [NotificationClose] = "Close",
         [TabsMore] = "More tabs",
+        [CommandBarMore] = "More commands",
         [TabClose] = "Close",
         [TabRename] = "Rename",
         [TabPin] = "Pin",
@@ -128,25 +146,60 @@ public static class UIStrings
         [RowCancel] = "Cancel",
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",
+        [ItemsEmpty] = "Nothing to show.",
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
         [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
+        [LanguageSwitch] = "Switch language, {language}",
         [NotFoundTitle] = "404",
         [NotFoundDescription] = "The page you are looking for does not exist.",
+        [NotFoundPageTitle] = "Page not found",
         [ErrorTitle] = "Something went wrong",
         [ErrorMessage] = "Something went wrong. Please try again.",
         [CommandRefused] = "You are not allowed to do that.",
         [CommandFailed] = "Something went wrong. Please try again.",
+        [ValueFormat] = "The value does not match the expected format.",
         [TreeLoading] = "Loading…",
         [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
         [ConnectionReload] = "Reload"
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    }).ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
-    /// The built-in source every translator starts from. It answers in English for <em>any</em> language, so a
-    /// word an application has not translated still reads rather than showing its key.
+    /// The key a palette colour's name is shown by — <c>ui.color.name.</c> and the name in kebab case (<c>ui.color.name.iron-fog</c>),
+    /// its English the name in words ("Iron fog"); the colour's identifier stays the enum's name.
     /// </summary>
+    public static string ColorNameKey(ColorName name)
+        => ColorNameKeys.TryGetValue(name, out var key) ? key : ColorNamePrefix + SplitName(name.ToString(), '-', lowerFirst: true);
+
+    private static Dictionary<string, string> WithColorNames(Dictionary<string, string> words)
+    {
+        foreach (KeyValuePair<ColorName, string> name in ColorNameKeys)
+            words[name.Value] = SplitName(name.Key.ToString(), ' ', lowerFirst: false);
+
+        return words;
+    }
+
+    /// <summary>A palette name's words, split where a capital starts one and lower-cased after the first: "IronFog" as "Iron fog".</summary>
+    private static string SplitName(string name, char separator, bool lowerFirst)
+    {
+        StringBuilder text = new(name.Length + 4);
+
+        for (var i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]))
+                _ = text.Append(separator).Append(char.ToLowerInvariant(name[i]));
+            else
+                _ = text.Append(i == 0 && lowerFirst ? char.ToLowerInvariant(name[i]) : name[i]);
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>The built-in source every translator starts from.</summary>
+    /// <remarks>
+    /// It answers in English for <em>any</em> language, so a word an application has not translated still reads rather than showing its key.
+    /// </remarks>
     public static ITranslationSource Source { get; } = new BuiltInSource();
 
     /// <summary>
@@ -174,11 +227,87 @@ public static class UIStrings
         return resolved;
     }
 
+    /// <summary>
+    /// Every framework and package word with its English, one table: what a translator falls back to.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Two packages name one key, or a package names a framework key.</exception>
+    public static FrozenDictionary<string, string> List(IEnumerable<IUIStringsSource>? packages = null)
+    {
+        if (packages is null)
+            return English;
+
+        Dictionary<string, string>? words = null;
+
+        foreach (IUIStringsSource package in packages)
+        {
+            ArgumentNullException.ThrowIfNull(package);
+
+            words ??= new Dictionary<string, string>(English, StringComparer.Ordinal);
+
+            foreach (KeyValuePair<string, string> word in package.English)
+            {
+                // A package word is its own: two packages naming one key, or a package naming a framework key, is a mistake in the package, not a translation.
+                if (!words.TryAdd(word.Key, word.Value))
+                    throw new InvalidOperationException($"Client string '{word.Key}' is defined more than once.");
+            }
+        }
+
+        return words is null ? English : words.ToFrozenDictionary(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Creates every public <see cref="IUIStringsSource"/> with a parameterless constructor the assemblies declare — a package's
+    /// words without the container its registration goes through.
+    /// </summary>
+    public static IReadOnlyList<IUIStringsSource> Discover(params Assembly[] assemblies)
+    {
+        ArgumentNullException.ThrowIfNull(assemblies);
+
+        List<IUIStringsSource> sources = [];
+
+        foreach (Assembly assembly in assemblies)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+
+            foreach (Type type in assembly.GetExportedTypes().OrderBy(static type => type.FullName, StringComparer.Ordinal))
+            {
+                if (type.IsClass && !type.IsAbstract && !type.ContainsGenericParameters && typeof(IUIStringsSource).IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) is not null)
+                    sources.Add((IUIStringsSource)Activator.CreateInstance(type)!);
+            }
+        }
+
+        return sources;
+    }
+
+    /// <summary>
+    /// The framework and package keys <paramref name="source"/> has no word for in <paramref name="language"/>, in key order.
+    /// </summary>
+    public static IReadOnlyList<string> Missing(ITranslationSource source, string language, IEnumerable<IUIStringsSource>? packages = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+
+        List<string> missing = [];
+
+        foreach (var key in List(packages).Keys)
+        {
+            if (!source.TryTranslate(language, key, out _))
+                missing.Add(key);
+        }
+
+        missing.Sort(StringComparer.Ordinal);
+
+        return missing;
+    }
+
     private sealed class BuiltInSource : ITranslationSource
     {
         public IReadOnlyList<string> Languages { get; } = ["en"];
 
         public bool TryTranslate(string language, string key, [NotNullWhen(true)] out string? value)
             => English.TryGetValue(key, out value);
+
+        public IReadOnlyDictionary<string, string>? ListWords(string language)
+            => English;
     }
 }

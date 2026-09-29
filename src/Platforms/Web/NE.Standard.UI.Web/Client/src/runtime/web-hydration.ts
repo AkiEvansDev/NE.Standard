@@ -11,6 +11,15 @@ export type WebHydrationPayload = {
     // The compile the page was rendered from; presented at the attach, so a page of another compile is reloaded rather than fed updates.
     readonly view: string | null;
     readonly changes: ServerChangeSet | undefined;
+    // The table the page translates by — its language and versioned address — fetched before the first change set is applied.
+    readonly words: WebPageWords | null;
+    // The view's title as it is translated: a plain key, or a phrase when the title takes arguments; null for a page without one.
+    readonly title: unknown;
+};
+
+type WebPageWords = {
+    readonly language: string;
+    readonly href: string;
 };
 
 export function readHydration(documentRoot: ParentNode = document): WebHydrationPayload | null {
@@ -22,11 +31,14 @@ export function readHydration(documentRoot: ParentNode = document): WebHydration
 
     try {
         const parsed = JSON.parse(text) as Partial<WebHydrationPayload>;
+        const words = parsed.words;
 
         return {
             pageId: parsed.pageId ?? null,
             view: typeof parsed.view === "string" ? parsed.view : null,
-            changes: parsed.changes
+            changes: parsed.changes,
+            words: typeof words?.language === "string" && typeof words.href === "string" ? { language: words.language, href: words.href } : null,
+            title: parsed.title ?? null
         };
     }
     catch {

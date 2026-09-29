@@ -44,13 +44,14 @@ public static class UIThemeDefaults
         OnSuccess = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
         OnDanger = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
 
-        // Most inks equal the fill here since it's already legible on light; Warning (1.09:1) is the exception, shaded until it clears.
+        // A status ink is shaded until it reads 4.5:1 on its own 16 % tinted badge over the page and over a card; Info clears it
+        // as it is, Warning (1.09:1 raw) needs six tenths. The brand inks equal their fill: a tinted brand badge darkens its own words.
         PrimaryInk = new(ColorName.AstralTeal),
         AccentInk = new(ColorName.NovaPurple),
         InfoInk = new(ColorName.QuantumBlue),
         WarningInk = new(ColorName.NebulaGold, ColorAdjustment.Shade, 6),
-        SuccessInk = new(ColorName.AuroraGreen),
-        DangerInk = new(ColorName.StellarRed),
+        SuccessInk = new(ColorName.AuroraGreen, ColorAdjustment.Shade, 2),
+        DangerInk = new(ColorName.StellarRed, ColorAdjustment.Shade, 1),
 
         Selected = new(ColorName.NovaPurple, ColorAdjustment.Tint, 7, 35),
         FocusRing = new(ColorName.NovaPurple),

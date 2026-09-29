@@ -105,7 +105,8 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                     new MenuItem { Id = "rename", Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
                     new MenuItem { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy) }
                 ]).SetSurface(UISurfaceStyle.Background).OnItemClickWithItemKey(nameof(MenuExamplesController.RunCardAction), "entry"))
-                .SetContent(new TextComponent()
+                // A paragraph: the explanation is prose, which a text's one line would cut.
+                .SetContent(new ParagraphComponent()
                     .SetTitle("Right-click this card")
                     .SetDescription("The menu is set on the card itself — it compiles with the card and opens where the pointer is; Surface = Background puts it on the page's ground.")
                 ),
@@ -121,7 +122,8 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
         return DemoUI.CreateExample("Commands, and the keys that fire them",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Raised)
-                .SetWidth(UILayoutLength.Absolute(280))
+                // Room for the longest entry beside its shortcut: at 280 "Download the config" lost its end.
+                .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(new MenuComponent()
                     .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
                     .OnItemClickWithItemKey(nameof(MenuExamplesController.Run))

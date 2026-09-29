@@ -11,12 +11,14 @@ using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Hosting;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
@@ -74,6 +76,35 @@ internal sealed partial class WebUIHub : Hub
         public required string Theme { get; init; }
     }
 
+    internal sealed class WebUISetLanguageRequest
+    {
+        /// <summary>The language the page switches to; one the translator lists.</summary>
+        public required string Language { get; init; }
+    }
+
+    /// <summary>The language the page is now in, and the address of the words it translates by.</summary>
+    internal sealed class WebUILanguageResult
+    {
+        public required string Language { get; init; }
+
+        public required string Href { get; init; }
+    }
+
+    internal sealed class WebUITranslateRequest
+    {
+        public required string Language { get; init; }
+
+        public string[] Keys { get; init; } = [];
+    }
+
+    /// <summary>The words asked for that the translator has, with each key's plural forms; a key left out has none.</summary>
+    internal sealed class WebUITranslateResult
+    {
+        public required string Language { get; init; }
+
+        public required IReadOnlyDictionary<string, string> Words { get; init; }
+    }
+
     internal sealed class WebUIChangeSetRequest
     {
         public required WebUIValueChangeRequest[] Updates { get; init; }
@@ -127,9 +158,19 @@ internal sealed partial class WebUIHub : Hub
 
         [LoggerMessage(EventId = 10, Level = LogLevel.Information, Message = "Web UI route '{Route}' presented view '{PageView}' where the compile is '{View}': the page reloads.")]
         public static partial void ViewChanged(ILogger logger, string route, string pageView, string view);
+
+        [LoggerMessage(EventId = 11, Level = LogLevel.Debug, Message = "Stored language '{Language}' on connection '{ConnectionId}'s session.")]
+        public static partial void LanguageStored(ILogger logger, string language, string connectionId);
+
+        [LoggerMessage(EventId = 12, Level = LogLevel.Debug, Message = "Language '{Language}' was not stored: connection '{ConnectionId}' presented no stored session.")]
+        public static partial void LanguageNotStored(ILogger logger, string language, string connectionId);
     }
 
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
+
+    // What one ask for words may carry: a page asks per frame for the keys its table lacked, never a whole dictionary.
+    private const int MaxTranslateKeys = 256;
+    private const int MaxTranslateKeyLength = 512;
 
     private readonly IUIHost _host;
     private readonly IWebViewRenderCache _renderCache;
@@ -139,9 +180,10 @@ internal sealed partial class WebUIHub : Hub
     private readonly WebValueStagingStore _stagedValues;
     private readonly WebOutgoingValues _outgoing;
     private readonly WebUIMetrics _metrics;
+    private readonly IEnumerable<IUIStringsSource> _packageStrings;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(renderCache);
@@ -151,6 +193,7 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(stagedValues);
         ArgumentNullException.ThrowIfNull(outgoing);
         ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentNullException.ThrowIfNull(packageStrings);
         ArgumentNullException.ThrowIfNull(logger);
 
         _host = host;
@@ -161,6 +204,7 @@ internal sealed partial class WebUIHub : Hub
         _stagedValues = stagedValues;
         _outgoing = outgoing;
         _metrics = metrics;
+        _packageStrings = packageStrings;
         _logger = logger;
     }
 
@@ -292,6 +336,106 @@ internal sealed partial class WebUIHub : Hub
 
         if (stored)
             Log.ThemeStored(_logger, request.Theme, Context.ConnectionId);
+    }
+
+    /// <summary>Switches the session to a language the translator lists and answers where its words are.</summary>
+    /// <remarks>
+    /// The next page renders in it. With a controller, this page's session is refreshed and the controller told as a command would;
+    /// without one it switches all the same, as the theme does.
+    /// </remarks>
+    public async Task<WebUILanguageResult> SetLanguageAsync(WebUISetLanguageRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
+
+        ITranslator translator = _application.Translator;
+
+        if (!translator.HasLanguage(request.Language))
+            throw new InvalidOperationException($"Language '{request.Language}' is not one the application translates into.");
+
+        HttpContext? http = Context.GetHttpContext();
+        var sessionId = http is null ? null : WebEndpointRouteBuilderExtensions.ReadSessionCookie(http, _application.Sessions);
+        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+            ? null
+            : await _sessions.SetLanguageAsync(sessionId, request.Language, Context.ConnectionAborted).ConfigureAwait(false);
+
+        if (written is null)
+        {
+            // The page still switches for as long as it lives; the next render reads the session, which never heard of it.
+            Log.LanguageNotStored(_logger, request.Language, Context.ConnectionId);
+        }
+        else
+        {
+            Log.LanguageStored(_logger, request.Language, Context.ConnectionId);
+
+            if (Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle && _host is UIHost host)
+                await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
+        }
+
+        WebWordsAsset words = WebWordsEndpoint.Resolve(translator, request.Language, _packageStrings, _application.MissingWords is not null);
+
+        return new WebUILanguageResult
+        {
+            Language = words.Language,
+            Href = words.Href
+        };
+    }
+
+    /// <summary>
+    /// Answers the words a page's table lacked — a translator that cannot list them all, or a prefixed key missing where missing
+    /// words are reported — with each key's plural forms; bounded per call, for a language the translator lists.
+    /// </summary>
+    public Task<WebUITranslateResult> TranslateAsync(WebUITranslateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
+        ArgumentNullException.ThrowIfNull(request.Keys);
+
+        ITranslator translator = _application.Translator;
+
+        if (!translator.HasLanguage(request.Language))
+            throw new InvalidOperationException($"Language '{request.Language}' is not one the application translates into.");
+
+        if (request.Keys.Length > MaxTranslateKeys)
+            throw new InvalidOperationException($"A page asks for at most {MaxTranslateKeys} words at a time.");
+
+        UIWordTable table = translator.ListWords(request.Language);
+        Dictionary<string, string> words = new(StringComparer.Ordinal);
+
+        foreach (var key in request.Keys)
+        {
+            if (string.IsNullOrWhiteSpace(key) || key.Length > MaxTranslateKeyLength)
+                continue;
+
+            // Asked for by name, so looked up as a key whatever the prefixes; a miss is recorded where missing words are reported.
+            if (translator.Translate(request.Language, key, null) is { } text && !string.Equals(text, key, StringComparison.Ordinal))
+                words[key] = text;
+
+            AddPluralForms(translator, table, request.Language, key, words);
+        }
+
+        return Task.FromResult(new WebUITranslateResult
+        {
+            Language = request.Language,
+            Words = words
+        });
+    }
+
+    /// <summary>
+    /// The key's plural forms the translator has: read off its listing, and probed one by one only where it cannot list them all — a
+    /// probe, since a form the language does not use is no missing word.
+    /// </summary>
+    private static void AddPluralForms(ITranslator translator, UIWordTable table, string language, string key, Dictionary<string, string> words)
+    {
+        foreach (var suffix in UIPluralRules.Forms)
+        {
+            var form = string.Concat(key, ".", suffix);
+
+            if (table.Words.TryGetValue(form, out var listed))
+                words[form] = listed;
+            else if (!table.Complete && translator.TryTranslate(language, form, out var text))
+                words[form] = text;
+        }
     }
 
     public async Task<UICommandExecutionResult> ProcessEventAsync(UICommandRequest request)

@@ -17,7 +17,7 @@ internal static class WebRequestGuards
     /// </summary>
     /// <remarks>
     /// <c>same-site</c> is refused too: a sibling subdomain is sent the session's <c>Lax</c> cookie, and the Origin check below
-    /// has always meant the same origin.
+    /// means the same origin.
     /// </remarks>
     public static bool IsCrossSiteRequest(HttpContext http)
     {

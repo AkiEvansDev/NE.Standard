@@ -1,8 +1,4 @@
-/**
- * What every hub call but the attach waits behind: open once the runtime is attached, pending again while a reconnect runs,
- * and closed for good once the connection is — after which every waiting and every later call fails at once instead of
- * waiting for ever.
- */
+/** What every hub call but the attach waits behind: open when attached, pending while reconnecting, failing every call once closed. */
 export class AttachGate {
     private gate: Promise<void>;
     private pending = false;

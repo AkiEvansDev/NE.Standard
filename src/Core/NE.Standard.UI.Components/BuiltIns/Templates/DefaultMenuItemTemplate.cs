@@ -43,8 +43,6 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
 /// </summary>
 public sealed class DefaultMenuItemTemplate(string? itemPath = null, bool binds = false) : DefaultMenuItemTemplate<DefaultMenuItemTemplate>(itemPath, binds), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.default.menu-item.template";
 }

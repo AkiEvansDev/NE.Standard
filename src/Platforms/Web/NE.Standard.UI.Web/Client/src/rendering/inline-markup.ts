@@ -40,8 +40,7 @@ const FoldClass = "ui-text__fold";
 const FoldToggleClass = "ui-text__fold-toggle";
 const FoldContentClass = "ui-text__fold-content";
 
-// A fold's text is parsed again where it is rendered, one level of recursion per fold: text nested deeper than this reads as
-// literal braces, or a few kilobytes of user text could exhaust the stack of whatever renders it.
+// Folds nest by recursion: deeper text reads as literal braces, or a few kilobytes of user text could exhaust the stack.
 const MaxFoldDepth = 8;
 
 export function parseInlineMarkup(text: string | null | undefined): InlineSegment[] {
@@ -410,7 +409,7 @@ function readFold(markup: MarkupText, index: number, end: number): FoldMatch | n
     if (closingCaption <= index + 1 || closingCaption + 1 >= end || text[closingCaption + 1] !== FoldOpen)
         return null;
 
-    // A caption is a word or a few, never markup: a bracket opened inside it means the fold starts there, as a link inside a link's label does.
+    // A caption is never markup: a bracket opened inside it means the fold starts there, as a link inside a link's label does.
     if (markup.hasOpeningBracket(index + 1, closingCaption))
         return null;
 
@@ -428,9 +427,8 @@ function readFold(markup: MarkupText, index: number, end: number): FoldMatch | n
     return { caption: caption.value, contentStart, contentEnd };
 }
 
-// The text with the closing mark after every position indexed on first use, so an opening mark finds its close in constant time
-// and a parse stays linear however many marks are left open. Every lookup starts right after an opening mark, never a backslash,
-// so the escapes read from the start of the text are the escapes a scan from that position would read.
+// The text with each position's next closing mark indexed on first use, so a parse stays linear however many marks are left open;
+// lookups start right after an opening mark, never a backslash, so escapes read from the text's start are the ones a scan would read.
 class MarkupText {
     public readonly text: string;
 

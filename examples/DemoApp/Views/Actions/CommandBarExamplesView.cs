@@ -83,7 +83,9 @@ internal sealed class CommandBarExamplesView : DemoExamplesView, IUIViewDefiniti
             {
                 ["Fail the deploy"] = nameof(CommandBarExamplesController.FailDeploy),
                 ["Succeed"] = nameof(CommandBarExamplesController.SucceedDeploy),
-            })
+            }),
+            // The bar needs the group's whole width for its labels, which a column of controls beside it would take.
+            controlsBelow: true
         );
     }
 

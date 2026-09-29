@@ -24,8 +24,7 @@
     overflow-x: scroll;
 }
 
-// Scrolling sideways, the content is as wide as it is and never narrower than the box; a width or a floor its author wrote
-// still holds (`SetWidth(Fill)` with a floor: the box's width until the floor, then a scroll).
+// Sideways, the content is its own width and never narrower than the box; an authored width or floor still holds.
 .ui-scroll.ui-scroll-x--auto > [data-ui-id],
 .ui-scroll.ui-scroll-x--always > [data-ui-id] {
     .ui-responsive-property(width, --ui-width, max-content);

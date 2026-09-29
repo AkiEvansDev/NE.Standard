@@ -25,11 +25,12 @@ public sealed record UIViewOptions
     /// </summary>
     public UIShellLayout ShellLayout { get; init; }
 
-    /// <summary>
-    /// Gets whether the sides become drawers on a narrow screen: below the medium breakpoint they leave the page's columns and slide
-    /// over the content, each opened by a button the header carries, so a phone gives the content its whole width.
-    /// </summary>
-    public bool SideDrawers { get; init; }
+    /// <summary>Gets whether the sides become drawers on a narrow screen; on unless the view turns it off.</summary>
+    /// <remarks>
+    /// Below the medium breakpoint the sides leave the page's columns and slide over the content, each opened by a button the header
+    /// carries, so a phone gives the content its whole width. Off, the sides keep their columns at every width.
+    /// </remarks>
+    public bool SideDrawers { get; init; } = true;
 
     /// <summary>
     /// Gets which corner this view's notifications stack in.

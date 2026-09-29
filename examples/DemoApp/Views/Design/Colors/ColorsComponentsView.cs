@@ -11,7 +11,9 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
 
     protected override void DrawColorsContent(WrapPanelComponent container)
     {
+        // Two framed panels, not groups: they keep the tight gap of a pair rather than the page's gap between groups.
         _ = container
+            .SetSpacing(16)
             .AddChild(CreateThemePanel(UIThemeMode.Light))
             .AddChild(CreateThemePanel(UIThemeMode.Dark));
     }

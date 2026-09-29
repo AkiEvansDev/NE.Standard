@@ -1,12 +1,18 @@
-import { EmptyPlaceholderAttribute, EmptyTemplateAttribute } from "../addressing/dom-attributes";
+// A search field over a list: it asks the server as the reader types, and narrows the list itself only where the list is its own —
+// static options. A list the server answers `OnSearch` with stands as it is until the answer, and shows that answer whole.
+
+import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, SelectClass } from "../addressing/dom-attributes.ts";
+import { foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
 const DebounceAttribute = "data-ui-search-debounce";
 const MinLengthAttribute = "data-ui-search-min-length";
 const ManualAttribute = "data-ui-search-manual";
+// On the field of a search whose list is the server's answer to `OnSearch` (SearchComponentRenderer).
+const AnsweredAttribute = "data-ui-search-answered";
 const SearchInputClass = "ui-search__input";
-const SelectClass = "ui-select";
 const PopupClass = "ui-select__popup";
 const OptionClass = "ui-select__option";
+const TitleClass = "ui-text__title";
 const DefaultDebounceMilliseconds = 300;
 
 export type SearchInputEngineOptions = {
@@ -63,6 +69,10 @@ export class SearchInputEngine {
 }
 
 function filterOptions(input: HTMLInputElement): void {
+    // Narrowed here as well, the answer's own options could be hidden by a rule the server's match does not share.
+    if (input.hasAttribute(AnsweredAttribute))
+        return;
+
     const select = input.closest<HTMLElement>(`.${SelectClass}`);
     const popup = select?.querySelector<HTMLElement>(`.${PopupClass}`);
 
@@ -71,43 +81,79 @@ function filterOptions(input: HTMLInputElement): void {
 
     const minLengthText = input.getAttribute(MinLengthAttribute);
     const minLength = minLengthText === null ? 0 : Number(minLengthText);
-    const query = input.value.trim().toLowerCase();
-    const filtering = query.length > 0 && query.length >= minLength;
-    let visibleCount = 0;
+    const terms = input.value.trim().length >= minLength ? searchTerms(input.value, input) : [];
+    const shown = narrow(popup, option => terms.length === 0 || matchesTerms(foldWords(optionWords(option), option), terms));
 
-    for (const option of popup.querySelectorAll<HTMLElement>(`.${OptionClass}`)) {
-        const isMatch = !filtering || (option.textContent ?? "").toLowerCase().includes(query);
-        option.style.display = isMatch ? "" : "none";
-
-        if (isMatch)
-            visibleCount++;
-    }
-
-    toggleNoMatchPlaceholder(select, popup, filtering && visibleCount === 0);
+    toggleNoMatchPlaceholder(select, popup, terms.length > 0 && shown === 0);
 }
 
-/** The empty state, decided from what is in the list rather than from the query that narrowed it. */
+/** The words an option shows as its name: its title where it has one, else all it draws — what the menu's search reads too. */
+function optionWords(option: HTMLElement): string {
+    return option.querySelector(`.${TitleClass}`)?.textContent ?? option.textContent ?? "";
+}
+
+/** Shows the options `keep` keeps and hides the rest, a group's header standing while an option after it does; answers how many stayed. */
+function narrow(popup: HTMLElement, keep: (option: HTMLElement) => boolean): number {
+    let header: HTMLElement | null = null;
+    let headerKept = false;
+    let kept = 0;
+
+    for (const row of popup.children) {
+        if (!(row instanceof HTMLElement))
+            continue;
+
+        if (row.hasAttribute(GroupHeaderAttribute)) {
+            if (header !== null)
+                show(header, headerKept);
+
+            header = row;
+            headerKept = false;
+            continue;
+        }
+
+        if (!row.classList.contains(OptionClass))
+            continue;
+
+        const shown = keep(row);
+
+        show(row, shown);
+        headerKept ||= shown;
+
+        if (shown)
+            kept++;
+    }
+
+    if (header !== null)
+        show(header, headerKept);
+
+    return kept;
+}
+
+function show(row: HTMLElement, shown: boolean): void {
+    const display = shown ? "" : "none";
+
+    if (row.style.display !== display)
+        row.style.display = display;
+}
+
+/** The empty state, decided from what is in the list rather than from the query that narrowed it; a refill's headers follow its options. */
 export function refreshEmptyState(select: HTMLElement): void {
     const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
 
     if (popup === null)
         return;
 
-    const options = [...popup.querySelectorAll<HTMLElement>(`.${OptionClass}`)];
-    const visible = options.filter(option => option.style.display !== "none");
+    const shown = narrow(popup, option => option.style.display !== "none");
 
-    toggleNoMatchPlaceholder(select, popup, visible.length === 0);
+    toggleNoMatchPlaceholder(select, popup, shown === 0);
 }
 
-/** Takes the query's filter off every option, leaving the empty state to `refreshEmptyState` alone. */
+/** Takes the query's filter off every option and header, leaving the empty state to `refreshEmptyState` alone. */
 export function clearOptionsFilter(select: HTMLElement): void {
     const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
 
-    if (popup === null)
-        return;
-
-    for (const option of popup.querySelectorAll<HTMLElement>(`.${OptionClass}`))
-        option.style.display = "";
+    if (popup !== null)
+        narrow(popup, () => true);
 }
 
 function toggleNoMatchPlaceholder(select: HTMLElement, popup: HTMLElement, show: boolean): void {

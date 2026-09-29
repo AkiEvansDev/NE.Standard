@@ -7,6 +7,7 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -22,8 +23,6 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 {
     private const string OptionRole = "option";
-
-    private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true")];
 
     public override string ComponentTypeKey => MultiSelectComponent.ComponentTypeKey;
 
@@ -116,11 +115,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             RenderPopupTrigger(trigger, "listbox");
 
             // Read-only keeps the field focusable and its chips readable; the engine offers no list and removes nothing.
-            _ = RenderProperty<bool?>(context, trigger, IInputComponent.IsReadOnlyProperty, static (target, value) =>
-            {
-                if (value == true)
-                    _ = target.Attribute("aria-readonly", "true");
-            }, ReadOnlyOperations);
+            NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, trigger);
 
             TextContentRendererBase.RenderFieldLabel(context, trigger);
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
@@ -136,9 +131,9 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
                 for (var i = 0; i < chosenKeys.Count; i++)
                 {
-                    if (FindOptionLabel(context, items, chosenKeys[i]) is string label)
+                    if (FindOptionTitle(items, chosenKeys[i], out var content) is string title)
                     {
-                        RenderChip(context, chips, chosenKeys[i], label);
+                        RenderChip(context, chips, chosenKeys[i], title, content);
                         drawn++;
                     }
                 }
@@ -153,20 +148,33 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         });
     }
 
-    /// <summary>The words a chip shows for the option a key names: its title, translated as its row's is; null where no option has the key.</summary>
-    private static string? FindOptionLabel(WebRenderContext context, IReadOnlyList<object?> items, string key)
+    /// <summary>
+    /// What a chip shows for the option a key names: its title, else the key itself; null where no option has the key. Content where
+    /// the option says its words are (<see cref="IContentItem"/>), and where there are no words to look up.
+    /// </summary>
+    private static string? FindOptionTitle(IReadOnlyList<object?> items, string key, out bool content)
     {
         for (var i = 0; i < items.Count; i++)
         {
             if (items[i] is IBindableItem item && string.Equals(item.Id, key, StringComparison.Ordinal))
-                return items[i] is ITextBaseModel { Title: { Length: > 0 } title } ? context.Translate(title) : key;
+            {
+                // A blank title from data falls to the key, and a blank key stands as it is: data must not fail the page.
+                var title = items[i] is ITextBaseModel { Title: { } text } && !string.IsNullOrWhiteSpace(text) ? text : key;
+
+                content = items[i] is IContentItem { IsContent: true } || string.IsNullOrWhiteSpace(title);
+                return title;
+            }
         }
 
+        content = false;
         return null;
     }
 
-    /// <summary>One chosen option in the field: its words and the button that takes it out, named for the option it removes.</summary>
-    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, string label)
+    /// <summary>
+    /// One chosen option in the field: its words, translated as its row's are, and the button that takes it out, named for the
+    /// option it removes; both marked, so a language switch writes them again. A content option's words stand as written.
+    /// </summary>
+    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, string title, bool content)
     {
         _ = chips.Element("span", chip =>
         {
@@ -176,7 +184,11 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             _ = chip.Element("span", text =>
             {
                 _ = text.Class("ui-multi-select__chip-label");
-                _ = text.Text(label);
+
+                if (content)
+                    _ = text.Text(title);
+                else
+                    WebWords.WriteText(context, text, null, title);
             });
 
             _ = chip.Element("button", remove =>
@@ -185,7 +197,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                 _ = remove.Attribute("type", "button");
                 // Out of the tab order: Backspace in the field and the list's own toggle reach every chip without a stop per chip.
                 _ = remove.Attribute("tabindex", "-1");
-                _ = remove.Attribute("aria-label", context.Translate(UIStrings.SelectRemove).Replace("{label}", label, StringComparison.Ordinal));
+                WebWords.Write(context, remove, "aria-label", UIStrings.SelectRemove, new Dictionary<string, object?>(StringComparer.Ordinal) { ["label"] = content ? title : UIPhrase.Text(title) });
             });
         });
     }

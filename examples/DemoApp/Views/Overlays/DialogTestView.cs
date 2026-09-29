@@ -225,9 +225,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
     /// <summary>A title, an optional bound line under it, and whatever the dialog holds below.</summary>
     private static StackPanelComponent CreatePanel(string title, string? descriptionPath, params IVisualComponent[] body)
     {
-        TextComponent heading = new TextComponent()
+        // A paragraph, not a text: the title and the question under it are prose, which wraps rather than ending in an ellipsis.
+        ParagraphComponent heading = new ParagraphComponent()
             .SetTitle(title)
-            .SetTitleType(UITextAppearance.Title);
+            .SetTitleType(UITextAppearance.Title)
+            .SetTitleWrap(true);
 
         if (descriptionPath is not null)
             _ = heading.BindDescription(descriptionPath);

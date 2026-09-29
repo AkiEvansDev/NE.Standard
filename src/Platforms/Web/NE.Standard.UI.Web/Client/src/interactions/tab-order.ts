@@ -1,5 +1,4 @@
-// Where a tab moved in its strip stands: an order between its new neighbours, so no other tab is renumbered — unless the tab after
-// it carries no order, which the strip's sort puts ahead of every order. A drop and the tab menu's pin both take their orders here.
+// Where a moved tab stands: an order between its new neighbours, so no other tab is renumbered; for a drop and the tab menu's pin.
 
 /** One tab of a strip as the order arithmetic sees it: its order, if it carries one, and whether it is pinned. */
 export type StripTab = {
@@ -7,17 +6,14 @@ export type StripTab = {
     readonly pinned: boolean;
 };
 
-/**
- * The orders to write once the tab at `index` stands there in `tabs`, the strip in its new order, by place: the moved tab's alone,
- * between its neighbours; or, where the tab after it carries no order, every place whose order differs from its index — a tab
- * without an order sorts ahead of any number, so no order of the moved tab's own could keep it before that one.
- */
+/** The orders to write, by place, once the tab at `index` stands there in `tabs`, the strip in its new order. */
 export function ordersAfterMove(tabs: readonly StripTab[], index: number): ReadonlyMap<number, number> {
     const next = tabs[index + 1];
 
     if (next === undefined || next.order !== null)
         return new Map([[index, orderBetween(tabs[index - 1]?.order ?? null, next?.order ?? null)]]);
 
+    // A tab with no order sorts ahead of any number, so no order of the moved tab's own keeps it before one: every place is renumbered.
     const orders = new Map<number, number>();
 
     tabs.forEach((tab, place) => {
@@ -42,10 +38,7 @@ export function orderBetween(previous: number | null, next: number | null): numb
     return (previous + next) / 2;
 }
 
-/**
- * Where a tab just pinned or unpinned goes among the strip's other tabs, given in strip order: right after the last pinned one, or
- * first when none is — the pinned tabs are the strip's head either way.
- */
+/** Where a tab just pinned or unpinned goes among the others, in strip order: right after the last pinned one, else first. */
 export function pinnedBoundary(others: readonly StripTab[]): number {
     let index = 0;
 

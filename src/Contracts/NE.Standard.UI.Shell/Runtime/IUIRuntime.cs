@@ -67,10 +67,10 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// </summary>
     Task StopAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Builds what an attaching client instance starts from — the given bindings' values and every bound collection — and from
-    /// then on hands that instance only what is queued after it (<see cref="ChangesFor"/>). Before it, the instance is sent nothing.
-    /// </summary>
+    /// <summary>Builds what an attaching client instance starts from: the given bindings' values and every bound collection.</summary>
+    /// <remarks>
+    /// From then on the instance is handed only what is queued after it (<see cref="ChangesFor"/>); before it, it is sent nothing.
+    /// </remarks>
     Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -95,9 +95,7 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// </summary>
     Task<ServerChangeSet> ProcessChangeSetFromUIAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Processes a client-originated event command.
-    /// </summary>
+    /// <summary>Processes a client-originated event command.</summary>
     /// <remarks>
     /// A background command whose request carries a <see cref="UICommandRequest.RequestId"/> is answered as
     /// <see cref="UICommandExecutionResult.Accepted"/> and runs on, pushing its result to <paramref name="invoker"/>; it keeps
@@ -118,9 +116,7 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// </remarks>
     bool HasPendingWork { get; }
 
-    /// <summary>
-    /// Gets whether a command is currently executing against this runtime.
-    /// </summary>
+    /// <summary>Gets whether a command is currently executing against this runtime.</summary>
     /// <remarks>
     /// Kept true for the whole run of a background or exclusive command, so neither a cleanup pass racing a disconnect nor
     /// an eviction takes the runtime; one disposed while a command runs is disposed by the last command to finish.

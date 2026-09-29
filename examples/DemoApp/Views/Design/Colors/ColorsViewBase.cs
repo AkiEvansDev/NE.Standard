@@ -19,9 +19,9 @@ internal abstract class ColorsViewBase : DemoView
     {
         _ = container.AddChild(DemoUI.CreateTabs(
         [
-            ("Palette", "/design/colors"),
-            ("Semantic", "/design/colors/semantic"),
-            ("Components", "/design/colors/components"),
+            ("demo.colors.palette", "/design/colors"),
+            ("demo.colors.semantic", "/design/colors/semantic"),
+            ("demo.colors.components", "/design/colors/components"),
         ], CurrentTabUrl));
 
         DrawColorsContent(container);

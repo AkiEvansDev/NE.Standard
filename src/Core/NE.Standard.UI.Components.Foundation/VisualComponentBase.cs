@@ -42,6 +42,8 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     private readonly List<UIInteraction> _interactions = [];
     private readonly List<UIEvent> _events = [];
 
+    private HashSet<UIProperty>? _content;
+
     // Per closed generic type, so one component type's walk is not paid for by another.
     private static bool _propertiesRegistered;
 
@@ -260,6 +262,35 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
 
     private void EnsureBindingAllowed(UIProperty property, UIBindingMode mode)
         => EnsureModeSupported(property, GetBindableDefinition(property), mode);
+
+    /// <summary>
+    /// Marks translatable properties of this instance as content — shown as written, bound or static, never looked up as a key,
+    /// even a name that happens to equal one.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A property is not registered for the component or is not translatable.</exception>
+    public TComponent AsContent(params UIProperty[] properties)
+    {
+        ArgumentNullException.ThrowIfNull(properties);
+
+        EnsurePropertiesRegistered();
+
+        foreach (UIProperty property in properties)
+        {
+            if (!UIPropertyRegister.TryGet(TypeKey, property, out UIPropertyDefinition? definition))
+                throw new InvalidOperationException($"Property '{property.Name}' is not registered for component type '{typeof(TComponent).Name}'.");
+
+            if (!definition.IsTranslatable)
+                throw new InvalidOperationException($"Property '{property.Name}' on component type '{typeof(TComponent).Name}' is not translatable, so it is content already.");
+
+            _ = (_content ??= []).Add(property);
+        }
+
+        return Self;
+    }
+
+    /// <inheritdoc />
+    public bool IsContent(UIProperty property)
+        => _content is not null && _content.Contains(property);
 
     /// <summary>
     /// Fills the property register for this component type, once.

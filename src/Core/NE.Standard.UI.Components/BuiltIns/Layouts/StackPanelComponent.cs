@@ -40,8 +40,6 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
 /// </summary>
 public sealed class StackPanelComponent(string? id = null) : StackPanelComponent<StackPanelComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.stack-panel";
 }

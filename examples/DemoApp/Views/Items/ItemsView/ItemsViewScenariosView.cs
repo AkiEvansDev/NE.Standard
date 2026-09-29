@@ -63,8 +63,10 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
         return new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
             .SetSpacing(12)
+            // A row's name in the body role: a bare text is a heading, too loud for one line of a list.
             .AddChild(new TextComponent()
                 .BindTitle(nameof(DemoRowItem.Title), UIBindingScope.Relative)
+                .AsBody()
                 .SetWidth(UILayoutLength.Absolute(120))
                 .SetMargin(UIThickness.All(8, 4, 0, 4))
             )
@@ -130,18 +132,15 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
         );
     }
 
-    private static StackPanelComponent CreateMessageTemplate()
+    /// <summary>The author over the message, the message as a paragraph's body so a long one wraps rather than ending in an ellipsis.</summary>
+    private static ParagraphComponent CreateMessageTemplate()
     {
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetMargin(UIThickness.All(8, 2, 8, 2))
-            .AddChild(new TextComponent()
-                .BindTitle(nameof(DemoChatMessage.Author), UIBindingScope.Relative)
-                .SetTitleType(UITextAppearance.Caption)
-                .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
-            )
-            .AddChild(new TextComponent()
-                .BindTitle(nameof(DemoChatMessage.Text), UIBindingScope.Relative)
-            );
+        return new ParagraphComponent()
+            .BindTitle(nameof(DemoChatMessage.Author), UIBindingScope.Relative)
+            .SetTitleType(UITextAppearance.Caption)
+            .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+            .BindDescription(nameof(DemoChatMessage.Text), UIBindingScope.Relative)
+            .SetDescriptionType(UITextAppearance.Body)
+            .SetMargin(UIThickness.All(8, 2, 8, 2));
     }
 }

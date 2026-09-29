@@ -4,9 +4,7 @@ using Microsoft.CodeAnalysis;
 
 namespace NE.Standard.UI.Generators.Infrastructure;
 
-/// <summary>
-/// Writes the partial declarations generated members go into.
-/// </summary>
+/// <summary>Writes the partial declarations generated members go into.</summary>
 /// <remarks>
 /// Type parameter constraints are never repeated: a partial part may leave them out, while a repeated one has to agree with the
 /// author's exactly, down to nullability and anti-constraints this writer would have to spell out.

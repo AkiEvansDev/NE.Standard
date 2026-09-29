@@ -141,7 +141,9 @@ public static class InlineMarkupRenderer
             _ = element.Class("ui-icon");
             _ = element.Class("ui-text__icon-inline");
             // `.ui-icon::before` stays hidden until this says there is a glyph to draw.
-            _ = element.Attribute(WebAttributes.Icon);
+            if (IconValueRenderer.Draws(icon))
+                _ = element.Attribute(WebAttributes.Icon);
+
             _ = element.Attribute("aria-hidden", "true");
 
             IconValueRenderer.RenderIconValue(element, icon);

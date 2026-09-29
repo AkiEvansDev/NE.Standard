@@ -1,6 +1,5 @@
-// The element a host's rows are seen through. A host scrolls itself unless it says `data-ui-host-viewport="parent"`, in which
-// case its parent scrolls (a wide table's root, so header and rows move together), and engines read the scroll there, in the
-// host's own coordinates — a top of 0 is the host's first row.
+// The element a host's rows are seen through: the host, or its parent under `data-ui-host-viewport="parent"` (a wide table's root, so
+// header and rows move together); the scroll is read in the host's own coordinates, a top of 0 being its first row.
 
 import { HostViewportAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
 

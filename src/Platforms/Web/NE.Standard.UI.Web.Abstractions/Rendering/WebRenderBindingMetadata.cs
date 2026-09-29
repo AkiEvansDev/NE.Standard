@@ -41,6 +41,11 @@ public sealed class WebRenderBindingMetadata
     /// </summary>
     public object? FallbackValue { get; init; }
 
+    /// <summary>
+    /// Gets whether the property is translatable but this instance shows it as written — content, never a key the page looks up.
+    /// </summary>
+    public bool Content { get; init; }
+
     public void Validate()
     {
         if (BindingId.IsEmpty)

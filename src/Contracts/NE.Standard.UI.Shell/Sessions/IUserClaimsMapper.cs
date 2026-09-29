@@ -14,9 +14,7 @@ public sealed record UserClaimsIdentity
     /// </summary>
     public required bool IsAuthenticated { get; init; }
 
-    /// <summary>
-    /// Gets the stable user identifier, when the principal carries one.
-    /// </summary>
+    /// <summary>Gets the stable user identifier, when the principal carries one.</summary>
     /// <remarks>
     /// Distinguishes the same user reconnecting from a different user on the same client, which must replace
     /// rather than merge into the session's identity.
@@ -39,9 +37,7 @@ public sealed record UserClaimsIdentity
     public static UserClaimsIdentity Anonymous { get; } = new() { IsAuthenticated = false };
 }
 
-/// <summary>
-/// Turns the host's <see cref="ClaimsPrincipal"/> into the roles and permissions the UI authorizes against.
-/// </summary>
+/// <summary>Turns the host's <see cref="ClaimsPrincipal"/> into the roles and permissions the UI authorizes against.</summary>
 /// <remarks>
 /// The seam between whatever scheme the host authenticates with and this framework; replace the registered
 /// implementation to map an application's own claim shapes.

@@ -51,8 +51,7 @@ function isOrdered(left: unknown, right: unknown, asked: (order: number) => bool
     if (!Number.isNaN(leftNumber) && !Number.isNaN(rightNumber))
         return asked(leftNumber < rightNumber ? -1 : leftNumber > rightNumber ? 1 : 0);
 
-    // One side a number and the other not stays incomparable; two texts order as text, which is what dates in the wire's
-    // ISO shape need.
+    // A number against a text stays incomparable; two texts order as text, which the wire's ISO dates need.
     if (!Number.isNaN(leftNumber) || !Number.isNaN(rightNumber) || typeof left !== "string" || typeof right !== "string")
         return false;
 

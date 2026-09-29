@@ -26,8 +26,7 @@
     min-height: 0;
 }
 
-// A page is a placement host (@ui-placement-hosts in ui-container.less), so its content is placed like a card's; the flex
-// properties are the page's own place in the pages column. The air under the strip is the page's own, as a TabsView page's.
+// A page is a placement host (ui-container.less), placed like a card's content; the air under the strip is the page's own.
 .ui-tabs__page {
     .ui-placement-host();
     flex: 1 1 auto;
@@ -67,7 +66,7 @@
 
 // Not :where(): needs to outrank .ui-button's one-class on-surface color, which a zero-specificity rule can't.
 .ui-tab-header:not(.ui-tab-header--selected) {
-    color: var(--ui-text-muted);
+    .ui-tab-caption-rest-ink();
 }
 
     .ui-tab-header::after {
@@ -77,24 +76,23 @@
 // A caption reacts by changing text and line, never by filling: reveal-hover would put a block behind it.
 .ui-tab-header {
     .ui-reveal-hover-off({
-        color: var(--ui-color-on-surface);
+        .ui-tab-caption-hover-ink();
     });
 }
 
-    // Excluded rather than out-ranked: this selector's specificity (0,5,1) beats the selected rule below. The live guard is the
-    // button family's own, so a loading header is as quiet as a disabled one.
+    // Excluded rather than out-ranked, which would beat the selected rule below; the button family's guard quiets a loading header.
     .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
-        background: var(--ui-mark-hover);
+        .ui-tab-caption-hover-mark();
     }
 
 // Restated inside reveal-hover-off at the ghost button's hover specificity, or a set ground vanished on hover.
 .ui-tab-header--selected {
     .ui-selected-ground(transparent);
-    .ui-selected-ink(var(--ui-color-on-surface); 600);
+    .ui-tab-caption-selected-ink();
 
     .ui-reveal-hover-off({
         .ui-selected-ground(transparent);
-        .ui-selected-ink(var(--ui-color-on-surface); 600);
+        .ui-tab-caption-selected-ink();
     });
 }
 
@@ -105,5 +103,5 @@
 
     // Keeps its own line under the pointer, since the hover rule above excludes selected headers outright.
     .ui-tab-header--selected::after {
-        background: @ui-selected-mark-color;
+        .ui-tab-caption-selected-mark();
     }

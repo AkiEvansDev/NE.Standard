@@ -5,12 +5,12 @@ using System.Threading;
 namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
-/// Bytes each session has claimed against a limit, counted as they arrive, so the parallel requests of one session share
-/// the limit rather than each reading it whole; every session's bytes also count against one process-wide limit, since a
-/// session costs a visitor nothing to start.
+/// Bytes each session has claimed against its limit, and every session together against one process-wide limit, counted as they
+/// arrive.
 /// </summary>
 /// <remarks>
-/// In memory and per process, like the requests it counts. What a session holds outside this count — an upload store's
+/// Counted as they arrive so a session's parallel requests share the limit rather than each reading it whole; process-wide too,
+/// since a session costs a visitor nothing to start. In memory and per process, like the requests it counts. What a session holds outside this count — an upload store's
 /// files — a claim is told once it is open (<see cref="Claim.HoldElsewhere"/>).
 /// </remarks>
 internal sealed class WebSessionAllowance

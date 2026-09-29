@@ -16,21 +16,28 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
 
     protected override string PageDescription => "Rooms for everyone, and conversations for two.";
 
+    // Side by side from the medium width up, where the shell's sides stop folding into drawers; below it one above the other, the
+    // list as tall as its rows and the conversation taking the page's width and the height left, with no splitter to drag.
     protected override IVisualComponent CreatePage()
         => new ContainerComponent("chat-panes")
             .SetColumn(1, UIGridUnit.Absolute(260, min: 180, max: 480))
             .SetColumn(2, UIGridUnit.Auto())
+            .SetRow(1, UIGridUnit.Auto())
+            .AddRow(UIGridUnit.Star())
             .SetOverflow(UIOverflow.Hidden)
             .SetHeight(UILayoutLength.Fill())
-            .AddChild(CreateListPane().SetPlacement(1, 1, 1, 1))
-            .AddChild(new GridSplitterComponent().SetPlacement(2, 1, 1, 1))
-            .AddChild(CreateConversationPane().SetPlacement(3, 1, 22, 1));
+            .AddChild(CreateListPane().SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 1, 2)))
+            .AddChild(new GridSplitterComponent()
+                .SetVisibility(UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible))
+                .SetPlacement(2, 1, 1, 2)
+            )
+            .AddChild(CreateConversationPane().SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(3, 1, 22, 2)));
 
     private static StackPanelComponent CreateListPane()
         => new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
             .SetSpacing(8)
-            .SetMargin(UIThickness.All(0, 0, 8, 0))
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 0, 0, 8), md: UIThickness.All(0, 0, 8, 0)))
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(4)
@@ -63,7 +70,7 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             .AddRow(UIGridUnit.Star())
             .AddRow(UIGridUnit.Auto())
             .SetOverflow(UIOverflow.Hidden)
-            .SetMargin(UIThickness.All(8, 0, 0, 0))
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.Uniform(0), md: UIThickness.All(8, 0, 0, 0)))
             .AddChild(CreateConversationHeader().SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 1, 24, 1))
             .AddChild(CreateHits().SetMargin(UIThickness.All(0, 0, 0, 8)).SetPlacement(1, 2, 24, 1))
             .AddChild(CreateFeed().SetPlacement(1, 3, 24, 1))
@@ -77,11 +84,14 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                 .SetTitleType(UITextAppearance.Subtitle)
                 .BindDescription(nameof(ChatController.Subtitle))
                 .SetDescriptionType(UITextAppearance.Caption)
-                .SetPlacement(1, 1, 12, 1)
+                .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, 12, 1))
             )
+            // Under the title below the extra-large width, where half the conversation holds neither; the switch wraps under the field when
+            // the two do not fit.
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(8)
+                .SetWrap(true)
                 .SetHorizontalAlignment(UIAlignment.End)
                 .AddChild(new TextInputComponent(SearchId)
                     .SetType(UITextInputType.Search)
@@ -99,7 +109,7 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                     .OnChange(nameof(ChatController.ToggleEverywhere))
                     .SetVerticalAlignment(UIAlignment.Center)
                 )
-                .SetPlacement(13, 1, 12, 1)
+                .SetPlacement(1, 2, 24, 1, xl: UIGridPlacement.At(13, 1, 12, 1))
             );
 
     /// <summary>What the search found, above the feed; a hit is a row that jumps.</summary>
@@ -164,7 +174,8 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             .SetPadding(UIThickness.Symmetric(12, 8))
             .SetBackground(UIThemeColor.FromStyle(mine ? UIColorStyle.Primary : UIColorStyle.Surface))
             .SetBorderRadius(UICornerRadius.Uniform(12))
-            .SetMaxWidth(UILayoutLength.Absolute(640))
+            // The feed's width below the extra-large breakpoint, where 640 runs past a narrow column and keeps the attachments from wrapping.
+            .SetMaxWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), xl: UILayoutLength.Absolute(640)))
             .AddChild(CreateMessageHeader(mine))
             .AddChild(new ParagraphComponent()
                 .BindDescription(nameof(MessageItem.Text), UIBindingScope.Relative)
@@ -287,34 +298,37 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             .OnItemClick(nameof(ChatController.MessageAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(MessageItem.Id)));
 
     /// <summary>The text with its Send at the end (Enter is the same button), and a paper clip that opens the attach dialog.</summary>
-    private static StackPanelComponent CreateComposer()
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(8)
+    /// <remarks>A grid, not a row: the two buttons take what they need and the field the rest, so the composer ends where the feed does.</remarks>
+    private static ContainerComponent CreateComposer()
+        => new ContainerComponent()
+            .SetColumn(1, UIGridUnit.Auto())
+            .SetColumn(24, UIGridUnit.Auto())
             .AddChild(new ButtonComponent()
                 .SetType(UIButtonType.Ghost)
                 .SetIcon(AppIcons.Outline(AppIcons.Attach))
                 .SetTooltip("Send a picture or files")
                 .OnClick(nameof(ChatController.OpenAttach))
+                .SetPlacement(1, 1, 1, 1)
             )
             .AddChild(new TextInputComponent()
                 .SetPlaceholder("Write a message")
                 .SetFormId(ChatController.ComposerFormId)
                 .BindValue(nameof(ChatController.Draft))
-                .SetHorizontalAlignment(UIAlignment.Stretch)
-                .SetWidth(UILayoutLength.Absolute(720))
+                .SetMargin(UIThickness.All(8, 0, 8, 0))
                 .SetTrailingAction(new ButtonComponent()
                     .SetType(UIButtonType.Ghost)
                     .SetIcon(AppIcons.Outline(AppIcons.Send))
                     .SetTooltip("Send")
                     .OnSubmit(ChatController.ComposerFormId, nameof(ChatController.SendAsync))
                 )
+                .SetPlacement(2, 1, 22, 1)
             )
             .AddChild(new ButtonComponent()
                 .SetType(UIButtonType.Ghost)
                 .SetIcon(AppIcons.Outline(AppIcons.Newest))
                 .SetTooltip("Jump to the newest message")
                 .OnClick(nameof(ChatController.JumpToNewest))
+                .SetPlacement(24, 1, 1, 1)
             );
 
     /// <summary>The attach dialog: pictures dropped or picked, any other files, the words, and Send.</summary>

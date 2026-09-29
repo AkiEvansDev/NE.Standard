@@ -9,8 +9,9 @@ import {
     readStep, readValueOf, RootClass, stepFor, TimeUnit, writeValueOf
 } from "./temporal-dom";
 import { observeComponents } from "./dom-mutations";
+import { isReadOnly } from "./interactive-state";
 import { resolveRovingTarget } from "./roving-focus";
-import { turnWheel } from "./wheel-notches";
+import { turnWheel, wheelPixels } from "./wheel-notches";
 
 const SegmentsClass = "ui-temporal-input__segments";
 const SegmentClass = "ui-temporal-input__segment";
@@ -19,7 +20,6 @@ const EmptyModifier = "ui-temporal-input__segment--empty";
 
 const SegmentAttribute = "data-ui-temporal-segment";
 const StepDirectionAttribute = "data-ui-temporal-step-direction";
-const ReadOnlyAttribute = "data-ui-temporal-readonly";
 /** The format the current segment spans were built from, so a live DisplayFormat patch rebuilds them. */
 const BuiltFromAttribute = "data-ui-temporal-segments-of";
 
@@ -116,8 +116,9 @@ export class TimeSegmentEngine {
 
             element.textContent = renderSegment(unit as SegmentUnit, width, value, culture);
             element.classList.toggle(EmptyModifier, value === null);
-            element.tabIndex = root.hasAttribute(ReadOnlyAttribute) ? -1 : 0;
-            writeAria(element, unit as SegmentUnit, value);
+            // A read-only clock stays in the tab order and readable, as a read-only field does; every key is refused.
+            element.tabIndex = 0;
+            writeAria(element, unit as SegmentUnit, value, isReadOnly(root));
         }
     }
 
@@ -192,7 +193,7 @@ export class TimeSegmentEngine {
 
         domEvent.preventDefault();
 
-        const { steps, carried } = turnWheel(this.wheelTurn, domEvent.deltaY, domEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL);
+        const { steps, carried } = turnWheel(this.wheelTurn, wheelPixels(domEvent).y);
 
         this.wheelTurn = carried;
 
@@ -225,7 +226,7 @@ export class TimeSegmentEngine {
 
         const root = stepper.closest<HTMLElement>(`.${RootClass}`);
 
-        if (root === null || root.hasAttribute(ReadOnlyAttribute))
+        if (root === null || isReadOnly(root))
             return;
 
         domEvent.preventDefault();
@@ -401,13 +402,13 @@ function createPart(part: Part): HTMLElement {
 /** A spinbutton's name and bounds, so a reader hears "hours, 9" rather than an unnamed number. */
 function describeSegment(segment: HTMLElement, unit: SegmentUnit): void {
     if (unit === "meridiem") {
-        segment.setAttribute("aria-label", clientStrings.text("ui.picker.meridiem"));
+        clientStrings.write(segment, "aria-label", "ui.picker.meridiem");
         return;
     }
 
     const clock = clockUnit(unit);
 
-    segment.setAttribute("aria-label", clientStrings.text(clock === "hour" ? "ui.picker.hours" : clock === "minute" ? "ui.picker.minutes" : "ui.picker.seconds"));
+    clientStrings.write(segment, "aria-label", clock === "hour" ? "ui.picker.hours" : clock === "minute" ? "ui.picker.minutes" : "ui.picker.seconds");
     segment.setAttribute("aria-valuemin", unit === "hour12" ? "1" : "0");
     segment.setAttribute("aria-valuemax", unit === "hour12" ? "12" : unit === "hour" ? "23" : "59");
 }
@@ -431,7 +432,14 @@ function renderSegment(unit: SegmentUnit, width: number, value: Date | null, cul
     return String(raw).padStart(width, "0");
 }
 
-function writeAria(segment: HTMLElement, unit: SegmentUnit, value: Date | null): void {
+function writeAria(segment: HTMLElement, unit: SegmentUnit, value: Date | null, readOnly: boolean): void {
+    if (readOnly !== segment.hasAttribute("aria-readonly")) {
+        if (readOnly)
+            segment.setAttribute("aria-readonly", "true");
+        else
+            segment.removeAttribute("aria-readonly");
+    }
+
     if (unit === "meridiem" || value === null) {
         segment.removeAttribute("aria-valuenow");
         return;
@@ -456,7 +464,7 @@ function editableSegment(target: EventTarget | null): HTMLElement | null {
 
     const root = segment.closest<HTMLElement>(`.${RootClass}`);
 
-    return root === null || root.hasAttribute(ReadOnlyAttribute) ? null : segment;
+    return root === null || isReadOnly(root) ? null : segment;
 }
 
 function focusedSegment(root: HTMLElement): HTMLElement | null {

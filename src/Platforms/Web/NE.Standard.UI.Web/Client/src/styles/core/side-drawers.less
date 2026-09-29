@@ -2,9 +2,9 @@
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/elevation.less";
+@import "../mixins/dialog.less";
 
-// UIViewOptions.SideDrawers: on a narrow screen the sides leave the page's columns and slide over the content from their edges, each
-// opened by its button in the header (side-drawer-engine.ts). On a wide one the buttons and the backdrop are not there at all.
+// UIViewOptions.SideDrawers: on a narrow screen the sides slide over the content from their edges, opened by header buttons.
 
 @ui-drawer-width: 20rem;
 
@@ -33,7 +33,8 @@
             background: var(--ui-color-surface);
             .ui-elevation-3();
             visibility: hidden;
-            transition: transform @ui-motion-fast @ui-motion-ease, visibility 0s linear @ui-motion-fast;
+            // The dialog's sheet's tempo, for the same motion: a panel entering from an edge.
+            transition: transform @ui-motion-normal @ui-motion-exit, visibility 0s linear @ui-motion-normal;
         }
 
         [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"] {
@@ -50,7 +51,7 @@
         [data-ui-root][data-ui-drawer-open="right-side"] > [data-ui-region="right-side"] {
             visibility: visible;
             transform: none;
-            transition: transform @ui-motion-fast @ui-motion-ease;
+            transition: transform @ui-motion-normal @ui-motion-enter;
         }
 
     // The band that carries the buttons lays them in a row with what it holds: the left one before it, the right one after.
@@ -88,19 +89,32 @@
             margin: @ui-space-3 @ui-space-2 0 0;
         }
 
+    // Fades in and out with the drawer's slide; `display` holds until the fade out ends.
     .ui-shell__drawer-backdrop {
         position: fixed;
         inset: 0;
         z-index: 49;
-        // The dialog's overlay token, so a theme that darkens one darkens both.
-        background: var(--ui-color-overlay, rgb(0 0 0 / 45%));
+        .ui-dialog-veil();
+        opacity: 0;
+        transition: opacity @ui-motion-normal @ui-motion-exit, display @ui-motion-normal allow-discrete;
     }
 
+        // The pointer goes at once, so a press meant for the page is not taken by a backdrop still fading.
         [data-ui-root]:not([data-ui-drawer-open]) > .ui-shell__drawer-backdrop {
             display: none;
+            pointer-events: none;
         }
 
         [data-ui-root][data-ui-drawer-open] > .ui-shell__drawer-backdrop {
             display: block;
+            opacity: 1;
+            transition: opacity @ui-motion-normal @ui-motion-enter;
         }
+
+    // Where the fade in starts, since the backdrop arrives from display: none and has no style of its own to fade from.
+    @starting-style {
+        [data-ui-root][data-ui-drawer-open] > .ui-shell__drawer-backdrop {
+            opacity: 0;
+        }
+    }
 }

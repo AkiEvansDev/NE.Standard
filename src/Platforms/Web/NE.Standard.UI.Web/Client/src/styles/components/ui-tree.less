@@ -8,23 +8,20 @@
 // The chevron's square, named once: the toggle draws it and the row of waiting reserves it.
 @ui-tree-chevron-size: 1.25rem;
 
-// A tree on the file list's model: thin rows stepped in by level, a chevron where a node can unfold, the chosen row washed
-// full width. Rows are a flat list; tree-engine.ts writes each row's `--ui-tree-depth` and folds hidden nodes via a class.
+// Thin rows stepped in by level (`--ui-tree-depth`, tree-engine.ts) with a chevron where a node unfolds; rows are a flat list.
 .ui-tree {
     .ui-selected-scope();
 
     display: flex;
     flex-direction: column;
     border-style: solid;
-    // Written flat, not as a fallback: --ui-border-width is always defined, so the 0 behind it could never be read. An authored
-    // BorderThickness arrives as an inline border-width and outranks this regardless.
+    // Flat, not a fallback: --ui-border-width is always defined; an authored BorderThickness is inline and wins anyway.
     border-width: 0;
     border-color: var(--ui-color-border);
     border-radius: var(--ui-radius-row);
     background: var(--ui-surface-color, transparent);
     // No `outline: none`: the tree holds the keyboard's focus as the items view and the table do, and wears the theme's ring as they do.
-    // The room before a title: the chevron's square plus the node's gap. The row of waiting spends the same space; a tree
-    // with no chevron drops the pair together, since the hidden toggle collapses its gap too.
+    // The room before a title: the chevron plus the gap, both dropped with no chevron as the hidden toggle takes its gap.
     --ui-tree-chevron: calc(@ui-tree-chevron-size + @ui-space-1);
 }
 
@@ -78,6 +75,7 @@
     min-height: @ui-button-height-sm;
     padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1);
     padding-inline-end: @ui-space-2;
+    .ui-row-ground();
 }
 
 .ui-tree__row--folded,
@@ -90,8 +88,7 @@
     display: none;
 }
 
-// The viewer's remembered fold, painted by the boot script before the runtime walks the rows, only where it disagrees with
-// the server-rendered fold; removed again by the first walk.
+// The viewer's remembered fold, painted by the boot script where it differs from the server's, until the runtime's first walk.
 .ui-tree__row[data-ui-tree-boot="hidden"] {
     display: none;
 }
@@ -107,7 +104,7 @@
     gap: @ui-space-2;
     min-height: @ui-button-height-sm;
     padding-inline-start: calc(var(--ui-tree-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1 + var(--ui-tree-chevron, 0px));
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     font-size: var(--ui-text-caption-font-size);
 }
 
@@ -116,10 +113,9 @@
         flex: 0 0 auto;
     }
 
-// A dragged row fades; the row it may be dropped on is washed like a chosen one, and the tree's ground like a hovered row — a
-// wash, not an outline.
+// A dragged row fades; its drop target is washed like a chosen row, the tree's ground like a hovered one.
 .ui-tree__row--dragging {
-    opacity: 0.45;
+    opacity: @ui-drag-ghost-opacity;
 }
 
 .ui-tree__row[data-ui-tree-drop] {
@@ -130,14 +126,14 @@
     background-color: var(--ui-wash-hover);
 }
 
-.ui-tree--row-hover .ui-tree__row:hover {
+.ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover {
     .ui-row-hover();
 }
 
 .ui-row-cursor(~".ui-tree", ~".ui-tree__row");
 
-.ui-tree[data-ui-selection="one"] > [data-ui-items-host] > .ui-tree__row,
-.ui-tree[data-ui-selection="many"] > [data-ui-items-host] > .ui-tree__row {
+.ui-tree[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
+.ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live} {
     cursor: pointer;
 }
 
@@ -177,7 +173,7 @@
     border-radius: 0.25rem;
     background: none;
     padding: 0;
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     cursor: pointer;
     visibility: hidden;
 }

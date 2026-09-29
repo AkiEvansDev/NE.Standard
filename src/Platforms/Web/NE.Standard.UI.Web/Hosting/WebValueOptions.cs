@@ -36,9 +36,7 @@ public sealed class WebValueOptions
     /// </remarks>
     public TimeSpan StagingRetention { get; set; } = TimeSpan.FromMinutes(2);
 
-    /// <summary>
-    /// Validates the options.
-    /// </summary>
+    /// <summary>Validates the options.</summary>
     public void Validate()
     {
         if (MaxValueSize <= 0)

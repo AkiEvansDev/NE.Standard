@@ -1,5 +1,5 @@
-// Deliberately not Intl: this must render identically to the server's `WebTemporalFormat`, over the same token subset. `.ts` on
-// the value import: `node --test` runs this module and resolves files literally.
+// Not Intl: it must render as the server's `WebTemporalFormat` does, over the same token subset.
+// `.ts` on the value import: `node --test` runs this module and resolves files literally.
 import { TemporalCultureAttribute } from "../addressing/dom-attributes.ts";
 
 export type TemporalCulturePack = {
@@ -125,7 +125,7 @@ function pad(value: number, length: number): string {
     return String(value).padStart(length, "0");
 }
 
-/** A moment as the wire writes it, field by field: the wall clock, with no zone, since the server writes a value by its own clock. */
+/** A moment as the wire writes it, field by field: the wall clock with no zone, as the server writes it. */
 export type WrittenMoment = {
     readonly year: number;
     /** One-based, as written. */
@@ -137,17 +137,12 @@ export type WrittenMoment = {
     readonly millisecond: number;
 };
 
-/**
- * The wire's shape of a moment: the fields, then nothing, or a zone that is no part of the clock. Matches the whole text,
- * so a tail that is neither means no moment, as the server refuses it, rather than the date its start spells.
- */
+/** The wire's shape of a moment: the fields, then nothing or a zone; matched whole, so another tail is no moment, as on the server. */
 const WrittenMomentPattern = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/i;
 
-/**
- * The wall clock a text is written with, or null for text that names no moment. Only the wire's own shape is read, since the
- * browser's reading of any other would turn the instant by the reader's zone, which neither side of the wire depends on.
- */
+/** The wall clock a text is written with, or null for text that names no moment. */
 export function parseWrittenMoment(text: string): WrittenMoment | null {
+    // The wire's shape alone: the browser's reading of any other would shift the instant by the reader's zone.
     const written = WrittenMomentPattern.exec(text.trim());
 
     if (written === null)
@@ -164,8 +159,7 @@ export function parseWrittenMoment(text: string): WrittenMoment | null {
     };
     const read = new Date(Date.UTC(moment.year, moment.month - 1, moment.day, moment.hour, moment.minute, moment.second, moment.millisecond));
 
-    // A field outside its own range has the wire's shape but names no moment: the browser would roll it into another day,
-    // where the server refuses it. What was written has to read back as itself.
+    // A field out of range names no moment: the browser would roll it into another day, where the server refuses it.
     return read.getUTCFullYear() === moment.year && read.getUTCMonth() === moment.month - 1 && read.getUTCDate() === moment.day
         && read.getUTCHours() === moment.hour && read.getUTCMinutes() === moment.minute && read.getUTCSeconds() === moment.second
         ? moment
@@ -177,7 +171,7 @@ export function writtenMomentDate(moment: WrittenMoment): Date {
     return new Date(moment.year, moment.month - 1, moment.day, moment.hour, moment.minute, moment.second, moment.millisecond);
 }
 
-/** Dates as the server formats them: the pack off the nearest element carrying one, a value by the shared token subset, and the wire's text read back. */
+/** Dates as the server formats them: the culture pack, formatting by the shared tokens, and reading the wire's text back. */
 export const temporalFormatting = {
     readCulture: readTemporalCulture,
     format: formatTemporal,

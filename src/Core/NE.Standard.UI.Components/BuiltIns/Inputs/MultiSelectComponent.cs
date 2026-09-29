@@ -7,11 +7,11 @@ using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
-/// <summary>
-/// A dropdown input that holds several options out of a bound list: the chosen ones stand in the field as chips, each with its own
-/// remove button, and the list marks them with a check and stays open while options are toggled.
-/// </summary>
-/// <remarks>The value is the chosen keys in the order they were chosen, each once.</remarks>
+/// <summary>A dropdown input that holds several options out of a bound list.</summary>
+/// <remarks>
+/// The chosen ones stand in the field as chips, each with its own remove button, and the list marks them with a check and stays open
+/// while options are toggled. The value is the chosen keys in the order they were chosen, each once.
+/// </remarks>
 public abstract partial class MultiSelectComponent<T, TItem>(string? id = null) : SelectComponentBase<T, TItem, IReadOnlyList<string>?>(id)
     where T : MultiSelectComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
@@ -46,8 +46,6 @@ public abstract class MultiSelectComponent<T>(string? id = null) : MultiSelectCo
 /// </summary>
 public sealed class MultiSelectComponent(string? id = null) : MultiSelectComponent<MultiSelectComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.multi-select";
 }

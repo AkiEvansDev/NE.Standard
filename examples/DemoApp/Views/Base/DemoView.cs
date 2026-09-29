@@ -1,12 +1,14 @@
+using System.Collections.Generic;
+
 namespace DemoApp.Views.Base;
 
 internal abstract class DemoView : UIViewBase
 {
     /// <summary>
     /// The title band and the sidebar stand, the sidebar from the top of the page; the content scrolls by itself; on a phone the
-    /// sidebar is a drawer the header opens. Only the notification page overrides it.
+    /// sidebar is a drawer the header opens, the framework's default. Only the notification page overrides it.
     /// </summary>
-    public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides, SideDrawers = true };
+    public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides };
 
     protected abstract string ComponentRoute { get; }
     protected abstract DemoViewKind ViewKind { get; }
@@ -14,10 +16,15 @@ internal abstract class DemoView : UIViewBase
     protected abstract string Header { get; }
     protected abstract string HeaderDescription { get; }
 
-    /// <summary>The tab's name: the page's header, and which of its pages when there are several.</summary>
-    /// <remarks>The header's words rather than its key: the host translates a title whole, and a key with words after it is no key.</remarks>
+    /// <summary>The tab's name: the page's header, and which of its pages when there are several — a key, so it follows a switch.</summary>
     public override string Title
-        => ViewKind is DemoViewKind.Main or DemoViewKind.Test ? $"{DemoTranslations.Text(Header)} · NE.Standard" : $"{DemoTranslations.Text(Header)} · {ViewKind} · NE.Standard";
+        => ViewKind is DemoViewKind.Main or DemoViewKind.Test ? "demo.title" : "demo.title.kind";
+
+    /// <summary>The header and the page's kind, each a key.</summary>
+    public override IReadOnlyDictionary<string, object?>? TitleArguments
+        => ViewKind is DemoViewKind.Main or DemoViewKind.Test
+            ? new Dictionary<string, object?> { ["page"] = new UIPhrase(Header) }
+            : new Dictionary<string, object?> { ["page"] = new UIPhrase(Header), ["kind"] = new UIPhrase(DemoUI.KindKey(ViewKind)) };
 
     protected override IVisualComponent? CreateHeader()
         => DemoUI.CreateHeader(Header, HeaderDescription);
@@ -27,12 +34,14 @@ internal abstract class DemoView : UIViewBase
 
     protected override IVisualComponent CreateContent()
     {
+        // Groups have no inline padding of their own: 40 between two side by side, and 12 + 16 + 12 between two lines of them.
         WrapPanelComponent container = new WrapPanelComponent()
             .SetPadding(UIThickness.All(24, 4, 24, 24))
-            .SetSpacing(16);
+            .SetSpacing(40)
+            .SetLineSpacing(16);
 
-        // Drawn even for a component with one page, or its content would start higher than its neighbours'.
-        if (AvailableKinds.Length > 0)
+        // A component with one kind has no other page to switch to, so a strip of one link would be a label, not navigation.
+        if (AvailableKinds.Length > 1)
             _ = container.AddChild(DemoUI.CreatePageTabs(ComponentRoute, ViewKind, AvailableKinds));
 
         DrawContent(container);

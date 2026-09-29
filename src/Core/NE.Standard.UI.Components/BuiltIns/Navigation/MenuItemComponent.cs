@@ -74,8 +74,6 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
 /// </summary>
 public sealed class MenuItemComponent(string? id = null) : MenuItemComponent<MenuItemComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.menu.item";
 }

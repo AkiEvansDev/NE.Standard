@@ -64,8 +64,6 @@ public abstract partial class ActionComponent<T> : ButtonComponent<T>
 /// </summary>
 public sealed class ActionComponent(string? id = null) : ActionComponent<ActionComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.action";
 }

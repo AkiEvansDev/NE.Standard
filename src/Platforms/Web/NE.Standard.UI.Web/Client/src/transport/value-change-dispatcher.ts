@@ -29,12 +29,7 @@ type SentWaiter = {
     readonly resolve: () => void;
 };
 
-/**
- * Sends the page's values onto the hub in the order they were given, a large one staged beside the hub included, so that
- * neither a second commit of the same field nor a command raised after a value can overtake it. While a change set is in
- * flight the values given meanwhile wait and go together in the next one, and a field given again while waiting keeps only its
- * latest value — a slider dragged or a colour picked is one trip per answer, not one per move.
- */
+/** Sends values in the order given, so no later value or command overtakes an earlier one; a field sent twice while waiting keeps its latest. */
 export class ValueChangeDispatcher {
     private readonly transport: ChangeSetSender;
 
@@ -63,11 +58,7 @@ export class ValueChangeDispatcher {
         return new Promise<void>(resolve => this.sentWaiters.push({ through, resolve }));
     }
 
-    /**
-     * Sends one value, settling once the answer's changes are applied; a large one is staged beside the hub first and the update
-     * carries its token instead. `before` runs just ahead of the answer's changes — only for a value actually sent, since one a
-     * later value of the same field replaced was never the server's to answer.
-     */
+    /** Sends one value, a large one staged beside the hub, settling once the answer's changes are applied; `before` runs just ahead of them. */
     public dispatchAsync(update: WebUIValueChangeRequest, before?: () => void): Promise<void> {
         this.given++;
 
@@ -83,7 +74,8 @@ export class ValueChangeDispatcher {
             const replaced = this.queue.findIndex(pending => pending.field === field);
             let settles: readonly Settle[] = [{ resolve, reject }];
 
-            // The replaced value's callers settle with this one; it moves to the end, since its latest value was given last.
+            // One trip per answer, not per move (a dragged slider): the replaced value's callers settle with this one, its `before`
+            // dropped since it was never the server's to answer, and it moves to the end, given last.
             if (replaced >= 0) {
                 settles = [...this.queue[replaced].settles, ...settles];
                 this.queue.splice(replaced, 1);

@@ -14,8 +14,6 @@ public abstract partial class SwitchComponent<T>(string? id = null) : CheckboxCo
 /// </summary>
 public sealed class SwitchComponent(string? id = null) : SwitchComponent<SwitchComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.switch";
 }

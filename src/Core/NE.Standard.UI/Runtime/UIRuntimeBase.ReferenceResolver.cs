@@ -37,7 +37,8 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
         return new ServerValueUIUpdate
         {
             Address = update.Address,
-            Value = value
+            Value = value,
+            Content = update.Content
         };
     }
 

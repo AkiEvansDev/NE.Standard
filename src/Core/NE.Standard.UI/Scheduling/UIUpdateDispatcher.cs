@@ -10,9 +10,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Scheduling;
 
-/// <summary>
-/// Hands a runtime's change sets to the client without making the flush pass wait for the send.
-/// </summary>
+/// <summary>Hands a runtime's change sets to the client without making the flush pass wait for the send.</summary>
 /// <remarks>
 /// One drain per runtime keeps change sets ordered; a runaway queue is emptied and the runtime asked for a full resync, since
 /// a dropped set would leave the client silently stale.

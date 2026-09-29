@@ -2,8 +2,8 @@
 import type { CollectionUpdateActionName, ServerCollectionChangeUIUpdate } from "../metadata/metadata-index";
 import { getCollectionUpdateAction } from "../metadata/metadata-index.ts";
 
-// A component that names a sink (`data-ui-collection-sink`) takes its bound collection as values, not as rows: a chart draws
-// points from them, a canvas its nodes. The sink gets every change the items machinery would otherwise turn into rows.
+// A component naming a sink (`data-ui-collection-sink`) takes its bound collection as values, not rows (a chart's points, a canvas's
+// nodes): the sink gets every change the items machinery would turn into rows.
 
 /** One item of a change: its key, where it sits in the source order, and the value the server sent. */
 type CollectionChangeItem = {
