@@ -367,19 +367,19 @@
 .ui-context-menu:has(> .ui-menu.ui-surface--background),
 .ui-split-button__menu:has(> .ui-menu.ui-surface--background),
 .ui-menu.ui-surface--background .ui-menu__submenu[data-ui-menu-flyout] {
-    background: var(--ui-color-background);
+    --ui-popup-ground: var(--ui-color-background);
 }
 
 .ui-context-menu:has(> .ui-menu.ui-surface--raised),
 .ui-split-button__menu:has(> .ui-menu.ui-surface--raised),
 .ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout] {
-    background: var(--ui-surface-raised);
+    --ui-popup-ground: var(--ui-surface-raised);
 }
 
 .ui-context-menu:has(> .ui-menu.ui-surface--tinted),
 .ui-split-button__menu:has(> .ui-menu.ui-surface--tinted),
 .ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {
-    background: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+    --ui-popup-ground: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
 }
 
 // The search takes the entries' width and asks for none: an input's own twenty characters would widen a sidebar.
@@ -404,3 +404,14 @@
 .ui-menu__item[data-ui-menu-unmatched] {
     display: none;
 }
+
+// What a search that leaves nothing says, or a menu with no entries: room around it, as a select's list gives its own.
+.ui-menu__host > [data-ui-empty-placeholder] {
+    padding: @ui-space-3;
+    text-align: center;
+}
+
+    // A folded menu is a rail of icons, where a line of words has no room.
+    .ui-menu[data-ui-collapsed] > .ui-menu__host > [data-ui-empty-placeholder] {
+        display: none;
+    }

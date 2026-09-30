@@ -5,6 +5,7 @@ import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { isCaretField } from "../interactions/caret-fields.ts";
 import { DraftDroppedEventName } from "../interactions/draft-events.ts";
+import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { focusAsLastInput } from "../interactions/popup-focus.ts";
 import { getBindingMode } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebBindingMode, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
@@ -79,8 +80,10 @@ export class ValueBindingEngine {
     // Elements, not values: an `OnSubmit` value is read at submit, so a later edit still travels; a package's held element too, until sent.
     private readonly bufferedElements = new Set<Element>();
 
-    // Fields with sends not yet answered, by count: a push meanwhile (an attach's snapshot too) is recorded but not written over the edit.
+    // Fields with a send not yet answered, by the number of their latest: a push meanwhile (an attach's snapshot too) is recorded but not
+    // written over the edit. The latest's answer lets go, since a value it replaced while waiting settles only after that answer is applied.
     private readonly unanswered = new Map<Element, number>();
+    private sends = 0;
 
     public constructor(options: ValueBindingEngineOptions) {
         this.options = options;
@@ -193,6 +196,11 @@ export class ValueBindingEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
+        // Whatever raised it, an engine's clamp included: a field the reader may not change sends nothing. A `toggle` still goes, as
+        // a flyout closing because it turned disabled says so.
+        if (domEvent.type === "change" && (isReadOnly(domEvent.target) || isInert(domEvent.target)))
+            return;
+
         const writable = resolveWritableBinding(domEvent.target, this.options.metadata);
 
         if (writable === null)
@@ -283,16 +291,8 @@ export class ValueBindingEngine {
 
     private async dispatchAndApplyAsync(element: Element, propertyName: string, resolved: ComponentResolveResult, binding: WebRenderPropertyReferenceMetadata): Promise<void> {
         const value = this.options.valueReaders.readBound(element);
-        let answered = false;
-        const answer = (): void => {
-            if (answered)
-                return;
-
-            answered = true;
-            this.releaseUnanswered(element);
-        };
-
-        this.holdUnanswered(element);
+        const send = this.holdUnanswered(element);
+        const answer = (): void => this.releaseUnanswered(element, send);
 
         try {
             // Let go and recorded just before the answer is applied: a value the server's answer carries is newer than the one sent.
@@ -311,17 +311,18 @@ export class ValueBindingEngine {
         }
     }
 
-    private holdUnanswered(element: Element): void {
-        this.unanswered.set(element, (this.unanswered.get(element) ?? 0) + 1);
+    private holdUnanswered(element: Element): number {
+        const send = ++this.sends;
+
+        this.unanswered.set(element, send);
+
+        return send;
     }
 
-    private releaseUnanswered(element: Element): void {
-        const count = this.unanswered.get(element) ?? 0;
-
-        if (count <= 1)
+    /** Lets the field go once its latest send is answered; an earlier one's answer leaves it held for the value still on its way. */
+    private releaseUnanswered(element: Element, send: number): void {
+        if (this.unanswered.get(element) === send)
             this.unanswered.delete(element);
-        else
-            this.unanswered.set(element, count - 1);
     }
 
     /** Sends a value an interaction wrote, when its property binds back, so state the page changed itself is the server's too. */

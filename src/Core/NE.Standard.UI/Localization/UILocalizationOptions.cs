@@ -13,6 +13,13 @@ public sealed class UILocalizationOptions
     /// </summary>
     public string DefaultLanguage { get; set; } = "en";
 
+    /// <summary>
+    /// Gets or sets whether a new session starts in the first language its client asks for that the translator has — the web's
+    /// <c>Accept-Language</c> — rather than in <see cref="DefaultLanguage"/>.
+    /// </summary>
+    /// <remarks>Only a new session: one the reader switched keeps its language. Off for an application in one language for everyone.</remarks>
+    public bool NegotiateLanguage { get; set; } = true;
+
     /// <summary>Gets the prefixes a plain string on a translatable property must start with to be looked up as a key (<c>editor.</c>).</summary>
     /// <remarks>
     /// The framework's own <c>ui.</c> is always one; empty, any string is a key. What keeps content equal to a key — a name equal to a

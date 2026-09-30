@@ -17,6 +17,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
     private const string TextClassName = "ui-tree-node__text";
 
     private static readonly WebDomOperation[] ParentIdOperations = [WebDomOperation.Attribute(WebAttributes.TreeParent)];
+    private static readonly WebDomOperation[] FolderOperations = [WebDomOperation.Attribute(WebAttributes.TreeFolder)];
     private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TreeTitle)];
     private static readonly WebDomOperation[] DropTargetOperations = [WebDomOperation.Attribute(WebAttributes.TreeDropTarget, target: "." + TextClassName)];
 
@@ -38,6 +39,13 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
         }, ParentIdOperations);
 
         RenderFlagAttribute(context, root, TreeNodeComponent.HasChildrenProperty, WebAttributes.TreeChildren);
+
+        // Three ways, so a word: absent leaves it to whether the node holds children.
+        _ = RenderProperty<bool?>(context, root, TreeNodeComponent.IsFolderProperty, static (target, value) =>
+        {
+            if (value is bool folder)
+                _ = target.Attribute(WebAttributes.TreeFolder, folder ? "true" : "false");
+        }, FolderOperations);
         RenderFlagAttribute(context, root, TreeNodeComponent.ExpandedProperty, WebAttributes.TreeExpanded);
 
         // The one writable value on the node's root: what a rename wrote, read back by kind.

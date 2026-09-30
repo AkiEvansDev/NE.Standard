@@ -44,8 +44,11 @@ public static class UILayout
     public static ContainerComponent Columns(double spacing = 16, params IVisualComponent[] children)
         => Columns(spacing, cellAlignment: null, children);
 
-    // A null alignment lets each cell take its child's; a form row names one for every cell instead.
-    internal static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, IVisualComponent[] children)
+    /// <summary>
+    /// Equal columns whose cells all stand at <paramref name="cellAlignment"/> — <see cref="UIAlignment.Start"/> holds a row of
+    /// fields by the top, as <see cref="UIForm.Row(double, IVisualComponent[])"/> does; null lets each cell take its child's own.
+    /// </summary>
+    public static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, params IVisualComponent[] children)
     {
         ArgumentNullException.ThrowIfNull(children);
 

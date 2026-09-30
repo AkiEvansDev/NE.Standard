@@ -49,6 +49,17 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
         => SetIsRange(true);
 
     /// <summary>
+    /// Sets the value, the start of a period, which may not fall after <see cref="EndValue"/> or outside <c>Min</c>/<c>Max</c>;
+    /// whichever is set last is checked against the others.
+    /// </summary>
+    public new TComponent SetValue(TValue? value)
+    {
+        ValidatePeriod(value, EndValue);
+
+        return base.SetValue(value);
+    }
+
+    /// <summary>
     /// Sets the end of the period, which may not fall before <c>Value</c> or outside <c>Min</c>/<c>Max</c>.
     /// </summary>
     public TComponent SetEndValue(TValue? endValue)

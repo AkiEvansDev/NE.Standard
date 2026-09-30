@@ -51,8 +51,9 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public bool? RenameOnDoubleClick { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node can be dragged onto another: the drop writes <c>DropTarget</c> and raises <c>move</c>; the
-    /// controller moves the node, since nothing moves on the client.
+    /// Gets or sets whether a node can be dragged onto a folder (<c>IsFolder</c>, else a node holding children) or the tree's own
+    /// ground: the drop writes <c>DropTarget</c> and raises <c>move</c>; the controller moves the node, since nothing moves on the
+    /// client.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Draggable { get; set; }
@@ -152,10 +153,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// Registers the command run when a node that says it has children is unfolded before any are in the list.
     /// </summary>
     public T OnNodeUnfold(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Unfold, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Unfold, command, arguments));
 
     /// <summary>
     /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back, with the node's key as an argument.
@@ -168,10 +166,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back.
     /// </summary>
     public T OnNodeRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Rename, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Rename, command, arguments));
 
     /// <summary>
     /// Registers the command run after a drag wrote <c>DropTarget</c>, with the dragged node's key as an argument; the
@@ -184,10 +179,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// Registers the command run after a drag wrote the node's <c>DropTarget</c>.
     /// </summary>
     public T OnNodeMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Move, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
 
     /// <summary>
     /// Registers the command the Delete key runs on the node the keyboard is on, with the node's key as an argument; a node

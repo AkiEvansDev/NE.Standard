@@ -1,6 +1,9 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
-import { parseWrittenMoment, TemporalCulturePack, writtenMomentDate } from "../rendering/temporal-format";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { dateTimePattern, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
+import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "../rendering/temporal-format.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
 
 export const RootClass = "ui-temporal-input";
 const ValueInputClass = "ui-temporal-input__value-input";
@@ -18,9 +21,19 @@ export const MinAttribute = "data-ui-temporal-min";
 export const MaxAttribute = "data-ui-temporal-max";
 const StepAttribute = "data-ui-temporal-step";
 const StepUnitAttribute = "data-ui-temporal-step-unit";
+/** On a control whose culture is the page's: a language switch writes its names and default format again. */
+const PageCultureAttribute = "data-ui-temporal-page-culture";
 
-/** The attributes a live patch can change, and that therefore have to re-render whatever is showing. */
-export const PickerAttributes = new Set([FormatAttribute, MinAttribute, MaxAttribute]);
+const MonthsAttribute = "data-ui-temporal-months";
+const MonthsGenitiveAttribute = "data-ui-temporal-months-genitive";
+const MonthsShortAttribute = "data-ui-temporal-months-short";
+const DayNamesAttribute = "data-ui-temporal-daynames";
+const WeekdaysAttribute = "data-ui-temporal-weekdays";
+const AmAttribute = "data-ui-temporal-am";
+const PmAttribute = "data-ui-temporal-pm";
+
+/** The attributes a live patch or a language switch can change, and that therefore have to re-render whatever is showing. */
+export const PickerAttributes = new Set([FormatAttribute, DefaultFormatAttribute, MinAttribute, MaxAttribute, MonthsAttribute, AmAttribute, PmAttribute]);
 
 export type TemporalMode = "date" | "time" | "date-time";
 export type TimeUnit = "hour" | "minute" | "second";
@@ -62,18 +75,74 @@ export function stepFor(step: TimeStep, unit: TimeUnit): number {
 
 export function readCulturePack(root: HTMLElement): TemporalCulturePack {
     return {
-        monthNames: readList(root, "data-ui-temporal-months"),
-        monthGenitiveNames: readList(root, "data-ui-temporal-months-genitive"),
-        abbreviatedMonthNames: readList(root, "data-ui-temporal-months-short"),
-        dayNames: readList(root, "data-ui-temporal-daynames"),
-        abbreviatedDayNames: readList(root, "data-ui-temporal-weekdays"),
-        amDesignator: root.getAttribute("data-ui-temporal-am") ?? "AM",
-        pmDesignator: root.getAttribute("data-ui-temporal-pm") ?? "PM"
+        monthNames: readList(root, MonthsAttribute),
+        monthGenitiveNames: readList(root, MonthsGenitiveAttribute),
+        abbreviatedMonthNames: readList(root, MonthsShortAttribute),
+        dayNames: readList(root, DayNamesAttribute),
+        abbreviatedDayNames: readList(root, WeekdaysAttribute),
+        amDesignator: root.getAttribute(AmAttribute) ?? "AM",
+        pmDesignator: root.getAttribute(PmAttribute) ?? "PM"
     };
 }
 
 function readList(root: HTMLElement, attribute: string): readonly string[] {
     return (root.getAttribute(attribute) ?? "").split("|");
+}
+
+/**
+ * Draws a control whose culture is the page's in another language: its names, and the default format its mode takes in that language
+ * (`GetDefaultDisplayFormat` on the server). A control with a `Culture` of its own keeps it.
+ */
+export function applyPageLanguage(root: HTMLElement, language: TemporalLanguage): void {
+    if (!root.hasAttribute(PageCultureAttribute))
+        return;
+
+    // Names first: the default format's change is what redraws the control, and it has to read the new names.
+    writeAttribute(root, MonthsGenitiveAttribute, language.monthGenitiveNames.join("|"));
+    writeAttribute(root, MonthsShortAttribute, language.abbreviatedMonthNames.join("|"));
+    writeAttribute(root, DayNamesAttribute, language.dayNames.join("|"));
+    writeAttribute(root, WeekdaysAttribute, language.abbreviatedDayNames.join("|"));
+    writeAttribute(root, MonthsAttribute, language.monthNames.join("|"));
+    writeAttribute(root, AmAttribute, language.amDesignator);
+    writeAttribute(root, PmAttribute, language.pmDesignator);
+    writeAttribute(root, DefaultFormatAttribute, defaultFormat(readMode(root), readStep(root), language));
+}
+
+/** Whether a format counts its hours to 12: a 12-hour hour token (`h`, `hh`) among its tokens. */
+export function isTwelveHour(format: string): boolean {
+    for (let index = 0; index < format.length;) {
+        const token = matchTemporalToken(format, index);
+
+        if (token === "h" || token === "hh")
+            return true;
+
+        index += token?.length ?? 1;
+    }
+
+    return false;
+}
+
+/** An hour of the picker's clock column as the field's format counts it: `14` on a 24-hour clock, `2 PM` on a 12-hour one. */
+export function hourLabel(hour: number, twelveHour: boolean, culture: TemporalCulturePack): string {
+    if (!twelveHour)
+        return String(hour).padStart(2, "0");
+
+    const designator = hour < 12 ? culture.amDesignator : culture.pmDesignator;
+    const counted = String(hour % 12 === 0 ? 12 : hour % 12);
+
+    return designator.length === 0 ? counted : `${counted} ${designator}`;
+}
+
+/** A mode's format in a language's patterns: the time to the second where the step reaches seconds. */
+export function defaultFormat(mode: TemporalMode, step: TimeStep, patterns: TemporalPatterns): string {
+    const seconds = step.unit === "second";
+
+    return mode === "date" ? patterns.date : mode === "time" ? (seconds ? patterns.longTime : patterns.shortTime) : dateTimePattern(patterns, seconds);
+}
+
+function writeAttribute(root: HTMLElement, attribute: string, value: string): void {
+    if (root.getAttribute(attribute) !== value)
+        root.setAttribute(attribute, value);
 }
 
 export function isRange(root: HTMLElement): boolean {
@@ -121,6 +190,17 @@ export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean
     valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+/**
+ * What a field's typed text sends: the value it names in the format the control shows, else the text as typed, for the server to read
+ * by the component's `Format` and `Culture` or refuse.
+ */
+export function typedValue(root: HTMLElement, text: string): string {
+    const typed = text.trim();
+    const read = typed.length === 0 ? null : readTemporal(typed, readFormat(root), readCulturePack(root));
+
+    return read === null ? typed : toCanonical(writtenMomentDate(read), readMode(root));
+}
+
 /** Puts a period's ends in order after one is written: an end typed or stepped before the start swaps with it, rather than refusing. */
 export function orderPeriod(root: HTMLElement): void {
     if (!isRange(root))
@@ -138,6 +218,10 @@ export function orderPeriod(root: HTMLElement): void {
 
 /** Pulls a value the controller pushed back inside Min/Max, and reports the clamp back through `writeValue`. */
 export function clampPushedValue(root: HTMLElement): void {
+    // A field the reader cannot change shows its value as it is: Min and Max bound what may be chosen, and none can be.
+    if (isReadOnly(root) || isInert(root))
+        return;
+
     clampPushedValueOf(root, false);
 
     if (isRange(root))

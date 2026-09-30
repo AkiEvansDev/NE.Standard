@@ -24,6 +24,7 @@ installFakeDom({
         marginLeft: "0px",
         marginRight: "0px",
         transform: "none",
+        getPropertyValue: () => "",
         filter: "none",
         perspective: "none"
     }),

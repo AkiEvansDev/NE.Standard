@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Sessions;
@@ -42,15 +44,52 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
         // Not saved here: UIHost persists whatever a resolver returns.
         UserSessionState session = stored ?? new UserSessionState
         {
-            SessionId = UserSessions.NewId(),
-            Language = _application.Translator.DefaultLanguage,
+            SessionId = initData.IssueSessionId(),
+            Language = NegotiateLanguage(initData.Languages),
             CreatedAtUtc = utcNow,
             LastSeenAtUtc = utcNow
         };
 
         session = ApplyClaims(session, initData.Principal);
 
-        return new UserSessionContext(session.SessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions);
+        return UserSessionContext.WithSessionId(session, session.SessionId);
+    }
+
+    /// <summary>
+    /// A new session's language: the first the client asks for that the translator has — as written, else its primary language
+    /// (<c>en</c> for <c>en-GB</c>) — or the default where it has none of them or negotiation is off.
+    /// </summary>
+    private string NegotiateLanguage(IReadOnlyList<string> wanted)
+    {
+        ITranslator translator = _application.Translator;
+
+        if (!_application.Localization.NegotiateLanguage)
+            return translator.DefaultLanguage;
+
+        for (var i = 0; i < wanted.Count; i++)
+        {
+            if (FindLanguage(translator.Languages, wanted[i]) is { } exact)
+                return exact;
+
+            var dash = wanted[i].IndexOf('-', StringComparison.Ordinal);
+
+            if (dash > 0 && FindLanguage(translator.Languages, wanted[i][..dash]) is { } primary)
+                return primary;
+        }
+
+        return translator.DefaultLanguage;
+    }
+
+    /// <summary>The translator's own spelling of a language tag, which compares without case.</summary>
+    private static string? FindLanguage(IReadOnlyList<string> languages, string tag)
+    {
+        for (var i = 0; i < languages.Count; i++)
+        {
+            if (string.Equals(languages[i], tag, StringComparison.OrdinalIgnoreCase))
+                return languages[i];
+        }
+
+        return null;
     }
 
     /// <summary>

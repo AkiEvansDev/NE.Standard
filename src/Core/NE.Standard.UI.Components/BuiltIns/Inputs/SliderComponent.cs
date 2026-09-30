@@ -21,13 +21,15 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// <summary>
     /// Gets or sets the minimum selectable value.
     /// </summary>
-    [UIComponentProperty(DefaultValue = 0d, GenerateSetter = false)]
+    /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMin"/>, which the value is checked against.</remarks>
+    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMin, GenerateSetter = false)]
     public decimal? Min { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum selectable value.
     /// </summary>
-    [UIComponentProperty(DefaultValue = 100d, GenerateSetter = false)]
+    /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMax"/>, which the value is checked against.</remarks>
+    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMax, GenerateSetter = false)]
     public decimal? Max { get; set; }
 
     /// <summary>
@@ -60,7 +62,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// </summary>
     public new T SetValue(decimal? value)
     {
-        OrderedRange.Validate(Min, Max, value, "value");
+        OrderedRangeComponentExtensions.ValidateOrderedRange(Min, Max, value, "value");
         Value = value;
         return Self;
     }

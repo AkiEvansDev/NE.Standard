@@ -92,6 +92,16 @@ public sealed class UIAction
     }
 
     /// <summary>
+    /// Creates an action argument entry resolved from what the event carries after the keys that address its component — a dropped
+    /// row's new index, beside <see cref="ArgCurrentItemKey"/> for the row itself.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgEventValue(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new KeyValuePair<string, UIActionArgument>(name, UIActionArgument.EventValue());
+    }
+
+    /// <summary>
     /// Creates an action argument entry resolved from a binding path relative to the root context.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgRoot(string name, string path)

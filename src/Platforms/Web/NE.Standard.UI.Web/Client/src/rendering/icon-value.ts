@@ -1,5 +1,7 @@
 // The client half of `WebIconValue`: a glyph name, or a picture URL filling `--ui-icon-url`; the refusals below gate an inline style.
 
+import { readImageSource } from "./url-safety.ts";
+
 /** Asks for the tinted form of a picture: masked with currentColor, like a glyph. */
 const maskPrefix = "mask:";
 
@@ -21,17 +23,9 @@ function readIconSource(value: unknown): IconSource | null {
         candidate = candidate.slice(maskPrefix.length).trim();
     }
 
-    return isAllowedImageSource(candidate) ? { source: candidate, tinted } : null;
-}
+    const source = readImageSource(candidate);
 
-/** Whether a string may be fetched as a picture — a relative path, http(s), or an image data URL; mirrors `WebIconValue.IsAllowedSource`. */
-export function isAllowedImageSource(candidate: string): boolean {
-    const lower = candidate.toLowerCase();
-
-    return (candidate.startsWith("/") && candidate.length > 1 && candidate[1] !== "/") ||
-        lower.startsWith("https://") ||
-        lower.startsWith("http://") ||
-        lower.startsWith("data:image/");
+    return source !== null ? { source, tinted } : null;
 }
 
 /** The CSS for `--ui-icon-url`, escaped so nothing in the source can end the declaration; empty for a glyph name. */

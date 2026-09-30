@@ -1,11 +1,14 @@
 // A number field shows its value in the component's culture and DisplayFormat, is edited in the culture's decimal separator,
 // and hands the value binding invariant text, the shape the value travels in whatever the page's language.
 
-import { NumberFormatAttribute } from "../addressing/dom-attributes";
-import { componentParts } from "../addressing/dom-registry";
-import { readNumberCulture } from "../rendering/number-format";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { NumberFormatAttribute } from "../addressing/dom-attributes.ts";
+import { componentParts } from "../addressing/dom-registry.ts";
+import { readNumberCulture } from "../rendering/number-format.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
+import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text.ts";
 
 const RootClass = "ui-number-input";
 const FieldClass = "ui-number-input__field";
@@ -53,6 +56,9 @@ export class NumberInputEngine {
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             this.showAtRest(componentParts(change.components, `.${FieldClass}`) as HTMLInputElement[]);
         });
+
+        // A switch wrote the page's culture pack again (`page-culture.ts`), ahead of every engine: each field at rest is drawn in it.
+        clientStrings.onChange(() => this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)));
     }
 
     /** Shows each field's value as it stands at rest; a focused field is the reader's and is left alone. */
@@ -68,9 +74,29 @@ export class NumberInputEngine {
 
     /** The invariant text the field stands for: the one kept for what this engine showed, else what the field holds now. */
     private valueOf(input: HTMLInputElement): string {
-        const kept = this.values.get(input);
+        return this.keptValue(input) ?? input.value.trim();
+    }
 
-        return kept !== undefined && this.shown.get(input) === input.value ? kept : input.value.trim();
+    /** The invariant text kept for the field while it still shows what this engine wrote; undefined once a push or the reader wrote over it. */
+    private keptValue(input: HTMLInputElement): string | undefined {
+        return this.showsOwnText(input) ? this.values.get(input) : undefined;
+    }
+
+    private showsOwnText(input: HTMLInputElement): boolean {
+        return this.shown.get(input) === input.value;
+    }
+
+    /**
+     * A number field's value as its binding sends it — invariant text, whatever the field shows in its culture — or undefined for
+     * an element that is no number field. Text the reader typed and has not committed is read as the change would read it.
+     */
+    public readValue(element: Element): string | undefined {
+        const input = asField(element);
+
+        if (input === null)
+            return undefined;
+
+        return this.keptValue(input) ?? readTyped(input) ?? input.value.trim();
     }
 
     /** Writes the field's text for where it stands: the edit text under the caret, the formatted one at rest. */
@@ -119,12 +145,13 @@ export class NumberInputEngine {
             return;
 
         // What the reader left typed and never committed (no change came) is read as the field's text, as the browser reads it.
-        const typed = this.shown.get(input) === input.value ? null : parseNumberText(input.value, readNumberCulture(input), formatOf(input));
+        const typed = this.showsOwnText(input) ? null : readTyped(input);
 
         if (typed !== null)
             this.values.set(input, typed);
 
-        if (input.hasAttribute(TrimZerosAttribute)) {
+        // Not on a field the reader cannot change: a focus and a blur there are no edit, and the server's text stands.
+        if (input.hasAttribute(TrimZerosAttribute) && !isReadOnly(input) && !isInert(input)) {
             const value = this.values.get(input) ?? "";
             const trimmed = trimTrailingZeros(value);
 
@@ -143,7 +170,7 @@ export class NumberInputEngine {
         if (input === null)
             return;
 
-        const value = parseNumberText(input.value, readNumberCulture(input), formatOf(input));
+        const value = readTyped(input);
 
         if (value === null)
             return;
@@ -204,8 +231,7 @@ export class NumberInputEngine {
     /** Moves the field one step up or down from what it shows, held inside Min and Max, and reports it as a typed value is reported. */
     private step(input: HTMLInputElement, direction: 1 | -1): void {
         const step = Number(input.getAttribute(StepAttribute) ?? "1");
-        const typed = parseNumberText(input.value, readNumberCulture(input), formatOf(input));
-        const current = Number(this.shown.get(input) === input.value ? this.valueOf(input) : typed ?? "0") || 0;
+        const current = Number(this.showsOwnText(input) ? this.valueOf(input) : readTyped(input) ?? "0") || 0;
 
         let next = current + (step * direction);
 
@@ -225,6 +251,11 @@ export class NumberInputEngine {
 
 function asField(target: EventTarget | null): HTMLInputElement | null {
     return target instanceof HTMLInputElement && target.classList.contains(FieldClass) ? target : null;
+}
+
+/** The field's text read in its culture and format as invariant text, or null for text that is no number. */
+function readTyped(input: HTMLInputElement): string | null {
+    return parseNumberText(input.value, readNumberCulture(input), formatOf(input));
 }
 
 /** The author's DisplayFormat, off the field's own component rather than whatever ancestor carries one. */

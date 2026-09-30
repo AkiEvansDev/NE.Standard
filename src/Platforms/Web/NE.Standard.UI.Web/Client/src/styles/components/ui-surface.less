@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
 @import "../mixins/interactive.less";
+@import "../mixins/lift.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/surface-image.less";
@@ -66,6 +67,8 @@
     // An opaque ground of its own; a Background's on-colour and colour, written inline, still win.
     --ui-faint-base: initial;
     --ui-ground: var(--ui-surface-fill);
+    // The page's own level again, inside a raised panel too: a popup opened here is the page's.
+    --ui-popup-ground: initial;
 }
 
 .ui-surface--raised {
@@ -73,6 +76,8 @@
     background-color: var(--ui-surface-fill);
     --ui-faint-base: initial;
     --ui-ground: var(--ui-surface-fill);
+    // A popup opened from a lifted panel is lifted once more, as the panel is off the page.
+    .ui-popup-ground-lifted(var(--ui-surface-fill));
     .ui-elevation-1();
 }
 
@@ -84,4 +89,6 @@
     // nor its colour as the ground: the ground is the mix.
     --ui-faint-base: initial !important;
     --ui-ground: var(--ui-surface-fill) !important;
+    // Mostly the page's ground, so a popup opened here is the page's.
+    --ui-popup-ground: initial;
 }

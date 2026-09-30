@@ -28,7 +28,7 @@ public sealed record UIWordTable
 
     /// <summary>
     /// Gets the words by key as the translator answers them for the language: its own over the default language's over the
-    /// framework's English.
+    /// framework's English — in each language the application's words over the framework's.
     /// </summary>
     public IReadOnlyDictionary<string, string> Words { get; }
 

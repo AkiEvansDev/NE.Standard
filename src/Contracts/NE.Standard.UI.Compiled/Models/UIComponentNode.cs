@@ -48,6 +48,11 @@ public sealed class UIComponentNode
     public bool DefinesContextParameter { get; init; }
 
     /// <summary>
+    /// Gets whether the author marked this component's subtree content for the unkeyed-words report; read by nothing else.
+    /// </summary>
+    public bool IsContentTree { get; init; }
+
+    /// <summary>
     /// Gets slots owned by the component.
     /// </summary>
     public UIComponentSlot[] Slots { get; init; } = [];

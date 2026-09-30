@@ -106,11 +106,32 @@ internal sealed partial class UIViewCompilationContext
                 Kind = CompiledUIActionArgumentKind.EventKey,
                 Value = argument.Value
             },
+            // The value stands right after the keys the component's address needs, one per item scope it stands in.
+            UIActionArgumentKind.EventValue => new CompiledUIActionArgument
+            {
+                Name = name,
+                Kind = CompiledUIActionArgumentKind.EventKey,
+                Value = CountItemScopes(component, componentContexts)
+            },
             UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             _ => throw new UnreachableException()
         };
+    }
+
+    /// <summary>How many item scopes the component stands in, itself included: the keys its address needs, as the runtime counts them.</summary>
+    private int CountItemScopes(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts)
+    {
+        var count = 0;
+
+        for (var id = component.Id; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (componentContexts.TryGetValue(id, out ResolvedComponentContext context) && context.DefinesParameter)
+                count++;
+        }
+
+        return count;
     }
 
     private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIBindingPath binding, CompiledUIActionArgumentKind kind, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)

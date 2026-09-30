@@ -1,3 +1,5 @@
+using System;
+
 namespace NE.Standard.UI.Primitives.Constants;
 
 /// <summary>
@@ -46,9 +48,16 @@ public static class RegionNames
     public const string Menu = "menu";
 
     /// <summary>
-    /// The control a field carries at the end of its row — a copy, a generate, a look-up, or a menu of them.
+    /// The control a field carries at the end of its row — a copy, a generate, a look-up, or a menu of them; the first of the
+    /// field's trailing actions, the others named by <see cref="FieldAction"/>.
     /// </summary>
     public const string TrailingAction = "trailing-action";
+
+    /// <summary>
+    /// The control a field carries at the start of its row — an attach, a pick; the first of the field's leading actions, the
+    /// others named by <see cref="FieldAction"/>.
+    /// </summary>
+    public const string LeadingAction = "leading-action";
 
     /// <summary>
     /// What a collapsible control carries beside its collapse toggle, in one row with it — a search, a title — seen only while open.
@@ -59,4 +68,16 @@ public static class RegionNames
     /// The menu a tabs view opens on a tab's caption: its own entries with the application's among them.
     /// </summary>
     public const string TabMenu = "tab-menu";
+
+    /// <summary>
+    /// The region of a field's action at <paramref name="index"/> on one side (<see cref="LeadingAction"/> or
+    /// <see cref="TrailingAction"/>): the side's own name for the first, so a field with one action keeps it, then numbered from 2.
+    /// </summary>
+    public static string FieldAction(string side, int index)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(side);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+
+        return index == 0 ? side : $"{side}-{index + 1}";
+    }
 }

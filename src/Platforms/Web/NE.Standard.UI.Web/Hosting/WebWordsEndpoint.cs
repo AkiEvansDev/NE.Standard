@@ -16,6 +16,8 @@ using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
+using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Assets;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -42,29 +44,25 @@ internal static class WebWordsEndpoint
         _ = endpoints.MapGet(Prefix + "{language}.json", Serve);
     }
 
-    /// <summary>The language whose table a page of <paramref name="language"/> translates by: its own when listed, else the default.</summary>
-    public static string TableLanguage(ITranslator translator, string? language)
+    /// <summary>
+    /// The words a page of <paramref name="language"/> translates by — its own language's table when the translator lists it, else the
+    /// default language's — built on first use under the application's options and held with its translator.
+    /// </summary>
+    public static WebWordsAsset Resolve(UIApplication application, string? language, IEnumerable<IUIStringsSource> packages)
     {
-        ArgumentNullException.ThrowIfNull(translator);
-
-        return language is not null && translator.HasLanguage(language) ? language : translator.DefaultLanguage;
-    }
-
-    /// <summary>The words of a listed language, built on first use and held with the translator.</summary>
-    public static WebWordsAsset Resolve(ITranslator translator, string language, IEnumerable<IUIStringsSource> packages, bool reportMissing)
-    {
-        ArgumentNullException.ThrowIfNull(translator);
-        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+        ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(packages);
 
+        ITranslator translator = application.Translator;
+        var table = language is not null && translator.HasLanguage(language) ? language : translator.DefaultLanguage;
         ConcurrentDictionary<string, WebWordsAsset> held = Held.GetValue(translator, static _ => new ConcurrentDictionary<string, WebWordsAsset>(StringComparer.Ordinal));
 
-        if (held.TryGetValue(language, out WebWordsAsset? asset))
+        if (held.TryGetValue(table, out WebWordsAsset? asset))
             return asset;
 
-        asset = WebWordsAsset.Build(translator, language, packages, reportMissing);
+        asset = WebWordsAsset.Build(translator, table, packages, application.MissingWords is not null, application.Temporal);
 
-        return held.Count < MaxHeldLanguages ? held.GetOrAdd(language, asset) : asset;
+        return held.Count < MaxHeldLanguages ? held.GetOrAdd(table, asset) : asset;
     }
 
     private static IResult Serve(string language, HttpContext http, [FromServices] UIApplication application, [FromServices] IEnumerable<IUIStringsSource> packages, [FromServices] WebAssetCompression compression)
@@ -72,7 +70,7 @@ internal static class WebWordsEndpoint
         if (!application.Translator.HasLanguage(language))
             return Results.NotFound();
 
-        WebWordsAsset asset = Resolve(application.Translator, language, packages, application.MissingWords is not null);
+        WebWordsAsset asset = Resolve(application, language, packages);
         var etag = string.Create(CultureInfo.InvariantCulture, $"\"{asset.Version}\"");
         var versioned = string.Equals(http.Request.Query["v"].ToString(), asset.Version, StringComparison.Ordinal);
 
@@ -106,6 +104,9 @@ internal sealed class WebWordsAsset
 {
     public const string ContentType = "application/json; charset=utf-8";
 
+    // The wire's conventions: the temporal and number blocks' names are the ones the culture attributes and the metadata use.
+    private static readonly JsonSerializerOptions PackJsonOptions = WebWireJson.CreateOptions();
+
     private readonly Lazy<WebAssetCompression.Compressed> _compressed;
 
     private WebWordsAsset(string language, byte[] bytes, string version, string stringsJson)
@@ -120,7 +121,7 @@ internal sealed class WebWordsAsset
 
     public string Language { get; }
 
-    /// <summary>The words as UTF-8 JSON: <c>{language, complete, prefixes, report?, words}</c>.</summary>
+    /// <summary>The words as UTF-8 JSON: <c>{language, complete, prefixes, report?, words, temporal}</c>.</summary>
     public byte[] Bytes { get; }
 
     /// <summary>A hash of <see cref="Bytes"/>, the same on every node and every start, since the words are written in key order.</summary>
@@ -135,7 +136,7 @@ internal sealed class WebWordsAsset
     /// <summary>The framework's and the packages' words in this language, serialized for the page's <c>data-ui-strings</c> block.</summary>
     public string StringsJson { get; }
 
-    public static WebWordsAsset Build(ITranslator translator, string language, IEnumerable<IUIStringsSource> packages, bool reportMissing)
+    public static WebWordsAsset Build(ITranslator translator, string language, IEnumerable<IUIStringsSource> packages, bool reportMissing, UITemporalOptions? temporal)
     {
         UIWordTable table = translator.ListWords(language);
         SortedDictionary<string, string> words = new(StringComparer.Ordinal);
@@ -154,7 +155,7 @@ internal sealed class WebWordsAsset
         using (MemoryStream buffer = new())
         {
             using (Utf8JsonWriter writer = new(buffer))
-                Write(writer, language, table, reportMissing, words);
+                Write(writer, language, table, reportMissing, words, temporal);
 
             bytes = buffer.ToArray();
         }
@@ -162,7 +163,7 @@ internal sealed class WebWordsAsset
         return new WebWordsAsset(language, bytes, HashVersion(bytes), WebShellRenderer.SerializeStrings(chrome));
     }
 
-    private static void Write(Utf8JsonWriter writer, string language, UIWordTable table, bool reportMissing, SortedDictionary<string, string> words)
+    private static void Write(Utf8JsonWriter writer, string language, UIWordTable table, bool reportMissing, SortedDictionary<string, string> words, UITemporalOptions? temporal)
     {
         writer.WriteStartObject();
         writer.WriteString("language", language);
@@ -184,7 +185,33 @@ internal sealed class WebWordsAsset
             writer.WriteString(word.Key, word.Value);
 
         writer.WriteEndObject();
+        WriteTemporal(writer, language, temporal);
+
+        // The pack a number in the page's culture is drawn with after a switch, as its culture attribute carries it.
+        writer.WritePropertyName("number");
+        JsonSerializer.Serialize(writer, WebNumberCulturePack.FromCulture(WebCultures.Resolve(language)), PackJsonOptions);
         writer.WriteEndObject();
+    }
+
+    /// <summary>
+    /// The language's names and patterns a temporal field in the page's culture is drawn with, so a switch draws it again without a
+    /// render: <c>WebTemporalCulturePack</c> and <c>WebTemporalPatterns</c> under the application's options, in one object.
+    /// </summary>
+    private static void WriteTemporal(Utf8JsonWriter writer, string language, UITemporalOptions? options)
+    {
+        CultureInfo culture = WebCultures.Resolve(language);
+
+        // One object of both, each written by the wire's own conventions, as a field's culture attribute carries the pack.
+        writer.WriteStartObject("temporal");
+        WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), PackJsonOptions));
+        WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), PackJsonOptions));
+        writer.WriteEndObject();
+    }
+
+    private static void WriteFields(Utf8JsonWriter writer, JsonElement value)
+    {
+        foreach (JsonProperty field in value.EnumerateObject())
+            field.WriteTo(writer);
     }
 
     private static string HashVersion(byte[] bytes)
@@ -202,6 +229,9 @@ internal sealed class WebPageWords
     /// <summary>Gets the language and address of the table.</summary>
     public required WebPageWordsTable Table { get; init; }
 
+    /// <summary>Gets the chrome's words in the table's language, for the page's <c>data-ui-strings</c> block.</summary>
+    public required string StringsJson { get; init; }
+
     /// <summary>Gets the view's title as it is translated — a plain key, or a phrase when the title takes arguments — or none.</summary>
     public object? Title { get; init; }
 
@@ -211,13 +241,13 @@ internal sealed class WebPageWords
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(resolution);
 
-        var language = WebWordsEndpoint.TableLanguage(application.Translator, resolution.Session.Language);
-        WebWordsAsset asset = WebWordsEndpoint.Resolve(application.Translator, language, packages, application.MissingWords is not null);
+        WebWordsAsset asset = WebWordsEndpoint.Resolve(application, resolution.Session.Language, packages);
         var title = resolution.View.Title;
 
         return new WebPageWords
         {
             Table = new WebPageWordsTable(asset.Language, asset.Href),
+            StringsJson = asset.StringsJson,
             Title = string.IsNullOrWhiteSpace(title)
                 ? null
                 : resolution.View.TitleArguments is { Count: > 0 } arguments ? new UIPhrase(title, arguments) : title

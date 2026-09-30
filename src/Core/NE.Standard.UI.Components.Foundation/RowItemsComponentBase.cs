@@ -41,28 +41,25 @@ public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id 
     /// Registers a click command invoked when a row is clicked.
     /// </summary>
     public TComponent OnRowClick(string command)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Click, command);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Click, command));
+
+    /// <summary>
+    /// Writes a row event on the row template and on every one <see cref="SetRowTemplate"/> sets later.
+    /// </summary>
+    protected TComponent OnRowTemplate(Action<TRow> register)
+        => OnTemplate(TemplateNames.Row, register);
 
     /// <summary>
     /// Registers a click command invoked when a row is clicked, with UI action arguments.
     /// </summary>
     public TComponent OnRowClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Click, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Click, command, arguments));
 
     /// <summary>
     /// Registers a click command invoked when a row is clicked, with literal argument values.
     /// </summary>
     public TComponent OnRowClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-    {
-        _ = RequiredRowTemplate.OnLiteral(EventNames.Click, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Click, command, arguments));
 
     /// <summary>
     /// Registers a command invoked when a row is opened — Enter on the keyboard's row, or a double click — with the row's key.
@@ -74,10 +71,7 @@ public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id 
     /// Registers a command invoked when a row is opened — Enter on the keyboard's row, or a double click.
     /// </summary>
     public TComponent OnRowOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Open, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Open, command, arguments));
 
     /// <summary>
     /// Registers a command invoked when the Delete key is pressed on a row that may be removed, with the row's key; the
@@ -90,13 +84,10 @@ public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id 
     /// Registers a command invoked when the Delete key is pressed on a row that may be removed.
     /// </summary>
     public TComponent OnRowRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredRowTemplate.On(EventNames.Remove, command, arguments);
-        return Self;
-    }
+        => OnRowTemplate(row => _ = row.On(EventNames.Remove, command, arguments));
 
     /// <summary>
-    /// The row template, which a click needs configured.
+    /// The row template, which a registration that configures the row in hand needs.
     /// </summary>
     protected TRow RequiredRowTemplate
         => RowTemplate ?? throw new InvalidOperationException($"The row template of '{TypeKey}' is not configured.");

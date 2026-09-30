@@ -9,6 +9,7 @@
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Interaction" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Items" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Localization" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Security" />
     <NEStandardUIUsing Include="NE.Standard.UI.Primitives.Styling" />
   </ItemGroup>
 

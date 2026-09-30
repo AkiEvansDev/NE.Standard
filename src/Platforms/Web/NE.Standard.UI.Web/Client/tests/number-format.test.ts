@@ -30,6 +30,21 @@ for (const testCase of corpus.cases) {
     });
 }
 
+// What .NET writes for the decimal of the same text, where a double's arithmetic lost it: a fourteen-digit integer part's cents, and
+// 1e21 written with an exponent.
+test("a large or a tiny value keeps every digit it was written with, and is never written with an exponent", () => {
+    const culture = corpus.cultures["en-US"];
+
+    assert.equal(formatNumber(12345678901234.56, "N2", culture), "12,345,678,901,234.56");
+    assert.equal(formatNumber(-12345678901234.56, "F1", culture), "-12345678901234.6");
+    assert.equal(formatNumber(1e21, "N0", culture), "1,000,000,000,000,000,000,000");
+    assert.equal(formatNumber(1e21, null, culture), "1000000000000000000000");
+    assert.equal(formatNumber(123456789012345, "D", culture), "123456789012345");
+    assert.equal(formatNumber(0.00000015, null, culture), "0.00000015");
+    assert.equal(formatNumber(0.00000015, "F7", culture), "0.0000002");
+    assert.equal(formatNumber(9.995, "N2", culture), "10.00");
+});
+
 test("a format outside the subset throws, as the server refuses it", () => {
     assert.throws(() => formatNumber(1, "#,##0.00", InvariantNumberCulture));
     assert.throws(() => formatNumber(1, "N123", InvariantNumberCulture));

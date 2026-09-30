@@ -12,6 +12,8 @@ namespace DemoApp.Views.Items.ItemsView;
 internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string FeedGroup = nameof(ItemsViewExamplesController.FeedGroup);
+    private const string OrderGroup = nameof(ItemsViewExamplesController.OrderGroup);
+    private const string RunbookGroup = nameof(ItemsViewExamplesController.RunbookGroup);
 
     /// <summary>Ids of the two controls a list's rules name; a rule reads a component, not a value.</summary>
     private const string FilterId = "items-examples-filter";
@@ -31,7 +33,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
 
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateFilterGroup(), CreateGroupedGroup(), CreateTilesGroup()],
-            [CreateFeedGroup(), CreateSortGroup(), CreateEmptyGroup()]
+            [CreateFeedGroup(), CreateSortGroup(), CreateEmptyGroup(), CreateOrderGroup(), CreateRunbookGroup()]
             )
         );
     }
@@ -82,6 +84,60 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
 
     private static DemoReleaseItem CreateRelease(string id, string number, string note, string badge, UIBadgeType badgeStyle, string picture)
         => new() { Id = id, Icon = DemoIcons.Upload, Title = $"Release {number}", Description = note, BadgeText = badge, BadgeStyle = badgeStyle, Picture = picture };
+
+    /// <summary>
+    /// Rows put in order by a drag, or by Alt+Up and Alt+Down: the drop hands the controller the row's key and the place it takes, and
+    /// the controller moves the row in its collection — or does not.
+    /// </summary>
+    private static ContainerComponent CreateOrderGroup()
+    {
+        return DemoUI.CreateExample("Put in order by a drag",
+            new ItemsViewComponent()
+                .BindItems(nameof(RolloutOrderGroupContext.Services), UIBindingScope.Relative)
+                .SetDraggable(true)
+                .OnItemMoveWithItemKey(nameof(ItemsViewExamplesController.MoveService))
+                .SetSpacing(4)
+                .SetTemplate(new TextComponent()
+                    .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                    .SetIconColor(UIThemeColor.Muted)
+                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                    .AsBody()
+                    .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                    .SetDescriptionColor(UIThemeColor.Muted)
+                    .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
+                    .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                    .SetBadgePlacement(UITextBadgePlacement.Trailing)
+                ),
+            note: "The order a release reaches the services in. Drag a row between two others, or put the keyboard on it and press Alt+Up or Alt+Down. Nothing moves until the controller moves the row in its RecursiveCollection; the status page cannot be dragged (`CanDrag = false`), and a row dropped above it is refused.",
+            context: OrderGroup
+        );
+    }
+
+    /// <summary>
+    /// Rows put in order by the grip at their end alone (<c>DragHandle</c>): the rest of the row is the reader's, so a command in it
+    /// is selected and copied rather than taken for a drag.
+    /// </summary>
+    private static ContainerComponent CreateRunbookGroup()
+    {
+        return DemoUI.CreateExample("Put in order by a grip",
+            new ItemsViewComponent()
+                .BindItems(nameof(RunbookGroupContext.Steps), UIBindingScope.Relative)
+                .SetDraggable(true)
+                .SetDragHandle(true)
+                .OnItemMoveWithItemKey(nameof(ItemsViewExamplesController.MoveStep))
+                .SetSpacing(4)
+                .SetTemplate(new TextComponent()
+                    .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                    .SetIconColor(UIThemeColor.Muted)
+                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                    .AsBody()
+                    .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                    .SetDescriptionColor(UIThemeColor.Muted)
+                ),
+            note: "A failover's steps in the order they are run. Only the grip at a row's end drags it, and the keyboard moves the list's row by Alt+Up and Alt+Down; the rest of the row keeps its words, so a command is selected and copied like any text. The grip may stand at the start instead (`SetDragHandle(UIDragHandlePlacement.Start)`, or DragHandlePlacement on the Main page).",
+            context: RunbookGroup
+        );
+    }
 
     /// <summary>
     /// The ordinary list with a box and a select over it, narrowed in the browser against a collection it holds whole: the

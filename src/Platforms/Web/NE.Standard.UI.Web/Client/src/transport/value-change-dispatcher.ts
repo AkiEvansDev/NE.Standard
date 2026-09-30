@@ -1,10 +1,11 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
 import type { WebUIValueChangeRequest } from "../metadata/metadata-index";
+import { ConnectionDropped } from "./attach-gate.ts";
 import type { SignalRTransport } from "./signalr-transport";
 import { largeValueBody, stageValueAsync } from "./value-staging.ts";
 
-/** The one call the dispatcher makes: a change set onto the hub. */
-export type ChangeSetSender = Pick<SignalRTransport, "processChangeSetAsync">;
+/** The calls the dispatcher makes: a change set onto the hub, and a wait for the page to be attached again after a drop. */
+export type ChangeSetSender = Pick<SignalRTransport, "processChangeSetAsync" | "whenAttached">;
 
 const Sent: Promise<void> = Promise.resolve();
 
@@ -19,6 +20,8 @@ type Settle = {
 type Pending = {
     readonly field: string;
     readonly update: WebUIValueChangeRequest;
+    // Kept beside its token: the server takes a token once, and one sent under a dropped connection may be spent.
+    readonly body: Uint8Array | null;
     readonly staged: Promise<string> | null;
     readonly before: (() => void) | undefined;
     readonly settles: readonly Settle[];
@@ -81,7 +84,7 @@ export class ValueChangeDispatcher {
                 this.queue.splice(replaced, 1);
             }
 
-            this.queue.push({ field, update, staged, before, settles });
+            this.queue.push({ field, update, body, staged, before, settles });
             this.pump();
         });
     }
@@ -145,11 +148,58 @@ export class ValueChangeDispatcher {
             }
         }
         catch (error) {
+            if (error instanceof ConnectionDropped) {
+                this.requeue(sent);
+                return;
+            }
+
             for (const pending of sent) {
                 for (const settle of pending.settles)
                     settle.reject(error);
             }
         }
+    }
+
+    /**
+     * Gives back the values a dropped connection took, ahead of those given since, to go once the page is attached again: the server
+     * may or may not have taken them, and each is a plain set of the latest value, so sending it again is harmless. A field given
+     * again meanwhile goes once, with that newer value, which settles both callers.
+     */
+    private requeue(sent: readonly Pending[]): void {
+        const again: Pending[] = [];
+
+        for (const pending of sent) {
+            const newer = this.queue.findIndex(waiting => waiting.field === pending.field);
+
+            if (newer >= 0) {
+                const waiting = this.queue[newer];
+
+                this.queue[newer] = { ...waiting, settles: [...pending.settles, ...waiting.settles] };
+                continue;
+            }
+
+            again.push({ ...pending, staged: this.restage(pending.body) });
+        }
+
+        if (again.length === 0)
+            return;
+
+        this.queue.unshift(...again);
+
+        // Off the hub again: a command given from here waits for them, as for any value given before it.
+        this.given++;
+    }
+
+    /** Stages a large value again, once the page is attached: until then its server may be the one that went away. */
+    private restage(body: Uint8Array | null): Promise<string> | null {
+        if (body === null)
+            return null;
+
+        const staged = this.transport.whenAttached().then(() => stageValueAsync(body));
+
+        staged.catch(Ignore);
+
+        return staged;
     }
 
     private markHanded(through: number): void {

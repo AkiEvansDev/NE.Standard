@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding;
 
 namespace NE.Standard.UI.Abstractions.Recursive;
 
@@ -11,21 +12,26 @@ public abstract class RecursiveObservable
     private sealed class PropertyForwarder
     {
         private readonly RecursiveObservable _owner;
-        private readonly PathSegment _segment;
 
         public PropertyForwarder(RecursiveObservable owner, PathSegment segment)
         {
             _owner = owner;
-            _segment = segment;
+            Segment = segment;
             Notify = Forward;
         }
 
         /// <summary>The callback a child is handed, made once so a re-propagation allocates no delegate.</summary>
         public Action<RecursiveChange> Notify { get; }
 
+        /// <summary>The property the child stands in.</summary>
+        public PathSegment Segment { get; }
+
         private void Forward(RecursiveChange change)
-            => _owner.Notify(change.Prepend(_segment));
+            => _owner.Notify(change.Prepend(Segment));
     }
+
+    // How far up a refusal names the places it compares; an owner chain is a tree, so this only keeps a broken one from hanging it.
+    private const int MaxDescribedSteps = 32;
 
     private readonly Dictionary<PathSegment, PropertyForwarder> _propertyForwarders = [];
     private Action<RecursiveChange>? _notifier;
@@ -151,14 +157,36 @@ public abstract class RecursiveObservable
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(slot);
 
-        if (_owner is null)
+        if (_owner is null || (ReferenceEquals(_owner, owner) && ReferenceEquals(_ownerSlot, slot)))
             return;
 
-        if (!ReferenceEquals(_owner, owner))
-            throw new InvalidOperationException("Recursive nodes must belong to a single owner. Shared nodes are not supported.");
+        throw new InvalidOperationException(
+            $"A {GetType().Name} cannot be held in two places: it stands at {DescribePlace(_owner, _ownerSlot!)} and is being put at " +
+            $"{DescribePlace(owner, slot)}. Shared nodes are not supported; give each place its own instance. A closed list of options " +
+            "belongs on the view (SetOptions), where one list is shared freely by every select and every page.");
+    }
 
-        if (!ReferenceEquals(_ownerSlot, slot))
-            throw new InvalidOperationException("A recursive node cannot be held in two places under one owner. Shared nodes are not supported.");
+    // Only on a refusal, so an ordinary attach pays nothing for it: the path from the root to the place, and the root's type. A row
+    // is named by its key as a path writes one, escaped; an unkeyed row by "[]", since its index would mean reading its list under
+    // that list's lock from inside another's.
+    private string DescribePlace(RecursiveObservable owner, object slot)
+    {
+        List<string> steps = [];
+        RecursiveObservable node = this;
+        RecursiveObservable? current = owner;
+        var place = slot;
+
+        while (current is not null && steps.Count < MaxDescribedSteps)
+        {
+            steps.Add(place is PropertyForwarder forwarder ? $".{forwarder.Segment}" : node is IBindableItem { Id.Length: > 0 } item ? PathSegment.WithKey(item.Id).ToString() : "[]");
+            node = current;
+            place = current._ownerSlot;
+            current = current._owner;
+        }
+
+        steps.Reverse();
+
+        return $"'{string.Concat(steps).TrimStart('.')}' on {node.GetType().Name}";
     }
 
     /// <summary>

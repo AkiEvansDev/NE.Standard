@@ -29,4 +29,9 @@ public enum UIActionArgumentKind
     /// The argument value is one key of the event's own chain, by its place in it — for an event that names its keys itself.
     /// </summary>
     EventKey = 4,
+
+    /// <summary>
+    /// The argument value is what the event carries after the keys that address its component — the place a dragged row was dropped at.
+    /// </summary>
+    EventValue = 5,
 }

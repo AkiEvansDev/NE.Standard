@@ -231,6 +231,20 @@
     user-select: none;
 }
 
+// A row dragged by itself (Draggable with no grip) is chrome too: selectable words in a draggable box take the press for a selection,
+// in place of the drag. A row that may not move keeps its words, as does a part a press never drags it by (a grid's open detail); a
+// host dragged by grips leaves them to the reader, but for a wrapped tile, which draws no grip and drags whole.
+@ui-dragged-rows: ~".ui-items-view[data-ui-rows-draggable]:is(:not([data-ui-rows-drag-handle]), .ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item:not([data-ui-undraggable]), .ui-table[data-ui-rows-draggable]:not([data-ui-rows-drag-handle]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:not([data-ui-undraggable])";
+
+:is(@{ui-dragged-rows}),
+:is(@{ui-dragged-rows}) .ui-text--selectable:not([data-ui-no-row-drag] *) {
+    user-select: none;
+}
+
+:is(@{ui-dragged-rows}) [data-ui-no-row-drag] {
+    user-select: text;
+}
+
 // Loading fades the ground and turns the ring. A button without an icon dims its label instead (Chrome paints its label box over the
 // veil); a tab item's root is display: contents, so its caption carries the look.
 @ui-loading-ringed: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon):not(.ui-tab-item)";

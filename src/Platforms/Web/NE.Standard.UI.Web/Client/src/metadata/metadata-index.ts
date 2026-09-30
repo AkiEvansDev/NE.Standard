@@ -491,7 +491,8 @@ export type SetThemeClientEffect = ClientEffect & {
 };
 
 export type NotificationClientEffect = ClientEffect & {
-    readonly message?: string;
+    /** The words: a key with its arguments, or the author's text looked up by the plain rule. */
+    readonly message?: Phrase | AuthorText;
     readonly severity?: string | number;
 };
 
@@ -515,6 +516,8 @@ export type WebUIAttachRequest = {
     /** The compile the page was rendered from, for the server to refuse a page of another. */
     readonly view: string | null;
     readonly parameters: Record<string, unknown> | null;
+    /** The IANA zone the browser runs in, kept on the session; null where the browser names none. */
+    readonly timeZone: string | null;
 };
 
 export type WebUIAttachResult = {

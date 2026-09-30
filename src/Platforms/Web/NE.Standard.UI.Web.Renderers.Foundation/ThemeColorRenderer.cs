@@ -26,14 +26,20 @@ public static class ThemeColorRenderer
 
         _ = WebComponentRendererBase.RenderProperty<UIThemeColor?>(context, target, property, static (t, value) =>
         {
-            if (value is not UIThemeColor color)
-                return;
-
-            if (color.Light is not null || color.Dark is not null)
-                _ = t.Style("color", WebCssValues.ThemeColor(color));
-            else if (color.Style is UIColorStyle style)
-                _ = t.Class(WebClassNames.Color(style));
+            if (value is UIThemeColor color)
+                RenderThemeColor(t, color);
         }, Operations);
+    }
+
+    /// <summary>Writes a colour no property carries — a table column's icon: a variant inline, a style by its class.</summary>
+    public static void RenderThemeColor(IHtmlElementBuilder target, UIThemeColor color)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (color.Light is not null || color.Dark is not null)
+            _ = target.Style("color", WebCssValues.ThemeColor(color));
+        else if (color.Style is UIColorStyle style)
+            _ = target.Class(WebClassNames.Color(style));
     }
 
     /// <summary>

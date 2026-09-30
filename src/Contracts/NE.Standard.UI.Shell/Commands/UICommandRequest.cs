@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 
 namespace NE.Standard.UI.Shell.Commands;
@@ -16,6 +18,7 @@ public sealed class UICommandRequest
     /// <summary>
     /// Gets dynamic parameters used to materialize command argument bindings.
     /// </summary>
+    [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
     public object?[] DynamicParameters { get; init; } = [];
 
     /// <summary>

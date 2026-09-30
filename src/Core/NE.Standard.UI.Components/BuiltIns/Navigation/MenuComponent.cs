@@ -112,7 +112,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     }
 
     /// <summary>Puts a search beside the menu's switch: what is typed narrows the entries in the browser by the words they show.</summary>
-    /// <remarks>A group stays, open, while one of its sub-entries matches, and a caption while an entry under it does.</remarks>
+    /// <remarks>
+    /// A group stays, open, while one of its sub-entries matches, and a caption while an entry under it does. A search that leaves
+    /// nothing shows the menu's empty template, as a select's does — the default one's "Nothing to show." unless the author set one.
+    /// </remarks>
     public T SetSearch(string? placeholder = null)
     {
         _ = SetToggleContent(new TextInputComponent()
@@ -123,6 +126,9 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
             .SetPrefixIcon(UIGlyphs.Search)
             .SetShowClearButton()
         );
+
+        if (!HasEmptyTemplate)
+            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
 
         ShowSearch = true;
         return Self;
@@ -157,27 +163,25 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// </summary>
     public T OnItemClick(string command)
     {
-        foreach (IButtonComponent template in ClickableTemplates())
-            _ = template.OnClick(command);
+        OnClickableTemplates(template => _ = template.OnClick(command));
 
         _ = Submenu?.OnItemClick(command);
 
         return Self;
     }
 
+    /// <summary>
+    /// Writes a click on the entry and check templates, now and whenever either is set again; captions and rules take no click, and
+    /// a select's own click only opens its choices.
+    /// </summary>
+    private void OnClickableTemplates(Action<IButtonComponent> register)
+    {
+        _ = OnItemTemplate(register);
+        _ = OnTemplate(CheckTemplateKey, register);
+    }
+
     /// <summary>The nested menu an entry's sub-entries are shown through; null on a nested menu itself.</summary>
     private MenuComponent? Submenu => GetTemplateVariant(SubmenuTemplateKey) as MenuComponent;
-
-    /// <summary>
-    /// The entry and check templates; captions and rules take no click, and a select's own click only opens its choices.
-    /// </summary>
-    private IEnumerable<IButtonComponent> ClickableTemplates()
-    {
-        yield return Template ?? throw new InvalidOperationException($"'{TypeKey}' has no item template.");
-
-        if (GetTemplateVariant(CheckTemplateKey) is IButtonComponent check)
-            yield return check;
-    }
 
     /// <summary>
     /// Registers a click command that passes the clicked item as an argument.
@@ -202,8 +206,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// </summary>
     public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
     {
-        foreach (IButtonComponent template in ClickableTemplates())
-            _ = template.OnClick(command, arguments);
+        OnClickableTemplates(template => _ = template.OnClick(command, arguments));
 
         // A sub-entry runs the same command: its own key as the current item, its entry as the parent.
         _ = Submenu?.OnItemClick(command, arguments);

@@ -17,7 +17,7 @@ internal static class WebRequestGuards
     /// </summary>
     /// <remarks>
     /// <c>same-site</c> is refused too: a sibling subdomain is sent the session's <c>Lax</c> cookie, and the Origin check below
-    /// means the same origin.
+    /// means the same origin — scheme, host and port, a port left out of either side read as its scheme's default.
     /// </remarks>
     public static bool IsCrossSiteRequest(HttpContext http)
     {
@@ -29,15 +29,22 @@ internal static class WebRequestGuards
                 && !string.Equals(secFetchSite, "none", StringComparison.OrdinalIgnoreCase);
         }
 
-        var origin = http.Request.Headers["Origin"].ToString();
+        var origin = http.Request.Headers.Origin.ToString();
 
         if (string.IsNullOrEmpty(origin))
             return false;
 
+        HostString host = http.Request.Host;
+
+        // Host and port apart, not the raw Host header: a browser drops a default port from Origin that a client may still send.
         return !Uri.TryCreate(origin, UriKind.Absolute, out Uri? originUri)
             || !string.Equals(originUri.Scheme, http.Request.Scheme, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(originUri.Authority, http.Request.Host.Value, StringComparison.OrdinalIgnoreCase);
+            || !string.Equals(originUri.Host, host.Host, StringComparison.OrdinalIgnoreCase)
+            || originUri.Port != (host.Port ?? DefaultPort(http.Request.Scheme));
     }
+
+    private static int DefaultPort(string scheme)
+        => string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ? 443 : 80;
 
     /// <summary>One answer for every size limit — a file's, a session's, a staged value's — so a client reads one status.</summary>
     public static IResult TooLarge(string detail)

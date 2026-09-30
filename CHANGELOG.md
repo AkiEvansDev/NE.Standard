@@ -9,6 +9,353 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.0-rc.1
+
+A release candidate: the findings of the review of 1.3.0 and of two applications built on it (GitHub issues #1–#39), and of a
+review of the code for what it does twice.
+
+**Security and access**
+
+- **An address is judged as the browser reads it.** `WebUrlSafety.IsSafeImageSource`, `WebIconValue` and the page's
+  `url-safety.ts` took `/\host` and `/<tab>/host` for a path of this site, and the browser fetched each from another host; an
+  address is now read as the browser's URL parser reads it — the controls and spaces at either end stripped, every tab and line
+  break inside removed — before `//` and `/\` are refused, and an accepted source is written as the browser reads it (the
+  icon-value corpus carries the cases). An inline-markup link the browser reads as another host (`//host`, `/\host`,
+  `\\host`) opens in a new tab with `rel="noopener noreferrer"`, as a web address does (`WebUrlSafety.IsExternalLink`, the
+  inline-markup corpus's `externalLinks`). **New for packages:** `urls.isImageSource(address)`
+  and `urls.asBrowserReads(address)` on the plugin surface, additive to contract 2; Graph's display and CodeInput's Markdown
+  links read through them.
+- **The hub refuses another origin, as the upload and the staged value do.** `/_ne/hub` — its negotiate and every transport, a
+  WebSocket handshake included — answers `403` to a `Sec-Fetch-Site` other than `same-origin`/`none`, or, without it, to an
+  `Origin` that is not the page's own; a sibling subdomain or another port was sent the session's `Lax` cookie and could attach
+  to its views. The `Origin` fallback reads a missing port as its scheme's default, so `Host: example.com:443` with `Origin:
+  https://example.com` is one origin; the scheme is still compared, so behind a TLS-terminating proxy the host needs
+  `UseForwardedHeaders` with `X-Forwarded-Proto`.
+- **A command holds the rules of the page it runs on.** `[UIAuthorize]` on the view and the route's `.Require(rule)` apply to
+  every command of a page that is not anonymous, beside the command's own rules, and are read from the session store like them:
+  a role revoked through `IUISessions.UpdateUserSessionsAsync` stops an open page's next command even when only the view asked
+  for it. **Breaking:** `.Require(rule)` closes its route — a route that requires a rule refuses an anonymous session whatever
+  its attributes or `DefaultPolicy` say; only an explicit `.AllowAnonymous()` on the route opens it again.
+- **The server refuses what a closed component sends.** A command raised on a component that is disabled, loading or hidden at
+  every width — by a static value or a controller binding, its ancestors' included — is refused as an unauthorised command is.
+  A value written to such a component or to a read-only input is refused and answered with the server's value, so the field
+  snaps back. A choice that takes a row with `CanSelect = false`, or a disabled or hidden row, is refused, and so is a command
+  for a disabled, loading or hidden row. State an interaction sets on the client (`EnabledWhen`, `ShownWhen`) is not seen by the server: these
+  properties guard against a stale or forged page, and permissions still belong in the command or the setter.
+- **A changed session reaches the pages already open.** `UpdateUserSessionsAsync` sends away and ends each open page whose route
+  the changed session no longer passes: it reloads, and its resolution sends it to sign-in or the forbidden page. A page whose
+  session is gone from the store is ended at its next activity refresh, and a session the idle sweep purges takes its open pages
+  with it. A change made directly through `IUserSessionStore`, or by another process, reaches open pages at their next command.
+  An anonymous page whose session ends is reloaded rather than sent to sign-in. Under `PerClient` the other tabs sharing the
+  asking page's runtime are sent away as any page is — each to sign in with its own address, an anonymous one reloaded — where
+  they all went to the asking tab's.
+- **Sign-in's id rotation never brings a session back.** The rotation is claimed through `TryUpdateAsync`, so two loads right
+  after sign-in rotate the session once; a role changed during the rotation holds under the new id, and a session ended during
+  it stays ended.
+- **A read-only, disabled or loading field no longer sends a value by itself**: a date or time pushed outside `Min`/`Max` is
+  shown as it is, a slider's clamp only shows, `TrimZeros` no longer trims and sends on a plain focus and blur, and a screen
+  reader's increment on a read-only slider is put back.
+- **A link whose bound address is cleared or unsafe loses its `href`** instead of keeping the old one, and an unsafe
+  `data-ui-href` never becomes a live `href`.
+- **A change set refused on one of its updates has spent none of its staged values**: every update is read and every token
+  checked before any is taken.
+- **A breadcrumb separator stays one CSS string**: a line break or any control character in `Separator` is written as a CSS
+  escape, so it can no longer end the string and add declarations to the trail.
+
+**Sessions and connection**
+
+- **The session cookie carries a secret, and the framework knows the session by its SHA-256.** The store, the runtimes, staged
+  values, the file store and a controller see only the id — 64 lower-case hex characters — so an id leaked from a store opens no
+  session. `UISessionSecret` issues secrets and reads an id off a client's key at a platform's edge; `UIViewResolution.IssuedSecret`
+  hands a platform the secret to set. A resolver on `UserSessionResolverBase` issues a new session's id through
+  `UserSessionInitData.IssueSessionId()`. **Breaking:** a session an application's store kept from an earlier version is not found
+  once, and its reader starts a new one; an id a custom resolver makes up itself is never handed to a client — issue it through
+  `IssueSessionId()`.
+- **With `ClientKeyLifetime`, a page load that overlapped a sign-in no longer writes the old key back.** The presented key is
+  written again only as the response's headers go out, and only while its session still stands with no move to a new id pending.
+- **A page load or an attach that changes nothing but the last-seen time writes nothing** while it moves that time by less than
+  `UISessionOptions.TouchResolution` — a minute by default, never more than a tenth of the timeout the session is under;
+  `TimeSpan.Zero` writes every time. A session may expire that much early.
+- **Anonymous sessions can stay in memory while signed-in ones go to the application's store.**
+  `services.AddSignedInUserSessionStore<TStore>()` puts `UserSessionSplitStore` over `TStore`, so a store in a database never sees a
+  visitor who does not sign in; a session moves across with the update that signs it in or out. `services.AddUserSessionStore<TStore>()`
+  keeps every session in `TStore`, and the default in-memory store is public as `UserSessionMemoryStore`.
+- **A controller and filters see the connection.** `UIConnectionInfo` — the remote address after the host's forwarded-headers
+  handling, the user agent, the application's base URI — on `UIHandle`, `UIContext`, `UIViewFilterContext` and
+  `UICommandFilterContext`, captured when the page renders and every time it attaches. It is what the client or a proxy said, so it
+  describes a request and never proves one. **Breaking (binary):** `UIHandle`'s and `UIViewFilterContext`'s constructors take an
+  optional `UIConnectionInfo`.
+- **The server knows the reader's time zone.** The page reports it as it attaches and the session keeps it
+  (`UserSessionState.TimeZone`); `UIContext.TimeZone`, `ToLocalTime` and `StartOfDayUtc(DateOnly)` read it, a skipped or doubled
+  midnight included, and read a zone the host does not know, or none, as UTC. **Breaking:** `IUserSessionContext` gains `TimeZone`.
+
+**Runtime and hosting**
+
+- **View filters resolve from the request's own scope.** `AddViewFilter<TFilter>` and `IUIViewFilterFactory` get a service scope
+  per page resolution instead of the root provider: a scoped filter (one holding a `DbContext`) works, each request gets its own,
+  and disposable transients go with the request. `AddCommandFilter<TFilter>`'s documentation now says what it always did: a
+  command filter resolves from the page's service scope on every invocation — per command if transient, per page if scoped,
+  sharing the controller's scoped services.
+- **Every call into a runtime holds it.** A value write, a window read, `InvokeAsync` and the attach and language notices keep a
+  runtime being disposed (a session ended, a page left) until they finish, as commands already did; one arriving after the
+  runtime was asked to go is refused. `InvokeAsync` from inside a running command still goes through.
+- **A refused write is answered as a pushed value is**: a value a windowed source refuses, like one a closed component refuses,
+  comes back brought to the property's type, its fallback for nothing, resolved, and marked content where its row item is — the
+  source's refusal went back as the controller's raw value.
+- **Two reads of one windowed source take turns.** `UIItemSourceBase<TItem>.LoadWindowAsync` runs one read at a time per
+  source, so the window, `Offset` and `HasMore*` are never rewritten by two reads at once.
+- **One runtime failing to dispose no longer stops the rest.** Ending a session, leaving pages behind, the retention sweep and
+  shutdown dispose every runtime and send every tab away, logging a controller's dispose failure; a runtime's service scope is
+  disposed even when its controller's dispose throws.
+- **`FlushSchedulerInterval` sets a route's default flush interval too**, so a tick shorter than 50 ms flushes as often as it
+  says. **`UIRoutePath.Normalize("//")` is `/`**, not an empty route.
+- **`UserSessionState.IsIdle` measures the time since the session was last seen**: an `IdleTimeout` of `TimeSpan.MaxValue` no
+  longer fails every request.
+- **New: `UIControllerBase.OnNavigatedAsync(navigation)`**, the place to read a parameter that shapes what a page shows, first
+  paint included. It runs for the render that builds a runtime, after `OnInitializeAsync` and before the render reads what it paints,
+  and for every attach, before `OnAttachedAsync` in the same turn; the attach of the tab whose render already ran it skips it.
+
+**Words and languages**
+
+- **The framework's own words ship in Russian and Simplified Chinese.** `UIStrings.Translations` and the new
+  `IUIStringsSource.Translations` (empty by default) carry `ru` and `zh-Hans`; `application.AddFrameworkWords("ru", "zh-Hans")` turns
+  them on for the core and every registered package, below the application's own sources, so a word of the application's with the
+  same key wins. A language nothing ships is refused when the application is built, and one turned on adds no language the page
+  can switch to. `UIStrings.List(language, packages)` lists every framework and package word shipped in a language, one table.
+- **A number field in the page's culture follows a language switch at once**, as a date field does: the words table carries the
+  language's number pack (`number`), a switch writes it over every culture pack marked the page's (`data-ui-page-culture`,
+  `WebAttributes.PageCulture`) before anything draws, and the field shows its value in it. The DataGrid and the Charts mark
+  theirs too.
+- **A page reads the framework's words in its own language before the default language's.** A key is looked up in the
+  application's words in the page's language, then the framework's in it, then the application's and the framework's in the
+  default language, then the English floor. **Breaking:** an application that translated framework keys only under its default
+  language puts them under each language it means them for.
+- **A new session starts in the browser's language**: the first `Accept-Language` entry the translator has, as written or by its
+  primary language (`nl` for `nl-BE`), else `DefaultLanguage`. `UILocalizationOptions.NegotiateLanguage = false` turns it off.
+- **A notification's words are translated on the page and follow a language switch.** `ShowNotificationEffect(UIPhrase message, …)`
+  takes a phrase; the string constructor takes the author's text, read as a plain string on a translatable property is — under
+  `KeyPrefixes`, only a prefixed one is a key. A failed command's notification is translated on the page too, no longer on the
+  server. **Breaking:** `ShowNotificationEffect.Message` is a `UIPhrase` (`.Key`, `.IsText`).
+- **Development reports static text that is no key.** Under `KeyPrefixes`, with the missing-words report on, a plain string on a
+  translatable property or on an item the author declared, starting with no prefix and not marked content, is reported as a
+  `UIMissingWord` of `Kind = UIMissingWordKind.Unkeyed` (its `Language` empty) and logged once with where it stands. Bound values,
+  text without a letter and addresses stay silent. `AsContentTree()` says a component, everything under it and the items it
+  declares are content, for the report only.
+
+**Dates and times**
+
+- **Dates and times show one predictable default: `yyyy-MM-dd` and `HH:mm`**, in every language, as 1.3.0 did; the culture's
+  patterns are asked for, never assumed. `application.ConfigureTemporal(o => o.FollowCulture = true)` gives a field with no
+  `DisplayFormat` its culture's — `dd.MM.yyyy` on a Russian page, `M/d/yyyy` and `h:mm tt` on an English one, the year always four
+  digits — and a field that names its own `Culture` shows that culture's patterns whatever `FollowCulture` says. The page's
+  language gives the month and day names, AM/PM and the placeholder — the format in the page's letters (`дд.ММ.гггг`,
+  `ui.picker.letter.*`; a blank one keeps the format's letter) — and a language switch draws a field in the page's culture again.
+  **Breaking:** `TemporalInputRendererBase.GetDefaultDisplayFormat` takes the `WebTemporalPatterns` the field falls back on as its
+  second argument.
+- **New: dates and times for the whole application.** `application.ConfigureTemporal(o => …)` says whether fields follow the
+  culture (`FollowCulture`, default off), how a clock counts its hours (`UIHourCycle.Default` — the count of the pattern a field
+  falls back on, 24 in `HH:mm`, the culture's own where it is followed — `TwentyFourHour` or `TwelveHour`) and, if wanted, a
+  `DateFormat` and a `TimeFormat` for every language in the shared tokens (`UITemporalPattern`); a pattern a field could not show
+  or read, or a `TimeFormat` that disagrees with `HourCycle`, is refused as it is configured. They hold for every date, time and
+  date-time field without a `DisplayFormat` of its own, after a language switch too, for the picker's hour column (`2 PM` on a
+  12-hour clock) and for a timestamp's day and time. `o.HourCycle = UIHourCycle.TwentyFourHour` keeps 24-hour clocks where the
+  culture is followed.
+- **A field reads what is typed in the format it shows.** `SetDisplayFormat` alone made a field refuse typed text; the page now
+  reads text in the shown format and sends the value, and any other shape still goes to the server, read by `Format` and
+  `Culture`.
+- **New: `TimestampComponent`** — an instant the page writes in the reader's time zone, as a date and time, a date or a time in
+  the application's patterns and the page's culture, or how long ago in the browser's words for the page's language
+  (`UITimestampFormat`); a relative one stays current, redrawn every 15 seconds. The server's first paint is in UTC in the same
+  patterns, and says so where it shows a clock, so as the page takes it over only the time moves and " UTC" goes; a relative
+  one is first painted as its day and time, since how long ago it was depends on when the page is read.
+- **New: `UITimeZones.ToLocalTime(zone, DateTimeOffset)`**, which `UIContext.ToLocalTime` goes through.
+- **A moment in the years 1 to 99 is read as written.** The page's reader, and its calendar arithmetic, took them for 1901 to 1999.
+  The server reads a moment in the wire's shape through one reader, `UIWrittenMoment.TryRead`, held to the page's by a shared
+  corpus; the DataGrid and the charts read through it.
+
+**Tables and lists**
+
+- **Rows move by a drag.** With `Draggable` on an items view or a table, a row whose item does not refuse it (`CanDrag`) is dropped
+  between two others, or moved one place by Alt+Up and Alt+Down. `OnItemMoveWithItemKey` and `OnRowMoveWithItemKey` hand the command
+  the row's key and the index it now takes — what `RecursiveCollection.Move` takes; in a windowed host, its place in the whole
+  query — and `OnItemMove`/`OnRowMove` take arguments of one's own, the index read by the new `UIAction.ArgEventValue`
+  (`UIActionArgumentKind.EventValue`). Nothing moves until the controller moves it, and a drag is refused while a sort orders the
+  rows. Alt with an arrow no longer moves the row cursor. A row that drags by itself is not selectable text — a press on it is
+  the drag's — but for a part it is never dragged by (`noRowDrag`). The drop line has one place between two rows, whichever of
+  them the pointer is over or the gap between them: in the middle of a spacing, on the edge with none.
+- **New: a row dragged by a grip.** `DragHandle` on the items view and the table drags a `Draggable` row only by a grip at its
+  end, or at its start (`DragHandlePlacement`, `UIDragHandlePlacement`; `SetDragHandle(placement)`), named by the new word
+  `ui.row.drag`; the rest of the row keeps its text selection and its presses. The grip takes no focus of its own: a press on it
+  gives the list the keyboard on that row, so Alt+Up/Down move it straight away. A table's grip stands in a track of its own past
+  the last column or before the first — no column, so the columns engine never counts it — the drop line running straight across
+  it, and a start grip beside a pinned first column stays pinned with it. A wrapped items view draws no grip, and its tiles drag
+  whole.
+- **A tree takes a drop only on a folder.** New: `IsFolder` on a tree node (`ITreeNodeModel`, `TreeNode`, `TreeNodeComponent`).
+  A dragged node drops onto a folder — a node marked one, or an unmarked node holding children — or onto the tree's own ground;
+  `true` makes an empty folder a target without asking for its children, `false` refuses a drop whatever the node holds. Over a
+  file, the dragged node, a node under it or a disabled folder nothing stays lit, the cursor says no drop, and a release sends
+  nothing. **Breaking:** `ITreeNodeModel` gains `IsFolder`, and a node with no children and no `IsFolder` no longer takes a drop.
+- **A grouped items view's or table's row moves within its own group.** Over another group's rows, or a group's header, no drop
+  line shows and nothing is sent; Alt+Up/Down at a group's first or last row does nothing. The index is still the collection's.
+- **A table column carries an icon and may start hidden.** `UITableColumn.Icon`, `IconColor` and `Hidden`; `icon:` and `hidden:` on
+  `AddColumn`/`AddTextColumn`, `SetColumnIcon(key, icon, color)` and `HideColumn(key)`. A viewer's own choice in a column chooser
+  wins over `Hidden`; a plain table draws no chooser, so only a host with one (the data grid) can show the column again.
+  **Breaking:** the table's virtual `AddColumn` and `AddTextColumn` take the two new optional parameters, so a table overriding
+  them follows.
+- **A list in a table cell shows its row's items.** The collection an items view in a column's template was bound to was never
+  sent; every template variant of a host that names none per row — a table's columns and its row — is now worn by every row.
+- **A command raised on a list inside a row reads a number after the row's keys as what the event carries** (a dropped row's
+  index), no longer as a row's key.
+- **An item event no longer depends on the order it is written in.** A host keeps its item events — an items view's, a table's,
+  a tree's, a menu's, a tab strip's, a key-value list's action click and a button-templated host's (`CommandBar`, `Breadcrumbs`,
+  `ButtonGroup`) — and writes each on the template in its slot and on every one `SetTemplate`, `SetRowTemplate`,
+  `SetActionTemplate` or a variant sets there later. Written before the template, an event landed on the default template the
+  call then replaced and reached nobody: an items view's `OnItemMoveWithItemKey` before its `SetTemplate` dragged a row the
+  server never heard of. The same event registered twice, the later wins.
+- **A key-value list that edits its rows in place refuses an action click of the author's** when the view compiles: with
+  `EnableEditing` the rows' action is the edit pencil, which cannot also run an `OnActionClick` command; the refusal names the list
+  and points to `EnableEditing`'s edit command. New: `IKeyValueActionComponent`. **Breaking:** a view with both no longer
+  compiles.
+- **A table's drawn rows follow a language switch.** A row the server drew — a table's, a data grid's, a key-value list's — now
+  names each of its cells as a scope of the row's item, as a row the page builds does, so a word a cell reads off its item (a
+  grid's status badge bound to a key) is written again on a switch instead of waiting for a reload.
+
+**Forms and surfaces**
+
+- **New: a text area grows with its text.** `SetAutoGrow(maxRows)` (`MaxRows`): from `Rows` up to `maxRows` lines, then it
+  scrolls; it stands at its text's height from the first paint (`field-sizing: content`, a small script where the browser has
+  none), and while it grows the reader's own resize is off.
+- **New: Enter can send a text area's form.** `SetSubmitOnEnter()` (`SubmitOnEnter`): Enter commits the value and presses the
+  submit button of the area's form (`FormId`), the focus staying in the area; Shift+Enter breaks the line, and the Enter that ends
+  an input method's composition sends nothing. A text area that submits on Enter with no `FormId` is refused when the view
+  compiles, naming the component, as an `OnSubmit` binding with no form is.
+- **New: a field carries several buttons at either end.** `AddLeadingAction`/`AddTrailingAction` on `TextInput` and `TextArea`
+  (`LeadingActions`, `TrailingActions`): a text input's stand in its row, a text area's beside its text on the bottom line,
+  outside its scroll — a chat composer's attach, emoji and send. They follow the text in the tab order, the leading ones drawn
+  first. `SetTrailingAction` replaces every trailing action. New: `RegionNames.LeadingAction`, `RegionNames.FieldAction(side,
+  index)`.
+- **Safari's Enter that ends a composition** (`keyCode` 229) no longer leaves a text field or presses its form's button.
+- **A password field stands in a form.** The page's root is a `<form method="dialog" novalidate>`, so Chrome no longer warns of
+  a password field outside one and a password manager offers to save the sign-in; a submission navigates nowhere, and the
+  browser's own checks and bubbles stay off.
+- **A popup with no room on either side of its axis stands beside its anchor**, rather than covering it: a side with no room
+  flips to its opposite as before, and with room on neither, to a side across (a DataGrid's filters flyout on a short window).
+- **A menu's search that leaves nothing says so**: `SetSearch` gives the menu the default empty template ("Nothing to show.")
+  unless it has one of its own, and a searchable menu with no entries shows it too.
+- **An input's caption row is one caption line.** A badge is centred on it rather than growing it, so a field with one stands as far
+  from its caption as a field without, and a long caption ellipsises instead of wrapping its required mark.
+- **A badge is round for two narrow characters or one wide one.** Its fit counts the cells its text takes, not its characters:
+  a narrow character is one, an East Asian wide one or an emoji two, so `12` and `逾` are a circle and `逾期` a pill, where two
+  ideographs were squeezed into a circle. `BadgeRenderer` and the page count alike, both held to
+  `eng/Tests/Shared/badge-fit-corpus.json`.
+- **New: `UIBadgeType.Plain`** — a badge's content alone, with no ground, edge or padding, in the muted ink; a caption's
+  reachable one comes up to the text's ink under the pointer and the keyboard.
+- **New: `SetHelp(text)` on every input fills its caption's badge.** The help glyph alone, a `Plain` badge, the text as the
+  badge's tooltip, translated as a badge's tooltip is (bind one with `BindBadgeTooltip`). A badge with a tooltip in a caption that
+  stands outside any control — an input's caption above its field, a checkbox's or a switch's label — is a tab stop of its own:
+  named by its words, it shows them on keyboard focus and on a press or a touch, and a second press, or one elsewhere, hides them
+  (`data-ui-tooltip-press`, `WebAttributes.TooltipPress`). A press on it doesn't tick the box around it. It wears the keyboard's
+  ring, at a hairline where the theme draws none. In a caption inside a field's box, or in a button, it is no stop.
+- **A popup stands one step above what it opens from.** A list, picker, menu or tooltip opened in a Raised surface or a dialog
+  takes that fill with 8 % of the text colour mixed in, as the surface is one step off the page; over the page, a Background or a
+  Tinted surface it keeps the page's surface colour. The plugin surface's `@ui-popup-ground` is that ground.
+- **A Filled field in a dialog steps off the dialog, not off the page it covers**: the default dialog mixes its fields' fill into
+  its own ground, as a Raised card does; a Tinted dialog's fields follow its fill and a Background one's are unchanged.
+- **`UILayout.Columns(spacing, cellAlignment, children…)` is public, and `UIForm.Row(spacing, fields…)` takes a gutter.**
+- **Putting one recursive node in a second place says where.** The refusal names both places — the path from the root, and the
+  root's type — and points a closed list of options to `SetOptions`, where one static list is shared freely by every select and
+  every page.
+
+**Values, addresses and components**
+
+- **A component address with row keys reads back from JSON**: `FocusEffect("field", 3)` round-trips, under the hub's options too.
+  A malformed address fails as `JsonException`.
+- **Row keys on the wire are an `int`, a string or null.** A command, a written value, an item window request and a component
+  address read the keys they carry through one converter, `UIDynamicParametersJsonConverter` (new, public), the hub's own
+  requests included; anything else is refused as a malformed call, where a `long` or a `JsonElement` reached the runtime and
+  failed only as the binding resolved.
+- **A keyed set on a `RecursiveCollection` finds and replaces its row under one lock**, so racing a removal it no longer lands on
+  another row.
+- **Culture no longer leaks into the wire.** `UIGridUnit.ToString()` writes a fractional star invariantly (`1.5*`).
+  **Breaking:** a path index is digits only, read invariantly, so `Items[+1]` and `Items[ 1 ]` are keys, not row 1.
+  `UINavigationRequest.TryGetParameter<string>` reads a number as its invariant text, as the untyped overload does.
+- **A temporal input's `SetValue` checks the period against `EndValue`**, as `SetEndValue` does.
+- **Breaking:** Slider and Progress check a value against the range the page draws. An unset `Min`/`Max` stands for
+  `IOrderedRangeComponent.DefaultMin`/`DefaultMax` (0/100), so `SetValue(500)` with no bounds, or `SetMin(150)` followed by
+  `SetValue(120)`, throws. The two bounds are checked against each other only when both are set, so `SetMin` and `SetMax` come in
+  either order. New: `OrderedRangeComponentExtensions.ValidateOrderedRange`.
+- **A multi-select's `SetMaxSelected` checks the keys already chosen, and `SetValue` checks them against `MaxSelected`**; a
+  repeated key counts once, as the page shows it as one chip.
+- **`GridSplitterComponent.SetStep` refuses a step that is not a finite number above zero.**
+- **Breaking:** `NE.Standard.UI.Primitives.Security`, `NE.Standard.UI.Shell.Navigation` and `NE.Standard.UI.Shell.Runtime` are
+  global usings. An explicit `using` of one of them is now IDE0005; delete the line.
+
+**Renderers**
+
+- **New helpers:** `WebCssValues.CssString(value)`, any text as a CSS string literal with its control characters escaped (the
+  breadcrumb's separator is written through it, and `FontFamily` now escapes a control character too);
+  `WebTemporalPatterns.Resolve(culture, options, ownCulture)`, the patterns a field with no format of its own falls back on, and
+  `WebTemporalPatterns.DateTime(seconds)`, a day and its time as a date-time field and a timestamp show them;
+  `WebComponentRendererBase.RenderTooltip(context, target, property, placementProperty, operations)` and `TooltipOperation` are
+  public, for a tooltip whose words drive more than the tooltip; `WebBadgeRenderOptions.TooltipOperations` and
+  `WebTextBodyOptions.ReachableBadge` make a caption's badge reachable. **Breaking:** `WebCultures` moved from
+  `NE.Standard.UI.Web.Renderers.Foundation` to `NE.Standard.UI.Web.Abstractions.Theming`.
+
+**Generators**
+
+- A `byte`/`sbyte`/`short`/`ushort` `DefaultValue` registers as that type; before, the component's type initializer threw.
+- A block property whose `UIProperty` lives on a base interface of the block's contract registers against that interface
+  instead of reporting NEUI003; two blocks over one base interface declare its properties once (was CS0102); blocks and
+  `[UIComponentPropertyDefault]` spread over several partial declarations read as one type.
+- A `[RecursiveMember]` partial property keeps `new`/`virtual`/`override`/`sealed`/`required`.
+- NEUI013–016 are listed as shipped.
+
+**The client**
+
+- **The server's answer to a field edited several times while a value was on its way lands in the field**; a value's answer
+  releases its field only after any change set ahead of it (an attach's snapshot) has been applied.
+- **A connection that drops again while the page re-attaches is left to SignalR's reconnect** instead of closing the page after
+  about 3.5 s, and **a value on its way when the connection drops is sent again** once the page is attached, rather than lost with
+  the snapshot rolling the field back — a large value is staged again, and a field changed again meanwhile sends only its latest
+  value.
+- **Tab stays inside a modal dialog** after the focus fell to the page's body, after a press on the dialog's padding, and when
+  the dialog ends with a radio group.
+- **Escape in an inline rename inside a flyout or a package popup cancels the rename** instead of saving it, and **a press on a
+  disabled control closes an open list, picker or flyout.**
+- **A tooltip is announced from the field's own input**, beside the input's own `aria-describedby`, which it no longer overwrites.
+- **An icon-only button whose bound title is pushed empty is named by its tooltip again at once**, not at the tooltip's next push
+  or a switch: the title's registration carries a `tooltip-name` operation (`TextContentRendererBase.TooltipNameOperationKind`)
+  that reads the tooltip's plain text off the root.
+- **A toast closed from the keyboard gives the focus back** to where it came from, else to the next toast.
+- **Numbers keep every digit.** The client's formatting keeps a 14-digit amount's cents and never writes an exponent from 1e21 up;
+  a negative number that rounds to zero is written without a minus sign; `WebNumberFormat.Format` with `D` no longer throws past
+  `long.MaxValue`. The shared number-format corpus carries large, tiny and exponent-range values both sides render alike.
+- The client `package.json` files declare `engines.node >= 24`, the version CI builds with.
+- **Breaking:** `values.read` answers a number field's invariant text — what its binding sends — not the text it shows in its
+  culture; the plugin contract's number is unchanged. A part of a row a press in never drags the row by is marked with the new
+  `names.noRowDrag` (`data-ui-no-row-drag`).
+
+**The demos**
+
+- The checkout's discount goes when the promo code is cleared or edited, not only when another code is applied.
+- TeamRoom's quick sign-in pair is the canon's Robin (an admin) and Mika (a member). The first administrator's password comes from
+  `TeamRoom:AdminPassword`; without it, `admin/admin` is seeded in Development only, and none is made elsewhere. The quick sign-in
+  is one command taking the login, which refuses a login it does not offer, and its buttons read the accounts' names.
+- TeamRoom keeps only signed-in sessions in its database, with the reader's time zone: anonymous visitors stay in memory
+  (`AddSignedInUserSessionStore<SqliteSessionStore>()`), and the `sessions` table gains a `time_zone` column, added to an existing
+  database on start. Its sessions from earlier versions are dropped once, since a session is now known by its secret's hash.
+- TeamRoom names a new account's password `new-password` for the browser, and the password dialog in Settings shows the login,
+  read-only and named as the username, beside the current and new passwords, so a password manager knows whose password
+  changes.
+- The demos turn on the shipped tables of their languages with `AddFrameworkWords` — DemoApp Russian and Chinese, the add-ons'
+  demos Chinese — and keep only their own words; their samples are marked `AsContentTree`, so the unkeyed report names nothing
+  in them.
+- The demo has a Timestamp page (Main and Examples), and its pages show the rest of what is new: a chat composer on the text area,
+  field actions and help badges on the inputs, drag reordering on the items view and the table — by the whole row and by a grip,
+  whose placement the Main pages cycle — column icons and a list in a cell, date fields in the framework's default beside one
+  that names its culture, and a searchable menu. The data grid demo's columns wear icons, and its start date starts hidden for
+  the chooser to show. The tree's and TeamRoom's folders are marked `IsFolder`, and the demo's folder icons are a warm yellow.
+
 ## 1.3.0
 
 - **Read-only is one mark on the root and stays focusable.** Every input's root wears `ui-readonly` (`WebClassNames.ReadOnly`,

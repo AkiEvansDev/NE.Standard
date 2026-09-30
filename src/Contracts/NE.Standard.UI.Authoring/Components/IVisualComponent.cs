@@ -97,11 +97,21 @@ public interface IVisualComponent : IBindableComponent
     /// Gets what the component does with the room it was given, optionally overridden per breakpoint (e.g.
     /// collapsed from a given width up).
     /// </summary>
+    /// <remarks>
+    /// Hidden at every width — by a static value or a controller binding — the server refuses a command or a value the component
+    /// or anything inside it sends. That is a guard against a stale or forged page, not the permission itself: an interaction that
+    /// hides it (<c>HiddenWhen</c>) lives on the client alone, so who may act belongs in the command or the setter.
+    /// </remarks>
     UIResponsive<UIVisibility>? Visibility { get; }
 
     /// <summary>
     /// Gets whether the component responds to input; false dims it and marks it, and its subtree, inert.
     /// </summary>
+    /// <remarks>
+    /// False by a static value or a controller binding, the server refuses a command or a value the component or anything inside it
+    /// sends. That is a guard against a stale or forged page, not the permission itself: an interaction that disables it
+    /// (<c>EnabledWhen</c>) lives on the client alone, so who may act belongs in the command or the setter.
+    /// </remarks>
     bool? Enabled { get; }
 
     /// <summary>
@@ -168,6 +178,10 @@ public interface IVisualComponent : IBindableComponent
     /// <summary>
     /// Gets whether the component is in loading state — a live state a controller turns on and off.
     /// </summary>
+    /// <remarks>
+    /// While it holds, by a static value or a controller binding, the server refuses a command or a value the component or anything
+    /// inside it sends — as the page does.
+    /// </remarks>
     bool? Loading { get; }
 
     /// <summary>

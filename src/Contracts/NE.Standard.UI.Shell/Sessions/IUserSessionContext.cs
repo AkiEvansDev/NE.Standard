@@ -8,9 +8,8 @@ namespace NE.Standard.UI.Shell.Sessions;
 /// </summary>
 public interface IUserSessionContext
 {
-    /// <summary>
-    /// Gets the stable session id.
-    /// </summary>
+    /// <summary>Gets the stable session id.</summary>
+    /// <remarks>SHA-256 of the secret the client carries (<see cref="UISessionSecret"/>): it names the session and is no credential.</remarks>
     string SessionId { get; }
 
     /// <summary>
@@ -22,6 +21,9 @@ public interface IUserSessionContext
     /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
     UIThemeMode? ThemeMode { get; }
+
+    /// <summary>Gets the time zone the reader's client reported, an IANA id, or <see langword="null"/> while it has reported none.</summary>
+    string? TimeZone { get; }
 
     /// <summary>
     /// Gets whether the session is authenticated.

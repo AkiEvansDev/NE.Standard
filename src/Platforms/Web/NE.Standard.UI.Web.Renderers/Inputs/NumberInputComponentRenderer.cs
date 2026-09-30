@@ -31,6 +31,12 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         // travels.
         NumberCultureRenderer.RenderNumberCulture(root, ResolveInputCulture(context));
 
+        // A field in the page's culture follows the page's language: a switch writes its pack again and the field redraws.
+        _ = ResolveRenderValue(context, IFormattedInputComponent.CultureProperty, out string? authoredCulture, out _);
+
+        if (string.IsNullOrWhiteSpace(authoredCulture))
+            _ = root.Attribute(WebAttributes.PageCulture);
+
         _ = RenderProperty<string?>(context, root, IFormattedInputComponent.DisplayFormatProperty, static (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))

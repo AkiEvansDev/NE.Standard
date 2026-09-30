@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -46,6 +47,9 @@ internal sealed partial class WebUIHub : Hub
         public string? View { get; init; }
 
         public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
+
+        /// <summary>The time zone the browser reports it is in (<c>Intl.DateTimeFormat().resolvedOptions().timeZone</c>).</summary>
+        public string? TimeZone { get; init; }
     }
 
     internal sealed class WebUIAttachResult
@@ -62,6 +66,7 @@ internal sealed partial class WebUIHub : Hub
 
         public required string PropertyName { get; init; }
 
+        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
         public object?[] DynamicParameters { get; init; } = [];
 
         public object? Value { get; init; }
@@ -114,6 +119,7 @@ internal sealed partial class WebUIHub : Hub
     {
         public required int ComponentId { get; init; }
 
+        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
         public object?[] DynamicParameters { get; init; } = [];
 
         public required string Anchor { get; init; }
@@ -233,7 +239,7 @@ internal sealed partial class WebUIHub : Hub
             Parameters = request.Parameters
         };
 
-        UserSessionInitData session = CreateSession(request.ClientWindowId);
+        UserSessionInitData session = CreateSession(request.ClientWindowId, request.TimeZone);
 
         UIViewResolution view = await _host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Attach, Context.ConnectionAborted).ConfigureAwait(false);
 
@@ -290,17 +296,21 @@ internal sealed partial class WebUIHub : Hub
     /// <summary>
     /// Reads the session the shell render already issued; the hub cannot write a cookie, so it only ever presents one.
     /// </summary>
-    private UserSessionInitData CreateSession(string clientWindowId)
+    /// <remarks>The connection is the one the hub's own request describes: the transport's, over the page's origin.</remarks>
+    private UserSessionInitData CreateSession(string clientWindowId, string? timeZone)
     {
         HttpContext? http = Context.GetHttpContext();
 
         return new UserSessionInitData
         {
-            SessionId = http is null ? null : WebEndpointRouteBuilderExtensions.ReadSessionCookie(http, _application.Sessions),
+            SessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions),
             ConnectionId = Context.ConnectionId,
             ClientWindowId = clientWindowId,
             Credential = Context.User?.Identity?.IsAuthenticated == true ? Context.User.Identity.Name : null,
-            Principal = Context.User
+            Principal = Context.User,
+            Connection = http is null ? UIConnectionInfo.Unknown : WebClientRequest.ReadConnection(http),
+            Languages = http is null ? [] : WebClientRequest.ReadLanguages(http),
+            TimeZone = timeZone
         };
     }
 
@@ -323,7 +333,7 @@ internal sealed partial class WebUIHub : Hub
         UIThemeMode? mode = WebCssValues.TryReadThemeName(request.Theme, out UIThemeMode value) ? value : null;
 
         HttpContext? http = Context.GetHttpContext();
-        var sessionId = http is null ? null : WebEndpointRouteBuilderExtensions.ReadSessionCookie(http, _application.Sessions);
+        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -354,7 +364,7 @@ internal sealed partial class WebUIHub : Hub
             throw new InvalidOperationException($"Language '{request.Language}' is not one the application translates into.");
 
         HttpContext? http = Context.GetHttpContext();
-        var sessionId = http is null ? null : WebEndpointRouteBuilderExtensions.ReadSessionCookie(http, _application.Sessions);
+        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
         UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
             ? null
             : await _sessions.SetLanguageAsync(sessionId, request.Language, Context.ConnectionAborted).ConfigureAwait(false);
@@ -372,7 +382,7 @@ internal sealed partial class WebUIHub : Hub
                 await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
         }
 
-        WebWordsAsset words = WebWordsEndpoint.Resolve(translator, request.Language, _packageStrings, _application.MissingWords is not null);
+        WebWordsAsset words = WebWordsEndpoint.Resolve(_application, request.Language, _packageStrings);
 
         return new WebUILanguageResult
         {
@@ -466,28 +476,39 @@ internal sealed partial class WebUIHub : Hub
 
         UIHandle handle = RequireHandle();
 
-        // Every token is checked before any is taken: a token spends once, and a batch failing on its last field must not have
-        // burnt its first ones' staged values.
-        foreach (WebUIValueChangeRequest update in request.Updates)
-        {
-            if (update?.ValueToken is not null && !_stagedValues.Holds(handle.Session.SessionId, update.ValueToken))
-                throw new InvalidOperationException("The staged value was not found; it may have expired.");
-        }
+        // Every update is read and every token checked before any token is taken: a token spends once, and a batch failing on its
+        // last field must not have burnt its first ones' staged values.
+        UIPropertyAddress[] addresses = new UIPropertyAddress[request.Updates.Length];
 
-        ClientChangeSet changeSet = new() { Updates = [.. request.Updates.Select(update => CreateClientValueUpdate(handle, update))] };
+        for (var i = 0; i < addresses.Length; i++)
+            addresses[i] = ReadAddress(handle, request.Updates[i]);
+
+        ClientUIUpdate[] updates = new ClientUIUpdate[addresses.Length];
+
+        for (var i = 0; i < updates.Length; i++)
+            updates[i] = CreateClientValueUpdate(handle, request.Updates[i], addresses[i]);
 
         ServerChangeSet changes = await _host
-            .ProcessChangeSetAsync(handle, changeSet, Context.ConnectionAborted)
+            .ProcessChangeSetAsync(handle, new ClientChangeSet { Updates = updates }, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(changes, handle.Session.SessionId, 1);
     }
 
-    private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update)
+    /// <summary>The field an update names, once its staged value, if it has one, is known to be there for the taking.</summary>
+    private UIPropertyAddress ReadAddress(UIHandle handle, WebUIValueChangeRequest update)
     {
         ArgumentNullException.ThrowIfNull(update);
         ArgumentException.ThrowIfNullOrWhiteSpace(update.PropertyName);
 
+        if (update.ValueToken is not null && !_stagedValues.Holds(handle.Session.SessionId, update.ValueToken))
+            throw new InvalidOperationException("The staged value was not found; it may have expired.");
+
+        return new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName);
+    }
+
+    private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update, UIPropertyAddress address)
+    {
         var value = update.Value;
 
         // A large value was staged beside the hub by this session; one that expired or is not its own is a failed update, not null.
@@ -496,7 +517,7 @@ internal sealed partial class WebUIHub : Hub
 
         return new ClientValueUIUpdate
         {
-            Address = new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName),
+            Address = address,
             DynamicParameters = update.DynamicParameters ?? [],
             Value = value
         };

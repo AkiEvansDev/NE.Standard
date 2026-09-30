@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -12,6 +13,10 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// <summary>A native <c>&lt;textarea&gt;</c> under the same header/field/message shell as the text input.</summary>
 public sealed class TextAreaComponentRenderer : TextContentRendererBase
 {
+    // Read by the stylesheet alone, which bounds a growing area by them.
+    private const string RowsVariable = "--ui-text-area-rows";
+    private const string MaxRowsVariable = "--ui-text-area-max-rows";
+
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-text-area";
@@ -25,24 +30,63 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root);
-        RenderField(context, root);
+
+        // The author's buttons stand beside the text in one box, outside the text's own scroll; a bare area stays the box itself.
+        if (FieldActionsRenderer.Has(context, RegionNames.LeadingAction) || FieldActionsRenderer.Has(context, RegionNames.TrailingAction))
+        {
+            _ = root.Element("div", box =>
+            {
+                _ = box.Class($"{ClassName}__box");
+                _ = box.Class(FieldBoxClassName);
+
+                BorderStyleRenderer.RenderBorderStyle(context, box);
+
+                RenderField(context, root, box, boxed: true);
+
+                // After the text in the tab order, whichever end they stand at; the stylesheet puts the leading group first.
+                FieldActionsRenderer.Render(context, box, RegionNames.LeadingAction, $"{ClassName}__action {ClassName}__action--leading");
+                FieldActionsRenderer.Render(context, box, RegionNames.TrailingAction, $"{ClassName}__action");
+            });
+        }
+        else
+        {
+            RenderField(context, root, root, boxed: false);
+        }
+
         RenderValidationMessage(context, root);
     }
 
-    private void RenderField(WebRenderContext context, IHtmlElementBuilder root)
+    private void RenderField(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool boxed)
     {
-        _ = root.Element("textarea", textarea =>
+        _ = parent.Element("textarea", textarea =>
         {
             _ = textarea.Class($"{ClassName}__field");
-            _ = textarea.Class(FieldBoxClassName);
 
-            BorderStyleRenderer.RenderBorderStyle(context, textarea);
+            if (boxed)
+            {
+                _ = textarea.Class("ui-field");
+            }
+            else
+            {
+                _ = textarea.Class(FieldBoxClassName);
 
+                BorderStyleRenderer.RenderBorderStyle(context, textarea);
+            }
+
+            // The rows as a variable too: a growing area is sized to its text, which the attribute no longer bounds from below.
             _ = RenderProperty<int?>(context, textarea, TextAreaComponent.RowsProperty, static (target, value) =>
             {
                 if (value is int rows and > 0)
-                    _ = target.Attribute("rows", rows.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.Attribute("rows")]);
+                    _ = target.Attribute("rows", rows.ToString(CultureInfo.InvariantCulture)).Style(RowsVariable, rows.ToString(CultureInfo.InvariantCulture));
+            }, [WebDomOperation.Attribute("rows"), WebDomOperation.Style(RowsVariable)]);
+
+            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxRowsProperty, static (target, value) =>
+            {
+                if (value is int maxRows and > 0)
+                    _ = target.Attribute(WebAttributes.TextAreaGrow).Style(MaxRowsVariable, maxRows.ToString(CultureInfo.InvariantCulture));
+            }, [WebDomOperation.ToggleAttribute(WebAttributes.TextAreaGrow), WebDomOperation.Style(MaxRowsVariable)]);
+
+            RenderFlagAttribute(context, textarea, TextAreaComponent.SubmitOnEnterProperty, WebAttributes.SubmitOnEnter);
 
             _ = RenderProperty<UITextAreaResizeMode?>(context, textarea, TextAreaComponent.ResizeProperty, static (target, value) =>
             {

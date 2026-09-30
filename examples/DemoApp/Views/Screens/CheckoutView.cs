@@ -186,7 +186,8 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 .SetTrimInput()
                 .SetTrailingAction(UIButtons.Ghost("Apply").SetSize(UIButtonSize.Small).OnClick(nameof(CheckoutController.ApplyPromo)))
                 .BindValue(nameof(CheckoutController.Promo))
-                .BindValidation(nameof(CheckoutController.PromoNotice)),
+                .BindValidation(nameof(CheckoutController.PromoNotice))
+                .OnChange(nameof(CheckoutController.PromoChanged)),
             new SeparatorComponent(),
             CreateSumRow("Subtotal", nameof(CheckoutController.SubtotalLine)),
             CreateSumRow("Discount", nameof(CheckoutController.DiscountLine)).BindVisibility(nameof(CheckoutController.DiscountVisibility)),

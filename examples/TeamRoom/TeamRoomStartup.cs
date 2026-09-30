@@ -2,8 +2,6 @@ using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NE.Standard.UI.Primitives.Security;
-using NE.Standard.UI.Shell.Runtime;
 using TeamRoom.Controllers;
 using TeamRoom.Data;
 using TeamRoom.Security;
@@ -36,8 +34,9 @@ public sealed class TeamRoomStartup : UIStartupBase
         _ = services.AddSingleton<MediaService>();
         _ = services.AddSingleton<IUIContentProvider>(static provider => provider.GetRequiredService<MediaService>());
         _ = services.AddSingleton<AccountStateFilter>();
-        // The framework's sessions in the application's database: signed in stays signed in across the host's restarts.
-        _ = services.AddSingleton<IUserSessionStore, SqliteSessionStore>();
+        // Signed-in sessions in the application's database, so signed in stays signed in across the host's restarts; a visitor
+        // who never signs in stays in memory and costs the database nothing.
+        _ = services.AddSignedInUserSessionStore<SqliteSessionStore>();
     }
 
     protected override void ConfigureApplication(UIApplicationBuilder application)

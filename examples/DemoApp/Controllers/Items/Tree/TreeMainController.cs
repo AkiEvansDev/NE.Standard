@@ -13,7 +13,7 @@ internal static class DemoStorageTree
     public const string FileKind = "file";
 
     public static TreeNode Folder(string id, string title, string? parentId, bool expanded = true)
-        => new() { Id = id, Title = title, ParentId = parentId, Kind = FolderKind, Icon = DemoIcons.Outline(DemoIcons.Folder), Expanded = expanded };
+        => new() { Id = id, Title = title, ParentId = parentId, Kind = FolderKind, IsFolder = true, Icon = DemoIcons.Outline(DemoIcons.Folder), Expanded = expanded };
 
     public static TreeNode File(string id, string title, string? parentId)
         => new() { Id = id, Title = title, ParentId = parentId, Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText) };

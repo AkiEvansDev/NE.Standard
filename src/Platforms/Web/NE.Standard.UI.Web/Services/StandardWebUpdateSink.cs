@@ -98,14 +98,10 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
             if (effects[i] is not SetLanguageEffect { Href: null } effect || !string.Equals(effect.Language, handle.Session.Language, StringComparison.Ordinal))
                 continue;
 
-            UIApplication application = _services.GetRequiredService<UIApplication>();
-            ITranslator translator = application.Translator;
-            var language = WebWordsEndpoint.TableLanguage(translator, effect.Language);
-
             named ??= [.. effects];
             named[i] = new SetLanguageEffect(effect.Language)
             {
-                Href = WebWordsEndpoint.Resolve(translator, language, _services.GetServices<IUIStringsSource>(), application.MissingWords is not null).Href
+                Href = WebWordsEndpoint.Resolve(_services.GetRequiredService<UIApplication>(), effect.Language, _services.GetServices<IUIStringsSource>()).Href
             };
         }
 

@@ -134,22 +134,28 @@ internal sealed partial class CheckoutController : UIControllerBase
     {
         var code = Promo?.Trim() ?? string.Empty;
 
-        if (code.Length == 0)
+        _discounted = IsPromo(code);
+        PromoNotice = code switch
         {
-            PromoNotice = UIValidationMessage.Info("Type a code first.");
-            return;
-        }
+            "" => UIValidationMessage.Info("Type a code first."),
+            _ when _discounted => UIValidationMessage.Info("A tenth off, as promised."),
+            _ => UIValidationMessage.Error($"\"{code}\" is not a code we know.")
+        };
+        Recalculate();
+    }
 
-        if (!string.Equals(code, PromoCode, StringComparison.OrdinalIgnoreCase))
-        {
-            _discounted = false;
-            PromoNotice = UIValidationMessage.Error($"\"{code}\" is not a code we know.");
-            Recalculate();
-            return;
-        }
+    private static bool IsPromo(string? code)
+        => string.Equals(code, PromoCode, StringComparison.OrdinalIgnoreCase);
 
-        _discounted = true;
-        PromoNotice = UIValidationMessage.Info("A tenth off, as promised.");
+    /// <summary>The field no longer holds the code the discount was given for: the discount goes until a code is applied again.</summary>
+    [UICommand]
+    public void PromoChanged()
+    {
+        if (!_discounted || IsPromo(Promo?.Trim()))
+            return;
+
+        _discounted = false;
+        PromoNotice = null;
         Recalculate();
     }
 

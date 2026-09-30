@@ -1,6 +1,6 @@
 // A small stand-in for the DOM, for the tests of engines that read the focus, containment, a few attributes and classes, and
 // events bubbling up a tree: enough selectors for the framework's own lists (classes, attributes, roles, `:not()`, `:is()`,
-// `:disabled`, `:scope`, the child and descendant combinators), and nothing laid out but what a test says.
+// `:disabled`, `:scope`, `:active`, `:focus-visible`, the child and descendant combinators), and nothing laid out but what a test says.
 
 type Listener = (domEvent: FakeEvent) => void;
 
@@ -48,6 +48,9 @@ export class FakeElement {
         },
         removeProperty(name: string): void {
             delete this[name];
+        },
+        getPropertyValue(name: string): string {
+            return typeof this[name] === "string" ? this[name] : "";
         }
     };
     public readonly dataset: Record<string, string> = {};
@@ -90,6 +93,10 @@ export class FakeElement {
 
     public get parentElement(): FakeElement | null {
         return this.parent;
+    }
+
+    public get firstElementChild(): FakeElement | null {
+        return this.children[0] ?? null;
     }
 
     public get isConnected(): boolean {
@@ -312,6 +319,7 @@ export class FakeElement {
 
 export class FakeInput extends FakeElement {
     public type: string;
+    public name = "";
     public value = "";
     public checked = false;
     public readOnly = false;
@@ -345,12 +353,33 @@ export class FakeTextArea extends FakeElement {
     }
 }
 
+class FakeSelect extends FakeElement {
+    public value = "";
+
+    public constructor() {
+        super("select");
+    }
+}
+
+class FakeDetails extends FakeElement {
+    public open = false;
+
+    public constructor() {
+        super("details");
+    }
+}
+
 export class FakeLabel extends FakeElement {
     public control: FakeElement | null = null;
 
     public constructor() {
         super("label");
     }
+}
+
+/** The page's document as a type: the stand-in below is never one, so a root asked `instanceof Document` is an element. */
+class FakeDocumentType {
+    public readonly nodeType = 9;
 }
 
 export const fakeDocument = {
@@ -374,6 +403,9 @@ export function installFakeDom(extra: Readonly<Record<string, unknown>> = {}): v
         HTMLElement: FakeElement,
         HTMLInputElement: FakeInput,
         HTMLTextAreaElement: FakeTextArea,
+        HTMLSelectElement: FakeSelect,
+        HTMLDetailsElement: FakeDetails,
+        Document: FakeDocumentType,
         HTMLLabelElement: FakeLabel,
         KeyboardEvent: FakeKeyboardEvent,
         ...extra
@@ -475,7 +507,7 @@ function matchesComplex(element: FakeElement, compounds: readonly string[], comb
     return false;
 }
 
-const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope))/;
+const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible))/;
 
 function matchesCompound(element: FakeElement, compound: string, scope: FakeElement | null): boolean {
     let rest = compound.trim();
@@ -507,6 +539,10 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
             return false;
 
         if (pseudo === "scope" && element !== scope)
+            return false;
+
+        // Nothing is ever pressed here, and the focus a test gives is the keyboard's.
+        if (pseudo === "active" || (pseudo === "focus-visible" && element !== fakeDocument.activeElement))
             return false;
 
         rest = rest.slice(whole.length);

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Generic;
 
 namespace NE.Standard.UI.Shell.Localization;
@@ -9,4 +10,11 @@ namespace NE.Standard.UI.Shell.Localization;
 public interface IUIStringsSource
 {
     IReadOnlyDictionary<string, string> English { get; }
+
+    /// <summary>
+    /// The same words in the other languages the package ships, by language; an application opts in with <c>AddFrameworkWords</c>,
+    /// ranked below its own sources.
+    /// </summary>
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Translations
+        => FrozenDictionary<string, IReadOnlyDictionary<string, string>>.Empty;
 }

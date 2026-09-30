@@ -293,6 +293,26 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         => _content is not null && _content.Contains(property);
 
     /// <summary>
+    /// Says the static text of this component and of everything under it — its own properties, its children's, the items it
+    /// declares — is content, so the Development report of unkeyed words (<c>UIMissingWordKind.Unkeyed</c>) names none of it: a
+    /// sample, a page of prose, a table of data.
+    /// </summary>
+    /// <remarks>
+    /// Report-only: it changes nothing rendered, sent or looked up. Under key prefixes a plain string there is already shown as
+    /// written and a prefixed key is still a key; without prefixes every string is still a key. <see cref="AsContent"/> is what
+    /// keeps one property's text as written.
+    /// </remarks>
+    public TComponent AsContentTree()
+    {
+        IsContentTree = true;
+
+        return Self;
+    }
+
+    /// <inheritdoc />
+    public bool IsContentTree { get; private set; }
+
+    /// <summary>
     /// Fills the property register for this component type, once.
     /// </summary>
     /// <remarks>Static initialisers per hierarchy level fill the register, so every level has to be run before it can be read.</remarks>

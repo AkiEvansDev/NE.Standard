@@ -23,11 +23,36 @@ public abstract partial class MultiSelectComponent<T, TItem>(string? id = null) 
     public int? MaxSelected { get; set; }
 
     /// <summary>
-    /// Sets how many options can be chosen at most.
+    /// Sets the chosen keys, no more of them than <see cref="MaxSelected"/>; whichever of the two is set last is checked against the
+    /// other.
+    /// </summary>
+    public new T SetValue(IReadOnlyList<string>? value)
+    {
+        ValidateSelectedCount(value, MaxSelected);
+
+        Value = value;
+        return Self;
+    }
+
+    private static void ValidateSelectedCount(IReadOnlyList<string>? value, int? maxSelected)
+    {
+        if (value is null || maxSelected is not int max || value.Count <= max)
+            return;
+
+        // A repeated key is one chip on the page, so only the distinct keys count.
+        var count = new HashSet<string>(value, StringComparer.Ordinal).Count;
+
+        if (count > max)
+            throw new ArgumentOutOfRangeException(nameof(value), count, $"A multi-select cannot hold more than {max} keys.");
+    }
+
+    /// <summary>
+    /// Sets how many options can be chosen at most, which the chosen keys may not already exceed.
     /// </summary>
     public T SetMaxSelected(int maxSelected)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxSelected, 1);
+        ValidateSelectedCount(Value, maxSelected);
 
         MaxSelected = maxSelected;
         return Self;

@@ -44,6 +44,9 @@ public sealed class UICommandFilterContext
     /// </summary>
     public UIHandle Handle { get; }
 
+    /// <summary>Gets what the platform knows about the connection that raised the command — the handle's.</summary>
+    public UIConnectionInfo Connection => Handle.Connection;
+
     /// <summary>
     /// Gets the route the controller is running on.
     /// </summary>

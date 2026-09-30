@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using NE.Standard.UI.Web.Abstractions.Html;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
@@ -55,13 +56,12 @@ public static class WebIconValue
             candidate = candidate[MaskPrefix.Length..].Trim();
         }
 
-        if (!IsAllowedSource(candidate))
+        if (!WebUrlSafety.TryReadImageSource(candidate, out source))
         {
             tinted = false;
             return false;
         }
 
-        source = candidate;
         return true;
     }
 
@@ -112,22 +112,9 @@ public static class WebIconValue
     }
 
     /// <summary>
-    /// Whether a string may be safely rendered as an image source — an <c>img src</c> or a CSS <c>url()</c>.
+    /// Whether a string may be safely rendered as an image source — an <c>img src</c> or a CSS <c>url()</c>; the rule is
+    /// <see cref="WebUrlSafety.IsSafeImageSource"/>.
     /// </summary>
     public static bool IsAllowedSource(string? value)
-        => !string.IsNullOrEmpty(value) && IsAllowedSource(value.AsSpan());
-
-    private static bool IsAllowedSource(ReadOnlySpan<char> value)
-    {
-        if (value.IsEmpty)
-            return false;
-
-        // `data:` is narrowed to images, since a blanket `data:` would carry whatever an author was handed by a third party.
-        if (value[0] == '/')
-            return value.Length > 1 && value[1] != '/';
-
-        return value.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
-    }
+        => WebUrlSafety.IsSafeImageSource(value);
 }

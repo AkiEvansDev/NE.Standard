@@ -1,19 +1,23 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Sessions;
 
-/// <summary>Keeps user sessions in the process's own memory.</summary>
-/// <remarks>Correct only for a single process; a host swaps it by registering its own <see cref="IUserSessionStore"/> first.</remarks>
-internal sealed class InMemoryUserSessionStore : IUserSessionStore
+/// <summary>Keeps user sessions in the process's own memory — the store the framework registers when the application registers none.</summary>
+/// <remarks>
+/// Correct only for a single process, and every session is gone when it stops. <see cref="UserSessionSplitStore"/> keeps anonymous
+/// sessions in one of these and signed-in ones in an application's own store.
+/// </remarks>
+public sealed class UserSessionMemoryStore : IUserSessionStore
 {
     private readonly ConcurrentDictionary<string, UserSessionState> _sessions = new(StringComparer.Ordinal);
 
-    /// <summary>How many sessions the store holds, for the host's meter.</summary>
+    /// <summary>Gets how many sessions the store holds, for the host's meter.</summary>
     public int Count => _sessions.Count;
 
     /// <inheritdoc />
@@ -45,19 +49,27 @@ internal sealed class InMemoryUserSessionStore : IUserSessionStore
         // Compare-and-swap: a session removed or replaced between the read and the write is read again, never written back.
         while (_sessions.TryGetValue(sessionId, out UserSessionState? current))
         {
-            UserSessionState updated = update(current);
+            UserSessionState updated = Apply(sessionId, current, update);
 
-            ArgumentNullException.ThrowIfNull(updated);
-            updated.Validate();
-
-            if (!string.Equals(updated.SessionId, sessionId, StringComparison.Ordinal))
-                throw new InvalidOperationException("An update cannot change the session's id.");
-
-            if (_sessions.TryUpdate(sessionId, updated, current))
+            if (ReferenceEquals(updated, current) || _sessions.TryUpdate(sessionId, updated, current))
                 return ValueTask.FromResult(true);
         }
 
         return ValueTask.FromResult(false);
+    }
+
+    /// <summary>Runs an update on a stored session and checks what it answered — the one reading of an update, for every store here.</summary>
+    internal static UserSessionState Apply(string sessionId, UserSessionState current, Func<UserSessionState, UserSessionState> update)
+    {
+        UserSessionState updated = update(current);
+
+        ArgumentNullException.ThrowIfNull(updated);
+        updated.Validate();
+
+        if (!string.Equals(updated.SessionId, sessionId, StringComparison.Ordinal))
+            throw new InvalidOperationException("An update cannot change the session's id.");
+
+        return updated;
     }
 
     /// <inheritdoc />
@@ -118,4 +130,20 @@ internal sealed class InMemoryUserSessionStore : IUserSessionStore
 
         return ValueTask.FromResult<IReadOnlyList<string>>(removed);
     }
+
+    /// <summary>The session as held now, for a caller that swaps or takes it by what it read.</summary>
+    internal bool TryRead(string sessionId, [NotNullWhen(true)] out UserSessionState? session)
+        => _sessions.TryGetValue(sessionId, out session);
+
+    /// <summary>Replaces a session only while it is still <paramref name="current"/>.</summary>
+    internal bool TrySwap(string sessionId, UserSessionState updated, UserSessionState current)
+        => _sessions.TryUpdate(sessionId, updated, current);
+
+    /// <summary>Removes a session only while it is still <paramref name="current"/>.</summary>
+    internal bool TryTake(string sessionId, UserSessionState current)
+        => _sessions.TryRemove(new KeyValuePair<string, UserSessionState>(sessionId, current));
+
+    /// <summary>Adds a session under an id the store does not hold.</summary>
+    internal bool TryAdd(UserSessionState session)
+        => _sessions.TryAdd(session.SessionId, session);
 }

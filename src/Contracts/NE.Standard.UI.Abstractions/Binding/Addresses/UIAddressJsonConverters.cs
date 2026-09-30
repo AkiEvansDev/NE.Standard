@@ -17,7 +17,7 @@ public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentA
             throw new JsonException("A component address must be an object.");
 
         UIComponentId id = default;
-        List<object?>? parameters = null;
+        object?[]? parameters = null;
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
         {
@@ -32,12 +32,15 @@ public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentA
             if (isId)
                 id = JsonSerializer.Deserialize<UIComponentId>(ref reader, options);
             else if (isParameters && reader.TokenType == JsonTokenType.StartArray)
-                parameters = JsonSerializer.Deserialize<List<object?>>(ref reader, options);
+                parameters = UIDynamicParametersJsonConverter.ReadParameters(ref reader);
             else if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
                 reader.Skip();
         }
 
-        return new UIComponentAddress(id, parameters?.ToArray());
+        if (id.IsEmpty)
+            throw new JsonException("A component address must carry a component id.");
+
+        return new UIComponentAddress(id, parameters);
     }
 
     public override void Write(Utf8JsonWriter writer, UIComponentAddress value, JsonSerializerOptions options)
@@ -56,5 +59,53 @@ public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentA
         }
 
         writer.WriteEndObject();
+    }
+}
+
+/// <summary>
+/// Reads the keys addressing an item the way the runtime takes them — each an <see cref="int"/>, a string or null — wherever the
+/// wire carries them: in an address, with a written value, with a command.
+/// </summary>
+public sealed class UIDynamicParametersJsonConverter : JsonConverter<object?[]>
+{
+    public override object?[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("Dynamic parameters must be an array.");
+
+        return ReadParameters(ref reader);
+    }
+
+    // Read by hand rather than as object?[]: that gives a JsonElement, or a long under the hub's options, which the runtime refuses
+    // only once it resolves the binding — as its own failure rather than a malformed call.
+    internal static object?[] ReadParameters(ref Utf8JsonReader reader)
+    {
+        List<object?> parameters = [];
+
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+        {
+            parameters.Add(reader.TokenType switch
+            {
+                JsonTokenType.Null => null,
+                JsonTokenType.String => reader.GetString(),
+                JsonTokenType.Number when reader.TryGetInt32(out var number) => number,
+                _ => throw new JsonException($"Dynamic parameter #{parameters.Count} must be int or string.")
+            });
+        }
+
+        return [.. parameters];
+    }
+
+    public override void Write(Utf8JsonWriter writer, object?[] value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+
+        writer.WriteStartArray();
+
+        foreach (var parameter in value)
+            JsonSerializer.Serialize(writer, parameter, options);
+
+        writer.WriteEndArray();
     }
 }

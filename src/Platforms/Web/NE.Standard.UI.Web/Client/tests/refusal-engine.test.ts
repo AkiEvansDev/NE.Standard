@@ -118,6 +118,15 @@ class FakeEvent {
     public stopImmediatePropagation(): void {
         this.stopped = true;
     }
+
+    public composedPath(): FakeElement[] {
+        const path: FakeElement[] = [];
+
+        for (let current: FakeElement | null = this.target; current !== null; current = current.parent)
+            path.push(current);
+
+        return path;
+    }
 }
 
 class FakeKeyboardEvent extends FakeEvent {
@@ -146,9 +155,17 @@ Object.assign(globalThis, {
 });
 
 const { startRefusals } = await import("../src/interactions/refusal-engine.ts");
+const { PopupDismissal } = await import("../src/interactions/popup-dismissal.ts");
 
-/** A page with its refusals started, and a way to tell them a component's class changed. */
-function page(...content: FakeElement[]): { root: FakeElement; setClass: (element: FakeElement, ...classes: string[]) => void; add: (parent: FakeElement, child: FakeElement) => void } {
+type Page = {
+    readonly root: FakeElement;
+    readonly setClass: (element: FakeElement, ...classes: string[]) => void;
+    readonly setAddress: (element: FakeElement, address: string | null) => void;
+    readonly add: (parent: FakeElement, child: FakeElement) => void;
+};
+
+/** A page with its refusals started, and a way to tell them a component's class or a link's address changed. */
+function page(...content: FakeElement[]): Page {
     const root = new FakeElement().append(...content);
 
     startRefusals(root as unknown as ParentNode);
@@ -166,6 +183,17 @@ function page(...content: FakeElement[]): { root: FakeElement; setClass: (elemen
                 element.classes.add(name);
 
             notify?.([{ type: "attributes", target: element, attributeName: "class", oldValue }]);
+        },
+        setAddress: (element, address) => {
+            const oldValue = element.getAttribute("data-ui-href");
+
+            if (address === null)
+                element.removeAttribute("data-ui-href");
+            else
+                element.setAttribute("data-ui-href", address);
+
+            // A record's old value is null for an attribute that was not there, as the browser's is.
+            notify?.([{ type: "attributes", target: element, attributeName: "data-ui-href", oldValue: oldValue as string }]);
         },
         add: (parent, child) => {
             parent.append(child);
@@ -250,6 +278,45 @@ test("a disabled link keeps its address aside and holds a tab stop meanwhile; li
     assert.equal(link.hasAttribute("tabindex"), false);
 });
 
+test("a link whose address is taken away or turns unsafe leads nowhere, and a safe one leads there again", () => {
+    const link = new FakeElement(["ui-link"], { "data-ui-href": "/next", href: "/next", "data-ui-id": "1" });
+    const { setAddress } = page(link);
+
+    setAddress(link, null);
+
+    assert.equal(link.hasAttribute("href"), false);
+
+    setAddress(link, "/back");
+
+    assert.equal(link.getAttribute("href"), "/back");
+
+    setAddress(link, "javascript:alert(1)");
+
+    assert.equal(link.hasAttribute("href"), false);
+});
+
+test("an unsafe address kept on a link, a forged boot patch's, never reaches its href", () => {
+    const link = new FakeElement(["ui-link"], { "data-ui-href": "javascript:alert(1)", "data-ui-id": "1" });
+    const { setClass } = page(link);
+
+    assert.equal(link.hasAttribute("href"), false);
+
+    setClass(link, "ui-link", "ui-disabled");
+    setClass(link, "ui-link");
+
+    assert.equal(link.hasAttribute("href"), false);
+});
+
+test("an anchor with no address of its own keeps its href through a disable and back", () => {
+    const anchor = new FakeElement(["ui-inline-link"], { href: "https://example.com" });
+    const { setClass } = page(anchor);
+
+    setClass(anchor, "ui-inline-link", "ui-disabled");
+    setClass(anchor, "ui-inline-link");
+
+    assert.equal(anchor.getAttribute("href"), "https://example.com");
+});
+
 test("a tab stop a roving engine gave a link is its own, through a disable and back", () => {
     const link = new FakeElement(["ui-link"], { "data-ui-href": "/next", href: "/next", tabindex: "-1", "data-ui-id": "1" });
     const { setClass } = page(link);
@@ -276,6 +343,26 @@ test("a press on anything inert runs nothing, a disabled root's included, and En
     assert.equal(dispatch(root, new FakeKeyboardEvent("keydown", button, "Tab")).defaultPrevented, false);
 });
 
+test("a press refused on a disabled control still closes a popup it lands outside of, not one it lands inside", () => {
+    const label = new FakeElement();
+    const button = component(["ui-button", "ui-disabled"], label);
+    const item = component(["ui-menu-item", "ui-disabled"]);
+    const list = new FakeElement(["ui-select__list"]).append(item);
+    const { root } = page(button, list);
+    const closed: string[] = [];
+
+    // The dismissal listens on the document, which the refusals stop the click ahead of.
+    Object.assign(globalThis.document, { addEventListener: () => undefined });
+    new PopupDismissal({ openPopups: () => closed.length === 0 ? [list as unknown as HTMLElement] : [], close: (_, reason) => closed.push(reason), isBehind: () => false });
+
+    dispatch(root, new FakeEvent("click", item));
+
+    assert.deepEqual(closed, []);
+
+    assert.equal(dispatch(root, new FakeEvent("click", label)).stopped, true);
+    assert.deepEqual(closed, ["outside"]);
+});
+
 test("a read-only box keeps its state on a click, and stays pressable otherwise", () => {
     const box = new FakeInput("checkbox");
     const editable = new FakeInput("checkbox");
@@ -297,6 +384,15 @@ test("a read-only range or radio group moves nothing on its arrows", () => {
     assert.equal(dispatch(root, new FakeKeyboardEvent("keydown", range, "ArrowRight")).defaultPrevented, true);
     assert.equal(dispatch(root, new FakeKeyboardEvent("keydown", radio, "ArrowDown")).defaultPrevented, true);
     assert.equal(dispatch(root, new FakeKeyboardEvent("keydown", editable, "ArrowRight")).defaultPrevented, false);
+});
+
+test("a read-only range's change no key made, a screen reader's increment, reaches no engine; an editable one's does", () => {
+    const range = new FakeInput("range");
+    const editable = new FakeInput("range");
+    const { root } = page(component(["ui-slider", "ui-readonly"], range), component(["ui-slider"], editable));
+
+    assert.equal(dispatch(root, new FakeEvent("change", range)).stopped, true);
+    assert.equal(dispatch(root, new FakeEvent("change", editable)).stopped, false);
 });
 
 test("a read-only range's handle is taken by neither a press nor a finger, and the press still gives it the focus", () => {

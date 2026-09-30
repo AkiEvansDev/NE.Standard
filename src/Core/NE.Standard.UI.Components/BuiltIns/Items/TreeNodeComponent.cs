@@ -29,6 +29,13 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     public bool? HasChildren { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the node is a folder a drag drops onto: unset for a node holding children, true even while empty, false
+    /// for none.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, DefaultBindingScope = UIBindingScope.Relative)]
+    public bool? IsFolder { get; set; }
+
+    /// <summary>
     /// Gets or sets whether the node starts unfolded.
     /// </summary>
     [UIComponentProperty(DefaultValue = null, DefaultBindingScope = UIBindingScope.Relative)]
@@ -74,6 +81,7 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
         _ = Bind(EnabledProperty, nameof(ITreeNodeModel.Enabled), UIBindingScope.Relative);
         _ = Bind(ParentIdProperty, nameof(ITreeNodeModel.ParentId), UIBindingScope.Relative);
         _ = Bind(HasChildrenProperty, nameof(ITreeNodeModel.HasChildren), UIBindingScope.Relative);
+        _ = Bind(IsFolderProperty, nameof(ITreeNodeModel.IsFolder), UIBindingScope.Relative);
         _ = Bind(ExpandedProperty, nameof(ITreeNodeModel.Expanded), UIBindingScope.Relative);
         // Two-way, as both properties declare, like a tab's caption: a rename shows the new name at once.
         _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative);

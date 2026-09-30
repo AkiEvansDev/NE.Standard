@@ -20,7 +20,7 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.inputs.time-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateStepGroup()], [CreateSegmentsGroup(), CreateBoundsGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateStepGroup(), CreateLanguageGroup()], [CreateSegmentsGroup(), CreateBoundsGroup()]));
 
     /// <summary>The jobs it is given, and the pair that is a window rather than a moment.</summary>
     private static ContainerComponent CreateUsesGroup()
@@ -61,12 +61,12 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
         return DemoUI.CreateExample("Which segments it has",
             UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
-                    .SetTitle("Unset — the culture's short time")
+                    .SetTitle("Unset — HH:mm, two segments, 24 hours")
                     .SetValue(Standup)
                 )
                 .AddChild(new TimeInputComponent()
-                    .SetTitle("HH:mm — two segments, 24 hours")
-                    .SetDisplayFormat("HH:mm")
+                    .SetTitle("h:mm tt — a third for AM or PM")
+                    .SetDisplayFormat("h:mm tt")
                     .SetValue(Standup)
                 )
                 .AddChild(new TimeInputComponent()
@@ -126,6 +126,27 @@ internal sealed class TimeInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetMin(new TimeOnly(8, 0))
                 )
                 .AddChild(UIText.Note("The editor is **segments only** — free text is gone for this control, so nothing it produces can fail to parse and `FormatMessage` is never reached from it."))
+        );
+    }
+
+    /// <summary>
+    /// With no <c>DisplayFormat</c> the field writes the framework's own pattern, drawn again when the language changes; a
+    /// <c>Culture</c> pins a culture, and its pattern with it.
+    /// </summary>
+    private static ContainerComponent CreateLanguageGroup()
+    {
+        return DemoUI.CreateExample("In the page's language",
+            UILayout.Stack(16)
+                .AddChild(new TimeInputComponent()
+                    .SetTitle("Unset — HH:mm in every language")
+                    .SetValue(Standup)
+                )
+                .AddChild(new TimeInputComponent()
+                    .SetTitle("Culture en-US — its own h:mm tt")
+                    .SetCulture("en-US")
+                    .SetValue(Standup)
+                ),
+            note: "Switch the language in the header: the first field keeps the framework's 24-hour `HH:mm` in every language; the second names `en-US`, so it shows that culture's `h:mm tt` whatever the page speaks. `ConfigureTemporal(o => o.FollowCulture = true)` would give every field its language's own clock, and `HourCycle` one clock for all; this demo leaves both unset."
         );
     }
 }

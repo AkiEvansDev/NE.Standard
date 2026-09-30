@@ -1,0 +1,6 @@
+// A popup opened on a lifted ground — a raised panel, a dialog — stands one step off it, as the panel stands off the page: 8 % more
+// of the text. The panel's own step, `--ui-surface-raised`, is the same mix of the page, written by `WebThemeCssBuilder`; the two keep
+// one number.
+.ui-popup-ground-lifted(@ground) {
+    --ui-popup-ground: color-mix(in srgb, @ground 92%, var(--ui-color-on-surface) 8%);
+}

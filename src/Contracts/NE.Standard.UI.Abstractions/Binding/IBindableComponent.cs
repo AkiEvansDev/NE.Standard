@@ -23,6 +23,13 @@ public interface IBindableComponent : IBindableItem
     /// </summary>
     bool IsContent(UIProperty property)
         => false;
+
+    /// <summary>
+    /// Whether the author said the static text of this component and of everything under it is content, for the unkeyed-words
+    /// report only; nothing rendered or looked up changes.
+    /// </summary>
+    bool IsContentTree
+        => false;
 }
 
 /// <summary>

@@ -91,7 +91,10 @@ internal static class UIComponentPropertyModelFactory
         UIComponentPropertyAttributeValues values = symbols.Values;
         List<DiagnosticInfo> diagnostics = [];
 
-        ValidateProperty(compilation, symbols, diagnostics);
+        // Walked once: the validation reports a contract without the property, and the property argument names the one that has it.
+        INamedTypeSymbol? contractOwner = values.Contract is null ? null : FindContractPropertyOwner(compilation, symbols);
+
+        ValidateProperty(compilation, symbols, contractOwner, diagnostics);
 
         return new UIComponentPropertyModel(
             Owner: owner,
@@ -99,7 +102,7 @@ internal static class UIComponentPropertyModelFactory
             Type: property.Type.ToGlobalTypeDisplayString(),
             DeclareProperty: symbols.DeclareProperty,
             CarriedAttributes: symbols.DeclareProperty ? GetCarriedAttributes(property) : EquatableArray<string>.Empty,
-            PropertyArgument: BuildPropertyArgument(symbols),
+            PropertyArgument: BuildPropertyArgument(symbols, contractOwner),
             IsBindable: values.IsBindable,
             BindingCapabilities: values.BindingCapabilities,
             DefaultValue: GetDefaultValue(symbols),
@@ -113,7 +116,40 @@ internal static class UIComponentPropertyModelFactory
         );
     }
 
-    private static void ValidateProperty(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
+    /// <summary>
+    /// The interface declaring the contract's static <c>UIProperty</c>: the contract itself or one of its bases, since a block's
+    /// derived contract brings the properties of every interface below it and interface statics are not inherited.
+    /// </summary>
+    private static INamedTypeSymbol? FindContractPropertyOwner(Compilation compilation, PropertySymbols model)
+    {
+        INamedTypeSymbol contract = model.Values.Contract!;
+        var contractPropertyName = GetContractPropertyName(model);
+        INamedTypeSymbol? uiPropertyType = compilation.GetTypeByMetadataName(UIComponentPropertyNames.UIPropertyMetadataName);
+
+        if (DeclaresContractProperty(contract, contractPropertyName, uiPropertyType))
+            return contract;
+
+        foreach (INamedTypeSymbol inherited in contract.AllInterfaces)
+        {
+            if (DeclaresContractProperty(inherited, contractPropertyName, uiPropertyType))
+                return inherited;
+        }
+
+        return null;
+    }
+
+    private static bool DeclaresContractProperty(INamedTypeSymbol contract, string contractPropertyName, INamedTypeSymbol? uiPropertyType)
+    {
+        foreach (ISymbol member in contract.GetMembers(contractPropertyName))
+        {
+            if (member is IPropertySymbol { IsStatic: true } property && (uiPropertyType is null || SymbolEqualityComparer.Default.Equals(property.Type, uiPropertyType)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void ValidateProperty(Compilation compilation, PropertySymbols model, INamedTypeSymbol? contractOwner, List<DiagnosticInfo> diagnostics)
     {
         UIComponentPropertyAttributeValues values = model.Values;
 
@@ -145,8 +181,8 @@ internal static class UIComponentPropertyModelFactory
         if (values.GenerateBinder && values.IsBindable)
             ValidateGeneratedBinderMembers(compilation, model, diagnostics);
 
-        if (values.Contract is not null)
-            ValidateContractProperty(compilation, model, diagnostics);
+        if (values.Contract is not null && contractOwner is null)
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, model.Property, values.Contract.ToDisplayString(), GetContractPropertyName(model)));
 
         if (!string.IsNullOrWhiteSpace(values.DefaultValueMember))
             ValidateDefaultValueMember(model, diagnostics);
@@ -270,29 +306,6 @@ internal static class UIComponentPropertyModelFactory
         }
     }
 
-    private static void ValidateContractProperty(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
-    {
-        INamedTypeSymbol contract = model.Values.Contract!;
-        var contractPropertyName = GetContractPropertyName(model);
-        INamedTypeSymbol? uiPropertyType = compilation.GetTypeByMetadataName(UIComponentPropertyNames.UIPropertyMetadataName);
-
-        foreach (ISymbol member in contract.GetMembers(contractPropertyName))
-        {
-            if (member is not IPropertySymbol property)
-                continue;
-
-            if (!property.IsStatic)
-                continue;
-
-            if (uiPropertyType is not null && !SymbolEqualityComparer.Default.Equals(property.Type, uiPropertyType))
-                continue;
-
-            return;
-        }
-
-        diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, model.Property, contract.ToDisplayString(), contractPropertyName));
-    }
-
     private static string GetContractPropertyName(PropertySymbols model)
         => !string.IsNullOrWhiteSpace(model.Values.ContractPropertyName)
             ? model.Values.ContractPropertyName!
@@ -369,12 +382,13 @@ internal static class UIComponentPropertyModelFactory
         return carried.ToEquatableArray();
     }
 
-    private static string BuildPropertyArgument(PropertySymbols model)
+    private static string BuildPropertyArgument(PropertySymbols model, INamedTypeSymbol? contractOwner)
     {
         if (model.Values.Contract is null)
             return "nameof(" + model.Property.Name + ")";
 
-        var contractType = model.Values.Contract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        INamedTypeSymbol contract = contractOwner ?? model.Values.Contract;
+        var contractType = contract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var contractPropertyName = GetContractPropertyName(model);
 
         return contractType + "." + contractPropertyName;
@@ -421,15 +435,11 @@ internal static class UIComponentPropertyModelFactory
         if (context.TargetSymbol is not INamedTypeSymbol type)
             return null;
 
-        List<INamedTypeSymbol> contracts = [];
+        // Every partial declaration carrying a block is a call of its own, and context.Attributes holds those of its file only: the
+        // whole type's blocks are read here, by the declaration carrying the first of them, as its defaults are.
+        List<INamedTypeSymbol> contracts = ReadBlockContracts(type, out SyntaxReference? firstBlock);
 
-        foreach (AttributeData attribute in context.Attributes)
-        {
-            if (attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract)
-                contracts.Add(contract);
-        }
-
-        if (contracts.Count == 0)
+        if (contracts.Count == 0 || firstBlock is null || firstBlock.SyntaxTree != context.TargetNode.SyntaxTree || !context.TargetNode.Span.Contains(firstBlock.Span))
             return null;
 
         Compilation compilation = context.SemanticModel.Compilation;
@@ -438,14 +448,36 @@ internal static class UIComponentPropertyModelFactory
         List<DiagnosticInfo> diagnostics = [];
         Dictionary<string, string> defaults = ReadOwnDefaults(type);
 
+        // Shared by every block: two contracts over one base interface bring its properties once.
+        HashSet<string> seen = [];
+
         foreach (INamedTypeSymbol contract in contracts)
-            AppendBlockProperties(compilation, owner, type, contract, properties, diagnostics, defaults);
+            AppendBlockProperties(compilation, owner, type, contract, properties, diagnostics, defaults, seen);
 
         // What is left named a property no block generated here: a typo, or one declared by hand or by a base.
         foreach (var propertyName in defaults.Keys)
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockDefaultNotFound, type, propertyName, type.ToDisplayString()));
 
         return new UIComponentPropertyBlockModel(owner, properties.ToEquatableArray(), diagnostics.ToEquatableArray());
+    }
+
+    private static List<INamedTypeSymbol> ReadBlockContracts(INamedTypeSymbol type, out SyntaxReference? firstBlock)
+    {
+        List<INamedTypeSymbol> contracts = [];
+        firstBlock = null;
+
+        foreach (AttributeData attribute in type.GetAttributes())
+        {
+            if (attribute.AttributeClass?.ToDisplayString() != UIComponentPropertyNames.BlockAttributeMetadataName)
+                continue;
+
+            firstBlock ??= attribute.ApplicationSyntaxReference;
+
+            if (attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract)
+                contracts.Add(contract);
+        }
+
+        return contracts;
     }
 
     /// <summary>The type's own defaults for its block properties, by property name, from its <c>[UIComponentPropertyDefault]</c>s.</summary>
@@ -468,7 +500,7 @@ internal static class UIComponentPropertyModelFactory
     }
 
     /// <summary>Adds the contract's properties the type does not declare itself; a default the type gives one is taken out of <paramref name="defaults"/>.</summary>
-    private static void AppendBlockProperties(Compilation compilation, UIComponentTypeModel owner, INamedTypeSymbol type, INamedTypeSymbol contract, List<UIComponentPropertyModel> target, List<DiagnosticInfo> diagnostics, Dictionary<string, string> defaults)
+    private static void AppendBlockProperties(Compilation compilation, UIComponentTypeModel owner, INamedTypeSymbol type, INamedTypeSymbol contract, List<UIComponentPropertyModel> target, List<DiagnosticInfo> diagnostics, Dictionary<string, string> defaults, HashSet<string> seen)
     {
         if (contract.TypeKind != TypeKind.Interface)
         {
@@ -478,7 +510,6 @@ internal static class UIComponentPropertyModelFactory
         }
 
         var found = false;
-        HashSet<string> seen = [];
 
         // Properties are often declared one interface further down (ITextBaseComponent over ITextBaseModel), so the whole chain is walked.
         foreach (ISymbol member in EnumerateContractMembers(contract))
@@ -488,12 +519,12 @@ internal static class UIComponentPropertyModelFactory
 
             AttributeData? attribute = FindComponentPropertyAttribute(property);
 
-            if (attribute is null || !seen.Add(property.Name))
+            if (attribute is null)
                 continue;
 
             found = true;
 
-            if (IsDeclaredByHand(type, contract, property, diagnostics) || IsDeclaredByBase(type, property))
+            if (!seen.Add(property.Name) || IsDeclaredByHand(type, contract, property, diagnostics) || IsDeclaredByBase(type, property))
                 continue;
 
             UIComponentPropertyAttributeValues values = UIComponentPropertyAttributeValues.From(attribute);

@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Shell.Hosting;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Shell.Navigation;
@@ -13,7 +14,7 @@ public sealed class UIViewFilterContext
     /// <summary>
     /// Creates a filter context for one view resolution attempt.
     /// </summary>
-    public UIViewFilterContext(UINavigationRequest navigation, UIRouteDefinition route, IUserSessionContext session, IServiceProvider services, UIViewRequestPhase phase)
+    public UIViewFilterContext(UINavigationRequest navigation, UIRouteDefinition route, IUserSessionContext session, IServiceProvider services, UIViewRequestPhase phase, UIConnectionInfo? connection = null)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(route);
@@ -25,6 +26,7 @@ public sealed class UIViewFilterContext
         Session = session;
         Services = services;
         Phase = phase;
+        Connection = connection ?? UIConnectionInfo.Unknown;
     }
 
     /// <summary>
@@ -43,9 +45,12 @@ public sealed class UIViewFilterContext
     public IUserSessionContext Session { get; }
 
     /// <summary>
-    /// Gets the application service provider.
+    /// Gets the request's service scope: a filter's scoped services are the request's own, and go with it.
     /// </summary>
     public IServiceProvider Services { get; }
+
+    /// <summary>Gets what the platform knows about the connection the request came over.</summary>
+    public UIConnectionInfo Connection { get; }
 
     /// <summary>Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>.</summary>
     /// <remarks>A filter with a side effect has to test this, because one page load resolves the view twice.</remarks>

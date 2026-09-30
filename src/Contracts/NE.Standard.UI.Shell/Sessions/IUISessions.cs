@@ -14,7 +14,7 @@ public interface IUISessions
     /// <summary>Ends a session everywhere but <paramref name="except"/>, the page that asked, which finishes its own answer.</summary>
     /// <remarks>
     /// Its stored record and uploads go, and every other page open under it is sent to <c>Security.SignInRoute</c> (reloaded, where
-    /// none is configured) and its runtime ended.
+    /// none is configured or the page was anonymous) and its runtime ended.
     /// </remarks>
     Task EndSessionAsync(string sessionId, UIHandle? except = null, CancellationToken cancellationToken = default);
 
@@ -29,7 +29,9 @@ public interface IUISessions
     /// </summary>
     /// <remarks>
     /// The store is what every command's access check reads, so a changed role holds for pages already open from their next
-    /// command, and for a route from the next page load.
+    /// command, and for a route from the next page load. A page open under a changed session whose route it no longer passes is
+    /// sent back to its own address — to sign in or the forbidden page, as its resolution decides — and its runtime ended. A change
+    /// made straight through <see cref="IUserSessionStore"/>, or by another process, reaches open pages only at their next command.
     /// </remarks>
     Task<int> UpdateUserSessionsAsync(string userId, Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace NE.Standard.UI.Web.Renderers.Foundation;
+namespace NE.Standard.UI.Web.Abstractions.Theming;
 
 /// <summary>Resolves an authored culture name the way <c>UIFormattedValueNormalizer</c> does: an unknown or empty one is invariant.</summary>
 public static class WebCultures

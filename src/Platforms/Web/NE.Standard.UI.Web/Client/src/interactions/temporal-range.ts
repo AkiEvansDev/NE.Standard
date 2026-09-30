@@ -1,5 +1,8 @@
 // Choosing a period on one calendar, apart from the DOM: which end a click sets, and what the other end becomes.
 
+// `.ts` on the value import: `node --test` runs this module and resolves files literally.
+import { localDate } from "../rendering/temporal-format.ts";
+
 export type PeriodEnd = "start" | "end";
 
 export type Period = {
@@ -55,9 +58,9 @@ export function orderPeriod(period: Period): Period {
 }
 
 function withTime(day: Date, timeOf: Date): Date {
-    return new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
+    return localDate(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
 }
 
 export function startOfDay(value: Date): Date {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    return localDate(value.getFullYear(), value.getMonth(), value.getDate());
 }

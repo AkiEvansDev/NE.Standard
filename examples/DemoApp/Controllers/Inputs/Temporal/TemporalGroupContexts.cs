@@ -22,7 +22,7 @@ internal sealed partial class TemporalFieldGroupContext : AffixedFieldGroupConte
         AddAffixIconOptions();
     }
 
-    // Back to null last: that is the control's own default, the culture's short pattern.
+    // Back to null last: that is the control's own default, the framework's yyyy-MM-dd and HH:mm.
     public void CycleDisplayFormat()
         => SetLastChange(nameof(DisplayFormat), DisplayFormat = CycleValue(DisplayFormat, _firstFormat, _secondFormat, null));
 }

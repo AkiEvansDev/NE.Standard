@@ -1,8 +1,8 @@
 // A pointer dragging a handle (a grid splitter's bar, a table's column edge): press takes the pointer, moves are measured from
 // where it began, release lets go. One gesture for every handle; what it does with the distance is the engine's.
 
-import { SplittingAttribute } from "../addressing/dom-attributes";
-import { isInert } from "./interactive-state";
+import { SplittingAttribute } from "../addressing/dom-attributes.ts";
+import { isInert } from "./interactive-state.ts";
 
 export type PointerDragOptions<TContext> = {
     readonly root: ParentNode;

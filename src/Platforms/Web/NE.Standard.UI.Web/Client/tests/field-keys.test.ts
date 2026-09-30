@@ -3,9 +3,12 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeInput, FakeKeyboardEvent, FakeTextArea, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, FakeTextArea, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-installFakeDom({ Event: class { public readonly type: string; public constructor(type: string) { this.type = type; } } });
+installFakeDom({
+    Event: class { public readonly type: string; public constructor(type: string) { this.type = type; } },
+    CSS: { escape: (value: string) => value }
+});
 
 const { FieldKeysEngine } = await import("../src/interactions/field-keys-engine.ts");
 
@@ -97,4 +100,67 @@ test("a key a nearer control already took is left alone", () => {
     field.dispatchEvent(taken);
 
     assert.equal(fakeDocument.activeElement, field);
+});
+
+/** A text area that submits on Enter, its form's button, and what each of them heard, in order. */
+function submittingArea(): { area: FakeTextArea; heard: string[] } {
+    const area = new FakeTextArea();
+    const button = FakeElement.of("ui-button", { "data-ui-submit-form-id": "chat" }, "button");
+    const heard: string[] = [];
+
+    area.setAttribute("data-ui-submit-on-enter", "");
+    area.setAttribute("data-ui-form-id", "chat");
+    area.addEventListener("change", () => heard.push(`change ${area.value}`));
+    button.addEventListener("click", () => heard.push("click"));
+    mount(area, button);
+
+    return { area, heard };
+}
+
+test("Enter in an area that submits on it commits the value, then presses the form's button, and the focus stays to write the next", () => {
+    const { area, heard } = submittingArea();
+
+    area.focus();
+    area.value = "Hello";
+
+    assert.equal(press(area, "Enter").defaultPrevented, true);
+    assert.deepEqual(heard, ["change Hello", "click"]);
+    assert.equal(fakeDocument.activeElement, area);
+
+    // A value already committed (a debounce, a pushed clear) is not sent again: the button alone is pressed.
+    heard.length = 0;
+    area.dispatchEvent(new FakeEvent("change"));
+    heard.length = 0;
+    press(area, "Enter");
+
+    assert.deepEqual(heard, ["click"]);
+});
+
+test("Shift+Enter in an area that submits on Enter is a line break, and an Enter that ends a composition submits nothing", () => {
+    const { area, heard } = submittingArea();
+
+    area.focus();
+    area.value = "こんにちは";
+
+    for (const chord of [{ shiftKey: true }, { isComposing: true }, { keyCode: 229 }]) {
+        // The plain stand-in has no chord and never composes; these are what a browser's event would carry.
+        const domEvent = Object.assign(new FakeKeyboardEvent("Enter", area), chord);
+
+        area.dispatchEvent(domEvent);
+
+        assert.equal(domEvent.defaultPrevented, false);
+    }
+
+    assert.deepEqual(heard, []);
+    assert.equal(fakeDocument.activeElement, area);
+});
+
+test("a read-only area that submits on Enter leaves Enter to the browser", () => {
+    const { area, heard } = submittingArea();
+
+    area.readOnly = true;
+    area.focus();
+
+    assert.equal(press(area, "Enter").defaultPrevented, false);
+    assert.deepEqual(heard, []);
 });

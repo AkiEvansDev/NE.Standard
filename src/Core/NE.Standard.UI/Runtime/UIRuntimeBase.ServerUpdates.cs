@@ -154,14 +154,32 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
-            AddPendingUpdateNoLock(new ServerValueUIUpdate
-            {
-                Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType),
-                Content = AsksRowItem(binding, dynamicParameters) && (content ??= IsReadOffContentItem(path))
-            });
+            AddPendingUpdateNoLock(BuildServerValueNoLock(binding, path, dynamicParameters, value, ref content));
         }
     }
+
+    /// <summary>
+    /// The update that tells a client the value a binding reads at a controller path — the one shape a pushed value and the answer
+    /// to a refused write share: brought to the property's type, its fallback for nothing, marked content where its row item is,
+    /// and resolved.
+    /// </summary>
+    private ServerValueUIUpdate BuildServerValueNoLock(CompiledUIBinding binding, RecursivePath path, object?[] dynamicParameters)
+    {
+        bool? content = null;
+
+        return BuildServerValueNoLock(binding, path, dynamicParameters, TryGetControllerValue(path), ref content);
+    }
+
+    /// <remarks>
+    /// Takes the value read already and the row's answer once asked, which several bindings reading one path share.
+    /// </remarks>
+    private ServerValueUIUpdate BuildServerValueNoLock(CompiledUIBinding binding, RecursivePath path, object?[] dynamicParameters, object? value, ref bool? content)
+        => ResolveServerValueUpdateNoLock(new ServerValueUIUpdate
+        {
+            Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
+            Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType),
+            Content = AsksRowItem(binding, dynamicParameters) && (content ??= IsReadOffContentItem(path))
+        });
 
     /// <summary>Whether a binding's pushed value asks its row item for a content mark: only a row's binding, and only a word.</summary>
     private static bool AsksRowItem(CompiledUIBinding binding, object?[] dynamicParameters)
@@ -211,15 +229,7 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, baseParameters, out var dynamicParameters))
                 continue;
 
-            RecursivePath bindingPath = View.Bindings.MaterializePath(binding, baseParameters);
-            var value = TryGetControllerValue(bindingPath);
-
-            AddPendingUpdateNoLock(new ServerValueUIUpdate
-            {
-                Address = new(binding.Address.Component.Id, binding.Address.Property, dynamicParameters),
-                Value = UIBoundValueConverter.Convert(value ?? binding.TargetFallbackValue, binding.TargetValueType),
-                Content = AsksRowItem(binding, dynamicParameters) && IsReadOffContentItem(bindingPath)
-            });
+            AddPendingUpdateNoLock(BuildServerValueNoLock(binding, View.Bindings.MaterializePath(binding, baseParameters), dynamicParameters));
         }
     }
 

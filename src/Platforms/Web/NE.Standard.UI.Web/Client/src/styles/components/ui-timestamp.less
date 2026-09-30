@@ -1,0 +1,13 @@
+@import "../core/tokens.less";
+@import "../mixins/responsive.less";
+
+// One line of text, as a Text's title is: a moment that wrapped would read as two.
+.ui-timestamp {
+    display: block;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+}

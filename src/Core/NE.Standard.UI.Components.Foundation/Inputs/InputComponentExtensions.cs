@@ -7,6 +7,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
@@ -25,6 +26,32 @@ public static class InputComponentExtensions
 
         component.ValidationTarget = new UIPropertyReference(componentId, property);
         return component;
+    }
+
+    /// <summary>
+    /// Fills the caption's badge with a help badge: the help glyph alone, a Plain badge, <paramref name="help"/> — the words or a key,
+    /// translated as a badge's tooltip is — as its tooltip. Standing in a caption outside the field, the badge is then a tab stop of its
+    /// own, named by the words and showing them on a press.
+    /// </summary>
+    public static TComponent SetHelp<TComponent, TValue>(this InputComponentBase<TComponent, TValue> component, string help)
+        where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        ArgumentException.ThrowIfNullOrWhiteSpace(help);
+
+        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
+    }
+
+    /// <inheritdoc cref="SetHelp{TComponent, TValue}(InputComponentBase{TComponent, TValue}, string)"/>
+    public static TComponent SetHelp<TComponent, TItem, TValue, TTemplate>(this InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate> component, string help)
+        where TComponent : InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate>, IUIComponentDefinition
+        where TItem : class
+        where TTemplate : class, IVisualComponent
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        ArgumentException.ThrowIfNullOrWhiteSpace(help);
+
+        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
     }
 
     /// <summary>

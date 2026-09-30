@@ -6,12 +6,12 @@
 .ui-popup-look() {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     border-radius: var(--ui-radius-input);
-    background: var(--ui-color-surface);
+    background: @ui-popup-ground;
     // A field inside mixes its fill into the popup's colour, not the page's.
-    --ui-surface-fill: var(--ui-color-surface);
+    --ui-surface-fill: @ui-popup-ground;
     // Muted text inside fades the popup's own ink, not a filled ground the popup's anchor stands on.
     --ui-faint-base: initial;
-    --ui-ground: var(--ui-color-surface);
+    --ui-ground: @ui-popup-ground;
     .ui-elevation-2();
 }
 

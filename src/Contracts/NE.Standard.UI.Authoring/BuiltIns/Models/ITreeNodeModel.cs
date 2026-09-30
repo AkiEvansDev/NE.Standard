@@ -20,6 +20,13 @@ public interface ITreeNodeModel : ITextBaseModel
     bool? HasChildren { get; }
 
     /// <summary>
+    /// Gets whether the node is a folder, the only kind a drag drops onto: unset for a node holding children, <see langword="true"/>
+    /// for one even while empty, <see langword="false"/> for one that takes no drop. Unlike <see cref="HasChildren"/>, it asks the
+    /// controller for nothing.
+    /// </summary>
+    bool? IsFolder { get; }
+
+    /// <summary>
     /// Gets whether the node starts unfolded; the viewer's own fold takes over from there.
     /// </summary>
     bool? Expanded { get; }

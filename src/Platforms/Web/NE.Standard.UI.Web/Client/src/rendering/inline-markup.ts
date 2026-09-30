@@ -2,7 +2,7 @@
 
 import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
 import { applyIconValue } from "./icon-value.ts";
-import { isSafeLink } from "./url-safety.ts";
+import { isExternalLink, isSafeLink } from "./url-safety.ts";
 
 // Plain constants rather than an `enum`: the node test runner strips types rather than compiling them.
 const InlineStyles = {
@@ -133,7 +133,7 @@ function renderSegment(segment: InlineSegment, options: InlineMarkupOptions): No
         anchor.setAttribute("href", segment.url);
         anchor.className = "ui-text__link";
 
-        if (isExternalUrl(segment.url)) {
+        if (isExternalLink(segment.url)) {
             anchor.setAttribute("target", "_blank");
             anchor.setAttribute("rel", "noopener noreferrer");
         }
@@ -607,12 +607,6 @@ function closingMarkerSlot(marker: string, markerLength: number): number {
         default:
             return 4;
     }
-}
-
-function isExternalUrl(url: string): boolean {
-    const lower = url.toLowerCase();
-
-    return lower.startsWith("http:") || lower.startsWith("https:") || lower.startsWith("mailto:") || lower.startsWith("tel:");
 }
 
 function isMarkerCharacter(value: string): boolean {

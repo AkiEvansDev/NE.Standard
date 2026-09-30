@@ -33,6 +33,15 @@ public sealed partial class AccountService(AppDatabase database, IUserSessionSto
     /// <summary>What a throttled login is told, whether it exists or not.</summary>
     public const string TooManyAttempts = "Too many wrong passwords; try again in a few minutes.";
 
+    /// <summary>The first administrator's login.</summary>
+    public const string AdminLogin = "admin";
+
+    /// <summary>The setting the first administrator's password is read from; outside Development nothing else makes one.</summary>
+    public const string AdminPasswordSetting = "TeamRoom:AdminPassword";
+
+    /// <summary>The first administrator's password in Development when the setting is absent: known, and said in the log.</summary>
+    private const string DevelopmentAdminPassword = "admin";
+
     private static readonly TimeSpan FailureWindow = TimeSpan.FromMinutes(5);
 
     // Hashed against when the login does not exist, so an unknown login costs what a wrong password does and the timing names no one.
@@ -45,19 +54,38 @@ public sealed partial class AccountService(AppDatabase database, IUserSessionSto
     private static partial class Log
     {
         [LoggerMessage(Level = LogLevel.Warning, Message = "No accounts yet: created '{Login}' with the password '{Password}' — change it after the first sign-in.")]
-        public static partial void SeededAdministrator(ILogger logger, string login, string password);
+        public static partial void SeededDevelopmentAdministrator(ILogger logger, string login, string password);
+
+        [LoggerMessage(Level = LogLevel.Warning, Message = "No accounts yet: created '{Login}' with the password the '{Setting}' setting holds.")]
+        public static partial void SeededAdministrator(ILogger logger, string login, string setting);
+
+        [LoggerMessage(Level = LogLevel.Warning, Message = "No accounts yet, and no administrator made: set '{Setting}' (the environment variable '{Variable}') to the first administrator's password, at least 4 characters, and start again; its login is '{Login}'.")]
+        public static partial void NoAdministrator(ILogger logger, string setting, string variable, string login);
     }
 
-    /// <summary>The first administrator, made once on an empty database and announced in the log.</summary>
-    public void Seed()
+    /// <summary>
+    /// The first administrator, made once on an empty database with the password <see cref="InitialAdminPassword"/> picks, and
+    /// announced in the log — the password itself only when it is Development's known one.
+    /// </summary>
+    public void Seed(bool isDevelopment, string? configuredPassword)
     {
         using SqliteConnection connection = database.Open();
 
         if (Count(connection) > 0)
             return;
 
-        _ = Insert(connection, "admin", "Admin", AccountRoles.Admin, "admin");
-        Log.SeededAdministrator(logger, "admin", "admin");
+        if (InitialAdminPassword(isDevelopment, configuredPassword) is not { } password)
+        {
+            Log.NoAdministrator(logger, AdminPasswordSetting, AdminPasswordSetting.Replace(":", "__", StringComparison.Ordinal), AdminLogin);
+            return;
+        }
+
+        _ = Insert(connection, AdminLogin, "Admin", AccountRoles.Admin, password);
+
+        if (string.IsNullOrEmpty(configuredPassword))
+            Log.SeededDevelopmentAdministrator(logger, AdminLogin, password);
+        else
+            Log.SeededAdministrator(logger, AdminLogin, AdminPasswordSetting);
     }
 
     private static long Count(SqliteConnection connection)
@@ -66,6 +94,18 @@ public sealed partial class AccountService(AppDatabase database, IUserSessionSto
         command.CommandText = "SELECT COUNT(*) FROM accounts";
 
         return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>
+    /// The password the first administrator is made with: the configured one, when it passes the password rule; otherwise the
+    /// known <c>admin</c> in Development, and none elsewhere, since a copied deployment must not come up with a known password.
+    /// </summary>
+    public static string? InitialAdminPassword(bool isDevelopment, string? configuredPassword)
+    {
+        if (!string.IsNullOrEmpty(configuredPassword))
+            return PasswordError(configuredPassword) is null ? configuredPassword : null;
+
+        return isDevelopment ? DevelopmentAdminPassword : null;
     }
 
     private static string Insert(SqliteConnection connection, string login, string nickname, string role, string password)

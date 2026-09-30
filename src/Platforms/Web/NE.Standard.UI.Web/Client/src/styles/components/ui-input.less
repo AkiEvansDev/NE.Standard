@@ -30,6 +30,13 @@
     display: grid;
 }
 
+// The caption's row is one caption line, whatever stands in it: a badge taller than the line is centred on it and overflows it
+// evenly, so a field with one stands as far from its caption as a field without; a long caption ellipsises before anything wraps.
+.ui-input__header > .ui-text__body > .ui-text__header {
+    flex-wrap: nowrap;
+    height: 1lh;
+}
+
 :not([data-ui-text-title]) > .ui-input__header .ui-input__required {
     display: none;
 }
@@ -77,6 +84,22 @@
     .ui-text__header:has(> .ui-input__required) > .ui-text__title {
         flex-grow: 0;
     }
+
+// A caption's badge with words (a help badge): a tab stop of its own, since the words are for the keyboard too. Its ground is no mark
+// of the keyboard, so the ring is drawn at a hairline where the theme's is off.
+.ui-text__badge[data-ui-tooltip-press][data-ui-tooltip] {
+    cursor: help;
+
+    // A plain badge has no ground to say it is live, so its muted ink comes up to the text's.
+    &.ui-badge-style--plain:is(:hover, @{ui-keyboard-focus}) {
+        color: @ui-text-ink;
+    }
+
+    &@{ui-keyboard-focus} {
+        outline: max(1px, var(--ui-focus-ring-width, 0px)) solid var(--ui-color-focus-ring, var(--ui-color-primary));
+        outline-offset: @ui-focus-ring-offset;
+    }
+}
 
 // A glyph beside the field text, at either end, hidden until the root says there is one; the captioned icon is .ui-text__icon above.
 .ui-input__affix-icon {

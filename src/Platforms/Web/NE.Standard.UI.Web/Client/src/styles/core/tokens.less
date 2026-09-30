@@ -54,6 +54,12 @@
 // ground that is opaque (a popup, the dialog, a Background, Raised or Tinted surface); unset, the ground is the page's surface.
 @ui-ground: var(--ui-ground, var(--ui-color-surface));
 
+// A popup's own ground, one step above the ground it opens from: the page's surface colour over the page; over a raised panel or
+// the dialog, what the panel writes to `--ui-popup-ground` — its fill with 8 % more of the text, the step the panel is off the
+// surface. A Background or Tinted ground is the page's level again and takes the step back; a popup on the body is handed its
+// opener's (`carryPopupGround`, anchored-popup.ts).
+@ui-popup-ground: var(--ui-popup-ground, var(--ui-color-surface));
+
 // A link on a filled ground: the brand ink could be the ground's own colour (1:1 on Primary), so there it takes the ground's ink,
 // as the text around it does, and its underline — at rest only there; on the page the hue says "link" and a hover draws the line.
 // On the page and on a card (`--ui-faint-base` unset or reset) a link is the brand ink, as before.

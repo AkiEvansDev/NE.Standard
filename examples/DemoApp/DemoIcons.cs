@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Reflection;
-using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Colors;
 
 namespace DemoApp;
 
@@ -62,11 +62,17 @@ public static class DemoIcons
     public const string LightMode = MaterialIcons.LightMode;
     public const string DarkMode = MaterialIcons.DarkMode;
     public const string Star = MaterialIcons.Star;
+    public const string Server = MaterialIcons.Dns;
+    public const string Region = MaterialIcons.Public;
+    public const string Replicas = MaterialIcons.Layers;
+    public const string Attach = MaterialIcons.AttachFile;
+    public const string Emoji = MaterialIcons.Mood;
 
     /// <summary>
-    /// The warm yellow of a folder in a file list, as the default themes' warning ink: the raw tint read 1.3:1 on the light page.
+    /// The warm light yellow of a folder in a file list (near <c>#FFDD96</c>): the palette's Photon, a light tint on the dark page and
+    /// a shade on the light one, since the light yellow itself reads 1.2:1 there and an outlined mark in it vanishes.
     /// </summary>
-    public static readonly UIThemeColor Warm = UIThemeColor.Create(UIThemeDefaults.LightPalette.WarningInk, UIThemeDefaults.DarkPalette.WarningInk);
+    public static readonly UIThemeColor Warm = UIThemeColor.Create(new ColorVariant(ColorName.Photon, ColorAdjustment.Shade, 4), new ColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2));
 
     /// <summary>
     /// The outlined drawing of a glyph, which is what a control wears; the filled one is for content.

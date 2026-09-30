@@ -17,6 +17,7 @@ using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -29,6 +30,10 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 {
     private const string DefaultTemplateName = "default";
     private const string ItemsQueryClassName = "ui-items-query";
+    private const string RowGripClassName = "ui-row__grip";
+
+    /// <summary>The client's row decorator that gives a row it builds its grip (<see cref="RenderRowGrip"/>).</summary>
+    protected const string RowGripDecorator = "grip";
 
     // The wire's conventions, so the text a render writes is the text a patch would: camel-cased, an enum by its name.
     private static readonly JsonSerializerOptions QueryJsonOptions = WebWireJson.CreateOptions();
@@ -386,6 +391,45 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         {
             context.Metadata.RegisterItemsFilterSort(context.Node.ComponentId, itemsView);
         }
+    }
+
+    /// <summary>
+    /// Where the rows' grip stands, as the root's <c>ui-drag-handle--start</c> or <c>--end</c>; a bound one moves it live, the grip being
+    /// placed by the stylesheet alone.
+    /// </summary>
+    protected static void RenderDragHandlePlacement(WebRenderContext context, IHtmlElementBuilder root, UIProperty placementProperty)
+        => _ = RenderProperty<UIDragHandlePlacement?>(context, root, placementProperty, static (target, value) =>
+        {
+            if (value is UIDragHandlePlacement placement)
+                _ = target.Class(WebClassNames.DragHandlePlacement(placement));
+        }, [WebDomOperation.Class(converter: WebDomConverters.DragHandlePlacementClass)]);
+
+    /// <summary>
+    /// Whether rows carry the grip they are dragged by: a drag and a handle each on or bound. The stylesheet shows it only while both
+    /// say so, so a bound one flips it with no row drawn again.
+    /// </summary>
+    protected static bool DrawsRowGrip(WebRenderContext context, UIProperty draggableProperty, UIProperty dragHandleProperty)
+        => MayBeTrue(context, draggableProperty) && MayBeTrue(context, dragHandleProperty);
+
+    private static bool MayBeTrue(WebRenderContext context, UIProperty property)
+        => ResolveRenderValue(context, property, out bool? value, out _) == WebRenderValueKind.Binding || value == true;
+
+    /// <summary>
+    /// The grip a row is dragged by (<c>DragHandle</c>): the one part a press drags the row by, named by the framework's words; not
+    /// focusable, so a press on it focuses the host, whose cursor the engine puts on the row for Alt+Up and Alt+Down. <c>row-grip.ts</c>
+    /// gives a row the client builds the same one, through <see cref="RowGripDecorator"/>.
+    /// </summary>
+    protected static void RenderRowGrip(WebRenderContext context, IHtmlElementBuilder row)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(row);
+
+        _ = row.Element("span", grip =>
+        {
+            _ = grip.Class(RowGripClassName);
+            _ = grip.Attribute("role", "button");
+            WebWords.Write(context, grip, "aria-label", UIStrings.RowDrag);
+        });
     }
 
     /// <summary>

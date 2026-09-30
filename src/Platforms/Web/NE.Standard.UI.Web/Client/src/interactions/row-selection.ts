@@ -34,7 +34,7 @@ export function ensureAnchor(root: HTMLElement, row: HTMLElement | null): void {
 
 /** Names the row a Shift range is measured from outright: where a click put the cursor on a host whose click chooses nothing. */
 export function setAnchor(root: HTMLElement, row: HTMLElement): void {
-    const key = keyOf(row);
+    const key = rowKey(row);
 
     if (key.length > 0)
         anchors.set(root, key);
@@ -90,7 +90,7 @@ export function markSelectedRows(root: HTMLElement, rows: readonly HTMLElement[]
     const choosing = mode === "one" || mode === "many";
 
     for (const row of rows) {
-        const selected = keys.has(keyOf(row));
+        const selected = keys.has(rowKey(row));
 
         row.toggleAttribute(SelectedAttribute, selected);
 
@@ -108,7 +108,7 @@ export function selectedRows(rows: readonly HTMLElement[]): HTMLElement[] {
 
 /** Chooses the row the way the mode and the gesture say; answers false when the host chooses nothing or the row refuses. */
 export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, gesture: SelectionGesture): boolean {
-    const key = keyOf(row);
+    const key = rowKey(row);
 
     if (!isChoosable(row))
         return false;
@@ -135,8 +135,8 @@ function chooseMany(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLEl
     let next: string[];
 
     if (gesture.shift) {
-        const anchor = rows.find(candidate => keyOf(candidate) === anchors.get(root)) ?? row;
-        const range = rangeBetween(rows, anchor, row).map(keyOf);
+        const anchor = rows.find(candidate => rowKey(candidate) === anchors.get(root)) ?? row;
+        const range = rangeBetween(rows, anchor, row).map(rowKey);
 
         // Ctrl+Shift keeps what was chosen outside the range; Shift alone replaces it.
         next = gesture.ctrl ? [...keys.filter(existing => !range.includes(existing)), ...range] : range;
@@ -172,7 +172,7 @@ function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys
 
 /** Whether a row takes a choice at all: it has a key, and is neither disabled nor refusing to be chosen. */
 function isChoosable(row: Element): boolean {
-    return keyOf(row).length > 0 && !row.hasAttribute(UnselectableAttribute) && !isItemDisabled(row);
+    return rowKey(row).length > 0 && !row.hasAttribute(UnselectableAttribute) && !isItemDisabled(row);
 }
 
 /** The rows from one to the other, in the host's order, that can be chosen: drawn, enabled, not refusing. */
@@ -202,7 +202,7 @@ function readKeyList(host: HTMLElement | null): string[] {
 }
 
 /** The host's own items host, wherever its box puts it — under a table's scroll box — and never a nested list's. */
-function hostOf(root: HTMLElement): HTMLElement | null {
+export function hostOf(root: HTMLElement): HTMLElement | null {
     for (const host of root.querySelectorAll<HTMLElement>(`[${ItemsHostAttribute}]`)) {
         if (host.closest(SelectionRootSelector) === root)
             return host;
@@ -211,7 +211,8 @@ function hostOf(root: HTMLElement): HTMLElement | null {
     return null;
 }
 
-function keyOf(row: Element): string {
+/** The key a row of a list, a table or a tree is known by; empty for a row that carries none. */
+export function rowKey(row: Element): string {
     return row.getAttribute(ComponentKeyAttribute) ?? "";
 }
 
@@ -247,7 +248,7 @@ function setRowsSelected(root: Element, rows: Iterable<Element>, selected: boole
     for (const row of rows) {
         // A row the host's filter hides is not one the viewer can see being chosen, whatever gesture named it (a select-all).
         if (!row.classList.contains(HiddenClass))
-            keys.push(keyOf(row));
+            keys.push(rowKey(row));
     }
 
     setKeysSelected(root, keys, selected);
@@ -259,7 +260,7 @@ function setKeysSelected(root: Element, keys: Iterable<string>, selected: boolea
 
     const rows = selectableRows(root);
     // A drawn row that refuses a choice keeps what it was; a key with no row drawn (a virtualized host's) is taken as named.
-    const refusing = new Set(rows.filter(row => !isChoosable(row)).map(keyOf));
+    const refusing = new Set(rows.filter(row => !isChoosable(row)).map(rowKey));
     const named = new Set<string>();
 
     for (const key of keys) {

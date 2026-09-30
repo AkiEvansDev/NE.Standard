@@ -156,8 +156,9 @@ export function clearOptionsFilter(select: HTMLElement): void {
         narrow(popup, () => true);
 }
 
-function toggleNoMatchPlaceholder(select: HTMLElement, popup: HTMLElement, show: boolean): void {
-    const existing = popup.querySelector<HTMLElement>(`:scope > [${EmptyPlaceholderAttribute}]`);
+/** Puts the owner's empty template in its list while a search leaves nothing there, and takes it out again — a select's, a menu's. */
+export function toggleNoMatchPlaceholder(owner: HTMLElement, list: HTMLElement, show: boolean): void {
+    const existing = list.querySelector<HTMLElement>(`:scope > [${EmptyPlaceholderAttribute}]`);
 
     if (!show) {
         existing?.remove();
@@ -167,7 +168,7 @@ function toggleNoMatchPlaceholder(select: HTMLElement, popup: HTMLElement, show:
     if (existing !== null)
         return;
 
-    const template = select.querySelector<HTMLTemplateElement>(`:scope > template[${EmptyTemplateAttribute}]`);
+    const template = owner.querySelector<HTMLTemplateElement>(`:scope > template[${EmptyTemplateAttribute}]`);
 
     if (template === null)
         return;
@@ -179,5 +180,5 @@ function toggleNoMatchPlaceholder(select: HTMLElement, popup: HTMLElement, show:
         return;
 
     root.setAttribute(EmptyPlaceholderAttribute, "");
-    popup.appendChild(root);
+    list.appendChild(root);
 }

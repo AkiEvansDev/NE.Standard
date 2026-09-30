@@ -25,7 +25,8 @@ import { isInert, isItemDisabled } from "./interactive-state";
 import { focusedRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
-import { chooseRow, choosesOnEnter, ensureAnchor, keyGestureOf, PlainGesture, selectedRows } from "./row-selection";
+import { chooseRow, choosesOnEnter, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
+import { takesDrop } from "./tree-drop";
 
 const RootClass = "ui-tree";
 const RowClass = "ui-tree__row";
@@ -133,7 +134,7 @@ export class TreeEngine {
             }
 
             const tree = context.dom.findComponent(getIdValue(target.id), target.dynamicParameters ?? []);
-            const row = tree === null ? null : this.rowsOf(tree as HTMLElement).find(candidate => keyOf(candidate) === effect.key) ?? null;
+            const row = tree === null ? null : this.rowsOf(tree as HTMLElement).find(candidate => rowKey(candidate) === effect.key) ?? null;
 
             if (row === null) {
                 logWarn("rename node effect names no node on the page.", effect);
@@ -178,7 +179,7 @@ export class TreeEngine {
         const placed = new Map<string, Placement>();
 
         for (const row of rows) {
-            const key = keyOf(row);
+            const key = rowKey(row);
             const node = nodeOf(row);
             const parentKey = node?.getAttribute(TreeParentAttribute) ?? "";
             const parent = parentKey.length > 0 ? placed.get(parentKey) : undefined;
@@ -289,7 +290,7 @@ export class TreeEngine {
             return rows;
 
         const renderer = this.rules.renderer;
-        const keys = new Set(rows.map(keyOf));
+        const keys = new Set(rows.map(rowKey));
         const byParent = new Map<string, HTMLElement[]>();
 
         for (const row of rows) {
@@ -314,7 +315,7 @@ export class TreeEngine {
 
             for (const row of group) {
                 ordered.push(row);
-                visit(keyOf(row));
+                visit(rowKey(row));
             }
         };
 
@@ -350,7 +351,7 @@ export class TreeEngine {
 
         for (let index = rows.length - 1; index >= 0; index--) {
             const row = rows[index];
-            const key = keyOf(row);
+            const key = rowKey(row);
             const value = renderer.getItemValue(row);
 
             // Fail open: a row whose value never reached the client cannot be judged, and hiding it would silently empty the tree.
@@ -544,7 +545,7 @@ export class TreeEngine {
             ? selectedRows(this.rowsOf(tree)).filter(other => other !== row && other.draggable && !isItemDisabled(other) && other.getClientRects().length > 0)
             : [];
 
-        markDragStart(domEvent, tree, row, DraggingClass, keyOf(row), companions);
+        markDragStart(domEvent, tree, row, DraggingClass, rowKey(row), companions);
     }
 
     /** The rows in the air, in walking order. */
@@ -570,9 +571,14 @@ export class TreeEngine {
         if (target !== host) {
             const parents = this.parentKeysOf(tree);
 
-            // A disabled folder takes no drop and does not open under the drag, as it does not open to a press.
-            if (isItemDisabled(target) || dragging.some(row => row === target || isUnder(parents, keyOf(target), keyOf(row))))
+            // Only a folder takes a drop (`takesDrop`), and never the dragged node or one under it; a disabled folder does not open
+            // under the drag either. Left untaken, the drop shows as impossible and a release sends nothing; the mark of the place
+            // before it goes, so nothing stays lit.
+            if (!takesDrop(target, nodeOf(target)) || dragging.some(row => row === target || isUnder(parents, rowKey(target), rowKey(row)))) {
+                this.markDrop(tree, null);
+                this.springOpen(tree, null);
                 return;
+            }
         }
 
         domEvent.preventDefault();
@@ -625,9 +631,9 @@ export class TreeEngine {
 
         domEvent.preventDefault();
 
-        const targetKey = marked.classList.contains(RowClass) ? keyOf(marked) : "";
+        const targetKey = marked.classList.contains(RowClass) ? rowKey(marked) : "";
         const parents = this.parentKeysOf(tree);
-        const moved = dragging.filter(row => !dragging.some(other => other !== row && isUnder(parents, keyOf(row), keyOf(other))));
+        const moved = dragging.filter(row => !dragging.some(other => other !== row && isUnder(parents, rowKey(row), rowKey(other))));
 
         this.markDrop(tree, null);
         this.springOpen(tree, null);
@@ -674,7 +680,7 @@ export class TreeEngine {
         const parents = new Map<string, string>();
 
         for (const row of this.rowsOf(tree))
-            parents.set(keyOf(row), nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "");
+            parents.set(rowKey(row), nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "");
 
         return parents;
     }
@@ -691,7 +697,7 @@ export class TreeEngine {
     }
 
     private fold(tree: HTMLElement, row: HTMLElement, expanded: boolean): void {
-        const key = keyOf(row);
+        const key = rowKey(row);
 
         if (key.length === 0 || !row.hasAttribute("aria-expanded"))
             return;
@@ -741,7 +747,7 @@ export class TreeEngine {
     private parentOf(tree: HTMLElement, row: HTMLElement): HTMLElement | null {
         const parentKey = nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "";
 
-        return parentKey.length === 0 ? null : this.rowsOf(tree).find(candidate => keyOf(candidate) === parentKey) ?? null;
+        return parentKey.length === 0 ? null : this.rowsOf(tree).find(candidate => rowKey(candidate) === parentKey) ?? null;
     }
 
     /** Lays the field over the node's title; on commit the node carries the new title back and the row raises `rename`. */
@@ -840,10 +846,6 @@ function createLoadingRow(): HTMLElement {
 
 function draggedRow(domEvent: Event): HTMLElement | null {
     return domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${RowClass}`) : null;
-}
-
-function keyOf(row: Element): string {
-    return row.getAttribute(ComponentKeyAttribute) ?? "";
 }
 
 function nodeOf(row: Element): HTMLElement | null {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,6 +69,8 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private bool _pendingFullResync;
     private int _fullResyncRequested;
     private int _commandsInFlight;
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Disposing it lets go of one command's hold on this runtime; each holder does that once, and there is nothing else to release.")]
+    private readonly CommandRelease _commandRelease;
     private int _disposeRequested;
     private int _disposeClaimed;
 
@@ -92,6 +95,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         View = view;
         Controller = controller;
         _application = application;
+        _commandRelease = new CommandRelease(this);
     }
 
     /// <summary>Hands this runtime the service scope its controller was built from, to dispose once the controller is.</summary>
@@ -163,20 +167,26 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
 
     private async ValueTask DisposeNowAsync()
     {
-        if (IsStarted && !IsStopped)
-            await StopAsync().ConfigureAwait(false);
+        try
+        {
+            if (IsStarted && !IsStopped)
+                await StopAsync().ConfigureAwait(false);
 
-        await DisposeRuntimeResourcesAsync().ConfigureAwait(false);
+            await DisposeRuntimeResourcesAsync().ConfigureAwait(false);
 
-        DisposeManagedResources();
+            DisposeManagedResources();
+        }
+        finally
+        {
+            // Whatever the controller's own dispose threw: the scope's services are the page's, and nothing else lets go of them.
+            // Asynchronously where it can be: a scope holding a service that is only IAsyncDisposable refuses a synchronous dispose.
+            if (_services is IAsyncDisposable services)
+                await services.DisposeAsync().ConfigureAwait(false);
+            else
+                _services?.Dispose();
 
-        // Asynchronously where it can be: a scope holding a service that is only IAsyncDisposable refuses a synchronous dispose.
-        if (_services is IAsyncDisposable services)
-            await services.DisposeAsync().ConfigureAwait(false);
-        else
-            _services?.Dispose();
-
-        _disposed = true;
+            _disposed = true;
+        }
     }
 
     private void DisposeManagedResources()
@@ -196,12 +206,18 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         if (!RequestDispose())
             return;
 
-        DisposeRuntimeResources();
+        try
+        {
+            DisposeRuntimeResources();
 
-        DisposeManagedResources();
-        _services?.Dispose();
+            DisposeManagedResources();
+        }
+        finally
+        {
+            _services?.Dispose();
 
-        _disposed = true;
+            _disposed = true;
+        }
     }
 
     protected virtual void DisposeRuntimeResources() { }

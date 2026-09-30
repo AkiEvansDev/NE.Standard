@@ -201,17 +201,33 @@ public static class WebCssValues
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        StringBuilder builder = new("\"");
+        return CssString(value);
+    }
+
+    /// <summary>
+    /// Any text as a quoted CSS string literal, safe inside a <c>style</c> attribute: a quote and a backslash escaped, and a control
+    /// character as a hex escape rather than as itself, since a raw line break ends the string and what follows would be read as
+    /// declarations of the element's own.
+    /// </summary>
+    public static string CssString(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        StringBuilder css = new(value.Length + 2);
+
+        _ = css.Append('"');
 
         foreach (var c in value)
         {
             if (c is '"' or '\\')
-                _ = builder.Append('\\');
-
-            _ = builder.Append(c);
+                _ = css.Append('\\').Append(c);
+            else if (char.IsControl(c))
+                _ = css.Append(CultureInfo.InvariantCulture, $"\\{(int)c:x} ");
+            else
+                _ = css.Append(c);
         }
 
-        return builder.Append('"').ToString();
+        return css.Append('"').ToString();
     }
 
     public static string Pixels(double value)

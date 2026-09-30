@@ -5,6 +5,8 @@
   <ItemGroup>
     <NEStandardUIUsing Include="NE.Standard.UI.Shell.Commands" />
     <NEStandardUIUsing Include="NE.Standard.UI.Shell.Files" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Shell.Navigation" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Shell.Runtime" />
     <NEStandardUIUsing Include="NE.Standard.UI.Shell.Sessions" />
   </ItemGroup>
 

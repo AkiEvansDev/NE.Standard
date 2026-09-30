@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,6 +36,13 @@ internal abstract partial class UIRuntimeBase
         EnsureStarted();
 
         ArgumentNullException.ThrowIfNull(action);
+
+        // Held as a command holds it. Where something holds it already — the command this is called from — it goes on even once
+        // the runtime is asked to go, since the runtime stays until that holder ends anyway.
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand(out var alone).ConfigureAwait(false);
+
+        if (alone)
+            ThrowIfAskedToGo();
 
         return await InSendOrderAsync(async () =>
         {

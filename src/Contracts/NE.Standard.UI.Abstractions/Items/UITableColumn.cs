@@ -29,6 +29,21 @@ public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITex
     public UIResponsiveTier? HideBelow { get; init; }
 
     /// <summary>
+    /// Whether the column starts hidden at every width; a chooser lists it unchecked, and the viewer's own word kept in the browser wins
+    /// over it, as it wins over <see cref="HideBelow"/>. Only a host with a column chooser (the data grid) can show it again.
+    /// </summary>
+    public bool Hidden { get; init; }
+
+    /// <summary>
+    /// The icon drawn before the caption — in the header, beside a sort mark, and in a chooser's entry; the column's accessible name stays
+    /// the caption.
+    /// </summary>
+    public string? Icon { get; init; }
+
+    /// <summary>The colour <see cref="Icon"/> is drawn in; null draws it in the caption's own ink.</summary>
+    public UIThemeColor? IconColor { get; init; }
+
+    /// <summary>
     /// Whether the column belongs to the control rather than the author (e.g. a grid's checkbox column): no resize handle,
     /// and a chooser leaves it out.
     /// </summary>

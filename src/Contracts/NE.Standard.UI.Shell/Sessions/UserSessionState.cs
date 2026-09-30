@@ -12,9 +12,8 @@ namespace NE.Standard.UI.Shell.Sessions;
 /// </remarks>
 public sealed record UserSessionState : IUserSessionContext
 {
-    /// <summary>
-    /// Gets the session identifier issued by the store.
-    /// </summary>
+    /// <summary>Gets the session identifier.</summary>
+    /// <remarks>SHA-256 of the secret the client carries (<see cref="UISessionSecret"/>): a store may keep it as it is.</remarks>
     public required string SessionId { get; init; }
 
     /// <summary>
@@ -26,6 +25,10 @@ public sealed record UserSessionState : IUserSessionContext
     /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
     public UIThemeMode? ThemeMode { get; init; }
+
+    /// <summary>Gets the time zone the reader's client reported, an IANA id, or <see langword="null"/> while it has reported none.</summary>
+    /// <remarks>Written when a page attaches reporting another zone; <c>UIContext</c> reads it as UTC while it is unset or unknown.</remarks>
+    public string? TimeZone { get; init; }
 
     /// <summary>
     /// Gets whether the session is authenticated.
@@ -79,7 +82,8 @@ public sealed record UserSessionState : IUserSessionContext
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return LastSeenAtUtc + (IsUnclaimed ? options.UnclaimedIdleTimeout : options.IdleTimeout) <= utcNow;
+        // Measured as the time since, not as a deadline: LastSeenAtUtc plus a timeout as long as TimeSpan.MaxValue overflows.
+        return utcNow - LastSeenAtUtc >= (IsUnclaimed ? options.UnclaimedIdleTimeout : options.IdleTimeout);
     }
 
     /// <summary>

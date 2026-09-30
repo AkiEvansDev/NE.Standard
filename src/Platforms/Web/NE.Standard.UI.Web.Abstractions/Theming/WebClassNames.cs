@@ -117,6 +117,7 @@ public static class WebClassNames
             UIBadgeType.Success => "ui-badge-style--success",
             UIBadgeType.Danger => "ui-badge-style--danger",
             UIBadgeType.Surface => "ui-badge-style--surface",
+            UIBadgeType.Plain => "ui-badge-style--plain",
             _ => string.Empty
         };
 
@@ -160,6 +161,14 @@ public static class WebClassNames
         {
             UIOrientation.Horizontal => "ui-orientation--horizontal",
             UIOrientation.Vertical => "ui-orientation--vertical",
+            _ => string.Empty
+        };
+
+    public static string DragHandlePlacement(UIDragHandlePlacement value)
+        => value switch
+        {
+            UIDragHandlePlacement.Start => "ui-drag-handle--start",
+            UIDragHandlePlacement.End => "ui-drag-handle--end",
             _ => string.Empty
         };
 

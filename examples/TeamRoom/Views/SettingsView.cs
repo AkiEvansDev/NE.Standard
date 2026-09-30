@@ -61,7 +61,10 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
             )
             .EnableEditing(nameof(SettingsController.SaveRowAsync), nameof(SettingsController.OpenRow));
 
-    /// <summary>The password's own dialog: the current one and the new one, each named for the browser's password manager.</summary>
+    /// <summary>
+    /// The password's own dialog: the login it belongs to, the current one and the new one, each named for the browser's password
+    /// manager — which files a changed password under the username beside it, so the login stands in the dialog, read-only.
+    /// </summary>
     protected override IReadOnlyList<UIDialog> CreateDialogs()
         =>
         [
@@ -75,6 +78,12 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
                     .SetSpacing(12)
                     .SetMinWidth(UILayoutLength.Absolute(360))
                     .AddChild(new TextComponent().SetTitle("Change the password").SetTitleType(UITextAppearance.Title).SetDescription("Your other sessions are signed out."))
+                    .AddChild(new TextInputComponent()
+                        .SetTitle("Login")
+                        .SetAutocomplete(UIAutocomplete.Username)
+                        .SetIsReadOnly(true)
+                        .BindValue(nameof(SettingsController.Login))
+                    )
                     .AddChild(new TextInputComponent()
                         .SetTitle("Current password")
                         .SetType(UITextInputType.Password)

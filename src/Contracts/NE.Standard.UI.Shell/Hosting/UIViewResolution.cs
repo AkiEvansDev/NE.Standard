@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Shell.Navigation;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Shell.Hosting;
@@ -30,6 +31,15 @@ public sealed class UIViewResolution
     /// Gets the user session.
     /// </summary>
     public required IUserSessionContext Session { get; init; }
+
+    /// <summary>Gets what the platform knows about the connection the request came over.</summary>
+    public UIConnectionInfo Connection { get; init; } = UIConnectionInfo.Unknown;
+
+    /// <summary>
+    /// Gets the secret of a session this resolution issued — a new one, or one moved to a new id at sign-in — which the platform
+    /// hands the client in place of the key it presented; null where the presented session goes on.
+    /// </summary>
+    public UISessionSecret? IssuedSecret { get; init; }
 
     /// <summary>
     /// Gets whether the resolved route declares a controller.

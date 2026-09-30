@@ -39,4 +39,9 @@ public enum UIBadgeType
     /// A card-like distinct background variant with no color accent.
     /// </summary>
     Surface = 6,
+
+    /// <summary>
+    /// The content alone, with no ground, edge or padding, in the muted ink; a reachable one brightens under the pointer and the keyboard.
+    /// </summary>
+    Plain = 7,
 }

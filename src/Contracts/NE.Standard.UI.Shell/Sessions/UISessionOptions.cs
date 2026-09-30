@@ -3,7 +3,7 @@ using System;
 namespace NE.Standard.UI.Shell.Sessions;
 
 /// <summary>
-/// Configures how long user sessions live and how the client carries its session id.
+/// Configures how long user sessions live and how the client carries its session's secret.
 /// </summary>
 public sealed class UISessionOptions
 {
@@ -23,16 +23,27 @@ public sealed class UISessionOptions
     public TimeSpan UnclaimedIdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// Gets or sets how far a session's last-seen time may lag behind: a page load or an attach that would change nothing but
+    /// that time, moving it by less, writes nothing to the store.
+    /// </summary>
+    /// <remarks>
+    /// Spares a store in a database a write per navigation — two per page load — when idle timeouts are minutes to days anyway;
+    /// a session may then expire up to this much early. Never more than a tenth of the timeout the session is under, so a short
+    /// timeout keeps its precision; <see cref="TimeSpan.Zero"/> writes every time.
+    /// </remarks>
+    public TimeSpan TouchResolution { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
     /// Gets or sets how often expired sessions are swept.
     /// </summary>
     public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Gets or sets the name the platform uses to carry the session id — the cookie name on the web.
+    /// Gets or sets the name the platform uses to carry the session's secret — the cookie name on the web.
     /// </summary>
     public string ClientKey { get; set; } = "ne.ui.session";
 
-    /// <summary>Gets or sets how long the client keeps the session id, from its last page load.</summary>
+    /// <summary>Gets or sets how long the client keeps the session's secret, from its last page load.</summary>
     /// <remarks>
     /// <see langword="null"/> ties it to the client's own lifetime, signing the person out when that ends. Set it to how long a stored
     /// session may survive across app restarts.
@@ -49,6 +60,9 @@ public sealed class UISessionOptions
 
         if (UnclaimedIdleTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(UnclaimedIdleTimeout), UnclaimedIdleTimeout, "Unclaimed session idle timeout must be greater than zero.");
+
+        if (TouchResolution < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(TouchResolution), TouchResolution, "Session touch resolution must be zero or more.");
 
         if (CleanupInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(CleanupInterval), CleanupInterval, "Session cleanup interval must be greater than zero.");

@@ -1,6 +1,7 @@
 import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
 import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
 import { ItemStackEntry } from "../items/binding-template-evaluator";
+import { findSlotRoots } from "../items/composite-slots";
 import { HeldCollections } from "../items/held-collections";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
@@ -113,7 +114,7 @@ export class UpdateProcessor {
                 continue;
 
             for (const value of this.metadata.getItemValues(owner.componentId, owner.dynamicParameters))
-                this.registerItemValue(rowsOf(host), value.key, value.item);
+                this.registerItemValue(owner.componentId, rowsOf(host), value.key, value.item);
         }
 
         for (const update of changeSet?.updates ?? []) {
@@ -125,24 +126,37 @@ export class UpdateProcessor {
             if (getCollectionUpdateAction(insert.action) !== "Insert")
                 continue;
 
-            for (const host of this.findItemsHosts(getIdValue(insert.component?.id), insert.component?.dynamicParameters ?? [])) {
+            const componentId = getIdValue(insert.component?.id);
+
+            for (const host of this.findItemsHosts(componentId, insert.component?.dynamicParameters ?? [])) {
                 const rows = rowsOf(host);
 
                 for (const change of insert.items ?? [])
-                    this.registerItemValue(rows, change.key, change.item);
+                    this.registerItemValue(componentId, rows, change.key, change.item);
             }
         }
     }
 
-    private registerItemValue(rows: ReadonlyMap<string, Element>, key: string | null | undefined, item: unknown): void {
+    private registerItemValue(componentId: number, rows: ReadonlyMap<string, Element>, key: string | null | undefined, item: unknown): void {
         if (key === null || key === undefined)
             return;
 
         const element = rows.get(key) ?? null;
 
         // A row holding an item keeps it: a re-attach drew it from that item, and the refill must see the difference to redraw it.
-        if (element !== null && this.readItemScope(element) === undefined)
-            this.itemsRenderer.registerItemScope(element, resolveScopeComponentId(element), item);
+        if (element === null || this.readItemScope(element) !== undefined)
+            return;
+
+        this.itemsRenderer.registerItemScope(element, resolveScopeComponentId(element), item);
+
+        const composite = this.metadata.getItemsTemplateMetadata(componentId)?.composite;
+
+        if (composite === null || composite === undefined)
+            return;
+
+        // A drawn row's cells are scopes of their own, as a built row's are, or a language switch finds no item to word a cell from.
+        for (const [root, scopeComponentId] of findSlotRoots(element))
+            this.itemsRenderer.registerItemScope(root, scopeComponentId, item);
     }
 
     /** The scope a rendered row records; a wrapped item records it on the child inside the key-carrying element. */

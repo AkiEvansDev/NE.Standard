@@ -48,6 +48,10 @@ public sealed partial class SettingsController : TeamRoomController
     [RecursiveMember]
     public partial string AccountLine { get; set; } = string.Empty;
 
+    /// <summary>The login, read-only in the password dialog so the browser knows whose password changes.</summary>
+    [RecursiveMember]
+    public partial string Login { get; set; } = string.Empty;
+
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Rows { get; } = [];
 
@@ -96,6 +100,7 @@ public sealed partial class SettingsController : TeamRoomController
     /// <summary>The rows that read from the account: the picture, the name, the line under the title.</summary>
     private void ShowAccount()
     {
+        Login = Account.Login;
         AccountLine = $"{Account.Login} · {RoleLabel}";
         Text(_name).Title = Account.Nickname;
         Text(_picture).Icon = AvatarSource ?? AppImages.DefaultAvatar;

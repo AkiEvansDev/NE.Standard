@@ -63,19 +63,20 @@
     display: block;
 }
 
-// A leading glyph needs less start padding than a word — its own box already carries air the letterforms don't.
-.ui-badge[data-ui-badge-icon][data-ui-badge-text] {
+// A leading glyph needs less start padding than a word — its own box already carries air the letterforms don't. A plain badge has no
+// pill to pad, nor to round, below.
+.ui-badge[data-ui-badge-icon][data-ui-badge-text]:not(.ui-badge-style--plain) {
     padding-inline-start: 0.375em;
 }
 
-.ui-badge[data-ui-badge-icon]:not([data-ui-badge-text]) {
+.ui-badge[data-ui-badge-icon]:not([data-ui-badge-text], .ui-badge-style--plain) {
     padding: ~"round(nearest, 0.375em, 1px)";
     aspect-ratio: 1;
 }
 
 // A count-only or empty badge is round, not a pill: padding comes off and aspect-ratio: 1 tracks its height, yielding to min-width: auto.
-.ui-badge:not([data-ui-badge-icon], [data-ui-badge-text]),
-.ui-badge[data-ui-badge-text="compact"]:not([data-ui-badge-icon]) {
+.ui-badge:not([data-ui-badge-icon], [data-ui-badge-text], .ui-badge-style--plain),
+.ui-badge[data-ui-badge-text="compact"]:not([data-ui-badge-icon], .ui-badge-style--plain) {
     padding-inline: 0;
     aspect-ratio: 1;
 }
@@ -141,4 +142,17 @@
     --ui-color-warning-ink: var(--ui-color-warning-ink-on-tint);
     --ui-color-success-ink: var(--ui-color-success-ink-on-tint);
     --ui-color-danger-ink: var(--ui-color-danger-ink-on-tint);
+}
+
+// Its content alone, as tall as its glyph or its capitals, in the muted ink a caption's icon wears; after the tint, so a colour writes
+// the words and draws no ground. The radius stays, to round the focus ring of a reachable one.
+.ui-badge.ui-badge-style--plain {
+    min-height: 0;
+    padding: 0;
+    background: none;
+    color: @ui-text-muted;
+}
+
+.ui-badge-style--plain[data-ui-id] {
+    .ui-responsive-property(min-height, --ui-min-height, 0);
 }

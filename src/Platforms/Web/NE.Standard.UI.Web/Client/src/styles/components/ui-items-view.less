@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
+@import "../mixins/row-grip.less";
 @import "../mixins/selected.less";
 
 // Flex column: a block parent's definite height doesn't constrain a self-sizing child, so the scroller couldn't be bounded.
@@ -223,3 +224,93 @@
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id] {
     .ui-selected-tile();
 }
+
+// A row the reader drags to another place (Draggable): faint where it stands, and a line on the side of the row it would land beside.
+.ui-items-view .ui-row--dragging {
+    opacity: @ui-drag-ghost-opacity;
+}
+
+// The line between two rows has one place, whichever of them the pointer is over: in the middle of the gap a spacing leaves, on the
+// edge with none, and a pixel inside a row with none beyond it. `--ui-row-drop-offset` (items-reorder-engine.ts) is how far out
+// from the row's edge the line's middle stands. The host's own rows' boxes only — a row, or a wrapped tile's root — so a table in a
+// row keeps its own line; positioned at no weight, so a template root placed its own way keeps its place.
+@ui-row-drop: ~".ui-items-view > [data-ui-items-host] > [data-ui-row-drop], .ui-items-view > [data-ui-items-host] > .ui-items-view__item > [data-ui-row-drop]";
+@ui-row-drop-across: ~".ui-items-view:is(.ui-orientation--horizontal, .ui-items-view--wrap) > [data-ui-items-host] > [data-ui-row-drop], .ui-items-view:is(.ui-orientation--horizontal, .ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item > [data-ui-row-drop]";
+
+:where(@{ui-row-drop}) {
+    position: relative;
+}
+
+:is(@{ui-row-drop})::after {
+    --ui-row-drop-at: calc(-1px - var(--ui-row-drop-offset, -1px));
+
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 1;
+    background: var(--ui-color-primary);
+    pointer-events: none;
+}
+
+:is(@{ui-row-drop})[data-ui-row-drop="before"]::after {
+    top: var(--ui-row-drop-at);
+}
+
+:is(@{ui-row-drop})[data-ui-row-drop="after"]::after {
+    bottom: var(--ui-row-drop-at);
+}
+
+    // Rows that run across: the line stands at the start or the end of the tile, which a right-to-left list turns round.
+    :is(@{ui-row-drop-across})::after {
+        top: 0;
+        bottom: 0;
+        left: auto;
+        right: auto;
+        width: 2px;
+        height: auto;
+    }
+
+    :is(@{ui-row-drop-across})[data-ui-row-drop="before"]:not(:dir(rtl))::after,
+    :is(@{ui-row-drop-across})[data-ui-row-drop="after"]:dir(rtl)::after {
+        left: var(--ui-row-drop-at);
+    }
+
+    :is(@{ui-row-drop-across})[data-ui-row-drop="after"]:not(:dir(rtl))::after,
+    :is(@{ui-row-drop-across})[data-ui-row-drop="before"]:dir(rtl)::after {
+        right: var(--ui-row-drop-at);
+    }
+
+// A host dragged by grips (DragHandle): each row's grip in a track of its own at the row's end or its start, so the content keeps its
+// width. A wrapped tile's row has no box to hold one (display: contents): it draws none and drags whole.
+.ui-items-view > [data-ui-items-host] > .ui-items-view__item > .ui-row__grip {
+    display: none;
+}
+
+.ui-items-view:not(.ui-items-view--wrap)[data-ui-rows-draggable][data-ui-rows-drag-handle] > [data-ui-items-host] > .ui-items-view__item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: @ui-space-1;
+}
+
+    .ui-items-view:not(.ui-items-view--wrap)[data-ui-rows-draggable][data-ui-rows-drag-handle] > [data-ui-items-host] > .ui-items-view__item > .ui-row__grip {
+        .ui-row-grip();
+        grid-row: 1;
+        grid-column: 2;
+        align-self: center;
+    }
+
+    // At the start the grip takes the first track and the content, placed by the grid, the one after it.
+    .ui-items-view:not(.ui-items-view--wrap)[data-ui-rows-draggable][data-ui-rows-drag-handle].ui-drag-handle--start > [data-ui-items-host] > .ui-items-view__item {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .ui-items-view:not(.ui-items-view--wrap)[data-ui-rows-draggable][data-ui-rows-drag-handle].ui-drag-handle--start > [data-ui-items-host] > .ui-items-view__item > .ui-row__grip {
+        grid-column: 1;
+    }
+
+    // A row that may not move, and a host that takes no press, keep the grip's room, so the rows' ends stay in line, but not the grip.
+    .ui-items-view:is(.ui-disabled, .ui-loading) > [data-ui-items-host] > .ui-items-view__item > .ui-row__grip,
+    .ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-undraggable] > .ui-row__grip {
+        visibility: hidden;
+    }

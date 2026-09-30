@@ -22,20 +22,25 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     public TValue? Max { get; set; }
 
     /// <summary>
-    /// Gets or sets the format string used to parse/format the value.
+    /// Gets or sets the format string the server parses typed text against.
     /// </summary>
-    /// <remarks>Render-time only: the runtime reads it once off the compiled state while normalizing what the user typed.</remarks>
+    /// <remarks>
+    /// Render-time only: the runtime reads it once off the compiled state while normalizing what the user typed. A temporal field reads
+    /// text in the format it shows on the page and sends the value; this is a further shape it accepts, read on the server.
+    /// </remarks>
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
     public string? Format { get; set; }
 
     /// <summary>
-    /// Gets or sets the format string used to display the value.
+    /// Gets or sets the format string used to display the value; a temporal field reads what is typed in it by this format too, and
+    /// without one shows the application's (<c>yyyy-MM-dd</c> and <c>HH:mm</c> unless it follows the culture), or its own
+    /// <see cref="Culture"/>'s where it names one.
     /// </summary>
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), DefaultValue = null)]
     public string? DisplayFormat { get; set; }
 
     /// <summary>
-    /// Gets or sets the culture used to parse/format the value.
+    /// Gets or sets the culture used to parse/format the value; a temporal field that names one shows its date and time patterns.
     /// </summary>
     /// <remarks>Render-time only: it resolves a culture pack server-side that no client-side converter could reproduce.</remarks>
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]

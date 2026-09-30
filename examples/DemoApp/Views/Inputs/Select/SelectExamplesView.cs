@@ -19,9 +19,37 @@ internal sealed class SelectExamplesView : DemoExamplesView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        _ = container.AddChildren(DemoUI.CreateColumns([CreatePlainGroup()], [CreateRichGroup(), CreatePlacementGroup()]));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreatePlainGroup(), CreateHelpGroup()], [CreateRichGroup(), CreatePlacementGroup()]));
 
         _ = container.AddChild(CreateTemplateGroup());
+    }
+
+    /// <summary>
+    /// The caption's badge as a help mark says what the choice is for, as its tooltip; the caption stays one line with it.
+    /// </summary>
+    private static ContainerComponent CreateHelpGroup()
+    {
+        return DemoUI.CreateExample("A help badge on the caption",
+            UILayout.Stack(12)
+                .AddChild(new SelectComponent()
+                    .SetTitle("Region")
+                    .SetHelp("Where the server runs; moving it later takes a snapshot and a restore.")
+                    .SetOptions(RegionOptions())
+                    .SetValue("eu-central")
+                    .Required("A server runs somewhere.", UIValidationTrigger.Submit)
+                )
+                .AddChild(new SelectComponent()
+                    .SetTitle("Maintenance window")
+                    .SetHelp("Resizes and kernel updates wait for it; an incident does not. Times are in UTC.")
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "night", Title = "Sundays, 02:00–04:00" },
+                        new OptionItem { Id = "morning", Title = "Tuesdays, 06:00–08:00" }
+                    ])
+                    .SetValue("night")
+                ),
+            note: "The badge is a stop of its own, named by its words; hover, press or tab to it. A caption inside the box makes it no stop, since the box is one control."
+        );
     }
 
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>

@@ -95,7 +95,7 @@ public sealed class AccountsView : TeamRoomView, IUIViewDefinition
                     .AddChild(new TextComponent().SetTitle("A new account").SetTitleType(UITextAppearance.Title).SetDescription("The password is theirs to change once they are in."))
                     .AddChild(new TextInputComponent().SetTitle("Login").BindValue(nameof(AccountsController.NewLogin)))
                     .AddChild(new TextInputComponent().SetTitle("Name").SetPlaceholder("The login, unless told otherwise").BindValue(nameof(AccountsController.NewNickname)))
-                    .AddChild(new TextInputComponent().SetTitle("Password").SetType(UITextInputType.Password).BindValue(nameof(AccountsController.NewPassword)))
+                    .AddChild(new TextInputComponent().SetTitle("Password").SetType(UITextInputType.Password).SetAutocomplete(UIAutocomplete.NewPassword).BindValue(nameof(AccountsController.NewPassword)))
                     .AddChild(new SelectComponent()
                         .SetTitle("Role")
                         .SetOptions([

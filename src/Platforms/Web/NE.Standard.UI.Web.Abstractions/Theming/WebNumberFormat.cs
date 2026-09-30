@@ -89,10 +89,21 @@ public static class WebNumberFormat
         if (!IsSupported(format))
             throw new ArgumentException($"Number format '{format}' is outside the shared subset ({Kinds}, with an optional precision).", nameof(format));
 
-        // A decimal refuses "D"; the client rounds half away from zero, and so does this.
-        return char.ToUpperInvariant(format[0]) == 'D'
-            ? ((long)decimal.Round(value, 0, MidpointRounding.AwayFromZero)).ToString(format, info)
-            : value.ToString(format, info);
+        return char.ToUpperInvariant(format[0]) == 'D' ? FormatInteger(value, format, info) : value.ToString(format, info);
+    }
+
+    /// <summary>
+    /// <c>D</c>, which a decimal refuses: the integer's digits, rounded half away from zero as the client rounds, padded with zeros
+    /// to the precision, the culture's sign before them.
+    /// </summary>
+    /// <remarks>Written out, not cast to a <see cref="long"/>, which holds too few digits for a decimal past 9.2e18.</remarks>
+    private static string FormatInteger(decimal value, string format, NumberFormatInfo info)
+    {
+        var rounded = decimal.Round(value, 0, MidpointRounding.AwayFromZero);
+        var width = format.Length > 1 ? int.Parse(format.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture) : 1;
+        var digits = decimal.Abs(rounded).ToString("F0", CultureInfo.InvariantCulture).PadLeft(width, '0');
+
+        return rounded < 0 ? info.NegativeSign + digits : digits;
     }
 
     /// <summary>Whether the format is one letter of the subset followed by at most two digits of precision.</summary>

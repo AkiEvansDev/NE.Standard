@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -15,8 +16,8 @@ public sealed class DateTimeInputComponentRenderer : TemporalInputRendererBase<D
 
     protected override string TemporalMode => "date-time";
 
-    protected override string GetDefaultDisplayFormat(UITemporalStep? step)
-        => $"{DateInputComponentRenderer.CanonicalDateFormat} {TimeInputComponentRenderer.GetTimeDisplayFormat(step)}";
+    protected override string GetDefaultDisplayFormat(UITemporalStep? step, WebTemporalPatterns patterns)
+        => patterns.DateTime(TimeInputComponentRenderer.ReachesSeconds(step));
 
     protected override bool TryResolveTemporal(DateTimeOffset? value, out DateTime moment, out string canonical)
     {

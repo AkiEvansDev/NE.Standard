@@ -1,17 +1,20 @@
 // A table's columns sized, hidden and ordered by the viewer: client-only state, laid over the authored order as a permutation.
 
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    ColumnLimitsAttribute, TableColumnAttribute, TableColumnKeyAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute,
+    ColumnLimitsAttribute, DragHandleStartClass, RowsDraggableAttribute, RowsDragHandleAttribute, TableColumnAttribute, TableColumnKeyAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute,
     TableHeaderClass, TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableResizerClass, TableRowClass,
-    TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute
-} from "../addressing/dom-attributes";
-import { currentResponsiveTier, responsiveBreakpoints, ResponsiveTier, responsiveTiers } from "../rendering/responsive-tier";
-import { OnceWarner } from "../runtime/logger";
-import { ClientStore } from "../state/client-store";
-import { observeComponents } from "./dom-mutations";
-import { observeSize } from "./element-size";
-import { applyGridTrackLimits, formatGridTracks, GridTrack, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks";
-import { PointerDrag } from "./pointer-drag";
+    TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute
+} from "../addressing/dom-attributes.ts";
+import { currentResponsiveTier, responsiveBreakpoints, responsiveTiers } from "../rendering/responsive-tier.ts";
+import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
+import { OnceWarner } from "../runtime/logger.ts";
+import { ClientStore } from "../state/client-store.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { observeSize } from "./element-size.ts";
+import { applyGridTrackLimits, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks.ts";
+import type { GridTrack } from "./grid-tracks.ts";
+import { PointerDrag } from "./pointer-drag.ts";
 
 const RootClass = "ui-table";
 const ReorderableClass = "ui-table--reorderable";
@@ -63,6 +66,8 @@ type Column = {
     readonly index: number;
     readonly key: string;
     readonly hideBelow: ResponsiveTier | null;
+    /** The author starts the column hidden at every width. */
+    readonly startsHidden: boolean;
     /** A pinned column and one the control owns keep the places they were written in: no drag moves them, and none is dropped among them. */
     readonly anchored: boolean;
     readonly cell: HTMLElement;
@@ -338,7 +343,7 @@ export class TableColumnsEngine {
         }
     }
 
-    /** The columns as the header describes them: index, key, the tier below which the author hides each, and whether it ever moves. */
+    /** The columns as the header describes them: index, key, where the author hides each, and whether it ever moves. */
     private columnsOf(table: HTMLElement): Column[] {
         const columns: Column[] = [];
 
@@ -348,7 +353,7 @@ export class TableColumnsEngine {
             const anchored = cell.classList.contains(PinnedModifierClass) || cell.hasAttribute(TableFixedAttribute);
 
             if (Number.isInteger(index))
-                columns.push({ index, key: cell.getAttribute(TableColumnKeyAttribute) ?? String(index), hideBelow: isTier(tier) ? tier : null, anchored, cell });
+                columns.push({ index, key: cell.getAttribute(TableColumnKeyAttribute) ?? String(index), hideBelow: isTier(tier) ? tier : null, startsHidden: cell.hasAttribute(TableStartsHiddenAttribute), anchored, cell });
         }
 
         return columns;
@@ -380,13 +385,13 @@ export class TableColumnsEngine {
         return places;
     }
 
-    /** The indices hidden now: the viewer's word where there is one, else the author's tier against the viewport's. */
+    /** The indices hidden now: the viewer's word where there is one, else the author's — hidden outright, or by a tier against the viewport's. */
     private hiddenOf(table: HTMLElement, columns: readonly Column[] = this.columnsOf(table)): Set<number> {
         const choices = this.choicesOf(table);
         const hidden = new Set<number>();
 
         for (const column of columns) {
-            if (choices[column.key] ?? hiddenByTier(column))
+            if (choices[column.key] ?? hiddenByAuthor(column))
                 hidden.add(column.index);
         }
 
@@ -414,7 +419,7 @@ export class TableColumnsEngine {
         return parsed;
     }
 
-    /** Whether the column keyed `key` is hidden now, by the viewer's word or the author's tier. */
+    /** Whether the column keyed `key` is hidden now, by the viewer's word or the author's. */
     public isColumnHidden(table: Element, key: string): boolean {
         if (!(table instanceof HTMLElement))
             return false;
@@ -425,7 +430,7 @@ export class TableColumnsEngine {
         return column !== undefined && this.hiddenOf(table, columns).has(column.index);
     }
 
-    /** Sets the viewer's word on a column — hidden, shown, or null for the author's tier — kept in the browser like the widths. */
+    /** Sets the viewer's word on a column — hidden, shown, or null for the author's — kept in the browser like the widths. */
     public setColumnHidden(table: Element, key: string, hidden: boolean | null): void {
         if (!(table instanceof HTMLElement))
             return;
@@ -433,8 +438,8 @@ export class TableColumnsEngine {
         const choices = { ...this.choicesOf(table) };
         const column = this.columnsOf(table).find(candidate => candidate.key === key);
 
-        // A word the tier says anyway is not kept, so the column still gives way on a narrower screen.
-        if (hidden === null || (column !== undefined && hidden === hiddenByTier(column)))
+        // A word the author says anyway is not kept, so the column still gives way on a narrower screen.
+        if (hidden === null || (column !== undefined && hidden === hiddenByAuthor(column)))
             delete choices[key];
         else
             choices[key] = hidden;
@@ -482,11 +487,15 @@ export class TableColumnsEngine {
         table?.toggleAttribute(TableScrolledAttribute, scroll.scrollLeft > 0);
     }
 
-    /** The laid-out width of every track, read off the box that carries them — in the order they are laid out, which is the viewer's. */
+    /**
+     * The laid-out width of every column's track, read off the box that carries them — in the order they are laid out, which is the
+     * viewer's; a start grip's track, which is no column's, left out.
+     */
     private trackSizes(table: HTMLElement): number[] {
         const scroll = table.querySelector<HTMLElement>(ScrollSelector);
+        const sizes = scroll === null ? [] : getComputedStyle(scroll).gridTemplateColumns.split(" ").map(parseFloat);
 
-        return scroll === null ? [] : getComputedStyle(scroll).gridTemplateColumns.split(" ").map(parseFloat);
+        return leadsWithGrip(table) ? sizes.slice(1) : sizes;
     }
 
     /** The same widths by the column they belong to, which is what every reckoning here is in. */
@@ -795,6 +804,11 @@ export class TableColumnsEngine {
     }
 }
 
+/** Whether the rows' grips stand in a track before the columns' (`DragHandle` at the start, shown): a track no column owns. */
+export function leadsWithGrip(table: Element): boolean {
+    return table.hasAttribute(RowsDraggableAttribute) && table.hasAttribute(RowsDragHandleAttribute) && table.classList.contains(DragHandleStartClass);
+}
+
 /** Puts the floors of the two columns a drag moved back level with their new widths, as the drag clamped to the author's floor. */
 function keepColumnFloors(tracks: readonly GridTrack[], moved: GridTrack[], indices: readonly number[]): GridTrack[] {
     for (const index of indices) {
@@ -854,9 +868,9 @@ function clearDropMarks(table: HTMLElement): void {
         marked.removeAttribute(TableDropAttribute);
 }
 
-/** Whether the author's tier hides the column in the viewport as it is now. */
-function hiddenByTier(column: Column): boolean {
-    return column.hideBelow !== null && responsiveTiers.indexOf(currentResponsiveTier()) < responsiveTiers.indexOf(column.hideBelow);
+/** Whether the author hides the column in the viewport as it is now: at every width, or below its tier. */
+export function hiddenByAuthor(column: Pick<Column, "startsHidden" | "hideBelow">): boolean {
+    return column.startsHidden || (column.hideBelow !== null && responsiveTiers.indexOf(currentResponsiveTier()) < responsiveTiers.indexOf(column.hideBelow));
 }
 
 function isTier(value: string | null): value is ResponsiveTier {

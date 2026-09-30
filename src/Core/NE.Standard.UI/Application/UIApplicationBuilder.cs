@@ -33,7 +33,9 @@ public sealed class UIApplicationBuilder
     private readonly List<IUIViewFilter> _viewFilters = [];
     private readonly List<IUICommandFilter> _commandFilters = [];
     private readonly UILocalizationOptions _localization = new();
+    private readonly UITemporalOptions _temporal = new();
     private readonly List<ITranslationSource> _translationSources = [];
+    private readonly List<string> _frameworkLanguages = [];
     private readonly UIApplicationThemeBuilder _theme = new();
 
     private string? _signInRoute;
@@ -126,7 +128,8 @@ public sealed class UIApplicationBuilder
     }
 
     /// <summary>
-    /// Registers a view filter resolved from the service provider on every request.
+    /// Registers a view filter resolved on every request from a service scope of the request's own, disposed when the page has
+    /// been resolved.
     /// </summary>
     public UIApplicationBuilder AddViewFilter<TFilter>(int order = 0)
         where TFilter : class, IUIViewFilter
@@ -149,8 +152,14 @@ public sealed class UIApplicationBuilder
     }
 
     /// <summary>
-    /// Registers a command filter resolved from the service provider on every invocation.
+    /// Registers a command filter resolved on every invocation from the page's service scope — the one its controller was built
+    /// from.
     /// </summary>
+    /// <remarks>
+    /// Registered transient, a filter is built per command; registered scoped, it is the page's own, one for as long as the page
+    /// lives, sharing the controller's scoped services (its <c>DbContext</c>). A disposable transient is held by that scope until
+    /// the page ends, so a filter built per command is better not disposable.
+    /// </remarks>
     public UIApplicationBuilder AddCommandFilter<TFilter>(int order = 0)
         where TFilter : class, IUICommandFilter
     {
@@ -186,6 +195,21 @@ public sealed class UIApplicationBuilder
     }
 
     /// <summary>
+    /// Configures the application's dates and times where a field says nothing of its own: the framework's <c>yyyy-MM-dd</c> and
+    /// <c>HH:mm</c> or the culture's patterns, how a clock counts its hours, and a date or time pattern for every language.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A pattern is outside the shared tokens, or it and the hour cycle disagree.</exception>
+    public UIApplicationBuilder ConfigureTemporal(Action<UITemporalOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        configure(_temporal);
+        _temporal.Validate();
+
+        return this;
+    }
+
+    /// <summary>
     /// Adds an in-memory localization source.
     /// </summary>
     public UIApplicationBuilder AddLocalizationSource(IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> translations)
@@ -199,6 +223,30 @@ public sealed class UIApplicationBuilder
         ArgumentNullException.ThrowIfNull(source);
 
         _translationSources.Add(source);
+        return this;
+    }
+
+    /// <summary>
+    /// Turns on the framework's own words in the languages given — the core's and those of every package registered — ranked below
+    /// the application's own sources, so any word of theirs overrides one.
+    /// </summary>
+    /// <remarks>
+    /// English needs nothing: it is the floor every word falls back to. A language turned on here is not one the page can switch to
+    /// until a source of the application names it. Ignored when an <see cref="ITranslator"/> is registered.
+    /// </remarks>
+    /// <exception cref="ArgumentException">A language is blank; one no source ships throws when the application is built.</exception>
+    public UIApplicationBuilder AddFrameworkWords(params string[] languages)
+    {
+        ArgumentNullException.ThrowIfNull(languages);
+
+        foreach (var language in languages)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(language, nameof(languages));
+
+            if (!_frameworkLanguages.Contains(language, StringComparer.Ordinal))
+                _frameworkLanguages.Add(language);
+        }
+
         return this;
     }
 
@@ -428,12 +476,16 @@ public sealed class UIApplicationBuilder
 
         _persistence.Validate();
         _localization.Validate();
+        _temporal.Validate();
         _sessions.Validate();
         _files.Validate();
 
-        UIRouteRegistry routeRegistry = Routes.Build(services, _security);
         UILocalizationOptions localization = CloneLocalizationOptions(_localization);
         UIMissingWords? missingWords = BuildMissingWords(services, localization);
+
+        // Under key prefixes the report also names a view's static text that starts with none, which every language shows as written.
+        UIUnkeyedWords? unkeyed = missingWords is null || localization.KeyPrefixes.Count == 0 ? null : new UIUnkeyedWords([.. localization.KeyPrefixes], missingWords);
+        UIRouteRegistry routeRegistry = Routes.Build(services, _security, unkeyed is null ? null : unkeyed.Inspect);
 
         return new UIApplication(
             routeRegistry,
@@ -445,6 +497,7 @@ public sealed class UIApplicationBuilder
             CloneSessionOptions(_sessions),
             CloneFileOptions(_files),
             localization,
+            CloneTemporalOptions(_temporal),
             missingWords,
             services.GetService<IUIContentAddressResolver>(),
             [.. _viewFilters.OrderBy(static filter => filter.Order)],
@@ -458,6 +511,7 @@ public sealed class UIApplicationBuilder
         UILocalizationOptions copy = new()
         {
             DefaultLanguage = source.DefaultLanguage,
+            NegotiateLanguage = source.NegotiateLanguage,
             ReportMissingWords = source.ReportMissingWords
         };
 
@@ -466,6 +520,16 @@ public sealed class UIApplicationBuilder
 
         return copy;
     }
+
+    /// <inheritdoc cref="CloneSecurityOptions" />
+    private static UITemporalOptions CloneTemporalOptions(UITemporalOptions source)
+        => new()
+        {
+            FollowCulture = source.FollowCulture,
+            HourCycle = source.HourCycle,
+            DateFormat = source.DateFormat,
+            TimeFormat = source.TimeFormat
+        };
 
     /// <summary>
     /// The collector of missing words when the options turn it on, or, left to the platform, when the platform's defaults do.
@@ -512,7 +576,7 @@ public sealed class UIApplicationBuilder
 
         sources.AddRange(_translationSources);
 
-        return new UITranslationRegistry(localization.DefaultLanguage, sources, [.. services.GetServices<IUIStringsSource>()], [.. localization.KeyPrefixes], missingWords);
+        return new UITranslationRegistry(localization.DefaultLanguage, sources, [.. services.GetServices<IUIStringsSource>()], [.. localization.KeyPrefixes], missingWords, [.. _frameworkLanguages]);
     }
 
     /// <inheritdoc cref="CloneSecurityOptions" />
@@ -547,6 +611,7 @@ public sealed class UIApplicationBuilder
         {
             IdleTimeout = source.IdleTimeout,
             UnclaimedIdleTimeout = source.UnclaimedIdleTimeout,
+            TouchResolution = source.TouchResolution,
             CleanupInterval = source.CleanupInterval,
             ClientKey = source.ClientKey,
             ClientKeyLifetime = source.ClientKeyLifetime

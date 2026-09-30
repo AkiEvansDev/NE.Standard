@@ -105,7 +105,8 @@ export class ItemsSelectionEngine {
     }
 
     private handleKeyDown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
+        // Alt with an arrow moves the row itself where the host's rows move (items-reorder-engine.ts), never the cursor.
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.altKey || !(domEvent.target instanceof Element))
             return;
 
         // The nearest host of any kind, so a tree in a list's row keeps its arrows; a key in a row's control or the host's chrome is theirs.

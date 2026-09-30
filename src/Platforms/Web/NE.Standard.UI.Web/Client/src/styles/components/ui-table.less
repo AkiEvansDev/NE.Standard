@@ -2,6 +2,7 @@
 @import "../mixins/drag-bar.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
+@import "../mixins/row-grip.less";
 @import "../mixins/selected.less";
 
 // A row's wash and its cursor wash, registered as colours so a row fades them (.ui-row-ground()), and a pinned cell or a tile with it.
@@ -144,6 +145,12 @@
     white-space: nowrap;
 }
 
+// A column's own mark before its caption: it keeps its size while the caption gives way to an ellipsis.
+.ui-table__caption-icon {
+    flex: none;
+    margin-inline-end: @ui-space-1;
+}
+
 // The handle at a column's end, with ResizableColumns: it overlaps the cell's edge, so the column line and the handle are one place.
 .ui-table__resizer {
     display: none;
@@ -274,7 +281,8 @@
 .ui-table__cell--pinned,
 .ui-table__header-cell--pinned {
     position: sticky;
-    left: 0;
+    // Past a start grip's track, where one shows (DragHandlePlacement); a later pinned column's own offset adds the same.
+    left: var(--ui-table-grip-lead, 0px);
     z-index: 1;
     background-color: var(--ui-surface-color, var(--ui-color-background));
     background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), linear-gradient(var(--ui-row-wash, transparent), var(--ui-row-wash, transparent));
@@ -462,4 +470,114 @@
 
     .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected] > .ui-table__cell--pinned {
         box-shadow: none;
+    }
+
+// A row the reader drags to another place (Draggable): faint where it stands, and a line on the edge of the row it would land beside —
+// drawn by the cells, since a pinned cell's opaque ground would cover the row's own.
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row.ui-row--dragging {
+    opacity: @ui-drag-ghost-opacity;
+}
+
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="before"] > .ui-table__cell {
+    box-shadow: inset 0 2px 0 var(--ui-color-primary);
+}
+
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="after"] > .ui-table__cell {
+    box-shadow: inset 0 -2px 0 var(--ui-color-primary);
+}
+
+// A table dragged by grips (DragHandle): a track of its own past the columns' or before them holds each row's grip, the whole row's
+// height and the track's width, so the drop line runs across it as across a cell. No column: the columns engine never counts it
+// (`leadsWithGrip` in table-columns-engine.ts for the start's), and every other row of the box leaves it empty.
+@ui-table-grip-track: calc(@ui-row-grip-size + 2 * @ui-space-1);
+@ui-table-gripped: ~".ui-table[data-ui-rows-draggable][data-ui-rows-drag-handle]";
+@ui-table-gripped-start: ~".ui-table[data-ui-rows-draggable][data-ui-rows-drag-handle].ui-drag-handle--start";
+
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-row__grip {
+    display: none;
+}
+
+@{ui-table-gripped} > .ui-table__scroll {
+    grid-template-columns: var(--ui-table-sized-columns, var(--ui-table-columns, auto)) @ui-table-grip-track;
+}
+
+    @{ui-table-gripped} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-row__grip {
+        .ui-row-grip();
+        position: relative;
+        grid-row: 1;
+        grid-column: -2;
+        align-self: stretch;
+        justify-self: stretch;
+        width: auto;
+        height: auto;
+        min-height: @ui-row-grip-size;
+        border-radius: 0;
+    }
+
+    // A row that may not move, and a host that takes no press, keep the grip's room but not the grip; a line still runs across it.
+    .ui-table:is(.ui-disabled, .ui-loading) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-row__grip,
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-undraggable] > .ui-row__grip {
+        visibility: hidden;
+    }
+
+    // The cells' own line, drawn on a layer of the grip's since the grip itself may be hidden.
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop] > .ui-row__grip::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--ui-color-primary);
+        visibility: visible;
+        pointer-events: none;
+    }
+
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="before"] > .ui-row__grip::after {
+        top: 0;
+    }
+
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="after"] > .ui-row__grip::after {
+        bottom: 0;
+    }
+
+// At the start the track leads, the grip takes it, every other row of the box leaves it empty, and a pinned cell stands past it.
+@{ui-table-gripped-start} {
+    --ui-table-grip-lead: @ui-table-grip-track;
+}
+
+    @{ui-table-gripped-start} > .ui-table__scroll {
+        grid-template-columns: @ui-table-grip-track var(--ui-table-sized-columns, var(--ui-table-columns, auto));
+    }
+
+    @{ui-table-gripped-start} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-row__grip {
+        grid-column: 1;
+    }
+
+    @{ui-table-gripped-start} > .ui-table__scroll > :not([data-ui-items-host])::before {
+        content: "";
+        grid-row: 1;
+        grid-column: 1;
+    }
+
+    // Beside a pinned first column the grips stay with it, on the ground a pinned cell stands on, and so does the header's empty cell.
+    @{ui-table-gripped-start}:has(> .ui-table__scroll > .ui-table__header > .ui-table__header-cell--pinned) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-row__grip {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background-color: var(--ui-surface-color, var(--ui-color-background));
+        background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), linear-gradient(var(--ui-row-wash, transparent), var(--ui-row-wash, transparent));
+    }
+
+    // Its own row line, as a pinned cell's: the row's runs under the ground.
+    @{ui-table-gripped-start}:not(.ui-table--no-separators):has(> .ui-table__scroll > .ui-table__header > .ui-table__header-cell--pinned) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:not(:last-child) > .ui-row__grip {
+        box-shadow: inset 0 -1px 0 var(--ui-color-border);
+    }
+
+    @{ui-table-gripped-start}:has(> .ui-table__scroll > .ui-table__header > .ui-table__header-cell--pinned) > .ui-table__scroll > .ui-table__header::before {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        align-self: stretch;
+        background: var(--ui-surface-color, var(--ui-color-background));
+        background-image: linear-gradient(@ui-table-ground, @ui-table-ground);
     }

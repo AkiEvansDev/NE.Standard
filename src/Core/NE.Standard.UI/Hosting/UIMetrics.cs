@@ -55,8 +55,15 @@ internal sealed class UIMetrics : IDisposable
 
     private static IEnumerable<Measurement<int>> ObserveSessions(IServiceProvider services)
     {
-        if (services.GetService<IUserSessionStore>() is InMemoryUserSessionStore store)
-            yield return new Measurement<int>(store.Count);
+        UserSessionMemoryStore? memory = services.GetService<IUserSessionStore>() switch
+        {
+            UserSessionMemoryStore store => store,
+            UserSessionSplitStore split => split.Anonymous,
+            _ => null
+        };
+
+        if (memory is not null)
+            yield return new Measurement<int>(memory.Count);
     }
 
     private static IEnumerable<Measurement<int>> ObserveFileCount(IServiceProvider services)

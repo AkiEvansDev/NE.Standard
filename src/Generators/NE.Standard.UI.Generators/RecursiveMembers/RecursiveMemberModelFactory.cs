@@ -60,6 +60,7 @@ internal static class RecursiveMemberModelFactory
             CanSet: property.SetMethod is not null && !property.SetMethod.IsInitOnly,
             Generate: values.Generate,
             PropertyAccessibility: GetAccessibility(property.DeclaredAccessibility),
+            PropertyModifiers: GetCarriedModifiers(propertySyntax),
             GetterAccessibility: GetAccessorAccessibility(property.GetMethod?.DeclaredAccessibility, property.DeclaredAccessibility),
             SetterAccessibility: GetAccessorAccessibility(property.SetMethod?.DeclaredAccessibility, property.DeclaredAccessibility),
             Diagnostics: diagnostics.ToEquatableArray()
@@ -161,6 +162,20 @@ internal static class RecursiveMemberModelFactory
             Accessibility.Private => "private",
             _ => "private"
         };
+
+    /// <summary>The modifiers both halves of a partial property must agree on, in the declaration's own order.</summary>
+    private static string GetCarriedModifiers(BasePropertyDeclarationSyntax propertySyntax)
+    {
+        List<string> carried = [];
+
+        foreach (SyntaxToken modifier in propertySyntax.Modifiers)
+        {
+            if (modifier.IsKind(SyntaxKind.NewKeyword) || modifier.IsKind(SyntaxKind.VirtualKeyword) || modifier.IsKind(SyntaxKind.OverrideKeyword) || modifier.IsKind(SyntaxKind.SealedKeyword) || modifier.IsKind(SyntaxKind.RequiredKeyword))
+                carried.Add(modifier.Text);
+        }
+
+        return string.Join(" ", carried);
+    }
 
     private static string GetAccessorAccessibility(Accessibility? accessorAccessibility, Accessibility propertyAccessibility)
     {

@@ -1,13 +1,16 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
-import { PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute } from "../addressing/dom-attributes.ts";
+import {
+    PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute
+} from "../addressing/dom-attributes.ts";
 import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
-import { isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
+import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
 // A control speaking through a mark inside it (a validation dot, `data-ui-tooltip-mark`) shows the mark's tooltip, drawn against the mark.
 const TooltipClass = "ui-tooltip";
+const TooltipId = "ui-tooltip";
 const VisibleClass = "ui-tooltip--visible";
 // A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
 const OpenSelector = "[aria-haspopup][aria-expanded=\"true\"]";
@@ -29,8 +32,12 @@ const AnchorGap = 7;
 let tooltip: HTMLElement | null = null;
 // Also the record of whether a tooltip is on screen; any element works, an SVG shape too, since only its box and attributes are read.
 let anchor: Element | null = null;
+// The element naming the tooltip in its `aria-describedby`: the one inside the anchor the focus stands on, as a field's own input.
+let described: Element | null = null;
 // A mark whose control holds the focus: its tooltip is the focus's, and the pointer crossing the page neither replaces nor closes it.
 let pinned: Element | null = null;
+// A control a press opened (a caption's badge): its tooltip stays, whatever the pointer crosses, until the next press anywhere.
+let held: Element | null = null;
 let showTimer = 0;
 // What the pending timer will show: a caller naming the same target again while it waits updates the words, not the wait.
 let scheduled: { readonly target: Element; words: string | undefined } | null = null;
@@ -53,12 +60,8 @@ export function startTooltips(root: ParentNode = document): void {
     host.addEventListener("focusout", onFocusOut, true);
     host.addEventListener("keydown", onKeyDown, true);
     host.addEventListener("scroll", dropOrphan, true);
-
-    // A press outside makes the tooltip stale; a press inside it is the reader following a link.
-    host.addEventListener("pointerdown", event => {
-        if (pinned === null && !isInsideTooltip(event.target))
-            hide(true);
-    }, true);
+    host.addEventListener("pointerdown", onPointerDown, true);
+    host.addEventListener("click", onClick, true);
     window.addEventListener("blur", () => {
         pinned = null;
         hide(true);
@@ -92,7 +95,7 @@ function dropOrphan(): void {
 }
 
 function onPointerOut(event: Event): void {
-    if (pinned !== null)
+    if (pinned !== null || held !== null)
         return;
 
     const related = (event as PointerEvent).relatedTarget;
@@ -140,6 +143,38 @@ function onKeyDown(event: KeyboardEvent): void {
     hide(true);
 }
 
+// A press outside makes the tooltip stale; a press inside it is the reader following a link.
+function onPointerDown(event: Event): void {
+    if (isInsideTooltip(event.target))
+        return;
+
+    const target = findAnchor(event.target);
+
+    // A control whose words are all it holds shows them on a press, the only way a touch can ask; a second press takes them away.
+    if (target !== null && target.hasAttribute(PressAttribute)) {
+        if (held === target) {
+            hide(true);
+            return;
+        }
+
+        pinned = null;
+        hide(true);
+        show(target);
+        held = anchor;
+        return;
+    }
+
+    if (pinned === null)
+        hide(true);
+}
+
+// The press on a control whose words are all it holds asked for them and nothing else: a checkbox's label around it would tick the box,
+// and a field's caption would hand the focus to the field, which closes them.
+function onClick(event: Event): void {
+    if (findAnchor(event.target)?.hasAttribute(PressAttribute) === true)
+        event.preventDefault();
+}
+
 function isInsideTooltip(target: EventTarget | null): boolean {
     return tooltip !== null && target instanceof Node && tooltip.contains(target);
 }
@@ -163,7 +198,7 @@ function findAnchor(target: EventTarget | null): Element | null {
 }
 
 function schedule(target: Element, words?: string): void {
-    if (pinned !== null)
+    if (pinned !== null || held !== null)
         return;
 
     window.clearTimeout(hideTimer);
@@ -212,10 +247,6 @@ function show(target: Element, words?: string): void {
     window.clearTimeout(hideTimer);
     scheduled = null;
 
-    // Taken over from another control without closing between (a focus, a pin, a package's words): that one stops naming it.
-    if (anchor !== null && anchor !== target)
-        anchor.removeAttribute("aria-describedby");
-
     const element = ensureTooltip();
 
     // Nothing in a tooltip can be pressed, so a fold in it is written open.
@@ -224,9 +255,11 @@ function show(target: Element, words?: string): void {
 
     anchor = target;
 
-    // The anchor names its tooltip; the element is aria-hidden, so the text is announced once, from the control.
-    target.setAttribute("aria-describedby", element.id);
+    // The control names its tooltip; the element is aria-hidden, so the text is announced once, from the control.
+    describe(describedElement(target));
     element.setAttribute("data-ui-tooltip-text", inlineMarkupToPlainText(text));
+
+    carryPopupGround(target, element);
 
     // Against the control and centred on it, not at the pointer, so the same control always shows it in the same place.
     placeAnchoredPopup(target, element, { placement: readPlacement(target), gap: AnchorGap, arrow: true });
@@ -235,6 +268,46 @@ function show(target: Element, words?: string): void {
 // A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.
 function isOpen(target: Element): boolean {
     return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null;
+}
+
+/** The element a screen reader stands on for the anchor: the focused one inside it (a field's own input), else the anchor itself. */
+function describedElement(target: Element): Element {
+    const active = document.activeElement;
+
+    return active !== null && target.contains(active) ? active : target;
+}
+
+/** Adds the tooltip to what an element is described by, beside its own descriptions, and takes it off the one that named it before. */
+function describe(element: Element): void {
+    // Taken over from another control without closing between (a focus, a pin, a package's words): that one stops naming it.
+    if (described !== null && described !== element)
+        undescribe();
+
+    const ids = describedBy(element);
+
+    if (!ids.includes(TooltipId))
+        element.setAttribute("aria-describedby", [...ids, TooltipId].join(" "));
+
+    described = element;
+}
+
+/** Takes the tooltip off what its element is described by, leaving the element's own descriptions as they were. */
+function undescribe(): void {
+    if (described === null)
+        return;
+
+    const ids = describedBy(described).filter(id => id !== TooltipId);
+
+    if (ids.length === 0)
+        described.removeAttribute("aria-describedby");
+    else
+        described.setAttribute("aria-describedby", ids.join(" "));
+
+    described = null;
+}
+
+function describedBy(element: Element): string[] {
+    return (element.getAttribute("aria-describedby") ?? "").split(" ").filter(id => id.length > 0);
 }
 
 /** How a package's tooltip opens. */
@@ -301,8 +374,9 @@ function hide(immediate: boolean): void {
         if (anchor === null)
             return;
 
-        anchor.removeAttribute("aria-describedby");
+        undescribe();
         anchor = null;
+        held = null;
 
         if (tooltip !== null) {
             tooltip.classList.remove(VisibleClass);
@@ -323,7 +397,7 @@ function ensureTooltip(): HTMLElement {
         return tooltip;
 
     tooltip = document.createElement("div");
-    tooltip.id = "ui-tooltip";
+    tooltip.id = TooltipId;
     tooltip.className = TooltipClass;
     tooltip.setAttribute("role", "tooltip");
     tooltip.setAttribute("aria-hidden", "true");

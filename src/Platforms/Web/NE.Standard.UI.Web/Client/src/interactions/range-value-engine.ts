@@ -1,7 +1,9 @@
-import { DomRegistry } from "../addressing/dom-registry";
-import { getIdValue } from "../metadata/metadata-index";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
 
 const RangeInputClass = "ui-slider__input";
 const RangeValueClass = "ui-slider__value";
@@ -26,6 +28,9 @@ export type RangeValueEngineOptions = {
 export class RangeValueEngine {
     private readonly options: RangeValueEngineOptions;
     private readonly root: ParentNode;
+
+    // The value each range last stood at by the server's push or the reader's own move: what a refused move is put back to.
+    private readonly settled = new WeakMap<HTMLInputElement, string>();
 
     public constructor(options: RangeValueEngineOptions = {}) {
         this.options = options;
@@ -52,6 +57,7 @@ export class RangeValueEngine {
                 if (input === null)
                     continue;
 
+                this.settled.set(input, input.value);
                 this.writeReadings(input);
 
                 if (change.propertyName === ValuePropertyName)
@@ -61,7 +67,8 @@ export class RangeValueEngine {
     }
 
     private reportClamped(input: HTMLInputElement, pushed: unknown): void {
-        if (pushed === null || pushed === undefined || input.value === String(pushed))
+        // A range the reader cannot move only shows the clamp: the value stays the server's.
+        if (pushed === null || pushed === undefined || input.value === String(pushed) || isFixed(input))
             return;
 
         input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -71,7 +78,17 @@ export class RangeValueEngine {
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(RangeInputClass))
             return;
 
-        this.writeReadings(domEvent.target);
+        const input = domEvent.target;
+
+        // A move no key or pointer made (a screen reader's increment) on a range the reader cannot move is put back; its `change`
+        // is refused ahead of every engine.
+        if (isFixed(input)) {
+            input.value = this.settled.get(input) ?? input.defaultValue;
+            return;
+        }
+
+        this.settled.set(input, input.value);
+        this.writeReadings(input);
     }
 
     private placeBubble(target: EventTarget | null): void {
@@ -105,6 +122,11 @@ export class RangeValueEngine {
         else
             this.releaseBubble(input);
     }
+}
+
+/** Whether the reader may not move a range: read-only, disabled or loading. */
+function isFixed(input: HTMLInputElement): boolean {
+    return isReadOnly(input) || isInert(input);
 }
 
 /** The three elements a bubble needs to be placed: itself, the handle it stands over, and which way that is. */

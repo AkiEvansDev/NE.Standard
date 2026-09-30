@@ -79,6 +79,8 @@ public sealed partial class FilesController : TeamRoomController
                 ParentId = record.ParentId,
                 Title = record.Name,
                 Kind = record.Kind,
+                // A folder takes a drop even while empty, a file never.
+                IsFolder = folder,
                 Icon = AppIcons.Outline(folder ? AppIcons.Folder : AppIcons.File),
                 Expanded = folder ? folds.GetValueOrDefault(record.Id, true) : null,
                 // A member sees the tree and may not touch it: the abilities are the row's, so the tree itself stays one component.

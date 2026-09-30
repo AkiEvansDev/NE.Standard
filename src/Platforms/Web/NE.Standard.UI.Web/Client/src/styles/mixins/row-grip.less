@@ -1,0 +1,25 @@
+@import "../core/tokens.less";
+@import "./glyphs.less";
+
+// The grip a row is dragged by (DragHandle; ItemsCollectionRendererBase.RenderRowGrip): the drag indicator's six dots in a square of
+// their own, muted until the pointer is on them, under the grab hand. Each host places it and shows it while its drag and handle are on.
+@ui-row-grip-size: 1.25rem;
+
+.ui-row-grip() {
+    .ui-glyph-host();
+    width: @ui-row-grip-size;
+    height: @ui-row-grip-size;
+    border-radius: 0.25rem;
+    color: @ui-text-muted;
+    cursor: grab;
+    user-select: none;
+
+    &::before {
+        .ui-glyph(@ui-glyph-drag-indicator; @ui-glyph-md);
+    }
+
+    // Ink alone: the row is the surface that washes under the pointer.
+    &:hover {
+        color: inherit;
+    }
+}

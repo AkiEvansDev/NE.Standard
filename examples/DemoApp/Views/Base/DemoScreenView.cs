@@ -10,8 +10,9 @@ internal abstract class DemoScreenView : DemoView
     protected sealed override DemoViewKind ViewKind => DemoViewKind.Main;
     protected sealed override DemoViewKind[] AvailableKinds => [];
 
+    // The screen is a sample as a whole, its copy and its data shown as written: content for the unkeyed report.
     protected sealed override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChild(CreateScreen());
+        => _ = container.AsContentTree().AddChild(CreateScreen());
 
     protected abstract IVisualComponent CreateScreen();
 }

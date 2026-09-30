@@ -32,6 +32,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     /// <summary>The prefix of the variables the columns engine writes on the root: where a pinned column after the first sticks, in pixels.</summary>
     public const string PinVariablePrefix = "--ui-table-pin-";
 
+    /// <summary>The width a start grip's track takes before the first column, which the stylesheet sets while one shows; a pinned cell stands past it.</summary>
+    public const string GripLeadVariable = "--ui-table-grip-lead";
+
     /// <summary>What the host's viewport attribute says when the box around it scrolls for it.</summary>
     public const string ParentViewport = "parent";
 
@@ -41,6 +44,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected const string HeaderClassName = "ui-table__header";
     protected const string HeaderCellClassName = "ui-table__header-cell";
     protected const string CaptionClassName = "ui-table__caption";
+    protected const string CaptionIconClassName = "ui-table__caption-icon";
     protected const string ResizerClassName = "ui-table__resizer";
     protected const string HostClassName = "ui-table__host";
     protected const string RowClassName = "ui-table__row";
@@ -73,8 +77,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         WebRenderItemsCompositeMetadata composite = CreateComposite(columns, cellRole);
 
         RenderTracks(root, columns);
+        RenderHiddenColumns(root, columns);
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, composite: composite, announcesSelection: selectable);
+        RegisterItemsTemplateMetadata(context, composite: composite, rowDecorator: DrawsRowGrip(context, TableComponent.DraggableProperty, TableComponent.DragHandleProperty) ? RowGripDecorator : null, announcesSelection: selectable);
         RegisterItemsFilterSortMetadata(context);
 
         RenderOverTable(context, root, columns);
@@ -99,7 +104,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected static string CellRole(WebRenderContext context)
         => ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many ? "gridcell" : "cell";
 
-    /// <summary>The seven switches, each a modifier the stylesheet reads; a bound one flips live.</summary>
+    /// <summary>The seven switches, each a modifier the stylesheet reads, and the rows' drag and its grip the engine reads; a bound one flips live.</summary>
     protected virtual void RenderFlags(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -112,6 +117,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-table--row-hover");
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
         RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
+        RenderFlagAttribute(context, root, TableComponent.DraggableProperty, WebAttributes.RowsDraggable);
+        RenderFlagAttribute(context, root, TableComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
+        RenderDragHandlePlacement(context, root, TableComponent.DragHandlePlacementProperty);
     }
 
     /// <summary>
@@ -200,9 +208,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         return attributes;
     }
 
-    /// <summary>Where a pinned cell stands: the variable the columns engine writes for its column.</summary>
+    /// <summary>Where a pinned cell stands: the variable the columns engine writes for its column, past a start grip's track where one shows.</summary>
     private static string PinOffset(int index)
-        => $"var({PinVariablePrefix}{index.ToString(CultureInfo.InvariantCulture)})";
+        => $"calc(var({PinVariablePrefix}{index.ToString(CultureInfo.InvariantCulture)}) + var({GripLeadVariable}, 0px))";
 
     /// <summary>The authored tracks as a variable on the root, and the bounds the resize handle clamps to.</summary>
     protected virtual void RenderTracks(IHtmlElementBuilder root, IReadOnlyList<UITableColumn> columns)
@@ -239,6 +247,21 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         => width is { Unit: UIGridUnitType.Absolute, Value: > 0 }
             ? UIGridUnit.Star(width.Value, min: width.Value)
             : width;
+
+    /// <summary>The columns the author starts hidden, named on the root so the first paint leaves them out; the columns engine takes over from there.</summary>
+    private static void RenderHiddenColumns(IHtmlElementBuilder root, IReadOnlyList<UITableColumn> columns)
+    {
+        List<string>? hidden = null;
+
+        for (var i = 0; i < columns.Count; i++)
+        {
+            if (columns[i].Hidden)
+                (hidden ??= []).Add(i.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (hidden is not null)
+            _ = root.Attribute(WebAttributes.TableHidden, string.Join(' ', hidden));
+    }
 
     /// <summary>What a package draws over the table and outside its frame — a grid's band of search and filters; nothing here.</summary>
     protected virtual void RenderOverTable(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<UITableColumn> columns)
@@ -291,6 +314,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             if (column.HideBelow is UIResponsiveTier tier)
                 _ = cell.Attribute(WebAttributes.TableHideBelow, tier.ToString().ToLowerInvariant());
 
+            if (column.Hidden)
+                _ = cell.Attribute(WebAttributes.TableStartsHidden);
+
             RenderPinned(cell, HeaderCellClassName, columns, index);
             RenderHeaderCellContent(context, cell, column, index);
         });
@@ -322,11 +348,15 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderResizer(context, cell, column, index);
     }
 
+    /// <summary>The column's icon, when it has one, then its caption; the icon is a mark, and the caption stays the column's name.</summary>
     protected static void RenderCaption(WebRenderContext context, IHtmlElementBuilder cell, UITableColumn column)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(cell);
         ArgumentNullException.ThrowIfNull(column);
+
+        if (IconValueRenderer.Draws(column.Icon))
+            IconValueRenderer.RenderIcon(cell, column.Icon, CaptionIconClassName, column.IconColor);
 
         _ = cell.Element("span", caption =>
         {
@@ -412,8 +442,8 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected virtual bool PublishItemValues => false;
 
     /// <summary>
-    /// One row: the slots of <paramref name="composite"/>, each in its cell, as the client draws a row of its own; a
-    /// <paramref name="selectable"/> row says whether it is chosen.
+    /// One row: the slots of <paramref name="composite"/>, each in its cell, as the client draws a row of its own, then the grip it is
+    /// dragged by where the table draws one; a <paramref name="selectable"/> row says whether it is chosen.
     /// </summary>
     protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, WebRenderItemsCompositeMetadata composite, HashSet<string> selected, bool selectable)
     {
@@ -436,6 +466,11 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
                 RenderNamedTemplateSlot(context, row, item, slot.VariantKey, slot.WrapperClassName, slot.VariantKeyPropertyName, slot.WrapperRole, slot.WrapperAttributes);
             }
+
+            // Past the cells, in a track the stylesheet adds before or after the columns' while the grip shows: a cell would be a column
+            // the columns engine counts.
+            if (DrawsRowGrip(context, TableComponent.DraggableProperty, TableComponent.DragHandleProperty))
+                RenderRowGrip(context, row);
         });
     }
 

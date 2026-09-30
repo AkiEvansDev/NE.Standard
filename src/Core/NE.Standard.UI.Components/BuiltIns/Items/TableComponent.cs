@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
@@ -10,6 +11,7 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
@@ -80,6 +82,29 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     public bool? ReorderableColumns { get; set; }
 
     /// <summary>
+    /// Gets or sets whether a row whose item does not refuse it (<c>CanDrag</c>) can be dragged to another place among the rows, or
+    /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnRowMove"/>). Refused while a sort orders the
+    /// rows, which would put the row back.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? Draggable { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether a <c>Draggable</c> row is dragged only by a grip in a narrow track past the last column or before the first
+    /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
+    /// rows by Alt+Up and Alt+Down.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? DragHandle { get; set; }
+
+    /// <summary>
+    /// Gets or sets where the grips' column stands (<see cref="DragHandle"/>): past the last column by default, or before the first,
+    /// pinned with it where the first column is pinned.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIDragHandlePlacement.End)]
+    public UIDragHandlePlacement? DragHandlePlacement { get; set; }
+
+    /// <summary>
     /// Initializes a table with the built-in empty template and the row template every row is a copy of.
     /// </summary>
     protected TableComponent(string? id = null) : base(id)
@@ -91,11 +116,11 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <summary>Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties.</summary>
     /// <remarks>
     /// Defaults to <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the
-    /// table scrolls, and pinned columns must lead. Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column
-    /// through the same verb.
+    /// table scrolls, and pinned columns must lead; <paramref name="icon"/> stands before the caption, and a <paramref name="hidden"/>
+    /// column starts hidden. Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column through the same verb.
     /// </remarks>
-    public virtual T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false)
-        => AddColumn(new UITableColumn(key ?? NextColumnKey(), caption, width ?? UIGridUnit.Auto(), alignment) { Pinned = pinned }, template);
+    public virtual T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false)
+        => AddColumn(new UITableColumn(key ?? NextColumnKey(), caption, width ?? UIGridUnit.Auto(), alignment) { Pinned = pinned, Icon = icon, Hidden = hidden }, template);
 
     /// <summary>The key a column gets when the author names none: its one-based position.</summary>
     protected string NextColumnKey()
@@ -104,6 +129,10 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <summary>Hides the column keyed <paramref name="key"/> below viewport <paramref name="tier"/>; a viewer's chooser may still show it.</summary>
     /// <remarks>Applied after the column is added, so the adding verbs stay short.</remarks>
     public T HideColumnBelow(string key, UIResponsiveTier tier)
+        => ChangeColumn(key, column => column with { HideBelow = tier });
+
+    /// <summary>The column keyed <paramref name="key"/> put back with what <paramref name="change"/> says about it.</summary>
+    private T ChangeColumn(string key, Func<UITableColumn, UITableColumn> change)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
@@ -111,7 +140,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         {
             if (string.Equals(_columns[i].Key, key, StringComparison.Ordinal))
             {
-                ReplaceColumn(i, _columns[i] with { HideBelow = tier });
+                ReplaceColumn(i, change(_columns[i]));
                 return Self;
             }
         }
@@ -119,8 +148,19 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         throw new ArgumentException($"'{TypeKey}' has no column keyed '{key}'.", nameof(key));
     }
 
+    /// <summary>Starts the column keyed <paramref name="key"/> hidden at every width; a viewer's chooser may still show it, and that word is kept.</summary>
+    /// <remarks>Applied after the column is added, as <see cref="HideColumnBelow"/> is. A plain table draws no chooser, so only a host that
+    /// has one (the data grid) can show the column again.</remarks>
+    public T HideColumn(string key)
+        => ChangeColumn(key, column => column with { Hidden = true });
+
+    /// <summary>Draws <paramref name="icon"/>, in <paramref name="color"/> when given, before the caption of the column keyed <paramref name="key"/>.</summary>
+    public T SetColumnIcon(string key, string? icon, UIThemeColor? color = null)
+        => ChangeColumn(key, column => column with { Icon = icon, IconColor = color });
+
     /// <summary>Puts a column back in its place with more said about it — a package marking one filterable after the fact; the key and the template stay.</summary>
-    protected void ReplaceColumn(int index, UITableColumn column)
+    /// <remarks>Virtual, so a derived table keeps what it built from the columns — a grid's chooser — level with the change.</remarks>
+    protected virtual void ReplaceColumn(int index, UITableColumn column)
     {
         ArgumentNullException.ThrowIfNull(column);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
@@ -162,8 +202,8 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <summary>
     /// Adds a column showing the row's text at <paramref name="propertyPath"/> — a string property, in the row's own words.
     /// </summary>
-    public virtual T AddTextColumn(string caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false)
-        => AddColumn(caption, CreateTextCell(propertyPath, alignment), width, alignment, key, pinned);
+    public virtual T AddTextColumn(string caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false)
+        => AddColumn(caption, CreateTextCell(propertyPath, alignment), width, alignment, key, pinned, icon, hidden);
 
     /// <summary>The cell a text column renders: the built-in text template, its title the row's property.</summary>
     protected static DefaultTextTemplate CreateTextCell(string propertyPath, UITextAlignment? alignment)
@@ -178,6 +218,28 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
 
         return cell;
     }
+
+    /// <summary>
+    /// Registers the command a row dropped at another place among the rows raises, with the row's key and the index it now takes in
+    /// the collection; the controller moves it, since nothing moves on the client.
+    /// </summary>
+    /// <remarks>
+    /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.
+    /// </remarks>
+    public T OnRowMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
+        => OnRowMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.ArgEventValue(indexArgumentName));
+
+    /// <summary>
+    /// Registers the command a row dropped at another place raises; <c>UIAction.ArgEventValue</c> reads the index it takes.
+    /// </summary>
+    public T OnRowMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
+
+    /// <summary>
+    /// Drags a <c>Draggable</c> row only by a grip at <paramref name="placement"/> (<see cref="DragHandle"/>).
+    /// </summary>
+    public T SetDragHandle(UIDragHandlePlacement placement)
+        => SetDragHandle(true).SetDragHandlePlacement(placement);
 
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.

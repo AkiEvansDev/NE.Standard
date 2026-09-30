@@ -74,43 +74,75 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         {
             ArgumentNullException.ThrowIfNull(value);
 
-            T oldItem;
-            ItemForwarder forwarder;
-            RecursiveChange change;
-
-            lock (_sync)
-            {
-                oldItem = _items[index];
-
-                if (ReferenceEquals(oldItem, value))
-                    return;
-
-                EnsureItemCanBeAttachedNoLock(value, replacingIndex: index);
-                EnsureIdCanBeAttachedNoLock(value, replacingItem: oldItem);
-                value.EnsureCanAttach(this, this);
-
-                var oldItemIds = GetItemIdsNoLock(index, count: 1);
-
-                RemoveMapsNoLock(oldItem);
-
-                _items[index] = value;
-
-                AddMapsNoLock(value, index);
-
-                var itemIds = GetItemIdsNoLock(index, count: 1);
-
-                forwarder = GetOrCreateForwarderNoLock(value);
-                change = RecursiveChange.Replace(RecursivePath.Empty, index, count: 1, oldItemIds, itemIds);
-            }
-
-            oldItem.DetachOwner(this);
-            oldItem.ResetNotifier();
-
-            value.AttachOwner(this, this);
-            value.SetNotifier(forwarder.Notify);
-
-            Notify(change);
+            if (!TryReplace(PathSegment.AtIndex(index), value))
+                throw new ArgumentOutOfRangeException(nameof(index), index, "Index was out of range.");
         }
+    }
+
+    /// <summary>
+    /// Replaces the item a segment names, found under the same lock that replaces it: resolved first and replaced after, a keyed
+    /// set racing a removal would land on whichever item moved into that index.
+    /// </summary>
+    private bool TryReplace(PathSegment segment, T value)
+    {
+        T oldItem;
+        ItemForwarder forwarder;
+        RecursiveChange change;
+
+        lock (_sync)
+        {
+            if (!TryGetIndexNoLock(segment, out var index))
+                return false;
+
+            oldItem = _items[index];
+
+            if (ReferenceEquals(oldItem, value))
+                return true;
+
+            EnsureItemCanBeAttachedNoLock(value, replacingIndex: index);
+            EnsureIdCanBeAttachedNoLock(value, replacingItem: oldItem);
+            value.EnsureCanAttach(this, this);
+
+            var oldItemIds = GetItemIdsNoLock(index, count: 1);
+
+            RemoveMapsNoLock(oldItem);
+
+            _items[index] = value;
+
+            AddMapsNoLock(value, index);
+
+            var itemIds = GetItemIdsNoLock(index, count: 1);
+
+            forwarder = GetOrCreateForwarderNoLock(value);
+            change = RecursiveChange.Replace(RecursivePath.Empty, index, count: 1, oldItemIds, itemIds);
+        }
+
+        oldItem.DetachOwner(this);
+        oldItem.ResetNotifier();
+
+        value.AttachOwner(this, this);
+        value.SetNotifier(forwarder.Notify);
+
+        Notify(change);
+        return true;
+    }
+
+    private bool TryGetIndexNoLock(PathSegment segment, out int index)
+    {
+        if (segment.Kind == PathSegmentKind.Index && (uint)segment.Index < (uint)_items.Count)
+        {
+            index = segment.Index;
+            return true;
+        }
+
+        if (segment.Kind == PathSegmentKind.Key && _itemsById is not null && _itemsById.TryGetValue(segment.Key, out T? item))
+        {
+            index = _indicesByItem[item];
+            return true;
+        }
+
+        index = -1;
+        return false;
     }
 
     private void EnsureItemCanBeAttachedNoLock(T item, int replacingIndex = -1)
@@ -606,7 +638,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             return true;
         }
 
-        if (TryGetItemBySegment(segments[offset], out T? item, out _))
+        if (TryGetItemBySegment(segments[offset], out T? item))
         {
             if (offset == segments.Length - 1)
             {
@@ -633,53 +665,21 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         return base.TryGetValueCore(segments, offset, out value);
     }
 
-    private bool TryGetItemBySegment(PathSegment segment, out T? item, out int index)
+    private bool TryGetItemBySegment(PathSegment segment, out T? item)
     {
-        if (segment.Kind == PathSegmentKind.Index)
-        {
-            lock (_sync)
-            {
-                index = segment.Index;
-
-                if ((uint)index >= (uint)_items.Count)
-                {
-                    item = null;
-                    index = -1;
-                    return false;
-                }
-
-                item = _items[index];
-                return true;
-            }
-        }
-
-        if (segment.Kind == PathSegmentKind.Key)
-        {
-            Dictionary<string, T>? map = _itemsById;
-
-            if (map is null)
-            {
-                item = null;
-                index = -1;
-                return false;
-            }
-
-            lock (_sync)
-            {
-                if (!map.TryGetValue(segment.Key, out item))
-                {
-                    index = -1;
-                    return false;
-                }
-
-                index = _indicesByItem[item];
-                return true;
-            }
-        }
-
         item = null;
-        index = -1;
-        return false;
+
+        if (!IsCollectionSegment(segment))
+            return false;
+
+        lock (_sync)
+        {
+            if (!TryGetIndexNoLock(segment, out var index))
+                return false;
+
+            item = _items[index];
+            return true;
+        }
     }
 
     /// <inheritdoc />
@@ -690,19 +690,10 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
         if (IsCollectionSegment(segments[offset]))
         {
-            if (!TryGetItemBySegment(segments[offset], out T? item, out var index))
-                return false;
-
             if (offset == segments.Length - 1)
-            {
-                if (value is not T typedValue)
-                    return false;
+                return value is T typedValue && TryReplace(segments[offset], typedValue);
 
-                this[index] = typedValue;
-                return true;
-            }
-
-            return item!.TrySetValueCore(segments, offset + 1, value);
+            return TryGetItemBySegment(segments[offset], out T? item) && item!.TrySetValueCore(segments, offset + 1, value);
         }
 
         return base.TrySetValueCore(segments, offset, value);

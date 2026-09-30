@@ -1,7 +1,10 @@
 import type { ServerChangeSet } from "../metadata/metadata-index";
 
-/** Where a change set the server sent is applied: at once, or in a promise that settles once it has been. */
-export type ChangeSink = (changes: ServerChangeSet | undefined) => void | Promise<void>;
+/**
+ * Where a change set the server sent is applied: at once, or in a promise that settles once it has been. `before` runs in the change
+ * set's own turn, just ahead of it, not when the answer arrives: a change set still waiting (an attach's snapshot) lands first.
+ */
+export type ChangeSink = (changes: ServerChangeSet | undefined, before?: () => void) => void | Promise<void>;
 
 /** Hands on what the server sends in the order its messages arrived, both kinds on the first microtask after their frame. */
 export class InboundOrder {
@@ -21,8 +24,7 @@ export class InboundOrder {
     public answered<T>(invoked: Promise<T>, changesOf: (answer: T) => ServerChangeSet | undefined, without: (answer: T) => T, before?: () => void): Promise<T> {
         // The invoke's own promise: one awaited on its way here would take its turn late.
         return invoked.then(async answer => {
-            before?.();
-            await this.apply(changesOf(answer));
+            await this.apply(changesOf(answer), before);
 
             return without(answer);
         });

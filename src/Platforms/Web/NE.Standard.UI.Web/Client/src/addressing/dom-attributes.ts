@@ -11,6 +11,18 @@ export const UnrenamableAttribute = "data-ui-unrenamable";
 export const NoContextMenuAttribute = "data-ui-no-context-menu";
 /** On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open. */
 export const NoRowOpenAttribute = "data-ui-no-row-open";
+/** On a part inside a row that is not the row's to lift (a grid's open detail): a press there never drags the row. */
+export const NoRowDragAttribute = "data-ui-no-row-drag";
+/** On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down. */
+export const RowsDraggableAttribute = "data-ui-rows-draggable";
+/** On an items view's or a table's root: a row is dragged only by the grip at its end (`DragHandle`). */
+export const RowsDragHandleAttribute = "data-ui-rows-drag-handle";
+/** On an items view's or a table's root: its rows' grip stands at their start (`UIDragHandlePlacement.Start`). */
+export const DragHandleStartClass = "ui-drag-handle--start";
+/** The grip a host dragged by grips draws in each row (`ItemsCollectionRendererBase.RenderRowGrip`, `row-grip.ts`). */
+export const RowGripClass = "ui-row__grip";
+/** Client-only: on a row's box while another is dragged over it, the side the dragged row would land on. */
+export const RowDropAttribute = "data-ui-row-drop";
 /** On a tree's root: the Delete key raises nothing, whatever a node says. */
 export const TreeUnremovableAttribute = "data-ui-tree-unremovable";
 /** On a tabs view's root: no tab can be closed, and the strip keeps no room for a close. */
@@ -33,6 +45,8 @@ export const RowFocusAttribute = "data-ui-row-focus";
 export const TooltipAttribute = "data-ui-tooltip";
 export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
 export const TooltipMarkAttribute = "data-ui-tooltip-mark";
+/** On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it. */
+export const TooltipPressAttribute = "data-ui-tooltip-press";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
@@ -57,6 +71,8 @@ export const CollectionSinkAttribute = "data-ui-collection-sink";
 export const ItemsQueryAttribute = "data-ui-items-query";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
+/** On an element whose number and temporal packs are the page's: a language switch writes them again (`page-culture.ts`). */
+export const PageCultureAttribute = "data-ui-page-culture";
 /** On a number input's root: the author's display format (a .NET numeric format such as `N2`) the value is written in. */
 export const NumberFormatAttribute = "data-ui-number-format";
 /** The temporal culture pack as JSON — month and day names, the AM and PM words — read the same way. */
@@ -144,12 +160,13 @@ export const RowLimitsAttribute = "data-ui-row-limits";
 export const SplitterStepAttribute = "data-ui-splitter-step";
 /** On a table header's resize handle and on every cell: the 0-based column it belongs to. */
 export const TableColumnAttribute = "data-ui-table-column";
-/** On a table's header cell: the column's key, and the viewport tier below which the author hides the column. */
+/** On a table's header cell: the column's key, the viewport tier below which the author hides the column, and whether it starts hidden. */
 export const TableColumnKeyAttribute = "data-ui-table-column-key";
 export const TableHideBelowAttribute = "data-ui-table-hide-below";
+export const TableStartsHiddenAttribute = "data-ui-table-starts-hidden";
 /** On the header cell of a column the control owns: the viewer neither sizes it nor moves it. */
 export const TableFixedAttribute = "data-ui-table-fixed";
-/** Client-only: on a table's root, the indices of the columns hidden now, which the stylesheet puts out of sight. */
+/** On a table's root, the indices of the columns hidden now, which the stylesheet puts out of sight: the author's at render, then the columns engine's. */
 export const TableHiddenAttribute = "data-ui-table-hidden";
 /** A table's parts a package reaches: its row, its scrolling box, its header row, a column's resizer. */
 export const TableRowClass = "ui-table__row";
@@ -171,6 +188,8 @@ export const NoRowSelectAttribute = "data-ui-no-row-select";
 /** On a tree node's root: the key of the node above it, that it has children, that it starts unfolded, the title a rename wrote. */
 export const TreeParentAttribute = "data-ui-tree-parent";
 export const TreeChildrenAttribute = "data-ui-tree-children";
+/** On a tree node's root: `true` for a folder a drag drops onto even while empty, `false` for a node that takes none. */
+export const TreeFolderAttribute = "data-ui-tree-folder";
 export const TreeExpandedAttribute = "data-ui-tree-expanded";
 export const TreeTitleAttribute = "data-ui-tree-title";
 /** On a tree's root: its nodes may be renamed in place. */
@@ -272,6 +291,7 @@ export const pluginDomNames = {
     valueHolder: ValueHolderAttribute,
     bindValue: ValueBindingAttribute,
     noRowOpen: NoRowOpenAttribute,
+    noRowDrag: NoRowDragAttribute,
     eventBoundary: EventBoundaryAttribute,
     focusHolder: FocusHolderAttribute,
     tooltip: TooltipAttribute,

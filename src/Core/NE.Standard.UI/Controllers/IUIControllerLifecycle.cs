@@ -9,6 +9,9 @@ namespace NE.Standard.UI.Controllers;
 /// </summary>
 internal interface IUIControllerLifecycle
 {
+    /// <summary>A page is about to show the runtime at a navigation: the render that built it, or an attach.</summary>
+    Task NavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken);
+
     /// <summary>A connection attached, carrying the navigation it arrived with.</summary>
     Task AttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken);
 

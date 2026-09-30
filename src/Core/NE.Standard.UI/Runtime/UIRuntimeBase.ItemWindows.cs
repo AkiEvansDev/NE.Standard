@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -30,7 +31,7 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// One client write that a source has to approve, held aside so applying it need not await author code under the state lock.
     /// </summary>
-    private readonly record struct PendingSourceWrite(UIItemSourceBase Source, UIPropertyAddress Address, string ItemKey, string ItemProperty, object? Value, RecursivePath Path);
+    private readonly record struct PendingSourceWrite(UIItemSourceBase Source, CompiledUIBinding Binding, object?[] DynamicParameters, string ItemKey, string ItemProperty, object? Value, RecursivePath Path);
 
     /// <summary>
     /// A windowed host whose rules read controller state, with the paths a change to which invalidates the
@@ -57,6 +58,11 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(requester);
         ArgumentNullException.ThrowIfNull(request);
         request.Validate();
+
+        // Held as a command holds it: the read awaits the author's data, which a runtime disposed meanwhile would take away. One
+        // method rather than two, since each would allocate its own task for the answer.
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
+        ThrowIfAskedToGo();
 
         try
         {
@@ -445,7 +451,8 @@ internal abstract partial class UIRuntimeBase
 
         pending = new PendingSourceWrite(
             source,
-            new UIPropertyAddress(update.Address.Component.Id, update.Address.Property, update.DynamicParameters),
+            resolution.Binding,
+            update.DynamicParameters,
             key.Key,
             property.Property,
             update.Value,
@@ -476,11 +483,7 @@ internal abstract partial class UIRuntimeBase
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                (refusals ??= []).Add(new ServerValueUIUpdate
-                {
-                    Address = write.Address,
-                    Value = TryGetControllerValue(write.Path)
-                });
+                (refusals ??= []).Add(BuildServerValueNoLock(write.Binding, write.Path, write.DynamicParameters));
             }
             finally
             {

@@ -11,6 +11,10 @@ namespace NE.Standard.UI.Extensions;
 /// the address a "same as shipping" box folds away). Each is one <c>Interact</c> whose source is the other component's
 /// value; the fuller overloads name the property and comparison.
 /// </summary>
+/// <remarks>
+/// Presentation only: the state lives on the client, which the server never sees, so a component hidden or disabled this way is
+/// not refused there. Who may act belongs in the command or the setter.
+/// </remarks>
 public static class StatePresetExtensions
 {
     /// <summary>Shown while the source has a value — a switch on, a box ticked, a select with a choice — and collapsed otherwise.</summary>

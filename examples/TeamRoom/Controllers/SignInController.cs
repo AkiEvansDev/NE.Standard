@@ -74,23 +74,18 @@ public sealed partial class SignInController(AccountService accounts, QuickSignI
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = _returnUrl })]);
     }
 
+    /// <summary>
+    /// A test account entered without its password — refused outright unless the host turned the shortcut on, and for any login
+    /// the shortcut does not offer: the login comes from the page, and would otherwise open any account by its name alone.
+    /// </summary>
     [UICommand]
-    public Task<UICommandResult> SignInAsAdminAsync(CancellationToken cancellationToken)
-        => QuickEnterAsync("admin", cancellationToken);
-
-    [UICommand]
-    public Task<UICommandResult> SignInAsRobinAsync(CancellationToken cancellationToken)
-        => QuickEnterAsync("robin", cancellationToken);
-
-    [UICommand]
-    public Task<UICommandResult> SignInAsSamAsync(CancellationToken cancellationToken)
-        => QuickEnterAsync("sam", cancellationToken);
-
-    /// <summary>A test account entered without its password — refused outright unless the host turned the shortcut on.</summary>
-    private async Task<UICommandResult> QuickEnterAsync(string login, CancellationToken cancellationToken)
+    public async Task<UICommandResult> QuickSignInAsync(string login, CancellationToken cancellationToken)
     {
         if (!quickSignIn.Enabled)
             return UICommandResult.Fail("Quick sign-in is off.");
+
+        if (!QuickSignIn.Offers(login))
+            return UICommandResult.Fail("That is no test account.");
 
         AccountRecord? account = accounts.FindByLogin(login);
 

@@ -14,7 +14,10 @@ internal sealed partial class UIViewFactory
     private readonly Func<IServiceProvider, IUIView> _factory;
     private readonly Type? _controllerType;
 
-    public UIViewFactory(IServiceProvider services, Type viewType, Func<IServiceProvider, IUIView> factory, Type? controllerType = null)
+    // Told of the view once it is compiled, at startup or on first use: where the unkeyed-words report reads it.
+    private readonly Action<CompiledView, Type>? _compiled;
+
+    public UIViewFactory(IServiceProvider services, Type viewType, Func<IServiceProvider, IUIView> factory, Type? controllerType = null, Action<CompiledView, Type>? compiled = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(viewType);
@@ -27,6 +30,7 @@ internal sealed partial class UIViewFactory
         _viewType = viewType;
         _factory = factory;
         _controllerType = controllerType;
+        _compiled = compiled;
     }
 
     public CompiledView Compile()
@@ -44,6 +48,8 @@ internal sealed partial class UIViewFactory
             foreach (var warning in view.Warnings)
                 Log.CompilationWarning(logger, warning);
         }
+
+        _compiled?.Invoke(view, _viewType);
 
         return view;
     }

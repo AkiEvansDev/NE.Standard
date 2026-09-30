@@ -239,7 +239,8 @@ internal abstract partial class UIRuntimeBase
 
     /// <summary>
     /// Whether a component inside an items template is on the page for this row: the row wears its own key's variant, else the
-    /// host's fallback, else the default. A variant the key property could never name (a menu's <c>Submenu</c>) is worn by every row.
+    /// host's fallback, else the default. A variant the key property could never name (a menu's <c>Submenu</c>) is worn by every row,
+    /// and so is every variant of a host that names none per row — a table's columns and its row.
     /// </summary>
     private bool IsStampedForItem(UIComponentId componentId, object? item)
     {
@@ -262,6 +263,10 @@ internal abstract partial class UIRuntimeBase
                 // variant; TemplateKeyProperty says nothing about these.
                 if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)
                     return WearsCompositeSlot(parent.ComponentId, item, slot.Key, slot.KeyProperty);
+
+                // With no key and no fallback a row wears no variant in place of the default, so a variant is a slot drawn beside it.
+                if (slot.Kind == UIComponentSlotKind.TemplateVariant && !NamesVariants(parent.ComponentId))
+                    return true;
 
                 var worn = ResolveWornVariant(parent.ComponentId, item);
 
@@ -288,6 +293,10 @@ internal abstract partial class UIRuntimeBase
 
         return string.IsNullOrEmpty(itemKind) || !View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, $"{baseKey}:{itemKind}");
     }
+
+    /// <summary>Whether the host picks a variant per row at all: by its key property, or by its fallback.</summary>
+    private bool NamesVariants(UIComponentId hostId)
+        => ReadStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty) is not null || ReadStaticString(hostId, ITemplatedComponent.FallbackTemplateKeyProperty) is not null;
 
     private string? ResolveWornVariant(UIComponentId hostId, object? item)
     {

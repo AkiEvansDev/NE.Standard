@@ -10,12 +10,12 @@ using Microsoft.Data.Sqlite;
 namespace TeamRoom.Data;
 
 /// <summary>
-/// The framework's sessions kept in the application's own database, so a signed-in person stays signed in across the host's
-/// restarts and the browser's; the framework's default holds them in memory and both are a sign-out.
+/// The framework's signed-in sessions kept in the application's own database, so a signed-in person stays signed in across the
+/// host's restarts and the browser's; the startup keeps anonymous ones in memory in front of it (<c>UserSessionSplitStore</c>).
 /// </summary>
 public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
 {
-    private const string Columns = "id, language, theme, is_authenticated, user_id, roles, permissions, pending_rotation, created_utc, last_seen_utc, is_unclaimed";
+    private const string Columns = "id, language, theme, is_authenticated, user_id, roles, permissions, pending_rotation, created_utc, last_seen_utc, is_unclaimed, time_zone";
 
     public async ValueTask<UserSessionState?> TryGetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
@@ -44,7 +44,8 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
             PendingIdRotation = reader.GetInt64(7) != 0,
             CreatedAtUtc = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
             LastSeenAtUtc = DateTime.Parse(reader.GetString(9), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            IsUnclaimed = reader.GetInt64(10) != 0
+            IsUnclaimed = reader.GetInt64(10) != 0,
+            TimeZone = reader.IsDBNull(11) ? null : reader.GetString(11)
         };
 
     private static FrozenSet<string> Split(string joined)
@@ -64,10 +65,10 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = $"""
             INSERT INTO sessions ({Columns})
-            VALUES ($id, $language, $theme, $authenticated, $user, $roles, $permissions, $rotation, $created, $seen, $unclaimed)
+            VALUES ($id, $language, $theme, $authenticated, $user, $roles, $permissions, $rotation, $created, $seen, $unclaimed, $zone)
             ON CONFLICT (id) DO UPDATE SET language = $language, theme = $theme, is_authenticated = $authenticated, user_id = $user,
                 roles = $roles, permissions = $permissions, pending_rotation = $rotation, created_utc = $created, last_seen_utc = $seen,
-                is_unclaimed = $unclaimed
+                is_unclaimed = $unclaimed, time_zone = $zone
             """;
         _ = command.Parameters.AddWithValue("$id", session.SessionId);
         _ = command.Parameters.AddWithValue("$language", session.Language);
@@ -80,6 +81,7 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
         _ = command.Parameters.AddWithValue("$created", session.CreatedAtUtc.ToString("O", CultureInfo.InvariantCulture));
         _ = command.Parameters.AddWithValue("$seen", session.LastSeenAtUtc.ToString("O", CultureInfo.InvariantCulture));
         _ = command.Parameters.AddWithValue("$unclaimed", session.IsUnclaimed ? 1 : 0);
+        _ = command.Parameters.AddWithValue("$zone", (object?)session.TimeZone ?? DBNull.Value);
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

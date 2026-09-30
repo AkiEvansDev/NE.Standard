@@ -16,8 +16,18 @@ public readonly record struct WebTextBodyOptions
     /// <summary>Drawn beside the title and before the badge: an input's required marker.</summary>
     public Action<IHtmlElementBuilder>? Trailing { get; init; }
 
-    /// <summary>Whether the title is a field's caption, which a live title change also writes into the field's accessible name.</summary>
+    /// <summary>
+    /// Whether the title is a field's caption, which a live title change also writes into the field's accessible name; its badge's
+    /// tooltip then carries what a <see cref="ReachableBadge"/> takes, one list for every caption of the type.
+    /// </summary>
     public bool NamesField { get; init; }
+
+    /// <summary>
+    /// Whether a badge with a tooltip is a tab stop of its own, named by the words and showing them on a press and on focus — in a field's
+    /// caption that stands outside any control (above the field, a checkbox's label), never inside a button or a field's box, where a
+    /// nested tab stop is invalid. Only with <see cref="NamesField"/>.
+    /// </summary>
+    public bool ReachableBadge { get; init; }
 
     /// <summary>
     /// Whether the host may be named by its tooltip while it shows no title — a button: a title that arrives takes that name off,

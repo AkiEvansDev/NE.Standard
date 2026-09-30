@@ -67,12 +67,17 @@ test("a staged value that never arrives fails once its time is up, rather than h
         init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
     })) as typeof fetch;
 
+    // The timeout's own timer does not hold the process open, and the stand-in fetch holds nothing: without this, a runner may end
+    // the test as pending before the time is up.
+    const alive = setTimeout(() => { }, 60_000);
+
     try {
         const changes = { updates: [{ kind: "Value", address: {}, valueToken: "abc" }] };
 
         await assert.rejects(fetchStagedValuesAsync(changes as never, 10));
     }
     finally {
+        clearTimeout(alive);
         globalThis.fetch = original;
     }
 });

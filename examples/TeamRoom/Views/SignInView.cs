@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using TeamRoom.Controllers;
+using TeamRoom.Services;
 
 namespace TeamRoom.Views;
 
@@ -61,19 +63,23 @@ public sealed class SignInView : UIViewBase, IUIViewDefinition
                         .AddChild(new StackPanelComponent()
                             .SetOrientation(UIOrientation.Horizontal)
                             .SetSpacing(8)
-                            .AddChild(QuickButton("Admin", nameof(SignInController.SignInAsAdminAsync)))
-                            .AddChild(QuickButton("Robin", nameof(SignInController.SignInAsRobinAsync)))
-                            .AddChild(QuickButton("Sam", nameof(SignInController.SignInAsSamAsync)))
+                            .AddChildren(QuickButtons())
                         )
                     )
                 )
                 .SetPlacement(1, 1, 24, 1)
             );
 
-    private static ButtonComponent QuickButton(string title, string command)
-        => new ButtonComponent()
-            .SetTitle(title)
-            .SetType(UIButtonType.Outline)
-            .SetSize(UIButtonSize.Small)
-            .OnClick(command);
+    /// <summary>A button a test account, named as the account is.</summary>
+    private static IEnumerable<IVisualComponent> QuickButtons()
+    {
+        foreach ((var login, var nickname, _) in QuickSignIn.Accounts)
+        {
+            yield return new ButtonComponent()
+                .SetTitle(nickname)
+                .SetType(UIButtonType.Outline)
+                .SetSize(UIButtonSize.Small)
+                .OnClick(nameof(SignInController.QuickSignInAsync), UIAction.Arg("login", login));
+        }
+    }
 }

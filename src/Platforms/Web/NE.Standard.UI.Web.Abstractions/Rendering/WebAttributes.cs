@@ -169,6 +169,12 @@ public static class WebAttributes
     /// <summary>The number culture pack as JSON; an engine formats by the nearest one above the element.</summary>
     public const string NumberCulture = "data-ui-number-culture";
 
+    /// <summary>
+    /// On an element whose number and temporal culture packs are the page's: a language switch writes them again from the words
+    /// table, and what formats by them draws again — a number field, a grid's cells.
+    /// </summary>
+    public const string PageCulture = "data-ui-page-culture";
+
     /// <summary>On a number input's root: the author's display format (a .NET numeric format such as <c>N2</c>) the client writes the value in.</summary>
     public const string NumberFormat = "data-ui-number-format";
 
@@ -283,6 +289,9 @@ public static class WebAttributes
 
     public const string SubmitFormId = "data-ui-submit-form-id";
 
+    /// <summary>On a text area whose Enter presses its form's submit button, Shift+Enter breaking the line.</summary>
+    public const string SubmitOnEnter = "data-ui-submit-on-enter";
+
     /// <summary>A split button's mode — <c>split</c> or <c>menu</c> — which says whether the main part opens the menu too.</summary>
     public const string SplitMode = "data-ui-split-mode";
 
@@ -294,6 +303,15 @@ public static class WebAttributes
 
     /// <summary>On a table's header cell: the viewport tier below which the column hides.</summary>
     public const string TableHideBelow = "data-ui-table-hide-below";
+
+    /// <summary>On a table's header cell: the author starts the column hidden at every width, which the viewer's own word outranks.</summary>
+    public const string TableStartsHidden = "data-ui-table-starts-hidden";
+
+    /// <summary>
+    /// On a table's root: the indices of the columns hidden now, which the stylesheet puts out of sight — the author's hidden ones at
+    /// render, then the columns engine's reading of them, the tiers and the viewer's word.
+    /// </summary>
+    public const string TableHidden = "data-ui-table-hidden";
 
     /// <summary>On a table header's resize handle and on every cell: the 0-based column it belongs to.</summary>
     public const string TableColumn = "data-ui-table-column";
@@ -308,6 +326,9 @@ public static class WebAttributes
 
     /// <summary>On a tree node's root: the node has children even when none are in the list.</summary>
     public const string TreeChildren = "data-ui-tree-children";
+
+    /// <summary>On a tree node's root: <c>true</c> for a folder a drag drops onto even while empty, <c>false</c> for a node that takes none.</summary>
+    public const string TreeFolder = "data-ui-tree-folder";
 
     /// <summary>On a tree node's root: the node starts unfolded.</summary>
     public const string TreeExpanded = "data-ui-tree-expanded";
@@ -326,6 +347,15 @@ public static class WebAttributes
 
     /// <summary>On a tree's root: its nodes may be dragged onto one another.</summary>
     public const string TreeDraggable = "data-ui-tree-draggable";
+
+    /// <summary>On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down.</summary>
+    public const string RowsDraggable = "data-ui-rows-draggable";
+
+    /// <summary>On an items view's or a table's root: a row is dragged only by the grip at its end (<c>DragHandle</c>).</summary>
+    public const string RowsDragHandle = "data-ui-rows-drag-handle";
+
+    /// <summary>On a part inside a row that is not the row's to lift — a grid's open detail: a press there never drags the row.</summary>
+    public const string NoRowDrag = "data-ui-no-row-drag";
 
     /// <summary>On a tree's root: a double click renames rather than opens.</summary>
     public const string TreeRenameOnDoubleClick = "data-ui-tree-rename-dblclick";
@@ -390,6 +420,9 @@ public static class WebAttributes
 
     public const string TemporalMonthsShort = "data-ui-temporal-months-short";
 
+    /// <summary>On a temporal input whose culture is the page's: a language switch writes its names and default format again.</summary>
+    public const string TemporalPageCulture = "data-ui-temporal-page-culture";
+
     public const string TemporalPm = "data-ui-temporal-pm";
 
     public const string TemporalStep = "data-ui-temporal-step";
@@ -402,6 +435,9 @@ public static class WebAttributes
 
     public const string TemporalWeekdays = "data-ui-temporal-weekdays";
 
+    /// <summary>On a timestamp: how the page writes its instant — <c>date-time</c>, <c>date</c>, <c>time</c> or <c>relative</c>.</summary>
+    public const string TimestampFormat = "data-ui-timestamp-format";
+
     public const string Theme = "data-ui-theme";
 
     /// <summary>The hook the theme switcher's engine finds its button by; a class would be styling.</summary>
@@ -410,6 +446,12 @@ public static class WebAttributes
     public const string Tooltip = "data-ui-tooltip";
 
     public const string TooltipPlacement = "data-ui-tooltip-placement";
+
+    /// <summary>On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it.</summary>
+    public const string TooltipPress = "data-ui-tooltip-press";
+
+    /// <summary>On a text area that grows with its text up to its most rows; the stylesheet's, and the engine's where the browser cannot size a field to its content.</summary>
+    public const string TextAreaGrow = "data-ui-text-area-grow";
 
     public const string TrimInput = "data-ui-trim-input";
 

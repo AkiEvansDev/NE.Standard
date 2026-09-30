@@ -66,6 +66,15 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UISelectionStyle? SelectionStyle { get; set; }
 
+    [RecursiveMember]
+    public partial bool Draggable { get; set; }
+
+    [RecursiveMember]
+    public partial bool DragHandle { get; set; }
+
+    [RecursiveMember]
+    public partial UIDragHandlePlacement? DragHandlePlacement { get; set; }
+
     [RecursiveMember(false)]
     public RecursiveCollection<DemoServiceItem> Items { get; } = [.. DemoSamples.Services()];
 
@@ -82,6 +91,9 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
         AddOption(nameof(SelectedKeys), CycleSelectedKeys, () => SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
         AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
+        AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
+        AddOption(nameof(DragHandle), ToggleDragHandle, () => DragHandle);
+        AddOption(nameof(DragHandlePlacement), CycleDragHandlePlacement, () => DragHandlePlacement);
         AddOption("Add", AddService, () => Items.Count);
         AddOption("Remove", RemoveService, () => Items.Count);
         AddOption("Grouped", ToggleGrouped, () => Items.Count > 0 && Items[0].Group is not null);
@@ -137,6 +149,31 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
     // A mark on the left, a solid ground, and a ground with its own ink: the three shapes the object has.
     public void CycleSelectionStyle()
         => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
+
+    public void ToggleDraggable()
+        => SetLastChange(nameof(Draggable), Draggable = !Draggable);
+
+    // Read with Draggable: on its own the grip is drawn but not shown.
+    public void ToggleDragHandle()
+        => SetLastChange(nameof(DragHandle), DragHandle = !DragHandle);
+
+    // Where the grip stands, End unset; read with DragHandle on.
+    public void CycleDragHandlePlacement()
+        => SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement = CycleEnum(DragHandlePlacement));
+
+    /// <summary>Moves the row a drop named to the place it asked for; the list moved nothing by itself.</summary>
+    public void MoveService(string id, int index)
+    {
+        for (var i = 0; i < Items.Count; i++)
+        {
+            if (Items[i].Id != id)
+                continue;
+
+            Items.Move(i, index);
+            LogEvent($"{id} -> place {index + 1}");
+            return;
+        }
+    }
 
     public void AddService()
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -40,6 +41,10 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(changeSet);
         changeSet.Validate();
 
+        // Held as a command holds it, so a runtime taken away meanwhile waits for the write rather than disposing under it.
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
+        ThrowIfAskedToGo();
+
         return await InSendOrderAsync(() => ProcessChangeSetFromUICoreAsync(invoker, changeSet, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
@@ -57,6 +62,13 @@ internal abstract partial class UIRuntimeBase
             {
                 for (var i = 0; i < changeSet.Updates.Length; i++)
                 {
+                    // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
+                    if (changeSet.Updates[i] is ClientValueUIUpdate valueUpdate && IsWriteRefusedNoLock(valueUpdate))
+                    {
+                        (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate));
+                        continue;
+                    }
+
                     if (TryHoldSourceWriteNoLock(changeSet.Updates[i], out PendingSourceWrite? sourceWrite))
                     {
                         (sourceWrites ??= []).Add(sourceWrite.Value);

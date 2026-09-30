@@ -66,10 +66,7 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// Registers a click command invoked when an item is clicked, with UI action arguments.
     /// </summary>
     public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.On(EventNames.Click, command, arguments);
-        return Self;
-    }
+        => OnItemTemplate(template => _ = template.On(EventNames.Click, command, arguments));
 
     /// <summary>
     /// Registers a click command with an argument derived from the specified <paramref name="argumentKind"/>.
@@ -87,10 +84,30 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click.
     /// </summary>
     public T OnItemOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.On(EventNames.Open, command, arguments);
-        return Self;
-    }
+        => OnItemTemplate(template => _ = template.On(EventNames.Open, command, arguments));
+
+    /// <summary>
+    /// Registers the command a row dropped at another place among the rows raises — by a drag with <c>Draggable</c> on, or Alt+Up and
+    /// Alt+Down — with the item's key and the index it now takes in the collection; the controller moves it, since nothing moves on the
+    /// client.
+    /// </summary>
+    /// <remarks>
+    /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.
+    /// </remarks>
+    public T OnItemMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
+        => OnItemMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.ArgEventValue(indexArgumentName));
+
+    /// <summary>
+    /// Registers the command a row dropped at another place raises; <c>UIAction.ArgEventValue</c> reads the index it takes.
+    /// </summary>
+    public T OnItemMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnItemTemplate(template => _ = template.On(EventNames.Move, command, arguments));
+
+    /// <summary>
+    /// Drags a <c>Draggable</c> row only by a grip at <paramref name="placement"/> (<see cref="DragHandle"/>).
+    /// </summary>
+    public T SetDragHandle(UIDragHandlePlacement placement)
+        => SetDragHandle(true).SetDragHandlePlacement(placement);
 
     /// <summary>
     /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with the item's key.
@@ -102,10 +119,29 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// Registers a command invoked when the Delete key is pressed on an item that may be removed; the controller removes it or leaves it.
     /// </summary>
     public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.On(EventNames.Remove, command, arguments);
-        return Self;
-    }
+        => OnItemTemplate(template => _ = template.On(EventNames.Remove, command, arguments));
+
+    /// <summary>
+    /// Gets or sets whether a row whose item does not refuse it (<c>CanDrag</c>) can be dragged to another place among the rows, or
+    /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnItemMove"/>). Refused while a sort orders the
+    /// rows, which would put the row back.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? Draggable { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether a <c>Draggable</c> row is dragged only by a grip drawn at its end or its start
+    /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
+    /// rows by Alt+Up and Alt+Down. A wrapped layout draws no grip, and its tiles drag whole.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? DragHandle { get; set; }
+
+    /// <summary>
+    /// Gets or sets where a row's grip stands (<see cref="DragHandle"/>): at its end by default, or at its start.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIDragHandlePlacement.End)]
+    public UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
     /// <summary>
     /// Gets or sets the layout algorithm used to arrange items.

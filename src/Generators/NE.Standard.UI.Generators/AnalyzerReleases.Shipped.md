@@ -16,6 +16,9 @@ NEUI009 | NE.Standard.UI | Error | Invalid default value member kind
 NEUI010 | NE.Standard.UI | Error | Component property must be public
 NEUI011 | NE.Standard.UI | Error | Component property cannot be static
 NEUI012 | NE.Standard.UI | Error | Component property cannot be indexer
+NEUI013 | NE.Standard.UI | Error | Property block contract must be an interface
+NEUI014 | NE.Standard.UI | Error | Property block contract declares no properties
+NEUI015 | NE.Standard.UI | Error | Manual property does not match the block it overrides
 NEUIR001 | NE.Standard.UI | Error | Type must inherit RecursiveObservable
 NEUIR002 | NE.Standard.UI | Error | Type must be partial
 NEUIR003 | NE.Standard.UI | Error | Type must be an ordinary class
@@ -25,3 +28,11 @@ NEUIR006 | NE.Standard.UI | Error | Generated recursive property cannot be init-
 NEUIR007 | NE.Standard.UI | Error | Recursive member cannot be static
 NEUIR008 | NE.Standard.UI | Error | Recursive member cannot be indexer
 NEUIR009 | NE.Standard.UI | Error | Generated member conflicts with existing member
+
+## Release 1.0.1
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|------
+NEUI016 | NE.Standard.UI | Error | A property default names no block property

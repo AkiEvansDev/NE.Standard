@@ -184,9 +184,15 @@ public abstract class ItemsComponentBase<TComponent, TItem, TTemplate>(string? i
     public new TTemplate? Template => (TTemplate?)base.Template;
 
     /// <summary>
-    /// The item template, which an event registration needs configured.
+    /// The item template, which a registration that configures the template in hand needs.
     /// </summary>
     protected TTemplate RequiredTemplate => Template ?? throw new InvalidOperationException($"'{TypeKey}' has no item template.");
+
+    /// <summary>
+    /// Writes an item event on the item template and on every one <see cref="SetTemplate"/> sets later.
+    /// </summary>
+    protected TComponent OnItemTemplate(Action<TTemplate> register)
+        => OnTemplate(null, register);
 
     /// <summary>
     /// Sets the item template.

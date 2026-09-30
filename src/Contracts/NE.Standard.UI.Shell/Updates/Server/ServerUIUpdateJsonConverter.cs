@@ -45,16 +45,9 @@ public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
 
         if (kindElement.ValueKind == JsonValueKind.String)
         {
-            var text = kindElement.GetString();
-
-            if (Enum.TryParse(text, ignoreCase: true, out kind))
+            // Enum.TryParse already reads a numeric kind, and invariantly; no culture-bound int.TryParse after it.
+            if (Enum.TryParse(kindElement.GetString(), ignoreCase: true, out kind))
                 return Enum.IsDefined(kind);
-
-            if (int.TryParse(text, out numericKind))
-            {
-                kind = (ServerUIUpdateKind)numericKind;
-                return Enum.IsDefined(kind);
-            }
         }
 
         kind = default;

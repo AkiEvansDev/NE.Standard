@@ -8,7 +8,10 @@ namespace DemoApp.Views.Inputs.TextArea;
 /// <summary>
 /// One multi-line field, and every property that can be bound to it.
 /// </summary>
-/// <remarks>A text area has no affixes, no input type and no clear button; <c>Rows</c> is only where it starts.</remarks>
+/// <remarks>
+/// A text area has no affixes, no input type and no clear button; <c>Rows</c> is only where it starts. <c>SubmitOnEnter</c> and the
+/// field's actions have no row: Enter needs a form to submit, and the actions are components, both on Examples.
+/// </remarks>
 internal sealed class TextAreaMainView : DemoMainView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -44,6 +47,7 @@ internal sealed class TextAreaMainView : DemoMainView, IUIViewDefinition
             .BindAppearance($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Appearance)}")
             .BindPlaceholder($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Placeholder)}")
             .BindRows($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Rows)}")
+            .BindMaxRows($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.MaxRows)}")
             .BindResize($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Resize)}")
             .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
             .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")

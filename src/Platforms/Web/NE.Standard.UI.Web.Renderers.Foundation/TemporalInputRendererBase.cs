@@ -31,8 +31,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// </summary>
     protected virtual bool HasPicker => true;
 
-    /// <summary>The display format used when the author set no <c>DisplayFormat</c>.</summary>
-    protected abstract string GetDefaultDisplayFormat(UITemporalStep? step);
+    /// <summary>The display format used when the author set no <c>DisplayFormat</c>: this mode's, in the patterns the field falls back on.</summary>
+    protected abstract string GetDefaultDisplayFormat(UITemporalStep? step, WebTemporalPatterns patterns);
 
     /// <summary>Converts the value into the canonical string and <see cref="DateTime"/> the shell needs; false when unset.</summary>
     protected abstract bool TryResolveTemporal(TValue? value, out DateTime moment, out string canonical);
@@ -52,9 +52,15 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         RenderTooltip(context, root);
 
         _ = ResolveRenderValue(context, TemporalInputComponentBase<TComponent, TValue>.StepProperty, out UITemporalStep? step, out _);
-        var defaultDisplayFormat = GetDefaultDisplayFormat(step);
 
-        WebTemporalCulturePack culture = RenderPickerMetadata(context, root, step, defaultDisplayFormat);
+        // A field that names its culture asks for its patterns; one in the page's follows the application's default.
+        _ = ResolveRenderValue(context, IFormattedInputComponent.CultureProperty, out string? authoredCulture, out _);
+        var ownCulture = !string.IsNullOrWhiteSpace(authoredCulture);
+
+        CultureInfo inputCulture = ResolveInputCulture(context);
+        var defaultDisplayFormat = GetDefaultDisplayFormat(step, WebTemporalPatterns.Resolve(inputCulture, context.Temporal, ownCulture));
+
+        WebTemporalCulturePack culture = RenderPickerMetadata(context, root, step, defaultDisplayFormat, inputCulture, ownCulture);
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
@@ -76,7 +82,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// Writes what the client needs to build the grid; <c>Step</c>, <c>FirstDayOfWeek</c> and <c>Culture</c> ignore a binding, and no
     /// <c>Culture</c> is the page's own.
     /// </summary>
-    private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat)
+    private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat, CultureInfo inputCulture, bool ownCulture)
     {
         _ = RenderProperty<TValue>(context, root, MinMaxInputComponentBase<TComponent, TValue>.MinProperty, (target, value) =>
         {
@@ -99,6 +105,10 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         // DisplayFormat can be patched to nothing, so the client needs a format to fall back on.
         _ = root.Attribute(WebAttributes.TemporalDefaultFormat, defaultDisplayFormat);
 
+        // A field in the page's culture follows the page's language: a switch writes its names and default format again.
+        if (!ownCulture)
+            _ = root.Attribute(WebAttributes.TemporalPageCulture);
+
         if (step is UITemporalStep resolvedStep)
         {
             _ = root.Attribute(WebAttributes.TemporalStep, resolvedStep.Value.ToString(CultureInfo.InvariantCulture));
@@ -111,7 +121,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         var firstDay = firstDayOfWeek is UIDayOfWeek day ? ((int)day + 1) % 7 : 1;
         _ = root.Attribute(WebAttributes.TemporalFirstDay, firstDay.ToString(CultureInfo.InvariantCulture));
 
-        WebTemporalCulturePack culture = WebTemporalCulturePack.FromCulture(ResolveInputCulture(context));
+        WebTemporalCulturePack culture = WebTemporalCulturePack.FromCulture(inputCulture);
 
         _ = root.Attribute(WebAttributes.TemporalMonths, Join(culture.MonthNames));
         _ = root.Attribute(WebAttributes.TemporalMonthsGenitive, Join(culture.MonthGenitiveNames));
@@ -259,7 +269,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         _ = input.Class("ui-field");
         _ = input.Attribute("type", "text");
         _ = input.Attribute("autocomplete", "off");
-        _ = input.Attribute("placeholder", format);
+        // The format in the page's letters; the client writes it again after a switch or a patched format.
+        _ = input.Attribute("placeholder", WebTemporalFormat.Placeholder(format, WebTemporalLetters.FromWords(context.Translate)));
 
         RenderPartLabel(context, input, end);
     }

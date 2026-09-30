@@ -8,6 +8,7 @@ using DemoApp.Controllers.Contents.Link;
 using DemoApp.Controllers.Contents.Paragraph;
 using DemoApp.Controllers.Contents.Separator;
 using DemoApp.Controllers.Contents.Text;
+using DemoApp.Controllers.Contents.Timestamp;
 using DemoApp.Controllers.Indicators.Progress;
 using DemoApp.Controllers.Indicators.Spinner;
 using DemoApp.Controllers.Inputs.ColorInput;
@@ -53,6 +54,7 @@ using DemoApp.Views.Contents.Link;
 using DemoApp.Views.Contents.Paragraph;
 using DemoApp.Views.Contents.Separator;
 using DemoApp.Views.Contents.Text;
+using DemoApp.Views.Contents.Timestamp;
 using DemoApp.Views.Design.Colors;
 using DemoApp.Views.Indicators.Progress;
 using DemoApp.Views.Indicators.Spinner;
@@ -99,6 +101,9 @@ public sealed class DemoAppStartup : UIStartupBase
         ArgumentNullException.ThrowIfNull(application);
 
         _ = application.AddLocalizationSource(DemoTranslations.Build());
+
+        // The framework's and its packages' own words in the demo's other languages, as they ship.
+        _ = application.AddFrameworkWords("zh-Hans", "ru");
 
         // Only a string starting "demo." is a key: every other string on a translatable property is content, so the missing-word
         // report in Development names only words the demo has not translated.
@@ -181,6 +186,8 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<TextExamplesView>("/contents/text/examples");
         _ = application.Route<ParagraphMainView, ParagraphMainController>("/contents/paragraph");
         _ = application.Route<ParagraphExamplesView>("/contents/paragraph/examples");
+        _ = application.Route<TimestampMainView, TimestampMainController>("/contents/timestamp");
+        _ = application.Route<TimestampExamplesView, TimestampExamplesController>("/contents/timestamp/examples");
         _ = application.Route<KeyValueActionMainView, KeyValueActionMainController>("/items/key-value-action");
         _ = application.Route<KeyValueActionExamplesView>("/items/key-value-action/examples");
         _ = application.Route<KeyValueActionScenariosView, KeyValueActionScenariosController>("/items/key-value-action/scenarios");
@@ -222,7 +229,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<DateTimeInputMainView, DateTimeInputMainController>("/inputs/date-time-input");
         _ = application.Route<DateTimeInputExamplesView>("/inputs/date-time-input/examples");
         _ = application.Route<TextAreaMainView, TextAreaMainController>("/inputs/text-area");
-        _ = application.Route<TextAreaExamplesView>("/inputs/text-area/examples");
+        _ = application.Route<TextAreaExamplesView, TextAreaExamplesController>("/inputs/text-area/examples");
         _ = application.Route<NumberInputMainView, NumberInputMainController>("/inputs/number-input");
         _ = application.Route<NumberInputExamplesView>("/inputs/number-input/examples");
         _ = application.Route<CheckboxMainView, CheckboxMainController>("/inputs/checkbox");

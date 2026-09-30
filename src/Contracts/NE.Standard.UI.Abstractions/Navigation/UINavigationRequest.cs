@@ -40,13 +40,23 @@ public sealed class UINavigationRequest
 
     /// <summary>
     /// Attempts to read a parameter and coerce it into <typeparamref name="T"/> — one of the primitives
-    /// <see cref="RecursiveValueCoercion"/> knows.
+    /// <see cref="RecursiveValueCoercion"/> knows; as a string, it reads as the untyped overload does.
     /// </summary>
     public bool TryGetParameter<T>(string name, out T value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         value = default!;
+
+        // The coercion turns nothing into text on purpose, for bound text properties; a route's "id" = 5 is still the text "5".
+        if (typeof(T) == typeof(string))
+        {
+            if (!TryGetParameter(name, out var text))
+                return false;
+
+            value = (T)(object)text;
+            return true;
+        }
 
         return Parameters is not null
             && Parameters.TryGetValue(name, out var raw)

@@ -3,11 +3,14 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.TextInput;
 
 /// <summary>
-/// A single-line field in the shapes a form writes it in: labelled, affixed, typed, in each state, and with a copy beside it.
+/// A single-line field in the shapes a form writes it in: labelled, affixed, typed, in each state, with buttons at its ends, and with
+/// a help badge on its caption.
 /// </summary>
 internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string SecretId = "demo-text-input-secret";
+    private const string EndpointId = "demo-text-input-endpoint";
+    private const string ServerId = "demo-text-input-server";
 
     public static string ViewKey => "demo.inputs.text-input.examples";
 
@@ -20,7 +23,81 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     {
         _ = container.AddChildren(DemoUI.CreateColumns([CreateServiceGroup(), CreateClipboardGroup()], [CreateCredentialsGroup(), CreateGhostGroup()]));
 
-        _ = container.AddChildren(DemoUI.CreateColumns([CreateSizesGroup()], [CreateDenseGroup()]));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateSizesGroup(), CreateActionsGroup()], [CreateDenseGroup(), CreateHelpGroup()]));
+    }
+
+    /// <summary>
+    /// A field's own buttons at both ends: one before the text, two after it, each dressed as the field's and not as a form's.
+    /// </summary>
+    /// <remarks>The second field has its caption inside the box and still carries a button at its end.</remarks>
+    private static ContainerComponent CreateActionsGroup()
+    {
+        return DemoUI.CreateExample("Buttons at both ends",
+            UILayout.Stack(12)
+                .AddChild(new TextInputComponent(EndpointId)
+                    .SetTitle("Health endpoint")
+                    .SetValue("https://api-eu-west-1.orvane.example/healthz")
+                    .AddLeadingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
+                        .SetTooltip("Run the health check")
+                    )
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTooltip("Copy")
+                        .InteractOn(EventNames.Click, CopyToClipboardEffect.ValueOf(EndpointId))
+                    )
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.ExternalLink))
+                        .SetTooltip("Open")
+                    )
+                )
+                .AddChild(new TextInputComponent(ServerId)
+                    .SetSize(UIInputSize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetTitle("Server")
+                    .SetValue("db-us-east-2")
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTooltip("Copy")
+                        .InteractOn(EventNames.Click, CopyToClipboardEffect.ValueOf(ServerId))
+                    )
+                ),
+            note: "`AddLeadingAction` and `AddTrailingAction` stand the buttons in the order they were added; they follow the text in the tab order whichever end they stand at. The copies take what the field holds when pressed."
+        );
+    }
+
+    /// <summary>
+    /// The caption's badge as a help mark, whose tooltip says what the field is for; the caption stays one line with it, a long one ending
+    /// in an ellipsis before its star and badge.
+    /// </summary>
+    private static ContainerComponent CreateHelpGroup()
+    {
+        return DemoUI.CreateExample("A help badge on the caption",
+            UILayout.Stack(12)
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Hostname")
+                    .SetValue("api-eu-west-4")
+                    .SetHelp("Lower-case letters, digits and dashes; it becomes part of the server's address.")
+                    .Required("A server needs a hostname.", UIValidationTrigger.Submit)
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Deploy token")
+                    .SetType(UITextInputType.Password)
+                    .SetValue("orv_live_4c9e2a71")
+                    .SetHelp("Scripts send it with every call to the API; rotating it signs them out.")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Contact for incidents, a long caption that runs out of room before its badge")
+                    .SetValue("robin@orvane.example")
+                    .SetHelp("Paged first when a server of this customer's stops answering.")
+                    .Required("Someone has to be paged.", UIValidationTrigger.Submit)
+                ),
+            note: "Hover, press or tab to the badge: it is a stop of its own, named by its words. A caption inside the box makes it no stop, since the box is one control."
+        );
     }
 
     /// <summary>The three sizes a field says outright: the height, the side padding and the text step together.</summary>

@@ -1,5 +1,6 @@
 // Enter and Escape leave a field — a blur commits it as leaving by pointer does — and hand the keyboard to the holder around it; the
-// bubble phase lets a nearer control's own Enter win. Enter in a form field then presses the form's submit button.
+// bubble phase lets a nearer control's own Enter win. Enter in a form field then presses the form's submit button. A text area that
+// submits on Enter keeps the focus instead, so the reader writes the next message where the last one was sent from.
 
 import { FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
 import { isCaretInput } from "./caret-fields.ts";
@@ -9,6 +10,11 @@ import { focusAsLastInput, focusHolderAround } from "./popup-focus.ts";
 import { rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import { SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
+// On a text area whose Enter submits its form (`TextAreaComponent.SubmitOnEnter`); Shift+Enter still breaks the line.
+const SubmitOnEnterAttribute = "data-ui-submit-on-enter";
+// What Safari's Enter that ends a composition carries in place of `isComposing`.
+const ComposingKeyCode = 229;
+
 export type FieldKeysEngineOptions = {
     readonly root?: ParentNode;
 };
@@ -16,8 +22,9 @@ export type FieldKeysEngineOptions = {
 export class FieldKeysEngine {
     private readonly root: ParentNode;
 
-    // The browser raises a change only for typed input, so these tell whether any other arrival still needs committing.
-    private valueOnFocus = "";
+    // The browser raises a change only for typed input, so these tell whether any other arrival still needs committing: the value the
+    // field held when it took the focus or last committed, and how many changes were raised.
+    private committedValue = "";
     private changes = 0;
 
     public constructor(options: FieldKeysEngineOptions = {}) {
@@ -25,22 +32,36 @@ export class FieldKeysEngine {
 
         this.root.addEventListener("focusin", domEvent => {
             if (domEvent.target instanceof HTMLInputElement || domEvent.target instanceof HTMLTextAreaElement)
-                this.valueOnFocus = domEvent.target.value;
+                this.committedValue = domEvent.target.value;
         });
-        this.root.addEventListener("change", () => this.changes++, true);
+        this.root.addEventListener("change", domEvent => {
+            this.changes++;
+
+            // A text area's alone: an input's text may be rewritten around its change (a number's invariant text), a text area's never.
+            if (domEvent.target instanceof HTMLTextAreaElement)
+                this.committedValue = domEvent.target.value;
+        }, true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent));
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
-        if (domEvent.defaultPrevented || domEvent.isComposing || (domEvent.key !== "Enter" && domEvent.key !== "Escape"))
+        if (domEvent.defaultPrevented || isComposing(domEvent) || (domEvent.key !== "Enter" && domEvent.key !== "Escape"))
             return;
 
         const target = domEvent.target;
 
-        // Enter in a multi-line field is a line break; Escape still leaves it.
-        if (target instanceof HTMLTextAreaElement && domEvent.key === "Escape") {
-            domEvent.preventDefault();
-            this.leave(target);
+        // Enter in a multi-line field is a line break, unless the area submits on it; Escape still leaves it.
+        if (target instanceof HTMLTextAreaElement) {
+            if (domEvent.key === "Escape") {
+                domEvent.preventDefault();
+                this.leave(target);
+            }
+            else if (submitsOnEnter(target, domEvent)) {
+                domEvent.preventDefault();
+                this.commit(target);
+                this.submitForm(target);
+            }
+
             return;
         }
 
@@ -73,10 +94,16 @@ export class FieldKeysEngine {
 
         field.blur();
 
-        if (this.changes === changesBefore && field.value !== this.valueOnFocus)
-            field.dispatchEvent(new Event("change", { bubbles: true }));
+        if (this.changes === changesBefore)
+            this.commit(field);
 
         this.keepKeyboard(field, holder);
+    }
+
+    /** Raises the change a leave would for a value not yet committed, so it is sent before the command a submit runs. */
+    private commit(field: HTMLInputElement | HTMLTextAreaElement): void {
+        if (field.value !== this.committedValue)
+            field.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     /** Gives the keyboard to the holder around the field (a row host's cursor moved to its row), else leaves it blurred. */
@@ -94,4 +121,18 @@ export class FieldKeysEngine {
 
         focusAsLastInput(holder);
     }
+}
+
+function isComposing(domEvent: KeyboardEvent): boolean {
+    // oxlint-disable-next-line typescript/no-deprecated -- Safari's composing Enter is told by nothing else.
+    return domEvent.isComposing || domEvent.keyCode === ComposingKeyCode;
+}
+
+/** Enter alone, in an area that submits on it and could take the typing: Shift+Enter is the line break, other chords the browser's. */
+function submitsOnEnter(area: HTMLTextAreaElement, domEvent: KeyboardEvent): boolean {
+    return domEvent.key === "Enter"
+        && !domEvent.shiftKey && !domEvent.ctrlKey && !domEvent.altKey && !domEvent.metaKey
+        && area.hasAttribute(SubmitOnEnterAttribute)
+        && !area.readOnly
+        && !isInert(area);
 }

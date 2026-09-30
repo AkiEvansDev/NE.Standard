@@ -157,10 +157,15 @@ public static class WebShellRenderer
 
     private static void RenderBody(IHtmlElementBuilder body, WebShellContext context)
     {
-        _ = body.Element("div", root =>
+        // The page's one form, so a password field stands in a form beside its login, as a browser and a password manager expect.
+        // `dialog` makes a submission a no-op, never a navigation carrying the fields in the address, and `novalidate` keeps the
+        // browser's own checks and bubbles off: the framework's buttons are all `type="button"`, and Enter is the field keys engine's.
+        _ = body.Element("form", root =>
         {
             _ = root.Attribute("id", context.RootElementId);
             _ = root.Attribute(WebAttributes.Root);
+            _ = root.Attribute("method", "dialog");
+            _ = root.Attribute("novalidate");
 
             if (context.StandInNavigation is UINavigationRequest standIn)
                 _ = root.Attribute(WebAttributes.Navigation, JsonSerializer.Serialize(new { route = standIn.Route, parameters = standIn.Parameters }, MetadataJsonOptions));

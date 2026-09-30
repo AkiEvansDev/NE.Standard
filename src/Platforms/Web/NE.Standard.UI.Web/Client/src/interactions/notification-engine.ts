@@ -1,6 +1,9 @@
-import { motion, prefersReducedMotion } from "../rendering/motion";
-import { toColorToken } from "../rendering/web-dom-converters";
-import { clientStrings } from "../runtime/client-strings";
+// `.ts` on the value imports: `node --test` loads this module as it is.
+import { motion, prefersReducedMotion } from "../rendering/motion.ts";
+import { toColorToken } from "../rendering/web-dom-converters.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import type { AuthorText, Phrase } from "../runtime/words.ts";
+import { liveFocusReturn, restoreFocusTo } from "./popup-focus.ts";
 
 const HostClass = "ui-notification-host";
 const NotificationClass = "ui-notification";
@@ -20,7 +23,9 @@ export type NotificationEngineOptions = {
 };
 
 export type NotificationRequest = {
-    readonly message: string;
+    // A phrase or an author's text is written through the words, marked, so a language switch rewrites an open toast; a plain
+    // string is the page's own words already and is shown as written.
+    readonly message: string | Phrase | AuthorText;
     readonly severity?: unknown;
     // Stays until the reader closes it: for a state that is still true after a moment, not an event that happened.
     readonly sticky?: boolean;
@@ -37,6 +42,9 @@ export class NotificationEngine {
     private readonly root: ParentNode;
     private readonly durationMs: number;
     private host: HTMLElement | null = null;
+
+    // Where the keyboard stood before it came into each toast: a toast closed with the focus in it gives it back there.
+    private readonly focusOrigins = new WeakMap<HTMLElement, HTMLElement>();
 
     public constructor(options: NotificationEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -61,7 +69,12 @@ export class NotificationEngine {
         const message = document.createElement("span");
 
         message.className = MessageClass;
-        message.textContent = request.message;
+
+        if (typeof request.message === "string")
+            message.textContent = request.message;
+        else
+            clientStrings.writeValue(message, null, request.message);
+
         element.append(message);
 
         if (request.action !== undefined)
@@ -76,6 +89,13 @@ export class NotificationEngine {
 
         element.append(close);
         this.ensureHost().append(element);
+
+        element.addEventListener("focusin", domEvent => {
+            const from = domEvent.relatedTarget;
+
+            if (from instanceof HTMLElement && !element.contains(from))
+                this.focusOrigins.set(element, from);
+        });
 
         if (request.sticky === true)
             return element;
@@ -123,6 +143,7 @@ export class NotificationEngine {
             return;
 
         element.classList.add(LeavingClass);
+        this.returnFocus(element);
 
         if (prefersReducedMotion() || typeof element.animate !== "function") {
             element.remove();
@@ -130,6 +151,17 @@ export class NotificationEngine {
         }
 
         window.setTimeout(() => collapse(element), motion.fast);
+    }
+
+    /** Gives the keyboard back as a toast holding it goes — to where it came from, else the next toast — never to the body. */
+    private returnFocus(element: HTMLElement): void {
+        if (!element.contains(document.activeElement))
+            return;
+
+        const next = [...element.parentElement?.children ?? []].find(other => other !== element && !other.classList.contains(LeavingClass));
+        const target = liveFocusReturn(this.focusOrigins.get(element), this.root) ?? next?.querySelector<HTMLElement>(`.${CloseClass}`) ?? null;
+
+        restoreFocusTo(target, element);
     }
 
     private ensureHost(): HTMLElement {

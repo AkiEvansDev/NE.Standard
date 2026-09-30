@@ -1,4 +1,4 @@
-import { HostModeAttribute } from "../addressing/dom-attributes";
+import { HostModeAttribute } from "../addressing/dom-attributes.ts";
 
 /** How an items host holds its rows: every row, only the rows in view of values held whole, or one window of a server source. */
 export type ItemsHostMode = "plain" | "virtualized" | "windowed";

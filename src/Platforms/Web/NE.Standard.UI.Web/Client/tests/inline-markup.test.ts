@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { inlineMarkupToPlainText, parseInlineMarkup } from "../src/rendering/inline-markup.ts";
+import { isExternalLink } from "../src/rendering/url-safety.ts";
 import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
 type CorpusSegment = { readonly text: string; readonly styles: number; readonly url: string | null; readonly icon?: string | null; readonly fold?: string | null };
@@ -32,6 +33,15 @@ for (const testCase of corpus.cases) {
         assert.deepEqual(actual, testCase.segments.map(segment => ({ ...segment, icon: segment.icon ?? null, fold: segment.fold ?? null })));
     });
 }
+
+const externalLinks = (JSON.parse(readFileSync(corpusPath, "utf8")) as { readonly externalLinks: readonly { readonly url: string; readonly external: boolean }[] }).externalLinks;
+
+assert.ok(externalLinks.length > 0, "The corpus names no link targets.");
+
+test("inline markup: a link opens beside the page when the browser reads it as leaving the application", () => {
+    for (const link of externalLinks)
+        assert.equal(isExternalLink(link.url), link.external, JSON.stringify(link.url));
+});
 
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");

@@ -4,6 +4,7 @@ using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Items;
 
@@ -33,7 +34,7 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
         if (!string.IsNullOrEmpty(separator))
         {
             _ = root.Class("ui-breadcrumbs--text-separator");
-            _ = root.Style("--ui-breadcrumbs-separator", ToCssString(separator));
+            _ = root.Style("--ui-breadcrumbs-separator", WebCssValues.CssString(separator));
         }
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, BreadcrumbsComponent.SpacingProperty, "--ui-breadcrumbs-spacing");
@@ -46,10 +47,6 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
 
         RenderItems(context, root);
     }
-
-    /// <summary>The author's mark as an escaped CSS string literal, since it ends up inside a <c>style</c> attribute.</summary>
-    private static string ToCssString(string value)
-        => $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
 
     /// <summary>Renders the steps into an inner host, which is where the client's descendants-only lookup expects them.</summary>
     private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)

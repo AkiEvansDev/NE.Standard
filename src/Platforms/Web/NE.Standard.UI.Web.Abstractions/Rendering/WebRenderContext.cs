@@ -29,6 +29,9 @@ public sealed class WebRenderContext
     /// <summary>The application's theme, for a renderer that writes what the theme's own stylesheet cannot say — the length of the series run.</summary>
     public required UITheme Theme { get; init; }
 
+    /// <summary>The application's dates and times, for a field with no pattern of its own; none is the framework's canonical patterns.</summary>
+    public UITemporalOptions? Temporal { get; init; }
+
     /// <summary>
     /// Translates <paramref name="key"/> for this session's language; the key itself when nothing translates it.
     /// </summary>
@@ -105,6 +108,7 @@ public sealed class WebRenderContext
             Metadata = Metadata,
             Translator = Translator,
             Theme = Theme,
+            Temporal = Temporal,
             Values = Values,
             IsPresentationCopy = isPresentationCopy,
             IsTemplate = isTemplate,

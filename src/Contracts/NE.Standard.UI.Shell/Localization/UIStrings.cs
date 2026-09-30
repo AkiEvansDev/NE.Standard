@@ -13,7 +13,7 @@ namespace NE.Standard.UI.Shell.Localization;
 /// The framework's own chrome words (a picker's "Today", a strip's "More tabs") as translation keys with their English
 /// text; an application translates or overrides one the same way, via its own <see cref="ITranslationSource"/>.
 /// </summary>
-public static class UIStrings
+public static partial class UIStrings
 {
     public const string PickerToday = "ui.picker.today";
     public const string PickerNow = "ui.picker.now";
@@ -27,6 +27,14 @@ public static class UIStrings
     public const string PickerMeridiem = "ui.picker.meridiem";
     public const string PickerStart = "ui.picker.start";
     public const string PickerEnd = "ui.picker.end";
+
+    /// <summary>The letter a year's digits read as in a date field's placeholder: <c>yyyy</c>, <c>гггг</c>.</summary>
+    public const string PickerLetterYear = "ui.picker.letter.year";
+    public const string PickerLetterMonth = "ui.picker.letter.month";
+    public const string PickerLetterDay = "ui.picker.letter.day";
+    public const string PickerLetterHour = "ui.picker.letter.hour";
+    public const string PickerLetterMinute = "ui.picker.letter.minute";
+    public const string PickerLetterSecond = "ui.picker.letter.second";
     public const string NotificationClose = "ui.notification.close";
     public const string TabsMore = "ui.tabs.more";
     public const string CommandBarMore = "ui.commandbar.more";
@@ -63,6 +71,9 @@ public static class UIStrings
     public const string RowEdit = "ui.row.edit";
     public const string RowSave = "ui.row.save";
     public const string RowCancel = "ui.row.cancel";
+
+    /// <summary>A row's grip, which drags it (<c>DragHandle</c>).</summary>
+    public const string RowDrag = "ui.row.drag";
     public const string TableResizeColumn = "ui.table.resize";
     public const string TreeToggle = "ui.tree.toggle";
     public const string ItemsEmpty = "ui.items.empty";
@@ -108,6 +119,12 @@ public static class UIStrings
         [PickerMeridiem] = "AM/PM",
         [PickerStart] = "Start",
         [PickerEnd] = "End",
+        [PickerLetterYear] = "y",
+        [PickerLetterMonth] = "M",
+        [PickerLetterDay] = "d",
+        [PickerLetterHour] = "H",
+        [PickerLetterMinute] = "m",
+        [PickerLetterSecond] = "s",
         [NotificationClose] = "Close",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
@@ -144,6 +161,7 @@ public static class UIStrings
         [RowEdit] = "Edit",
         [RowSave] = "Save",
         [RowCancel] = "Cancel",
+        [RowDrag] = "Reorder",
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",
         [ItemsEmpty] = "Nothing to show.",
@@ -253,6 +271,42 @@ public static class UIStrings
         }
 
         return words is null ? English : words.ToFrozenDictionary(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Every framework and package word translated into <paramref name="language"/>, one table: what an application that takes the
+    /// framework's words in that language gets. Empty where none of them ships it; the English is <see cref="List(IEnumerable{IUIStringsSource}?)"/>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Two sources translate one key.</exception>
+    public static FrozenDictionary<string, string> List(string language, IEnumerable<IUIStringsSource>? packages = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+
+        Dictionary<string, string>? words = Translations.TryGetValue(language, out IReadOnlyDictionary<string, string>? core)
+            ? new Dictionary<string, string>(core, StringComparer.Ordinal)
+            : null;
+
+        if (packages is not null)
+        {
+            foreach (IUIStringsSource package in packages)
+            {
+                ArgumentNullException.ThrowIfNull(package);
+
+                if (!package.Translations.TryGetValue(language, out IReadOnlyDictionary<string, string>? shipped))
+                    continue;
+
+                words ??= new Dictionary<string, string>(StringComparer.Ordinal);
+
+                foreach (KeyValuePair<string, string> word in shipped)
+                {
+                    // As with the English: a package translating another's word, or the framework's, is a mistake in the package.
+                    if (!words.TryAdd(word.Key, word.Value))
+                        throw new InvalidOperationException($"Client string '{word.Key}' is translated into '{language}' more than once.");
+                }
+            }
+        }
+
+        return words is null ? FrozenDictionary<string, string>.Empty : words.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     /// <summary>

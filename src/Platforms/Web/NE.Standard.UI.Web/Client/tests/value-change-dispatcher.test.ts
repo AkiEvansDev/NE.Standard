@@ -1,18 +1,20 @@
 // Values reach the hub in the order they were given, a large one staged beside the hub included; a small value with nothing
 // ahead of it goes at once, a value that could not be staged is dropped without holding up the ones behind it, and the values
-// given while a change set is in flight go together in the next, a field given twice keeping only its latest value.
+// given while a change set is in flight go together in the next, a field given twice keeping only its latest value. A change set
+// the connection dropped under goes again once the page is attached, each field once with its latest value, a large one staged anew.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { WebUIChangeSetRequest } from "../src/metadata/metadata-index.ts";
+import { ConnectionDropped } from "../src/transport/attach-gate.ts";
 import { LargeValueBytes } from "../src/transport/value-staging.ts";
 import { ValueChangeDispatcher } from "../src/transport/value-change-dispatcher.ts";
 
 type Post = { readonly resolve: (token: string) => void; readonly fail: (status: number) => void };
 
 // The hub as a list of what reached it, in order: a value by its own text, a staged one by its token.
-function createHub(): { readonly sent: string[]; processChangeSetAsync(request: WebUIChangeSetRequest): Promise<void> } {
+function createHub(): { readonly sent: string[]; processChangeSetAsync(request: WebUIChangeSetRequest): Promise<void>; whenAttached(): Promise<void> } {
     const sent: string[] = [];
 
     return {
@@ -22,7 +24,8 @@ function createHub(): { readonly sent: string[]; processChangeSetAsync(request: 
                 sent.push(describe(update));
 
             return Promise.resolve();
-        }
+        },
+        whenAttached: () => Promise.resolve()
     };
 }
 
@@ -30,22 +33,59 @@ function describe(update: WebUIChangeSetRequest["updates"][number]): string {
     return update.valueToken !== undefined ? `token:${update.valueToken}` : String(update.value);
 }
 
-// A hub whose answers wait until the test gives them, recording each change set as one entry.
-function createHeldHub(): { readonly sets: string[][]; answer(): void; processChangeSetAsync(request: WebUIChangeSetRequest, before?: () => void): Promise<void> } {
+type HeldHub = {
+    readonly sets: string[][];
+    answer(): void;
+    /** The connection drops under the oldest change set in flight, and calls wait for the next attach. */
+    drop(): void;
+    attach(): void;
+    processChangeSetAsync(request: WebUIChangeSetRequest, before?: () => void): Promise<void>;
+    whenAttached(): Promise<void>;
+};
+
+// A hub whose answers wait until the test gives them, recording each change set as one entry as it reaches the hub.
+function createHeldHub(): HeldHub {
     const sets: string[][] = [];
-    const answers: (() => void)[] = [];
+    const answers: { readonly answer: () => void; readonly drop: () => void }[] = [];
+    // Calls waiting for the attach, as the transport's gate holds them; none while attached.
+    let waiting: (() => void)[] | null = null;
+
+    const invoke = (request: WebUIChangeSetRequest, before?: () => void): Promise<void> => {
+        sets.push(request.updates.map(describe));
+
+        return new Promise<void>((resolve, reject) => answers.push({
+            answer: () => {
+                before?.();
+                resolve();
+            },
+            drop: () => reject(new ConnectionDropped(new Error("the socket closed")))
+        }));
+    };
 
     return {
         sets,
-        answer: () => answers.shift()?.(),
-        processChangeSetAsync(request, before) {
-            sets.push(request.updates.map(describe));
+        answer: () => answers.shift()?.answer(),
+        drop: () => {
+            waiting = [];
+            answers.shift()?.drop();
+        },
+        attach: () => {
+            const resumed = waiting ?? [];
 
-            return new Promise<void>(resolve => answers.push(() => {
-                before?.();
-                resolve();
-            }));
-        }
+            waiting = null;
+
+            for (const resume of resumed)
+                resume();
+        },
+        processChangeSetAsync(request, before) {
+            if (waiting === null)
+                return invoke(request, before);
+
+            const held = waiting;
+
+            return new Promise<void>(resume => held.push(resume)).then(() => invoke(request, before));
+        },
+        whenAttached: () => waiting === null ? Promise.resolve() : new Promise<void>(resume => waiting?.push(resume))
     };
 }
 
@@ -260,4 +300,94 @@ test("a command given while values wait goes after they are handed over", async 
     await command;
 
     assert.deepEqual(hub.sets, [["a"], ["b"]]);
+});
+
+test("a change set the connection dropped under goes again once the page is attached, and its callers settle then", async () => {
+    const hub = createHeldHub();
+    const dispatcher = new ValueChangeDispatcher(hub);
+    const answered: string[] = [];
+
+    const first = dispatcher.dispatchAsync(value("a"), () => answered.push("a"));
+    const other = dispatcher.dispatchAsync(value("x", 2), () => answered.push("x"));
+
+    hub.drop();
+    await settle();
+
+    // Nothing goes while the connection is away; the dropped value waits ahead of the one given behind it.
+    assert.deepEqual(hub.sets, [["a"]]);
+
+    hub.attach();
+    await settle();
+
+    assert.deepEqual(hub.sets, [["a"], ["a", "x"]]);
+
+    hub.answer();
+    await Promise.all([first, other]);
+
+    assert.deepEqual(answered, ["a", "x"]);
+});
+
+test("a field given again while its dropped value waits goes once, with the newer value, which settles both callers", async () => {
+    const hub = createHeldHub();
+    const dispatcher = new ValueChangeDispatcher(hub);
+
+    const first = dispatcher.dispatchAsync(value("1"));
+    const second = dispatcher.dispatchAsync(value("2"));
+
+    hub.drop();
+    hub.attach();
+    await settle();
+
+    assert.deepEqual(hub.sets, [["1"], ["2"]]);
+
+    hub.answer();
+    await Promise.all([first, second]);
+});
+
+test("a large value the connection dropped under is staged again after the attach, since the server takes a token once", async () => {
+    const hub = createHeldHub();
+    const { posts, restore } = holdPosts();
+
+    try {
+        const dispatcher = new ValueChangeDispatcher(hub);
+        const sent = dispatcher.dispatchAsync(value(large));
+
+        await settle();
+        posts[0].resolve("t1");
+        await settle();
+
+        hub.drop();
+        await settle();
+
+        // No POST while the server may be the one that went away.
+        assert.equal(posts.length, 1);
+
+        // A command given meanwhile waits for the value staged again, as for any value given before it.
+        let commandSent = false;
+        const command = dispatcher.whenSent().then(() => {
+            commandSent = true;
+        });
+
+        hub.attach();
+        await settle();
+        assert.equal(commandSent, false);
+
+        posts[1].resolve("t2");
+        await command;
+
+        assert.deepEqual(hub.sets, [["token:t1"], ["token:t2"]]);
+
+        hub.answer();
+        await sent;
+    }
+    finally {
+        restore();
+    }
+});
+
+test("a change set refused on a live connection is not sent again", async () => {
+    const hub = createHub();
+    const dispatcher = new ValueChangeDispatcher({ ...hub, processChangeSetAsync: () => Promise.reject(new Error("refused")) });
+
+    await assert.rejects(dispatcher.dispatchAsync(value("a")), /refused/);
 });

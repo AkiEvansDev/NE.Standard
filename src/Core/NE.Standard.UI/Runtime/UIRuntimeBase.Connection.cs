@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
@@ -29,6 +30,9 @@ internal abstract partial class UIRuntimeBase
     // starts from a snapshot it has not taken yet, and then it is sent nothing.
     private readonly Dictionary<string, long> _watermarks = new(StringComparer.Ordinal);
     private readonly HashSet<string> _awaitingSnapshot = new(StringComparer.Ordinal);
+
+    // The page whose render last ran the navigation hook, which its own attach then skips.
+    private string? _navigatedPageId;
 
     /// <inheritdoc />
     public IReadOnlyCollection<string> AttachedInstanceIds => _attachedInstanceIdsSnapshot;
@@ -168,19 +172,70 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <inheritdoc />
-    public async Task NotifyAttachedAsync(UIHandle handle, CancellationToken cancellationToken)
+    public async Task NotifyAttachedAsync(UIHandle handle, bool created, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
 
-        if (!IsViewer(handle.Instance) || Controller is not IUIControllerLifecycle lifecycle)
+        if (Controller is not IUIControllerLifecycle lifecycle)
             return;
 
-        // As a command runs: under the state lock, its writes queued like a command's, and the attaching connection its handle.
+        UIInstance instance = handle.Instance;
+        var viewer = IsViewer(instance);
+
+        // A render tells the navigation only to the runtime it built: one already running may be another tab's page.
+        if (!viewer && !created)
+            return;
+
+        var navigated = viewer ? TakeNavigationRun(instance.PageId) : MarkNavigationRun(instance.PageId);
+
+        await RunLifecycleHookAsync(handle, viewer ? "Attached" : "Navigated", async cancellation =>
+        {
+            if (navigated)
+                await lifecycle.NavigatedAsync(instance.Navigation, cancellation).ConfigureAwait(false);
+
+            if (viewer)
+                await lifecycle.AttachedAsync(instance.Navigation, cancellation).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Records that a page's render ran the navigation hook, so that page's own attach need not run it again.</summary>
+    private bool MarkNavigationRun(string? pageId)
+    {
+        lock (_connectionsLock)
+            _navigatedPageId = pageId;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Whether an attach runs the navigation hook: every attach but the one whose page's render ran it last; any run clears that mark.
+    /// </summary>
+    private bool TakeNavigationRun(string? pageId)
+    {
+        lock (_connectionsLock)
+        {
+            var renderRan = pageId is not null && string.Equals(_navigatedPageId, pageId, StringComparison.Ordinal);
+
+            _navigatedPageId = null;
+
+            return !renderRan;
+        }
+    }
+
+    /// <summary>
+    /// Runs a controller's lifecycle hook as a command runs: held, under the state lock, its writes queued like a command's, and the
+    /// given connection its handle. The hook's failure is the controller's to report; the attach or the switch still stands.
+    /// </summary>
+    private async Task RunLifecycleHookAsync(UIHandle handle, string operation, Func<CancellationToken, Task> hook, CancellationToken cancellationToken)
+    {
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
+        ThrowIfAskedToGo();
+
         using IDisposable invocation = BeginInvocation(handle);
 
         try
         {
-            _ = await InvokeAsync(cancellation => lifecycle.AttachedAsync(handle.Instance.Navigation, cancellation), cancellationToken).ConfigureAwait(false);
+            _ = await InvokeAsync(hook, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -188,8 +243,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            // The controller's failure is its own to report; the page still attaches.
-            _ = await HandleRuntimeExceptionAsync(exception, "Attached", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+            _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -234,21 +288,7 @@ internal abstract partial class UIRuntimeBase
         if (Controller is not IUIControllerLifecycle lifecycle)
             return;
 
-        // As a command runs, the way an attach is told: under the state lock, its writes queued, the switching connection its handle.
-        using IDisposable invocation = BeginInvocation(handle);
-
-        try
-        {
-            _ = await InvokeAsync(cancellation => lifecycle.LanguageChangedAsync(previousLanguage, cancellation), cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            _ = await HandleRuntimeExceptionAsync(exception, LanguageChangedOperation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
-        }
+        await RunLifecycleHookAsync(handle, LanguageChangedOperation, cancellation => lifecycle.LanguageChangedAsync(previousLanguage, cancellation), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Records what an instance's attach snapshot holds: every update queued up to <paramref name="sequence"/>.</summary>

@@ -47,7 +47,7 @@ public static class InlineMarkupRenderer
                 _ = anchor.Attribute("href", url);
 
                 // A link out of the app opens in its own tab and never with a handle back to this one.
-                if (IsExternalUrl(url))
+                if (WebUrlSafety.IsExternalLink(url))
                 {
                     _ = anchor.Attribute("target", "_blank");
                     _ = anchor.Attribute("rel", "noopener noreferrer");
@@ -148,10 +148,4 @@ public static class InlineMarkupRenderer
 
             IconValueRenderer.RenderIconValue(element, icon);
         });
-
-    private static bool IsExternalUrl(string url)
-        => url.StartsWith("http:", StringComparison.OrdinalIgnoreCase)
-        || url.StartsWith("https:", StringComparison.OrdinalIgnoreCase)
-        || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
-        || url.StartsWith("tel:", StringComparison.OrdinalIgnoreCase);
 }

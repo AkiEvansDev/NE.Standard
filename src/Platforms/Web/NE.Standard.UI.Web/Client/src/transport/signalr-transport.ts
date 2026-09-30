@@ -1,7 +1,7 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
 import { ServerChangeSet, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
-import { AttachGate } from "./attach-gate";
+import { AttachGate, ConnectionDropped } from "./attach-gate";
 import { ChangeSink, InboundOrder } from "./inbound-order";
 
 // A call waiting behind the attach longer than this is said in the console.
@@ -47,6 +47,11 @@ export class SignalRTransport {
 
     public get instanceId(): string | null {
         return this.connection.connectionId ?? null;
+    }
+
+    /** Whether the connection dropped and the automatic reconnect is still trying to bring it back. */
+    public get isReconnecting(): boolean {
+        return this.connection.state === HubConnectionState.Reconnecting;
     }
 
     public onChanges(handler: (changes: ServerChangeSet) => void): void {
@@ -137,9 +142,23 @@ export class SignalRTransport {
         return await this.invokeAsync<UICommandExecutionResult>("ProcessEventAsync", [request], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
     }
 
-    /** Settles once the answer's changes are applied; `before` runs just ahead of them. */
+    /** Settles once the answer's changes are applied; `before` runs just ahead of them. Fails with `ConnectionDropped` under a reconnect. */
     public async processChangeSetAsync(request: WebUIChangeSetRequest, before?: () => void): Promise<void> {
-        await this.invokeAsync<ServerChangeSet>("ProcessChangeSetAsync", [request], invoked => this.inbound.answered(invoked, changes => changes, noChanges, before));
+        try {
+            await this.invokeAsync<ServerChangeSet>("ProcessChangeSetAsync", [request], invoked => this.inbound.answered(invoked, changes => changes, noChanges, before));
+        }
+        catch (error) {
+            // Said apart from a refusal, so the values go again once the page is attached; a connection given up is no reconnect.
+            if (this.isReconnecting && this.gate.failure === null)
+                throw new ConnectionDropped(error);
+
+            throw error;
+        }
+    }
+
+    /** Resolves once the runtime is attached and calls go through; fails once the connection is given up. */
+    public whenAttached(): Promise<void> {
+        return this.gate.wait();
     }
 
     /** Tells the session which theme the client is now in. */

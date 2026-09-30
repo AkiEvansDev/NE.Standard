@@ -1,3 +1,4 @@
+using System;
 using TeamRoom.Data;
 
 namespace TeamRoom.Services;
@@ -12,11 +13,15 @@ public sealed class QuickSignIn
     /// <summary>The test accounts the shortcut offers, seeded with their login as their password.</summary>
     public static readonly (string Login, string Nickname, string Role)[] Accounts =
     [
-        ("admin", "Admin", AccountRoles.Admin),
-        ("robin", "Robin Hale", AccountRoles.User),
-        ("sam", "Sam Ortiz", AccountRoles.User)
+        (AccountService.AdminLogin, "Admin", AccountRoles.Admin),
+        ("robin", "Robin Hale", AccountRoles.Admin),
+        ("mika", "Mika Laine", AccountRoles.User)
     ];
 
     /// <summary>Gets whether the sign-in page offers the test accounts.</summary>
     public bool Enabled { get; init; }
+
+    /// <summary>Whether a login is one of the test accounts the shortcut offers.</summary>
+    public static bool Offers(string login)
+        => Array.Exists(Accounts, account => string.Equals(account.Login, login, StringComparison.Ordinal));
 }

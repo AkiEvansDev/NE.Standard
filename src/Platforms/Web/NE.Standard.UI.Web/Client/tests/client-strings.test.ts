@@ -67,6 +67,18 @@ test("a table still loading when a later request goes back to the language shown
     assert.equal(strings.text("ui.picker.today"), "今天");
 });
 
+test("every table the page takes is heard as it is taken, the one it boots with too, which no change announces", () => {
+    const strings = new ClientWords();
+    const heard: string[] = [];
+
+    strings.onTable(() => heard.push(strings.language));
+    strings.onChange(() => heard.push("change"));
+    strings.useTable(tableOf("en", {}));
+    strings.useTable(tableOf("ru", {}));
+
+    assert.deepEqual(heard, ["en", "ru"]);
+});
+
 test("a key with a count picks its plural form by the table's language", () => {
     const strings = new ClientWords();
 

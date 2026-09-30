@@ -117,6 +117,62 @@ export function firstFocusable(container: ParentNode): HTMLElement | null {
     return null;
 }
 
+/** The places Tab stands on inside a container, in order; the focused element counts even while it cannot take the focus anew. */
+export function tabStops(container: ParentNode, active: Element | null): HTMLElement[] {
+    const candidates = [...container.querySelectorAll<HTMLElement>(FocusableSelector)].filter(element => isFocusable(element) || element === active);
+    const groups = new Map<string, HTMLElement>();
+
+    // A radio group is one stop, as the browser walks it: its checked radio, or its first while none is.
+    for (const candidate of candidates) {
+        const name = radioName(candidate);
+
+        if (name === null)
+            continue;
+
+        const stop = groups.get(name);
+
+        if (stop === undefined || (!isChecked(stop) && isChecked(candidate)))
+            groups.set(name, candidate);
+    }
+
+    return candidates.filter(candidate => {
+        const name = radioName(candidate);
+
+        return name === null || groups.get(name) === candidate;
+    });
+}
+
+/** A radio's group name; null for anything else, and for a radio in no group, which is a stop of its own. */
+function radioName(element: Element): string | null {
+    return element instanceof HTMLInputElement && element.type === "radio" && element.name !== "" ? element.name : null;
+}
+
+function isChecked(element: HTMLElement): boolean {
+    return element instanceof HTMLInputElement && element.checked;
+}
+
+/**
+ * Where Tab goes in a modal layer when the browser's own move would leave it: round to the other end, or back in from outside —
+ * the focus fallen to the page's body as its element was drawn again, or left there by a press on the layer's padding. Null where
+ * the browser's move stays inside.
+ */
+export function wrappedTabStop(container: Element, stops: readonly HTMLElement[], active: Element | null, backwards: boolean): HTMLElement | null {
+    const first = stops[0];
+    const last = stops[stops.length - 1];
+
+    if (active === null || !container.contains(active))
+        return backwards ? last : first;
+
+    if (!backwards && isSameStop(active, last))
+        return first;
+
+    return backwards && isSameStop(active, first) ? last : null;
+}
+
+function isSameStop(element: Element, stop: HTMLElement): boolean {
+    return element === stop || (radioName(element) !== null && radioName(element) === radioName(stop));
+}
+
 // A layer that takes the keyboard back from a field in it: a dialog's surface, a flyout's panel, a layer a package marks. A mark
 // rather than `role="application"`, which takes a screen reader out of browse mode for all inside.
 const FocusHolderSelector = `.${DialogSurfaceClass}, .${FlyoutContentClass}, [${FocusHolderAttribute}]`;

@@ -1,10 +1,11 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
-// them. Emptied, or the menu folded, the menu is as it was.
+// them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes";
-import { observeComponents } from "./dom-mutations";
-import { isRovingCandidate } from "./roving-focus";
-import { foldWords, matchesTerms, searchTerms } from "./search-terms";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { isRovingCandidate } from "./roving-focus.ts";
+import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
+import { foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
 const RootClass = "ui-menu";
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
@@ -69,7 +70,7 @@ export class MenuSearchEngine {
             this.active.set(menu, { field, openBefore: openGroups(host) });
 
         menu.setAttribute(MenuSearchingAttribute, "");
-        this.filter(host, terms);
+        toggleNoMatchPlaceholder(menu, host, !this.filter(host, terms));
     }
 
     /** Marks what stays under one host and answers whether anything did; a caption stays while an entry after it does. */
@@ -130,6 +131,10 @@ export class MenuSearchEngine {
     private clear(menu: HTMLElement, host: HTMLElement): void {
         unmarkAll(host);
         menu.removeAttribute(MenuSearchingAttribute);
+
+        // A menu with no entries at all keeps the empty state its items drew.
+        if (wrappers(host).length > 0)
+            toggleNoMatchPlaceholder(menu, host, false);
 
         const search = this.active.get(menu);
 

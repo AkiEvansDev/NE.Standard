@@ -13,7 +13,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Security;
-using NE.Standard.UI.Sessions;
+using NE.Standard.UI.Security;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
 using NE.Standard.UI.Shell.Runtime;
@@ -102,11 +102,27 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// </summary>
     public bool HasViewers => _context is not null && _context.Runtime.HasViewers;
 
+    /// <summary>
+    /// Runs with the navigation a page shows the runtime at — the place to read a parameter that shapes what the page shows, first
+    /// paint included.
+    /// </summary>
+    /// <remarks>
+    /// Runs for the page render that builds the runtime, after <see cref="OnInitializeAsync"/> and before the render reads the values it
+    /// paints; and for every attach, before <see cref="OnAttachedAsync"/> and in the same turn, so the attach is answered with what
+    /// both wrote. The attach of the tab whose own render built the runtime skips it, the render having run it with that navigation —
+    /// unless another page's navigation ran since. A render that paints a runtime already running (a kept one) does not run it: that
+    /// runtime may be another tab's; the attach that follows does. Runs as a command does, under the runtime's lock;
+    /// <see cref="UIContext.Handle"/> is the page's connection, the render's own in a render.
+    /// </remarks>
+    protected virtual Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
     /// <summary>Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again.</summary>
     /// <remarks>
-    /// Given the navigation it arrived with, so a parameter the route does not key its runtime by still reaches one that already
-    /// existed. Runs as a command does, under the runtime's lock, after the first attach's <see cref="OnInitializeAsync"/>; what it
-    /// writes is in the page the attach is answered with. <see cref="UIContext.Handle"/> is the attaching connection.
+    /// Given the navigation it arrived with. Runs as a command does, under the runtime's lock, after the first attach's
+    /// <see cref="OnInitializeAsync"/> and after <see cref="OnNavigatedAsync"/>; what it writes is in the page the attach is answered
+    /// with, but not in the page the render painted — a parameter that shapes the first paint belongs in <see cref="OnNavigatedAsync"/>.
+    /// <see cref="UIContext.Handle"/> is the attaching connection.
     /// </remarks>
     protected virtual Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
         => Task.CompletedTask;
@@ -130,6 +146,14 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// </remarks>
     protected virtual Task OnLanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken)
         => Task.CompletedTask;
+
+    Task IUIControllerLifecycle.NavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        return OnNavigatedAsync(navigation, cancellationToken);
+    }
 
     Task IUIControllerLifecycle.AttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
     {
@@ -413,15 +437,18 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         UserSessionState session = await store.TryGetAsync(Context.Handle.Session.SessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException($"Command '{command.Name}' has no live session; it was signed out or has expired.");
 
-        if (!session.IsAuthenticated)
+        IUIAuthorizationService authorization = Context.Services.GetRequiredService<IUIAuthorizationService>();
+        UIRouteAccessVerdict verdict = UIRouteAccess.Check(allowAnonymous: false, command.AccessRules, session, authorization);
+
+        // The route's rules as well as the command's: a role the page needs, revoked while the page stays open, must stop its
+        // commands too. An anonymous route's rules are not the page's either, so they do not hold here.
+        if (verdict == UIRouteAccessVerdict.Pass)
+            verdict = UIRouteAccess.Check(Context.Route, session, authorization);
+
+        if (verdict == UIRouteAccessVerdict.SignIn)
             throw new UnauthorizedAccessException($"Command '{command.Name}' requires authenticated session.");
 
-        if (command.AccessRules.Length == 0)
-            return;
-
-        IUIAuthorizationService authorization = Context.Services.GetRequiredService<IUIAuthorizationService>();
-
-        if (!authorization.IsAuthorized(new UserSessionContext(session.SessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions), command.AccessRules))
+        if (verdict == UIRouteAccessVerdict.Forbidden)
             throw new UIForbiddenAccessException($"Command '{command.Name}' is not authorized.");
     }
 

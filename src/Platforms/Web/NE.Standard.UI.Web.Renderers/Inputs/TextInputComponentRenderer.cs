@@ -114,16 +114,10 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 _ = clear.Attribute(WebAttributes.Clear);
             });
 
-            // After the clear: what the field can do with its value stands past what takes the value away.
-            if (HasRegion(context, RegionNames.TrailingAction))
-            {
-                _ = row.Element("span", action =>
-                {
-                    _ = action.Class($"{ClassName}__action");
-
-                    RenderRegion(context, action, RegionNames.TrailingAction);
-                });
-            }
+            // The author's buttons come after the value in the tab order, whichever end they stand at: the leading group follows it
+            // here and the stylesheet puts it first. After the clear, what the field can do with its value stands past what takes it away.
+            FieldActionsRenderer.Render(context, row, RegionNames.LeadingAction, $"{ClassName}__action {ClassName}__action--leading");
+            FieldActionsRenderer.Render(context, row, RegionNames.TrailingAction, $"{ClassName}__action");
         });
 
         RenderValidationMessage(context, root);

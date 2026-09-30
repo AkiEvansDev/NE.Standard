@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using NE.Standard.UI.Primitives.Recursive;
 
@@ -201,17 +202,13 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
 
         ReadOnlySpan<char> token = span.Slice(contentStart, closingOffset - 1);
 
-        if (int.TryParse(token, out var index))
-        {
-            if (index < 0)
-                throw new FormatException($"Invalid index segment in path '{path}'.");
-
+        // An index is digits only, read invariantly: " 1 " or "+1" is a key, not row 1, and "-1" is no index at all.
+        if (int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
             segments.Add(PathSegment.AtIndex(index));
-        }
+        else if (token[0] == '-' && int.TryParse(token[1..], NumberStyles.None, CultureInfo.InvariantCulture, out _))
+            throw new FormatException($"Invalid index segment in path '{path}'.");
         else
-        {
             segments.Add(PathSegment.WithKey(token.ToString()));
-        }
 
         return start + closingOffset + 1;
     }

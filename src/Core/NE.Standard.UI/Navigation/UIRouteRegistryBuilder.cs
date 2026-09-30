@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.Views;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Shell.Controllers;
 using NE.Standard.UI.Shell.Security;
@@ -75,7 +76,7 @@ public sealed class UIRouteRegistryBuilder
         return this;
     }
 
-    internal UIRouteRegistry Build(IServiceProvider services, UISecurityOptions security)
+    internal UIRouteRegistry Build(IServiceProvider services, UISecurityOptions security, Action<CompiledView, Type>? compiled = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(security);
@@ -83,7 +84,7 @@ public sealed class UIRouteRegistryBuilder
         UIRouteEntry[] entries = new UIRouteEntry[_builders.Count];
 
         for (var i = 0; i < _builders.Count; i++)
-            entries[i] = _builders[i].Build(services, security);
+            entries[i] = _builders[i].Build(services, security, compiled);
 
         return new UIRouteRegistry(entries);
     }

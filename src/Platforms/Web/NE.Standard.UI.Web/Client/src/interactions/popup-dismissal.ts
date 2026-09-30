@@ -2,6 +2,7 @@
 // Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest. A popup behind an
 // open modal dialog is left alone: a press in the dialog is not outside it, and Escape is the dialog's.
 
+import { isInRenameField } from "./inline-rename.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 
 /** Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it. */
@@ -37,8 +38,9 @@ function installEscape(): void {
     escapeInstalled = true;
 
     document.addEventListener("keydown", domEvent => {
-        // A key already taken — a drag cancelled by it — is not also a popup's.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented)
+        // A key already taken — a drag cancelled by it — is not also a popup's; nor is a rename field's, which cancels the rename, where
+        // closing its popup first would take the focus away and its blur would save it.
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isInRenameField(domEvent.target))
             return;
 
         if (dismissNewest())
@@ -56,6 +58,12 @@ export function hasOpenPopups(): boolean {
     }
 
     return false;
+}
+
+/** Hears a click the refusals stopped before any popup's listener could: a press on a disabled control is still a press outside. */
+export function dismissOnRefusedClick(domEvent: Event): void {
+    for (const instance of instances)
+        instance.hearRefusedClick(domEvent);
 }
 
 /** Closes the most recently opened popup that Escape may close; answers whether one closed. */
@@ -158,6 +166,12 @@ export class PopupDismissal {
             if (!this.isInside(popup, path))
                 this.dismiss(popup, "outside");
         }
+    }
+
+    /** A click stopped before it reached this dismissal's own listener, where that listener waits for one. */
+    public hearRefusedClick(domEvent: Event): void {
+        if (this.options.onPress !== true)
+            this.handleClick(domEvent);
     }
 
     private handleClick(domEvent: Event): void {

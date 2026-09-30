@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -40,6 +41,10 @@ public static class IconValueRenderer
     /// a screen reader hears the words, not the mark.
     /// </summary>
     public static void RenderIcon(IHtmlElementBuilder parent, string icon, string? className = null)
+        => RenderIcon(parent, icon, className, null);
+
+    /// <summary>Renders a standalone icon element in <paramref name="color"/>, or in the ink around it when null — a table column's mark before its caption.</summary>
+    public static void RenderIcon(IHtmlElementBuilder parent, string icon, string? className, UIThemeColor? color)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentException.ThrowIfNullOrWhiteSpace(icon);
@@ -54,6 +59,9 @@ public static class IconValueRenderer
 
             _ = element.Attribute("aria-hidden", "true");
             RenderIconValue(element, icon);
+
+            if (color is UIThemeColor ink)
+                ThemeColorRenderer.RenderThemeColor(element, ink);
         });
     }
 

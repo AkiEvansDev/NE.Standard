@@ -18,7 +18,7 @@ namespace NE.Standard.UI.Application;
 /// </summary>
 public sealed class UIApplication
 {
-    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILocalizationOptions localization, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
+    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILocalizationOptions localization, UITemporalOptions temporal, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
     {
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentNullException.ThrowIfNull(persistence);
@@ -29,6 +29,7 @@ public sealed class UIApplication
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(localization);
+        ArgumentNullException.ThrowIfNull(temporal);
         ArgumentNullException.ThrowIfNull(viewFilters);
         ArgumentNullException.ThrowIfNull(commandFilters);
 
@@ -44,6 +45,7 @@ public sealed class UIApplication
         Sessions = sessions;
         Files = files;
         Localization = localization;
+        Temporal = temporal;
         MissingWords = missingWords;
         ContentOrNull = content;
         ViewFilters = viewFilters;
@@ -71,6 +73,11 @@ public sealed class UIApplication
     /// Gets the localization options the application was built with.
     /// </summary>
     public UILocalizationOptions Localization { get; }
+
+    /// <summary>
+    /// Gets the dates and times the application was built with: the hour cycle and the patterns a field without its own shows.
+    /// </summary>
+    public UITemporalOptions Temporal { get; }
 
     /// <summary>
     /// Gets the words asked for and missing, when <see cref="UILocalizationOptions.ReportMissingWords"/> is on; otherwise

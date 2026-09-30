@@ -103,6 +103,13 @@ export class ItemsVirtualizationEngine {
         return items;
     }
 
+    /** Every item's key in the collection's own order, drawn or not, whatever the rules show; null for a host this engine does not hold. */
+    public keysOf(host: Element): readonly string[] | null {
+        const state = this.states.get(host);
+
+        return state === undefined ? null : state.entries.map(entry => entry.key);
+    }
+
     /** Runs the rules over the values and lays the host out again; the entry point after anything changed. */
     public sync(host: Element): void {
         const state = this.getState(host);

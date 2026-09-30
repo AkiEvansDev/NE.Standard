@@ -26,7 +26,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 [UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
-public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent
+public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent
     where T : KeyValueActionComponent<T>, IUIComponentDefinition
 {
     // The list draws an edge where the contract leaves the stylesheet's own.
@@ -70,6 +70,12 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// <remarks>Render-time only: it is how the list is built.</remarks>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = false)]
     public bool? Editable { get; private set; }
+
+    /// <summary>
+    /// Gets whether a click command was registered on the rows' action (<see cref="OnActionClick(string)"/> and its siblings); with
+    /// <see cref="EnableEditing"/> too the view is refused when it compiles, the action then being the pencil.
+    /// </summary>
+    public bool HasActionClick { get; private set; }
 
     /// <summary>
     /// Gets the input a row's value becomes while it is edited, when no typed variant is named by the row.
@@ -241,8 +247,8 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     public T OnActionClick(string command)
     {
-        _ = GetRequiredActionTemplate().OnClick(command);
-        return Self;
+        HasActionClick = true;
+        return OnTemplate<IButtonComponent>(TemplateNames.Action, action => _ = action.OnClick(command));
     }
 
     /// <summary>
@@ -250,8 +256,8 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     public T OnActionClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
     {
-        _ = GetRequiredActionTemplate().OnClick(command, arguments);
-        return Self;
+        HasActionClick = true;
+        return OnTemplate<IButtonComponent>(TemplateNames.Action, action => _ = action.OnClick(command, arguments));
     }
 
     /// <summary>
@@ -259,17 +265,9 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     public T OnActionClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
     {
-        _ = GetRequiredActionTemplate().OnClickLiteral(command, arguments);
-        return Self;
+        HasActionClick = true;
+        return OnTemplate<IButtonComponent>(TemplateNames.Action, action => _ = action.OnClickLiteral(command, arguments));
     }
-
-    /// <summary>
-    /// Gets the action template as an <see cref="IButtonComponent"/>, throwing if it does not implement it.
-    /// </summary>
-    private IButtonComponent GetRequiredActionTemplate()
-        => ActionTemplate is IButtonComponent buttonTemplate
-            ? buttonTemplate
-            : throw new InvalidOperationException($"The action template of '{TypeKey}' must inherit from '{nameof(IButtonComponent)}' to configure item click actions.");
 }
 
 /// <summary>

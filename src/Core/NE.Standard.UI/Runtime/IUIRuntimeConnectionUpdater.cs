@@ -15,8 +15,11 @@ internal interface IUIRuntimeConnectionUpdater
 
     void UpdateConnection(UIHandle handle, UIClientServices clientServices);
 
-    /// <summary>Tells the controller a connection attached, once the runtime is ready for it; a render's own attach is not one.</summary>
-    Task NotifyAttachedAsync(UIHandle handle, CancellationToken cancellationToken);
+    /// <summary>
+    /// Tells the controller a connection attached with its navigation, once the runtime is ready for it; a render's own attach only
+    /// tells it the navigation, and only where it built the runtime (<paramref name="created"/>).
+    /// </summary>
+    Task NotifyAttachedAsync(UIHandle handle, bool created, CancellationToken cancellationToken);
 
     /// <summary>
     /// Tells the controller a connection's session moved to another language, as a command runs — what the page's own switch

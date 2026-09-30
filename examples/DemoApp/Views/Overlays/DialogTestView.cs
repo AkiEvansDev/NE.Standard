@@ -83,6 +83,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 Placement = UIDialogPlacement.Right,
                 Width = UILayoutLength.Absolute(480),
                 Content = UILayout.Stack(12)
+                    .AsContentTree()
                     .AddChild(new TextComponent()
                         .BindTitle($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedService)}")
                         .SetTitleType(UITextAppearance.Title)
@@ -103,6 +104,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 CloseOnEscape = false,
                 Content = new SpinnerComponent()
                     .SetLabel("Publishing release #481")
+                    .AsContentTree()
             }
         ];
 
@@ -234,7 +236,9 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         if (descriptionPath is not null)
             _ = heading.BindDescription(descriptionPath);
 
+        // A dialog is a sample as a whole, its copy shown as written: content for the unkeyed report.
         StackPanelComponent panel = UILayout.Stack(12)
+            .AsContentTree()
             .SetMinWidth(UILayoutLength.Absolute(320))
             .AddChild(heading);
 

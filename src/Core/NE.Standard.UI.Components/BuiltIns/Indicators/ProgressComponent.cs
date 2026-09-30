@@ -1,7 +1,6 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -24,13 +23,15 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     /// <summary>
     /// Gets or sets the minimum value of the progress range.
     /// </summary>
-    [UIComponentProperty(DefaultValue = 0d, GenerateSetter = false)]
+    /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMin"/>, which the value is checked against.</remarks>
+    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMin, GenerateSetter = false)]
     public decimal? Min { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum value of the progress range.
     /// </summary>
-    [UIComponentProperty(DefaultValue = 100d, GenerateSetter = false)]
+    /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMax"/>, which the value is checked against.</remarks>
+    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMax, GenerateSetter = false)]
     public decimal? Max { get; set; }
 
     /// <summary>
@@ -78,7 +79,7 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     /// </summary>
     public T SetValue(decimal value)
     {
-        OrderedRange.Validate(Min, Max, value, "progress value");
+        OrderedRangeComponentExtensions.ValidateOrderedRange(Min, Max, value, "progress value");
 
         Value = value;
         return Self;

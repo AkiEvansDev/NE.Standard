@@ -27,6 +27,7 @@ import {
 import { prefersReducedMotion } from "../rendering/motion";
 import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { logError, logWarn } from "../runtime/logger";
+import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { buildNavigationUrl } from "./navigation-url";
 
 export type EffectContext = {
@@ -257,7 +258,7 @@ export class EffectRegistry {
         this.register("ShowNotification", context => {
             const effect = context.effect as NotificationClientEffect;
 
-            if (effect.message === undefined || effect.message.length === 0) {
+            if (!isPhrase(effect.message) && !isAuthorText(effect.message)) {
                 logWarn("show notification effect carries no message.", context.effect);
                 return;
             }

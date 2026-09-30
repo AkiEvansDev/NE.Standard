@@ -63,7 +63,7 @@ public abstract class UIStartupBase
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.TryAddSingleton<IUserSessionStore, InMemoryUserSessionStore>();
+        services.TryAddSingleton<IUserSessionStore, UserSessionMemoryStore>();
         services.TryAddSingleton<IUIFileStore, FileSystemUIFileStore>();
         services.TryAddSingleton<IUIUploadService, StandardUploadService>();
         services.TryAddSingleton<IUIDownloadService, StandardDownloadService>();

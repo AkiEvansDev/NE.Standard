@@ -51,10 +51,16 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
+        RenderFlagAttribute(context, root, ItemsViewComponent.DraggableProperty, WebAttributes.RowsDraggable);
+        RenderFlagAttribute(context, root, ItemsViewComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
+        RenderDragHandlePlacement(context, root, ItemsViewComponent.DragHandlePlacementProperty);
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: listbox);
+
+        var grip = DrawsRowGrip(context, ItemsViewComponent.DraggableProperty, ItemsViewComponent.DragHandleProperty);
+
+        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: grip ? RowGripDecorator : null, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: listbox);
         RegisterItemsFilterSortMetadata(context);
-        RenderItems(context, root, listbox);
+        RenderItems(context, root, listbox, grip);
     }
 
     /// <summary>Whether a row template holds anything a press lands on — a button, a field, a link — rather than only words and pictures.</summary>
@@ -94,7 +100,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         return false;
     }
 
-    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root, bool listbox)
+    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root, bool listbox, bool grip)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
@@ -117,7 +123,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
             {
                 _ = itemRoot.Attribute("role", listbox ? "option" : "listitem");
                 MarkSelected(itemRoot, item, selected, announce: listbox);
-            }, limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
+            }, appendItem: grip ? (itemRoot, _, _) => RenderRowGrip(context, itemRoot) : null, limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
         });
     }
 }

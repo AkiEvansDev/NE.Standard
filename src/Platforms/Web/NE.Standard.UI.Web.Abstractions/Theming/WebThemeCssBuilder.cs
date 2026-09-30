@@ -163,7 +163,8 @@ public static class WebThemeCssBuilder
 
     private static void AppendSemanticVariables(StringBuilder builder)
     {
-        // The one absolute level: what a panel lifted off the page is made of.
+        // The one absolute level: what a panel lifted off the page is made of. The same step lifts a popup off a raised panel or a
+        // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
         Append(builder, "surface-raised", "color-mix(in srgb, var(--ui-color-surface) 92%, var(--ui-color-on-surface) 8%)");
         // The wash a control with no fill shows when pointed at, pressed, or chosen; translucent since it may sit on the page or a surface.
         Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");

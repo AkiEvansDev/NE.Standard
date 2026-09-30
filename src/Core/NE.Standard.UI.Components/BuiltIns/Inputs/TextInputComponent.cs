@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
@@ -16,27 +15,53 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
-    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private readonly FieldActions _actions = new();
 
     /// <summary>
-    /// Gets the control at the end of the row — a copy, a generate, a look-up, or a split button with a menu of them.
+    /// Gets the first control at the end of the row — a copy, a generate, a look-up, or a split button with a menu of them.
     /// </summary>
-    public IButtonComponent? TrailingAction => _regions.GetValueOrDefault(RegionNames.TrailingAction) as IButtonComponent;
-
-    /// <inheritdoc/>
-    public IReadOnlyDictionary<string, IVisualComponent> Regions => _regions;
-
-    /// <inheritdoc/>
-    public bool HasRegions => _regions.Count > 0;
+    public IButtonComponent? TrailingAction => _actions.Trailing.Count > 0 ? _actions.Trailing[0] : null;
 
     /// <summary>
-    /// Puts a button at the end of the row; the field lays it in and dresses it as an adornment.
+    /// Gets the controls at the start of the row, in the order they stand.
+    /// </summary>
+    public IReadOnlyList<IButtonComponent> LeadingActions => _actions.Leading;
+
+    /// <summary>
+    /// Gets the controls at the end of the row, in the order they stand.
+    /// </summary>
+    public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
+
+    /// <inheritdoc/>
+    public IReadOnlyDictionary<string, IVisualComponent> Regions => _actions.Regions;
+
+    /// <inheritdoc/>
+    public bool HasRegions => _actions.Regions.Count > 0;
+
+    /// <summary>
+    /// Puts a button at the end of the row, in place of any there before; the field lays it in and dresses it as an adornment.
     /// </summary>
     public T SetTrailingAction(IButtonComponent action)
     {
-        ArgumentNullException.ThrowIfNull(action);
+        _actions.SetTrailing(action);
+        return Self;
+    }
 
-        _regions[RegionNames.TrailingAction] = action;
+    /// <summary>
+    /// Adds a button at the start of the row, after those added before; the field dresses it as an adornment.
+    /// </summary>
+    public T AddLeadingAction(IButtonComponent action)
+    {
+        _actions.AddLeading(action);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a button at the end of the row, after those added before; the field dresses it as an adornment.
+    /// </summary>
+    public T AddTrailingAction(IButtonComponent action)
+    {
+        _actions.AddTrailing(action);
         return Self;
     }
 

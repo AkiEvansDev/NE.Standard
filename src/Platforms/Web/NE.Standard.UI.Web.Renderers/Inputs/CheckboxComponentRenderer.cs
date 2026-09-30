@@ -68,7 +68,8 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
         {
             IncludeTextLayout = true,
             Trailing = header => RenderRequiredMarker(context, header, $"{classPrefix}__required"),
-            NamesField = true
+            NamesField = true,
+            ReachableBadge = true
         }));
 
         RenderValidationMessage(context, root);

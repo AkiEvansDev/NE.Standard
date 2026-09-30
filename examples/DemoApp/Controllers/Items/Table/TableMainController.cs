@@ -99,6 +99,15 @@ internal sealed partial class TableGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UISelectionStyle? SelectionStyle { get; set; }
 
+    [RecursiveMember]
+    public partial bool Draggable { get; set; }
+
+    [RecursiveMember]
+    public partial bool DragHandle { get; set; }
+
+    [RecursiveMember]
+    public partial UIDragHandlePlacement? DragHandlePlacement { get; set; }
+
     public TableGroupContext()
     {
         AddOption(nameof(Surface), CycleSurface, () => Surface);
@@ -113,6 +122,9 @@ internal sealed partial class TableGroupContext : DemoGroupContext
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
         AddOption(nameof(SelectedKeys), CycleSelectedKeys, () => SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
         AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
+        AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
+        AddOption(nameof(DragHandle), ToggleDragHandle, () => DragHandle);
+        AddOption(nameof(DragHandlePlacement), CycleDragHandlePlacement, () => DragHandlePlacement);
     }
 
     public void CycleSurface()
@@ -153,6 +165,18 @@ internal sealed partial class TableGroupContext : DemoGroupContext
 
     public void CycleSelectionStyle()
         => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
+
+    // The drop asks; the rows group moves the row (TableMainController.MoveRow).
+    public void ToggleDraggable()
+        => SetLastChange(nameof(Draggable), Draggable = !Draggable);
+
+    // Read with Draggable: the grip's column is there only while both are on.
+    public void ToggleDragHandle()
+        => SetLastChange(nameof(DragHandle), DragHandle = !DragHandle);
+
+    // Where the grip stands, End unset; read with DragHandle on.
+    public void CycleDragHandlePlacement()
+        => SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement = CycleEnum(DragHandlePlacement));
 }
 
 /// <summary>
@@ -177,6 +201,20 @@ internal sealed partial class TableRowsGroupContext : DemoGroupContext
         var id = string.Create(CultureInfo.InvariantCulture, $"service-{++_added}");
 
         Items.Add(DemoDeploymentRow.Create(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added", 1, "New", UIBadgeType.Info, DemoIcons.Star));
+    }
+
+    /// <summary>Moves the row a drop named to the place it asked for; the table moved nothing by itself.</summary>
+    public void MoveRow(string id, int index)
+    {
+        for (var i = 0; i < Items.Count; i++)
+        {
+            if (Items[i].Id != id)
+                continue;
+
+            Items.Move(i, index);
+            LogEvent($"{id} -> place {index + 1}");
+            return;
+        }
     }
 
     public void RemoveRow()
@@ -221,4 +259,8 @@ internal sealed partial class TableMainController() : DemoStandardController
     [UICommand]
     public void CycleBorderOption(string id)
         => BorderGroup.CycleOption(id);
+
+    [UICommand]
+    public void MoveRow(string id, int index)
+        => ItemsGroup.MoveRow(id, index);
 }

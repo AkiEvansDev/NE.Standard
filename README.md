@@ -124,7 +124,7 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component has its pages, 118 routes in all,
+`examples/DemoApp` is the reference application: every built-in component has its pages, 121 routes in all,
 with the sign-in, account, admin and forbidden pages showing what the security mechanism does; the mini
 application `examples/TeamRoom` exercises the same mechanism end to end. Every component but the dialog and the
 notification, which have a test page each, has a **Main** page — a preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an
@@ -137,7 +137,8 @@ dotnet run --project examples/DemoApp.Web    # http://localhost:5000
 
 ## Building
 
-Requires the .NET 10 SDK, and Node for the TypeScript client — which builds **as part of** `dotnet build`, so
+Requires the .NET 10 SDK, 10.0.400 or later (`global.json`; an older 10.0.1xx SDK's analyzers report false build errors), and
+Node 24 or later for the TypeScript client — which builds **as part of** `dotnet build`, so
 a TypeScript type error fails the .NET build.
 
 ```

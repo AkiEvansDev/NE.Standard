@@ -13,4 +13,8 @@ internal sealed partial class ItemsViewMainController() : DemoStandardController
     [UICommand]
     public void CycleItemsGroupOption(string id)
         => ItemsGroup.CycleOption(id);
+
+    [UICommand]
+    public void MoveItem(string id, int index)
+        => ItemsGroup.MoveService(id, index);
 }

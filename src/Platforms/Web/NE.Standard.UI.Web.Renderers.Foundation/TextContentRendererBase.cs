@@ -7,6 +7,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -52,6 +53,12 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// </summary>
     public const string TooltipNamedAttribute = "data-ui-tooltip-named";
 
+    /// <summary>
+    /// The operation a title pushed empty names its control by the tooltip again with: the tooltip's plain text, read off the root
+    /// where the tooltip's own operations wrote it (<c>tooltip-name.ts</c>).
+    /// </summary>
+    public const string TooltipNameOperationKind = "tooltip-name";
+
     // The named element is the component's root or a press just under it (a split button's); either way the root's title mark
     // decides. `:scope` keeps each half to its own case: the root only matches itself, and a descendant only below the root.
     private const string TooltipNamedUntitledTarget = $":scope[{TooltipNamedAttribute}]:not([{TitleShownAttribute}]), :scope:not([{TitleShownAttribute}]) > [{TooltipNamedAttribute}]";
@@ -80,11 +87,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         .. TitleOperations,
         new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = $"[{LabelledAttribute}]", Optional = true }
     ];
-    // After the title's mark is written: a title shown names the host by its words, so the tooltip's name comes off.
+    // After the title's mark is written: a title shown names the host by its words, so the tooltip's name comes off; a title pushed
+    // empty hands the name back to the tooltip, whose words the title's value cannot carry, so the client reads them off the root.
     private static readonly WebDomOperation[] TooltipNamedTitleOperations =
     [
         .. TitleOperations,
-        new WebDomOperation { Kind = nameof(WebDomOperationKind.RemoveAttribute), Name = "aria-label", Target = TooltipNamedTitledTarget, Optional = true }
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.RemoveAttribute), Name = "aria-label", Target = TooltipNamedTitledTarget, Optional = true },
+        WebDomOperation.Custom(TooltipNameOperationKind, "aria-label", TooltipNamedUntitledTarget, optional: true)
     ];
 
     /// <summary>
@@ -93,7 +102,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// </summary>
     public static WebDomOperation TooltipNameOperation { get; } = new() { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = TooltipNamedUntitledTarget, Converter = WebDomConverters.InlineMarkupPlainText, Optional = true };
     private static readonly WebDomOperation[] DescriptionOperations = [WebDomOperation.Markup(), WebDomOperation.ToggleAttribute(DescriptionShownAttribute, target: "root", condition: WebValueCondition.HasText)];
-
     private static readonly WebBadgeRenderOptions TextBadgeOptions = new()
     {
         StyleProperty = ITextBaseComponent.BadgeStyleProperty,
@@ -107,6 +115,18 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         TooltipPlacementProperty = ITextBaseComponent.BadgeTooltipPlacementProperty,
         ContentStateTarget = $".{TextClassPrefix}__badge"
     };
+
+    // A caption's badge its words make a tab stop (RenderReachableBadge): one type draws a caption above its field and one inside
+    // its box, and a property's operations are one list per type, so these land only where the render marked the badge reachable.
+    private const string ReachableBadgeTarget = $".{TextClassPrefix}__badge[{WebAttributes.TooltipPress}]";
+    private static readonly WebDomOperation[] CaptionBadgeTooltipOperations =
+    [
+        TooltipOperation,
+        WebDomOperation.ToggleAttribute("tabindex", ReachableBadgeTarget, WebValueCondition.HasText, value: "0", optional: true),
+        WebDomOperation.ToggleAttribute("role", ReachableBadgeTarget, WebValueCondition.HasText, value: "button", optional: true),
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = ReachableBadgeTarget, Converter = WebDomConverters.InlineMarkupPlainText, Optional = true }
+    ];
+    private static readonly WebBadgeRenderOptions CaptionBadgeOptions = TextBadgeOptions with { TooltipOperations = CaptionBadgeTooltipOperations };
 
     /// <summary>
     /// Renders the whole text body into <paramref name="container"/>; <paramref name="root"/> must be the root carrying the patch hooks.
@@ -141,7 +161,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
                 options.Trailing?.Invoke(header);
 
-                _ = header.Element("span", badge => RenderTextBadge(context, root, badge, options.DefaultBadgePlacement));
+                _ = header.Element("span", badge => RenderTextBadge(context, root, badge, options));
             });
 
             if (options.IncludeTextLayout)
@@ -175,19 +195,44 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         }, SelectableOperations);
     }
 
-    private static void RenderTextBadge(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder badge, UITextBadgePlacement? fallback)
+    private static void RenderTextBadge(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder badge, WebTextBodyOptions options)
     {
         _ = badge.Class($"{TextClassPrefix}__badge");
         _ = badge.Class("ui-badge");
 
-        if (fallback is UITextBadgePlacement placement)
+        if (options.DefaultBadgePlacement is UITextBadgePlacement placement)
         {
             _ = RenderProperty<UITextBadgePlacement?>(context, badge, ITextBaseComponent.BadgePlacementProperty, (target, value)
                 => _ = target.Class(WebClassNames.TextBadgePlacement(value ?? placement))
             , BadgePlacementOperations);
         }
 
-        BadgeRenderer.RenderBadge(context, root, badge, TextBadgeOptions);
+        BadgeRenderer.RenderBadge(context, root, badge, options.NamesField ? CaptionBadgeOptions : TextBadgeOptions);
+
+        if (options.NamesField && options.ReachableBadge)
+            RenderReachableBadge(context, badge);
+    }
+
+    /// <summary>
+    /// A caption's badge whose tooltip is all it has to say (a help badge): a tab stop while it has words, a button named by them that
+    /// shows them on a press and on focus, and described by them while they show.
+    /// </summary>
+    private static void RenderReachableBadge(WebRenderContext context, IHtmlElementBuilder badge)
+    {
+        // A touch has no hover to ask with, and a click would close a hover's words.
+        _ = badge.Attribute(WebAttributes.TooltipPress);
+        // Pressing it does nothing to the field it explains, nor raises the component's own events.
+        _ = badge.Attribute(WebAttributes.EventBoundary);
+
+        // The words a reader sees, not the Markdown source; a push and a language switch write them through CaptionBadgeOptions'.
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _);
+
+        if (string.IsNullOrWhiteSpace(words))
+            return;
+
+        _ = badge.Attribute("tabindex", "0");
+        _ = badge.Attribute("role", "button");
+        _ = badge.Attribute("aria-label", UIInlineMarkup.ToPlainText(words));
     }
 
     /// <summary>
@@ -205,7 +250,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             return;
         }
 
-        RenderInputHeaderElement(context, root, root);
+        RenderInputHeaderElement(context, root, root, inside: false);
     }
 
     private static bool IsTitleInside(WebRenderContext context)
@@ -215,7 +260,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         return placement == UIInputTitlePlacement.Inside;
     }
 
-    private static void RenderInputHeaderElement(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent)
+    private static void RenderInputHeaderElement(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool inside)
     {
         _ = parent.Element("span", header =>
         {
@@ -225,7 +270,9 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             {
                 DefaultBadgePlacement = UITextBadgePlacement.Trailing,
                 Trailing = marker => RenderRequiredMarker(context, marker, $"{InputClassPrefix}__required"),
-                NamesField = true
+                NamesField = true,
+                // Not in a caption inside the field's box: the box is one control, and a tab stop cannot stand inside it.
+                ReachableBadge = !inside
             });
         });
     }
@@ -275,7 +322,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(field);
 
         if (IsTitleInside(context))
-            RenderInputHeaderElement(context, root, field);
+            RenderInputHeaderElement(context, root, field, inside: true);
     }
 
     /// <summary>The word at either end of a value — a currency sign, a unit — for an <see cref="IAffixTextInputComponent"/>.</summary>

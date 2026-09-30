@@ -3,6 +3,7 @@
 // row, whose trailing commands go and are the ones listed.
 
 import { ComponentKeyAttribute, DisabledClass } from "../addressing/dom-attributes.ts";
+import { carryPopupGround } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusByPointer, focusOpenedList } from "./popup-focus.ts";
@@ -298,6 +299,7 @@ class StripOverflowMenu {
             applyRovingTabIndex(this.entries(), current);
 
         this.button = button;
+        carryPopupGround(button, this.menu);
 
         const opened = this.list.open({
             owner: strip,

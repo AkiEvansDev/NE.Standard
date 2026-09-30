@@ -221,7 +221,7 @@ internal sealed partial class DateInputMainController() : DemoStandardController
     public partial DateValueGroupContext ValueGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("yyyy-MM-dd", "d MMMM yyyy");
+    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("dd.MM.yyyy", "d MMMM yyyy");
 
     [RecursiveMember]
     public partial TextContentGroupContext ContentGroup { get; set; } = new("Release date");
@@ -262,7 +262,7 @@ internal sealed partial class TimeInputMainController() : DemoStandardController
     public partial TimeValueGroupContext ValueGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("HH:mm", "h:mm tt");
+    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("h:mm tt", "HH:mm:ss");
 
     [RecursiveMember]
     public partial TextContentGroupContext ContentGroup { get; set; } = new("Deploy window opens");
@@ -303,7 +303,7 @@ internal sealed partial class DateTimeInputMainController() : DemoStandardContro
     public partial DateTimeValueGroupContext ValueGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("yyyy-MM-dd HH:mm", "d MMMM yyyy, HH:mm");
+    public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("dd.MM.yyyy HH:mm", "d MMMM yyyy, HH:mm");
 
     [RecursiveMember]
     public partial TextContentGroupContext ContentGroup { get; set; } = new("Scheduled for");

@@ -3,8 +3,7 @@ import { logWarn } from "../runtime/logger";
 import { isInRenameField } from "./inline-rename";
 import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
-import { firstFocusable, FocusableSelector, liveFocusReturn, moveFocusInto, restoreFocusTo } from "./popup-focus";
-import { isFocusable } from "./interactive-state";
+import { firstFocusable, liveFocusReturn, moveFocusInto, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
 import { DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
 const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
 const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
@@ -142,29 +141,19 @@ export class DialogEngine {
     }
 
     private trapTab(dialog: HTMLElement, domEvent: KeyboardEvent): void {
-        const focusable = [...dialog.querySelectorAll<HTMLElement>(FocusableSelector)].filter(
-            element => isFocusable(element) || element === document.activeElement
-        );
+        const stops = tabStops(dialog, document.activeElement);
 
-        if (focusable.length === 0) {
+        if (stops.length === 0) {
             // Nothing to move focus to, but the key is still swallowed or focus walks out of the modal.
             domEvent.preventDefault();
             return;
         }
 
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        const active = document.activeElement;
+        const target = wrappedTabStop(dialog, stops, document.activeElement, domEvent.shiftKey);
 
-        if (!domEvent.shiftKey && active === last) {
+        if (target !== null) {
             domEvent.preventDefault();
-            first.focus();
-            return;
-        }
-
-        if (domEvent.shiftKey && (active === first || !dialog.contains(active))) {
-            domEvent.preventDefault();
-            last.focus();
+            target.focus();
         }
     }
 }

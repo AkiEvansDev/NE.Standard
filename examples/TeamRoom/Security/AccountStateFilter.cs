@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Shell.Navigation;
 using TeamRoom.Services;
 
 namespace TeamRoom.Security;

@@ -19,12 +19,10 @@ public static class UIRoutePath
 
         route = route.Trim().ToLowerInvariant();
 
-        if (!route.StartsWith('/'))
-            route = "/" + route;
+        route = route.TrimEnd('/');
 
-        return route.Length > 1
-            ? route.TrimEnd('/')
-            : route;
+        // Trimmed first, so a route of slashes alone ("//") is the root rather than nothing.
+        return route.StartsWith('/') ? route : "/" + route;
     }
 
     /// <summary>

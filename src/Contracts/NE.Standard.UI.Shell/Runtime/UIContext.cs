@@ -47,7 +47,7 @@ public sealed class UIContext
             Content = content;
 
         Route = route;
-        _connection = new Connection(handle, dialogs, downloads, uploads);
+        _connection = new ConnectionState(handle, dialogs, downloads, uploads);
     }
 
     /// <summary>
@@ -87,9 +87,9 @@ public sealed class UIContext
 
     // Swapped whole: under PerClient, a reattach can replace it while a command reads it; four separate properties could
     // then split across old and new connections.
-    private volatile Connection _connection;
+    private volatile ConnectionState _connection;
 
-    private sealed record Connection(UIHandle Handle, IUIDialogService Dialogs, IUIDownloadService Downloads, IUIUploadService Uploads);
+    private sealed record ConnectionState(UIHandle Handle, IUIDialogService Dialogs, IUIDownloadService Downloads, IUIUploadService Uploads);
 
     /// <summary>
     /// Gets the UI handle a command is running for — the connection that raised it, or the connection the
@@ -116,6 +116,25 @@ public sealed class UIContext
     {
         public void Dispose() => context._invokingHandle.Value = previous;
     }
+
+    /// <summary>Gets what the platform knows about the connection a command is running for — <see cref="Handle"/>'s.</summary>
+    public UIConnectionInfo Connection => Handle.Connection;
+
+    /// <summary>Gets the reader's time zone: the one the session's client reported, or UTC while it has reported none this host knows.</summary>
+    public TimeZoneInfo TimeZone => UITimeZones.Find(Handle.Session.TimeZone);
+
+    /// <summary>The wall-clock time an instant reads in the reader's zone; a <see cref="DateTimeKind.Unspecified"/> one is read as UTC.</summary>
+    public DateTime ToLocalTime(DateTime utcInstant)
+        => UITimeZones.ToLocalTime(TimeZone, utcInstant);
+
+    /// <summary>An instant as the reader's clock shows it, with the reader's offset.</summary>
+    public DateTimeOffset ToLocalTime(DateTimeOffset instant)
+        => UITimeZones.ToLocalTime(TimeZone, instant);
+
+    /// <summary>The instant a day begins for the reader, in UTC — where a filter by a picked <see cref="DateOnly"/> starts.</summary>
+    /// <remarks>The next day's start is where it ends: a day is not always 24 hours long.</remarks>
+    public DateTime StartOfDayUtc(DateOnly day)
+        => UITimeZones.StartOfDayUtc(TimeZone, day);
 
     /// <summary>
     /// Gets the dialog service for the current client connection.
@@ -231,7 +250,7 @@ public sealed class UIContext
 
         handle.Instance.Validate();
 
-        _connection = new Connection(handle, dialogs, downloads, uploads);
+        _connection = new ConnectionState(handle, dialogs, downloads, uploads);
 
         Validate();
     }

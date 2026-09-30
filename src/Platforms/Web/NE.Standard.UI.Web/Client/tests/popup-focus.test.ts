@@ -9,7 +9,7 @@ import { FakeElement, FakeInput, FakeKeyboardEvent, FakeLabel, FakeTextArea, fak
 
 installFakeDom();
 
-const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, noteFocus, noteKey, notePress } = await import("../src/interactions/popup-focus.ts");
+const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, noteFocus, noteKey, notePress, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
 
 const Mark = "data-ui-pointer-focus";
 
@@ -243,4 +243,51 @@ test("an opener the page redrew away is found again by its component, while that
 
     assert.equal(liveFocusReturn(real(stale), real<ParentNode>(fakeDocument.body)), rows);
     assert.equal(rows.getAttribute("tabindex"), "-1");
+});
+
+function radio(name: string, checked = false): FakeInput {
+    return Object.assign(new FakeInput("radio"), { name, checked });
+}
+
+/** A modal's stops as the keyboard walks them, and where Tab from `active` goes when the browser's own move would leave it. */
+function tabFrom(dialog: FakeElement, active: FakeElement, backwards = false): unknown {
+    const stops = tabStops(real<ParentNode>(dialog), real<Element>(active));
+
+    return wrappedTabStop(real<Element>(dialog), stops, real<Element>(active), backwards);
+}
+
+test("a radio group is one tab stop, its checked radio, so Tab from it at a modal's end goes round rather than out", () => {
+    const button = FakeElement.of("", {}, "button");
+    const small = radio("size");
+    const medium = radio("size", true);
+    const large = radio("size");
+    const dialog = FakeElement.of("ui-dialog__surface").append(button, small, medium, large);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(dialog);
+
+    assert.deepEqual(tabStops(real<ParentNode>(dialog), null), [button, medium]);
+    assert.equal(tabFrom(dialog, medium), button);
+    assert.equal(tabFrom(dialog, button, true), medium);
+    assert.equal(tabFrom(dialog, button), null);
+
+    // None checked: the browser stands on the first.
+    medium.checked = false;
+
+    assert.deepEqual(tabStops(real<ParentNode>(dialog), null), [button, small]);
+    assert.equal(tabFrom(dialog, small), button);
+});
+
+test("focus outside a modal, fallen to the body or left there by a press on its padding, comes back in at the end Tab walks toward", () => {
+    const first = FakeElement.of("", {}, "button");
+    const last = new FakeInput("text");
+    const dialog = FakeElement.of("ui-dialog__surface").append(first, last);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(dialog);
+
+    assert.equal(tabFrom(dialog, fakeDocument.body), first);
+    assert.equal(tabFrom(dialog, fakeDocument.body, true), last);
+    assert.equal(tabFrom(dialog, last), first);
+    assert.equal(tabFrom(dialog, first, true), last);
 });

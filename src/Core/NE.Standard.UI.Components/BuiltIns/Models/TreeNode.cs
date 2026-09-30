@@ -24,6 +24,10 @@ public partial class TreeNode : TextBaseItem, ITreeNodeModel
 
     /// <inheritdoc />
     [RecursiveMember]
+    public partial bool? IsFolder { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
     public partial bool? Expanded { get; set; }
 
     /// <inheritdoc />

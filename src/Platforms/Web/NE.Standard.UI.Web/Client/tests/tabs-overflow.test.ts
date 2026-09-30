@@ -11,7 +11,7 @@ const Overflowed = "ui-tab-header--overflowed";
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
     // The stylesheet's one rule the fit reads back: a caption past the room is display: none.
-    getComputedStyle: (element: FakeElement) => ({ display: element.classes.has(Overflowed) ? "none" : "flex", transform: "none", filter: "none", perspective: "none" }),
+    getComputedStyle: (element: FakeElement) => ({ display: element.classes.has(Overflowed) ? "none" : "flex", transform: "none", filter: "none", perspective: "none", getPropertyValue: () => "" }),
     MutationObserver: class {
         public observe(): void {
         }

@@ -3,7 +3,9 @@
 // `disabled`, which takes the focus with it; a disabled link has no `href`, so not even the browser's menu opens it.
 
 import { DisabledClass, HrefAttribute, LoadingClass, ReadOnlyClass } from "../addressing/dom-attributes.ts";
+import { isSafeLink } from "../rendering/url-safety.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
+import { dismissOnRefusedClick } from "./popup-dismissal.ts";
 
 /** The keys a range or a radio group changes its value with. */
 const ChangeKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
@@ -30,6 +32,7 @@ export function startRefusals(root: ParentNode = document): void {
         target.addEventListener(type, refusePress, true);
 
     target.addEventListener("keydown", refuseKey, true);
+    target.addEventListener("change", refuseChange, true);
     target.addEventListener("pointerdown", refuseDrag, true);
     target.addEventListener("mousedown", refuseDrag, true);
 
@@ -49,7 +52,7 @@ function applyRecord(record: MutationRecord): void {
         const element = record.target as Element;
 
         if (record.attributeName === HrefAttribute) {
-            syncLink(element);
+            syncLink(element, record.oldValue !== null);
             return;
         }
 
@@ -114,11 +117,15 @@ function syncLinks(elements: Iterable<Element>): void {
         syncLink(element);
 }
 
-/** Gives a link its `href` while live and takes it off while disabled or loading; the address stays on its own attribute. */
-function syncLink(element: Element): void {
+/**
+ * Gives a link its `href` while live and takes it off while disabled or loading; the address stays on its own attribute. An address
+ * taken away, or one no link may go to, takes the `href` with it.
+ */
+function syncLink(element: Element, hadAddress = false): void {
     const address = element.getAttribute(HrefAttribute);
 
-    if (address === null)
+    // An anchor that never had an address of its own keeps its `href`: inline markup's links are written once, as they stand.
+    if (address === null && !hadAddress)
         return;
 
     // Its own state alone: a link inside a disabled component is inert there already, and gets its `href` back with no record of its own.
@@ -128,6 +135,9 @@ function syncLink(element: Element): void {
         // Without `href` an anchor leaves the tab order, so it keeps a stop of its own, as a disabled button does; a roving one stays.
         if (!element.hasAttribute("tabindex"))
             element.setAttribute("tabindex", "0");
+    } else if (address === null || !isSafeLink(address)) {
+        // Checked again here, not only by the server's converter: a boot patch kept in the page's storage may write any `data-*`.
+        element.removeAttribute("href");
     } else if (element.getAttribute("href") !== address) {
         element.setAttribute("href", address);
 
@@ -168,9 +178,13 @@ function refusePress(domEvent: Event): void {
     if (!(domEvent.target instanceof Element))
         return;
 
-    if (isInert(domEvent.target))
+    if (isInert(domEvent.target)) {
+        // Refused as a press on the control, not as a press at all: a list or a flyout open elsewhere still closes.
+        if (domEvent.type === "click")
+            dismissOnRefusedClick(domEvent);
+
         stop(domEvent);
-    else if (domEvent.type === "click" && isReadOnlyToggle(domEvent.target))
+    } else if (domEvent.type === "click" && isReadOnlyToggle(domEvent.target))
         domEvent.preventDefault();
 }
 
@@ -193,6 +207,12 @@ function refuseKey(domEvent: Event): void {
 
     if ((domEvent.target.type === "range" || domEvent.target.type === "radio") && isReadOnly(domEvent.target))
         domEvent.preventDefault();
+}
+
+/** Refuses a read-only range's `change` that no key or pointer made (a screen reader's increment): the range engine puts it back. */
+function refuseChange(domEvent: Event): void {
+    if (domEvent.target instanceof HTMLInputElement && domEvent.target.type === "range" && isReadOnly(domEvent.target))
+        domEvent.stopImmediatePropagation();
 }
 
 /** A read-only range's handle is not taken by the pointer or a finger; the press still gives it the focus, as a read-only field's does. */

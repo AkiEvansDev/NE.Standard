@@ -28,34 +28,35 @@ public static class ButtonTemplatedItemsExtensions
     /// </summary>
     public static T OnItemClick<T>(this T component, string command)
         where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
+        => OnItemTemplate(component, template => _ = template.OnClick(command));
+
+    /// <summary>
+    /// Writes a click on the item template and on every one set later; a host of its own making writes on the template in hand.
+    /// </summary>
+    private static T OnItemTemplate<T>(T component, Action<IButtonComponent> register)
+        where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
     {
-        _ = RequiredButtonTemplate(component).OnClick(command);
+        if (component is ITemplateEventHost host)
+            host.OnTemplate(null, register);
+        else
+            register(component.Template ?? throw new InvalidOperationException($"'{T.ComponentTypeKey}' has no item template."));
+
         return component;
     }
-
-    private static IButtonComponent RequiredButtonTemplate<T>(T component)
-        where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
-        => component.Template ?? throw new InvalidOperationException($"'{T.ComponentTypeKey}' has no item template.");
 
     /// <summary>
     /// Registers a click command invoked when an item is clicked, with UI action arguments.
     /// </summary>
     public static T OnItemClick<T>(this T component, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
-    {
-        _ = RequiredButtonTemplate(component).OnClick(command, arguments);
-        return component;
-    }
+        => OnItemTemplate(component, template => _ = template.OnClick(command, arguments));
 
     /// <summary>
     /// Registers a click command invoked when an item is clicked, with literal argument values.
     /// </summary>
     public static T OnItemClickLiteral<T>(this T component, string command, params KeyValuePair<string, object?>[] arguments)
         where T : IButtonTemplatedItemsComponent, IUIComponentDefinition
-    {
-        _ = RequiredButtonTemplate(component).OnClickLiteral(command, arguments);
-        return component;
-    }
+        => OnItemTemplate(component, template => _ = template.OnClickLiteral(command, arguments));
 
     /// <summary>
     /// Registers a click command that passes the clicked item as an argument.

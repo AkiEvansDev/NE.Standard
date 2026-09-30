@@ -89,7 +89,9 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         WebDomOperation.Style("--ui-placement-xxl-row-span", converter: WebDomConverters.GridPlacementXxlRowSpanCss)
     ];
 
-    private static readonly WebDomOperation TooltipOperation = WebDomOperation.Attribute(WebAttributes.Tooltip);
+    /// <summary>What a tooltip's words do to the element they are the tooltip of; first in a list of operations the words drive.</summary>
+    public static WebDomOperation TooltipOperation { get; } = WebDomOperation.Attribute(WebAttributes.Tooltip);
+
     private static readonly WebDomOperation[] TooltipOperations = [TooltipOperation];
     private static readonly WebDomOperation[] TooltipPlacementOperations = [WebDomOperation.Attribute(WebAttributes.TooltipPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
     private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
@@ -508,7 +510,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     protected static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, WebDomOperation nameOperation)
         => RenderTooltip(context, target, ITooltipComponent.TooltipProperty, ITooltipComponent.TooltipPlacementProperty, [TooltipOperation, nameOperation]);
 
-    private static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, UIProperty placementProperty, ReadOnlySpan<WebDomOperation> operations)
+    /// <summary>
+    /// The tooltip whose words drive <paramref name="operations"/> — <see cref="TooltipOperation"/> first, then what else follows the
+    /// words, as a caption badge's name and tab stop do.
+    /// </summary>
+    public static void RenderTooltip(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, UIProperty placementProperty, ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);

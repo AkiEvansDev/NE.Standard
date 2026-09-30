@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
@@ -40,19 +41,42 @@ internal abstract partial class UIRuntimeBase
 
         // Counted from the start, so a runtime taken away meanwhile (an eviction, a PerPage tab moving on) waits for it: the
         // last command out disposes it.
-        _ = Interlocked.Increment(ref _commandsInFlight);
-        try
-        {
-            // A runtime asked to go takes no new command; the ones already running keep it until they finish.
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
+        ThrowIfAskedToGo();
 
-            return await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await LeaveCommandAsync().ConfigureAwait(false);
-        }
+        return await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Counts a call as a command, holding the runtime until the answer is disposed.</summary>
+    private CommandRelease HoldAsCommand()
+        => HoldAsCommand(out _);
+
+    /// <summary>Counts a call as a command; <paramref name="alone"/> says whether nothing else held the runtime already.</summary>
+    private CommandRelease HoldAsCommand(out bool alone)
+    {
+        alone = Interlocked.Increment(ref _commandsInFlight) == 1;
+
+        return _commandRelease;
+    }
+
+    /// <summary>Lets go of one command's hold when disposed.</summary>
+    /// <remarks>
+    /// One per runtime, so the hold every value write and command takes allocates nothing. A class behind the framework's
+    /// <c>ConfigureAwait</c> rather than a struct awaited through its own <c>DisposeAsync</c>: CA2007 flags every <c>await using</c>
+    /// on anything but <see cref="ConfiguredAsyncDisposable"/>.
+    /// </remarks>
+    private sealed class CommandRelease(UIRuntimeBase runtime) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+            => runtime.LeaveCommandAsync();
+    }
+
+    /// <summary>
+    /// Refuses a call a runtime asked to go no longer takes; the ones already running keep it until they finish.
+    /// </summary>
+    /// <remarks>Read after the call is counted, so either the call sees the request or the request sees the call.</remarks>
+    private void ThrowIfAskedToGo()
+        => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
 
     private async Task<UICommandExecutionResult> ProcessEventInFlightAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken)
     {
@@ -101,12 +125,16 @@ internal abstract partial class UIRuntimeBase
     private async Task<UICommandExecutionResult> ProcessEventCoreAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, string operation, bool detach, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, object?> arguments;
+        var step = "EnsureEventTarget";
 
         try
         {
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureEventTargetOpenNoLock(compiledEvent, request.DynamicParameters);
+
+                step = "BuildCommandArguments";
                 arguments = BuildCommandArguments(compiledEvent, request.DynamicParameters);
             }
             finally
@@ -120,7 +148,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, "BuildCommandArguments", request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, step, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
 
@@ -447,7 +475,8 @@ internal abstract partial class UIRuntimeBase
         if (result.Success || result.Effects.Length != 0 || !_application.ErrorHandling.NotifyOnCommandFailure)
             return result;
 
-        var message = _application.Translator.Translate(Handle.Session.Language, ResolveFailureMessage(result, exception));
+        // The page translates it as any notification's words, by the plain rule, and again at a switch while it is open.
+        var message = ResolveFailureMessage(result, exception);
 
         return string.IsNullOrWhiteSpace(message)
             ? result

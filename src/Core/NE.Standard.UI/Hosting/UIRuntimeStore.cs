@@ -462,6 +462,15 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         }
     }
 
+    /// <summary>The keys of every runtime a session holds, read off the session's own index.</summary>
+    public UIRuntimeKey[] GetSessionKeys(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        lock (_sync)
+            return _sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys) ? [.. keys] : [];
+    }
+
     /// <summary>
     /// Takes away every runtime a session holds but <paramref name="keep"/>, and answers them for the caller to end.
     /// </summary>
@@ -585,26 +594,55 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
                 _ = RemoveEntryNoLock(removedKeys[i], out _);
         }
 
-        for (var i = 0; i < removed.Count; i++)
-            await removed[i].DisposeAsync().ConfigureAwait(false);
+        await DisposeAllAsync(removed).ConfigureAwait(false);
 
         return removed.Count;
     }
 
-    public async ValueTask DisposeAsync()
+    /// <summary>Disposes every runtime even when one throws, then throws what failed.</summary>
+    /// <remarks>A runtime's dispose runs application code; one that throws must not leave the rest holding their scopes and pumps.</remarks>
+    private static async ValueTask DisposeAllAsync(IReadOnlyList<IUIRuntime> runtimes)
     {
-        IUIRuntime[] runtimes = ClearAll();
+        List<Exception>? failures = null;
 
-        for (var i = 0; i < runtimes.Length; i++)
-            await runtimes[i].DisposeAsync().ConfigureAwait(false);
+        for (var i = 0; i < runtimes.Count; i++)
+        {
+            try
+            {
+                await runtimes[i].DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                (failures ??= []).Add(exception);
+            }
+        }
+
+        if (failures is not null)
+            throw new AggregateException("Disposing one or more UI runtimes failed.", failures);
     }
+
+    public ValueTask DisposeAsync()
+        => DisposeAllAsync(ClearAll());
 
     public void Dispose()
     {
         IUIRuntime[] runtimes = ClearAll();
+        List<Exception>? failures = null;
 
         for (var i = 0; i < runtimes.Length; i++)
-            runtimes[i].Dispose();
+        {
+            try
+            {
+                runtimes[i].Dispose();
+            }
+            catch (Exception exception)
+            {
+                (failures ??= []).Add(exception);
+            }
+        }
+
+        if (failures is not null)
+            throw new AggregateException("Disposing one or more UI runtimes failed.", failures);
     }
 
     private IUIRuntime[] ClearAll()

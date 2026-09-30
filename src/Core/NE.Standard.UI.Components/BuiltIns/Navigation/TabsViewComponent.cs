@@ -209,10 +209,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// Registers a command invoked when a tab's close is pressed, with UI action arguments.
     /// </summary>
     public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.OnRemove(command, arguments);
-        return Self;
-    }
+        => OnItemTemplate(template => _ = template.OnRemove(command, arguments));
 
     /// <summary>
     /// Registers a command invoked when a caption is renamed in place, passing the tab's key.
@@ -225,10 +222,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// Registers a command invoked when a caption is renamed in place, with UI action arguments.
     /// </summary>
     public T OnItemRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = RequiredTemplate.OnRename(command, arguments);
-        return Self;
-    }
+        => OnItemTemplate(template => _ = template.OnRename(command, arguments));
 }
 
 /// <summary>

@@ -20,7 +20,7 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.inputs.date-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup()], [CreateFormatGroup(), CreateCalendarGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup(), CreateLanguageGroup()], [CreateFormatGroup(), CreateCalendarGroup()]));
 
     /// <summary>
     /// A period is one field with two ends, chosen on one calendar, rather than two fields kept in step by hand.
@@ -54,19 +54,19 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     }
 
     /// <summary>
-    /// <c>DisplayFormat</c> is what the field reads as; unset, the culture's own short pattern.
+    /// <c>DisplayFormat</c> is what the field reads as; unset, the framework's own <c>yyyy-MM-dd</c>.
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
         return DemoUI.CreateExample("How it is written down",
             UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
-                    .SetTitle("Unset — the culture's short date")
+                    .SetTitle("Unset — yyyy-MM-dd")
                     .SetValue(Release)
                 )
                 .AddChild(new DateInputComponent()
-                    .SetTitle("yyyy-MM-dd")
-                    .SetDisplayFormat("yyyy-MM-dd")
+                    .SetTitle("dd.MM.yyyy")
+                    .SetDisplayFormat("dd.MM.yyyy")
                     .SetValue(Release)
                 )
                 .AddChild(new DateInputComponent()
@@ -125,6 +125,27 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Release)
                 ),
             note: "The picker opens aligned to **the toggle button** rather than to the left edge of the field: one anchor cannot both clear the row vertically *and* line up with a button centred inside it."
+        );
+    }
+
+    /// <summary>
+    /// With no <c>DisplayFormat</c> the field writes the framework's own pattern in the page's letters and names, drawn again when the
+    /// language changes; a <c>Culture</c> pins a culture, and its pattern with it.
+    /// </summary>
+    private static ContainerComponent CreateLanguageGroup()
+    {
+        return DemoUI.CreateExample("In the page's language",
+            UILayout.Stack(16)
+                .AddChild(new DateInputComponent()
+                    .SetTitle("Unset — yyyy-MM-dd in the page's words")
+                    .SetValue(Release)
+                )
+                .AddChild(new DateInputComponent()
+                    .SetTitle("Culture en-US — its own M/d/yyyy")
+                    .SetCulture("en-US")
+                    .SetValue(Release)
+                ),
+            note: "Switch the language in the header: the first field keeps the framework's `yyyy-MM-dd` and is drawn again with its placeholder in the new language's letters (`дд.ММ.гггг` in Russian) and its picker's names in its words; the second names `en-US`, so it shows that culture's `M/d/yyyy` and English names whatever the page speaks. `ConfigureTemporal(o => o.FollowCulture = true)` would give every field its language's own pattern; this demo leaves it unset."
         );
     }
 }

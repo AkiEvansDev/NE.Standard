@@ -14,7 +14,7 @@ public class UserSessionContext : IUserSessionContext
     /// <summary>
     /// Creates a user session context from its identity, locale, and authorization data.
     /// </summary>
-    public UserSessionContext(string sessionId, string language, UIThemeMode? themeMode, bool isAuthenticated, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
+    public UserSessionContext(string sessionId, string language, UIThemeMode? themeMode, bool isAuthenticated, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null, string? timeZone = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
@@ -22,6 +22,7 @@ public class UserSessionContext : IUserSessionContext
         SessionId = sessionId;
         Language = language;
         ThemeMode = themeMode;
+        TimeZone = timeZone;
         IsAuthenticated = isAuthenticated;
         UserId = userId;
         Roles = roles is null || roles.Count == 0
@@ -40,6 +41,9 @@ public class UserSessionContext : IUserSessionContext
 
     /// <inheritdoc />
     public UIThemeMode? ThemeMode { get; }
+
+    /// <inheritdoc />
+    public string? TimeZone { get; }
 
     /// <inheritdoc />
     public bool IsAuthenticated { get; }
@@ -64,4 +68,12 @@ public class UserSessionContext : IUserSessionContext
     /// </summary>
     public static UserSessionContext Authenticated(string sessionId, string language = "en", UIThemeMode? themeMode = null, string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null)
         => new(sessionId, language, themeMode, isAuthenticated: true, userId, roles, permissions);
+
+    /// <summary>The same session — identity, language, theme and zone — under <paramref name="sessionId"/>.</summary>
+    internal static UserSessionContext WithSessionId(IUserSessionContext session, string sessionId)
+        => new(sessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions, session.TimeZone);
+
+    /// <summary>A signed-out session under <paramref name="sessionId"/> that keeps the reader's language, theme and zone.</summary>
+    internal static UserSessionContext AnonymousAs(IUserSessionContext session, string sessionId)
+        => new(sessionId, session.Language, session.ThemeMode, isAuthenticated: false, timeZone: session.TimeZone);
 }

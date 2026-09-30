@@ -13,9 +13,60 @@
 
 // A <textarea> holds its own text, so it wears .ui-field-box for its ground and states instead of a row.
 .ui-text-area__field {
+    // What the field adds to its lines, for a growing area's bounds below.
+    --ui-text-area-chrome: calc(2 * @ui-space-2 + 2 * var(--ui-border-width, 1px));
     width: 100%;
     max-width: 100%;
     min-height: @ui-control-height;
     padding: @ui-space-2 @ui-space-3;
     font: inherit;
+}
+
+// With the author's buttons, the box is a wrapper: the text in a lane of its own that scrolls, the buttons at its ends on the bottom
+// line, outside that scroll. The box's padding and the text's own add up to the bare field's, so both stand as tall for their rows;
+// one row stands as tall as a text input's row, so a one-line composer and a text input line up.
+.ui-text-area__box {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.4em;
+    min-height: @ui-control-height;
+    padding: @ui-space-1 @ui-space-3;
+}
+
+    .ui-text-area__box > .ui-text-area__field {
+        --ui-text-area-chrome: calc(2 * @ui-space-1);
+        // From nothing, not its text's width: a field sized to its content would otherwise ask for its longest line.
+        flex: 1 1 0;
+        width: auto;
+        min-height: 0;
+        padding: @ui-space-1 0;
+    }
+
+// Each group as tall as one line of the text, so its buttons centre on the last line however many lines stand above it.
+.ui-text-area__action {
+    .ui-field-actions();
+    min-height: calc(1lh + 2 * @ui-space-1);
+    margin-right: -@ui-space-1;
+}
+
+// The leading group follows the text in the tab order and stands first all the same.
+.ui-text-area__action--leading {
+    order: -1;
+    margin-right: 0;
+    margin-left: -@ui-space-1;
+}
+
+.ui-input--underline > .ui-text-area__box > .ui-text-area__action {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+// A growing area follows its text from its rows to its most rows, then scrolls (text-area-grow-engine.ts sets the height where the
+// browser cannot size a field to its content). Never resized by hand: a height pulled by the reader would pin what the text follows.
+.ui-text-area__field[data-ui-text-area-grow] {
+    min-height: calc(var(--ui-text-area-rows, 3) * 1lh + var(--ui-text-area-chrome));
+    max-height: calc(var(--ui-text-area-max-rows) * 1lh + var(--ui-text-area-chrome));
+    overflow-y: auto;
+    resize: none !important;
+    field-sizing: content;
 }

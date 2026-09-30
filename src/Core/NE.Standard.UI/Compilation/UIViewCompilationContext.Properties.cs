@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Compilation;
@@ -26,6 +27,35 @@ internal sealed partial class UIViewCompilationContext
             && FindBinding(component, IInputComponent.FormIdProperty) is null)
         {
             throw new InvalidOperationException($"Property '{property.Name}' on component type '{typeKey}' is bound '{mode}' but the component has no 'FormId', so its value could never be submitted.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses a text area whose Enter submits its form (<c>SubmitOnEnter</c>, set or bound) but that belongs to no form: Enter would
+    /// press no button and break no line either.
+    /// </summary>
+    private void EnsureSubmitOnEnterHasForm(IVisualComponent component)
+    {
+        if (component is not IInputComponent input
+            || !string.IsNullOrWhiteSpace(input.FormId)
+            || FindBinding(component, IInputComponent.FormIdProperty) is not null)
+        {
+            return;
+        }
+
+        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            UIPropertyDefinition definition = definitions[i];
+
+            if (!definition.Property.Equals(TextAreaComponent.SubmitOnEnterProperty))
+                continue;
+
+            if (definition.Getter(component) is true || FindBinding(component, definition.Property) is not null)
+                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
+
+            return;
         }
     }
 

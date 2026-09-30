@@ -6,7 +6,7 @@ namespace DemoApp.Views.Items.Table;
 
 /// <summary>
 /// What a table is used for, one screen per job: narrowed by a box, opened by a row, a column per kind of cell, chosen rows,
-/// a source read a window at a time, and a table that is a card's content.
+/// a source read a window at a time, a table that is a card's content, rows put in order by a drag, and a list in a cell.
 /// </summary>
 /// <remarks>Most groups share one column set on purpose, so what differs between the groups is the behaviour and never the table.</remarks>
 internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
@@ -14,6 +14,8 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     private const string OpenGroup = nameof(TableExamplesController.OpenGroup);
     private const string ActionGroup = nameof(TableExamplesController.ActionGroup);
     private const string ChosenGroup = nameof(TableExamplesController.ChosenGroup);
+    private const string RolloutGroup = nameof(TableExamplesController.RolloutGroup);
+    private const string GripGroup = nameof(TableExamplesController.GripGroup);
 
     /// <summary>Id of the box the filtered table's rule names; a rule reads a component, not a value.</summary>
     private const string FilterId = "table-examples-filter";
@@ -29,8 +31,8 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateColumnKindsGroup(), CreateWindowedGroup(), CreateChosenGroup()],
-            [CreateFilterGroup(), CreateCardGroup(), CreateOpenGroup()]
+            [CreateColumnKindsGroup(), CreateWindowedGroup(), CreateChosenGroup(), CreateRolloutGroup()],
+            [CreateFilterGroup(), CreateCardGroup(), CreateOpenGroup(), CreateCellListGroup(), CreateGripGroup()]
             )
         );
     }
@@ -195,6 +197,78 @@ internal sealed class TableExamplesView : DemoExamplesView, IUIViewDefinition
                 .OnRowClickWithItemKey(nameof(TableExamplesController.OpenRow)),
             note: "Striped as well, since that is the pair most tables are built from: the pointer's wash answers on a striped row too.",
             context: OpenGroup
+        );
+    }
+
+    /// <summary>
+    /// Rows in the order a release reaches them, put in order by a drag; the columns wear an icon before their caption.
+    /// </summary>
+    private static ContainerComponent CreateRolloutGroup()
+    {
+        return DemoUI.CreateExample("Put in order by a drag",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .BindItems(nameof(TableRolloutGroupContext.Rows), UIBindingScope.Relative)
+                .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), icon: DemoIcons.Outline(DemoIcons.Server))
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), icon: DemoIcons.Outline(DemoIcons.Region))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End, icon: DemoIcons.Outline(DemoIcons.Replicas))
+                .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
+                .SetDraggable(true)
+                .OnRowMoveWithItemKey(nameof(TableExamplesController.MoveRolloutRow)),
+            note: "Drag a row between two others, or put the keyboard on it and press Alt+Up or Alt+Down: the command gets the row's key and the place it takes, and the controller moves it in its RecursiveCollection. A drag is refused while a sort orders the rows. The icons are the columns' own (`icon:`), drawn before the caption.",
+            context: RolloutGroup
+        );
+    }
+
+    /// <summary>
+    /// The same rows moved by a grip in a narrow column before the first (<c>DragHandle</c> at the start), which stays with the pinned
+    /// first column; a press on the rest of the row chooses it rather than lifting it.
+    /// </summary>
+    private static ContainerComponent CreateGripGroup()
+    {
+        return DemoUI.CreateExample("Put in order by a grip",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .BindItems(nameof(TableRolloutGroupContext.Rows), UIBindingScope.Relative)
+                .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Absolute(140), pinned: true)
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Absolute(160))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End)
+                .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
+                .SetSelectionMode(UISelectionMode.One)
+                .SetDraggable(true)
+                .SetDragHandle(UIDragHandlePlacement.Start)
+                .OnRowMoveWithItemKey(nameof(TableExamplesController.MoveGripRow)),
+            note: "The grip is a column of its own before the author's, not one of them: the columns engine never counts it, and it stays with the pinned Service column as the table scrolls sideways. Only it drags a row; a press on the rest of the row chooses it, and the keyboard moves the chosen row by Alt+Up and Alt+Down. `SetDragHandle(UIDragHandlePlacement.Start)`; the end is the default.",
+            context: GripGroup
+        );
+    }
+
+    /// <summary>
+    /// A cell whose template is a list, bound to a collection the row holds: each row shows its own servers.
+    /// </summary>
+    private static ContainerComponent CreateCellListGroup()
+    {
+        return DemoUI.CreateExample("A list in a cell",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .SetItems(
+                [
+                    new DemoServiceServers { Id = "billing", Service = "Billing", Servers = { new TextItem { Id = "api-eu-west-1", Title = "api-eu-west-1" }, new TextItem { Id = "api-eu-west-2", Title = "api-eu-west-2" }, new TextItem { Id = "db-eu-west-1", Title = "db-eu-west-1" } } },
+                    new DemoServiceServers { Id = "dns", Service = "DNS", Servers = { new TextItem { Id = "web-eu-west-1", Title = "web-eu-west-1" } } },
+                    new DemoServiceServers { Id = "metrics", Service = "Metrics", Servers = { new TextItem { Id = "api-us-east-1", Title = "api-us-east-1" }, new TextItem { Id = "db-us-east-2", Title = "db-us-east-2" } } }
+                ])
+                .AddTextColumn("Service", nameof(DemoServiceServers.Service), UIGridUnit.Absolute(120))
+                .AddColumn("Servers", new ItemsViewComponent()
+                    .BindItems(nameof(DemoServiceServers.Servers), UIBindingScope.Relative)
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetLayoutType(UIItemsLayoutType.Wrap)
+                    .SetSpacing(4)
+                    .SetTemplate(new TextComponent()
+                        .BindBadgeText(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .SetBadgeStyle(UIBadgeType.Surface)
+                    )
+                ),
+            note: "The list in the column's template is bound to the row's own collection, so every row lists its servers and no other's."
         );
     }
 }

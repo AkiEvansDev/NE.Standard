@@ -42,6 +42,7 @@ internal sealed class ButtonScenariosView : DemoScenariosView, IUIViewDefinition
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = UILayout.Stack(16)
+                    .AsContentTree()
                     .AddChild(new ParagraphComponent()
                         .SetIcon(DemoIcons.Alert)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger))

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
@@ -64,15 +65,21 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
 
 /// <summary>Base class for a source of items too many to hold at once, windowed one page at a time.</summary>
 /// <remarks>Raises no events; changing <see cref="Items"/> directly is the change notification.</remarks>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The load gate is only ever awaited, never asked for its wait handle, so it holds nothing to dispose.")]
 public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     where TItem : RecursiveObservable, IBindableItem
 {
+    // One read at a time: a scroll, a reload after a rule changed and a command's own read can overlap, and each rewrites the
+    // window and its offset.
+    private readonly SemaphoreSlim _loading = new(1, 1);
+
     /// <summary>Gets the realized window — the items the client currently holds, in the order they are shown.</summary>
     /// <remarks>Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.</remarks>
     [RecursiveMember(false)]
     public RecursiveCollection<TItem> Items { get; } = [];
 
     /// <inheritdoc />
+    /// <remarks>Reads of one source take turns, each applied before the next begins, whoever asked for them.</remarks>
     public sealed override async Task LoadWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -83,11 +90,24 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         if (request.Count > limit)
             request = new UIItemWindowRequest(request.Anchor, limit, request.Mode, request.Query);
 
-        UIItemWindow<TItem> window = await GetWindowAsync(request, cancellationToken).ConfigureAwait(false);
+        await _loading.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            UIItemWindow<TItem> window = await GetWindowAsync(request, cancellationToken).ConfigureAwait(false);
 
-        ArgumentNullException.ThrowIfNull(window);
-        window.Validate(request);
+            ArgumentNullException.ThrowIfNull(window);
+            window.Validate(request);
 
+            ApplyWindow(request, window);
+        }
+        finally
+        {
+            _ = _loading.Release();
+        }
+    }
+
+    private void ApplyWindow(UIItemWindowRequest request, UIItemWindow<TItem> window)
+    {
         if (window.Aggregates is not null)
             Aggregates = window.Aggregates;
 
@@ -186,7 +206,18 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
 
-        TItem? item = Find(key);
+        TItem? item;
+
+        // Found between reads, never while one clears the window; the write itself runs outside the gate, since it may read again.
+        await _loading.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            item = Find(key);
+        }
+        finally
+        {
+            _ = _loading.Release();
+        }
 
         return item is not null && await TryWriteAsync(item, itemProperty, value, cancellationToken).ConfigureAwait(false);
     }

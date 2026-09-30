@@ -27,6 +27,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private readonly IWebRendererRegistry _renderers;
     private readonly ITranslator _translator;
     private readonly UITheme _theme;
+    private readonly UITemporalOptions _temporal;
 
     public WebViewRenderer(IWebRendererRegistry renderers, UIApplication application)
     {
@@ -36,6 +37,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         _renderers = renderers;
         _translator = application.Translator;
         _theme = application.Theme;
+        _temporal = application.Temporal;
     }
 
     public WebRenderResult Render(UIViewResolution resolution, IWebRenderValues? values = null)
@@ -140,6 +142,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             Metadata = metadata,
             Translator = _translator,
             Theme = _theme,
+            Temporal = _temporal,
             Values = values
         };
 

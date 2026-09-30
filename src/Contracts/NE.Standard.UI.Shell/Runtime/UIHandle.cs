@@ -9,9 +9,9 @@ namespace NE.Standard.UI.Shell.Runtime;
 public sealed class UIHandle
 {
     /// <summary>
-    /// Creates a handle from a validated UI instance and its user session.
+    /// Creates a handle from a validated UI instance, its user session and what is known about its connection.
     /// </summary>
-    public UIHandle(UIInstance instance, IUserSessionContext session)
+    public UIHandle(UIInstance instance, IUserSessionContext session, UIConnectionInfo? connection = null)
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(session);
@@ -19,6 +19,7 @@ public sealed class UIHandle
         instance.Validate();
 
         Instance = instance;
+        Connection = connection ?? UIConnectionInfo.Unknown;
         _session = session;
     }
 
@@ -26,6 +27,9 @@ public sealed class UIHandle
     /// Gets the UI instance.
     /// </summary>
     public UIInstance Instance { get; }
+
+    /// <summary>Gets what the platform knows about the connection: its address, its client, where it was served from.</summary>
+    public UIConnectionInfo Connection { get; }
 
     /// <summary>
     /// Gets the user session: the one the connection attached with, or what a command running for it last wrote into the store.

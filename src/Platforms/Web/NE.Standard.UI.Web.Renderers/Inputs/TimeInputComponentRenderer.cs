@@ -3,6 +3,7 @@ using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -13,7 +14,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeInputComponent, TimeOnly?>
 {
-    internal const string CanonicalTimeFormat = "HH:mm:ss";
+    private const string CanonicalTimeFormat = "HH:mm:ss";
 
     /// <summary>The date a time-only value is carried on — <c>TimeOnlyBaseYear</c> in <c>temporal-dom.ts</c>.</summary>
     private static readonly DateOnly TimeOnlyBaseDate = new(2000, 1, 1);
@@ -24,12 +25,12 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
 
     protected override bool HasPicker => false;
 
-    protected override string GetDefaultDisplayFormat(UITemporalStep? step)
-        => GetTimeDisplayFormat(step);
+    protected override string GetDefaultDisplayFormat(UITemporalStep? step, WebTemporalPatterns patterns)
+        => patterns.Time(ReachesSeconds(step));
 
-    /// <summary>The display format for a step, showing seconds only when the step reaches them.</summary>
-    internal static string GetTimeDisplayFormat(UITemporalStep? step)
-        => step?.Unit == UITemporalStepUnit.Second ? CanonicalTimeFormat : "HH:mm";
+    /// <summary>Whether a clock shows seconds: only where its step reaches them.</summary>
+    internal static bool ReachesSeconds(UITemporalStep? step)
+        => step?.Unit == UITemporalStepUnit.Second;
 
     protected override bool TryResolveTemporal(TimeOnly? value, out DateTime moment, out string canonical)
     {

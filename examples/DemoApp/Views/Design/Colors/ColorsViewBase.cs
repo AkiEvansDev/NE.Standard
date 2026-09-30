@@ -24,7 +24,8 @@ internal abstract class ColorsViewBase : DemoView
             ("demo.colors.components", "/design/colors/components"),
         ], CurrentTabUrl));
 
-        DrawColorsContent(container);
+        // The palette's names, values and sample compositions are the reference itself, shown as written: content for the unkeyed report.
+        DrawColorsContent(container.AsContentTree());
     }
 
     protected abstract void DrawColorsContent(WrapPanelComponent container);

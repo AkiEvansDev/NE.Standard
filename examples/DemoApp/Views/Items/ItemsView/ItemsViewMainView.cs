@@ -43,6 +43,10 @@ internal sealed class ItemsViewMainView : DemoMainView, IUIViewDefinition
             .BindSelectedKey($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectedKey)}")
             .BindSelectedKeys($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectedKeys)}")
             .BindSelectionStyle($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectionStyle)}")
+            .BindDraggable($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Draggable)}")
+            .BindDragHandle($"{ItemsGroup}.{nameof(ItemsViewGroupContext.DragHandle)}")
+            .BindDragHandlePlacement($"{ItemsGroup}.{nameof(ItemsViewGroupContext.DragHandlePlacement)}")
+            .OnItemMoveWithItemKey(nameof(ItemsViewMainController.MoveItem))
             // One line per row: the properties are the exhibit here, the richer rows are on Examples.
             .SetTemplate(new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle(nameof(TextItem.Title), UIBindingScope.Relative))
             .SetMaxHeight(UILayoutLength.Absolute(240))

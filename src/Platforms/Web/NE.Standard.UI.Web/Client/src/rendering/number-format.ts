@@ -65,6 +65,9 @@ const CurrencyNegativePatterns = [
 const PercentPositivePatterns = ["n %", "n%", "%n", "% n"] as const;
 const PercentNegativePatterns = ["-n %", "-n%", "-%n", "%-n", "%n-", "n-%", "n%-", "-% n", "n %-", "% n-", "% -n", "n- %"] as const;
 
+// A digit that makes the rounded number other than zero, which alone lets a negative value keep its sign.
+const NonZeroDigit = /[1-9]/;
+
 /** The pack off the nearest element carrying one, the invariant culture with none; a pack missing a field keeps the invariant one. */
 export function readNumberCulture(element: Element): NumberCulturePack {
     const text = element.closest(`[${NumberCultureAttribute}]`)?.getAttribute(NumberCultureAttribute) ?? null;
@@ -90,40 +93,45 @@ export function formatNumber(value: number, format: string | null | undefined, c
     if (spec === null)
         return plain(value, culture);
 
-    const negative = value < 0;
     const abs = Math.abs(value);
 
     switch (spec.kind) {
         case "N": {
-            const text = grouped(abs, spec.precision ?? culture.decimalDigits, culture.groupSizes, culture.groupSeparator, culture.decimalSeparator);
+            const text = grouped(abs, 0, spec.precision ?? culture.decimalDigits, culture.groupSizes, culture.groupSeparator, culture.decimalSeparator);
 
-            return negative ? applyPattern(NumberNegativePatterns[culture.negativePattern] ?? "-n", text, "", culture.negativeSign) : text;
+            return isNegative(value, text) ? applyPattern(NumberNegativePatterns[culture.negativePattern] ?? "-n", text, "", culture.negativeSign) : text;
         }
         case "F": {
-            const text = grouped(abs, spec.precision ?? culture.decimalDigits, [], "", culture.decimalSeparator);
+            const text = grouped(abs, 0, spec.precision ?? culture.decimalDigits, [], "", culture.decimalSeparator);
 
-            return negative ? culture.negativeSign + text : text;
+            return isNegative(value, text) ? culture.negativeSign + text : text;
         }
         case "D": {
-            const text = String(roundHalfAwayFromZero(abs, 0)).padStart(spec.precision ?? 1, "0");
+            const text = rounded(abs, 0, 0).integer.padStart(spec.precision ?? 1, "0");
 
-            return negative ? culture.negativeSign + text : text;
+            return isNegative(value, text) ? culture.negativeSign + text : text;
         }
         case "C": {
-            const text = grouped(abs, spec.precision ?? culture.currencyDecimalDigits, culture.currencyGroupSizes, culture.currencyGroupSeparator, culture.currencyDecimalSeparator);
-            const pattern = negative ? CurrencyNegativePatterns[culture.currencyNegativePattern] ?? "-$n" : CurrencyPositivePatterns[culture.currencyPositivePattern] ?? "$n";
+            const text = grouped(abs, 0, spec.precision ?? culture.currencyDecimalDigits, culture.currencyGroupSizes, culture.currencyGroupSeparator, culture.currencyDecimalSeparator);
+            const pattern = isNegative(value, text) ? CurrencyNegativePatterns[culture.currencyNegativePattern] ?? "-$n" : CurrencyPositivePatterns[culture.currencyPositivePattern] ?? "$n";
 
             return applyPattern(pattern, text, culture.currencySymbol, culture.negativeSign);
         }
         case "P": {
-            const text = grouped(abs * 100, spec.precision ?? culture.percentDecimalDigits, culture.percentGroupSizes, culture.percentGroupSeparator, culture.percentDecimalSeparator);
-            const pattern = negative ? PercentNegativePatterns[culture.percentNegativePattern] ?? "-n %" : PercentPositivePatterns[culture.percentPositivePattern] ?? "n %";
+            // A hundredfold by moving the point, not by multiplying, which lands a binary step off (0.285 × 100 is 28.499…).
+            const text = grouped(abs, 2, spec.precision ?? culture.percentDecimalDigits, culture.percentGroupSizes, culture.percentGroupSeparator, culture.percentDecimalSeparator);
+            const pattern = isNegative(value, text) ? PercentNegativePatterns[culture.percentNegativePattern] ?? "-n %" : PercentPositivePatterns[culture.percentPositivePattern] ?? "n %";
 
             return applyPattern(pattern, text, culture.percentSymbol, culture.negativeSign);
         }
         default:
             return plain(value, culture);
     }
+}
+
+/** Whether the formatted digits take the sign: a negative value that rounds to zero is written as zero, as .NET writes it. */
+function isNegative(value: number, digits: string): boolean {
+    return value < 0 && NonZeroDigit.test(digits);
 }
 
 type FormatSpec = { readonly kind: "N" | "F" | "C" | "P" | "D"; readonly precision: number | null };
@@ -140,24 +148,65 @@ function parseFormat(format: string | null | undefined): FormatSpec | null {
     return { kind: match[1].toUpperCase() as FormatSpec["kind"], precision: match[2].length === 0 ? null : Number(match[2]) };
 }
 
-/** The value as it is — no grouping, the shortest digits that round-trip — in the culture's separator and sign. */
+/** The value as it is — no grouping, the shortest digits that round-trip, never an exponent — in the culture's separator and sign. */
 function plain(value: number, culture: NumberCulturePack): string {
-    const text = String(Math.abs(value)).replace(".", culture.decimalSeparator);
+    const { integer, fraction } = writtenOut(Math.abs(value), 0);
+    const text = fraction.length === 0 ? integer : `${integer}${culture.decimalSeparator}${fraction}`;
 
     return value < 0 ? culture.negativeSign + text : text;
 }
 
-function grouped(abs: number, digits: number, sizes: readonly number[], groupSeparator: string, decimalSeparator: string): string {
-    const scaled = String(roundHalfAwayFromZero(abs, digits)).padStart(digits + 1, "0");
-    const integer = scaled.slice(0, scaled.length - digits);
-    const fraction = scaled.slice(scaled.length - digits);
+function grouped(abs: number, shift: number, digits: number, sizes: readonly number[], groupSeparator: string, decimalSeparator: string): string {
+    const { integer, fraction } = rounded(abs, shift, digits);
 
     return digits === 0 ? group(integer, sizes, groupSeparator) : `${group(integer, sizes, groupSeparator)}${decimalSeparator}${fraction}`;
 }
 
-/** The value times ten to the digits, rounded half away from zero as .NET rounds a formatted decimal; the precision cut absorbs a binary tie. */
-function roundHalfAwayFromZero(abs: number, digits: number): number {
-    return Math.round(Number((abs * 10 ** digits).toPrecision(15)));
+/**
+ * The value times ten to `shift`, to `digits` places, rounded half away from zero as .NET rounds a formatted decimal. Worked on the
+ * digits the value is written with, not on the double: the server's decimal is those digits, and a double's arithmetic rounds a
+ * fourteen-digit integer part's cents away or turns 1e21 into an exponent.
+ */
+function rounded(abs: number, shift: number, digits: number): { readonly integer: string; readonly fraction: string } {
+    const { integer, fraction } = writtenOut(abs, shift);
+    const kept = integer + fraction.slice(0, digits).padEnd(digits, "0");
+    const up = fraction.length > digits && fraction[digits] >= "5";
+    const all = up ? incremented(kept) : kept;
+    const point = all.length - digits;
+
+    return { integer: all.slice(0, point), fraction: all.slice(point) };
+}
+
+/** The value's shortest round-trip digits written out in full, the point moved `shift` places right: no exponent, no leading zeros. */
+function writtenOut(abs: number, shift: number): { readonly integer: string; readonly fraction: string } {
+    const [mantissa, exponent = "0"] = String(abs).split("e");
+    const [whole, part = ""] = mantissa.split(".");
+    const digits = `${whole}${part}`.replace(/^0+/, "");
+    // Where the point stands among the digits once the leading zeros are gone.
+    const point = whole.length + Number(exponent) + shift - (whole.length + part.length - digits.length);
+
+    if (digits.length === 0)
+        return { integer: "0", fraction: "" };
+
+    if (point <= 0)
+        return { integer: "0", fraction: `${"0".repeat(-point)}${digits}` };
+
+    if (point >= digits.length)
+        return { integer: digits + "0".repeat(point - digits.length), fraction: "" };
+
+    return { integer: digits.slice(0, point), fraction: digits.slice(point) };
+}
+
+/** A string of decimal digits plus one. */
+function incremented(digits: string): string {
+    let index = digits.length - 1;
+
+    while (index >= 0 && digits[index] === "9")
+        index--;
+
+    const carried = "0".repeat(digits.length - 1 - index);
+
+    return index < 0 ? `1${carried}` : `${digits.slice(0, index)}${String(Number(digits[index]) + 1)}${carried}`;
 }
 
 function group(integer: string, sizes: readonly number[], separator: string): string {

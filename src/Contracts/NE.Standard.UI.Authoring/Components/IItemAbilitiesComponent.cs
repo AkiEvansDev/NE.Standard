@@ -38,6 +38,10 @@ public interface IItemAbilitiesComponent : IVisualComponent
     /// <summary>
     /// Gets whether the row may be chosen; unset means it may.
     /// </summary>
+    /// <remarks>
+    /// False by a static value or a controller binding, the server refuses a choice that takes the row, as it does one that takes a
+    /// disabled row. A guard against a stale or forged page, not the permission itself: who may choose belongs in the setter.
+    /// </remarks>
     [UIComponentProperty(DefaultValue = null, DefaultBindingScope = UIBindingScope.Relative)]
     bool? CanSelect { get; }
 

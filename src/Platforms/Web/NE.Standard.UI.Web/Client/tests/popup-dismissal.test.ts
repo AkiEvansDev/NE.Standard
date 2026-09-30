@@ -1,6 +1,6 @@
 // A press outside closes a popup: on the click that ends a primary press where the popup waits for it, at once for any other press,
-// which no click follows — a right press elsewhere would otherwise open a context menu beside a list still open. Over a stand-in
-// document that only keeps the listeners, and events that carry their path.
+// which no click follows — a right press elsewhere would otherwise open a context menu beside a list still open. Escape in a rename
+// field is the field's. Over a stand-in document that only keeps the listeners, and events that carry their path.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -25,6 +25,35 @@ class FakeMouseEvent {
     }
 }
 
+class FakeKeyboardEvent {
+    public readonly type = "keydown";
+    public readonly key: string;
+    public readonly target: object;
+    public defaultPrevented = false;
+
+    public constructor(key: string, target: object) {
+        this.key = key;
+        this.target = target;
+    }
+
+    public preventDefault(): void {
+        this.defaultPrevented = true;
+    }
+}
+
+/** A key's target: a rename field, or any other element. */
+class FakeTarget {
+    private readonly renameField: boolean;
+
+    public constructor(renameField: boolean) {
+        this.renameField = renameField;
+    }
+
+    public closest(): FakeTarget | null {
+        return this.renameField ? this : null;
+    }
+}
+
 // The open dialogs, as the document answers for them: none, unless a test puts a modal one up.
 let openDialogs: readonly object[] = [];
 
@@ -36,7 +65,9 @@ const fakeDocument = {
 Object.assign(globalThis, {
     document: fakeDocument,
     window: { addEventListener: () => undefined },
-    MouseEvent: FakeMouseEvent
+    MouseEvent: FakeMouseEvent,
+    KeyboardEvent: FakeKeyboardEvent,
+    Element: FakeTarget
 });
 
 const { PopupDismissal } = await import("../src/interactions/popup-dismissal.ts");
@@ -47,7 +78,7 @@ function dispatch(type: string, button: number, path: readonly object[]): void {
 }
 
 function watched(onPress = false): { popup: HTMLElement; closed: string[] } {
-    const popup = { isConnected: true } as unknown as HTMLElement;
+    const popup = { isConnected: true, contains: () => false } as unknown as HTMLElement;
     const closed: string[] = [];
 
     new PopupDismissal({ openPopups: () => closed.length === 0 ? [popup] : [], close: (_, reason) => closed.push(reason), onPress });
@@ -113,4 +144,22 @@ test("a popup behind an open modal dialog is left alone: a press in the dialog i
     }
 
     assert.deepEqual(closed, []);
+});
+
+test("Escape in a rename field inside a popup is the field's, cancelling the rename; the next one closes the popup", () => {
+    const { closed } = watched();
+    const press = (target: FakeTarget): FakeKeyboardEvent => {
+        const domEvent = new FakeKeyboardEvent("Escape", target);
+
+        for (const listener of listeners.get("keydown") ?? [])
+            listener(domEvent as unknown as Event);
+
+        return domEvent;
+    };
+
+    assert.equal(press(new FakeTarget(true)).defaultPrevented, false);
+    assert.deepEqual(closed, []);
+
+    assert.equal(press(new FakeTarget(false)).defaultPrevented, true);
+    assert.deepEqual(closed, ["escape"]);
 });

@@ -104,11 +104,11 @@ function centreOf(rect: DOMRect): number {
     return rect.left + rect.width / 2;
 }
 
-/** Raises a row's own event on the component the row is — the wrapper when it is one, else the template's root inside it. */
-export function dispatchRowEvent(row: HTMLElement, name: string): void {
+/** Raises a row's own event on the component the row is — the wrapper when it is one, else the template's root inside it — carrying `detail` when given. */
+export function dispatchRowEvent(row: HTMLElement, name: string, detail?: unknown): void {
     const target = row.hasAttribute(ComponentIdAttribute) ? row : row.querySelector(`:scope > [${ComponentIdAttribute}]`) ?? row;
 
-    target.dispatchEvent(new Event(name, { bubbles: true }));
+    target.dispatchEvent(detail === undefined ? new Event(name, { bubbles: true }) : new CustomEvent(name, { bubbles: true, detail }));
 }
 
 /** Before a row is removed: a callback that moves the cursor and the focus off it once it is gone, or null if it held neither. */

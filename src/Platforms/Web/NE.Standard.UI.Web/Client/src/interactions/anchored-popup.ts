@@ -1,5 +1,6 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
+import { ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 
 export type AnchoredPopupPlacement =
@@ -21,7 +22,7 @@ export function isAnchoredPopupPlacement(token: string): token is AnchoredPopupP
 }
 
 export type AnchoredPopupOptions = {
-    /** Preferred side, not a demand — a side with no room flips to its opposite. */
+    /** Preferred side, not a demand — a side with no room flips to its opposite, and with room on neither, to a side across. */
     readonly placement: AnchoredPopupPlacement;
     /** Distance between anchor and popup along the main axis, in pixels. */
     readonly gap: number;
@@ -63,6 +64,24 @@ export function setAnchorStandIn(part: Element, standIn: Element | null): void {
         standIns.delete(part);
     else
         standIns.set(part, standIn);
+}
+
+// The ground a popup is painted in, which a raised surface sets one step above its own fill (`@ui-popup-ground`, `tokens.less`).
+const PopupGroundProperty = "--ui-popup-ground";
+
+/**
+ * Gives a popup that lives on the body (the tooltip, the strip's "…" list) the ground a popup inside its anchor's surface would
+ * have, since it inherits nothing from there; under another theme than the body's it keeps the page's, which its words are in.
+ */
+export function carryPopupGround(anchor: Element, popup: HTMLElement): void {
+    const ground = anchor.closest(`[${ThemeAttribute}]`) === popup.closest(`[${ThemeAttribute}]`)
+        ? getComputedStyle(anchor).getPropertyValue(PopupGroundProperty).trim()
+        : "";
+
+    if (ground.length === 0)
+        popup.style.removeProperty(PopupGroundProperty);
+    else
+        popup.style.setProperty(PopupGroundProperty, ground);
 }
 
 export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
@@ -259,16 +278,41 @@ function setArrowOffset(popup: HTMLElement, crossRect: DOMRect, popupRect: DOMRe
 
 function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, options: AnchoredPopupOptions): AnchoredPopupPlacement {
     const side = options.placement;
-    const wanted = mainAxisSpan(popupRect, side) + options.gap;
-
-    const available = sideSpace(anchorRect, side);
     const opposite = flip(side);
 
-    // A popup that fits nowhere keeps the side it asked for rather than flipping to an equally bad one.
-    if (available >= wanted || sideSpace(anchorRect, opposite) <= available)
+    if (fits(anchorRect, popupRect, side, options.gap))
         return side;
 
-    return opposite;
+    if (fits(anchorRect, popupRect, opposite, options.gap))
+        return opposite;
+
+    // Clamped into a window too short (or too narrow) for either side of its axis, the popup would cover its own anchor: beside it
+    // across the axis, it leaves the anchor in sight.
+    for (const across of acrossSides(side)) {
+        if (fits(anchorRect, popupRect, across, options.gap))
+            return across;
+    }
+
+    // A popup that fits nowhere keeps the side it asked for rather than flipping to an equally bad one.
+    return sideSpace(anchorRect, opposite) > sideSpace(anchorRect, side) ? opposite : side;
+}
+
+function fits(anchorRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): boolean {
+    return sideSpace(anchorRect, placement) >= mainAxisSpan(popupRect, placement) + gap;
+}
+
+/** The sides across a placement's axis, the reading direction's first, each aligned to run on the way the placement asked for. */
+function acrossSides(placement: AnchoredPopupPlacement): readonly AnchoredPopupPlacement[] {
+    if (placement.startsWith("bottom"))
+        return ["right-start", "left-start"];
+
+    if (placement.startsWith("top"))
+        return ["right-end", "left-end"];
+
+    if (placement.startsWith("right"))
+        return ["bottom-start", "top-start"];
+
+    return ["bottom-end", "top-end"];
 }
 
 function mainAxisSpan(popupRect: DOMRect, placement: AnchoredPopupPlacement): number {

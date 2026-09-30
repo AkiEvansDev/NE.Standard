@@ -25,9 +25,10 @@ WebStartupBuilder.Configure<TeamRoomWebStartup, TeamRoomStartup>(builder.Service
 
 WebApplication app = builder.Build();
 
-// The database and the first administrator exist before the first request is answered.
+// The database and the first administrator exist before the first request is answered: admin/admin in Development, and
+// elsewhere only with the password configured under AccountService.AdminPasswordSetting.
 app.Services.GetRequiredService<AppDatabase>().EnsureCreated();
-app.Services.GetRequiredService<AccountService>().Seed();
+app.Services.GetRequiredService<AccountService>().Seed(app.Environment.IsDevelopment(), app.Configuration[AccountService.AdminPasswordSetting]);
 
 if (app.Services.GetRequiredService<QuickSignIn>().Enabled)
     app.Services.GetRequiredService<AccountService>().SeedTestAccounts();

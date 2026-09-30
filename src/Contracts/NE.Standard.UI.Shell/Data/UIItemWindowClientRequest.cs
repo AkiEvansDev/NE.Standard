@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 
@@ -24,6 +26,7 @@ public sealed class UIItemWindowClientRequest
     /// <summary>
     /// Gets the dynamic parameters addressing the component instance, for a host inside a template.
     /// </summary>
+    [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
     public object?[] DynamicParameters { get; init; } = [];
 
     /// <summary>

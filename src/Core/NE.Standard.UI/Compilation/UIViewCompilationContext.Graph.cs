@@ -31,6 +31,7 @@ internal sealed partial class UIViewCompilationContext
 
         UIPropertyRegister.EnsureRegistered(component.GetType());
         ValidateSplitButton(component);
+        ValidateKeyValueEditing(component);
         AddComponentContent(component);
     }
 
@@ -45,6 +46,13 @@ internal sealed partial class UIViewCompilationContext
             if (string.Equals(uiEvent.Name, EventNames.Click, StringComparison.Ordinal))
                 throw new InvalidOperationException($"'{component.Id}' is a Menu-mode split button with its own click command, which would never run; register the command on the entries with OnItemClick.");
         }
+    }
+
+    // Editing makes the rows' one action the pencil, so a click of the author's would land on it: the edit or the command, never both.
+    private static void ValidateKeyValueEditing(IVisualComponent component)
+    {
+        if (component is IKeyValueActionComponent { Editable: true, HasActionClick: true })
+            throw new InvalidOperationException($"Key-value list '{component.Id}' edits its rows in place and has an action click command; the rows' action is then the edit pencil, which cannot be both. Drop OnActionClick, or pass the command to EnableEditing as its edit command.");
     }
 
     private void AddComponentContent(IVisualComponent component)
@@ -146,6 +154,7 @@ internal sealed partial class UIViewCompilationContext
                 ContextId = context.Context.Id,
                 ContextParameterCount = CompiledUIBindingParameterResolver.CountDynamic(context.Path.Parameters),
                 DefinesContextParameter = context.DefinesParameter,
+                IsContentTree = component.IsContentTree,
                 Slots = BuildSlots(component.Id),
                 Children = BuildChildren(component.Id)
             };

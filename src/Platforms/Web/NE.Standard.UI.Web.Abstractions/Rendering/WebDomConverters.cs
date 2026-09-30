@@ -26,6 +26,9 @@ public static class WebDomConverters
     public const string OrientationClass = "orientationClass";
     public const string GroupSeparatorClass = "groupSeparatorClass";
     public const string ItemsViewLayoutClass = "itemsViewLayoutClass";
+
+    /// <summary>Where a row's grip stands, as the root's modifier: <c>ui-drag-handle--start</c> or <c>--end</c>.</summary>
+    public const string DragHandlePlacementClass = "dragHandlePlacementClass";
     public const string ScrollXClass = "scrollXClass";
     public const string ScrollYClass = "scrollYClass";
     /// <summary>A horizontal scroll mode as the host's viewport: <c>parent</c> when the mode scrolls, nothing when it is disabled.</summary>

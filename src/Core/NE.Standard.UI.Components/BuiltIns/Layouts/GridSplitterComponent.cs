@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -33,7 +34,7 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
     /// <summary>
     /// Gets or sets how far an arrow key moves the boundary, in the platform's device-independent units.
     /// </summary>
-    [UIComponentProperty(DefaultValue = 16d)]
+    [UIComponentProperty(DefaultValue = 16d, GenerateSetter = false)]
     public double? Step { get; set; }
 
     /// <summary>
@@ -41,6 +42,18 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIThemeColor? Color { get; set; }
+
+    /// <summary>
+    /// Sets how far an arrow key moves the boundary, a finite distance greater than zero; unset, the default step.
+    /// </summary>
+    public T SetStep(double? step)
+    {
+        if (step is double value && (value <= 0 || !double.IsFinite(value)))
+            throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be a finite number greater than zero.");
+
+        Step = step;
+        return Self;
+    }
 }
 
 /// <summary>

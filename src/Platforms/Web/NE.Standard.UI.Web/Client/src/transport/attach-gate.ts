@@ -1,3 +1,11 @@
+/** A call the connection dropped under while SignalR reconnects: the server may or may not have taken it, and the next attach opens again. */
+export class ConnectionDropped extends Error {
+    public constructor(cause: unknown) {
+        super("the connection to the server dropped under the call; it is reconnecting.", { cause });
+        this.name = "ConnectionDropped";
+    }
+}
+
 /** What every hub call but the attach waits behind: open when attached, pending while reconnecting, failing every call once closed. */
 export class AttachGate {
     private gate: Promise<void>;

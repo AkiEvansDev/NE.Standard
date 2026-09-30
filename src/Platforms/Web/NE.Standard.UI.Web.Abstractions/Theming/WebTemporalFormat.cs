@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using NE.Standard.UI.Shell.Localization;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
@@ -44,11 +45,8 @@ public sealed record WebTemporalCulturePack(IReadOnlyList<string> MonthNames, IR
 /// </remarks>
 public static class WebTemporalFormat
 {
-    /// <summary>The supported tokens, longest first: matching is greedy, so "MMMM" must be listed before "MMM".</summary>
-    public static readonly string[] Tokens =
-    [
-        "MMMM", "dddd", "yyyy", "MMM", "ddd", "dd", "MM", "yy", "HH", "hh", "mm", "ss", "tt", "d", "M", "H", "h", "m", "s"
-    ];
+    /// <summary>The supported tokens, longest first: <see cref="UITemporalPattern.Tokens"/>, which the application's patterns are checked by.</summary>
+    public static readonly string[] Tokens = [.. UITemporalPattern.Tokens];
 
     /// <summary>Formats <paramref name="value"/>; a null or empty format returns the invariant round-trip form.</summary>
     public static string Format(DateTime value, string? format, WebTemporalCulturePack culture)
@@ -63,7 +61,7 @@ public static class WebTemporalFormat
 
         for (var index = 0; index < format.Length;)
         {
-            var token = MatchToken(format, index);
+            var token = UITemporalPattern.Match(format, index);
 
             if (token is null)
             {
@@ -87,7 +85,7 @@ public static class WebTemporalFormat
     {
         for (var index = 0; index < format.Length;)
         {
-            var token = MatchToken(format, index);
+            var token = UITemporalPattern.Match(format, index);
 
             if (token is null)
             {
@@ -102,19 +100,6 @@ public static class WebTemporalFormat
         }
 
         return false;
-    }
-
-    private static string? MatchToken(string format, int index)
-    {
-        for (var i = 0; i < Tokens.Length; i++)
-        {
-            var token = Tokens[i];
-
-            if (index + token.Length <= format.Length && string.CompareOrdinal(format, index, token, 0, token.Length) == 0)
-                return token;
-        }
-
-        return null;
     }
 
     private static string Render(string token, DateTime value, WebTemporalCulturePack culture, bool genitiveMonth)
@@ -144,5 +129,81 @@ public static class WebTemporalFormat
             "tt" => value.Hour < 12 ? culture.AmDesignator : culture.PmDesignator,
             _ => token
         };
+    }
+
+    /// <summary>
+    /// A field's placeholder for a format: each token written as its unit's letter, as many times as the token is long — a 12-hour
+    /// hour's in lower case — and the rest as it stands. <c>temporalPlaceholder</c> is the client's port.
+    /// </summary>
+    public static string Placeholder(string format, WebTemporalLetters letters)
+    {
+        ArgumentNullException.ThrowIfNull(format);
+        ArgumentNullException.ThrowIfNull(letters);
+
+        StringBuilder result = new(format.Length);
+
+        for (var index = 0; index < format.Length;)
+        {
+            var token = UITemporalPattern.Match(format, index);
+
+            if (token is null)
+            {
+                _ = result.Append(format[index]);
+                index++;
+                continue;
+            }
+
+            var letter = PlaceholderLetter(token, letters);
+
+            for (var i = 0; i < token.Length; i++)
+                _ = result.Append(letter);
+
+            index += token.Length;
+        }
+
+        return result.ToString();
+    }
+
+    private static string PlaceholderLetter(string token, WebTemporalLetters letters)
+        => token[0] switch
+        {
+            'y' => letters.Year,
+            'M' => letters.Month,
+            'd' => letters.Day,
+            'H' => letters.Hour,
+            'h' => letters.Hour.ToLowerInvariant(),
+            'm' => letters.Minute,
+            's' => letters.Second,
+            // The meridiem stays as it is written: its words are the culture's, not a letter's.
+            _ => token[..1]
+        };
+}
+
+/// <summary>What a format's letters read as in a field's placeholder, one per unit: <c>dd.MM.yyyy</c> shown as <c>дд.ММ.гггг</c>.</summary>
+public sealed record WebTemporalLetters(string Year, string Month, string Day, string Hour, string Minute, string Second)
+{
+    /// <summary>The letters the format itself is written in: a placeholder that reads as the format.</summary>
+    public static WebTemporalLetters Invariant { get; } = new("y", "M", "d", "H", "m", "s");
+
+    /// <summary>The letters in the page's words (<c>ui.picker.letter.*</c>); a word that comes back empty keeps the format's letter.</summary>
+    public static WebTemporalLetters FromWords(Func<string, string> translate)
+    {
+        ArgumentNullException.ThrowIfNull(translate);
+
+        return new(
+            Letter(translate, UIStrings.PickerLetterYear, Invariant.Year),
+            Letter(translate, UIStrings.PickerLetterMonth, Invariant.Month),
+            Letter(translate, UIStrings.PickerLetterDay, Invariant.Day),
+            Letter(translate, UIStrings.PickerLetterHour, Invariant.Hour),
+            Letter(translate, UIStrings.PickerLetterMinute, Invariant.Minute),
+            Letter(translate, UIStrings.PickerLetterSecond, Invariant.Second)
+        );
+    }
+
+    private static string Letter(Func<string, string> translate, string key, string fallback)
+    {
+        var letter = translate(key);
+
+        return string.IsNullOrWhiteSpace(letter) ? fallback : letter;
     }
 }

@@ -6,7 +6,12 @@ using System.Threading.Tasks;
 namespace NE.Standard.UI.Shell.Sessions;
 
 /// <summary>Stores user sessions between requests.</summary>
-/// <remarks>The shipped implementation keeps sessions in memory, which is wrong once there is more than one process.</remarks>
+/// <remarks>
+/// A session id is SHA-256 of the secret the client carries (<see cref="UISessionSecret"/>), and not a credential: a store keeps and
+/// returns ids as they are, and one leaked from it opens no session. The shipped implementation keeps sessions in memory
+/// (<c>UserSessionMemoryStore</c>), which is wrong once there is more than one process; <c>UserSessionSplitStore</c> keeps
+/// anonymous sessions there and signed-in ones in an application's own store.
+/// </remarks>
 public interface IUserSessionStore
 {
     /// <summary>

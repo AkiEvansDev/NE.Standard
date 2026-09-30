@@ -20,7 +20,7 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     protected override string HeaderDescription => "demo.inputs.date-time-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup()], [CreateFormatGroup(), CreateAgainstNarrowerGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup(), CreateLanguageGroup()], [CreateFormatGroup(), CreateAgainstNarrowerGroup()]));
 
     /// <summary>
     /// The jobs it is given: a scheduled moment, and the two ends of a window that may cross midnight.
@@ -56,19 +56,19 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
     }
 
     /// <summary>
-    /// The format carries both halves at once; unset, the culture's short date and short time.
+    /// The format carries both halves at once; unset, the framework's own <c>yyyy-MM-dd HH:mm</c>.
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
         return DemoUI.CreateExample("How it is written down",
             UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
-                    .SetTitle("Unset — the culture's short date and time")
+                    .SetTitle("Unset — yyyy-MM-dd HH:mm")
                     .SetValue(Cutover)
                 )
                 .AddChild(new DateTimeInputComponent()
-                    .SetTitle("yyyy-MM-dd HH:mm")
-                    .SetDisplayFormat("yyyy-MM-dd HH:mm")
+                    .SetTitle("dd.MM.yyyy HH:mm")
+                    .SetDisplayFormat("dd.MM.yyyy HH:mm")
                     .SetValue(Cutover)
                 )
                 .AddChild(new DateTimeInputComponent()
@@ -136,6 +136,27 @@ internal sealed class DateTimeInputExamplesView : DemoExamplesView, IUIViewDefin
                     .SetStepMinutes(15)
                 )
                 .AddChild(UIText.Note("**Split them** while the two answers are independent — a birthday and a reminder time. **Keep them together** when one is meaningless without the other, or when the window runs past midnight."))
+        );
+    }
+
+    /// <summary>
+    /// With no <c>DisplayFormat</c> the field writes the framework's own pattern in the page's letters and names, drawn again when the
+    /// language changes; a <c>Culture</c> pins a culture, and its pattern with it.
+    /// </summary>
+    private static ContainerComponent CreateLanguageGroup()
+    {
+        return DemoUI.CreateExample("In the page's language",
+            UILayout.Stack(16)
+                .AddChild(new DateTimeInputComponent()
+                    .SetTitle("Unset — yyyy-MM-dd HH:mm in the page's words")
+                    .SetValue(Cutover)
+                )
+                .AddChild(new DateTimeInputComponent()
+                    .SetTitle("Culture en-US — its own M/d/yyyy h:mm tt")
+                    .SetCulture("en-US")
+                    .SetValue(Cutover)
+                ),
+            note: "Switch the language in the header: the first field keeps the framework's `yyyy-MM-dd HH:mm` on a 24-hour clock and is drawn again with its placeholder in the new language's letters (`дд.ММ.гггг чч:мм` in Russian) and its picker's names in its words; the second names `en-US`, so it shows that culture's `M/d/yyyy h:mm tt` whatever the page speaks. `ConfigureTemporal(o => o.FollowCulture = true)` would give every field its language's own pattern, and `HourCycle` one clock for all; this demo leaves both unset."
         );
     }
 }

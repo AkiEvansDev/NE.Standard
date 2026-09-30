@@ -32,7 +32,7 @@ import type { DomOperationContext, DomOperationRegistration } from "../updates/d
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
 import type { ClientWords } from "./client-strings";
 import type { NEStandardUIGlobalApi, WebUIPluginEventRegistration } from "./global-api";
-import type { Badges, Icons, PluginEngineContext, PropertyWriting } from "./web-ui-runtime";
+import type { Badges, Icons, PluginEngineContext, PropertyWriting, Urls } from "./web-ui-runtime";
 
 type Assignable<TFrom extends TTo, TTo> = TFrom extends TTo ? true : never;
 
@@ -52,6 +52,7 @@ export type HandedOut = [
     Assignable<typeof temporalFormatting, Contract.TemporalFormatting>,
     Assignable<Icons, Contract.Icons>,
     Assignable<Badges, Contract.Badges>,
+    Assignable<Urls, Contract.Urls>,
     Assignable<ValueReading, Contract.ValueReading>,
     Assignable<PropertyWriting, Contract.PropertyWriting>,
     Assignable<ItemWindows, Contract.ItemWindows>,

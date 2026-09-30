@@ -106,6 +106,10 @@ public sealed class UIRouteDefinitionBuilder
     /// <summary>
     /// Adds an access rule that must be satisfied before the route can be resolved.
     /// </summary>
+    /// <remarks>
+    /// Replaces the rules the view's and controller's attributes carry, and closes the route to an anonymous session whatever the
+    /// default policy says; only an explicit <see cref="AllowAnonymous"/> on the route opens it again, rules and all.
+    /// </remarks>
     public UIRouteDefinitionBuilder Require(UIAccessRule rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
@@ -173,7 +177,7 @@ public sealed class UIRouteDefinitionBuilder
         return this;
     }
 
-    internal UIRouteEntry Build(IServiceProvider services, UISecurityOptions security)
+    internal UIRouteEntry Build(IServiceProvider services, UISecurityOptions security, Action<CompiledView, Type>? compiled = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -183,7 +187,7 @@ public sealed class UIRouteDefinitionBuilder
 
         UIViewCompilationMode viewMode = _viewCompilationMode ?? defaults.ViewCompilationMode;
 
-        UIViewFactory viewFactory = new(services, _viewType, _factory, _controllerType);
+        UIViewFactory viewFactory = new(services, _viewType, _factory, _controllerType, compiled);
 
         Func<CompiledView> getView = CreateViewGetter(viewMode, viewFactory);
 
@@ -195,7 +199,8 @@ public sealed class UIRouteDefinitionBuilder
 
             IdentityParameters = _identityParameters ?? [],
 
-            AllowAnonymous = _allowAnonymous ?? defaults.AllowAnonymous,
+            // A rule the route requires closes it, whatever the attributes or the default policy say: an open route never reads its rules.
+            AllowAnonymous = _allowAnonymous ?? (_accessRules is null && defaults.AllowAnonymous),
             AccessRules = _accessRules is null ? defaults.AccessRules : [.. _accessRules],
             ViewFilters = defaults.ViewFilters,
 

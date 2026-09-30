@@ -70,8 +70,9 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     }
 
     /// <summary>
-    /// This demo's own pages in sections that open and close, on a rail that folds to its icons. The entries are the controller's,
-    /// and a section added live is a row the client builds, its sub-entries included.
+    /// This demo's own pages in sections that open and close, on a rail that folds to its icons, with a box over them that narrows
+    /// the entries as the reader types. The entries are the controller's, and a section added live is a row the client builds, its
+    /// sub-entries included.
     /// </summary>
     private static ContainerComponent CreateSidebarGroup()
     {
@@ -81,9 +82,11 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(new MenuComponent(SidebarId)
                     .SetShowCollapseToggle(true)
+                    .SetSearch()
                     .SetMinWidth(UILayoutLength.Absolute(200))
                     .BindItems(nameof(SidebarGroupContext.Entries), UIBindingScope.Relative)
                 ),
+            note: "Type into the box: a section stays while any of its entries matches, and opens to show it. Type what no entry holds and the menu says \"Nothing to show.\", the framework's own line, in the page's language.",
             context: SidebarGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {

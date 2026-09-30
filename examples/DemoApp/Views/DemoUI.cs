@@ -46,6 +46,7 @@ internal static class DemoUI
         [
             ("/contents/text", "demo.nav.contents.text"),
             ("/contents/paragraph", "demo.nav.contents.paragraph"),
+            ("/contents/timestamp", "demo.nav.contents.timestamp"),
             ("/contents/link", "demo.nav.contents.link"),
             ("/contents/icon", "demo.nav.contents.icon"),
             ("/contents/image", "demo.nav.contents.image"),
@@ -138,6 +139,7 @@ internal static class DemoUI
         ["/indicators/spinner"] = DemoViewKind.Main,
         ["/contents/text"] = DemoViewKind.Main,
         ["/contents/paragraph"] = DemoViewKind.Main,
+        ["/contents/timestamp"] = DemoViewKind.Main,
         ["/items/key-value-action"] = DemoViewKind.Main,
         ["/layouts/container"] = DemoViewKind.Main,
         ["/layouts/surface"] = DemoViewKind.Main,
@@ -380,7 +382,9 @@ internal static class DemoUI
         // No outline of its own: the preview and the options list each draw their own. No inline padding either, so a group's
         // content starts at the page's own edge, under its heading and tab strip; the page's wrap keeps the groups apart.
         // The title row is as tall as the code button, so a group with the button starts its content where one without it does.
+        // A sample, its title and its note are the author's prose and API names, shown as written: content for the unkeyed report.
         ContainerComponent group = new ContainerComponent()
+            .AsContentTree()
             .SetPadding(UIThickness.All(0, 12, 0, 12))
             .SetRow(1, UIGridUnit.Auto(min: 24))
             .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, columns, 1));

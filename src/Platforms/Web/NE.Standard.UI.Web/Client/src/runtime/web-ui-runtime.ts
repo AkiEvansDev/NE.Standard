@@ -20,8 +20,10 @@ import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
 import { SearchInputEngine } from "../interactions/search-input-engine";
 import { DebouncedCommitEngine } from "../interactions/debounced-commit-engine";
+import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
 import { RangeValueEngine } from "../interactions/range-value-engine";
 import { NumberInputEngine } from "../interactions/number-input-engine";
+import { ItemMoveEvent, ItemsReorderEngine } from "../interactions/items-reorder-engine";
 import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
 import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine";
@@ -44,6 +46,7 @@ import { TreeEngine } from "../interactions/tree-engine";
 import { TabMenuEntryEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
+import { TimestampEngine } from "../interactions/timestamp-engine";
 import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
 import { PressRippleEngine } from "../interactions/press-ripple-engine";
@@ -68,6 +71,8 @@ import {
 } from "../metadata/metadata-index";
 import { readWebUIMetadata } from "../metadata/metadata-reader";
 import { readHydration } from "./web-hydration";
+import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
+import { readTimeZone } from "../transport/reader-time-zone";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { PropertyStateStore } from "../state/property-state-store";
 import { SignalRTransport } from "../transport/signalr-transport";
@@ -85,15 +90,18 @@ import { FieldValidation, ValidationEngine } from "../interactions/validation-en
 import { ValueBindingEngine } from "../updates/value-binding-engine";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
+import { RowGripDecorator } from "../items/row-grip";
 import { observeSize } from "../interactions/element-size";
 import { applyIconValue } from "../rendering/icon-value";
 import { writeBadgeCount } from "../rendering/web-dom-converters";
 import { numberFormatting } from "../rendering/number-format";
 import { temporalFormatting } from "../rendering/temporal-format";
+import { applyPageCultures } from "../rendering/page-culture";
+import { asBrowserReads, isImageSource } from "../rendering/url-safety";
 import { ClientStore } from "../state/client-store";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
 import { ValueConverterRegistration } from "../extensions/converters";
-import { ValueReaderRegistration, ValueReading } from "../extensions/value-readers";
+import { resolveValueHolder, ValueReaderRegistration, ValueReading } from "../extensions/value-readers";
 import { nameOfPackageEngine, startEngine } from "./engine-start";
 import { exposeGlobalApi } from "./global-api";
 import { formatMilliseconds, logDebug, logElapsed, logError, logWarn } from "./logger";
@@ -124,6 +132,12 @@ export type Badges = {
     writeCount(badge: Element, count: number): void;
 };
 
+/** Addresses judged by the framework's own rule, read as the browser reads them, so a package draws a picture from no other. */
+export type Urls = {
+    isImageSource(address: string): boolean;
+    asBrowserReads(address: string): string;
+};
+
 /** What a package's engine starts from: a built-in engine's services, plus what it cannot import from its own bundle. */
 export type PluginEngineContext = EngineContext & {
     readonly strings: ClientWords;
@@ -135,6 +149,7 @@ export type PluginEngineContext = EngineContext & {
     readonly temporal: typeof temporalFormatting;
     readonly icons: Icons;
     readonly badges: Badges;
+    readonly urls: Urls;
     readonly values: ValueReading;
     readonly properties: PropertyWriting;
     readonly windows: ItemWindows;
@@ -173,14 +188,16 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["select interaction", ({ root }) => new SelectInteractionEngine({ root })],
     ["search input", ({ root }) => new SearchInputEngine({ root })],
     ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
+    // Only where the stylesheet cannot size a growing text area to its text on its own.
+    ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
     ["items selection", ({ root }) => new ItemsSelectionEngine({ root })],
     ["range value", ({ root, propertyPatchEngine, dom }) => new RangeValueEngine({ root, propertyPatchEngine, dom })],
-    ["number input", ({ root, propertyPatchEngine }) => new NumberInputEngine({ root, propertyPatchEngine })],
     ["color input", ({ root, propertyPatchEngine, dom }) => new ColorInputEngine({ root, propertyPatchEngine, dom })],
     ["temporal picker", ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine })],
     ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
     ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
     ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
+    ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine })],
     ["context menu", ({ root }) => new ContextMenuEngine({ root })],
     ["split button", ({ root }) => new SplitButtonEngine({ root })],
     ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
@@ -211,6 +228,8 @@ export class WebUIRuntime {
 
     private readonly options: WebUIRuntimeOptions;
     private readonly root: ParentNode;
+    // The language the page's culture packs were last written in: the render's, until a switch writes them again.
+    private culturesLanguage = document.documentElement.lang;
     private readonly metadata = new MetadataIndex(readWebUIMetadata());
     private readonly hydration = readHydration();
     private readonly dom: DomRegistry;
@@ -247,6 +266,9 @@ export class WebUIRuntime {
     // Bumped by every language switch, so one that began later wins over one still waiting on the server.
     private languageSwitches = 0;
 
+    // Null only when its start threw: a number field is then read as the text it shows.
+    private numberInputs: NumberInputEngine | null = null;
+
     public constructor(options: WebUIRuntimeOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
@@ -265,6 +287,7 @@ export class WebUIRuntime {
 
         this.extensions = new ExtensionRegistry(options.converters, options.eventDefinitions, options.domOperations, options.valueReaders);
         this.extensions.registerRowDecorator(MenuRowDecorator);
+        this.extensions.registerRowDecorator(RowGripDecorator);
         const addressResolver = new AddressResolver(this.dom, this.metadata);
         const operations = this.extensions.operations;
         const propertyState = new PropertyStateStore();
@@ -336,7 +359,7 @@ export class WebUIRuntime {
         });
 
         // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts).
-        this.transport = new SignalRTransport(this.windowId, changes => this.applyChanges(changes), options.signalR);
+        this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before), options.signalR);
         this.dispatcher = new CommandDispatcher(this.transport);
 
         // A key the table lacks is asked about once per language — a translator that cannot list every word, or a missing word reported.
@@ -393,8 +416,16 @@ export class WebUIRuntime {
         for (const [name, start] of ComponentEngines)
             startEngine(name, start, this.engineContext);
 
+        // Apart from the list: the plugin surface reads a number field's invariant value off this engine.
+        startEngine("number input", ({ root, propertyPatchEngine }) => {
+            this.numberInputs = new NumberInputEngine({ root, propertyPatchEngine });
+        }, this.engineContext);
+
         // Apart from the list: a tree's filter and sort run in its own walk, which needs the rules and the rows' values.
         startEngine("tree", ({ root, effects }) => new TreeEngine({ root, effects, rules: { metadata: this.metadata, state: propertyState, renderer: itemsRenderer } }), this.engineContext);
+
+        // Apart from the list: whether a sort orders a host is the rules', and a virtualized host's order its values'.
+        startEngine("items reorder", ({ root }) => new ItemsReorderEngine({ root, services: { metadata: this.metadata, state: propertyState, keysOf: host => this.virtualization.keysOf(host) } }), this.engineContext);
 
         this.eventPipeline = new EventPipeline({
             root: this.root,
@@ -416,6 +447,8 @@ export class WebUIRuntime {
 
         // After them, since each is added bare: the tab menu's entry names its own keys, the entry and the tab, as a package's event does.
         this.eventPipeline.addEvent(TabMenuEntryEvent.name, TabMenuEntryEvent.registration);
+        // A row's move carries the index it takes after its keys; a tree's carries none and keeps its chain.
+        this.eventPipeline.addEvent(ItemMoveEvent.name, ItemMoveEvent.registration);
 
         // Held by name, since a package's chooser reaches it through the engine context.
         this.tables = new TableColumnsEngine({ root: this.root });
@@ -438,8 +471,9 @@ export class WebUIRuntime {
             temporal: temporalFormatting,
             icons: { apply: applyIconValue },
             badges: { writeCount: writeBadgeCount },
+            urls: { isImageSource, asBrowserReads },
             values: {
-                read: element => this.extensions.valueReaders.readHeld(element),
+                read: element => this.readPluginValue(element),
                 hold: element => valueBinding?.hold(element),
                 release: element => {
                     if (valueBinding?.release(element) === true)
@@ -527,6 +561,16 @@ export class WebUIRuntime {
         });
     }
 
+    /** A value as a package reads it: what the binding would send, so a number field answers its invariant text, not its culture's. */
+    private readPluginValue(element: Element): unknown {
+        const holder = resolveValueHolder(element);
+
+        if (holder === null)
+            return null;
+
+        return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.read(holder);
+    }
+
     /** Switches the page's language in place: the session told unless the server named the words, the table fetched, every word rewritten. */
     private async switchLanguageAsync(language: string, stored: string | null): Promise<void> {
         // Weighed against the switch under way, not against the language still shown.
@@ -571,6 +615,12 @@ export class WebUIRuntime {
 
         // A package may have put parts on the page meanwhile (a grid's open detail) that the index has not seen.
         this.dom.invalidate();
+
+        // First: the packs are what a number field and a package's cells draw again by, as they hear the change.
+        if (clientStrings.language !== this.culturesLanguage) {
+            this.culturesLanguage = clientStrings.language;
+            forEachSubtree(this.root, subtree => applyPageCultures(subtree, clientStrings.number, clientStrings.temporal));
+        }
         // Later over earlier: a row's own words last.
         clientStrings.rewriteMarks(this.root);
         this.rewriteStaticWords(propertyPatchEngine);
@@ -778,15 +828,23 @@ export class WebUIRuntime {
         startEngine(nameOfPackageEngine(start), start, this.pluginContext);
     }
 
-    /** Applies a change set; one naming a value staged beside the hub waits for its fetch, and every later set waits in turn, in order. */
-    private applyChanges(changes: ServerChangeSet | undefined): void | Promise<void> {
+    /**
+     * Applies a change set; one naming a value staged beside the hub waits for its fetch, and every later set waits in turn, in order.
+     * `before` runs in the set's turn: a value's answer lets its field go only once what arrived ahead of it (an attach's snapshot) is in.
+     */
+    private applyChanges(changes: ServerChangeSet | undefined, before?: () => void): void | Promise<void> {
         if (this.inbound === null && !hasStagedValues(changes)) {
+            before?.();
             this.applyNow(changes);
             return;
         }
 
         const applied = (this.inbound ?? Promise.resolve())
-            .then(() => fetchStagedValuesAsync(changes))
+            .then(() => {
+                before?.();
+
+                return fetchStagedValuesAsync(changes);
+            })
             .then(resolved => this.applyNow(resolved))
             .catch(error => {
                 // A value that could not be fetched leaves the page behind the server: it attaches again, as after a dropped connection.
@@ -858,6 +916,10 @@ export class WebUIRuntime {
                 return false;
             }
 
+            // The connection dropped again meanwhile: its reconnect attaches, and the page is not given up.
+            if (result === LeftToReconnect)
+                return false;
+
             if (result.reload === true) {
                 this.reloadForView(this.hydration?.view ?? "");
                 return false;
@@ -918,7 +980,7 @@ export class WebUIRuntime {
     }
 
     /** Retries a failed attach with a growing backoff, so a hub call throwing on a live socket needs no reload; null once all failed. */
-    private async attachWithRetryAsync(): Promise<WebUIAttachResult | null> {
+    private async attachWithRetryAsync(): Promise<AttachOutcome<WebUIAttachResult>> {
         // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
         const standIn = readStandInNavigation();
         const request: WebUIAttachRequest = {
@@ -927,23 +989,11 @@ export class WebUIRuntime {
             // Presenting the runtime the render prepared claims it rather than building a second one.
             pageId: this.hydration?.pageId ?? null,
             view: this.hydration?.view ?? null,
-            parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search)
+            parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search),
+            timeZone: readTimeZone()
         };
 
-        for (let attempt = 0; ; attempt++) {
-            try {
-                return await this.transport.attachAsync(request);
-            }
-            catch (error) {
-                if (attempt >= AttachRetryDelaysMilliseconds.length) {
-                    logError("attaching the runtime failed after retrying; giving up.", error);
-                    return null;
-                }
-
-                logWarn("attaching the runtime failed; retrying.", { attempt: attempt + 1, error });
-                await delay(AttachRetryDelaysMilliseconds[attempt]);
-            }
-        }
+        return await attachWithRetryAsync(() => this.transport.attachAsync(request), () => this.transport.isReconnecting, AttachRetryDelaysMilliseconds, delay);
     }
 }
 

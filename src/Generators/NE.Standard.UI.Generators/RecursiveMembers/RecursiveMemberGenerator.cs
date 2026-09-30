@@ -195,7 +195,13 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         _ = builder
             .Append("    ")
             .Append(model.PropertyAccessibility)
-            .Append(" partial ")
+            .Append(' ');
+
+        if (model.PropertyModifiers.Length != 0)
+            _ = builder.Append(model.PropertyModifiers).Append(' ');
+
+        _ = builder
+            .Append("partial ")
             .Append(model.Type)
             .Append(' ')
             .Append(propertyName)

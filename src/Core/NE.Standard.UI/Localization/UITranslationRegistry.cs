@@ -12,12 +12,21 @@ internal sealed class UITranslationRegistry : ITranslator
     /// <summary>The framework's own prefix, a key under any <see cref="UILocalizationOptions.KeyPrefixes"/>.</summary>
     internal const string FrameworkPrefix = "ui.";
 
+    /// <summary>The language the framework's own words are written in: its table is <see cref="_floor"/>.</summary>
+    internal const string FrameworkLanguage = "en";
+
     private readonly ITranslationSource[] _sources;
     private readonly string[] _languages;
     private readonly FrozenSet<string> _listedLanguages;
 
     /// <summary>The English every word falls back to: the framework's and each package's, one table.</summary>
     private readonly FrozenDictionary<string, string> _floor;
+
+    /// <summary>
+    /// The framework's and the packages' own words by language, below the application's in that language: English, and each shipped
+    /// language the application opted into.
+    /// </summary>
+    private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _framework;
 
     /// <summary>What a plain string must start with to be a key; empty when any string is one.</summary>
     private readonly string[] _keyPrefixes;
@@ -27,7 +36,7 @@ internal sealed class UITranslationRegistry : ITranslator
     // Held per listed language only, so a language no source names cannot grow it.
     private readonly ConcurrentDictionary<string, UIWordTable> _tables = new(StringComparer.Ordinal);
 
-    public UITranslationRegistry(string defaultLanguage = "en", IReadOnlyList<ITranslationSource>? sources = null, IReadOnlyList<IUIStringsSource>? packages = null, IReadOnlyList<string>? keyPrefixes = null, UIMissingWords? missing = null)
+    public UITranslationRegistry(string defaultLanguage = "en", IReadOnlyList<ITranslationSource>? sources = null, IReadOnlyList<IUIStringsSource>? packages = null, IReadOnlyList<string>? keyPrefixes = null, UIMissingWords? missing = null, IReadOnlyList<string>? frameworkLanguages = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(defaultLanguage);
 
@@ -40,7 +49,8 @@ internal sealed class UITranslationRegistry : ITranslator
         _languages = BuildLanguages(defaultLanguage, _sources);
         _listedLanguages = _languages.ToFrozenSet(StringComparer.Ordinal);
         _floor = UIStrings.List(packages);
-        _keyPrefixes = BuildKeyPrefixes(keyPrefixes);
+        _framework = BuildFramework(_floor, packages, frameworkLanguages);
+        _keyPrefixes = UIKeyPrefixes.Build(keyPrefixes);
         _missing = missing;
     }
 
@@ -68,20 +78,39 @@ internal sealed class UITranslationRegistry : ITranslator
         return [.. languages];
     }
 
-    private static string[] BuildKeyPrefixes(IReadOnlyList<string>? keyPrefixes)
+    /// <summary>
+    /// The framework's words for English and for each language asked: the core's (<see cref="UIStrings.Translations"/>) and every
+    /// package's in it.
+    /// </summary>
+    /// <exception cref="ArgumentException">Neither the framework nor any package ships a language asked.</exception>
+    /// <exception cref="InvalidOperationException">Two sources translate one key.</exception>
+    private static FrozenDictionary<string, FrozenDictionary<string, string>> BuildFramework(FrozenDictionary<string, string> floor, IReadOnlyList<IUIStringsSource>? packages, IReadOnlyList<string>? languages)
     {
-        if (keyPrefixes is null || keyPrefixes.Count == 0)
-            return [];
-
-        HashSet<string> prefixes = new(StringComparer.Ordinal) { FrameworkPrefix };
-
-        for (var i = 0; i < keyPrefixes.Count; i++)
+        Dictionary<string, FrozenDictionary<string, string>> tables = new(StringComparer.Ordinal)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(keyPrefixes[i]);
-            _ = prefixes.Add(keyPrefixes[i]);
+            [FrameworkLanguage] = floor
+        };
+
+        if (languages is null)
+            return tables.ToFrozenDictionary(StringComparer.Ordinal);
+
+        for (var i = 0; i < languages.Count; i++)
+        {
+            var language = languages[i];
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(language, nameof(languages));
+
+            if (tables.ContainsKey(language))
+                continue;
+
+            FrozenDictionary<string, string> words = UIStrings.List(language, packages);
+
+            tables[language] = words.Count > 0
+                ? words
+                : throw new ArgumentException($"Neither the framework nor a registered package ships words in '{language}'.", nameof(languages));
         }
 
-        return [.. prefixes];
+        return tables.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     /// <inheritdoc />
@@ -104,15 +133,16 @@ internal sealed class UITranslationRegistry : ITranslator
 
     /// <inheritdoc />
     /// <remarks>
-    /// The requested language, then the default language, then the framework's own English (<see cref="UIStrings"/>); the value itself
-    /// when none of them has it, or at once when prefixes are configured and the value starts with none of them.
+    /// The requested language — the application's words, then the framework's — then the default language the same way, then the
+    /// framework's own English (<see cref="UIStrings"/>); the value itself when none of them has it, or at once when prefixes are
+    /// configured and the value starts with none of them.
     /// </remarks>
     public string? Translate(string language, string? key)
     {
         if (string.IsNullOrWhiteSpace(key))
             return key;
 
-        if (_keyPrefixes.Length > 0 && !HasKeyPrefix(key))
+        if (_keyPrefixes.Length > 0 && !UIKeyPrefixes.IsKey(key, _keyPrefixes))
             return key;
 
         var effectiveLanguage = EffectiveLanguage(language);
@@ -130,34 +160,27 @@ internal sealed class UITranslationRegistry : ITranslator
         return key;
     }
 
-    private bool HasKeyPrefix(string key)
-    {
-        for (var i = 0; i < _keyPrefixes.Length; i++)
-        {
-            if (key.StartsWith(_keyPrefixes[i], StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
-    }
-
     private string EffectiveLanguage(string language)
         => string.IsNullOrWhiteSpace(language) ? DefaultLanguage : language;
 
     /// <summary>
-    /// The language asked, then the default language, then the English floor; <paramref name="inLanguage"/> says whether the
-    /// language asked had it.
+    /// The language asked, then the default language — in each the application's words over the framework's — then the English
+    /// floor; <paramref name="inLanguage"/> says whether the language asked had it.
     /// </summary>
+    /// <remarks>
+    /// The framework's words in the language asked outrank the application's in the default one: an English page of a Russian
+    /// application reads the framework's English, not the Russian its table holds for the default language.
+    /// </remarks>
     private bool TryLookup(string language, string key, [NotNullWhen(true)] out string? value, out bool inLanguage)
     {
         inLanguage = true;
 
-        if (TryTranslateInSources(language, key, out value))
+        if (TryTranslateIn(language, key, out value))
             return true;
 
         inLanguage = false;
 
-        if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal) && TryTranslateInSources(DefaultLanguage, key, out value))
+        if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal) && TryTranslateIn(DefaultLanguage, key, out value))
             return true;
 
         // Last, whatever the language: a framework or package word an application has not translated still reads, and the
@@ -165,13 +188,17 @@ internal sealed class UITranslationRegistry : ITranslator
         return _floor.TryGetValue(key, out value);
     }
 
-    private bool TryTranslateInSources(string language, string key, [NotNullWhen(true)] out string? value)
+    /// <summary>The application's sources in one language, later ones first, then the framework's words in it.</summary>
+    private bool TryTranslateIn(string language, string key, [NotNullWhen(true)] out string? value)
     {
         for (var i = _sources.Length - 1; i >= 0; i--)
         {
             if (_sources[i].TryTranslate(language, key, out value))
                 return true;
         }
+
+        if (_framework.TryGetValue(language, out FrozenDictionary<string, string>? shipped))
+            return shipped.TryGetValue(key, out value);
 
         value = null;
         return false;
@@ -186,7 +213,7 @@ internal sealed class UITranslationRegistry : ITranslator
         if (_missing is null)
             return;
 
-        if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal) || (fellToKey && _keyPrefixes.Length > 0 && HasKeyPrefix(key)))
+        if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal) || (fellToKey && _keyPrefixes.Length > 0 && UIKeyPrefixes.IsKey(key, _keyPrefixes)))
             _missing.Record(language, key);
     }
 
@@ -242,7 +269,8 @@ internal sealed class UITranslationRegistry : ITranslator
 
     /// <summary>
     /// The words for <paramref name="language"/> exactly as <see cref="Translate(string, string?)"/> answers them: the English
-    /// floor, the default language's words over it, the language's own over those; complete when every source could list.
+    /// floor, the default language's words over it, the language's own over those — in each the framework's, then the
+    /// application's; complete when every source could list.
     /// </summary>
     public UIWordTable ListWords(string language)
     {
@@ -283,12 +311,21 @@ internal sealed class UITranslationRegistry : ITranslator
     }
 
     /// <summary>
-    /// Lays each source's words for a language over <paramref name="words"/>, later sources winning as they do in a lookup;
-    /// answers whether every source could list.
+    /// Lays the framework's words for a language over <paramref name="words"/>, then each source's, later sources winning as they
+    /// do in a lookup; answers whether every source could list.
     /// </summary>
     private bool Overlay(Dictionary<string, string> words, string language, HashSet<string>? own)
     {
         var complete = true;
+
+        if (_framework.TryGetValue(language, out FrozenDictionary<string, string>? shipped))
+        {
+            foreach (KeyValuePair<string, string> word in shipped)
+            {
+                words[word.Key] = word.Value;
+                _ = own?.Add(word.Key);
+            }
+        }
 
         for (var i = 0; i < _sources.Length; i++)
         {

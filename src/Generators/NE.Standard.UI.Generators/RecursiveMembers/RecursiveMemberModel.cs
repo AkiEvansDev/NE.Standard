@@ -13,7 +13,7 @@ internal sealed record RecursiveOwnerModel(GeneratedTypeModel Declaration, strin
 /// <summary>
 /// One <c>[RecursiveMember]</c> property, with every string the emitter writes and the diagnostics its validation reported.
 /// </summary>
-internal sealed record RecursiveMemberModel(RecursiveOwnerModel Owner, string Name, string Type, string PatternType, bool IsNullable, bool CanHoldRecursiveObservable, bool CanSet, bool Generate, string PropertyAccessibility, string GetterAccessibility, string SetterAccessibility, EquatableArray<DiagnosticInfo> Diagnostics)
+internal sealed record RecursiveMemberModel(RecursiveOwnerModel Owner, string Name, string Type, string PatternType, bool IsNullable, bool CanHoldRecursiveObservable, bool CanSet, bool Generate, string PropertyAccessibility, string PropertyModifiers, string GetterAccessibility, string SetterAccessibility, EquatableArray<DiagnosticInfo> Diagnostics)
 {
     /// <summary>Whether validation refused the member; every diagnostic it reports is an error.</summary>
     public bool HasErrors

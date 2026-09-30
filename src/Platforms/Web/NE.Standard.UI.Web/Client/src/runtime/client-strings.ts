@@ -3,6 +3,8 @@ import { WordsAttribute } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
 import { hasKeyPrefix, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
+import type { TemporalLanguage } from "../rendering/temporal-format.ts";
+import type { NumberCulturePack } from "../rendering/number-format.ts";
 
 // The keys are UIStrings on the server, which also holds the English text; the page carries them resolved for its language.
 export type ClientStringKey =
@@ -18,6 +20,12 @@ export type ClientStringKey =
     | "ui.picker.meridiem"
     | "ui.picker.start"
     | "ui.picker.end"
+    | "ui.picker.letter.year"
+    | "ui.picker.letter.month"
+    | "ui.picker.letter.day"
+    | "ui.picker.letter.hour"
+    | "ui.picker.letter.minute"
+    | "ui.picker.letter.second"
     | "ui.notification.close"
     | "ui.file.uploading"
     | "ui.file.count"
@@ -27,6 +35,7 @@ export type ClientStringKey =
     | "ui.image.change"
     | "ui.image.remove"
     | "ui.select.remove"
+    | "ui.row.drag"
     | "ui.tree.loading"
     | "ui.connection.lost"
     | "ui.connection.reload";
@@ -41,6 +50,10 @@ export type WordsTable = {
     // Missing words are reported: a prefixed key the table lacks is asked about even from a complete table.
     readonly report?: boolean;
     readonly words: Readonly<Record<string, string>>;
+    // The language's month and day names and date and time patterns, for a temporal field in the page's culture.
+    readonly temporal?: TemporalLanguage;
+    // The language's number pack, for a number in the page's culture.
+    readonly number?: Partial<NumberCulturePack>;
 };
 
 /** How the page asks the server about keys its table lacks, for one language; answers the words it has, plural forms among them. */
@@ -61,9 +74,12 @@ export class ClientWords implements WordLookup {
     private readonly overrides = new Map<string, string>();
     private readonly missing = new Set<string>();
     private readonly changeHandlers = new Set<() => void>();
+    private readonly tableHandlers = new Set<() => void>();
 
     private currentLanguage = "";
     private currentPrefixes: readonly string[] = [];
+    private currentTemporal: TemporalLanguage | null = null;
+    private currentNumber: Partial<NumberCulturePack> | null = null;
     private complete = true;
     private report = false;
     private tableLoaded = false;
@@ -100,6 +116,16 @@ export class ClientWords implements WordLookup {
             this.switches++;
 
         this.requested = language;
+    }
+
+    /** The table's language's names and patterns for dates and times; null until a table carrying them arrives. */
+    public get temporal(): TemporalLanguage | null {
+        return this.currentTemporal;
+    }
+
+    /** The table's language's number pack; null until a table carrying one arrives. */
+    public get number(): Partial<NumberCulturePack> | null {
+        return this.currentNumber;
     }
 
     /** What a plain string must start with to be looked up; empty when any string is a key. */
@@ -148,11 +174,14 @@ export class ClientWords implements WordLookup {
         this.words = words;
         this.currentLanguage = table.language;
         this.currentPrefixes = Array.isArray(table.prefixes) ? table.prefixes.filter(prefix => typeof prefix === "string") : [];
+        this.currentTemporal = typeof table.temporal === "object" && table.temporal !== null ? table.temporal : null;
+        this.currentNumber = typeof table.number === "object" && table.number !== null ? table.number : null;
         this.complete = table.complete !== false;
         this.report = table.report === true;
         this.tableLoaded = true;
         this.missing.clear();
         this.pending.clear();
+        this.notify(this.tableHandlers, "a words table handler failed.");
     }
 
     /** Names the language the boot words are in, before any table arrives. */
@@ -207,14 +236,25 @@ export class ClientWords implements WordLookup {
         return () => this.changeHandlers.delete(handler);
     }
 
+    /** Hears every table the page takes — the one it boots with, which no change announces, and each switch's — as it is taken. */
+    public onTable(handler: () => void): () => void {
+        this.tableHandlers.add(handler);
+
+        return () => this.tableHandlers.delete(handler);
+    }
+
     /** Tells every listener the table changed; one that throws is logged and passed over. */
     public notifyChanged(): void {
-        for (const handler of this.changeHandlers) {
+        this.notify(this.changeHandlers, "a words change handler failed.");
+    }
+
+    private notify(handlers: ReadonlySet<() => void>, failure: string): void {
+        for (const handler of handlers) {
             try {
                 handler();
             }
             catch (error) {
-                logWarn("a words change handler failed.", error);
+                logWarn(failure, error);
             }
         }
     }

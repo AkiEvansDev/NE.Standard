@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Shell.Updates.Client;
@@ -18,6 +19,7 @@ public sealed class ClientValueUIUpdate : ClientUIUpdate
     /// <summary>
     /// Gets dynamic parameters associated with the update.
     /// </summary>
+    [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
     public object?[] DynamicParameters { get; init; } = [];
 
     /// <summary>

@@ -47,6 +47,10 @@ public interface IInputComponent : IVisualComponent
     /// Gets whether the input can be seen but not edited; unlike <see cref="IVisualComponent.Enabled"/>, a
     /// read-only value still submits and stays focusable.
     /// </summary>
+    /// <remarks>
+    /// True by a static value or a controller binding, the server refuses a value the input sends and answers it with the value it
+    /// holds. A guard against a stale or forged page, not the permission itself: who may change the value belongs in the setter.
+    /// </remarks>
     [UIComponentProperty(DefaultValue = false)]
     bool? IsReadOnly { get; }
 

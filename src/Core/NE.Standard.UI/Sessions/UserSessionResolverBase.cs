@@ -51,19 +51,17 @@ public abstract class UserSessionResolverBase : IUserSessionResolver
         return UserSessionContext.Authenticated(ResolveSessionId(initData), language, themeMode, userId, roles, permissions);
     }
 
-    /// <summary>Resolves the session id from the one the client presented, the connection id, or a generated value.</summary>
+    /// <summary>Resolves the session id from the one the client presented, or issues a new one (<see cref="UserSessionInitData.IssueSessionId"/>).</summary>
     /// <remarks>
-    /// Deliberately never derived from <c>Credential</c>: it doesn't vary per visitor and would collapse every session onto one id.
+    /// Deliberately never derived from <c>Credential</c>: it doesn't vary per visitor and would collapse every session onto one id;
+    /// nor from the connection's id, which a client can guess.
     /// </remarks>
     protected static string ResolveSessionId(UserSessionInitData initData)
     {
         ArgumentNullException.ThrowIfNull(initData);
 
-        if (!string.IsNullOrWhiteSpace(initData.SessionId))
-            return initData.SessionId;
-
-        return !string.IsNullOrWhiteSpace(initData.ConnectionId)
-            ? initData.ConnectionId
-            : Guid.NewGuid().ToString("N");
+        return !string.IsNullOrWhiteSpace(initData.SessionId)
+            ? initData.SessionId
+            : initData.IssueSessionId();
     }
 }

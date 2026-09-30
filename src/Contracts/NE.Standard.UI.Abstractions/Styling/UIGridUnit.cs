@@ -78,7 +78,7 @@ public readonly record struct UIGridUnit(UIGridUnitType Unit, double Value, doub
     {
         var size = Unit switch
         {
-            UIGridUnitType.Star => $"{Value}*",
+            UIGridUnitType.Star => string.Create(CultureInfo.InvariantCulture, $"{Value}*"),
             UIGridUnitType.Absolute => Value.ToString(CultureInfo.InvariantCulture),
             UIGridUnitType.Auto => "auto",
             _ => throw new UnreachableException()

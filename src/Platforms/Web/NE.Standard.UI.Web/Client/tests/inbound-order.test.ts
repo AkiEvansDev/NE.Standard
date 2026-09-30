@@ -66,7 +66,8 @@ test("a push read before an answer in one frame is applied before it", async () 
 test("an answer resolves once its changes are applied, without them, and after what must precede them", async () => {
     const steps: string[] = [];
     let finish: () => void = () => { };
-    const order = new InboundOrder(set => new Promise<void>(resolve => {
+    const order = new InboundOrder((set, before) => new Promise<void>(resolve => {
+        before?.();
         steps.push(`apply:${nameOf(set)}`);
         finish = resolve;
     }));
@@ -88,4 +89,31 @@ test("an answer resolves once its changes are applied, without them, and after w
     await new Promise(resolve => setTimeout(resolve, 0));
 
     assert.deepEqual(result, { name: "answer" });
+});
+
+test("what must precede an answer's changes runs in their turn, not as the answer arrives: a change set waiting ahead lands first", async () => {
+    const steps: string[] = [];
+    let release: () => void = () => { };
+    const ahead = new Promise<void>(resolve => {
+        release = resolve;
+    });
+    // The page's queue: a change set waits behind the one ahead of it (an attach's snapshot), and runs `before` in its turn.
+    const order = new InboundOrder(async (set, before) => {
+        await ahead;
+        before?.();
+        steps.push(`apply:${nameOf(set)}`);
+    });
+    const call = invoke();
+    const answered = order.answered(call.invoked, answer => answer.changes, strip, () => steps.push("before"));
+
+    call.answer({ name: "answer", changes: changes("answer") });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    assert.equal(steps.length, 0);
+
+    steps.push("snapshot");
+    release();
+    await answered;
+
+    assert.deepEqual(steps, ["snapshot", "before", "apply:answer"]);
 });

@@ -1,15 +1,15 @@
 import { componentParts } from "../addressing/dom-registry";
-import { formatTemporal, TemporalCulturePack } from "../rendering/temporal-format";
-import { clientStrings } from "../runtime/client-strings";
+import { formatTemporal, InvariantTemporalLetters, localDate, TemporalCulturePack, TemporalLetters, temporalPlaceholder } from "../rendering/temporal-format";
+import { ClientStringKey, clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { observeComponents } from "./dom-mutations";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { OwnedPopups } from "./owned-popup";
 import { focusAsLastInput, focusByPointer } from "./popup-focus";
 import {
-    clampPushedValue, clampToRange, defaultMoment, isEndPart, isRange, MaxAttribute, MinAttribute, orderPeriod,
+    applyPageLanguage, clampPushedValue, clampToRange, defaultMoment, hourLabel, isEndPart, isRange, isTwelveHour, MaxAttribute, MinAttribute, orderPeriod,
     parseCanonical, PickerAttributes, readBound, readCulturePack, readFormat, readMode, readStep, readValue, readValueOf, RootClass,
-    TemporalMode, TimeStep, TimeUnit, toCanonical, valueInputOf, writeValueOf
+    TemporalMode, TimeStep, TimeUnit, toCanonical, typedValue, valueInputOf, writeValueOf
 } from "./temporal-dom";
 import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
 import { turnWheel, wheelPixels } from "./wheel-notches";
@@ -65,6 +65,8 @@ export class TemporalPickerEngine {
     private readonly states = new WeakMap<HTMLElement, PickerState>();
     // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
     private readonly written = new WeakSet<HTMLInputElement>();
+    // The language the page's own temporal names and formats are drawn in: the server's, until a switch.
+    private drawnLanguage = document.documentElement.lang;
 
     // Waits for the click, not the press: choosing an hour re-renders the popup from inside that very click.
     private readonly popups = new OwnedPopups({
@@ -141,6 +143,29 @@ export class TemporalPickerEngine {
 
         // Capture, because blur does not bubble.
         this.root.addEventListener("blur", domEvent => this.handleFieldBlur(domEvent), true);
+
+        clientStrings.onChange(() => this.applyWords());
+    }
+
+    /**
+     * The page's words changed: a switch draws the fields in the page's culture in the new language, and every placeholder is written
+     * again in its letters. The clocks follow the attributes this writes.
+     */
+    private applyWords(): void {
+        const pickers = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)];
+        const language = clientStrings.temporal;
+
+        if (language !== null && clientStrings.language !== this.drawnLanguage) {
+            this.drawnLanguage = clientStrings.language;
+
+            for (const picker of pickers)
+                applyPageLanguage(picker, language);
+        }
+
+        this.applyDisplay(pickers);
+
+        if (this.openPicker !== null)
+            this.renderPopup(this.openPicker);
     }
 
     private get openPicker(): HTMLElement | null {
@@ -153,7 +178,12 @@ export class TemporalPickerEngine {
             // Before the field is read: the picker only stops an out-of-range value from being chosen.
             clampPushedValue(picker);
 
+            const placeholder = temporalPlaceholder(readFormat(picker), placeholderLetters());
+
             for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
+                if (field.placeholder !== placeholder)
+                    field.placeholder = placeholder;
+
                 // The reader's text is left alone once written; a picker drawn and focused at once (a cell's editor) is still unwritten.
                 if (field === document.activeElement && this.written.has(field))
                     continue;
@@ -175,7 +205,10 @@ export class TemporalPickerEngine {
         }
     }
 
-    // Typed text goes to the server as-is: only the server knows the component's Format and culture pack.
+    /**
+     * Typed text in the format the field shows is read here and sent as the value it names; text in another shape goes to the server as
+     * typed, which reads it by the component's `Format` and `Culture` or refuses it.
+     */
     private handleFieldChange(domEvent: Event): void {
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(FieldClass))
             return;
@@ -190,7 +223,7 @@ export class TemporalPickerEngine {
         if (isEndPart(domEvent.target))
             this.getState(picker).choosingEnd = false;
 
-        valueInput.value = domEvent.target.value.trim();
+        valueInput.value = typedValue(picker, domEvent.target.value);
         valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 
         // Both ends typed and the wrong way round: the ends swap, and both fields are written again from what they hold.
@@ -317,7 +350,7 @@ export class TemporalPickerEngine {
 
         // The month pane sends its selection as a parameterized action rather than one action per month.
         if (action.startsWith("month:")) {
-            state.view = new Date(state.view.getFullYear(), Number(action.slice("month:".length)), 1);
+            state.view = localDate(state.view.getFullYear(), Number(action.slice("month:".length)), 1);
             state.pane = "days";
             this.renderPopup(picker);
             return;
@@ -372,7 +405,7 @@ export class TemporalPickerEngine {
         }
 
         const current = readValue(picker) ?? defaultMoment(picker);
-        const next = new Date(day.getFullYear(), day.getMonth(), day.getDate(), current.getHours(), current.getMinutes(), current.getSeconds());
+        const next = localDate(day.getFullYear(), day.getMonth(), day.getDate(), current.getHours(), current.getMinutes(), current.getSeconds());
 
         state.focusedDay = next;
         // A day picked from the fringe of the grid belongs to the month beside it, and the grid turns to that month.
@@ -792,6 +825,9 @@ function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number
 
     const count = unit === "hour" ? 24 : 60;
     const current = readUnit(value, unit);
+    // The hours are counted as the field's format counts them; a cell's value stays the hour of the day.
+    const twelveHour = unit === "hour" && isTwelveHour(readFormat(picker));
+    const culture = readCulturePack(picker);
     let roving: HTMLButtonElement | null = null;
 
     for (let candidate = 0; candidate < count; candidate += increment) {
@@ -799,7 +835,7 @@ function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number
 
         cell.type = "button";
         cell.tabIndex = -1;
-        cell.textContent = String(candidate).padStart(2, "0");
+        cell.textContent = unit === "hour" ? hourLabel(candidate, twelveHour, culture) : String(candidate).padStart(2, "0");
         cell.setAttribute(CellValueAttribute, String(candidate));
 
         if (candidate === current) {
@@ -938,6 +974,25 @@ function applyPeriodPreview(picker: HTMLElement, state: PickerState): void {
 }
 
 /** The field holding one end of a period, or the only field. */
+/** The letters a placeholder writes a format's units in, from the page's words; a word the table lacks keeps the format's letter. */
+function placeholderLetters(): TemporalLetters {
+    return {
+        year: placeholderLetter("ui.picker.letter.year", InvariantTemporalLetters.year),
+        month: placeholderLetter("ui.picker.letter.month", InvariantTemporalLetters.month),
+        day: placeholderLetter("ui.picker.letter.day", InvariantTemporalLetters.day),
+        hour: placeholderLetter("ui.picker.letter.hour", InvariantTemporalLetters.hour),
+        minute: placeholderLetter("ui.picker.letter.minute", InvariantTemporalLetters.minute),
+        second: placeholderLetter("ui.picker.letter.second", InvariantTemporalLetters.second)
+    };
+}
+
+/** One unit's letter; a word that is missing or blank keeps the format's, as `WebTemporalLetters.FromWords` does. */
+function placeholderLetter(key: ClientStringKey, fallback: string): string {
+    const word = clientStrings.lookup(key);
+
+    return word === undefined || word.trim().length === 0 ? fallback : word;
+}
+
 function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
     for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
         if (isEndPart(field) === end)
@@ -949,7 +1004,7 @@ function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
 
 /** The day at the hour, minute and second another moment holds. */
 function withTimeOf(day: Date, timeOf: Date): Date {
-    return new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
+    return localDate(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
 }
 
 /** A glyph button says its name through `ariaLabel`; a word button is its own name. */
@@ -1113,7 +1168,7 @@ function moveByKey(day: Date, key: string, firstDay: number): Date | null {
 }
 
 function startOfMonth(value: Date): Date {
-    return new Date(value.getFullYear(), value.getMonth(), 1);
+    return localDate(value.getFullYear(), value.getMonth(), 1);
 }
 
 function startOfGrid(view: Date, firstDay: number): Date {
@@ -1123,15 +1178,15 @@ function startOfGrid(view: Date, firstDay: number): Date {
 }
 
 function addDays(value: Date, days: number): Date {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate() + days, value.getHours(), value.getMinutes(), value.getSeconds());
+    return localDate(value.getFullYear(), value.getMonth(), value.getDate() + days, value.getHours(), value.getMinutes(), value.getSeconds());
 }
 
 function addMonths(value: Date, months: number): Date {
     // Clamped to the target month's length: Date would roll 31 January + 1 month over into March.
-    const target = new Date(value.getFullYear(), value.getMonth() + months, 1);
-    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    const target = localDate(value.getFullYear(), value.getMonth() + months, 1);
+    const lastDay = localDate(target.getFullYear(), target.getMonth() + 1, 0).getDate();
 
-    return new Date(target.getFullYear(), target.getMonth(), Math.min(value.getDate(), lastDay), value.getHours(), value.getMinutes(), value.getSeconds());
+    return localDate(target.getFullYear(), target.getMonth(), Math.min(value.getDate(), lastDay), value.getHours(), value.getMinutes(), value.getSeconds());
 }
 
 function isSameDay(left: Date, right: Date): boolean {

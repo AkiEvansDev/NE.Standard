@@ -1,7 +1,8 @@
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
-/// Defines where a popup prefers to sit relative to its anchor; a side with no room for it flips to its opposite.
+/// Defines where a popup prefers to sit relative to its anchor; a side with no room for it flips to its opposite, and with room on
+/// neither, to a side across, so the popup never covers its own anchor where one of the four sides has room.
 /// </summary>
 public enum UIPopupPlacement
 {

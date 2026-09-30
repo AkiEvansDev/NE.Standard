@@ -19,7 +19,28 @@ internal sealed class CheckboxExamplesView : DemoExamplesView, IUIViewDefinition
     protected override string HeaderDescription => "demo.inputs.checkbox.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateSettingsGroup(), CreateRowEndGroup()], [CreateLabelGroup(), CreateAgainstRadioGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateSettingsGroup(), CreateRowEndGroup(), CreateHelpGroup()], [CreateLabelGroup(), CreateAgainstRadioGroup()]));
+
+    /// <summary>
+    /// A setting whose consequence does not fit its label: the badge beside the label says it, as a tooltip, and stays out of the way.
+    /// </summary>
+    private static ContainerComponent CreateHelpGroup()
+    {
+        return DemoUI.CreateExample("A help badge beside the label",
+            UILayout.Stack(12)
+                .AddChild(new CheckboxComponent()
+                    .SetTitle("Take automatic backups")
+                    .SetHelp("Kept for fourteen days in object storage, in the server's own region.")
+                    .SetValue(true)
+                )
+                .AddChild(new CheckboxComponent()
+                    .SetTitle("Delete the snapshots with the server")
+                    .SetHelp("Off, they are kept for thirty days and billed as storage.")
+                    .SetValue(false)
+                ),
+            note: "A press on the badge shows its words and leaves the box as it was: the badge is a stop of its own, not part of the label."
+        );
+    }
 
     /// <summary>The ordinary case: a list of independent settings, each answered on its own.</summary>
     private static ContainerComponent CreateSettingsGroup()
