@@ -134,7 +134,15 @@ const GLYPHS = [
     ["lock_open", 0xe898],
     ["star", 0xf09a],
     ["home", 0xe9b2],
-    ["logout", 0xe9ba]
+    ["logout", 0xe9ba],
+    ["draft", 0xe66d],
+    ["picture_as_pdf", 0xe415],
+    ["text_snippet", 0xf1c6],
+    ["table_chart", 0xe265],
+    ["slideshow", 0xe41b],
+    ["folder_zip", 0xeb2c],
+    ["audio_file", 0xeb82],
+    ["video_file", 0xeb87]
 ];
 
 const font = await subsetFont(readFileSync(SOURCE), String.fromCodePoint(...GLYPHS.map(([, codepoint]) => codepoint)), {

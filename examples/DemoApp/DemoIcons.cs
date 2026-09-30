@@ -67,6 +67,9 @@ public static class DemoIcons
     public const string Replicas = MaterialIcons.Layers;
     public const string Attach = MaterialIcons.AttachFile;
     public const string Emoji = MaterialIcons.Mood;
+    public const string Bolt = MaterialIcons.Bolt;
+    public const string Calendar = MaterialIcons.CalendarMonth;
+    public const string Admin = MaterialIcons.AdminPanelSettings;
 
     /// <summary>
     /// The warm light yellow of a folder in a file list (near <c>#FFDD96</c>): the palette's Photon, a light tint on the dark page and

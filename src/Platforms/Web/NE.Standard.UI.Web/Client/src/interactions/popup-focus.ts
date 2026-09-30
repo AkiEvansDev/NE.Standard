@@ -26,6 +26,9 @@ let focusedBeforePress: Element | null = null;
 // Every element wearing the mark, the focused one or not (a search's current option): the first real key takes it off them all.
 const marked = new Set<Element>();
 
+// The popups whose focus a pointer's opening took: the focus they give back is the pointer's too (restoreFocusTo).
+const openedByPointer = new WeakSet<Element>();
+
 // On the window, capturing: ahead of any engine that stops the press or the key before it reaches the document.
 if (typeof window !== "undefined") {
     window.addEventListener("pointerdown", domEvent => notePress(domEvent.target), true);
@@ -197,6 +200,11 @@ export function moveFocusInto(popup: HTMLElement, preferred?: HTMLElement | null
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const target = preferred ?? firstFocusable(popup);
 
+    if (pointerLast)
+        openedByPointer.add(popup);
+    else
+        openedByPointer.delete(popup);
+
     if (target === null && !popup.hasAttribute("tabindex"))
         popup.tabIndex = -1;
 
@@ -309,8 +317,28 @@ function focusableComponentRoot(element: HTMLElement): HTMLElement | null {
     return null;
 }
 
-/** Puts focus back where it came from, but only while it is still inside what is closing. */
+/**
+ * Puts focus back where it came from, but only while it is still inside what is closing. After a pointer's opening it goes back as the
+ * pointer's, whatever key closed the popup: the reader moved no focus by the keyboard, so it brings up no tooltip and no keyboard mark.
+ */
 export function restoreFocusTo(target: HTMLElement | null | undefined, closing: HTMLElement): void {
-    if (target !== null && target !== undefined && closing.contains(document.activeElement))
-        focusAsLastInput(target);
+    const active = document.activeElement;
+
+    if (target === null || target === undefined || !closing.contains(active))
+        return;
+
+    if (wasOpenedByPointer(active, closing))
+        markPointerFocus(target, !isEditableEntry(target));
+
+    focusAsLastInput(target);
+}
+
+/** Whether the focus stands in a popup a pointer's opening gave it to, up to and including what is closing. */
+function wasOpenedByPointer(active: Element | null, closing: HTMLElement): boolean {
+    for (let current = active; current !== null; current = current === closing ? null : current.parentElement ?? null) {
+        if (openedByPointer.has(current))
+            return true;
+    }
+
+    return false;
 }

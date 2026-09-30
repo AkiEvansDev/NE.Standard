@@ -124,7 +124,7 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component has its pages, 121 routes in all,
+`examples/DemoApp` is the reference application: every built-in component has its pages, 124 routes in all,
 with the sign-in, account, admin and forbidden pages showing what the security mechanism does; the mini
 application `examples/TeamRoom` exercises the same mechanism end to end. Every component but the dialog and the
 notification, which have a test page each, has a **Main** page — a preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an

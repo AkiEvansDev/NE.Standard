@@ -10,6 +10,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -68,7 +69,7 @@ internal sealed partial class UIViewCompilationContext
                     sourceBinding.Value.Mode,
                     fullPath,
                     definition.ValueType,
-                    definition.Getter(component) ?? definition.DefaultValue,
+                    UIPhrase.AsValue(definition.Getter(component) ?? definition.DefaultValue),
                     sourceBinding.Value.Optional,
                     isTranslatable
                 );
@@ -238,6 +239,9 @@ internal sealed partial class UIViewCompilationContext
         if (property.Equals(IItemsHostComponent.WindowHasMoreAfterProperty))
             return nameof(UIItemSourceBase.HasMoreAfter);
 
+        if (property.Equals(IItemsHostComponent.WindowGroupBeforeProperty))
+            return nameof(UIItemSourceBase.GroupBefore);
+
         if (property.Equals(IItemsHostComponent.WindowAggregatesProperty))
             return nameof(UIItemSourceBase.Aggregates);
 
@@ -248,6 +252,8 @@ internal sealed partial class UIViewCompilationContext
         => value switch
         {
             IUIResolvableValue resolvable => resolvable.Resolve(this),
+            // An author's text compiles as its plain string, which a renderer and the page read as a string, content or not.
+            UIPhrase { IsText: true } text => text.Key,
             _ => value
         };
 

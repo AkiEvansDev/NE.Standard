@@ -56,6 +56,9 @@ public sealed class TeamRoomStartup : UIStartupBase
         // One runtime per client per address: every tab of a person shows the same page, and a message pushed once reaches them all.
         _ = application.ConfigurePersistence(static persistence => persistence.Lifetime = UIRuntimeLifetime.PerClient);
 
+        // English only, so no key prefixes: a string that is no key shows as written, and the Development report of unkeyed words stays off.
+        _ = application.AddLocalizationSource(AppWords.Build());
+
         _ = application.AddViewFilter<AccountStateFilter>();
         _ = application.AddCommandFilter<AccountStateFilter>();
 

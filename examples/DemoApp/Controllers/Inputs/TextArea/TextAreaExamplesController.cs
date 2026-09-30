@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using DemoApp.Controllers.Base;
 
@@ -63,10 +64,41 @@ internal sealed partial class ChatGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class TextAreaExamplesController() : DemoController
 {
+    /// <summary>The composer's id, which the emoji tiles and a quick reply's answer insert into.</summary>
+    public const string ComposerId = "demo-text-area-composer";
+
+    private static readonly Dictionary<string, string> QuickReplyWords = new(StringComparer.Ordinal)
+    {
+        ["on-it"] = "On it, looking now.",
+        ["runbook"] = "Runbook: https://docs.orvane.example/runbooks/failover",
+        ["resolved"] = "Resolved; writing the summary next."
+    };
+
     [RecursiveMember]
     public partial ChatGroupContext ChatGroup { get; set; } = new();
+
+    /// <summary>The bolt's entries, keyed as <see cref="InsertQuickReply"/> reads them.</summary>
+    public static MenuItem[] QuickReplies()
+        =>
+        [
+            new MenuItem { Id = "on-it", Title = "On it", IsContent = true },
+            new MenuItem { Id = "runbook", Title = "Link the runbook", IsContent = true },
+            new MenuItem { Id = "resolved", Title = "Resolved", IsContent = true }
+        ];
 
     [UICommand]
     public void Send()
         => ChatGroup.Send();
+
+    /// <summary>Answers with the reply's words at the composer's caret; the draft itself is the page's until Send.</summary>
+    [UICommand]
+    public UICommandResult InsertQuickReply(string id)
+    {
+        if (!QuickReplyWords.TryGetValue(id, out var words))
+            return UICommandResult.Ok();
+
+        ChatGroup.LogEvent($"quick reply '{id}' inserted");
+
+        return UICommandResult.Ok([InsertTextEffect.Literal(ComposerId, words)]);
+    }
 }

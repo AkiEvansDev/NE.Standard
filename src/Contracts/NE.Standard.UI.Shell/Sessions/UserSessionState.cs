@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Shell.Sessions;
@@ -25,6 +26,15 @@ public sealed record UserSessionState : IUserSessionContext
     /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
     public UIThemeMode? ThemeMode { get; init; }
+
+    /// <summary>
+    /// Gets the reader's own brand colours over the application's palette, or <see langword="null"/> for the application's.
+    /// </summary>
+    /// <remarks>
+    /// Written by <c>SetThemeColorsEffect</c> or an update. A store that keeps a session field by field keeps them as one text
+    /// (<see cref="UIThemeColors"/> serializes to JSON); one that keeps none reads as the application's palette.
+    /// </remarks>
+    public UIThemeColors? ThemeColors { get; init; }
 
     /// <summary>Gets the time zone the reader's client reported, an IANA id, or <see langword="null"/> while it has reported none.</summary>
     /// <remarks>Written when a page attaches reporting another zone; <c>UIContext</c> reads it as UTC while it is unset or unknown.</remarks>

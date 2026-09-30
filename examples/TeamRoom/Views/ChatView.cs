@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using TeamRoom.Controllers;
+using TeamRoom.Services;
 
 namespace TeamRoom.Views;
 
@@ -9,6 +10,14 @@ namespace TeamRoom.Views;
 public sealed class ChatView : TeamRoomView, IUIViewDefinition
 {
     private const string SearchId = "chat-search";
+
+    /// <summary>The emoji panel's tiles: each row's key is the emoji the tile puts at the composer's caret.</summary>
+    private static readonly string[] Emoji =
+    [
+        "😀", "😂", "🙂", "😉", "😍", "🤔", "😅", "😢", "😮", "😎",
+        "👍", "👎", "👏", "🙏", "💪", "👀", "🎉", "🔥", "✅", "❌",
+        "❤️", "💡", "☕", "🚀"
+    ];
 
     public static string ViewKey => "teamroom.chat";
 
@@ -141,7 +150,10 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                 )
             );
 
-    /// <summary>The feed on the reader's own background, anchored to its end so a new message follows on its own.</summary>
+    /// <summary>
+    /// The feed on the reader's own background, anchored to its end so a new message follows on its own; each day is headed by its
+    /// date, and the header opens the calendar that jumps to another.
+    /// </summary>
     private static SurfaceComponent CreateFeed()
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Background)
@@ -162,6 +174,31 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                 .SetFallbackTemplateKey(MessageItem.TheirsSide)
                 .AddTemplateVariant(MessageItem.TheirsSide, CreateMessage(mine: false))
                 .AddTemplateVariant(MessageItem.MineSide, CreateMessage(mine: true))
+                .SetGroupTemplate(CreateDayHeader())
+                .SetPlacement(1, 1, 24, 1)
+            );
+
+    /// <summary>
+    /// A day's date on a small raised pill in the middle of the feed, drawn from the day's first message in the window: the page writes
+    /// it in the reader's zone and language. Pressed, it opens the jump calendar on that day.
+    /// </summary>
+    /// <remarks>The pill stands in a grid cell of its own: a header's root takes the feed's width, a grid child only its content's.</remarks>
+    private static ContainerComponent CreateDayHeader()
+        => new ContainerComponent()
+            .SetMargin(UIThickness.Symmetric(0, 4))
+            .AddChild(new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Raised)
+                .SetClickable(true)
+                .SetPadding(UIThickness.Symmetric(12, 2))
+                .SetBorderThickness(UIThickness.Uniform(0))
+                .SetBorderRadius(UICornerRadius.Uniform(12))
+                .SetHorizontalAlignment(UIAlignment.Center)
+                .OnClick(nameof(ChatController.OpenDays), UIAction.ArgGroupKey("day"))
+                .SetContent(new TimestampComponent()
+                    .SetFormat(UITimestampFormat.Date)
+                    .BindValue(nameof(MessageItem.SentAt), UIBindingScope.Relative)
+                    .SetTextType(UITextAppearance.Caption)
+                )
                 .SetPlacement(1, 1, 24, 1)
             );
 
@@ -230,8 +267,9 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                             .SetMaxLines(2)
                             .SetPlacement(1, 1, 24, 1)
                         )
+                        // The framework's glyph for the file's kind, as the shelf above the composer shows it before it is sent.
                         .AddChild(new IconComponent()
-                            .SetIcon(AppIcons.Outline(AppIcons.File))
+                            .BindIcon(nameof(AttachmentItem.Glyph), UIBindingScope.Relative)
                             .SetSize(UIIconSize.Large)
                             .SetColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                             .SetHorizontalAlignment(UIAlignment.Center)
@@ -297,88 +335,95 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
             ])
             .OnItemClick(nameof(ChatController.MessageAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(MessageItem.Id)));
 
-    /// <summary>The text with its Send at the end (Enter is the same button), and a paper clip that opens the attach dialog.</summary>
-    /// <remarks>A grid, not a row: the two buttons take what they need and the field the rest, so the composer ends where the feed does.</remarks>
+    /// <summary>
+    /// The pictures and files waiting to go, then the text: a paper clip and the emoji panel at its start, Send at its end (Enter is the same
+    /// button, Shift+Enter a new line), and the jump to the newest message beside it.
+    /// </summary>
+    /// <remarks>A grid, not a row: the last button takes what it needs and the field the rest, so the composer ends where the feed does.</remarks>
     private static ContainerComponent CreateComposer()
         => new ContainerComponent()
-            .SetColumn(1, UIGridUnit.Auto())
+            .SetRow(1, UIGridUnit.Auto())
+            .AddRow(UIGridUnit.Auto())
             .SetColumn(24, UIGridUnit.Auto())
-            .AddChild(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetIcon(AppIcons.Outline(AppIcons.Attach))
-                .SetTooltip("Send a picture or files")
-                .OnClick(nameof(ChatController.OpenAttach))
-                .SetPlacement(1, 1, 1, 1)
-            )
-            .AddChild(new TextInputComponent()
+            .AddChild(CreateAttachmentShelf().SetPlacement(1, 1, 24, 1))
+            // A box a row tall that grows with its text: Enter sends and the caret stays for the next message, Shift+Enter breaks the line.
+            .AddChild(new TextAreaComponent(ChatController.ComposerId)
                 .SetPlaceholder("Write a message")
                 .SetFormId(ChatController.ComposerFormId)
+                .SetRows(1)
+                .SetAutoGrow(6)
+                .SetSubmitOnEnter()
                 .BindValue(nameof(ChatController.Draft))
-                .SetMargin(UIThickness.All(8, 0, 8, 0))
-                .SetTrailingAction(new ButtonComponent()
+                .SetMargin(UIThickness.All(0, 0, 8, 0))
+                // In the press itself: a browser opens a file chooser only inside the reader's own gesture.
+                .AddLeadingAction(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(AppIcons.Outline(AppIcons.Attach))
+                    .SetTooltip("Attach pictures or files")
+                    .InteractOn(EventNames.Click, new OpenPickerEffect(ChatController.AttachmentsId))
+                )
+                .AddLeadingAction(CreateEmojiPanel())
+                .AddTrailingAction(new ButtonComponent()
                     .SetType(UIButtonType.Ghost)
                     .SetIcon(AppIcons.Outline(AppIcons.Send))
                     .SetTooltip("Send")
                     .OnSubmit(ChatController.ComposerFormId, nameof(ChatController.SendAsync))
                 )
-                .SetPlacement(2, 1, 22, 1)
+                .SetPlacement(1, 2, 23, 1)
             )
             .AddChild(new ButtonComponent()
                 .SetType(UIButtonType.Ghost)
                 .SetIcon(AppIcons.Outline(AppIcons.Newest))
                 .SetTooltip("Jump to the newest message")
                 .OnClick(nameof(ChatController.JumpToNewest))
-                .SetPlacement(24, 1, 1, 1)
+                .SetPlacement(24, 2, 1, 1)
             );
 
-    /// <summary>The attach dialog: pictures dropped or picked, any other files, the words, and Send.</summary>
-    private static StackPanelComponent CreateAttachPanel()
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(12)
-            .SetMinWidth(UILayoutLength.Absolute(420))
-            .AddChild(new TextComponent().SetTitle("Send a picture or files").SetTitleType(UITextAppearance.Title).SetDescription("With a word to go with them, if you like."))
-            .AddChild(new ImageInputComponent()
-                .SetShape(UIImageInputShape.Picture)
-                .SetMultiple(true)
-                .SetPlaceholder("Drop pictures here, or pick them")
-                .BindSelectionIds(nameof(ChatController.PictureSelectionIds))
+    /// <summary>
+    /// The pictures and files picked for the next message as a row of squares — a picture its thumbnail, a file its kind's glyph and
+    /// its name — and nothing on the page while there are none: the clip opens its chooser, and a file dropped or a picture pasted on
+    /// the composer lands here too. One over the attachment limit is refused on its validation line before it uploads; Send takes
+    /// the handles and empties it.
+    /// </summary>
+    private static ImageInputComponent CreateAttachmentShelf()
+        => new ImageInputComponent(ChatController.AttachmentsId)
+            .SetShape(UIImageInputShape.Shelf)
+            // Any file, as a message carries: the shelf draws what is no picture as a file.
+            .SetAccept(string.Empty)
+            .SetDropTargetId(ChatController.ComposerId)
+            .SetMaxFileSize(MediaService.MaxAttachmentBytes)
+            .BindSelectionIds(nameof(ChatController.AttachmentSelectionIds));
+
+    /// <summary>The emoji panel opening from a button at the composer's start: a tile puts its emoji where the caret stands.</summary>
+    private static FlyoutComponent CreateEmojiPanel()
+    {
+        List<TextItem> tiles = new(Emoji.Length);
+
+        foreach (var emoji in Emoji)
+            tiles.Add(new TextItem { Id = emoji, Title = emoji });
+
+        return new FlyoutComponent()
+            .SetAnchor(new ButtonComponent()
+                .SetType(UIButtonType.Ghost)
+                .SetIcon(AppIcons.Outline(AppIcons.Emoji))
+                .SetTooltip("Emoji")
             )
-            .AddChild(new FileInputComponent()
-                .SetTitle("Other files")
-                .SetPlaceholder("Any files")
-                .SetMultiple(true)
-                .BindValue(nameof(ChatController.AttachmentText))
-                .BindSelectionId(nameof(ChatController.AttachmentSelectionId))
-            )
-            .AddChild(new TextInputComponent()
-                .SetTitle("Message")
-                .SetPlaceholder("A word to go with it")
-                .SetFormId(ChatController.ComposerFormId)
-                .BindValue(nameof(ChatController.Draft))
-            )
-            .AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(8)
-                .SetHorizontalAlignment(UIAlignment.End)
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Cancel").OnClick(nameof(ChatController.CloseDialogs)))
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
-                    .SetIcon(AppIcons.Outline(AppIcons.Send))
-                    .SetTitle("Send")
-                    .OnSubmit(ChatController.ComposerFormId, nameof(ChatController.SendAsync))
+            .SetContent(new ItemsViewComponent()
+                .SetItems(tiles)
+                .SetLayoutType(UIItemsLayoutType.Wrap)
+                .SetSpacing(2)
+                .SetWidth(UILayoutLength.Absolute(260))
+                .SetTemplate(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                    .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(ChatController.ComposerId))
                 )
             );
+    }
 
     protected override IReadOnlyList<UIDialog> CreateDialogs()
         =>
         [
-            new UIDialog
-            {
-                Key = ChatController.AttachDialogKey,
-                Label = "Attach files",
-                Content = CreateAttachPanel()
-            },
             new UIDialog
             {
                 Key = ChatController.PictureDialogKey,
@@ -397,6 +442,21 @@ public sealed class ChatView : TeamRoomView, IUIViewDefinition
                         .BindTitle(nameof(ChatController.OpenedPictureName))
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                    )
+            },
+            new UIDialog
+            {
+                Key = ChatController.DaysDialogKey,
+                Label = "Jump to a day",
+                Content = new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Vertical)
+                    .SetSpacing(12)
+                    .AddChild(new TextComponent().SetTitle("Jump to a day").SetTitleType(UITextAppearance.Title).SetDescription("The days with messages are marked."))
+                    .AddChild(new CalendarComponent()
+                        .SetMarkedDaysOnly()
+                        .BindMarkedDays(nameof(ChatController.MessageDays))
+                        .BindValue(nameof(ChatController.JumpDay))
+                        .OnChange(nameof(ChatController.JumpToDayAsync))
                     )
             },
             new UIDialog

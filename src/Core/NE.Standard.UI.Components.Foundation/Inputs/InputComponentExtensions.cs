@@ -29,27 +29,36 @@ public static class InputComponentExtensions
     }
 
     /// <summary>
-    /// Fills the caption's badge with a help badge: the help glyph alone, a Plain badge, <paramref name="help"/> — the words or a key,
-    /// translated as a badge's tooltip is — as its tooltip. The badge is no tab stop: its words describe the field's control instead,
+    /// Fills the caption's badge with a help badge: the help glyph alone, a Plain badge, <paramref name="help"/> — the words, a key or
+    /// a phrase, translated as a badge's tooltip is — as its tooltip. The badge is no tab stop: its words describe the field's control instead,
     /// and show under the pointer and, in a caption outside the field, on a press or a touch.
     /// </summary>
-    public static TComponent SetHelp<TComponent, TValue>(this InputComponentBase<TComponent, TValue> component, string help)
+    public static TComponent SetHelp<TComponent, TValue>(this InputComponentBase<TComponent, TValue> component, UIPhrase help)
         where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition
     {
         ArgumentNullException.ThrowIfNull(component);
-        ArgumentException.ThrowIfNullOrWhiteSpace(help);
+        ThrowIfNoWords(help);
 
         return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
     }
 
-    /// <inheritdoc cref="SetHelp{TComponent, TValue}(InputComponentBase{TComponent, TValue}, string)"/>
-    public static TComponent SetHelp<TComponent, TItem, TValue, TTemplate>(this InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate> component, string help)
+    /// <summary>A help with nothing to say is refused: a blank text would draw a badge naming nothing.</summary>
+    private static void ThrowIfNoWords(UIPhrase help)
+    {
+        ArgumentNullException.ThrowIfNull(help);
+
+        if (help.IsText && string.IsNullOrWhiteSpace(help.Key))
+            throw new ArgumentException("A help needs words.", nameof(help));
+    }
+
+    /// <inheritdoc cref="SetHelp{TComponent, TValue}(InputComponentBase{TComponent, TValue}, UIPhrase)"/>
+    public static TComponent SetHelp<TComponent, TItem, TValue, TTemplate>(this InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate> component, UIPhrase help)
         where TComponent : InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate>, IUIComponentDefinition
         where TItem : class
         where TTemplate : class, IVisualComponent
     {
         ArgumentNullException.ThrowIfNull(component);
-        ArgumentException.ThrowIfNullOrWhiteSpace(help);
+        ThrowIfNoWords(help);
 
         return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
     }

@@ -16,6 +16,8 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
     private const string CommandsGroup = nameof(MenuExamplesController.CommandsGroup);
     private const string ContextGroup = nameof(MenuExamplesController.ContextGroup);
     private const string FiltersGroup = nameof(MenuExamplesController.FiltersGroup);
+    private const string RailGroup = nameof(MenuExamplesController.RailGroup);
+    private const string ContactsGroup = nameof(MenuExamplesController.ContactsGroup);
 
     /// <summary>The sidebar's authored id, which keys its collapsed state and open section.</summary>
     private const string SidebarId = "demo-menu-examples-sidebar";
@@ -34,6 +36,10 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
             [CreateCommandsGroup(), CreateRowsGroup(), CreateTopBarGroup()]
             )
         );
+
+        _ = container.AddChild(CreateRailGroup());
+
+        _ = container.AddChild(CreateContactsGroup());
     }
 
     /// <summary>
@@ -190,6 +196,58 @@ internal sealed class MenuExamplesView : DemoExamplesView, IUIViewDefinition
                     )
                 ),
             context: TopBarGroup
+        );
+    }
+
+    /// <summary>
+    /// A navigation rail three times over the same entries: on the left edge with no ground of its own, on the right edge, and on a
+    /// tinted ground a step apart from the page's.
+    /// </summary>
+    private static ContainerComponent CreateRailGroup()
+    {
+        return DemoUI.CreateExample("A navigation rail",
+            UILayout.Row(48)
+                .AddChild(UIPage.Labelled("Side = Left, no ground", CreateRail()))
+                .AddChild(UIPage.Labelled("Side = Right", CreateRail().SetSide(UISide.Right)))
+                .AddChild(UIPage.Labelled("Surface = Tinted", CreateRail().SetSurface(UISurfaceStyle.Tinted))),
+            columns: 24,
+            note: "`SetDisplay(UIMenuDisplay.Rail)`: each entry its icon over a one-line label, the badge on the icon's corner — a count on Chat, an empty `BadgeText` as the dot on Profile. "
+                + "A label cut short shows whole as its tooltip; the current entry wears a bar on the rail's edge and its icon filled; Administration's two entries fly out beside the rail. The buttons push a count and move the current mark, into the group and out.",
+            context: RailGroup,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["Push a count"] = nameof(MenuExamplesController.PushRailCount),
+                ["Move the selection"] = nameof(MenuExamplesController.MoveRailSelection)
+            })
+        );
+    }
+
+    /// <summary>One rail over the group's entries; a press marks the entry current.</summary>
+    private static MenuComponent CreateRail()
+        => new MenuComponent()
+            .SetDisplay(UIMenuDisplay.Rail)
+            .BindItems(nameof(RailGroupContext.Entries), UIBindingScope.Relative)
+            .OnItemClickWithItemKey(nameof(MenuExamplesController.SelectRailEntry));
+
+    /// <summary>
+    /// A messenger's contact list: a name over the last words and when they came, the unread count as the badge, the open one current.
+    /// </summary>
+    private static ContainerComponent CreateContactsGroup()
+    {
+        return DemoUI.CreateExample("A contact list",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Raised)
+                .SetWidth(UILayoutLength.Absolute(320))
+                .SetContent(new MenuComponent()
+                    .BindItems(nameof(ContactsGroupContext.Contacts), UIBindingScope.Relative)
+                    .OnItemClickWithItemKey(nameof(MenuExamplesController.OpenContact))
+                ),
+            note: "Each entry's `Description` is one muted line cut with an ellipsis: a phrase of the person's words and a relative moment, which the page keeps current and writes in its language. `IsContent` keeps the names and words as written. A press opens the conversation and clears its count.",
+            context: ContactsGroup,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["A message from Robin"] = nameof(MenuExamplesController.PushContactMessage)
+            })
         );
     }
 }

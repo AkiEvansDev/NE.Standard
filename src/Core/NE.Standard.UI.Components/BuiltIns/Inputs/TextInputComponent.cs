@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -23,12 +25,12 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public IButtonComponent? TrailingAction => _actions.Trailing.Count > 0 ? _actions.Trailing[0] : null;
 
     /// <summary>
-    /// Gets the controls at the start of the row, in the order they stand.
+    /// Gets the controls at the start of the row, in the order they stand; a flyout among them by the button it opens from.
     /// </summary>
     public IReadOnlyList<IButtonComponent> LeadingActions => _actions.Leading;
 
     /// <summary>
-    /// Gets the controls at the end of the row, in the order they stand.
+    /// Gets the controls at the end of the row, in the order they stand; a flyout among them by the button it opens from.
     /// </summary>
     public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
 
@@ -48,11 +50,31 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     }
 
     /// <summary>
+    /// Puts a flyout at the end of the row, in place of any action there before: its anchor, a button, dressed as an adornment, and
+    /// its content opening from it.
+    /// </summary>
+    public T SetTrailingAction(FlyoutComponent flyout)
+    {
+        _actions.SetTrailing(flyout);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the start of the row, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddLeadingAction(IButtonComponent action)
     {
         _actions.AddLeading(action);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the start of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
+    /// content opening from it — an emoji panel, a list of snippets.
+    /// </summary>
+    public T AddLeadingAction(FlyoutComponent flyout)
+    {
+        _actions.AddLeading(flyout);
         return Self;
     }
 
@@ -65,10 +87,20 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
         return Self;
     }
 
+    /// <summary>
+    /// Adds a flyout at the end of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
+    /// content opening from it.
+    /// </summary>
+    public T AddTrailingAction(FlyoutComponent flyout)
+    {
+        _actions.AddTrailing(flyout);
+        return Self;
+    }
+
     /// <inheritdoc/>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public string? Placeholder { get; set; }
+    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
     /// Gets or sets the semantic input type (e.g. text, password, email).

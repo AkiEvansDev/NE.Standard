@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
@@ -89,16 +88,6 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// Validates that a period's end does not fall before its start.
     /// </summary>
     protected abstract void ValidatePeriod(TValue? start, TValue? end);
-
-    /// <summary>
-    /// The period check every ordered value shares, differing only in the noun its message carries.
-    /// </summary>
-    protected static void ValidateOrderedPeriod<T>(T? start, T? end, string noun)
-        where T : struct, IComparable<T>
-    {
-        if (start.HasValue && end.HasValue && end.Value.CompareTo(start.Value) < 0)
-            throw new ArgumentOutOfRangeException(nameof(end), end, $"The end {noun} cannot be earlier than the start {noun}.");
-    }
 
     /// <summary>
     /// Sets the step increment to a whole number of days.

@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -53,7 +54,7 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Value { get; set; }
+    public UIPhrase? Value { get; set; }
 
     /// <summary>
     /// Initializes the entry stretched, left-aligned and untinted.

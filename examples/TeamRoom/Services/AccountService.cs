@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using TeamRoom.Data;
 
 namespace TeamRoom.Services;
@@ -579,5 +581,26 @@ public sealed partial class AccountService(AppDatabase database, IUserSessionSto
         using SqliteConnection connection = database.Open();
         Execute(connection, "UPDATE accounts SET background_media_id = $media, background_fit = $fit WHERE id = $id", ("$media", (object?)mediaId ?? DBNull.Value), ("$fit", (object?)fit ?? DBNull.Value), ("$id", id));
         events.Publish(new AccountChanged(id, AccountChangeKind.Profile));
+    }
+
+    /// <summary>
+    /// Keeps the reader's own colours on the account, as the JSON they serialize to, so a sign-in anywhere puts them back; none is the
+    /// team's palette. The session wears them meanwhile, so no page needs telling.
+    /// </summary>
+    public void SetThemeColors(string id, UIThemeColors? colors)
+    {
+        using SqliteConnection connection = database.Open();
+        Execute(connection, "UPDATE accounts SET theme_colors = $colors WHERE id = $id", ("$colors", colors is null ? DBNull.Value : JsonSerializer.Serialize(colors)), ("$id", id));
+    }
+
+    /// <summary>The colours kept on the account, or none for the team's palette.</summary>
+    public UIThemeColors? ThemeColorsOf(string id)
+    {
+        using SqliteConnection connection = database.Open();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT theme_colors FROM accounts WHERE id = $id";
+        _ = command.Parameters.AddWithValue("$id", id);
+
+        return command.ExecuteScalar() is string json ? JsonSerializer.Deserialize<UIThemeColors>(json) : null;
     }
 }

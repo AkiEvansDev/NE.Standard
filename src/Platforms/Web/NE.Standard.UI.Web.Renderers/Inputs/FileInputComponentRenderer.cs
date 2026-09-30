@@ -27,6 +27,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
         RenderInputHeader(context, root, titleCanGoInside: true);
 
         NativeInputRendererBase.RenderMaxFileSize(context, root, FileInputComponent.MaxFileSizeProperty);
+        NativeInputRendererBase.RenderDropTargetId(context, root, FileInputComponent.DropTargetIdProperty);
 
         RenderRow(context, root);
         RenderValidationMessage(context, root);

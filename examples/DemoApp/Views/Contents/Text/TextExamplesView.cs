@@ -10,6 +10,9 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string Description = "Adds a second step when signing in from a new device.";
 
+    /// <summary>A description too long for one line of a narrow column, so where it wraps and where it is cut shows.</summary>
+    private const string LongDescription = "A blind priestess. She does not see faces, but she hears a lie before it is finished, and the city's guilds pay her to sit in on every contract.";
+
     public static string ViewKey => "demo.contents.text.examples";
 
     protected override string ComponentRoute => "/contents/text";
@@ -22,7 +25,7 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
         // Not every other one: the six hosts are most of a page by themselves, and they take the full width.
         _ = container.AddChild(CreateHostsGroup());
 
-        _ = container.AddChildren(DemoUI.CreateColumns([CreateSwappedRolesGroup(), CreateAlignmentEdgesGroup()], [CreatePictureIconGroup(), CreateFoldGroup()]));
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateSwappedRolesGroup(), CreateAlignmentEdgesGroup(), CreateLongTextGroup()], [CreatePictureIconGroup(), CreateFoldGroup()]));
     }
 
     /// <summary>
@@ -186,6 +189,54 @@ internal sealed class TextExamplesView : DemoExamplesView, IUIViewDefinition
                     .SetBadgeStyle(UIBadgeType.Warning)
                     .SetTitle("Badge Content, one line")
                 )
+        );
+    }
+
+    /// <summary>
+    /// A long line in a narrow column: a text keeps its description to one line unless asked to wrap, and its title unless asked to run
+    /// on; a card's and an expander's header are prose and wrap by themselves.
+    /// </summary>
+    private static ContainerComponent CreateLongTextGroup()
+    {
+        return DemoUI.CreateExample("Long text in a narrow column",
+            UILayout.Stack(16)
+                .SetWidth(UILayoutLength.Absolute(280))
+                .AddChild(UIPage.Labelled("A text, as it comes", new TextComponent()
+                        .SetTitle("Sister Ilse of the Lantern Quarter")
+                        .SetDescription(LongDescription)
+                    )
+                )
+                .AddChild(UIPage.Labelled("SetWrapMode(Wrap)", new TextComponent()
+                        .SetTitle("Sister Ilse of the Lantern Quarter")
+                        .SetDescription(LongDescription)
+                        .SetWrapMode(UITextWrapMode.Wrap)
+                    )
+                )
+                .AddChild(UIPage.Labelled("SetTitleWrap(true)", new TextComponent()
+                        .SetTitle("Sister Ilse of the Lantern Quarter, keeper of the Hall of Oaths")
+                        .SetTitleWrap(true)
+                        .SetDescription(LongDescription)
+                        .SetWrapMode(UITextWrapMode.Wrap)
+                    )
+                )
+                .AddChild(UIPage.Labelled("A card's header", new CardComponent()
+                        .ConfigureDefaultHeader(header => header
+                            .SetTitle("Sister Ilse")
+                            .SetDescription(LongDescription)
+                        )
+                        .SetContent(UIText.Note("The header's description wraps by itself."))
+                    )
+                )
+                .AddChild(UIPage.Labelled("An expander's header", new ExpanderComponent()
+                        .SetCollapsed()
+                        .ConfigureDefaultHeader(header => header
+                            .SetTitle("Sister Ilse")
+                            .SetDescription(LongDescription)
+                        )
+                        .SetContent(UIText.Note("So does this one, beside the chevron."))
+                    )
+                ),
+            note: "A text's description is a label's second line, one line unless SetWrapMode(Wrap) lets it run on; its title runs on only with SetTitleWrap(true). A card's and an expander's header description is prose, and wraps with nothing set. Narrow the window to a phone's width to see the same at the page's own size."
         );
     }
 

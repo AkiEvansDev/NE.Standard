@@ -207,7 +207,9 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
 
         TreeNode node = Items[^1];
 
-        node.Title = node.Title?.EndsWith('*') == true ? node.Title.TrimEnd('*') : $"{node.Title}*";
+        var title = node.Title?.Key ?? string.Empty;
+
+        node.Title = title.EndsWith('*') ? title.TrimEnd('*') : $"{title}*";
     }
 }
 

@@ -6,6 +6,10 @@ import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "..
 import { isInert, isReadOnly } from "./interactive-state.ts";
 
 export const RootClass = "ui-temporal-input";
+/** A calendar drawn in place (`CalendarComponent`): its root carries the attributes a temporal input's does, and its grid is the popup's. */
+export const CalendarRootClass = "ui-calendar";
+/** Every root the temporal engines read: a temporal input's and a calendar's. */
+export const TemporalRootSelector = `.${RootClass}, .${CalendarRootClass}`;
 const ValueInputClass = "ui-temporal-input__value-input";
 /** The period's end, beside the start's hidden input; the two are told apart by the end attribute below. */
 const EndValueInputClass = "ui-temporal-input__end-value-input";
@@ -21,6 +25,9 @@ export const MinAttribute = "data-ui-temporal-min";
 export const MaxAttribute = "data-ui-temporal-max";
 const StepAttribute = "data-ui-temporal-step";
 const StepUnitAttribute = "data-ui-temporal-step-unit";
+/** A day input's marked days, each canonical, separated by spaces; the second is on a root that offers only them. */
+const MarkedDaysAttribute = "data-ui-temporal-marked-days";
+const MarkedOnlyAttribute = "data-ui-temporal-marked-only";
 /** On a control whose culture is the page's: a language switch writes its names and default format again. */
 const PageCultureAttribute = "data-ui-temporal-page-culture";
 
@@ -33,7 +40,7 @@ const AmAttribute = "data-ui-temporal-am";
 const PmAttribute = "data-ui-temporal-pm";
 
 /** The attributes a live patch or a language switch can change, and that therefore have to re-render whatever is showing. */
-export const PickerAttributes = new Set([FormatAttribute, DefaultFormatAttribute, MinAttribute, MaxAttribute, MonthsAttribute, AmAttribute, PmAttribute]);
+export const PickerAttributes = new Set([FormatAttribute, DefaultFormatAttribute, MinAttribute, MaxAttribute, MonthsAttribute, AmAttribute, PmAttribute, MarkedDaysAttribute, MarkedOnlyAttribute]);
 
 export type TemporalMode = "date" | "time" | "date-time";
 export type TimeUnit = "hour" | "minute" | "second";
@@ -172,6 +179,35 @@ export function valueInputOf(root: HTMLElement, end: boolean): HTMLInputElement 
 
 export function readBound(root: HTMLElement, attribute: string): Date | null {
     return parseCanonical(root.getAttribute(attribute) ?? "", readMode(root));
+}
+
+/** Which days a control lets be chosen, read once for a whole grid: its bounds' days, and its marked days. */
+export type DayOffer = {
+    readonly min: string | null;
+    readonly max: string | null;
+    readonly marked: ReadonlySet<string>;
+    /** Only a marked day can be chosen; every other is disabled as a day outside the bounds is. */
+    readonly markedOnly: boolean;
+};
+
+export function readDayOffer(root: HTMLElement): DayOffer {
+    const min = readBound(root, MinAttribute);
+    const max = readBound(root, MaxAttribute);
+    const marked = (root.getAttribute(MarkedDaysAttribute) ?? "").split(" ").filter(day => day.length > 0);
+
+    return {
+        min: min === null ? null : toCanonical(min, "date"),
+        max: max === null ? null : toCanonical(max, "date"),
+        marked: new Set(marked),
+        markedOnly: root.hasAttribute(MarkedOnlyAttribute)
+    };
+}
+
+/** Whether a day, by its canonical text, can be chosen; the text orders as the days do, so the bounds compare as text. */
+export function isDayOffered(offer: DayOffer, day: string): boolean {
+    return (offer.min === null || day >= offer.min)
+        && (offer.max === null || day <= offer.max)
+        && (!offer.markedOnly || offer.marked.has(day));
 }
 
 /** Writes the start, or the end, through the hidden input and a "change" — the two-way path a typed value takes. */

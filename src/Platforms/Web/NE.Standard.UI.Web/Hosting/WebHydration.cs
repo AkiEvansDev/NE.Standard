@@ -2,6 +2,7 @@ using System;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -47,9 +48,13 @@ internal sealed class WebHydration
 
         IUIRuntime? existing = host.TryGetRenderRuntime(resolution);
 
-        return existing is not null
-            ? await ReadAsync(existing, pageId: null, resolution.View.Fingerprint, render, words, cancellationToken).ConfigureAwait(false)
-            : await PrepareNewAsync(host, resolution, render, words, cancellationToken).ConfigureAwait(false);
+        if (existing is null)
+            return await PrepareNewAsync(host, resolution, render, words, cancellationToken).ConfigureAwait(false);
+
+        // A runtime kept while its session moved to another language or theme hears it first, so the paint is not its old text.
+        await UIHost.HearBeforeRenderAsync(existing, resolution, cancellationToken).ConfigureAwait(false);
+
+        return await ReadAsync(existing, pageId: null, resolution.View.Fingerprint, render, words, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<WebHydration> PrepareNewAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)

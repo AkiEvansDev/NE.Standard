@@ -4,8 +4,8 @@ using TeamRoom.Controllers;
 namespace TeamRoom.Views;
 
 /// <summary>
-/// One card: the settings as rows edited in place — the picture, the name, the password, the chat's background and its fit — and a
-/// preview of how the feed will read.
+/// One card: the settings as rows edited in place — the picture, the name, the password, the chat's background and its fit, the
+/// reader's own colour — and a preview of how the feed will read.
 /// </summary>
 public sealed class SettingsView : TeamRoomView, IUIViewDefinition
 {
@@ -24,13 +24,24 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
                 .SetOrientation(UIOrientation.Vertical)
                 .SetSpacing(12)
                 .AddChild(CreateRows())
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
-                    .SetIcon(AppIcons.Outline(AppIcons.Close))
-                    .SetTitle("Remove the background")
-                    .SetHorizontalAlignment(UIAlignment.Start)
-                    .OnClick(nameof(SettingsController.RemoveBackground))
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetSpacing(8)
+                    .SetWrap(true)
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(AppIcons.Outline(AppIcons.Close))
+                        .SetTitle("Remove the background")
+                        .OnClick(nameof(SettingsController.RemoveBackground))
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(AppIcons.Outline(AppIcons.Palette))
+                        .SetTitle("Back to the team's colour")
+                        .OnClick(nameof(SettingsController.ResetColor))
+                    )
                 )
                 .AddChild(CreatePreview())
             );
@@ -59,6 +70,8 @@ public sealed class SettingsView : TeamRoomView, IUIViewDefinition
                     new OptionItem { Id = nameof(UIImageFit.None), Title = "As is" }
                 ])
             )
+            // The page's primary colour for this reader, in both themes; the palette's own rule keeps what stands on it readable.
+            .AddValueInputTemplate("color", new ColorInputComponent().SetShowOpacity(false))
             .EnableEditing(nameof(SettingsController.SaveRowAsync), nameof(SettingsController.OpenRow));
 
     /// <summary>

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { inlineMarkupToPlainText, parseInlineMarkup } from "../src/rendering/inline-markup.ts";
+import { escapeInlineMarkup, inlineMarkupToPlainText, parseInlineMarkup } from "../src/rendering/inline-markup.ts";
 import { isExternalLink } from "../src/rendering/url-safety.ts";
 import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
@@ -42,6 +42,17 @@ test("inline markup: a link opens beside the page when the browser reads it as l
     for (const link of externalLinks)
         assert.equal(isExternalLink(link.url), link.external, JSON.stringify(link.url));
 });
+
+const escapeCases = (JSON.parse(readFileSync(corpusPath, "utf8")) as { readonly escape: readonly { readonly name: string; readonly input: string; readonly escaped: string }[] }).escape;
+
+assert.ok(escapeCases.length > 0, "The corpus names no escaped values.");
+
+for (const escapeCase of escapeCases) {
+    test(`inline markup escape: ${escapeCase.name}`, () => {
+        assert.equal(escapeInlineMarkup(escapeCase.input), escapeCase.escaped);
+        assert.equal(inlineMarkupToPlainText(escapeCase.escaped), escapeCase.input);
+    });
+}
 
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");

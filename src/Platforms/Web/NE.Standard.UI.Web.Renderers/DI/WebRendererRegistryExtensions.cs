@@ -78,6 +78,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SearchComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SliderComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DateInputComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, CalendarComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TimeInputComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DateTimeInputComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, NumberInputComponentRenderer>());

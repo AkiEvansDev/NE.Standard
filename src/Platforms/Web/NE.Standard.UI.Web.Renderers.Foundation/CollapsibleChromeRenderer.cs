@@ -25,7 +25,11 @@ public static class CollapsibleChromeRenderer
     private const string CollapsedAttribute = WebAttributes.Collapsed;
     private const string ToggleAttribute = WebAttributes.CollapseToggle;
 
-    public static void RenderCollapsible(WebRenderContext context, IHtmlElementBuilder root)
+    /// <summary>
+    /// Writes the chrome; a control that takes a shape with nothing to fold (<paramref name="folds"/> false, a menu's rail) keeps its
+    /// edge and its toggle content but neither its fold nor its switch.
+    /// </summary>
+    public static void RenderCollapsible(WebRenderContext context, IHtmlElementBuilder root, bool folds = true)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -36,19 +40,24 @@ public static class CollapsibleChromeRenderer
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.SideProperty, out UISide? side, out _);
         _ = root.Class(WebClassNames.Side(side ?? UISide.Left));
 
-        // An attribute rather than a modifier class, so the client's toggle and a bound value write the same spelling.
-        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, ICollapsibleComponent.ExpandedProperty, static (target, value) =>
+        if (folds)
         {
-            if (value == false)
-                _ = target.Attribute(CollapsedAttribute);
-        }, [WebDomOperation.ToggleAttribute(CollapsedAttribute, condition: WebValueCondition.IsFalse)]);
+            // An attribute rather than a modifier class, so the client's toggle and a bound value write the same spelling.
+            _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, ICollapsibleComponent.ExpandedProperty, static (target, value) =>
+            {
+                if (value == false)
+                    _ = target.Attribute(CollapsedAttribute);
+            }, [WebDomOperation.ToggleAttribute(CollapsedAttribute, condition: WebValueCondition.IsFalse)]);
+        }
 
-        _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? show, out _);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? toggle, out _);
+
+        var show = folds && toggle == true;
 
         // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child.
         if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent))
         {
-            if (show == true)
+            if (show)
                 RenderToggle(context, root);
 
             return;
@@ -63,7 +72,7 @@ public static class CollapsibleChromeRenderer
                 WebComponentRendererBase.RenderRegion(context, content, RegionNames.ToggleContent);
             });
 
-            if (show == true)
+            if (show)
                 RenderToggle(context, bar);
         });
     }

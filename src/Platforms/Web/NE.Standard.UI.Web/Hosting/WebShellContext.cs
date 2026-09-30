@@ -15,6 +15,9 @@ public sealed class WebShellContext
 
     public required UITheme Theme { get; init; }
 
+    /// <summary>Gets the reader's own colours over <see cref="Theme"/>'s palettes, or none for the application's.</summary>
+    public UIThemeColors? ThemeColors { get; init; }
+
     public required IReadOnlyList<WebAssetDescriptor> Assets { get; init; }
 
     public string Language { get; init; } = "en";

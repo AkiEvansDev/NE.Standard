@@ -4,7 +4,7 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
-/// A component carrying text content — a title and a description, each on one line.
+/// A component carrying text content — a title and a description, each on one line unless it is an <see cref="ITextWrapComponent"/>.
 /// </summary>
 public interface ITextComponent : ITextBaseComponent, ITextModel
 {

@@ -106,3 +106,24 @@ test("a box whose field is a multi-line text takes the press the same way", () =
     assert.equal(fakeDocument.activeElement, area);
     assert.deepEqual(area.selection, [9, 9]);
 });
+
+test("a press in a popup a field's action opened is the popup's, and the field keeps the caret the reader left", () => {
+    const area = new FakeTextArea();
+
+    area.classes.add("ui-field");
+    area.value = "Hello world";
+
+    const list = FakeElement.of("ui-split-button__menu", { role: "presentation", "data-ui-event-boundary": "" });
+    const panel = FakeElement.of("ui-flyout__content", { role: "dialog" });
+    const box = FakeElement.of("ui-text-area__box ui-field-box").append(area, FakeElement.of("ui-text-area__action").append(list, panel));
+
+    root.children.length = 0;
+    root.append(FakeElement.of("ui-text-area", { "data-ui-id": "composer" }).append(box));
+    fakeDocument.activeElement = fakeDocument.body;
+
+    for (const popup of [list, panel]) {
+        assert.equal(press(popup).defaultPrevented, false);
+        assert.equal(fakeDocument.activeElement, fakeDocument.body);
+        assert.equal(area.selection, null);
+    }
+});

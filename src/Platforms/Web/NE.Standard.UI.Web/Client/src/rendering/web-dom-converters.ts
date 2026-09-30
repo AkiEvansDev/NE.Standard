@@ -1,7 +1,7 @@
 // Mirrors the C# WebCssValues/WebClassNames helpers value-for-value, over models read by their camel-cased members, as the wire sends them.
 
 // `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
-import { toKebabCase } from "../addressing/dom-attributes.ts";
+import { BadgeSetAttribute, BadgeTextAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
 import { toCssUrl, toIconClassName, toIconSourceCss } from "./icon-value.ts";
@@ -270,11 +270,31 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["responsiveLayoutLengthMdCss", value => toLayoutLength(toResponsiveTier(value, "md"))],
     ["responsiveLayoutLengthXlCss", value => toLayoutLength(toResponsiveTier(value, "xl"))],
     ["responsiveLayoutLengthXxlCss", value => toLayoutLength(toResponsiveTier(value, "xxl"))],
+    ["responsiveWidthBaseCss", value => toSize(toResponsiveTier(value, "base"), "horizontal")],
+    ["responsiveWidthSmCss", value => toSize(toResponsiveTier(value, "sm"), "horizontal")],
+    ["responsiveWidthMdCss", value => toSize(toResponsiveTier(value, "md"), "horizontal")],
+    ["responsiveWidthXlCss", value => toSize(toResponsiveTier(value, "xl"), "horizontal")],
+    ["responsiveWidthXxlCss", value => toSize(toResponsiveTier(value, "xxl"), "horizontal")],
+    ["responsiveHeightBaseCss", value => toSize(toResponsiveTier(value, "base"), "vertical")],
+    ["responsiveHeightSmCss", value => toSize(toResponsiveTier(value, "sm"), "vertical")],
+    ["responsiveHeightMdCss", value => toSize(toResponsiveTier(value, "md"), "vertical")],
+    ["responsiveHeightXlCss", value => toSize(toResponsiveTier(value, "xl"), "vertical")],
+    ["responsiveHeightXxlCss", value => toSize(toResponsiveTier(value, "xxl"), "vertical")],
     ["responsiveThicknessBaseCss", value => toThickness(toResponsiveTier(value, "base"))],
     ["responsiveThicknessSmCss", value => toThickness(toResponsiveTier(value, "sm"))],
     ["responsiveThicknessMdCss", value => toThickness(toResponsiveTier(value, "md"))],
     ["responsiveThicknessXlCss", value => toThickness(toResponsiveTier(value, "xl"))],
     ["responsiveThicknessXxlCss", value => toThickness(toResponsiveTier(value, "xxl"))],
+    ["responsiveThicknessHorizontalBaseCss", value => toThicknessSum(toResponsiveTier(value, "base"), "horizontal")],
+    ["responsiveThicknessHorizontalSmCss", value => toThicknessSum(toResponsiveTier(value, "sm"), "horizontal")],
+    ["responsiveThicknessHorizontalMdCss", value => toThicknessSum(toResponsiveTier(value, "md"), "horizontal")],
+    ["responsiveThicknessHorizontalXlCss", value => toThicknessSum(toResponsiveTier(value, "xl"), "horizontal")],
+    ["responsiveThicknessHorizontalXxlCss", value => toThicknessSum(toResponsiveTier(value, "xxl"), "horizontal")],
+    ["responsiveThicknessVerticalBaseCss", value => toThicknessSum(toResponsiveTier(value, "base"), "vertical")],
+    ["responsiveThicknessVerticalSmCss", value => toThicknessSum(toResponsiveTier(value, "sm"), "vertical")],
+    ["responsiveThicknessVerticalMdCss", value => toThicknessSum(toResponsiveTier(value, "md"), "vertical")],
+    ["responsiveThicknessVerticalXlCss", value => toThicknessSum(toResponsiveTier(value, "xl"), "vertical")],
+    ["responsiveThicknessVerticalXxlCss", value => toThicknessSum(toResponsiveTier(value, "xxl"), "vertical")],
     ["responsivePixelsBaseCss", value => toOptionalPixels(toResponsiveTier(value, "base"))],
     ["responsivePixelsSmCss", value => toOptionalPixels(toResponsiveTier(value, "sm"))],
     ["responsivePixelsMdCss", value => toOptionalPixels(toResponsiveTier(value, "md"))],
@@ -314,7 +334,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],
     ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, popupPlacementTokens)}`],
     ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)],
-    ["tabMenuEntriesAttribute", value => toTabMenuTokens(value)]
+    ["tabMenuEntriesAttribute", value => toTabMenuTokens(value)],
+    ["markedDaysAttribute", value => toDayTokens(value)]
 ]);
 
 // UITabMenuEntries by token and flag bit, in the order WebClassNames.TabMenuEntries writes them.
@@ -327,6 +348,13 @@ function toTabMenuTokens(value: unknown): string | undefined {
     const tokens = tabMenuTokens.filter(([token, bit]) => names === null ? (bits & bit) !== 0 : names.includes(token)).map(([token]) => token);
 
     return tokens.length === 0 ? undefined : tokens.join(" ");
+}
+
+/** A set of days as `WebTemporalFormat.Days` writes it: each day's `yyyy-MM-dd`, in order, space-separated; none is no attribute. */
+function toDayTokens(value: unknown): string | undefined {
+    const days = Array.isArray(value) ? value.filter((day): day is string => typeof day === "string" && day.length > 0).map(day => day.slice(0, 10)) : [];
+
+    return days.length === 0 ? undefined : [...new Set(days)].sort().join(" ");
 }
 
 /** A surface's picture: the address quoted the way an icon's is, or nothing when none is set. */
@@ -435,6 +463,21 @@ function toLayoutLength(value: unknown): string {
     return "";
 }
 
+// Mirrors WebCssValues.ResponsiveSize: a component's own Fill is the parent's room less its margins on that axis (core/runtime.less).
+function toSize(value: unknown, axis: "horizontal" | "vertical"): string {
+    if (value === null || typeof value !== "object") {
+        return toLayoutLength(value);
+    }
+
+    const kind = (value as { kind?: string | number }).kind;
+
+    if (kind !== "Fill" && kind !== 2) {
+        return toLayoutLength(value);
+    }
+
+    return axis === "horizontal" ? "var(--ui-fill-width, 100%)" : "var(--ui-fill-height, 100%)";
+}
+
 function toThickness(value: unknown): string {
     if (value === null || value === undefined) {
         return "";
@@ -455,6 +498,25 @@ function toThickness(value: unknown): string {
     const left = model.left ?? 0;
 
     return `${top}px ${right}px ${bottom}px ${left}px`;
+}
+
+// Mirrors WebCssValues.ThicknessSum: a margin's two sides along an axis, the room a Fill size leaves out.
+function toThicknessSum(value: unknown, axis: "horizontal" | "vertical"): string {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    if (typeof value === "number") {
+        return toPixels(value * 2);
+    }
+
+    if (typeof value !== "object") {
+        return "";
+    }
+
+    const model = value as { top?: number; right?: number; bottom?: number; left?: number };
+
+    return axis === "horizontal" ? toPixels((model.left ?? 0) + (model.right ?? 0)) : toPixels((model.top ?? 0) + (model.bottom ?? 0));
 }
 
 // Mirrors WebClassNames.BorderNone: a thickness of nothing on every side says the component draws no edge of its own.
@@ -719,12 +781,17 @@ function toThemeOnColor(value: unknown): string {
     }
 
     if (isColorVariantModel(value)) {
-        return toVariantOnColor(value);
+        return isClear(value) ? "initial" : toVariantOnColor(value);
     }
 
     const model = value as { style?: unknown; light?: unknown; dark?: unknown };
     const light = toVariantOnColor(model.light ?? model.dark);
     const dark = toVariantOnColor(model.dark ?? model.light);
+
+    // A colour of no opacity is no ground at all (`UIThemeColor.Transparent`): it takes back the page's ink, as the page's grounds do.
+    if (light.length > 0 && dark.length > 0 && isClear(model.light ?? model.dark) && isClear(model.dark ?? model.light)) {
+        return "initial";
+    }
 
     if (light.length > 0 && dark.length > 0) {
         return light === dark ? light : `light-dark(${light}, ${dark})`;
@@ -742,6 +809,10 @@ function toThemeOnColor(value: unknown): string {
 
     const varName = onColorVarNames.get(token);
     return varName ? `var(${varName})` : "";
+}
+
+function isClear(value: unknown): boolean {
+    return toColorVariantBytes(value)?.[3] === 0;
 }
 
 function toVariantOnColor(value: unknown): string {
@@ -836,7 +907,8 @@ export function writeBadgeCount(badge: Element, count: number): void {
     if (words !== null)
         words.textContent = text;
 
-    badge.setAttribute("data-ui-badge-text", toBadgeTextFit(text));
+    badge.setAttribute(BadgeTextAttribute, toBadgeTextFit(text));
+    badge.setAttribute(BadgeSetAttribute, "");
 }
 
 function toTextAppearanceClass(value: unknown): string {

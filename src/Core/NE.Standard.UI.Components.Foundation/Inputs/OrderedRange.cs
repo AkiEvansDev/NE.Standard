@@ -3,8 +3,8 @@ using System;
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// The range check every ordered value shares — a minimum, a maximum and a value between them — differing only in the noun its
-/// message carries.
+/// The range checks every ordered value shares — a minimum, a maximum and a value between them, a period's end after its start —
+/// differing only in the noun their messages carry.
 /// </summary>
 public static class OrderedRange
 {
@@ -25,5 +25,15 @@ public static class OrderedRange
 
         if (max.HasValue && value.Value.CompareTo(max.Value) > 0)
             throw new ArgumentOutOfRangeException(nameof(value), value, $"The {noun} cannot be greater than the maximum {noun}.");
+    }
+
+    /// <summary>
+    /// Throws when a period's end falls before its start; an unset start or end checks nothing.
+    /// </summary>
+    public static void ValidatePeriod<T>(T? start, T? end, string noun)
+        where T : struct, IComparable<T>
+    {
+        if (start.HasValue && end.HasValue && end.Value.CompareTo(start.Value) < 0)
+            throw new ArgumentOutOfRangeException(nameof(end), end, $"The end {noun} cannot be earlier than the start {noun}.");
     }
 }

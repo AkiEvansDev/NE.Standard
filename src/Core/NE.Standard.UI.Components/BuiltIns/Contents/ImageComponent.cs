@@ -3,6 +3,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
@@ -32,7 +33,7 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? AltText { get; set; }
+    public UIPhrase? AltText { get; set; }
 
     /// <summary>
     /// Gets or sets how the image content is fit within its bounds.

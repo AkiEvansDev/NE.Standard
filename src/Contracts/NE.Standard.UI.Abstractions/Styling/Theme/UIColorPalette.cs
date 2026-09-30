@@ -8,6 +8,9 @@ namespace NE.Standard.UI.Abstractions.Styling.Theme;
 /// </summary>
 public sealed record UIColorPalette
 {
+    // WCAG's floor for words: an on-colour and an ink derived from a colour clear it.
+    private const double ReadableRatio = 4.5;
+
     // Eight, far apart on the wheel; the Info and Success hues are among them, the warning and danger ones are not.
     private static readonly ColorVariant[] DefaultSeries =
     [
@@ -166,6 +169,106 @@ public sealed record UIColorPalette
     /// Opacity applied to disabled interactive elements, in the 0-255 range.
     /// </summary>
     public byte DisabledOpacity { get; init; } = 145;
+
+    /// <summary>
+    /// The palette with another <see cref="Primary"/>, and the colours that stand on it, write in it or share its hue following it.
+    /// </summary>
+    /// <remarks>
+    /// The palette's own primary gives the palette back as it is. Otherwise <see cref="OnPrimary"/> stays where it reads 4.5:1 on the
+    /// new colour, else it is whichever of <see cref="Background"/> and <see cref="OnBackground"/> reads better there, moved on toward
+    /// white or black until it reads; <see cref="PrimaryInk"/> is the colour moved toward the page's text by the fewest tenths that read 4.5:1 on
+    /// <see cref="Background"/>; <see cref="Selected"/> and <see cref="FocusRing"/>, where drawn from the old primary's hue, keep their
+    /// adjustment, factor and opacity over the new one. The one rule a person's colours on the session and an application's palette
+    /// both take.
+    /// </remarks>
+    public UIColorPalette WithPrimary(ColorVariant primary)
+    {
+        primary.Validate();
+
+        if (primary.Equals(Primary))
+            return this;
+
+        return this with
+        {
+            Primary = primary,
+            OnPrimary = ReadableOn(primary, OnPrimary),
+            PrimaryInk = InkOnPage(primary),
+            Selected = Follow(Selected, Primary, primary),
+            FocusRing = Follow(FocusRing, Primary, primary)
+        };
+    }
+
+    /// <summary>
+    /// The palette with another <see cref="Accent"/>, the colours that stand on it, write in it or share its hue following it as
+    /// <see cref="WithPrimary"/> has them follow the primary.
+    /// </summary>
+    public UIColorPalette WithAccent(ColorVariant accent)
+    {
+        accent.Validate();
+
+        if (accent.Equals(Accent))
+            return this;
+
+        return this with
+        {
+            Accent = accent,
+            OnAccent = ReadableOn(accent, OnAccent),
+            AccentInk = InkOnPage(accent),
+            Selected = Follow(Selected, Accent, accent),
+            FocusRing = Follow(FocusRing, Accent, accent)
+        };
+    }
+
+    /// <summary>
+    /// The palette's own on-colour where it reads on the ground, else the better of the page's two ends, moved on toward white or
+    /// black by the fewest tenths that read where it does not yet (a mid-tone ground).
+    /// </summary>
+    private ColorVariant ReadableOn(ColorVariant ground, ColorVariant current)
+    {
+        if (UIColorContrast.Ratio(current, ground) >= ReadableRatio)
+            return current;
+
+        // The page's ground and its text are the palette's one light and one dark, whichever theme it is.
+        ColorVariant end = UIColorContrast.Ratio(Background, ground) >= UIColorContrast.Ratio(OnBackground, ground) ? Background : OnBackground;
+
+        return FirstReadable(end, UIColorContrast.IsLight(end) ? ColorAdjustment.Tint : ColorAdjustment.Shade, ground);
+    }
+
+    /// <summary>
+    /// <paramref name="color"/>, or moved by <paramref name="adjustment"/> by the fewest tenths that read 4.5:1 on
+    /// <paramref name="ground"/>; all the way (white or black) where none does, which reads on any colour the move leads away from.
+    /// </summary>
+    private static ColorVariant FirstReadable(ColorVariant color, ColorAdjustment adjustment, ColorVariant ground)
+    {
+        for (var factor = 0; factor < ColorVariant.MaxFactor; factor++)
+        {
+            ColorVariant step = factor == 0 ? color : Adjusted(color, adjustment, factor, color.Opacity);
+
+            if (UIColorContrast.Ratio(step, ground) >= ReadableRatio)
+                return step;
+        }
+
+        return Adjusted(color, adjustment, ColorVariant.MaxFactor, color.Opacity);
+    }
+
+    /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>
+    private ColorVariant InkOnPage(ColorVariant color)
+        => FirstReadable(color, UIColorContrast.IsLight(Background) ? ColorAdjustment.Shade : ColorAdjustment.Tint, Background);
+
+    /// <summary>A colour with an adjustment of its own: by name where it is a plain named one, else from what it draws.</summary>
+    private static ColorVariant Adjusted(ColorVariant color, ColorAdjustment adjustment, int factor, byte opacity)
+    {
+        if (color.Rgb is null && color.Adjustment == ColorAdjustment.None)
+            return new ColorVariant(color.Name, adjustment, factor, opacity);
+
+        System.Drawing.Color drawn = color.ToColor();
+
+        return ColorVariant.FromRgb(drawn.R, drawn.G, drawn.B, adjustment, factor, opacity);
+    }
+
+    /// <summary>A colour drawn from <paramref name="from"/>'s hue drawn the same way from <paramref name="to"/>; any other kept.</summary>
+    private static ColorVariant Follow(ColorVariant token, ColorVariant from, ColorVariant to)
+        => token.Name == from.Name && token.Rgb == from.Rgb ? Adjusted(to, token.Adjustment, token.Factor, token.Opacity) : token;
 
     /// <summary>
     /// Validates all color variants in the palette.

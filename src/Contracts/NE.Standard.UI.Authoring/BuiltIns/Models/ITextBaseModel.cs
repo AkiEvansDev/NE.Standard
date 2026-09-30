@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -46,9 +47,13 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     /// <summary>
     /// Gets the label text drawn as the title; nothing renders when it is unset.
     /// </summary>
+    /// <remarks>
+    /// A string (an author's text) or a <see cref="UIPhrase"/>, as every text of the model contracts is — the description, the tooltip,
+    /// the badge's text and tooltip, a select entry's value — so a moment can stand in it.
+    /// </remarks>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    string? Title { get; }
+    UIPhrase? Title { get; }
 
     /// <summary>
     /// Gets the primary text type.

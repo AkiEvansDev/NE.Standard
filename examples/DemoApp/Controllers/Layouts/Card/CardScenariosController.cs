@@ -60,6 +60,45 @@ internal sealed partial class CardSelectionGroupContext : DemoGroupContext
 }
 
 /// <summary>
+/// A list whose rows are clickable cards: a press is the card's, so it runs the card's command and does not choose the row.
+/// </summary>
+internal sealed partial class CardListGroupContext : DemoGroupContext
+{
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> Incidents { get; } =
+    [
+        new() { Id = "inc-311", IsContent = true, Icon = DemoIcons.Server, Title = "INC-311 · api-eu-west-3", Description = "Health check failing on two of eight replicas." },
+        new() { Id = "inc-310", IsContent = true, Icon = DemoIcons.Lock, Title = "INC-310 · identity", Description = "Sign-ins slow for users behind the old proxy." },
+        new() { Id = "inc-309", IsContent = true, Icon = DemoIcons.Link, Title = "INC-309 · dns", Description = "Zone rebuild held back from the deploy path." }
+    ];
+
+    /// <summary>The row the list has chosen, which a press on a card leaves as it was.</summary>
+    [RecursiveMember]
+    public partial string? SelectedKey { get; set; }
+
+    public void Open(string id)
+        => LogEvent($"opened {id}; the chosen row is still {SelectedKey ?? "none"}");
+}
+
+/// <summary>
+/// A clickable card that can be locked: disabled, it is no press target, for the pointer or the keyboard.
+/// </summary>
+internal sealed partial class CardLockGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial bool Open { get; set; }
+
+    public void Toggle()
+    {
+        Open = !Open;
+        LogEvent(Open ? "unlocked: the card takes Tab and a press" : "locked: Tab passes it by");
+    }
+
+    public void Report()
+        => LogEvent("the unlocked card was pressed");
+}
+
+/// <summary>
 /// <c>Loading</c> on something that is not a control: a card covers its whole self, header and footer with it.
 /// </summary>
 internal sealed partial class CardRefreshGroupContext : DemoGroupContext
@@ -100,6 +139,24 @@ internal sealed partial class CardScenariosController() : DemoController
 
     [RecursiveMember]
     public partial CardRefreshGroupContext RefreshGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial CardListGroupContext ListGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial CardLockGroupContext LockGroup { get; set; } = new();
+
+    [UICommand]
+    public void OpenIncident(string id)
+        => ListGroup.Open(id);
+
+    [UICommand]
+    public void ToggleLock()
+        => LockGroup.Toggle();
+
+    [UICommand]
+    public void PressLocked()
+        => LockGroup.Report();
 
     [UICommand]
     public void RecordCardClick()

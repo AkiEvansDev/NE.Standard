@@ -28,8 +28,15 @@ internal abstract partial class UIRuntimeBase
     private void AddPendingCollectionUpdateNoLock(ServerCollectionChangeUIUpdate update)
     {
         // A collection inside a template variant the row does not wear has no host on the page: not sent, not warned about.
-        if (IsStampedFor(update.Component))
-            QueueUpdateNoLock(update);
+        if (!IsStampedFor(update.Component))
+            return;
+
+        // A reset empties the host, so what was queued for it and its rows before is moot: a row drawn in a new variant sends its
+        // list whole, and a command that then clears and refills the list would otherwise send it twice.
+        if (update.Action == CollectionUpdateAction.Reset)
+            RemovePendingSubtreeUpdatesNoLock(update.Component.Id, update.Component.DynamicParameters);
+
+        QueueUpdateNoLock(update);
     }
 
     private void RemovePendingSubtreeUpdatesNoLock(UIComponentId componentId, object?[] dynamicParameters)

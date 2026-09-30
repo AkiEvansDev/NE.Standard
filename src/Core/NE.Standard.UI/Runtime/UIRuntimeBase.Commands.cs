@@ -189,6 +189,7 @@ internal abstract partial class UIRuntimeBase
                 CompiledUIActionArgumentKind.Literal => resolution.LiteralValue,
                 CompiledUIActionArgumentKind.Binding => ResolveBindingValue(argument, resolution),
                 CompiledUIActionArgumentKind.CurrentItemKey => ResolveCurrentItemKey(argument, resolution),
+                CompiledUIActionArgumentKind.GroupKey => ResolveGroupKey(argument, resolution),
                 CompiledUIActionArgumentKind.EventKey => ResolveEventKey(argument, dynamicParameters),
                 _ => throw new UnreachableException()
             };
@@ -264,18 +265,41 @@ internal abstract partial class UIRuntimeBase
     private string ResolveCurrentItemKey(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
     {
         RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
-        var keyIndex = path.Count - 1;
-
-        while (keyIndex >= 0 && path[keyIndex].Kind != PathSegmentKind.Key)
-            keyIndex--;
-
-        if (keyIndex < 0)
-            throw new InvalidOperationException($"Argument '{argument.Name}' does not address a keyed item.");
+        var keyIndex = FindItemKeyIndex(argument, path);
 
         if (resolution.Source?.Kind == CompiledUIBindingSourceKind.Controller && !Controller.TryGetRecursiveValue(path.Take(keyIndex + 1), out _))
             throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item no longer in its collection.");
 
         return path[keyIndex].Key;
+    }
+
+    /// <summary>The place of the item's key in the argument's path: its innermost keyed segment.</summary>
+    private static int FindItemKeyIndex(CompiledUIActionArgument argument, RecursivePath path)
+    {
+        var keyIndex = path.Count - 1;
+
+        while (keyIndex >= 0 && path[keyIndex].Kind != PathSegmentKind.Key)
+            keyIndex--;
+
+        return keyIndex >= 0 ? keyIndex : throw new InvalidOperationException($"Argument '{argument.Name}' does not address a keyed item.");
+    }
+
+    /// <summary>
+    /// The group of the item a current-item key would name: in a group header, the item the header is drawn from, so the group it
+    /// heads; <see langword="null"/> for an item in no group.
+    /// </summary>
+    private string? ResolveGroupKey(CompiledUIActionArgument argument, CompiledUIActionArgumentResolution resolution)
+    {
+        RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
+        RecursivePath itemPath = path.Take(FindItemKeyIndex(argument, path) + 1);
+
+        var item = resolution.Source is { Kind: CompiledUIBindingSourceKind.ComponentItems } source
+            ? ReadComponentItemsValue(argument, source, itemPath)
+            : Controller.TryGetRecursiveValue(itemPath, out var found) ? found : throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item no longer in its collection.");
+
+        return item is IBindableGroup grouped
+            ? grouped.Group
+            : throw new InvalidOperationException($"Argument '{argument.Name}' addresses an item of a type that is not '{nameof(IBindableGroup)}', which has no group.");
     }
 
     /// <summary>

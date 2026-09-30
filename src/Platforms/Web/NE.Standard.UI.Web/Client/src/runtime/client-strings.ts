@@ -34,6 +34,8 @@ export type ClientStringKey =
     | "ui.file.count"
     | "ui.file.failed"
     | "ui.file.oversized"
+    | "ui.file.leftout"
+    | "ui.file.remove"
     | "ui.image.choose"
     | "ui.image.change"
     | "ui.image.remove"
@@ -589,8 +591,13 @@ export function forEachSubtree(root: ParentNode, visit: (subtree: ParentNode) =>
 
 export const clientStrings = new ClientWords();
 
-/** A value's words: a phrase or an author's text always, a plain string only where the property is translatable. */
+/**
+ * A property's value in words: a phrase always, a plain string only where the property is translatable (an item marked content says
+ * it is not) — and an author's text standing as the whole value is that plain string (`UIPhrase.AsValue`), content or not alike.
+ */
 export function shownValue(value: unknown, isTranslatable: () => boolean): unknown {
+    const plain = isAuthorText(value) ? value.text : value;
+
     // `isTranslatable` is asked last: it is a lookup of its own.
-    return clientStrings.resolve(value, typeof value === "string" && value.length > 0 && isTranslatable());
+    return clientStrings.resolve(plain, typeof plain === "string" && plain.length > 0 && isTranslatable());
 }

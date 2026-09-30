@@ -18,6 +18,16 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
     private const string ClearShownAttribute = "data-ui-clear-shown";
 
+    // On a field with no caption and no AccessibleName: its root is a <label>, whose words would name it, the names of the buttons
+    // standing in it among them ("Attach Emoji Send"); its placeholder names it instead, as the page translates or patches it.
+    private const string PlaceholderNamesAttribute = "data-ui-placeholder-names";
+
+    private static readonly WebDomOperation[] PlaceholderOperations =
+    [
+        WebDomOperation.Attribute("placeholder"),
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = $"[{PlaceholderNamesAttribute}]", Optional = true }
+    ];
+
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
 
     protected override string ElementName => "label";
@@ -71,7 +81,21 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("autocomplete", value);
                 }, [WebDomOperation.Attribute("autocomplete")]);
 
-                NativeInputRendererBase.RenderPlaceholder(context, input);
+                var namedByPlaceholder = !IsNamed(context);
+
+                if (namedByPlaceholder)
+                    _ = input.Attribute(PlaceholderNamesAttribute);
+
+                _ = RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
+                {
+                    if (string.IsNullOrEmpty(value))
+                        return;
+
+                    _ = target.Attribute("placeholder", value);
+
+                    if (namedByPlaceholder)
+                        _ = target.Attribute("aria-label", value);
+                }, PlaceholderOperations);
 
                 // A blank one where the author gave none, so :placeholder-shown says the field is empty and the clear goes.
                 if (string.IsNullOrEmpty(ReadRenderValue<string?>(context, IPlaceholderInputComponent.PlaceholderProperty, null)))
@@ -121,5 +145,15 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         });
 
         RenderValidationMessage(context, root);
+    }
+
+    /// <summary>Whether a caption or an AccessibleName names the field, now or once its binding delivers one.</summary>
+    private static bool IsNamed(WebRenderContext context)
+    {
+        WebRenderValueKind title = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? caption, out _);
+
+        return title == WebRenderValueKind.Binding
+            || (title == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(caption))
+            || ResolveRenderValue(context, IAccessibleNameComponent.AccessibleNameProperty, out string? _, out _) != WebRenderValueKind.Missing;
     }
 }

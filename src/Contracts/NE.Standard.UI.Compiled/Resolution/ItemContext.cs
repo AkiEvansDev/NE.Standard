@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Compiled.Resolution;
 
@@ -286,7 +287,8 @@ public sealed class ItemContext(object? item)
         if (property is null)
             return false;
 
-        value = property.GetValue(item);
+        // A text property's whole value as the page is handed it: an author's text as its plain string, as its JSON carries it.
+        value = UIPhrase.AsValue(property.GetValue(item));
         return true;
     }
 

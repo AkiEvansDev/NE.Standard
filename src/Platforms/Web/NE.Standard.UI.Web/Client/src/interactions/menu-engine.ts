@@ -6,14 +6,24 @@ import { focusByPointer } from "./popup-focus.ts";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
 import { matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
+import type { TooltipWordsProvider } from "./tooltip-engine.ts";
+import { towardContent } from "./menu-group-engine.ts";
+import { registerTooltipWords } from "./tooltip-engine.ts";
+import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { logWarn } from "../runtime/logger.ts";
-import { MenuItemClass as ItemClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, MenuItemClass as ItemClass, MenuRailClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector, TooltipAttribute } from "../addressing/dom-attributes.ts";
 
 const RootClass = "ui-menu";
 const SelectedModifier = "ui-menu-item--selected";
 const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
+
+// A rail's own entries (UIMenuDisplay.Rail), whose one-line label may be cut; a collapsed menu's, whose title is hidden; the title.
+const RailEntrySelector = `.${MenuRailClass} > .ui-menu__host > .ui-menu__item > .${ItemClass}`;
+const CollapsedEntrySelector = `.ui-menu[${CollapsedAttribute}] > .ui-menu__host > .ui-menu__item > .${ItemClass}`;
+const TitledEntrySelector = `${RailEntrySelector}, ${CollapsedEntrySelector}`;
+const TitleSelector = ":scope > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title";
 
 const ShortcutAttribute = "data-ui-menu-shortcut";
 
@@ -43,6 +53,9 @@ export class MenuEngine {
         this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
         this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
+
+        // The page's tooltip engine opens and closes an entry's hidden or cut title as any tooltip; this engine only says what it is.
+        registerTooltipWords(EntryTitleWords);
 
         this.applyTabStops();
 
@@ -251,6 +264,33 @@ export class MenuEngine {
         return ownDescendants(menu, `.${ItemClass}:not(${PassiveMenuEntrySelector})`, `.${RootClass}`);
     }
 }
+
+/**
+ * An entry's title as its tooltip where the menu hides it (folded to its icons) or cuts it (a rail's label, only when cut); an entry
+ * with a tooltip of its own says that instead.
+ */
+const EntryTitleWords: TooltipWordsProvider = {
+    anchor: target => target.closest(TitledEntrySelector),
+    words: entry => {
+        if ((entry.getAttribute(TooltipAttribute) ?? "").trim().length > 0)
+            return null;
+
+        const title = entry.querySelector<HTMLElement>(TitleSelector);
+        const words = title?.textContent?.trim() ?? "";
+
+        if (title === null || words.length === 0 || (entry.matches(RailEntrySelector) && title.scrollWidth <= title.clientWidth))
+            return null;
+
+        // The words as the label shows them, never read again as markup.
+        return escapeInlineMarkup(words);
+    },
+    // Beside the entry, toward the content, where above it the words would cover the entry before it.
+    placement: entry => {
+        const menu = entry.closest(`.${RootClass}`);
+
+        return menu === null ? null : towardContent(menu);
+    }
+};
 
 /** The keyboard's press on an entry; Enter on one with an address is the browser's to follow. */
 function pressEntry(domEvent: KeyboardEvent, entry: HTMLElement): void {

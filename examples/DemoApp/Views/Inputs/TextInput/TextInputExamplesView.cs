@@ -11,6 +11,7 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
     private const string SecretId = "demo-text-input-secret";
     private const string EndpointId = "demo-text-input-endpoint";
     private const string ServerId = "demo-text-input-server";
+    private const string SubjectId = "demo-text-input-subject";
 
     public static string ViewKey => "demo.inputs.text-input.examples";
 
@@ -24,6 +25,8 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
         _ = container.AddChildren(DemoUI.CreateColumns([CreateServiceGroup(), CreateClipboardGroup()], [CreateCredentialsGroup(), CreateGhostGroup()]));
 
         _ = container.AddChildren(DemoUI.CreateColumns([CreateSizesGroup(), CreateActionsGroup()], [CreateDenseGroup(), CreateHelpGroup()]));
+
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateInsertGroup()], [CreatePhraseGroup()]));
     }
 
     /// <summary>
@@ -293,6 +296,58 @@ internal sealed class TextInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal("curl -fsSL https://docs.orvane.example/install.sh | sh"))
                 ),
             note: "The first takes what the field holds when pressed, the second a fixed line; neither makes a round trip."
+        );
+    }
+
+    /// <summary>
+    /// A panel at the field's end: a flyout in the action's slot, whose entries put a placeholder where the caret is.
+    /// </summary>
+    private static ContainerComponent CreateInsertGroup()
+    {
+        return DemoUI.CreateExample("A panel at the field's end",
+            new TextInputComponent(SubjectId)
+                .SetTitle("Renewal reminder subject")
+                .SetValue("Your plan renews on ")
+                .SetTrailingAction(new FlyoutComponent()
+                    .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
+                    .SetAnchor(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Add))
+                        .SetTooltip("Insert a field")
+                    )
+                    .SetContent(new ItemsViewComponent()
+                        .SetItems(
+                        [
+                            new TextItem { Id = "{customer}", Title = "Customer name", IsContent = true },
+                            new TextItem { Id = "{plan}", Title = "Plan", IsContent = true },
+                            new TextItem { Id = "{renewal}", Title = "Renewal date", IsContent = true }
+                        ])
+                        .SetSpacing(2)
+                        .SetTemplate(new ButtonComponent()
+                            .SetType(UIButtonType.Ghost)
+                            .SetHorizontalAlignment(UIAlignment.Stretch)
+                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(SubjectId))
+                        )
+                    )
+                ),
+            note: "`SetTrailingAction(FlyoutComponent)`: the flyout's anchor stands in the field's slot, dressed as its button. An entry inserts its key (`{plan}`) at the caret, or over the selection, on the page alone; the field keeps its caret while the panel has the focus."
+        );
+    }
+
+    /// <summary>
+    /// Every word of the field a phrase: the caption, the placeholder and the help badge's words are keys the page translates, the help
+    /// with a number in its slot.
+    /// </summary>
+    private static ContainerComponent CreatePhraseGroup()
+    {
+        return DemoUI.CreateExample("Its words in the page's language",
+            new TextInputComponent()
+                .SetTitle(UIPhrase.Of("demo.inputs.text-input.name.title"))
+                .SetPlaceholder(UIPhrase.Of("demo.inputs.text-input.name.placeholder"))
+                .SetHelp(UIPhrase.Of("demo.inputs.text-input.name.help", ("max", 32)))
+                .SetMaxLength(32),
+            note: "Switch the language in the header: the caption, the placeholder and the help badge's tooltip are drawn again in its words. A sample's plain strings are shown as written; a phrase is always a key."
         );
     }
 }

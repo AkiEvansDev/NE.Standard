@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -10,8 +9,6 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// <summary>A calendar-only picker, whose <see cref="DateOnly"/> round-trip form is already the canonical string.</summary>
 public sealed class DateInputComponentRenderer : TemporalInputRendererBase<DateInputComponent, DateOnly?>
 {
-    private const string CanonicalDateFormat = "yyyy-MM-dd";
-
     protected override string ClassName => "ui-date-input";
 
     protected override string TemporalMode => "date";
@@ -29,7 +26,7 @@ public sealed class DateInputComponentRenderer : TemporalInputRendererBase<DateI
         }
 
         moment = date.ToDateTime(TimeOnly.MinValue);
-        canonical = date.ToString(CanonicalDateFormat, CultureInfo.InvariantCulture);
+        canonical = TemporalCalendarRenderer.CanonicalDay(date);
         return true;
     }
 }

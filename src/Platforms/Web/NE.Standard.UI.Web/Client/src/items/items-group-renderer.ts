@@ -1,7 +1,7 @@
-import { GroupAttribute, GroupHeaderAttribute, HiddenClass } from "../addressing/dom-attributes";
+import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort";
 import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
-import { resolveHostMode } from "./items-host-mode";
+import { firstShownRow, markGroupHeader } from "./items-group-runs";
 import { placeInOrder } from "./items-dom-order";
 import { getSourceOrder } from "./items-source-order";
 import { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -16,18 +16,15 @@ function removeGroupHeaders(host: Element): void {
         header.remove();
 }
 
+/** Buckets a host's rows by group, each under a header, in the order the groups first came; a window is headed between neighbours instead (`items-group-runs.ts`). */
 export function regroupHost(host: Element, componentId: number, templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, metadata: MetadataIndex, state: PropertyStateStore): void {
-    // A windowed host neither groups nor sorts here: its boundaries live outside the window, and the spacers must stay.
-    const windowed = resolveHostMode(host) === "windowed";
     // Source order, not the children's: a sort that has just come off has to find the order it displaced.
-    const present = getRealItemElements(host);
-    const items = windowed ? present : getSourceOrder(host, present);
+    const items = getSourceOrder(host, getRealItemElements(host));
     const groupTemplate = templates.getGroupTemplate(componentId);
     // Whether this host draws headers at all, apart from whether it has any right now: only ours are ours to remove.
-    const canGroup = !windowed && groupTemplate !== undefined;
+    const canGroup = groupTemplate !== undefined;
     const isGrouped = canGroup && items.some(item => item.hasAttribute(GroupAttribute));
-    const filterSortConfig = windowed ? undefined : metadata.getItemsFilterSortMetadata(componentId);
-    const activeSorts = windowed ? [] : getActiveSorts(filterSortConfig, state, readItemsQuery(host));
+    const activeSorts = getActiveSorts(metadata.getItemsFilterSortMetadata(componentId), state, readItemsQuery(host));
 
     // A header the last pass drew is stale the moment the list stops carrying groups, emptying included.
     if (canGroup && !isGrouped)
@@ -37,9 +34,6 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         bucketOrderByHost.set(host, []);
         return;
     }
-
-    if (windowed && !isGrouped && activeSorts.length === 0)
-        return;
 
     // replaceChildren rewrites the host wholesale, so the empty-state placeholder has to be carried across.
     const placeholder = findEmptyPlaceholder(host);
@@ -86,9 +80,11 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         if (activeSorts.length > 0)
             bucketItems = sortElements(bucketItems, activeSorts, renderer);
 
-        // The items without a group are a bucket with no header, as on the server.
-        if (key !== "" && bucketItems.some(item => !item.classList.contains(HiddenClass))) {
-            const header = createHeader(groupTemplate, renderer, bucketItems[0]);
+        // The items without a group are a bucket with no header, as on the server; one all filtered out has none either.
+        const anchor = key === "" ? undefined : firstShownRow(bucketItems);
+
+        if (anchor !== undefined) {
+            const header = createGroupHeader(groupTemplate, renderer, anchor);
 
             if (header !== null)
                 orderedNodes.push(header);
@@ -100,13 +96,12 @@ export function regroupHost(host: Element, componentId: number, templates: Items
     placeInOrder(host, [...orderedNodes, ...toNodes(placeholder)]);
 }
 
-function createHeader(template: HTMLTemplateElement, renderer: ItemsTemplateRenderer, anchor: Element): Element | null {
+/** A header drawn from the row it heads, standing in that row's key: a command in it takes the row's key and group. */
+export function createGroupHeader(template: HTMLTemplateElement, renderer: ItemsTemplateRenderer, anchor: Element): Element | null {
     const header = renderer.renderFromTemplate(template, renderer.getItemValue(anchor));
 
-    if (header === null)
-        return null;
-
-    header.setAttribute(GroupHeaderAttribute, "");
+    if (header !== null)
+        markGroupHeader(header, anchor.getAttribute(ComponentKeyAttribute));
 
     return header;
 }

@@ -110,7 +110,7 @@ public sealed partial class FilesController : TeamRoomController
             else
             {
                 document.Title = node.Title;
-                document.Language = LanguageOf(node.Title ?? string.Empty);
+                document.Language = LanguageOf(node.Title?.Key ?? string.Empty);
             }
         }
     }
@@ -224,7 +224,7 @@ public sealed partial class FilesController : TeamRoomController
                 Order = order,
                 Body = content,
                 SavedBody = content,
-                Language = LanguageOf(node.Title ?? string.Empty),
+                Language = LanguageOf(node.Title?.Key ?? string.Empty),
                 CanRename = false
             });
         }
@@ -249,7 +249,7 @@ public sealed partial class FilesController : TeamRoomController
             return Refuse("Only an administrator renames.");
         }
 
-        var error = DocumentStore.Rename(id, node.Title ?? string.Empty);
+        var error = DocumentStore.Rename(id, node.Title?.Key ?? string.Empty);
 
         if (error is not null)
         {
@@ -261,7 +261,7 @@ public sealed partial class FilesController : TeamRoomController
         {
             document.Title = node.Title;
             // The extension is where the editor's language comes from, so a rename that changes it changes the highlighting too.
-            document.Language = LanguageOf(node.Title ?? string.Empty);
+            document.Language = LanguageOf(node.Title?.Key ?? string.Empty);
         }
 
         return UICommandResult.Ok();
@@ -377,7 +377,7 @@ public sealed partial class FilesController : TeamRoomController
         foreach (TreeNode node in Nodes)
         {
             if (node.Title is not null)
-                _ = taken.Add(node.Title);
+                _ = taken.Add(node.Title.ToString());
         }
 
         if (!taken.Contains(stem))

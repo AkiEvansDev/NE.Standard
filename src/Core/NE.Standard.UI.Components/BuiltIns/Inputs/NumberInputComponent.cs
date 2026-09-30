@@ -3,6 +3,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
@@ -16,7 +17,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     /// <inheritdoc/>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public string? Placeholder { get; set; }
+    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
     /// Gets or sets the increment between selectable values.

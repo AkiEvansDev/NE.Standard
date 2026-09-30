@@ -49,6 +49,7 @@ import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
 import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
+import { SurfacePressEngine } from "../interactions/surface-press-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
 import { PressRippleEngine } from "../interactions/press-ripple-engine";
 import { startRefusals } from "../interactions/refusal-engine";
@@ -68,10 +69,12 @@ import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine"
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import {
-    ClientEffectKinds, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, WebUIAttachRequest, WebUIAttachResult, getIdValue
+    ClientEffectKinds, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest, WebUIAttachResult,
+    getIdValue
 } from "../metadata/metadata-index";
+import { applyThemeColors } from "../rendering/theme-colors";
 import { readWebUIMetadata } from "../metadata/metadata-reader";
-import { readHydration } from "./web-hydration";
+import { paintsMoment, readHydration } from "./web-hydration";
 import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
 import { readTimeZone } from "../transport/reader-time-zone";
 import { CommandDispatcher } from "../transport/command-dispatcher";
@@ -121,6 +124,7 @@ type EngineContext = {
     readonly dom: DomRegistry;
     readonly propertyPatchEngine: PropertyPatchEngine;
     readonly effects: EffectRegistry;
+    readonly validation: FieldValidation;
 };
 
 /** Icons as a package draws them on elements it builds itself: an icon value written the way a renderer writes it. */
@@ -178,8 +182,8 @@ export type PropertyWriting = {
 // Engines needing only the root and the shared services, named for the console if one throws; where their order matters, it says so.
 const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
     ["refusal", ({ root }) => startRefusals(root)],
-    ["file input", ({ root }) => new FileInputEngine({ root })],
-    ["image input", ({ root }) => new ImageInputEngine({ root })],
+    ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
+    ["image input", ({ root, validation, propertyPatchEngine }) => new ImageInputEngine({ root, validation, propertyPatchEngine })],
     ["key value action", ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine })],
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
     ["field keys", ({ root }) => new FieldKeysEngine({ root })],
@@ -216,6 +220,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["command bar", ({ root }) => new CommandBarEngine({ root })],
     ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
+    ["surface press", ({ root }) => new SurfacePressEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
     ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root })],
     ["text fold", ({ root }) => new TextFoldEngine({ root })],
@@ -268,6 +273,9 @@ export class WebUIRuntime {
 
     // Bumped by every language switch, so one that began later wins over one still waiting on the server.
     private languageSwitches = 0;
+
+    // Counts the colour changes asked for, so an answer arriving after a later one's is dropped.
+    private themeColorChanges = 0;
 
     // Null only when its start threw: a number field is then read as the text it shows.
     private numberInputs: NumberInputEngine | null = null;
@@ -387,6 +395,25 @@ export class WebUIRuntime {
             void this.switchLanguageAsync(language, href).catch(error => logWarn("switching the page's language failed.", error));
         });
 
+        // Raised or pushed alike, the session is told the colours and answers the stylesheet they make: the one a render of it carries.
+        this.effects.register(ClientEffectKinds.SetThemeColors, context => {
+            const effect = context.effect as SetThemeColorsClientEffect;
+            const change = ++this.themeColorChanges;
+
+            // Pushed for a session that holds them already, the stylesheet comes named: telling the session would write them again.
+            if (typeof effect.css === "string") {
+                applyThemeColors(document.head, effect.css);
+                return;
+            }
+
+            void this.transport.setThemeColorsAsync(effect.colors ?? null)
+                .then(css => {
+                    if (change === this.themeColorChanges)
+                        applyThemeColors(document.head, css);
+                })
+                .catch(error => logWarn("applying the reader's colours failed.", error));
+        });
+
         // Value sync is independent of the event pipeline: a component with both does two round-trips on one "change".
         const valueChangeDispatcher = new ValueChangeDispatcher(this.transport);
         valueBinding = new ValueBindingEngine({
@@ -418,7 +445,7 @@ export class WebUIRuntime {
             valueReaders: this.extensions.valueReaders
         });
 
-        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects };
+        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine };
 
         for (const [name, start] of ComponentEngines)
             startEngine(name, start, this.engineContext);
@@ -801,7 +828,7 @@ export class WebUIRuntime {
     /** Whether the render painted a moment in words: in a mark, a rendered value, a row the server drew or the title. */
     private holdsPaintedMoment(): boolean {
         return marksMoment(this.root)
-            || holdsMoment(this.hydration?.title)
+            || paintsMoment(this.hydration)
             || this.metadata.getWords().some(word => holdsMoment(word.key))
             || holdsMoment(this.metadata.metadata.itemValues);
     }

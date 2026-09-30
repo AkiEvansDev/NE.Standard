@@ -118,7 +118,7 @@ internal sealed partial class InboxController : UIControllerBase
             SelectedKey = id;
             message.Unread = false;
             message.BadgeStyle = UIBadgeType.Surface;
-            Subject = message.Description ?? string.Empty;
+            Subject = message.Description?.ToString() ?? string.Empty;
             FromLine = $"{message.Title} · {message.Group?.ToLowerInvariant()}, {message.Time}";
             Body = message.Body;
             Quote = message.Quote ?? string.Empty;
@@ -144,7 +144,7 @@ internal sealed partial class InboxController : UIControllerBase
         if (_open is null)
             return UICommandResult.Ok();
 
-        var sender = _open.Title;
+        var sender = _open.Title?.ToString();
         _ = Messages.Remove(_open);
         Close();
 
@@ -170,7 +170,7 @@ internal sealed partial class InboxController : UIControllerBase
         if (_open is null || string.IsNullOrWhiteSpace(Reply))
             return Notify("Write something first.", UIColorStyle.Info);
 
-        var sender = _open.Title;
+        var sender = _open.Title?.ToString();
         Reply = null;
 
         return Notify($"Your reply went to {sender}.", UIColorStyle.Success);

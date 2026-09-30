@@ -93,6 +93,17 @@ public static class WebShellRenderer
         });
 
         _ = head.Element("style", style => style.Raw(ThemeCss.GetValue(context.Theme, WebThemeCssBuilder.Build)));
+
+        // The reader's own, after the application's and apart from it: that one stays the same text for every reader. Colours and
+        // numbers alone, so nothing in it needs escaping.
+        if (WebThemeColorsCss.For(context.Theme, context.ThemeColors) is { Length: > 0 } colors)
+        {
+            _ = head.Element("style", style =>
+            {
+                _ = style.Attribute(WebAttributes.ThemeColors);
+                _ = style.Raw(colors);
+            });
+        }
         // The view's own, beside the theme's: a number the options checked, so nothing in it needs escaping.
         _ = head.Element("style", style => style.Raw(string.Create(CultureInfo.InvariantCulture, $":root{{--ui-notification-width:{context.NotificationWidth}px}}")));
 

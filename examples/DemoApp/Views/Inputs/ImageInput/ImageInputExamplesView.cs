@@ -1,3 +1,4 @@
+using DemoApp.Controllers.Inputs.ImageInput;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Inputs.ImageInput;
@@ -5,9 +6,18 @@ namespace DemoApp.Views.Inputs.ImageInput;
 /// <summary>
 /// The three shapes in the places they are made for, and the states each of them can be in.
 /// </summary>
-/// <remarks>Nothing here reads an upload back; that needs a controller and lives on the Main page.</remarks>
+/// <remarks>Two groups read an upload back: the sticker the controller keeps and clears, and the composer's shelf Send empties.</remarks>
 internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefinition
 {
+    private const string StickerGroup = nameof(ImageInputExamplesController.StickerGroup);
+    private const string ComposerGroup = nameof(ImageInputExamplesController.ComposerGroup);
+
+    /// <summary>The shelf's id, which the clip opens the chooser of.</summary>
+    private const string AttachmentsId = "demo-image-input-attachments";
+
+    /// <summary>The composer's panel, where dropped and pasted pictures land on the shelf.</summary>
+    private const string ComposerPanelId = "demo-image-input-composer-panel";
+
     public static string ViewKey => "demo.inputs.image-input.examples";
 
     protected override string ComponentRoute => "/inputs/image-input";
@@ -23,6 +33,8 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
 
         _ = container.AddChild(CreateAppearanceGroup());
         _ = container.AddChild(CreateShelfGroup());
+
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateStickerGroup()], [CreateComposerGroup()]));
     }
 
     /// <summary>
@@ -181,6 +193,94 @@ internal sealed class ImageInputExamplesView : DemoExamplesView, IUIViewDefiniti
                 .SetPlaceholder("Drop screenshots here, or pick them"),
             columns: 24,
             note: "SetMultiple(true) turns the picture shape into a shelf; bind SelectionIds to read the pictures back, and clear it to empty the shelf."
+        );
+    }
+
+    /// <summary>
+    /// Adding a sticker: one picture of 1 MB at most, which the controller stores and then empties the input of by writing its handle
+    /// back to null.
+    /// </summary>
+    private static ContainerComponent CreateStickerGroup()
+    {
+        return DemoUI.CreateExample("Add a sticker",
+            UILayout.Stack(12)
+                .AddChild(new ImageInputComponent()
+                    .SetShape(UIImageInputShape.Inline)
+                    .SetTitle("Sticker")
+                    .SetPlaceholder("PNG, JPEG or WebP, 1 MB at most")
+                    .SetAccept("image/png,image/jpeg,image/webp")
+                    .SetMaxFileSize(1024 * 1024)
+                    .BindSelectionId(nameof(StickerGroupContext.PickedId), UIBindingScope.Relative)
+                    .OnChange(nameof(ImageInputExamplesController.TakeStickerAsync))
+                )
+                .AddChild(new ItemsViewComponent()
+                    .BindItems(nameof(StickerGroupContext.Stickers), UIBindingScope.Relative)
+                    .SetLayoutType(UIItemsLayoutType.Wrap)
+                    .SetSpacing(8)
+                    .SetTemplate(new ImageComponent()
+                        .BindSource(nameof(DemoStickerItem.Source), UIBindingScope.Relative)
+                        .SetAltText("Sticker")
+                        .SetFit(UIImageFit.Contain)
+                        .SetWidth(UILayoutLength.Absolute(72))
+                        .SetHeight(UILayoutLength.Absolute(72))
+                    )
+                ),
+            note: "Pick a picture: the controller keeps it on the shelf below and writes `SelectionId = null`, which empties the input — preview, name and handle. A file over 1 MB is refused on the field's validation line, in the page's language, and nothing is sent.",
+            context: StickerGroup
+        );
+    }
+
+    /// <summary>
+    /// A messenger's way of attaching: the clip opens the chooser at once, the files wait above the text — a picture as its thumbnail,
+    /// anything else as its kind's glyph — and Send takes them with it.
+    /// </summary>
+    private static ContainerComponent CreateComposerGroup()
+    {
+        return DemoUI.CreateExample("Attach like a messenger",
+            UILayout.Stack(8)
+                .AddChild(new ItemsViewComponent()
+                    .BindItems(nameof(ComposerGroupContext.Messages), UIBindingScope.Relative)
+                    .SetSpacing(8)
+                    .SetScrollAnchor(UIScrollAnchor.End)
+                    .SetMaxHeight(UILayoutLength.Absolute(200))
+                    .SetTemplate(new TextComponent()
+                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .SetIconColor(UIThemeColor.Muted)
+                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                    )
+                )
+                .AddChild(new ImageInputComponent(AttachmentsId)
+                    .SetShape(UIImageInputShape.Shelf)
+                    .SetAccept(string.Empty)
+                    .SetMaxFileSize(5 * 1024 * 1024)
+                    .SetDropTargetId(ComposerPanelId)
+                    .BindSelectionIds(nameof(ComposerGroupContext.AttachmentIds), UIBindingScope.Relative)
+                )
+                .AddChild(new ContainerComponent(ComposerPanelId)
+                    .AddChild(new TextAreaComponent()
+                        .SetPlaceholder("Write a message, or drop files here")
+                        .SetRows(1)
+                        .SetAutoGrow(6)
+                        .BindValue(nameof(ComposerGroupContext.Draft), UIBindingScope.Relative)
+                        // In the press itself, not from a command: a browser opens a chooser only inside the reader's own gesture.
+                        .AddLeadingAction(new ButtonComponent()
+                            .SetType(UIButtonType.Ghost)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.Attach))
+                            .SetTooltip("Attach pictures or files")
+                            .InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId))
+                        )
+                        .AddTrailingAction(new ButtonComponent()
+                            .SetType(UIButtonType.Ghost)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.Send))
+                            .SetTooltip("Send")
+                            .OnClick(nameof(ImageInputExamplesController.SendAsync))
+                        )
+                    )
+                ),
+            note: "The clip opens the system's chooser at once (`OpenPickerEffect` in the press); what is picked waits above the text, a picture as its thumbnail and any other file as its kind's glyph over its name (an empty `Accept` takes any file), each with its remove and its upload's progress — the shelf is not on the page until something is attached. "
+                + "Drop files on the composer, or paste a screenshot into it, and they join the shelf (`SetDropTargetId`); a paste of plain text stays the field's. Send reads `SelectionIds` and writes it back empty.",
+            context: ComposerGroup
         );
     }
 }

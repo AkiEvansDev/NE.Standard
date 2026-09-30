@@ -1,6 +1,7 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -19,5 +20,5 @@ public interface IAccessibleNameComponent : IVisualComponent
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    string? AccessibleName { get; }
+    UIPhrase? AccessibleName { get; }
 }

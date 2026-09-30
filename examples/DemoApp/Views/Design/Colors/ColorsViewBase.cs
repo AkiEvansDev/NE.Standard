@@ -22,6 +22,7 @@ internal abstract class ColorsViewBase : DemoView
             ("demo.colors.palette", "/design/colors"),
             ("demo.colors.semantic", "/design/colors/semantic"),
             ("demo.colors.components", "/design/colors/components"),
+            ("demo.colors.theme", "/design/colors/theme"),
         ], CurrentTabUrl));
 
         // The palette's names, values and sample compositions are the reference itself, shown as written: content for the unkeyed report.

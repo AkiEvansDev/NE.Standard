@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
@@ -17,9 +16,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     where TComponent : TemporalInputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     /// <summary>The shared class every part of the shell is named after, and what the client engine matches on.</summary>
-    protected const string SharedClassName = "ui-temporal-input";
-
-    private const char CulturePackSeparator = '|';
+    protected const string SharedClassName = TemporalCalendarRenderer.TemporalClassName;
 
     public override string ComponentTypeKey => TComponent.ComponentTypeKey;
 
@@ -80,21 +77,11 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
     /// <summary>
     /// Writes what the client needs to build the grid; <c>Step</c>, <c>FirstDayOfWeek</c> and <c>Culture</c> ignore a binding, and no
-    /// <c>Culture</c> is the page's own.
+    /// <c>Culture</c> is the page's own. A day input's marked days go with them.
     /// </summary>
     private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat, CultureInfo inputCulture, bool ownCulture)
     {
-        _ = RenderProperty<TValue>(context, root, MinMaxInputComponentBase<TComponent, TValue>.MinProperty, (target, value) =>
-        {
-            if (TryResolveTemporal(value, out _, out var canonical))
-                _ = target.Attribute(WebAttributes.TemporalMin, canonical);
-        }, [WebDomOperation.Attribute(WebAttributes.TemporalMin, target: "root")]);
-
-        _ = RenderProperty<TValue>(context, root, MinMaxInputComponentBase<TComponent, TValue>.MaxProperty, (target, value) =>
-        {
-            if (TryResolveTemporal(value, out _, out var canonical))
-                _ = target.Attribute(WebAttributes.TemporalMax, canonical);
-        }, [WebDomOperation.Attribute(WebAttributes.TemporalMax, target: "root")]);
+        TemporalCalendarRenderer.RenderBounds<TValue>(context, root, MinMaxInputComponentBase<TComponent, TValue>.MinProperty, MinMaxInputComponentBase<TComponent, TValue>.MaxProperty, Canonical);
 
         _ = RenderProperty<string?>(context, root, IFormattedInputComponent.DisplayFormatProperty, static (target, value) =>
         {
@@ -115,23 +102,13 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             _ = root.Attribute(WebAttributes.TemporalStepUnit, StepUnitName(resolvedStep.Unit));
         }
 
-        _ = ResolveRenderValue(context, TemporalInputComponentBase<TComponent, TValue>.FirstDayOfWeekProperty, out UIDayOfWeek? firstDayOfWeek, out _);
+        TemporalCalendarRenderer.RenderFirstDay(context, root, TemporalInputComponentBase<TComponent, TValue>.FirstDayOfWeekProperty);
 
-        // UIDayOfWeek starts at Monday, JavaScript's getDay() at Sunday; the shift converts between them.
-        var firstDay = firstDayOfWeek is UIDayOfWeek day ? ((int)day + 1) % 7 : 1;
-        _ = root.Attribute(WebAttributes.TemporalFirstDay, firstDay.ToString(CultureInfo.InvariantCulture));
+        // A type test on the component type, not the instance: a property the type does not declare cannot be rendered.
+        if (typeof(IMarkedDaysComponent).IsAssignableFrom(typeof(TComponent)))
+            TemporalCalendarRenderer.RenderMarkedDays(context, root);
 
-        WebTemporalCulturePack culture = WebTemporalCulturePack.FromCulture(inputCulture);
-
-        _ = root.Attribute(WebAttributes.TemporalMonths, Join(culture.MonthNames));
-        _ = root.Attribute(WebAttributes.TemporalMonthsGenitive, Join(culture.MonthGenitiveNames));
-        _ = root.Attribute(WebAttributes.TemporalMonthsShort, Join(culture.AbbreviatedMonthNames));
-        _ = root.Attribute(WebAttributes.TemporalDaynames, Join(culture.DayNames));
-        _ = root.Attribute(WebAttributes.TemporalWeekdays, Join(culture.AbbreviatedDayNames));
-        _ = root.Attribute(WebAttributes.TemporalAm, culture.AmDesignator);
-        _ = root.Attribute(WebAttributes.TemporalPm, culture.PmDesignator);
-
-        return culture;
+        return TemporalCalendarRenderer.RenderCulturePack(root, inputCulture);
     }
 
     private static string StepUnitName(UITemporalStepUnit unit)
@@ -142,9 +119,6 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             UITemporalStepUnit.Second => "second",
             _ => "day"
         };
-
-    private static string Join(IReadOnlyList<string> names)
-        => string.Join(CulturePackSeparator, names);
 
     /// <summary>Whether the control edits a period: two fields under one caption, the end behind the second.</summary>
     protected static bool IsRange(WebRenderContext context)
@@ -340,40 +314,24 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// <summary>The hidden input the value binds to, and the one place <c>Value</c> is registered for any row shape.</summary>
     protected void RenderValueInput(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string format, Action<string> writeDisplay)
     {
-        ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(writeDisplay);
 
-        NativeInputRendererBase.RenderHiddenValueInput(context, root, $"{SharedClassName}__value-input", valueInput =>
-        {
-            _ = RenderProperty<TValue>(context, valueInput, IInputComponent.ValueProperty, (target, value) =>
-            {
-                if (!TryResolveTemporal(value, out DateTime moment, out var canonical))
-                    return;
-
-                _ = target.Attribute("value", canonical);
-                writeDisplay(WebTemporalFormat.Format(moment, format, culture));
-            }, [WebDomOperation.Property("value")]);
-        });
+        TemporalCalendarRenderer.RenderValueInput<TValue>(context, root, IInputComponent.ValueProperty, end: false, Canonical, value => writeDisplay(Display(value, format, culture)));
     }
 
     /// <summary>The period's end, a second hidden input beside the first, bound to <c>EndValue</c> the same way.</summary>
     protected void RenderEndValueInput(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string format, Action<string> writeDisplay)
     {
-        ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(writeDisplay);
 
-        NativeInputRendererBase.RenderHiddenValueInput(context, root, $"{SharedClassName}__end-value-input", valueInput =>
-        {
-            _ = valueInput.Attribute(WebAttributes.TemporalEnd);
-
-            _ = RenderProperty<TValue>(context, valueInput, TemporalInputComponentBase<TComponent, TValue>.EndValueProperty, (target, value) =>
-            {
-                if (!TryResolveTemporal(value, out DateTime moment, out var canonical))
-                    return;
-
-                _ = target.Attribute("value", canonical);
-                writeDisplay(WebTemporalFormat.Format(moment, format, culture));
-            }, [WebDomOperation.Property("value")]);
-        }, part: "end");
+        TemporalCalendarRenderer.RenderValueInput<TValue>(context, root, TemporalInputComponentBase<TComponent, TValue>.EndValueProperty, end: true, Canonical, value => writeDisplay(Display(value, format, culture)));
     }
+
+    /// <summary>A value's canonical text, the form the page reads it in; none when unset.</summary>
+    private string? Canonical(TValue? value)
+        => TryResolveTemporal(value, out _, out var canonical) ? canonical : null;
+
+    /// <summary>A value as its field shows it; called only for a value that has a canonical form.</summary>
+    private string Display(TValue? value, string format, WebTemporalCulturePack culture)
+        => TryResolveTemporal(value, out DateTime moment, out _) ? WebTemporalFormat.Format(moment, format, culture) : "";
 }

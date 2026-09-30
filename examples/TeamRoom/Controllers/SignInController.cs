@@ -71,6 +71,9 @@ public sealed partial class SignInController(AccountService accounts, QuickSignI
 
         await Context.SignInAsync(account.Id, new System.Collections.Generic.HashSet<string> { account.Role }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
+        // The reader's colours live on the account, so they follow the reader to this browser: the navigation below renders in them.
+        await Context.UpdateSessionAsync(session => session with { ThemeColors = accounts.ThemeColorsOf(account.Id) }, cancellationToken).ConfigureAwait(false);
+
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = _returnUrl })]);
     }
 

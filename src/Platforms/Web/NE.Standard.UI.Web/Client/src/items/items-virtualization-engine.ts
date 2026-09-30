@@ -12,6 +12,7 @@ import { ItemStackEntry, ItemValueStep, tryReadItemProperty } from "./binding-te
 import { placeInOrder } from "./items-dom-order";
 import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
 import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort";
+import { markGroupHeader } from "./items-group-runs";
 import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { renderItemRow } from "./items-row-renderer";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
@@ -414,6 +415,10 @@ export class ItemsVirtualizationEngine {
             }
 
             if (element !== null) {
+                // A kept header stands in its bucket's first row, which the last pass may have had another as.
+                if (row.header)
+                    markGroupHeader(element, row.entry.key);
+
                 drawn.push(element);
                 continue;
             }
@@ -493,10 +498,8 @@ export class ItemsVirtualizationEngine {
 
         const header = this.options.renderer.renderFromTemplate(template, anchor.item);
 
-        if (header === null)
-            return null;
-
-        header.setAttribute(GroupHeaderAttribute, "");
+        if (header !== null)
+            markGroupHeader(header, anchor.key);
 
         return header;
     }

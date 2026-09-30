@@ -18,7 +18,7 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
 
     /// <inheritdoc/>
     protected override void ValidatePeriod(TimeOnly? start, TimeOnly? end)
-        => ValidateOrderedPeriod(start, end, "time");
+        => OrderedRange.ValidatePeriod(start, end, "time");
 }
 
 /// <summary>

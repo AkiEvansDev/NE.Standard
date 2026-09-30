@@ -10,6 +10,7 @@ using NE.Standard.UI.Application;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Shell.Updates.Server;
 using NE.Standard.UI.Web.Hosting;
@@ -76,7 +77,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         Log.SendingCommandResult(_logger, handle.Instance.Id, handle.Instance.WindowId);
 
-        UICommandExecutionResult sent = NameWordsOfStoredLanguage(handle, result);
+        UICommandExecutionResult sent = MarkStoredSettings(handle, result);
 
         await _hub.Clients
             .Client(handle.Instance.Id)
@@ -85,24 +86,23 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
     }
 
     /// <summary>
-    /// A switch pushed for a session that already holds the language — a command's own <c>UpdateSessionAsync</c> — names where the
-    /// words are, so the page fetches them without telling the session again. On a copy: the runtime's own result stays as it was.
+    /// A switch pushed for a session that already holds the setting — a command's own <c>UpdateSessionAsync</c>, another page's switch
+    /// reaching this one — goes out marked stored, so the page applies it without telling the session again, whose write would
+    /// reach the session's pages once more and could put an older value back: a language names where its words are, colours carry
+    /// their stylesheet, a theme is marked stored. On a copy: the runtime's own result stays as it was.
     /// </summary>
-    private UICommandExecutionResult NameWordsOfStoredLanguage(UIHandle handle, UICommandExecutionResult result)
+    private UICommandExecutionResult MarkStoredSettings(UIHandle handle, UICommandExecutionResult result)
     {
         ClientEffect[] effects = result.Command.Effects;
         ClientEffect[]? named = null;
 
         for (var i = 0; i < effects.Length; i++)
         {
-            if (effects[i] is not SetLanguageEffect { Href: null } effect || !string.Equals(effect.Language, handle.Session.Language, StringComparison.Ordinal))
+            if (MarkStored(handle.Session, effects[i]) is not ClientEffect marked)
                 continue;
 
             named ??= [.. effects];
-            named[i] = new SetLanguageEffect(effect.Language)
-            {
-                Href = WebWordsEndpoint.Resolve(_services.GetRequiredService<UIApplication>(), effect.Language, _services.GetServices<IUIStringsSource>()).Href
-            };
+            named[i] = marked;
         }
 
         if (named is null)
@@ -116,4 +116,20 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
             RequestId = result.RequestId
         };
     }
+
+    /// <summary>The effect marked stored where it switches to what the session holds and is not marked yet; otherwise none.</summary>
+    private ClientEffect? MarkStored(IUserSessionContext session, ClientEffect effect)
+        => effect switch
+        {
+            SetLanguageEffect { Href: null } language when string.Equals(language.Language, session.Language, StringComparison.Ordinal) => new SetLanguageEffect(language.Language)
+            {
+                Href = WebWordsEndpoint.Resolve(_services.GetRequiredService<UIApplication>(), language.Language, _services.GetServices<IUIStringsSource>()).Href
+            },
+            SetThemeEffect { Stored: false } theme when theme.Mode == session.ThemeMode => new SetThemeEffect(theme.Mode) { Stored = true },
+            SetThemeColorsEffect { Css: null } colors when Equals(colors.Colors, session.ThemeColors) => new SetThemeColorsEffect(colors.Colors)
+            {
+                Css = WebThemeColorsCss.For(_services.GetRequiredService<UIApplication>().Theme, colors.Colors)
+            },
+            _ => null
+        };
 }

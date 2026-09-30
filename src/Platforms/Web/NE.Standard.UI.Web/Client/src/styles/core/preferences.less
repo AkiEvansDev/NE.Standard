@@ -97,7 +97,7 @@
 
     // A folded section holding the current page: a thinner mark than the page's entry; not under the dashed mark it would replace.
     .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}),
-    @{ui-menu-collapsed} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}) {
+    @{ui-menu-folded} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}) {
         outline: 1px solid Highlight;
         outline-offset: -1px;
     }

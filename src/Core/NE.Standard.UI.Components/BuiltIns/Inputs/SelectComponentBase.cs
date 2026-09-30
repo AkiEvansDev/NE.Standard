@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -59,7 +60,7 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// <inheritdoc/>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public string? Placeholder { get; set; }
+    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
     /// Initializes the input with the default item, empty and group templates.

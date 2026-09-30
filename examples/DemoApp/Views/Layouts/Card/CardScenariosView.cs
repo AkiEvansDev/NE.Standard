@@ -14,6 +14,8 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
     private const string HoverGroup = nameof(CardScenariosController.HoverGroup);
     private const string SelectionGroup = nameof(CardScenariosController.SelectionGroup);
     private const string RefreshGroup = nameof(CardScenariosController.RefreshGroup);
+    private const string ListGroup = nameof(CardScenariosController.ListGroup);
+    private const string LockGroup = nameof(CardScenariosController.LockGroup);
 
     private const string HoverCardId = "card-hover-host";
 
@@ -25,7 +27,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
     protected override string HeaderDescription => "demo.layouts.card.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateClickGroup(), CreateSelectionGroup()], [CreateHoverGroup(), CreateRefreshGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateClickGroup(), CreateSelectionGroup(), CreateListGroup()], [CreateHoverGroup(), CreateRefreshGroup(), CreateLockGroup()]));
 
     /// <summary>
     /// Hover interactions write <c>Visible</c> on a panel the pointer is not over, entirely on the client.
@@ -122,7 +124,7 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                 .SetWidth(UILayoutLength.Absolute(380))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Press the card, then the button inside it, then right-click it: a card that guards its own press must not leave its whole subtree deaf."
+            note: "Press the card, then the button inside it, then right-click it: a card that guards its own press must not leave its whole subtree deaf. From the keyboard, Tab stops on the card and then on the button; Enter or Space presses whichever holds the focus."
         );
     }
 
@@ -178,6 +180,66 @@ internal sealed class CardScenariosView : DemoScenariosView, IUIViewDefinition
                 .SetDescriptionColor(UIThemeColor.Muted)
             )
             .SetWidth(UILayoutLength.Absolute(210));
+
+    /// <summary>
+    /// A list whose rows are clickable cards: the card is the row's press target, so a press opens the incident and the list's chosen
+    /// row stays where it was.
+    /// </summary>
+    private static ContainerComponent CreateListGroup()
+    {
+        return DemoUI.CreateGroup(ListGroup, "A list of cards",
+            content => content.AddChild(UILayout.Stack(8)
+                .AddChild(new ItemsViewComponent()
+                    .BindItems(nameof(CardListGroupContext.Incidents), UIBindingScope.Relative)
+                    .SetSelectionMode(UISelectionMode.One)
+                    .BindSelectedKey(nameof(CardListGroupContext.SelectedKey), UIBindingScope.Relative)
+                    .SetSpacing(8)
+                    .SetTemplate(new CardComponent()
+                        .SetClickable(true)
+                        .SetSurface(UISurfaceStyle.Raised)
+                        .OnClick(nameof(CardScenariosController.OpenIncident), UIAction.ArgCurrentItemKey("id"))
+                        .ConfigureDefaultHeader(header => header
+                            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        )
+                    )
+                )
+                .AddChild(UIText.Label("Chosen row")
+                    .BindDescription(nameof(CardListGroupContext.SelectedKey), UIBindingScope.Relative)
+                )
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            note: "Press a card, or Tab to it and press Enter or Space: the incident opens, and the list's chosen row does not change — the press is the card's, as a button's would be."
+        );
+    }
+
+    /// <summary>
+    /// A clickable card switched off: no pointer press, no Tab stop, and read as unavailable.
+    /// </summary>
+    private static ContainerComponent CreateLockGroup()
+    {
+        return DemoUI.CreateGroup(LockGroup, "A card that cannot be pressed now",
+            content => content.AddChild(new CardComponent()
+                .SetClickable(true)
+                .SetSurface(UISurfaceStyle.Raised)
+                .BindEnabled(nameof(CardLockGroupContext.Open), UIBindingScope.Relative)
+                .OnClick(nameof(CardScenariosController.PressLocked))
+                .ConfigureDefaultHeader(header => header
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Lock))
+                    .SetTitle("Production database")
+                    .SetDescription("Changes open during the release window only.")
+                )
+                .SetWidth(UILayoutLength.Absolute(300))
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["Lock / unlock"] = nameof(CardScenariosController.ToggleLock),
+            }),
+            note: "Locked, the card is dimmed, a press does nothing and Tab passes it by; unlock it and it takes the focus and Enter or Space like any other clickable card."
+        );
+    }
 
     /// <summary>
     /// <c>Loading</c> on a panel rather than a control: it covers header, content and footer together.

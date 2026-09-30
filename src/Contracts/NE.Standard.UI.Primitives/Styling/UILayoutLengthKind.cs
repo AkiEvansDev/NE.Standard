@@ -16,7 +16,8 @@ public enum UILayoutLengthKind
     Absolute = 1,
 
     /// <summary>
-    /// The whole of what the parent gives: a page that fills the viewport, a pane that fills its track.
+    /// The whole of what the parent gives: a page that fills the viewport, a pane that fills its track. A component's own margin on
+    /// that axis comes out of it, so a filled box with a margin still fits its parent.
     /// </summary>
     Fill = 2,
 }

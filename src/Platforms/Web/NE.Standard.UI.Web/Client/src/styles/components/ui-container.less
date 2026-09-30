@@ -70,10 +70,11 @@
     .ui-responsive-grid-line-base(grid-row, --ui-placement, row, row-span, 1);
 }
 
-// An authored width is capped at the parent's room, so it is not cut off on a phone; in-flow children only (a popup keeps its
-// width), an authored MaxWidth still rules, and a scroll container's content keeps its size.
+// An authored width is capped at the parent's room less the child's own margins (core/runtime.less), so it is not cut off on a
+// phone; in-flow children only (a popup keeps its width), an authored MaxWidth still rules, and a scroll container's content keeps
+// its size.
 :is(@{ui-placement-hosts}, .ui-stack-panel, .ui-wrap-panel, [data-ui-region]) > [data-ui-id] {
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    .ui-responsive-property(max-width, --ui-max-width, ~"var(--ui-fill-width, 100%)");
 }
 
     .ui-scroll:is(.ui-scroll-x--auto, .ui-scroll-x--always) > [data-ui-id] {

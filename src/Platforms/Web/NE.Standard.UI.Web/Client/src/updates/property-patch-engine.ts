@@ -8,7 +8,7 @@ import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ExtensionRegistry } from "../extensions/extension-registry.ts";
 import type { WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { shownValue } from "../runtime/client-strings.ts";
-import { isPhrase } from "../runtime/words.ts";
+import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { logDebug, logError, logWarn } from "../runtime/logger.ts";
 import type { PropertyStateRow, PropertyStateStore } from "../state/property-state-store.ts";
 import type { DomOperationRegistry } from "./dom-operation-registry.ts";
@@ -170,7 +170,8 @@ export class PropertyPatchEngine {
     public rewriteWords(only?: (value: unknown) => boolean): void {
         for (const entry of [...this.state.entries()]) {
             const value = entry.value;
-            const translatable = typeof value === "string"
+            // An author's text as a whole value reads as the plain string it stands for (`shownValue`).
+            const translatable = typeof value === "string" || isAuthorText(value)
                 ? this.addressResolver.isTranslatable(entry.reference)
                 : isPhrase(value);
 

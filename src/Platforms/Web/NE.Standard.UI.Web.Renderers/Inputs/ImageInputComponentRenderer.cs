@@ -15,7 +15,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>A picture over a hidden native picker; under <c>Multiple</c> the surface is a shelf of pictures instead.</summary>
+/// <summary>A picture over a hidden native picker; under <c>Multiple</c>, or in the <c>Shelf</c> shape, the surface is a shelf of pictures instead.</summary>
 /// <remarks><c>Value</c> paints the picture and the upload rides back on its own hidden input, as <c>SelectionId</c> or, under <c>Multiple</c>, <c>SelectionIds</c> as a JSON list.</remarks>
 public sealed class ImageInputComponentRenderer : TextContentRendererBase
 {
@@ -23,11 +23,12 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
-    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; both shapes' pick is the one [data-ui-file-pick].
+    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; every shape's pick is the one
+    // [data-ui-file-pick], and the thumbnails-only shelf has none.
     private static readonly WebDomOperation[] ReadOnlyOperations =
     [
         NativeInputRendererBase.ReadOnlyMarkOperation,
-        WebDomOperation.ToggleAttribute("aria-disabled", target: $"[{WebAttributes.FilePick}]", condition: WebValueCondition.IsTrue, value: "true")
+        WebDomOperation.ToggleAttribute("aria-disabled", target: $"[{WebAttributes.FilePick}]", condition: WebValueCondition.IsTrue, value: "true", optional: true)
     ];
 
     public override string ComponentTypeKey => ImageInputComponent.ComponentTypeKey;
@@ -53,11 +54,13 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         RenderInputHeader(context, root, titleCanGoInside: shape == UIImageInputShape.Inline);
 
         NativeInputRendererBase.RenderMaxFileSize(context, root, ImageInputComponent.MaxFileSizeProperty);
+        NativeInputRendererBase.RenderDropTargetId(context, root, ImageInputComponent.DropTargetIdProperty);
 
-        if (multiple == true)
+        // The thumbnails-only shelf is a shelf whatever Multiple says: a row of one picture is not what it is for.
+        if (multiple == true || shape == UIImageInputShape.Shelf)
         {
             _ = root.Class(MultipleClassName);
-            IHtmlElementBuilder add = RenderShelf(context, root);
+            IHtmlElementBuilder? add = RenderShelf(context, root, withPick: shape != UIImageInputShape.Shelf);
             RenderNative(context, root, add, multiple: true);
             RenderSelections(context, root);
         }
@@ -131,8 +134,11 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         return (surfaceElement!, pictureElement!);
     }
 
-    /// <summary>The shelf the viewer drops on: the squares the engine keeps, the square that opens the picker, the words while it is empty.</summary>
-    private IHtmlElementBuilder RenderShelf(WebRenderContext context, IHtmlElementBuilder root)
+    /// <summary>
+    /// The shelf the viewer drops on: the squares the engine keeps and, <paramref name="withPick"/>, the square that opens the picker
+    /// and the words while it is empty — the thumbnails-only shelf draws neither, its chooser opened from elsewhere.
+    /// </summary>
+    private IHtmlElementBuilder? RenderShelf(WebRenderContext context, IHtmlElementBuilder root, bool withPick)
     {
         IHtmlElementBuilder? addElement = null;
 
@@ -143,6 +149,9 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             BorderStyleRenderer.RenderBorderStyle(context, surface);
 
             _ = surface.Element("span", tiles => tiles.Class($"{ClassName}__tiles"));
+
+            if (!withPick)
+                return;
 
             _ = surface.Element("button", add =>
             {
@@ -158,7 +167,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             RenderPlaceholderText(context, surface);
         });
 
-        return addElement!;
+        return addElement;
     }
 
     /// <summary>The stand-in glyph: the shape's own drawn one until an icon is named; the attribute on the root is what the stylesheet reads.</summary>
@@ -199,7 +208,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The native picker, present but hidden: only a real file input opens the OS dialog.</summary>
-    private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder pick, bool multiple)
+    private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder? pick, bool multiple)
     {
         NativeInputRendererBase.RenderFilePicker(context, root, $"{ClassName}__native", ImageInputComponent.AcceptProperty, native =>
         {
@@ -215,7 +224,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
                 return;
 
             _ = target.Class(WebClassNames.ReadOnly);
-            _ = pick.Attribute("aria-disabled", "true");
+            _ = pick?.Attribute("aria-disabled", "true");
         }, ReadOnlyOperations);
     }
 

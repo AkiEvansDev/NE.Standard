@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
@@ -15,6 +16,8 @@ namespace NE.Standard.UI.Runtime;
 internal abstract partial class UIRuntimeBase
 {
     private const string LanguageChangedOperation = "LanguageChanged";
+    private const string ThemeChangedOperation = "ThemeChanged";
+    private const string SessionChangedOperation = "SessionChanged";
 
     private readonly Lock _connectionsLock = new();
     // Each attached instance's handle, so the connection outside a command can pass to a tab still attached when its own leaves.
@@ -33,6 +36,11 @@ internal abstract partial class UIRuntimeBase
 
     // The page whose render last ran the navigation hook, which its own attach then skips.
     private string? _navigatedPageId;
+
+    // The session's language and theme mode the controller last heard, so each change reaches it once: where it was made, from the
+    // switch reaching the session's pages, or at the next attach of a runtime no page showed then.
+    private string _heardLanguage;
+    private UIThemeMode? _heardThemeMode;
 
     /// <inheritdoc />
     public IReadOnlyCollection<string> AttachedInstanceIds => _attachedInstanceIdsSnapshot;
@@ -190,6 +198,10 @@ internal abstract partial class UIRuntimeBase
 
         await RunLifecycleHookAsync(handle, viewer ? "Attached" : "Navigated", async cancellation =>
         {
+            // A runtime kept while its session moved elsewhere hears it here, before the hooks of the page it is attached for.
+            if (viewer)
+                await HearSessionAsync(handle, cancellation).ConfigureAwait(false);
+
             if (navigated)
                 await lifecycle.NavigatedAsync(instance.Navigation, cancellation).ConfigureAwait(false);
 
@@ -248,47 +260,114 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// A command's code switched its connection's language: the controller's hook inline — the command already runs outside the
-    /// lock, and waits for it — then the page is told to switch.
+    /// A command's code moved its connection's session: the controller told inline — the command already runs outside the lock, and
+    /// waits for it — then the page told to switch, then the session's other pages reached.
     /// </summary>
-    async Task IUILanguageChangeListener.LanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken)
+    async Task IUISessionChangeListener.SessionChangedAsync(UIHandle handle, IUserSessionContext previous, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(previous);
 
-        if (Controller is IUIControllerLifecycle lifecycle)
-        {
-            try
-            {
-                await lifecycle.LanguageChangedAsync(previousLanguage, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                // The language did switch; the hook's failure is the controller's to report, not the command's.
-                _ = await HandleRuntimeExceptionAsync(exception, LanguageChangedOperation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await HearSessionAsync(handle, cancellationToken).ConfigureAwait(false);
 
         await PushCommandResultAsync(handle, new UICommandExecutionResult
         {
-            Command = UICommandResult.Ok([new SetLanguageEffect(handle.Session.Language)]),
+            Command = UICommandResult.Ok(UISessionMoves.Effects(previous, handle.Session)),
             Changes = ServerChangeSet.Empty
         }, cancellationToken).ConfigureAwait(false);
+
+        // Found where the host registers itself, as a sign-out finds it: a runtime has no other way to its session's other runtimes.
+        if (handle.Session is UserSessionState session && Controller is IUIContextController contextController && contextController.Context.Services.GetService(typeof(IUISessions)) is UIHost host)
+            await host.ReachSessionAsync(session, handle, this, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
-    public async Task NotifyLanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken)
+    /// <summary>
+    /// Tells the controller what moved in its connection's session since it last heard — each change once, whichever way it came;
+    /// a hook's failure is the controller's to report, and the other hook still runs.
+    /// </summary>
+    private async Task HearSessionAsync(UIHandle handle, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(handle);
-        ArgumentException.ThrowIfNullOrWhiteSpace(previousLanguage);
-
         if (Controller is not IUIControllerLifecycle lifecycle)
             return;
 
-        await RunLifecycleHookAsync(handle, LanguageChangedOperation, cancellation => lifecycle.LanguageChangedAsync(previousLanguage, cancellation), cancellationToken).ConfigureAwait(false);
+        SessionMove move = TakeSessionMove(handle.Session);
+
+        if (move.PreviousLanguage is string previousLanguage)
+            await RunSessionHookAsync(LanguageChangedOperation, cancellation => lifecycle.LanguageChangedAsync(previousLanguage, cancellation), cancellationToken).ConfigureAwait(false);
+
+        if (move.ThemeMoved)
+            await RunSessionHookAsync(ThemeChangedOperation, cancellation => lifecycle.ThemeChangedAsync(move.PreviousThemeMode, cancellation), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Takes what moved in a session since the controller last heard it, and marks it heard.</summary>
+    private SessionMove TakeSessionMove(IUserSessionContext session)
+    {
+        lock (_connectionsLock)
+        {
+            SessionMove move = new(
+                string.Equals(_heardLanguage, session.Language, StringComparison.Ordinal) ? null : _heardLanguage,
+                _heardThemeMode != session.ThemeMode,
+                _heardThemeMode
+            );
+
+            _heardLanguage = session.Language;
+            _heardThemeMode = session.ThemeMode;
+
+            return move;
+        }
+    }
+
+    private async Task RunSessionHookAsync(string operation, Func<CancellationToken, Task> hook, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await hook(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // The session did move; the hook's failure is the controller's to report, not the switch's.
+            _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>What moved in a session since the controller last heard it: the language it left, and whether and from what the theme moved.</summary>
+    private readonly record struct SessionMove(string? PreviousLanguage, bool ThemeMoved, UIThemeMode? PreviousThemeMode);
+
+    /// <inheritdoc />
+    public bool HasSessionMoved(IUserSessionContext session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        lock (_connectionsLock)
+            return !string.Equals(_heardLanguage, session.Language, StringComparison.Ordinal) || _heardThemeMode != session.ThemeMode;
+    }
+
+    /// <inheritdoc />
+    public Task NotifySessionChangedAsync(UIHandle handle, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        return RunLifecycleHookAsync(handle, SessionChangedOperation, cancellation => HearSessionAsync(handle, cancellation), cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public void PostSessionChanged(UIHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (Controller is not IUIControllerLifecycle)
+            return;
+
+        PostCore(SessionChangedOperation, async cancellation =>
+        {
+            using IDisposable invocation = BeginInvocation(handle);
+
+            await HearSessionAsync(handle, cancellation).ConfigureAwait(false);
+        });
     }
 
     /// <summary>Records what an instance's attach snapshot holds: every update queued up to <paramref name="sequence"/>.</summary>

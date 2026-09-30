@@ -13,6 +13,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Security;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
@@ -138,13 +139,31 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     protected virtual Task OnDetachedAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
-    /// <summary>Runs when a connection's session moves to another language, so text the controller composed itself can be composed again.</summary>
+    /// <summary>Runs when the session moves to another language, so text the controller composed itself can be composed again.</summary>
     /// <remarks>
-    /// Raised by a command's <see cref="UIContext.UpdateSessionAsync"/> — inline, before the update returns — or by the page's language
-    /// switcher, as a command runs. <see cref="UIContext.Handle"/> is that connection, its session already in the new language. Bound
-    /// keys and phrases need nothing: the page re-translates them.
+    /// Once per change, wherever it was made. Raised by a command's <see cref="UIContext.UpdateSessionAsync"/> — inline, before the
+    /// update returns — or by the page's language switcher, as a command runs; a switch made on another of the session's pages
+    /// reaches this runtime as a command runs where a page shows it, and where none did, before the next page render paints it or at
+    /// its next attach, before <see cref="OnNavigatedAsync"/>. <see cref="UIContext.Handle"/> is a connection of this runtime (a
+    /// render's own, before a paint), its session already in the new language, and
+    /// <paramref name="previousLanguage"/> the one the controller last heard. Bound keys and phrases need nothing: the page
+    /// re-translates them.
     /// </remarks>
     protected virtual Task OnLanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Runs when the session moves to another theme mode — the page's theme switcher, a <c>SetThemeEffect</c>, or a command's
+    /// <see cref="UIContext.UpdateSessionAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// Reached as <see cref="OnLanguageChangedAsync"/> is, once per change; <see cref="UIContext.Handle"/>'s session is already in the
+    /// new mode (<see langword="null"/> following the platform's preference), <paramref name="previousMode"/> the one the controller
+    /// last heard. The place to keep the mode on the reader's account, as the language hook keeps the language; the way back is the
+    /// sign-in command writing the account's mode into the session (<c>UpdateSessionAsync</c>, beside its language), which the
+    /// navigation a sign-in ends in renders.
+    /// </remarks>
+    protected virtual Task OnThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     Task IUIControllerLifecycle.NavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
@@ -176,6 +195,13 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ArgumentException.ThrowIfNullOrWhiteSpace(previousLanguage);
 
         return OnLanguageChangedAsync(previousLanguage, cancellationToken);
+    }
+
+    Task IUIControllerLifecycle.ThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        return OnThemeChangedAsync(previousMode, cancellationToken);
     }
 
     /// <inheritdoc />

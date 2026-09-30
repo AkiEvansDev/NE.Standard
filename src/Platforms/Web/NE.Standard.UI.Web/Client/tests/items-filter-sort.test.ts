@@ -120,3 +120,14 @@ test("blank text sorts with nothing, not among the zeros", () => {
     assert.ok(compareValues("", 0) < 0);
     assert.ok(compareValues(-1, " ") > 0);
 });
+
+test("an item's phrase is judged and sorted by its key, an author's text by its text, never as an object", () => {
+    const query: ItemsQuery = { filters: [{ itemProperty: "Title", operator: "Equal", value: "chat.sent" }] };
+    const phrase = { title: { key: "chat.sent", args: { at: { moment: "2026-09-30T14:05:00.000Z" } } } };
+
+    assert.equal(itemMatchesFilters(undefined, phrase, noState, query), true);
+    assert.equal(itemMatchesFilters(undefined, { title: { text: "chat.sent" } }, noState, query), true);
+    assert.equal(itemMatchesFilters(undefined, { title: "Bravo" }, noState, query), false);
+    assert.ok(compareItems({ title: { key: "b.key" } }, { title: "a.text" }, [sort("Title")]) > 0);
+    assert.ok(compareItems({ title: { key: "a.key" } }, { title: { text: "b.text" } }, [sort("Title")]) < 0);
+});

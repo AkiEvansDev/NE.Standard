@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readHydration } from "../src/runtime/web-hydration.ts";
+import { paintsMoment, readHydration } from "../src/runtime/web-hydration.ts";
 
 function pageWith(json: string | null): ParentNode {
     const script = json === null
@@ -37,4 +37,19 @@ test("a payload this client cannot read costs the page nothing", () => {
 
 test("a page that hydrates nothing has no payload", () => {
     assert.equal(readHydration(pageWith(null)), null);
+});
+
+test("a row the server drew from a controller's list holds its moment in the change set, which the page writes again after it", () => {
+    // As the render hands it over: the insert over the rows it drew, a row's description a phrase with a moment.
+    const row = { id: "1", when: { key: "app.sent", arguments: { at: { moment: "2026-09-30T12:33:00.000Z" } } } };
+    const drawn = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: row }] }] } })));
+    const plain = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: { id: "1", when: "Sent" } }] }] } })));
+
+    assert.equal(paintsMoment(drawn), true);
+    assert.equal(paintsMoment(plain), false);
+    assert.equal(paintsMoment(null), false);
+});
+
+test("a title with a moment is one to write again too", () => {
+    assert.equal(paintsMoment(readHydration(pageWith(JSON.stringify({ pageId: "abc", title: { key: "page.at", arguments: { at: { moment: "2026-09-30T12:33:00.000Z" } } } })))), true);
 });

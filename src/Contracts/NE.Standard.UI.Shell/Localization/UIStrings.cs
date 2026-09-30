@@ -52,6 +52,12 @@ public static partial class UIStrings
     public const string FileCount = "ui.file.count";
     public const string FileFailed = "ui.file.failed";
     public const string FileOversized = "ui.file.oversized";
+
+    /// <summary>The files a multi-file input left out for their size, named: <c>{limit}</c> and <c>{names}</c>.</summary>
+    public const string FileLeftOut = "ui.file.leftout";
+
+    /// <summary>The cross over a shelf's square that holds a file rather than a picture.</summary>
+    public const string FileRemove = "ui.file.remove";
     public const string ColorPicker = "ui.color.picker";
     public const string ColorPalette = "ui.color.palette";
     public const string ColorHex = "ui.color.hex";
@@ -141,7 +147,9 @@ public static partial class UIStrings
         [FileUploading] = "Uploading… {percent}%",
         [FileCount] = "{count} files",
         [FileFailed] = "Upload failed.",
-        [FileOversized] = "The file is too large.",
+        [FileOversized] = "The file is larger than {limit}.",
+        [FileLeftOut] = "Left out as larger than {limit}: {names}.",
+        [FileRemove] = "Remove the file",
         [ColorPicker] = "Picker",
         [ColorPalette] = "Palette",
         [ColorHex] = "Hex",

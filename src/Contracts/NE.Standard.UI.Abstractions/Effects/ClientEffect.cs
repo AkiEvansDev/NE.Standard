@@ -22,11 +22,14 @@ public static class ClientEffectKinds
     public const string DownloadFile = "DownloadFile";
     public const string Scroll = "Scroll";
     public const string SetTheme = "SetTheme";
+    public const string SetThemeColors = "SetThemeColors";
     public const string SetLanguage = "SetLanguage";
     public const string RenameTab = "RenameTab";
     public const string RenameNode = "RenameNode";
     public const string CopyToClipboard = "CopyToClipboard";
+    public const string InsertText = "InsertText";
     public const string DiscardForm = "DiscardForm";
+    public const string OpenPicker = "OpenPicker";
 }
 
 /// <summary>

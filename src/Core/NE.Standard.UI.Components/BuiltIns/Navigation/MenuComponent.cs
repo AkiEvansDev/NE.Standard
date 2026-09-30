@@ -16,11 +16,12 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
-/// <summary>A list of navigation entries, vertical or horizontal, that folds to its icons alone.</summary>
+/// <summary>A list of navigation entries, vertical or horizontal, that folds to its icons alone or stands as a rail.</summary>
 /// <remarks>
-/// <c>Surface</c> names the popup's fill — the context menu, split button list, or sub-entry flyout — unset elsewhere. One
+/// <c>Surface</c> names the popup's fill — the context menu, split button list, or sub-entry flyout — and a sidebar's or rail's own ground. One
 /// collection carries entries, captions, rules, checks and selects via <see cref="IMenuItemModel.Kind"/>; checks and selects
-/// write back to the bound item, so they need a bound collection, not entries set once.
+/// write back to the bound item, so they need a bound collection, not entries set once. Folded to its icons, an entry's title is its
+/// tooltip unless the entry has a tooltip of its own, and its badge stands on the icon's corner.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
@@ -59,6 +60,18 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public UIOrientation? Orientation { get; set; }
 
     /// <summary>
+    /// Gets or sets how the entries are laid out: rows of icon and title, or a rail of icons each over a one-line label.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only. A rail has nothing to fold, so it ignores <c>Expanded</c> and draws no collapse toggle. An entry's label
+    /// cut short shows whole as its tooltip unless the entry has one of its own; a badge stands on the icon's corner, an empty
+    /// <c>BadgeText</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s. A rail takes no
+    /// search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuDisplay.List)]
+    public UIMenuDisplay? Display { get; set; }
+
+    /// <summary>
     /// Gets or sets the gap between entries, optionally overridden per breakpoint.
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
@@ -66,8 +79,9 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
 
     /// <summary>Gets or sets the ground the menu paints, unset by default.</summary>
     /// <remarks>
-    /// A sidebar menu draws no ground, while a popup menu (context menu, split-button list, flyout) wears the popup's surface
-    /// colour. Declared here rather than through the property block, whose default (<c>Background</c>) would paint every menu.
+    /// Unset, a sidebar menu draws no ground, while a popup menu (context menu, split-button list, flyout) wears the popup's surface
+    /// colour; set, it is the sidebar's or rail's own ground too, a step apart from the page's. Declared here rather than through
+    /// the property block, whose default (<c>Background</c>) would paint every menu.
     /// </remarks>
     [UIComponentProperty(Contract = typeof(ISurfaceStyleComponent), DefaultValue = null)]
     public UISurfaceStyle? Surface { get; set; }

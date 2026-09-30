@@ -201,7 +201,8 @@
     }
 }
 
-// One line, ellipsised, by default; only ParagraphComponent may wrap, via .ui-text--wrap below.
+// One line, ellipsised, by default: a text's, a button's, a row's, a tab's. A description that is prose (a card's and an expander's
+// header, a paragraph, a text told to wrap) says so with .ui-text--wrap below.
 .ui-text__description {
     display: none;
     min-width: 0;
@@ -280,11 +281,15 @@
     justify-items: stretch;
 }
 
+// WrapMode.Wrap, the default of a card's and an expander's header and a paragraph: the description runs on to further lines rather
+// than losing its end. No tooltip carries a cut line: what must be read whole wraps.
 .ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
+    overflow: visible;
     white-space: normal;
+    text-overflow: clip;
 }
 
-// ParagraphComponent.TitleWrap: a heading in prose (an article's headline, a dialog's question) runs on rather than losing its end;
+// TitleWrap: a heading in prose (an article's headline, a dialog's question, a card's flavour line) runs on rather than losing its end;
 // an interface heading keeps its one line. Balanced, so a headline does not leave one word on its last line.
 .ui-text--title-wrap@{ui-text-with-title} > .ui-text__body > .ui-text__header > .ui-text__title {
     overflow: visible;

@@ -25,7 +25,8 @@ public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Val
         => new(UILayoutLengthKind.Absolute, value);
 
     /// <summary>
-    /// The whole of what the parent gives.
+    /// The whole of what the parent gives, less the component's own margin on that axis: a list with <c>SetMargin(8)</c> and a
+    /// <c>Fill</c> height fits its parent with 8 px clear at either end rather than overflowing it by the margin.
     /// </summary>
     public static UILayoutLength Fill()
         => new(UILayoutLengthKind.Fill, -1);

@@ -2,7 +2,8 @@ import { MetadataIndex } from "../metadata/metadata-index";
 import { PropertyStateStore } from "../state/property-state-store";
 import { ensureEmptyState } from "./items-empty-renderer";
 import { applyItemFilters } from "./items-filter-sort";
-import { regroupHost } from "./items-group-renderer";
+import { createGroupHeader, regroupHost } from "./items-group-renderer";
+import { regroupWindow } from "./items-group-runs";
 import { resolveHostMode } from "./items-host-mode";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 import { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -29,9 +30,10 @@ export function syncItemsHost(host: Element, componentId: number, context: Items
     }
 
     switch (resolveHostMode(host)) {
-        // A windowed host's window is already the source's filtered, ordered answer; only the empty state applies.
+        // A windowed host's window is already the source's filtered, ordered answer: the empty state, and its groups as they run.
         case "windowed":
             ensureEmptyState(host, componentId, context.templates, context.renderer);
+            regroupWindowHost(host, componentId, context);
             return;
         // A virtualized host runs its rules over the values it holds, not over children it may not have drawn.
         case "virtualized":
@@ -43,4 +45,11 @@ export function syncItemsHost(host: Element, componentId: number, context: Items
             regroupHost(host, componentId, context.templates, context.renderer, context.metadata, context.state);
             return;
     }
+}
+
+function regroupWindowHost(host: Element, componentId: number, context: ItemsHostSyncContext): void {
+    const template = context.templates.getGroupTemplate(componentId);
+
+    if (template !== undefined)
+        regroupWindow(host, row => createGroupHeader(template, context.renderer, row));
 }

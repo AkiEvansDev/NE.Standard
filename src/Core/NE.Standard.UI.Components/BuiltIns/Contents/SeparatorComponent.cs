@@ -2,6 +2,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
@@ -23,7 +24,7 @@ public abstract partial class SeparatorComponent<T>(string? id = null) : VisualC
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Label { get; set; }
+    public UIPhrase? Label { get; set; }
 
     /// <summary>
     /// Gets or sets the line's colour; unset leaves the stylesheet's own line colour.

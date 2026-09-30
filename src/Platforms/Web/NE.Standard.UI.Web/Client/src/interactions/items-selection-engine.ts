@@ -1,18 +1,19 @@
 // Choosing rows in an items view, a table or a tree by click or key; the tree walks its own rows, since its arrows also fold.
 // How a gesture changes the chosen set is `row-selection.ts`'s.
 
-import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes";
-import { observeComponents } from "./dom-mutations";
-import { ownControlOf } from "./own-control";
-import { ownDescendants } from "./own-descendants";
-import { isRovingKey } from "./roving-focus";
-import { isInert, isItemDisabled } from "./interactive-state";
-import type { RowAxis } from "./row-cursor";
-import { dispatchRowEvent, focusedRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
+// `.ts` on the value imports: `node --test` runs this module directly.
+import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { ownControlOf, soleControlOf } from "./own-control.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { isRovingKey } from "./roving-focus.ts";
+import { isInert, isItemDisabled } from "./interactive-state.ts";
+import type { RowAxis } from "./row-cursor.ts";
+import { dispatchRowEvent, focusedRow, litRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import {
     chooseRow, choosesOnEnter, ensureAnchor, gestureOf, keyGestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector,
     SelectionRowSelector as ItemSelector, setAnchor
-} from "./row-selection";
+} from "./row-selection.ts";
 
 // The two whose keyboard is this engine's; the tree's is its own.
 const KeyboardRootSelector = ".ui-items-view, .ui-table";
@@ -30,7 +31,7 @@ export class ItemsSelectionEngine {
     public constructor(options: ItemsSelectionEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`:is(${RootSelector})[${SelectionAttribute}]`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(RootSelector));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
@@ -50,9 +51,24 @@ export class ItemsSelectionEngine {
             this.apply(root);
     }
 
-    /** Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode. */
+    /**
+     * Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode. A row that
+     * is one control (a tile that is a button) is pressed through the cursor, so its control is no stop of its own: the list is one.
+     */
     private apply(root: HTMLElement): void {
-        markSelectedRows(root, this.ownItems(root));
+        const rows = this.ownItems(root);
+
+        markSelectedRows(root, rows);
+
+        if (!root.matches(KeyboardRootSelector))
+            return;
+
+        for (const row of rows) {
+            const control = soleControlOf(row);
+
+            if (control !== null && control.getAttribute("tabindex") !== "-1")
+                control.setAttribute("tabindex", "-1");
+        }
     }
 
     private handleClick(domEvent: Event): void {
@@ -127,7 +143,7 @@ export class ItemsSelectionEngine {
 
         const rows = this.ownItems(root);
         const current = focusedRow(rows);
-        const next = resolveRowTarget(domEvent.key, rows, current, axis);
+        const next = resolveRowTarget(domEvent.key, rows, litRow(rows), axis);
 
         if (next !== null) {
             domEvent.preventDefault();
@@ -147,18 +163,28 @@ export class ItemsSelectionEngine {
         if (current === null || isItemDisabled(current))
             return;
 
+        // A row that is one control is pressed through the cursor, as a listbox of buttons is.
+        const control = soleControlOf(current);
+
         switch (domEvent.key) {
             case " ":
-                // Space toggles the row under the cursor and leaves the rest as they are.
-                if (!chooseRow(root, rows, current, { shift: false, ctrl: true }))
-                    return;
+                // Space toggles the row under the cursor and leaves the rest as they are; a host that chooses nothing presses it.
+                if (!chooseRow(root, rows, current, { shift: false, ctrl: true })) {
+                    if (control === null)
+                        return;
+
+                    control.click();
+                }
                 break;
             case "Enter":
                 // The keyboard's click and double click; a chosen group under the cursor stands, since Delete reads that same group.
                 if (choosesOnEnter(root) && !selectedRows(rows).includes(current))
                     chooseRow(root, rows, current, PlainGesture);
 
-                dispatchRowEvent(current, "open");
+                if (control === null)
+                    dispatchRowEvent(current, "open");
+                else
+                    control.click();
                 break;
             case "Delete": {
                 // The chosen group goes together; the controller decides each removal, and with nothing removable the key is the page's.

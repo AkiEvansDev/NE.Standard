@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Primitives.Localization;
 
 /// <summary>
 /// Writes a <see cref="UIPhrase"/> as <c>{"key":…,"args":{…}}</c> — <c>args</c> only when it has arguments — or an author's text as
-/// <c>{"text":…}</c>, and reads it back.
+/// <c>{"text":…}</c>, and reads it back — a plain string too, read as an author's text, which is what it converts to.
 /// </summary>
 /// <remarks>
 /// An argument travels as a string, a number, a <see langword="bool"/>, <see langword="null"/>, a nested phrase or a moment
@@ -27,6 +27,9 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
         if (reader.TokenType == JsonTokenType.Null)
             return null;
 
+        if (reader.TokenType == JsonTokenType.String)
+            return UIPhrase.Text(reader.GetString()!);
+
         using JsonDocument document = JsonDocument.ParseValue(ref reader);
 
         return ReadPhrase(document.RootElement);
@@ -42,7 +45,7 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
 
         foreach (JsonProperty property in element.EnumerateObject())
         {
-            if (string.Equals(property.Name, TextName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+            if (string.Equals(property.Name, TextName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.String)
                 return UIPhrase.Text(property.Value.GetString()!);
 
             if (string.Equals(property.Name, KeyName, StringComparison.OrdinalIgnoreCase))

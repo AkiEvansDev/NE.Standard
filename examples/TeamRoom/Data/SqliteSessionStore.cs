@@ -3,9 +3,11 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 
 namespace TeamRoom.Data;
 
@@ -15,7 +17,7 @@ namespace TeamRoom.Data;
 /// </summary>
 public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
 {
-    private const string Columns = "id, language, theme, is_authenticated, user_id, roles, permissions, pending_rotation, created_utc, last_seen_utc, is_unclaimed, time_zone";
+    private const string Columns = "id, language, theme, is_authenticated, user_id, roles, permissions, pending_rotation, created_utc, last_seen_utc, is_unclaimed, time_zone, theme_colors";
 
     public async ValueTask<UserSessionState?> TryGetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
@@ -45,7 +47,9 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
             CreatedAtUtc = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
             LastSeenAtUtc = DateTime.Parse(reader.GetString(9), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
             IsUnclaimed = reader.GetInt64(10) != 0,
-            TimeZone = reader.IsDBNull(11) ? null : reader.GetString(11)
+            TimeZone = reader.IsDBNull(11) ? null : reader.GetString(11),
+            // The reader's own colours as the JSON they serialize to; none is the application's palette.
+            ThemeColors = reader.IsDBNull(12) ? null : JsonSerializer.Deserialize<UIThemeColors>(reader.GetString(12))
         };
 
     private static FrozenSet<string> Split(string joined)
@@ -65,10 +69,10 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = $"""
             INSERT INTO sessions ({Columns})
-            VALUES ($id, $language, $theme, $authenticated, $user, $roles, $permissions, $rotation, $created, $seen, $unclaimed, $zone)
+            VALUES ($id, $language, $theme, $authenticated, $user, $roles, $permissions, $rotation, $created, $seen, $unclaimed, $zone, $colors)
             ON CONFLICT (id) DO UPDATE SET language = $language, theme = $theme, is_authenticated = $authenticated, user_id = $user,
                 roles = $roles, permissions = $permissions, pending_rotation = $rotation, created_utc = $created, last_seen_utc = $seen,
-                is_unclaimed = $unclaimed, time_zone = $zone
+                is_unclaimed = $unclaimed, time_zone = $zone, theme_colors = $colors
             """;
         _ = command.Parameters.AddWithValue("$id", session.SessionId);
         _ = command.Parameters.AddWithValue("$language", session.Language);
@@ -82,6 +86,7 @@ public sealed class SqliteSessionStore(AppDatabase database) : IUserSessionStore
         _ = command.Parameters.AddWithValue("$seen", session.LastSeenAtUtc.ToString("O", CultureInfo.InvariantCulture));
         _ = command.Parameters.AddWithValue("$unclaimed", session.IsUnclaimed ? 1 : 0);
         _ = command.Parameters.AddWithValue("$zone", (object?)session.TimeZone ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("$colors", session.ThemeColors is { } colors ? JsonSerializer.Serialize(colors) : DBNull.Value);
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

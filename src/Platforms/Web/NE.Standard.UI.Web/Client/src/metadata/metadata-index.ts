@@ -297,7 +297,8 @@ export type ServerValueUIUpdate = {
 export type ServerValidationUIUpdate = {
     readonly kind: UIUpdateKindValue;
     readonly address: UIPropertyAddress;
-    readonly message?: string | null;
+    /** The author's text or a key as a plain string, or a phrase. */
+    readonly message?: string | Phrase | null;
     readonly severity?: WebValidationSeverity;
     /** The input's own refusal words marked content (`AsContent`): shown as written, never looked up. */
     readonly content?: boolean;
@@ -376,10 +377,13 @@ export type ClientEffectKindName =
     | "DownloadFile"
     | "Scroll"
     | "SetTheme"
+    | "SetThemeColors"
     | "RenameTab"
     | "RenameNode"
     | "CopyToClipboard"
+    | "InsertText"
     | "DiscardForm"
+    | "OpenPicker"
     | "SetLanguage";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
@@ -399,10 +403,13 @@ export const ClientEffectKinds = {
     DownloadFile: "DownloadFile",
     Scroll: "Scroll",
     SetTheme: "SetTheme",
+    SetThemeColors: "SetThemeColors",
     RenameTab: "RenameTab",
     RenameNode: "RenameNode",
     CopyToClipboard: "CopyToClipboard",
+    InsertText: "InsertText",
     DiscardForm: "DiscardForm",
+    OpenPicker: "OpenPicker",
     SetLanguage: "SetLanguage"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
@@ -450,6 +457,12 @@ export type CopyToClipboardClientEffect = TargetedClientEffect & {
     readonly text?: string | null;
 };
 
+/** Puts a literal, or the key of the row whose press raised it, into the addressed field at its caret. */
+export type InsertTextClientEffect = TargetedClientEffect & {
+    readonly text?: string | null;
+    readonly itemKey?: boolean;
+};
+
 export type ScrollToClientEffect = TargetedClientEffect & {
     readonly behavior?: ScrollToBehaviorName | number;
     readonly block?: ScrollToBlockName | number;
@@ -488,6 +501,23 @@ export type SetLanguageClientEffect = ClientEffect & {
 export type SetThemeClientEffect = ClientEffect & {
     // Absent is the third answer and not a member of the enum: no preference means follow the platform.
     readonly mode?: ThemeModeName | number | null;
+    // Set by the server on a switch it pushed for a session that already holds the theme: the page does not report it back.
+    readonly stored?: boolean;
+};
+
+/** The reader's own colours as the server wrote them (`UIThemeColorsJsonConverter`): handed back to the session as they came. */
+export type ThemeColorsModel = {
+    readonly lightPrimary?: string;
+    readonly lightAccent?: string;
+    readonly darkPrimary?: string;
+    readonly darkAccent?: string;
+};
+
+export type SetThemeColorsClientEffect = ClientEffect & {
+    // Absent is the application's palette.
+    readonly colors?: ThemeColorsModel | null;
+    // The stylesheet they make, named by the server on a switch it pushed for a session that already holds them; empty for none.
+    readonly css?: string | null;
 };
 
 export type NotificationClientEffect = ClientEffect & {

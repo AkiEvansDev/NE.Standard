@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -205,17 +206,77 @@ internal abstract partial class UIRuntimeBase
         if (component.DynamicParameters.Length == 0 || !View.Bindings.TryGetCollection(component.Id, out CompiledUIBinding? binding))
             return true;
 
-        // The row is the path up to its last key or index; what follows names the collection inside it.
+        // Each row the host stands in ends at a key or an index of its path, the innermost last; what follows names the collection.
         RecursivePath path = View.Bindings.MaterializePath(binding, NonNullParameters(component.DynamicParameters));
-        var rowLength = 0;
+        var rows = 0;
 
         for (var i = 0; i < path.Count; i++)
         {
             if (path[i].Kind is PathSegmentKind.Key or PathSegmentKind.Index)
-                rowLength = i + 1;
+                rows++;
         }
 
-        return rowLength == 0 || IsStampedForItem(component.Id, TryGetControllerValue(path.Take(rowLength)));
+        return rows == 0 || IsStampedForRows(component.Id, path, rows);
+    }
+
+    /// <summary>
+    /// Whether every template the component stands in is worn by its row, from the innermost out: a submenu of a menu entry is on the
+    /// page only if its entry wears the submenu and the row holding that menu wears the variant the menu is in.
+    /// </summary>
+    private bool IsStampedForRows(UIComponentId componentId, RecursivePath path, int rows)
+    {
+        UIComponentGraph graph = View.Graph;
+
+        if (!graph.TryGet(componentId, out UIComponentNode? node))
+            return true;
+
+        while (rows > 0 && node.ParentId is UIComponentId parentId)
+        {
+            if (!graph.TryGet(parentId, out UIComponentNode? parent))
+                return true;
+
+            if (TryGetTemplateSlot(parent, node.ComponentId, out UIComponentSlot? slot))
+            {
+                if (!WearsSlot(parent, slot, TryGetControllerValue(RowPath(path, rows))))
+                    return false;
+
+                rows--;
+            }
+
+            node = parent;
+        }
+
+        // A template past the path's rows is an author-declared list's, whose rows the path does not name.
+        return true;
+    }
+
+    private static bool TryGetTemplateSlot(UIComponentNode parent, UIComponentId rootId, [NotNullWhen(true)] out UIComponentSlot? found)
+    {
+        foreach (UIComponentSlot slot in parent.Slots)
+        {
+            if (slot.RootComponentId == rootId && slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant)
+            {
+                found = slot;
+                return true;
+            }
+        }
+
+        found = null;
+        return false;
+    }
+
+    /// <summary>The path up to the end of its <paramref name="row"/>-th row, counting keys and indexes from the outermost.</summary>
+    private static RecursivePath RowPath(RecursivePath path, int row)
+    {
+        var seen = 0;
+
+        for (var i = 0; i < path.Count; i++)
+        {
+            if (path[i].Kind is PathSegmentKind.Key or PathSegmentKind.Index && ++seen == row)
+                return path.Take(i + 1);
+        }
+
+        return path;
     }
 
     // On every queued collection update: the address's own array is handed over as it is, and copied only when a null needs a stand-in.
@@ -238,47 +299,26 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Whether a component inside an items template is on the page for this row: the row wears its own key's variant, else the
-    /// host's fallback, else the default. A variant the key property could never name (a menu's <c>Submenu</c>) is worn by every row,
-    /// and so is every variant of a host that names none per row — a table's columns and its row.
+    /// Whether a row wears one of its host's template slots: its own key's variant, else the host's fallback, else the default. A
+    /// variant the key property could never name (a menu's <c>Submenu</c>) is worn by every row, and so is every variant of a host that
+    /// names none per row — a table's columns and its row.
     /// </summary>
-    private bool IsStampedForItem(UIComponentId componentId, object? item)
+    private bool WearsSlot(UIComponentNode host, UIComponentSlot slot, object? item)
     {
-        UIComponentGraph graph = View.Graph;
+        // A composite's slot is worn by the item's kind: "node:folder" by a folder, "node" by any row naming no typed variant;
+        // TemplateKeyProperty says nothing about these.
+        if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)
+            return WearsCompositeSlot(host.ComponentId, item, slot.Key, slot.KeyProperty);
 
-        if (!graph.TryGet(componentId, out UIComponentNode? node))
+        // With no key and no fallback a row wears no variant in place of the default, so a variant is a slot drawn beside it.
+        if (slot.Kind == UIComponentSlotKind.TemplateVariant && !NamesVariants(host.ComponentId))
             return true;
 
-        while (node.ParentId is UIComponentId parentId)
-        {
-            if (!graph.TryGet(parentId, out UIComponentNode? parent))
-                return true;
+        var worn = ResolveWornVariant(host.ComponentId, item);
 
-            foreach (UIComponentSlot slot in parent.Slots)
-            {
-                if (slot.RootComponentId != node.ComponentId || slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant))
-                    continue;
-
-                // A composite's slot is worn by the item's kind: "node:folder" by a folder, "node" by any row naming no typed
-                // variant; TemplateKeyProperty says nothing about these.
-                if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)
-                    return WearsCompositeSlot(parent.ComponentId, item, slot.Key, slot.KeyProperty);
-
-                // With no key and no fallback a row wears no variant in place of the default, so a variant is a slot drawn beside it.
-                if (slot.Kind == UIComponentSlotKind.TemplateVariant && !NamesVariants(parent.ComponentId))
-                    return true;
-
-                var worn = ResolveWornVariant(parent.ComponentId, item);
-
-                return slot.Kind == UIComponentSlotKind.TemplateVariant
-                    ? string.Equals(slot.Key, worn, StringComparison.Ordinal) || !IsKeyValue(parent.ComponentId, item, slot.Key)
-                    : worn is null;
-            }
-
-            node = parent;
-        }
-
-        return true;
+        return slot.Kind == UIComponentSlotKind.TemplateVariant
+            ? string.Equals(slot.Key, worn, StringComparison.Ordinal) || !IsKeyValue(host.ComponentId, item, slot.Key)
+            : worn is null;
     }
 
     private bool WearsCompositeSlot(UIComponentId hostId, object? item, string slotKey, string keyProperty)

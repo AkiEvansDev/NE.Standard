@@ -2,6 +2,7 @@
 import type { WebInteractionOperator, WebRenderInteractionMetadata } from "../metadata/metadata-index.ts";
 import { getInteractionOperator } from "../metadata/metadata-index.ts";
 import { logWarn } from "../runtime/logger.ts";
+import { isAuthorText, isPhrase } from "../runtime/words.ts";
 
 export class InteractionEvaluator {
     public evaluate(interaction: WebRenderInteractionMetadata, value: unknown): unknown {
@@ -14,7 +15,10 @@ export class InteractionEvaluator {
     }
 }
 
-export function evaluateOperator(left: unknown, operator: WebInteractionOperator, right: unknown): boolean {
+export function evaluateOperator(leftValue: unknown, operator: WebInteractionOperator, rightValue: unknown): boolean {
+    const left = comparable(leftValue);
+    const right = comparable(rightValue);
+
     switch (getInteractionOperator(operator)) {
         case "Required":
             return left !== null && left !== undefined && left !== false && String(left).trim().length > 0;
@@ -41,6 +45,17 @@ export function evaluateOperator(left: unknown, operator: WebInteractionOperator
         default:
             return false;
     }
+}
+
+/**
+ * A value as a rule or a sort reads it: a phrase by its key, an author's text by its text — never "[object Object]"; the server's
+ * `UIComparisonEvaluator` reads a phrase so, since a rule is the same in every language.
+ */
+export function comparable(value: unknown): unknown {
+    if (isPhrase(value))
+        return value.key;
+
+    return isAuthorText(value) ? value.text : value;
 }
 
 /** Whether the pair stands in the order asked: as numbers, or — when neither text reads as a number — as ordinal text. */

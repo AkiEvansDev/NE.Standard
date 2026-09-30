@@ -88,6 +88,12 @@ public readonly record struct UIActionArgument
         => new(UIActionArgumentKind.CurrentItemKey);
 
     /// <summary>
+    /// Creates an action argument resolved from the current item's group.
+    /// </summary>
+    public static UIActionArgument GroupKey()
+        => new(UIActionArgumentKind.GroupKey);
+
+    /// <summary>
     /// Creates an action argument resolved from the key at <paramref name="index"/> of the event's own key chain.
     /// </summary>
     public static UIActionArgument EventKey(int index)
@@ -115,7 +121,7 @@ public readonly record struct UIActionArgument
             UIActionArgumentKind.Literal => $"{Value}",
             UIActionArgumentKind.Binding => $"{{{Binding}}}",
             UIActionArgumentKind.EventKey => $"{{{Kind}[{Value}]}}",
-            UIActionArgumentKind.CurrentItem or UIActionArgumentKind.CurrentItemKey or UIActionArgumentKind.EventValue => $"{{{Kind}}}",
+            UIActionArgumentKind.CurrentItem or UIActionArgumentKind.CurrentItemKey or UIActionArgumentKind.EventValue or UIActionArgumentKind.GroupKey => $"{{{Kind}}}",
             _ => throw new UnreachableException()
         };
 }

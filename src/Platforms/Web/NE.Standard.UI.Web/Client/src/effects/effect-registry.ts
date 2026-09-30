@@ -5,6 +5,8 @@ import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine } from "../interactions/notification-engine";
+import { dispatchOpenPicker } from "../interactions/picker-events";
+import { holdAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
 import {
     ClientEffect,
     ClientEffectKindValue,
@@ -28,12 +30,15 @@ import { prefersReducedMotion } from "../rendering/motion";
 import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { logError, logWarn } from "../runtime/logger";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
+import { applyInsertText } from "./insert-text.ts";
 import { buildNavigationUrl } from "./navigation-url";
 import { resolveScroller } from "./scroller.ts";
 
 export type EffectContext = {
     readonly effect: ClientEffect;
     readonly dom: DomRegistry;
+    // The row an interaction ran for, innermost key last; none for a command's effect.
+    readonly row?: readonly unknown[];
 };
 
 export type EffectRegistryOptions = {
@@ -123,14 +128,17 @@ export class EffectRegistry {
 
         // On the document element: the theme is the page's, not a component's.
         this.register("SetTheme", context => {
-            const mode = getThemeMode((context.effect as SetThemeClientEffect).mode);
+            const effect = context.effect as SetThemeClientEffect;
+            const mode = getThemeMode(effect.mode);
             const theme: ThemeName = mode === "Unknown" ? "auto" : mode.toLowerCase() as ThemeName;
 
             if (document.documentElement.getAttribute(ThemeAttribute) !== theme)
                 document.documentElement.setAttribute(ThemeAttribute, theme);
 
-            // Reported whether or not the attribute moved: the session can still remember the other theme.
-            this.reportTheme?.(theme);
+            // Reported whether or not the attribute moved: the session can still remember the other theme. Not where the server
+            // pushed it for a session that holds it already: a report would write it again and reach the session's pages once more.
+            if (effect.stored !== true)
+                this.reportTheme?.(theme);
         });
 
         this.register("Focus", context => {
@@ -197,6 +205,10 @@ export class EffectRegistry {
 
             const behavior = scrollBehavior(getScrollToBehavior(effect.behavior));
 
+            // An end-anchored list asked to its end stays there while the window it reads there arrives and lays out.
+            if (vertical && position === "End" && isEndAnchored(scroller))
+                holdAtEnd(scroller);
+
             scroller.scrollTo(vertical ? { top: next, behavior } : { left: next, behavior });
         });
 
@@ -221,6 +233,21 @@ export class EffectRegistry {
                 return;
 
             void copyText(text).catch(error => logWarn("copy to clipboard failed.", error));
+        });
+
+        this.register("InsertText", context => {
+            const element = resolveTarget(context);
+
+            if (element !== null)
+                applyInsertText(context.effect, element, context.row ?? []);
+        });
+
+        // Opened in this task: a browser shows a chooser only inside the reader's own gesture, which an interaction's effect still is.
+        this.register("OpenPicker", context => {
+            const element = resolveTarget(context);
+
+            if (element !== null && !dispatchOpenPicker(element))
+                logWarn("open picker effect names no file or image input.", context.effect);
         });
 
         this.register("OpenDialog", context => {

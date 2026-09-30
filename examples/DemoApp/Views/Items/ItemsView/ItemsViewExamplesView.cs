@@ -12,6 +12,7 @@ namespace DemoApp.Views.Items.ItemsView;
 internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string FeedGroup = nameof(ItemsViewExamplesController.FeedGroup);
+    private const string PinnedGroup = nameof(ItemsViewExamplesController.PinnedGroup);
     private const string OrderGroup = nameof(ItemsViewExamplesController.OrderGroup);
     private const string RunbookGroup = nameof(ItemsViewExamplesController.RunbookGroup);
 
@@ -32,7 +33,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
         _ = container.AddChild(CreateStripGroup());
 
         _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateFilterGroup(), CreateGroupedGroup(), CreateTilesGroup()],
+            [CreateFilterGroup(), CreateGroupedGroup(), CreateTilesGroup(), CreatePinnedGroup()],
             [CreateFeedGroup(), CreateSortGroup(), CreateEmptyGroup(), CreateOrderGroup(), CreateRunbookGroup()]
             )
         );
@@ -253,7 +254,26 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
     }
 
     /// <summary>
-    /// Two templates over one collection: the entry's <c>Kind</c> picks the variant, so writing it redraws that row.
+    /// Pinned messages whose description is a phrase with the moment each was sent, filled before the page is first drawn.
+    /// </summary>
+    private static ContainerComponent CreatePinnedGroup()
+    {
+        return DemoUI.CreateExample("Pinned, and when",
+            new ItemsViewComponent()
+                .BindItems($"{PinnedGroup}.{nameof(PinnedGroupContext.Pins)}")
+                .SetSpacing(4)
+                .SetTemplate(new ActionComponent()
+                    .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                    .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                ),
+            note: "Each row says when it was sent in words with the moment in them, written by the server in UTC with the page and again by the page in your zone and language: no row should end in \"UTC\" once the page is open."
+        );
+    }
+
+    /// <summary>
+    /// Two templates over one collection: the entry's <c>Kind</c> picks the variant, so writing it redraws that row, its context
+    /// menu included; a picture has no fixed size, so its row grows when it arrives and the feed stays at its end.
     /// </summary>
     private static ContainerComponent CreateFeedGroup()
     {
@@ -265,6 +285,7 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                 .AddTemplateVariant(FeedGroupContext.NoteKind, new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetPadding(UIThickness.All(10, 8, 10, 8))
+                    .SetContextMenu(CreateFeedMenu())
                     .SetContent(new TextComponent()
                         .BindTitle(nameof(DemoFeedItem.Title), UIBindingScope.Relative)
                         .SetTitleType(UITextAppearance.Caption)
@@ -276,17 +297,19 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                 .AddTemplateVariant(FeedGroupContext.ImageKind, new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
                     .SetPadding(UIThickness.All(10, 8, 10, 8))
+                    .SetContextMenu(CreateFeedMenu())
                     .SetContent(UILayout.Stack(6)
                         .AddChild(new TextComponent()
                             .BindTitle(nameof(DemoFeedItem.Title), UIBindingScope.Relative)
                             .SetTitleType(UITextAppearance.Caption)
                             .SetTitleColor(UIThemeColor.Muted)
                         )
+                        // No height: the picture is drawn at its own proportions, so the row grows when it has loaded.
                         .AddChild(new ImageComponent()
                             .BindSource(nameof(DemoFeedItem.Source), UIBindingScope.Relative)
                             .BindAltText(nameof(DemoFeedItem.Description), UIBindingScope.Relative)
-                            .SetFit(UIImageFit.Cover)
-                            .SetHeight(UILayoutLength.Absolute(140))
+                            .SetMaxWidth(UILayoutLength.Absolute(360))
+                            .SetMaxHeight(UILayoutLength.Absolute(240))
                             .SetCornerRadius(UICornerRadius.Uniform(6))
                         )
                         .AddChild(new TextComponent()
@@ -299,14 +322,22 @@ internal sealed class ItemsViewExamplesView : DemoExamplesView, IUIViewDefinitio
                 .AnchorToEnd()
                 .SetSpacing(8)
                 .SetHeight(UILayoutLength.Absolute(300)),
+            note: "Right-click an entry: a note offers copy and pin, a picture open and save — the menu is the entry's own list. Flip the newest and right-click it again: the row is drawn in the other kind with the other kind's menu. Post a picture: its size is not known until it has loaded, and the feed stays at its end as the row grows.",
             context: FeedGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
                 ["Post a note"] = nameof(ItemsViewExamplesController.PostNote),
+                ["Post a picture"] = nameof(ItemsViewExamplesController.PostPicture),
                 ["Flip the newest"] = nameof(ItemsViewExamplesController.FlipNewest)
             })
         );
     }
+
+    /// <summary>A row's context menu over the entry's own list; the press names the entry pressed and the row it was opened on.</summary>
+    private static MenuComponent CreateFeedMenu()
+        => new MenuComponent()
+            .BindItems(nameof(DemoFeedItem.Menu), UIBindingScope.Relative)
+            .OnItemClick(nameof(ItemsViewExamplesController.FeedMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(DemoFeedItem.Id)));
 
     /// <summary>
     /// Chips under a switch: a sort rule can be gated on another component's value, like a filter, and the order comes back when it is off.

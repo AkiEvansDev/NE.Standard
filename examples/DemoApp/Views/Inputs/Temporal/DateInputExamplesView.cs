@@ -1,4 +1,5 @@
 using System;
+using DemoApp.Controllers.Inputs.Temporal;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Inputs.Temporal;
@@ -8,6 +9,9 @@ namespace DemoApp.Views.Inputs.Temporal;
 /// </summary>
 internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinition
 {
+    private const string MarkedGroup = nameof(DateInputExamplesController.MarkedGroup);
+    private const string BoundsGroup = nameof(DateInputExamplesController.BoundsGroup);
+
     private static readonly DateOnly Release = new(2026, 8, 12);
     private static readonly DateOnly QuarterStart = new(2026, 7, 1);
     private static readonly DateOnly QuarterEnd = new(2026, 9, 30);
@@ -20,7 +24,11 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.inputs.date-input.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup(), CreateLanguageGroup()], [CreateFormatGroup(), CreateCalendarGroup()]));
+    {
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup(), CreateBoundsGroup(), CreateLanguageGroup()], [CreateFormatGroup(), CreateCalendarGroup()]));
+
+        _ = container.AddChildren(DemoUI.CreateColumns([CreateMarkedGroup()], [CreateServerBoundsGroup()]));
+    }
 
     /// <summary>
     /// A period is one field with two ends, chosen on one calendar, rather than two fields kept in step by hand.
@@ -146,6 +154,51 @@ internal sealed class DateInputExamplesView : DemoExamplesView, IUIViewDefinitio
                     .SetValue(Release)
                 ),
             note: "Switch the language in the header: the first field keeps the framework's `yyyy-MM-dd` and is drawn again with its placeholder in the new language's letters (`дд.ММ.гггг` in Russian) and its picker's names in its words; the second names `en-US`, so it shows that culture's `M/d/yyyy` and English names whatever the page speaks. `ConfigureTemporal(o => o.FollowCulture = true)` would give every field its language's own pattern; this demo leaves it unset."
+        );
+    }
+
+    /// <summary>
+    /// Days the calendar marks, bound: a switch makes them the only ones on offer, a button assigns the next month's set.
+    /// </summary>
+    private static ContainerComponent CreateMarkedGroup()
+    {
+        return DemoUI.CreateExample("Marked days, the controller's",
+            UILayout.Stack(16)
+                .AddChild(new DateInputComponent()
+                    .SetTitle("Ship with the release train")
+                    .BindValue(nameof(DateMarkedGroupContext.Value), UIBindingScope.Relative)
+                    .BindMarkedDays(nameof(DateMarkedGroupContext.MarkedDays), UIBindingScope.Relative)
+                    .BindMarkedDaysOnly(nameof(DateMarkedGroupContext.MarkedDaysOnly), UIBindingScope.Relative)
+                )
+                .AddChild(new SwitchComponent()
+                    .SetTitle("Only the trains")
+                    .BindValue(nameof(DateMarkedGroupContext.MarkedDaysOnly), UIBindingScope.Relative)
+                    .OnChange(nameof(DateInputExamplesController.MarkedDaysOnlyChanged))
+                )
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Outline)
+                    .SetHorizontalAlignment(UIAlignment.Start)
+                    .SetTitle("The next month's trains")
+                    .OnClick(nameof(DateInputExamplesController.NextMonth))
+                ),
+            note: "Open the picker: Tuesdays and Thursdays carry a dot. With the switch on the other days are disabled, the arrows skip them, a typed one is refused, and so is one sent to the server anyway. The button assigns a new set, sent whole.",
+            context: MarkedGroup
+        );
+    }
+
+    /// <summary>
+    /// A bound the server holds as well as the page: the controller's copy, written under the group, never goes past it.
+    /// </summary>
+    private static ContainerComponent CreateServerBoundsGroup()
+    {
+        return DemoUI.CreateExample("A bound the server holds",
+            new DateInputComponent()
+                .SetTitle("Keep the snapshot until")
+                .SetMax(DateBoundsGroupContext.Latest)
+                .BindValue(nameof(DateBoundsGroupContext.KeepUntil), UIBindingScope.Relative)
+                .OnChange(nameof(DateInputExamplesController.KeepUntilChanged)),
+            note: "`Max` is 2026-09-30. Type a later day and leave the field: the page pulls it back to the bound before it sends, once. A day past the bound that reaches the server some other way is refused there, and the field returns to what the controller holds.",
+            context: BoundsGroup
         );
     }
 }

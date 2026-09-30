@@ -1,11 +1,15 @@
-// A file input: a pick or a drop on the row sends the files beside the hub and writes the handle back as the selection id.
+// A file input: a pick, a drop or a paste on the row — or on the component it names as its drop target — sends the files beside the
+// hub and writes the handle back as the selection id.
 
-import { FilePickAttribute as PickAttribute } from "../addressing/dom-attributes";
-import { clientStrings } from "../runtime/client-strings";
-import { logWarn } from "../runtime/logger";
-import { attachFileDrop } from "./file-drop";
-import { isInert, isReadOnly } from "./interactive-state";
-import { filterWithinFileSizeLimit, publishSelection, uploadFilesAsync } from "./file-upload";
+// `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
+import { FilePickAttribute as PickAttribute } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
+import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
+import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import type { FieldValidation } from "./validation-engine.ts";
 
 const RootClass = "ui-file-input";
 const RowClass = "ui-file-input__row";
@@ -18,10 +22,13 @@ const DraggingAttribute = "data-ui-file-dragging";
 
 export type FileInputEngineOptions = {
     readonly root?: ParentNode;
+    /** Where a file refused for its size is said; left out, the refusal goes to the console. */
+    readonly validation?: FieldValidation;
 };
 
 export class FileInputEngine {
     private readonly root: ParentNode;
+    private readonly validation: FieldValidation | undefined;
     // The number of the latest pick per field, so an upload a later pick overtook writes nothing when it lands.
     private readonly picks = new WeakMap<HTMLElement, number>();
 
@@ -30,26 +37,42 @@ export class FileInputEngine {
 
     public constructor(options: FileInputEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.validation = options.validation;
 
         clientStrings.onChange(() => this.rewriteShownWords());
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
+        // Asked from a control elsewhere, the chooser is refused as the row's own press is.
+        this.root.addEventListener(OpenPickerEventName, domEvent => answerOpenPicker(domEvent, {
+            rootSelector: `.${RootClass}`,
+            nativeSelector: `.${NativeClass}`,
+            pressed: root => root
+        }));
 
         // Capture: the hidden native input's "change" is not the bound value; the selection id is.
         this.root.addEventListener("change", domEvent => void this.handleSelectionAsync(domEvent), true);
 
-        // A drop on the row is a pick, by the native input's `accept` and `multiple`; a read-only or disabled field refuses it in place.
+        // A drop or a paste on the row, or on the drop target, is a pick, by the native input's `accept` and `multiple`; a read-only or
+        // disabled field refuses it in place.
         attachFileDrop({
             root: this.root,
             draggingAttribute: DraggingAttribute,
             resolveTarget: target => {
-                const root = target.closest<HTMLElement>(`.${RowClass}`)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const own = target.closest<HTMLElement>(`.${RowClass}`)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const other = own === null ? findDropTargetField(this.root, target, `.${RootClass}`) : null;
+                const root = own ?? other?.field ?? null;
                 const native = root?.querySelector<HTMLInputElement>(`.${NativeClass}`) ?? null;
 
                 if (root === null || native === null)
                     return null;
 
-                return { host: root, accept: native.getAttribute("accept") ?? "", multiple: native.multiple, refused: native.disabled || isReadOnly(root) || isInert(root) };
+                return {
+                    host: root,
+                    mark: other?.component,
+                    accept: native.getAttribute("accept") ?? "",
+                    multiple: native.multiple,
+                    refused: native.disabled || isReadOnly(root) || isInert(root)
+                };
             },
             onFiles: (root, files) => void this.takeFilesAsync(root, files)
         });
@@ -114,13 +137,11 @@ export class FileInputEngine {
             return;
         }
 
-        const accepted = filterWithinFileSizeLimit(root, files);
+        const accepted = takeWithinSizeLimit(root, files, root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.multiple === true, this.validation);
 
-        // Every file refused for size is not an empty pick: the selection stands, and the field says why nothing happened.
-        if (accepted.length === 0) {
-            this.show(field, () => clientStrings.text("ui.file.oversized"));
+        // Every file refused for size is not an empty pick: the selection stands, and the validation line says why nothing happened.
+        if (accepted.length === 0)
             return;
-        }
 
         // A pick made while the last is still on its way supersedes it: the older upload's answer, whenever it lands, is not written.
         const pick = (this.picks.get(root) ?? 0) + 1;

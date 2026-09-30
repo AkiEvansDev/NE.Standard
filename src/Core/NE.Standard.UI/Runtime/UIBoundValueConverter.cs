@@ -15,8 +15,11 @@ internal static class UIBoundValueConverter
 {
     public static object? Convert(object? value, Type? targetType)
     {
-        // A text is a key and its arguments for the page to translate, whatever the property declares.
-        if (value is null or UIPhrase || targetType is null)
+        // An author's text travels as the plain string it stands for, so an item marked content shows it as written.
+        value = UIPhrase.AsValue(value);
+
+        // A key is the page's to translate, whatever the property declares; a string on a phrase property is words already.
+        if (value is null or UIPhrase || targetType is null || (value is string && targetType == typeof(UIPhrase)))
             return value;
 
         return RecursiveValueCoercion.TryCoerce(value, targetType, out var coerced) ? coerced : value;

@@ -16,6 +16,19 @@ public static class WebThemeCssBuilder
     private const string BrandInkOnTintShare = "56%";
     private const string StatusInkOnTintShare = "80%";
 
+    // What UIColorPalette.WithPrimary and WithAccent move: in the application's stylesheet with the rest, and alone in a reader's.
+    private static readonly (string Name, Func<UIColorPalette, ColorVariant> Read)[] BrandColors =
+    [
+        ("color-primary", static palette => palette.Primary),
+        ("color-accent", static palette => palette.Accent),
+        ("color-on-primary", static palette => palette.OnPrimary),
+        ("color-on-accent", static palette => palette.OnAccent),
+        ("color-primary-ink", static palette => palette.PrimaryInk),
+        ("color-accent-ink", static palette => palette.AccentInk),
+        ("color-selected", static palette => palette.Selected),
+        ("color-focus-ring", static palette => palette.FocusRing)
+    ];
+
     /// <summary>The theme's custom properties as the page's stylesheet: <c>:root</c> and each <c>data-ui-theme</c> palette.</summary>
     public static string Build(UITheme theme)
     {
@@ -40,11 +53,14 @@ public static class WebThemeCssBuilder
         AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false);
         AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false);
 
-        AppendMediaTheme(builder, "(prefers-color-scheme: light)", $"[{WebAttributes.Theme}=\"auto\"]", theme.Light);
-        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", $"[{WebAttributes.Theme}=\"auto\"]", theme.Dark);
+        AppendMediaTheme(builder, "(prefers-color-scheme: light)", theme.Light, AppendPaletteTheme);
+        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", theme.Dark, AppendPaletteTheme);
 
         return builder.ToString();
     }
+
+    private static void AppendPaletteTheme(StringBuilder builder, string selector, UIColorPalette palette)
+        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false);
 
     private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, bool includeSemantic)
     {
@@ -75,22 +91,21 @@ public static class WebThemeCssBuilder
         _ = builder.AppendLine("}");
     }
 
-    private static void AppendMediaTheme(StringBuilder builder, string media, string selector, UIColorPalette palette)
+    /// <summary>A palette's theme under the <c>auto</c> selector, for the platform preference <paramref name="media"/> names.</summary>
+    private static void AppendMediaTheme(StringBuilder builder, string media, UIColorPalette palette, Action<StringBuilder, string, UIColorPalette> appendTheme)
     {
         _ = builder.Append("@media ").Append(media).AppendLine(" {");
-        AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false);
+        appendTheme(builder, $"[{WebAttributes.Theme}=\"auto\"]", palette);
         _ = builder.AppendLine("}");
     }
 
     private static void AppendColorVariables(StringBuilder builder, UIColorPalette palette)
     {
-        Append(builder, "color-primary", palette.Primary);
-        Append(builder, "color-accent", palette.Accent);
+        // The brand's colours with what stands on, writes in and shares their hue: the ink is the colour as words, a fill the base.
+        AppendBrandVariables(builder, palette);
+
         Append(builder, "color-background", palette.Background);
         Append(builder, "color-surface", palette.Surface);
-
-        Append(builder, "color-on-primary", palette.OnPrimary);
-        Append(builder, "color-on-accent", palette.OnAccent);
         Append(builder, "color-on-background", palette.OnBackground);
         Append(builder, "color-on-surface", palette.OnSurface);
 
@@ -104,16 +119,11 @@ public static class WebThemeCssBuilder
         Append(builder, "color-on-success", palette.OnSuccess);
         Append(builder, "color-on-danger", palette.OnDanger);
 
-        // The same six colours as words; a text/icon/badge property takes the ink, a fill takes the base.
-        Append(builder, "color-primary-ink", palette.PrimaryInk);
-        Append(builder, "color-accent-ink", palette.AccentInk);
+        // The status colours as words; a text/icon/badge property takes the ink, a fill takes the base.
         Append(builder, "color-info-ink", palette.InfoInk);
         Append(builder, "color-warning-ink", palette.WarningInk);
         Append(builder, "color-success-ink", palette.SuccessInk);
         Append(builder, "color-danger-ink", palette.DangerInk);
-
-        Append(builder, "color-selected", palette.Selected);
-        Append(builder, "color-focus-ring", palette.FocusRing);
 
         Append(builder, "color-border", palette.Border);
         Append(builder, "color-shadow", palette.Shadow);
@@ -126,6 +136,12 @@ public static class WebThemeCssBuilder
         Append(builder, "color-series-count", palette.Series.Count.ToString(CultureInfo.InvariantCulture));
 
         Append(builder, "disabled-opacity", WebCssValues.Opacity(palette.DisabledOpacity));
+    }
+
+    private static void AppendBrandVariables(StringBuilder builder, UIColorPalette palette)
+    {
+        foreach ((var name, Func<UIColorPalette, ColorVariant> read) in BrandColors)
+            Append(builder, name, read(palette));
     }
 
     private static void AppendTypographyVariables(StringBuilder builder, UITypography typography)
@@ -193,6 +209,49 @@ public static class WebThemeCssBuilder
 
     private static void AppendInkOnTint(StringBuilder builder, string role, string share)
         => Append(builder, $"color-{role}-ink-on-tint", $"color-mix(in srgb, var(--ui-color-{role}-ink) {share}, var(--ui-color-on-surface))");
+
+    /// <summary>
+    /// A reader's own colours as the stylesheet to follow <see cref="Build"/>'s: the brand variables of each theme they move, derived by
+    /// the palette's own rule (<see cref="UIThemeColors.ApplyTo"/>); empty where they move none.
+    /// </summary>
+    /// <remarks>
+    /// Variables only, under the selectors <see cref="Build"/> writes the palettes under, so the application's stylesheet stays one
+    /// for every reader; what <see cref="Build"/> mixes from them (a wash, an ink on a tint) follows by itself.
+    /// </remarks>
+    public static string BuildColors(UITheme theme, UIThemeColors? colors)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+
+        if (colors is null || colors.IsEmpty)
+            return string.Empty;
+
+        UITheme own = colors.ApplyTo(theme);
+        var light = !ReferenceEquals(own.Light, theme.Light);
+        var dark = !ReferenceEquals(own.Dark, theme.Dark);
+
+        StringBuilder builder = new();
+
+        if (light)
+            AppendBrandTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", own.Light);
+
+        if (dark)
+            AppendBrandTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", own.Dark);
+
+        if (light)
+            AppendMediaTheme(builder, "(prefers-color-scheme: light)", own.Light, AppendBrandTheme);
+
+        if (dark)
+            AppendMediaTheme(builder, "(prefers-color-scheme: dark)", own.Dark, AppendBrandTheme);
+
+        return builder.ToString();
+    }
+
+    private static void AppendBrandTheme(StringBuilder builder, string selector, UIColorPalette palette)
+    {
+        _ = builder.Append(selector).AppendLine(" {");
+        AppendBrandVariables(builder, palette);
+        _ = builder.AppendLine("}");
+    }
 
     private static void Append(StringBuilder builder, string name, ColorVariant value)
     {

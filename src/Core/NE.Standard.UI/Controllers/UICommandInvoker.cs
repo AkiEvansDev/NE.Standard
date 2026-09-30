@@ -5,6 +5,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Commands;
 
 namespace NE.Standard.UI.Controllers;
@@ -205,6 +207,10 @@ internal sealed class UICommandInvoker
                 ? null
                 : throw new InvalidOperationException($"Command '{commandName}' argument '{parameterName}' cannot be null.");
         }
+
+        // A phrase read off an item (its title) to a text parameter: the coercion's one rule, its text or its key.
+        if (value is UIPhrase && targetType == typeof(string) && RecursiveValueCoercion.TryCoerce(value, targetType, out var text))
+            return text;
 
         Type valueType = value.GetType();
 

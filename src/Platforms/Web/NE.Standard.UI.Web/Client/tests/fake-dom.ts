@@ -102,6 +102,23 @@ export class FakeElement {
         return this.children[0] ?? null;
     }
 
+    public get previousElementSibling(): FakeElement | null {
+        return this.parent?.children[this.parent.children.indexOf(this) - 1] ?? null;
+    }
+
+    public get nextElementSibling(): FakeElement | null {
+        return this.parent?.children[this.parent.children.indexOf(this) + 1] ?? null;
+    }
+
+    /** Moves the child in front of `reference`, taking it from wherever it stood; at the end with none. */
+    public insertBefore(child: FakeElement, reference: FakeElement | null): FakeElement {
+        child.remove();
+        child.parent = this;
+        this.children.splice(reference === null ? this.children.length : this.children.indexOf(reference), 0, child);
+
+        return child;
+    }
+
     public get isConnected(): boolean {
         const top = this.top();
 

@@ -12,9 +12,11 @@
     align-items: stretch;
 }
 
-// An icon-only split button is two parts wide and one row tall: the square an icon-only button keeps would stretch it to its width.
+// An icon-only split button is two parts wide and one row tall: the square an icon-only button keeps would stretch it to its width,
+// and the padding it keeps (ui-button.less, at a higher specificity than the root's zero above) would pad the parts' own twice.
 .ui-split-button.ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
     aspect-ratio: auto;
+    .ui-responsive-property(padding, --ui-padding, 0);
 }
 
     .ui-split-button__main,

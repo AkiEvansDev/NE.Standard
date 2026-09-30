@@ -218,12 +218,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             }
         }, VerticalAlignmentOperations);
 
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, "--ui-width");
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, "--ui-min-width");
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxWidthProperty, "--ui-max-width");
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, "--ui-height");
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinHeightProperty, "--ui-min-height");
-        ResponsiveRenderer.ApplyResponsiveLayoutLength(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxHeightProperty, "--ui-max-height");
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, "--ui-width", UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, "--ui-min-width", UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxWidthProperty, "--ui-max-width", UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, "--ui-height", UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinHeightProperty, "--ui-min-height", UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxHeightProperty, "--ui-max-height", UIOrientation.Vertical);
 
         _ = RenderProperty<int?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ZIndexProperty, static (target, value) =>
         {
@@ -231,7 +231,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 _ = target.Style("z-index", zIndex.ToString(CultureInfo.InvariantCulture));
         }, ZIndexOperations);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MarginProperty, "--ui-margin");
+        ResponsiveRenderer.ApplyResponsiveMargin(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MarginProperty);
 
         ApplyPlacement(context, html);
     }

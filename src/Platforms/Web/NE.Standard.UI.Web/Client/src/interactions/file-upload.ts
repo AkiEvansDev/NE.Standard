@@ -1,27 +1,116 @@
-// The one way a file leaves the browser: a multipart POST beside the hub, answering with the selection id the controller reads.
+// The one way a file leaves the browser: a multipart POST beside the hub, answering with the selection id the controller reads;
+// and what a field says when a pick is over its size limit.
 
-import { FileMaxSizeAttribute } from "../addressing/dom-attributes";
-import { logElapsed, logWarn } from "../runtime/logger";
+// `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
+import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import { logElapsed, logWarn } from "../runtime/logger.ts";
+import type { FieldValidation } from "./validation-engine.ts";
 
 const UploadPath = "/_ne/files/upload";
 
-/** The files within the root's size limit, if it carries one: refused before the upload, since the server would refuse them anyway. */
-export function filterWithinFileSizeLimit(root: Element, files: readonly File[]): File[] {
+/** Past the byte, the steps a size is written in, each 1024 of the one before, as a file manager counts. */
+const SizeUnits = ["kilobyte", "megabyte", "gigabyte"] as const;
+
+/** A pick refused for size, kept so a language switch writes the limit again in the new language's units. */
+type SizeRefusal = {
+    readonly validation: FieldValidation;
+    readonly limit: number;
+    /** The refused files' names, for a field that takes several; null for one that takes one. */
+    readonly names: readonly string[] | null;
+};
+
+/** The fields saying a size refusal now: a map rather than a weak one, since a language switch walks them. */
+const refusals = new Map<HTMLElement, SizeRefusal>();
+
+let refusalsFollowLanguage = false;
+
+/**
+ * The files within the root's size limit, if it carries one. The rest are refused before the upload, since the server would refuse
+ * them anyway, and said on the field's validation line — named, where the field takes several; a pick within the limit takes the
+ * line off.
+ */
+export function takeWithinSizeLimit(root: HTMLElement, files: readonly File[], several: boolean, validation: FieldValidation | undefined): File[] {
     const limit = Number(root.getAttribute(FileMaxSizeAttribute));
-
-    if (!Number.isFinite(limit) || limit <= 0)
-        return [...files];
-
     const accepted: File[] = [];
+    const refused: File[] = [];
 
     for (const file of files) {
-        if (file.size <= limit)
+        if (!Number.isFinite(limit) || limit <= 0 || file.size <= limit)
             accepted.push(file);
         else
-            logWarn("a chosen file exceeds the input's size limit and was refused.", { name: file.name, size: file.size, limit });
+            refused.push(file);
     }
 
+    if (refused.length === 0) {
+        if (refusals.delete(root))
+            validation?.mark(root, null);
+
+        return accepted;
+    }
+
+    if (validation === undefined) {
+        logWarn("a chosen file exceeds the input's size limit and was refused.", { names: refused.map(file => file.name), limit });
+        return accepted;
+    }
+
+    const refusal: SizeRefusal = { validation, limit, names: several ? refused.map(file => file.name) : null };
+
+    refusals.set(root, refusal);
+    sayRefusal(root, refusal);
+    followLanguage();
+
     return accepted;
+}
+
+function sayRefusal(root: HTMLElement, refusal: SizeRefusal): void {
+    const limit = formatFileSize(refusal.limit, clientStrings.language);
+
+    refusal.validation.mark(root, "error", refusal.names === null
+        ? { key: "ui.file.oversized", args: { limit } }
+        : { key: "ui.file.leftout", args: { limit, names: refusal.names.join(", ") } });
+}
+
+/** A size in bytes as a reader reads one — "1 MB", "1,5 МБ" — in the page's language, by the browser's own unit words. */
+export function formatFileSize(bytes: number, language: string): string {
+    let value = bytes;
+    let unit = "byte";
+
+    for (const next of SizeUnits) {
+        if (value < 1024)
+            break;
+
+        value /= 1024;
+        unit = next;
+    }
+
+    // "512 bytes", not the short form's "512 byte".
+    const options: Intl.NumberFormatOptions = { style: "unit", unit, unitDisplay: unit === "byte" ? "long" : "short", maximumFractionDigits: 1 };
+
+    try {
+        return new Intl.NumberFormat(language.length > 0 ? language : undefined, options).format(value);
+    }
+    catch {
+        // A language tag the browser does not know: its own language's words, rather than no limit at all.
+        return new Intl.NumberFormat(undefined, options).format(value);
+    }
+}
+
+/** Writes the refusals again on a language switch, once the page's own rewrite has put the old language's limit back. */
+function followLanguage(): void {
+    if (refusalsFollowLanguage)
+        return;
+
+    refusalsFollowLanguage = true;
+
+    clientStrings.onChange(() => {
+        for (const [root, refusal] of refusals) {
+            if (root.isConnected)
+                sayRefusal(root, refusal);
+            else
+                refusals.delete(root);
+        }
+    });
 }
 
 export type UploadedSelection = {

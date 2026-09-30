@@ -186,4 +186,17 @@ public static class UIGlyphs
     public const string Star = "ne-star";
     public const string Home = "ne-home";
     public const string Logout = "ne-logout";
+
+    /// <summary>
+    /// A file by its kind, as <see cref="UIFileGlyphs.For"/> picks one: a PDF, text, a spreadsheet, slides, an archive, audio, video,
+    /// and a blank page for any other file; a document, a picture and code are <see cref="Description"/>, <see cref="Image"/> and <see cref="Code"/>.
+    /// </summary>
+    public const string Draft = "ne-draft";
+    public const string PictureAsPdf = "ne-picture-as-pdf";
+    public const string TextSnippet = "ne-text-snippet";
+    public const string TableChart = "ne-table-chart";
+    public const string Slideshow = "ne-slideshow";
+    public const string FolderZip = "ne-folder-zip";
+    public const string AudioFile = "ne-audio-file";
+    public const string VideoFile = "ne-video-file";
 }

@@ -4,7 +4,7 @@ import { ComponentSelector, HiddenClass, ItemsQueryAttribute } from "../addressi
 import { logWarn } from "../runtime/logger.ts";
 import { getRealItemElements } from "./items-empty-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
-import { evaluateOperator } from "../interactions/interaction-evaluator.ts";
+import { comparable, evaluateOperator } from "../interactions/interaction-evaluator.ts";
 import { getItemsSortDirection } from "../metadata/metadata-index.ts";
 import type {
     MetadataIndex,
@@ -110,7 +110,7 @@ export function sortElements(elements: readonly Element[], activeSorts: readonly
 /** Two items' values against the active sorts, highest priority first. */
 export function compareItems(left: unknown, right: unknown, activeSorts: readonly ActiveSort[]): number {
     for (const sort of activeSorts) {
-        const comparison = compareValues(readItemPropertyPath(left, sort.itemProperty), readItemPropertyPath(right, sort.itemProperty));
+        const comparison = compareValues(comparable(readItemPropertyPath(left, sort.itemProperty)), comparable(readItemPropertyPath(right, sort.itemProperty)));
 
         if (comparison !== 0)
             return getItemsSortDirection(sort.direction) === "Descending" ? -comparison : comparison;

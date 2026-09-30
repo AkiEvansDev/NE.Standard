@@ -54,7 +54,7 @@ internal sealed partial class TabsViewMainController : DemoStandardController
     /// <summary>A tab's close or the tab menu's remove entry: reported, and the tab kept.</summary>
     [UICommand]
     public void RemoveDocument(string id)
-        => TabsViewGroup.ReportRemove(Documents.FirstOrDefault(document => document.Id == id)?.Title ?? id);
+        => TabsViewGroup.ReportRemove(Documents.FirstOrDefault(document => document.Id == id)?.Title?.ToString() ?? id);
 
     [UICommand]
     public void CycleTabsViewGroupOption(string id)

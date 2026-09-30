@@ -100,9 +100,9 @@ internal sealed partial class KeyValueActionRowsGroupContext : DemoGroupContext
 
         TextItem value = (TextItem)Items[^1].Value;
 
-        value.Title = value.Title?.EndsWith('*') == true
-            ? value.Title.TrimEnd('*')
-            : $"{value.Title}*";
+        var title = value.Title?.Key ?? string.Empty;
+
+        value.Title = title.EndsWith('*') ? title.TrimEnd('*') : $"{title}*";
     }
 
     private static KeyValueActionItem CreateItem(string id, string key, string value)

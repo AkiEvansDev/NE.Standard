@@ -28,10 +28,17 @@ public sealed partial class AttachmentItem : RecursiveObservable, IBindableItem
 
     [RecursiveMember]
     public partial string SizeText { get; set; } = string.Empty;
+
+    /// <summary>The framework's glyph for a file of its kind — a PDF, a spreadsheet, an archive — on the square a file is shown as.</summary>
+    [RecursiveMember]
+    public partial string Glyph { get; set; } = UIGlyphs.Draft;
 }
 
-/// <summary>A message as the feed shows it: who, when, what, and which side of the feed it sits on.</summary>
-public sealed partial class MessageItem : RecursiveObservable, IBindableItem
+/// <summary>
+/// A message as the feed shows it: who, when, what, and which side of the feed it sits on; grouped by the day it was sent, in the
+/// reader's zone, so the feed heads each day.
+/// </summary>
+public sealed partial class MessageItem : RecursiveObservable, IBindableGroup
 {
     public const string MineSide = "mine";
     public const string TheirsSide = "theirs";
@@ -51,6 +58,14 @@ public sealed partial class MessageItem : RecursiveObservable, IBindableItem
 
     [RecursiveMember]
     public partial string Time { get; set; } = string.Empty;
+
+    /// <summary>When it was sent: the day's header writes it as a date, in the reader's zone and language.</summary>
+    [RecursiveMember]
+    public partial DateTimeOffset SentAt { get; set; }
+
+    /// <summary>The day it was sent in the reader's zone, <c>yyyy-MM-dd</c>: a new day heads its first message.</summary>
+    [RecursiveMember]
+    public partial string? Group { get; set; }
 
     [RecursiveMember]
     public partial string Text { get; set; } = string.Empty;
@@ -89,14 +104,19 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
     private ChatService? _chat;
     private string _conversationId = string.Empty;
     private Func<MessageRecord, MessageItem>? _shape;
+    private Func<DateTime, string>? _dayOf;
     private Action<long>? _read;
 
-    /// <summary>Reads the conversation; <paramref name="read"/> is told the newest message when a window reaches it.</summary>
-    public void Attach(ChatService chat, string conversationId, Func<MessageRecord, MessageItem> shape, Action<long> read)
+    /// <summary>
+    /// Reads the conversation; <paramref name="dayOf"/> names the day a message was sent, as its item's group, and <paramref name="read"/>
+    /// is told the newest message when a window reaches it.
+    /// </summary>
+    public void Attach(ChatService chat, string conversationId, Func<MessageRecord, MessageItem> shape, Func<DateTime, string> dayOf, Action<long> read)
     {
         _chat = chat;
         _conversationId = conversationId;
         _shape = shape;
+        _dayOf = dayOf;
         _read = read;
     }
 
@@ -141,7 +161,7 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
 
     protected override Task<UIItemWindow<MessageItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
     {
-        if (_chat is null || _shape is null)
+        if (_chat is null || _shape is null || _dayOf is null)
             return Task.FromResult(new UIItemWindow<MessageItem>([]) { Offset = 0, TotalCount = 0 });
 
         var total = (int)_chat.Count(_conversationId);
@@ -158,14 +178,16 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
 
         start = Math.Clamp(start, 0, Math.Max(0, total - 1));
 
-        IReadOnlyList<MessageRecord> page = _chat.Page(_conversationId, start, request.Count);
-        MessageItem[] items = new MessageItem[page.Count];
+        // One message more in front: the day it was sent tells the feed whether the window's first message starts a day of its own.
+        var before = start > 0 ? 1 : 0;
+        IReadOnlyList<MessageRecord> page = _chat.Page(_conversationId, start - before, request.Count + before);
+        MessageItem[] items = new MessageItem[Math.Max(0, page.Count - before)];
 
-        for (var i = 0; i < page.Count; i++)
-            items[i] = _shape(page[i]);
+        for (var i = 0; i < items.Length; i++)
+            items[i] = _shape(page[i + before]);
 
         // Only a window that reaches the end: one read ahead of the viewer in the middle of the feed is not read by them yet.
-        if (page.Count > 0 && start + items.Length >= total)
+        if (items.Length > 0 && start + items.Length >= total)
             _read?.Invoke(page[^1].Id);
 
         return Task.FromResult(new UIItemWindow<MessageItem>(items)
@@ -173,7 +195,8 @@ public sealed class MessageSource : UIItemSourceBase<MessageItem>
             Offset = start,
             TotalCount = total,
             HasMoreBefore = start > 0,
-            HasMoreAfter = start + items.Length < total
+            HasMoreAfter = start + items.Length < total,
+            GroupBefore = before == 1 && page.Count > 0 ? _dayOf(page[0].SentUtc) : null
         });
     }
 
@@ -191,10 +214,12 @@ public sealed partial class ChatController : TeamRoomController
     public const string MineRowId = "chat-message-mine";
     public const string TheirsRowId = "chat-message-theirs";
     public const string ComposerFormId = "chat-composer";
+    public const string ComposerId = "chat-draft";
+    public const string AttachmentsId = "chat-attachments";
     public const string NewRoomDialogKey = "chat-new-room";
     public const string NewDirectDialogKey = "chat-new-direct";
-    public const string AttachDialogKey = "chat-attach";
     public const string PictureDialogKey = "chat-picture";
+    public const string DaysDialogKey = "chat-days";
     public const string EditDialogKey = "chat-edit";
     public const string DeleteDialogKey = "chat-delete";
     public const string EditAction = "edit";
@@ -226,16 +251,17 @@ public sealed partial class ChatController : TeamRoomController
     [RecursiveMember]
     public partial string Draft { get; set; } = string.Empty;
 
+    /// <summary>The pictures and files on the shelf above the composer: one upload handle each, in the order they were chosen.</summary>
     [RecursiveMember]
-    public partial string? AttachmentSelectionId { get; set; }
+    public partial IReadOnlyList<string>? AttachmentSelectionIds { get; set; }
 
-    /// <summary>What the picker shows — the file names — cleared with the selection once the message is away.</summary>
+    /// <summary>The day the jump calendar stands on: the one whose header was pressed, then the one the reader picks.</summary>
     [RecursiveMember]
-    public partial string? AttachmentText { get; set; }
+    public partial DateOnly? JumpDay { get; set; }
 
-    /// <summary>The pictures picked for the next message: one upload handle each, in the order they were chosen.</summary>
+    /// <summary>The days with messages, the only ones the jump calendar offers.</summary>
     [RecursiveMember]
-    public partial IReadOnlyList<string>? PictureSelectionIds { get; set; }
+    public partial IReadOnlyCollection<DateOnly>? MessageDays { get; set; }
 
     /// <summary>The picture opened from the feed, at its full size, and the name it was sent under.</summary>
     [RecursiveMember]
@@ -302,7 +328,7 @@ public sealed partial class ChatController : TeamRoomController
             return;
         }
 
-        Messages.Attach(ChatStore, _conversationId, Shape, ReadThrough);
+        Messages.Attach(ChatStore, _conversationId, Shape, DayOf, ReadThrough);
 
         _jumpedTo = JumpTarget(Context.Handle.Instance.Navigation);
 
@@ -352,6 +378,7 @@ public sealed partial class ChatController : TeamRoomController
             {
                 Id = conversation.Id,
                 Title = conversation.Title,
+                Description = LastLine(conversation),
                 Icon = AppIcons.Outline(conversation.Kind == ConversationKinds.Room ? AppIcons.Room : AppIcons.Direct),
                 Url = AppRoutes.ChatFor(conversation.Id),
                 Selected = current,
@@ -365,6 +392,25 @@ public sealed partial class ChatController : TeamRoomController
                 Subtitle = conversation.Kind == ConversationKinds.Room ? "A room everyone is in" : "A conversation between the two of you";
             }
         }
+    }
+
+    /// <summary>
+    /// A conversation's line under its name: how long ago its newest message came — a moment the page writes in the reader's words
+    /// and keeps current — then what was said, and by whom where it is not plain: in a room, or when it was the reader.
+    /// </summary>
+    private UIPhrase LastLine(ConversationRecord conversation)
+    {
+        if (conversation.Last is not { } last)
+            return "No messages yet";
+
+        var what = last.Text.Length > 0 ? last.Text : "An attachment";
+
+        if (last.AuthorId == AccountId)
+            what = $"You: {what}";
+        else if (conversation.Kind == ConversationKinds.Room)
+            what = $"{last.AuthorName ?? DeletedAccount}: {what}";
+
+        return UIPhrase.Of(AppWords.LastMessage, ("at", new UIMoment(new DateTimeOffset(last.SentUtc), UITimestampFormat.Relative)), ("text", what));
     }
 
     /// <summary>Who a direct conversation can be started with; it changes only when an account does.</summary>
@@ -409,7 +455,10 @@ public sealed partial class ChatController : TeamRoomController
             AuthorId = message.AuthorId,
             Author = author?.Nickname ?? DeletedAccount,
             Avatar = AvatarOf(author),
-            Time = message.SentUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture) + (message.EditedUtc is null ? string.Empty : " · edited"),
+            // The day stands in the header above, so the row keeps the clock alone.
+            Time = ReaderTime(message.SentUtc).ToString("HH:mm", CultureInfo.InvariantCulture) + (message.EditedUtc is null ? string.Empty : " · edited"),
+            SentAt = new DateTimeOffset(message.SentUtc),
+            Group = DayOf(message.SentUtc),
             Text = message.Text,
             Side = message.AuthorId == AccountId ? MessageItem.MineSide : MessageItem.TheirsSide,
             AttachmentsVisibility = message.Attachments.Count == 0 ? UIVisibility.Collapsed : UIVisibility.Visible
@@ -423,7 +472,8 @@ public sealed partial class ChatController : TeamRoomController
                 Name = attachment.FileName,
                 Address = MediaStore.AddressOf(attachment.MediaId),
                 Kind = attachment.IsImage ? AttachmentItem.ImageKind : AttachmentItem.FileKind,
-                SizeText = SizeText(attachment.Size)
+                SizeText = SizeText(attachment.Size),
+                Glyph = UIFileGlyphs.For(attachment.FileName, attachment.ContentType)
             });
         }
 
@@ -440,6 +490,20 @@ public sealed partial class ChatController : TeamRoomController
 
     private string? AvatarOf(AccountRecord? author)
         => author?.AvatarMediaId is null ? null : MediaStore.AddressOf(author.AvatarMediaId);
+
+    /// <summary>
+    /// The reader's zone, as their browser reported it to the session; UTC until it has — a page's first render for a new session,
+    /// where a timestamp in the page shows the browser's own zone.
+    /// </summary>
+    private TimeZoneInfo ReaderZone
+        => UITimeZones.TryFind(Context.Handle.Session.TimeZone, out TimeZoneInfo? zone) ? zone : TimeZoneInfo.Utc;
+
+    private DateTime ReaderTime(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(utc, ReaderZone);
+
+    /// <summary>The day a message was sent in the reader's zone: its group in the feed, and the day the jump calendar marks.</summary>
+    private string DayOf(DateTime utc)
+        => ReaderTime(utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static string SizeText(long size)
         => size switch
@@ -574,12 +638,10 @@ public sealed partial class ChatController : TeamRoomController
 
         var text = Draft.Trim();
 
-        // The pictures first, then the files: the order the panel shows them.
+        // The pictures and files in the order the shelf shows them.
         List<UIUploadFile> files = [];
 
-        List<string?> selectionIds = [.. PictureSelectionIds ?? [], AttachmentSelectionId];
-
-        foreach (var selectionId in selectionIds)
+        foreach (var selectionId in AttachmentSelectionIds ?? [])
         {
             if (string.IsNullOrWhiteSpace(selectionId))
                 continue;
@@ -626,14 +688,13 @@ public sealed partial class ChatController : TeamRoomController
         }
 
         Draft = string.Empty;
-        AttachmentSelectionId = null;
-        AttachmentText = null;
-        PictureSelectionIds = null;
+        // Empty, not null: an empty list is what clears the shelf.
+        AttachmentSelectionIds = [];
 
         // The event told every other page; this one appends its own message here, inside the command.
         Messages.Receive(message);
 
-        return UICommandResult.Ok([new CloseDialogEffect(AttachDialogKey)]);
+        return UICommandResult.Ok();
     }
 
     /// <summary>What keeps the files from being sent — one too large, or the account's share used up — or null.</summary>
@@ -654,10 +715,6 @@ public sealed partial class ChatController : TeamRoomController
 
         return null;
     }
-
-    [UICommand]
-    public static UICommandResult OpenAttach()
-        => UICommandResult.Ok([new OpenDialogEffect(AttachDialogKey)]);
 
     /// <summary>A file's square was clicked: the browser fetches it, named as it was sent.</summary>
     [UICommand]
@@ -778,7 +835,7 @@ public sealed partial class ChatController : TeamRoomController
             {
                 Id = hit.MessageId.ToString(CultureInfo.InvariantCulture),
                 ConversationId = hit.ConversationId,
-                Where = $"{Person(hit.AuthorId)?.Nickname ?? DeletedAccount} · {hit.ConversationTitle} · {hit.SentUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)}",
+                Where = $"{Person(hit.AuthorId)?.Nickname ?? DeletedAccount} · {hit.ConversationTitle} · {ReaderTime(hit.SentUtc).ToString("d MMM HH:mm", CultureInfo.InvariantCulture)}",
                 Text = hit.Text
             });
         }
@@ -835,6 +892,51 @@ public sealed partial class ChatController : TeamRoomController
         return UICommandResult.Ok([new ScrollToEffect(rowId, ScrollToBehavior.Smooth, ScrollToBlock.Center, id)]);
     }
 
+    /// <summary>A day's header was pressed: the calendar opens on that day, offering only the days with messages.</summary>
+    [UICommand]
+    public UICommandResult OpenDays(string day)
+    {
+        if (!Messages.IsAttached)
+            return UICommandResult.Ok();
+
+        HashSet<DateOnly> days = [];
+
+        foreach (DateTime sent in ChatStore.SentTimes(_conversationId))
+            _ = days.Add(DateOnly.FromDateTime(ReaderTime(sent)));
+
+        MessageDays = days;
+        JumpDay = DateOnly.TryParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly pressed) ? pressed : null;
+
+        return UICommandResult.Ok([new OpenDialogEffect(DaysDialogKey)]);
+    }
+
+    /// <summary>A day was picked: the feed opens on its first message, in the middle of the view with the day's header above it.</summary>
+    [UICommand]
+    public async Task<UICommandResult> JumpToDayAsync(CancellationToken cancellationToken)
+    {
+        if (!Messages.IsAttached || JumpDay is not DateOnly day)
+            return UICommandResult.Ok([new CloseDialogEffect(DaysDialogKey)]);
+
+        // The reader's midnight; a zone whose clocks skip it starts the day an hour on.
+        DateTime midnight = day.ToDateTime(TimeOnly.MinValue);
+        TimeZoneInfo zone = ReaderZone;
+
+        if (zone.IsInvalidTime(midnight))
+            midnight = midnight.AddHours(1);
+
+        var index = ChatStore.CountSentBefore(_conversationId, TimeZoneInfo.ConvertTimeToUtc(midnight, zone));
+
+        if (index >= ChatStore.Count(_conversationId))
+            return UICommandResult.Ok([new CloseDialogEffect(DaysDialogKey)]);
+
+        await Messages.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At(Math.Max(0, index - (WindowSize / 2))), WindowSize), cancellationToken).ConfigureAwait(false);
+
+        var id = ChatStore.Page(_conversationId, index, 1)[0].Id.ToString(CultureInfo.InvariantCulture);
+        var rowId = Messages.SideOf(id) == MessageItem.MineSide ? MineRowId : TheirsRowId;
+
+        return UICommandResult.Ok([new CloseDialogEffect(DaysDialogKey), new ScrollToEffect(rowId, ScrollToBehavior.Smooth, ScrollToBlock.Center, id)]);
+    }
+
     [UICommand]
     public UICommandResult OpenNewRoom()
     {
@@ -876,8 +978,8 @@ public sealed partial class ChatController : TeamRoomController
     [UICommand]
     public static UICommandResult CloseDialogs()
         => UICommandResult.Ok([
-            new CloseDialogEffect(NewRoomDialogKey), new CloseDialogEffect(NewDirectDialogKey), new CloseDialogEffect(AttachDialogKey),
-            new CloseDialogEffect(EditDialogKey), new CloseDialogEffect(DeleteDialogKey)
+            new CloseDialogEffect(NewRoomDialogKey), new CloseDialogEffect(NewDirectDialogKey), new CloseDialogEffect(EditDialogKey),
+            new CloseDialogEffect(DeleteDialogKey), new CloseDialogEffect(DaysDialogKey)
         ]);
 
     [UICommand]

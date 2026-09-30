@@ -124,6 +124,9 @@ public static class BadgeRenderer
 
             _ = WebComponentRendererBase.RenderProperty<string?>(context, content, options.TextProperty, (target, value) =>
             {
+                if (value is not null)
+                    _ = badgeRoot.Attribute(WebAttributes.BadgeSet);
+
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     _ = badgeRoot.Attribute(WebAttributes.BadgeText, BadgeTextFit(value));
@@ -168,7 +171,8 @@ public static class BadgeRenderer
         public WebDomOperation[] Text { get; } =
         [
             WebDomOperation.Text(),
-            WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit)
+            WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit),
+            WebDomOperation.ToggleAttribute(WebAttributes.BadgeSet, target: target, condition: WebValueCondition.HasValue)
         ];
     }
 

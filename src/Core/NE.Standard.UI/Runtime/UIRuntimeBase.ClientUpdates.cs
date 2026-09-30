@@ -12,6 +12,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Client;
@@ -62,20 +63,34 @@ internal abstract partial class UIRuntimeBase
             {
                 for (var i = 0; i < changeSet.Updates.Length; i++)
                 {
+                    ClientUIUpdate update = changeSet.Updates[i];
+
+                    ArgumentNullException.ThrowIfNull(update);
+
+                    // A value is the only update a client sends.
+                    if (update is not ClientValueUIUpdate valueUpdate)
+                        throw new UnreachableException();
+
+                    ArgumentNullException.ThrowIfNull(valueUpdate.DynamicParameters);
+
+                    // Resolved once, and its text read by the input's format at most once, for the gates and the write alike.
+                    CompiledUIBindingResolution resolution = View.Bindings.Resolve(valueUpdate.Address, valueUpdate.DynamicParameters);
+                    ClientValueRead? read = null;
+
                     // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
-                    if (changeSet.Updates[i] is ClientValueUIUpdate valueUpdate && IsWriteRefusedNoLock(valueUpdate))
+                    if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
                     {
-                        (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate));
+                        (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
                         continue;
                     }
 
-                    if (TryHoldSourceWriteNoLock(changeSet.Updates[i], out PendingSourceWrite? sourceWrite))
+                    if (TryHoldSourceWriteNoLock(valueUpdate, resolution, out PendingSourceWrite? sourceWrite))
                     {
                         (sourceWrites ??= []).Add(sourceWrite.Value);
                         continue;
                     }
 
-                    ServerValidationUIUpdate? validation = ApplyClientUpdate(changeSet.Updates[i], out ClientValueUIUpdate? applied);
+                    ServerValidationUIUpdate? validation = ApplyValueUpdate(valueUpdate, resolution, read, out ClientValueUIUpdate? applied);
 
                     // Collected apart from the queue so a refusal always travels and one rejected value cannot abandon the rest.
                     if (validation is not null)
@@ -129,47 +144,23 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// Holds aside a write that belongs to a windowed source. Everything else is applied inline.
     /// </summary>
-    private bool TryHoldSourceWriteNoLock(ClientUIUpdate update, [NotNullWhen(true)] out PendingSourceWrite? pending)
+    private bool TryHoldSourceWriteNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, [NotNullWhen(true)] out PendingSourceWrite? pending)
     {
         pending = null;
-
-        if (update is not ClientValueUIUpdate valueUpdate)
-            return false;
-
-        ArgumentNullException.ThrowIfNull(valueUpdate.DynamicParameters);
-
-        CompiledUIBindingResolution resolution = View.Bindings.Resolve(valueUpdate.Address, valueUpdate.DynamicParameters);
 
         if (resolution.Binding.Mode is not (UIBindingMode.TwoWay or UIBindingMode.OneWayToSource or UIBindingMode.OnSubmit))
             return false;
 
-        return TryResolveSourceWriteNoLock(valueUpdate, resolution, out pending);
+        return TryResolveSourceWriteNoLock(update, resolution, out pending);
     }
 
     /// <summary>
-    /// Applies one client update, returning the validation update it produced, if any, and the update when the controller took it.
+    /// Applies a client value update, its text read by the input's format where a gate has not read it already; a value the format
+    /// cannot read is rejected, not thrown, while a malformed update still throws.
     /// </summary>
-    private ServerValidationUIUpdate? ApplyClientUpdate(ClientUIUpdate update, out ClientValueUIUpdate? applied)
+    private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ClientValueRead? read, out ClientValueUIUpdate? applied)
     {
-        ArgumentNullException.ThrowIfNull(update);
-
-        return update switch
-        {
-            ClientValueUIUpdate valueUpdate => ApplyValueUpdate(valueUpdate, out applied),
-            _ => throw new UnreachableException()
-        };
-    }
-
-    /// <summary>
-    /// Applies a client value update; a value the format cannot read is rejected, not thrown, while a malformed update still throws.
-    /// </summary>
-    private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update, out ClientValueUIUpdate? applied)
-    {
-        ArgumentNullException.ThrowIfNull(update.DynamicParameters);
-
         applied = null;
-
-        CompiledUIBindingResolution resolution = View.Bindings.Resolve(update.Address, update.DynamicParameters);
 
         if (resolution.Binding.Mode is not (UIBindingMode.TwoWay or UIBindingMode.OneWayToSource or UIBindingMode.OnSubmit))
             throw new InvalidOperationException($"Binding '{resolution.Binding.Id}' does not accept client value updates.");
@@ -177,10 +168,12 @@ internal abstract partial class UIRuntimeBase
         if (resolution.Source.Kind != CompiledUIBindingSourceKind.Controller)
             throw new InvalidOperationException($"Client value update target source '{resolution.Source.Kind}' is not writable.");
 
-        if (NormalizeClientValue(resolution.Binding, update.Value, out var value) == UIFormattedValueNormalization.Rejected)
+        ClientValueRead value = read ?? ReadClientValue(resolution.Binding, update.Value);
+
+        if (value.Normalization == UIFormattedValueNormalization.Rejected)
             return RejectValueNoLock(update, resolution.Binding);
 
-        if (Controller.TrySetRecursiveValue(resolution.Path, value))
+        if (Controller.TrySetRecursiveValue(resolution.Path, value.Value))
         {
             applied = update;
             return ClearRejectionNoLock(update);
@@ -192,6 +185,12 @@ internal abstract partial class UIRuntimeBase
 
         return RejectValueNoLock(update, resolution.Binding);
     }
+
+    /// <summary>A value a client wrote as its input's format reads it: what the normalization made of it, and the value it made.</summary>
+    private readonly record struct ClientValueRead(UIFormattedValueNormalization Normalization, object? Value);
+
+    private ClientValueRead ReadClientValue(CompiledUIBinding binding, object? value)
+        => new(NormalizeClientValue(binding, value, out var normalized), normalized);
 
     /// <summary>
     /// Normalizes a formatted <see cref="IFormattedInputComponent"/> value against its own format/culture
@@ -224,8 +223,14 @@ internal abstract partial class UIRuntimeBase
 
         _ = _rejectedValueAddresses.Add(address);
 
-        var message = View.State.TryGetValue(binding.Address.Component.Id, IFormattedInputComponent.FormatMessageProperty, out CompiledUIPropertyValue? authored) && authored is { IsBind: false, Value: string text }
-            ? text
+        // The author's text compiles to its plain string; a phrase stays one, always translated.
+        UIPhrase? message = View.State.TryGetValue(binding.Address.Component.Id, IFormattedInputComponent.FormatMessageProperty, out CompiledUIPropertyValue? authored) && authored is { IsBind: false }
+            ? authored.Value switch
+            {
+                string text => text,
+                UIPhrase phrase => phrase,
+                _ => null
+            }
             : null;
 
         return new ServerValidationUIUpdate
@@ -233,7 +238,7 @@ internal abstract partial class UIRuntimeBase
             Address = address,
             // The author's words or the framework's key, as written: the page translates the refusal as it does a label.
             Message = message ?? UIStrings.ValueFormat,
-            Content = message is not null && authored!.IsContent
+            Content = message is { IsText: true } && authored!.IsContent
         };
     }
 

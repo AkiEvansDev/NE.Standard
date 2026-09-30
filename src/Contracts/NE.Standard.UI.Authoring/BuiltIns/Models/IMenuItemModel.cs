@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -7,7 +8,7 @@ namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 /// <summary>
 /// Represents one entry of a menu: an item, a section caption, a separator, a check or a select, with an optional nested list.
 /// </summary>
-public interface IMenuItemModel : ITextBaseModel
+public interface IMenuItemModel : ITextModel
 {
     /// <summary>
     /// Gets what this entry is. <see langword="null"/> reads as <see cref="UIMenuItemKind.Item"/>.
@@ -44,7 +45,7 @@ public interface IMenuItemModel : ITextBaseModel
     /// Gets what a <see cref="UIMenuItemKind.Select"/> entry currently says at its end — the chosen option's name, as the
     /// controller words it.
     /// </summary>
-    string? Value { get; }
+    UIPhrase? Value { get; }
 
     /// <summary>
     /// Gets the nested entries, empty for a leaf; for a <see cref="UIMenuItemKind.Select"/> entry, its choices.

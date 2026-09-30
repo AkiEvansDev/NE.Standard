@@ -17,7 +17,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
-internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnectionUpdater, IUILanguageChangeListener
+internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnectionUpdater, IUISessionChangeListener
 {
     private static partial class Log
     {
@@ -92,6 +92,8 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         // Both modes hold the sink: a background command pushes its own result whichever way the changes travel.
         Connection = RuntimeConnection.FromClientServices(handle, clientServices);
         AttachInstance(handle);
+        _heardLanguage = handle.Session.Language;
+        _heardThemeMode = handle.Session.ThemeMode;
         View = view;
         Controller = controller;
         _application = application;

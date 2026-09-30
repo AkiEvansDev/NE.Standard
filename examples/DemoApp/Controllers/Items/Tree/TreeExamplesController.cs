@@ -145,7 +145,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     }
 
     private string TitleOf(string id)
-        => Find(id)?.Title ?? id;
+        => Find(id)?.Title?.ToString() ?? id;
 
     private bool IsUnder(TreeNode node, string ancestorId)
     {

@@ -121,7 +121,7 @@ internal sealed partial class EditorGroupContext : DemoGroupContext
         if (Find(id) is not DemoDocumentItem document)
             return;
 
-        var title = document.Title?.Trim() ?? string.Empty;
+        var title = document.Title?.Key.Trim() ?? string.Empty;
 
         if (title.Length == 0)
         {

@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -23,12 +24,12 @@ public interface IAffixTextInputComponent : IAffixedInputComponent
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    string? PrefixText { get; }
+    UIPhrase? PrefixText { get; }
 
     /// <summary>
     /// Gets the text displayed after the value.
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    string? SuffixText { get; }
+    UIPhrase? SuffixText { get; }
 }

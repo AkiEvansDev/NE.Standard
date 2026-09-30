@@ -494,24 +494,14 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         });
     }
 
-    /// <summary>How a paragraph is allowed to run — wrap mode, a title that wraps too, and maximum lines.</summary>
+    /// <summary>How a paragraph is allowed to run — wrap mode, a title that wraps too, maximum lines and the quote line.</summary>
     protected static void RenderParagraphFlow(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(container);
 
-        _ = RenderProperty<UITextWrapMode?>(context, container, IParagraphComponent.WrapModeProperty, static (target, value) =>
-        {
-            if (value is UITextWrapMode wrapMode)
-                _ = target.Class(WebClassNames.TextWrap(wrapMode));
-        }, WrapModeOperations);
-
-        _ = RenderProperty<bool?>(context, container, IParagraphComponent.TitleWrapProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class(TitleWrapClassName);
-        }, TitleWrapOperations);
+        RenderTextWrap(context, container);
 
         _ = RenderProperty<int?>(context, root, IParagraphComponent.MaxLinesProperty, static (target, value) =>
         {
@@ -530,6 +520,25 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
                 _ = target.Style(QuoteColorVariable, css);
         }, QuoteLineColorOperations);
+    }
+
+    /// <summary>Whether an <see cref="ITextWrapComponent"/>'s description wraps and its title runs on too, as classes on the text body.</summary>
+    protected static void RenderTextWrap(WebRenderContext context, IHtmlElementBuilder container)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(container);
+
+        _ = RenderProperty<UITextWrapMode?>(context, container, ITextWrapComponent.WrapModeProperty, static (target, value) =>
+        {
+            if (value is UITextWrapMode wrapMode)
+                _ = target.Class(WebClassNames.TextWrap(wrapMode));
+        }, WrapModeOperations);
+
+        _ = RenderProperty<bool?>(context, container, ITextWrapComponent.TitleWrapProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Class(TitleWrapClassName);
+        }, TitleWrapOperations);
     }
 
     private const string MaxLinesClassName = "ui-text--max-lines";

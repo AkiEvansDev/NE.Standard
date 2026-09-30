@@ -1,5 +1,6 @@
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
@@ -53,7 +54,7 @@ public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(strin
     /// </remarks>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IFormattedInputComponent), IsBindable = false, DefaultValue = null)]
-    public string? FormatMessage { get; set; }
+    public UIPhrase? FormatMessage { get; set; }
 
     /// <summary>
     /// Sets the value, which may not fall outside <see cref="Min"/>/<see cref="Max"/>; whichever of the three is set last is checked

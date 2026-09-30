@@ -2,6 +2,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Indicators;
@@ -51,7 +52,7 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Label { get; set; }
+    public UIPhrase? Label { get; set; }
 
     /// <summary>
     /// Gets or sets whether the numeric value is displayed alongside the indicator.
@@ -64,7 +65,7 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? ValueUnit { get; set; }
+    public UIPhrase? ValueUnit { get; set; }
 
     /// <summary>
     /// Initializes the progress indicator with a centered vertical alignment.

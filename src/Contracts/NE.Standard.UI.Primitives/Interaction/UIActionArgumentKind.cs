@@ -34,4 +34,9 @@ public enum UIActionArgumentKind
     /// The argument value is what the event carries after the keys that address its component — the place a dragged row was dropped at.
     /// </summary>
     EventValue = 5,
+
+    /// <summary>
+    /// The argument value is the group of the current item — in a group header, the group the header heads.
+    /// </summary>
+    GroupKey = 6,
 }

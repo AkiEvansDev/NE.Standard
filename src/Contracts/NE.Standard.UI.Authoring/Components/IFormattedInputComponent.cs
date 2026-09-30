@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Authoring.Components;
 
@@ -46,5 +47,5 @@ public interface IFormattedInputComponent : IInputComponent
     /// <summary>
     /// Gets the message shown when what the user typed cannot be read as <see cref="Format"/>.
     /// </summary>
-    string? FormatMessage { get; }
+    UIPhrase? FormatMessage { get; }
 }

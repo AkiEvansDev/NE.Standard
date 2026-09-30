@@ -65,7 +65,8 @@ public sealed class AppDatabase
                 avatar_media_id TEXT NULL,
                 background_media_id TEXT NULL,
                 background_fit TEXT NULL,
-                created_utc TEXT NOT NULL
+                created_utc TEXT NOT NULL,
+                theme_colors TEXT NULL
             );
 
             CREATE TABLE IF NOT EXISTS nodes (
@@ -128,7 +129,8 @@ public sealed class AppDatabase
                 created_utc TEXT NOT NULL,
                 last_seen_utc TEXT NOT NULL,
                 is_unclaimed INTEGER NOT NULL DEFAULT 0,
-                time_zone TEXT NULL
+                time_zone TEXT NULL,
+                theme_colors TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS sessions_by_user ON sessions (user_id);
@@ -153,6 +155,8 @@ public sealed class AppDatabase
         AddColumnIfMissing(connection, "messages", "edited_utc TEXT NULL");
         AddColumnIfMissing(connection, "sessions", "is_unclaimed INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing(connection, "sessions", "time_zone TEXT NULL");
+        AddColumnIfMissing(connection, "sessions", "theme_colors TEXT NULL");
+        AddColumnIfMissing(connection, "accounts", "theme_colors TEXT NULL");
     }
 
     /// <summary>

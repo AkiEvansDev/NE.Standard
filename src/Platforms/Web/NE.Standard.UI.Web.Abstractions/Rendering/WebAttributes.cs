@@ -9,6 +9,9 @@ public static class WebAttributes
     /// <summary>A badge's text shown, "compact" while it fits a circle; the client writes it too for a count the page computes itself.</summary>
     public const string BadgeText = "data-ui-badge-text";
 
+    /// <summary>A badge's text given at all, blank included: an empty text is a badge with nothing to say, which a menu's icon corner draws as a dot.</summary>
+    public const string BadgeSet = "data-ui-badge-set";
+
     /// <summary>The prefix a bound property's attribute carries; the rest is the property name in kebab-case.</summary>
     public const string BindingPrefix = "data-ui-bind-";
 
@@ -114,6 +117,9 @@ public static class WebAttributes
 
     public const string FilePick = "data-ui-file-pick";
 
+    /// <summary>On a file or image input: the component id whose dropped and pasted files the input takes (<c>DropTargetId</c>).</summary>
+    public const string FileDropTargetId = "data-ui-file-drop-target-id";
+
     public const string PressRipple = "data-ui-press-ripple";
 
     public const string FlyoutNoBackdropClose = "data-ui-flyout-no-backdrop-close";
@@ -136,6 +142,9 @@ public static class WebAttributes
     public const string HostViewport = "data-ui-host-viewport";
 
     public const string GroupHeader = "data-ui-group-header";
+
+    /// <summary>On a group header: the key of the row it is drawn from, which its components stand in as a row's stand in its key.</summary>
+    public const string GroupAnchor = "data-ui-group-anchor";
 
     public const string GroupTemplate = "data-ui-group-template";
 
@@ -408,6 +417,12 @@ public static class WebAttributes
 
     public const string TemporalFormat = "data-ui-temporal-format";
 
+    /// <summary>A day input's marked days, each <c>yyyy-MM-dd</c>, separated by spaces.</summary>
+    public const string TemporalMarkedDays = "data-ui-temporal-marked-days";
+
+    /// <summary>On a day input that offers only its marked days: every other day is disabled.</summary>
+    public const string TemporalMarkedOnly = "data-ui-temporal-marked-only";
+
     public const string TemporalMax = "data-ui-temporal-max";
 
     public const string TemporalMin = "data-ui-temporal-min";
@@ -439,6 +454,9 @@ public static class WebAttributes
     public const string TimestampFormat = "data-ui-timestamp-format";
 
     public const string Theme = "data-ui-theme";
+
+    /// <summary>On the <c>style</c> in the head that holds the reader's own colours (<c>WebThemeCssBuilder.BuildColors</c>), after the theme's.</summary>
+    public const string ThemeColors = "data-ui-theme-colors";
 
     /// <summary>The hook the theme switcher's engine finds its button by; a class would be styling.</summary>
     public const string ThemeSwitcher = "data-ui-theme-switcher";
@@ -476,6 +494,9 @@ public static class WebAttributes
     public const string WindowMoreAfter = "data-ui-window-more-after";
 
     public const string WindowMoreBefore = "data-ui-window-more-before";
+
+    /// <summary>On a windowed host: the group of the item just before the window, which the window's first row is headed against.</summary>
+    public const string WindowGroupBefore = "data-ui-window-group-before";
 
     public const string WindowOffset = "data-ui-window-offset";
 

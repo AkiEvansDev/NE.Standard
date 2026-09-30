@@ -4,24 +4,14 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
 /// <summary>
-/// A component carrying text that is allowed to run over several lines.
+/// A component carrying text that is allowed to run over several lines, clamped to a number of them and set off as a quotation.
 /// </summary>
-public interface IParagraphComponent : ITextComponent, IParagraphModel
+public interface IParagraphComponent : ITextWrapComponent, IParagraphModel
 {
-    /// <summary>
-    /// Gets the registered property key for <see cref="IParagraphModel.WrapMode"/>.
-    /// </summary>
-    static UIProperty WrapModeProperty { get; } = new(nameof(WrapMode));
-
     /// <summary>
     /// Gets the registered property key for <see cref="IParagraphModel.MaxLines"/>.
     /// </summary>
     static UIProperty MaxLinesProperty { get; } = new(nameof(MaxLines));
-
-    /// <summary>
-    /// Gets the registered property key for <see cref="IParagraphModel.TitleWrap"/>.
-    /// </summary>
-    static UIProperty TitleWrapProperty { get; } = new(nameof(TitleWrap));
 
     static UIProperty ShowQuoteLineProperty { get; } = new(nameof(ShowQuoteLine));
 

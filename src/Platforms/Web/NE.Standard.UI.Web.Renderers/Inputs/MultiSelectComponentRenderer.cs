@@ -131,7 +131,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
                 for (var i = 0; i < chosenKeys.Count; i++)
                 {
-                    if (FindOptionTitle(items, chosenKeys[i], out var content) is string title)
+                    if (FindOptionTitle(items, chosenKeys[i], out var content) is UIPhrase title)
                     {
                         RenderChip(context, chips, chosenKeys[i], title, content);
                         drawn++;
@@ -152,16 +152,16 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     /// What a chip shows for the option a key names: its title, else the key itself; null where no option has the key. Content where
     /// the option says its words are (<see cref="IContentItem"/>), and where there are no words to look up.
     /// </summary>
-    private static string? FindOptionTitle(IReadOnlyList<object?> items, string key, out bool content)
+    private static UIPhrase? FindOptionTitle(IReadOnlyList<object?> items, string key, out bool content)
     {
         for (var i = 0; i < items.Count; i++)
         {
             if (items[i] is IBindableItem item && string.Equals(item.Id, key, StringComparison.Ordinal))
             {
                 // A blank title from data falls to the key, and a blank key stands as it is: data must not fail the page.
-                var title = items[i] is ITextBaseModel { Title: { } text } && !string.IsNullOrWhiteSpace(text) ? text : key;
+                UIPhrase title = items[i] is ITextBaseModel { Title: { } words } && (!words.IsText || !string.IsNullOrWhiteSpace(words.Key)) ? words : UIPhrase.Text(key);
 
-                content = items[i] is IContentItem { IsContent: true } || string.IsNullOrWhiteSpace(title);
+                content = items[i] is IContentItem { IsContent: true } || (title.IsText && string.IsNullOrWhiteSpace(title.Key));
                 return title;
             }
         }
@@ -172,9 +172,10 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>
     /// One chosen option in the field: its words, translated as its row's are, and the button that takes it out, named for the
-    /// option it removes; both marked, so a language switch writes them again. A content option's words stand as written.
+    /// option it removes; both marked, so a language switch writes them again. A content option's words stand as written, a phrase is
+    /// always its words.
     /// </summary>
-    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, string title, bool content)
+    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, UIPhrase title, bool content)
     {
         _ = chips.Element("span", chip =>
         {
@@ -185,10 +186,12 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             {
                 _ = text.Class("ui-multi-select__chip-label");
 
-                if (content)
-                    _ = text.Text(title);
+                if (!title.IsText)
+                    WebWords.Write(context, text, null, title.Key, title.Arguments);
+                else if (content)
+                    _ = text.Text(title.Key);
                 else
-                    WebWords.WriteText(context, text, null, title);
+                    WebWords.WriteText(context, text, null, title.Key);
             });
 
             _ = chip.Element("button", remove =>
@@ -197,10 +200,14 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                 _ = remove.Attribute("type", "button");
                 // Out of the tab order: Backspace in the field and the list's own toggle reach every chip without a stop per chip.
                 _ = remove.Attribute("tabindex", "-1");
-                WebWords.Write(context, remove, "aria-label", UIStrings.SelectRemove, new Dictionary<string, object?>(StringComparer.Ordinal) { ["label"] = content ? title : UIPhrase.Text(title) });
+                WebWords.Write(context, remove, "aria-label", UIStrings.SelectRemove, new Dictionary<string, object?>(StringComparer.Ordinal) { ["label"] = LabelArgument(title, content) });
             });
         });
     }
+
+    /// <summary>The option's words as the removal's argument: an author's text of a content option as written (a literal), else the phrase.</summary>
+    private static object? LabelArgument(UIPhrase title, bool content)
+        => title.IsText && content ? (object)title.Key : title;
 
     /// <summary>The one value-bearing element: the chosen keys as JSON under the kind an items view's chosen keys are read by.</summary>
     private static void RenderValueInput(WebRenderContext context, IHtmlElementBuilder root, WebRenderValueKind valueKind, IReadOnlyList<string> chosenKeys, CompiledUIBinding? valueBinding)

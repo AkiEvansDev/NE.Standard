@@ -121,7 +121,16 @@
     .ui-responsive-reset(--ui-min-height);
     .ui-responsive-reset(--ui-max-height);
     .ui-responsive-reset(--ui-margin);
+    .ui-responsive-reset(--ui-margin-x);
+    .ui-responsive-reset(--ui-margin-y);
     .ui-responsive-reset(--ui-padding);
+
+    // Fill (WebCssValues.FillSize) is the parent's room less the element's own margins on that axis, so a filled box with a margin
+    // fits its parent in any layout rather than overflowing it by the margin; the margin's tiers carry their sides summed.
+    .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, 0px);
+    .ui-responsive-property(--ui-fill-margin-y, --ui-margin-y, 0px);
+    --ui-fill-width: calc(100% - var(--ui-fill-margin-x));
+    --ui-fill-height: calc(100% - var(--ui-fill-margin-y));
 
     // Auto, not 100%: an element as wide as its track has nowhere for HorizontalAlignment to move it to.
     .ui-responsive-property(width, --ui-width, auto);
@@ -221,6 +230,17 @@
 
 .ui-loading {
     cursor: progress !important;
+}
+
+// A component a file or image input takes files on (its DropTarget), while a file is over it: a dashed edge inside it, as a drop
+// area's, since the component is no field and has no edge of its own to turn; in the refusal's colour for a file it will not take.
+[data-ui-file-drop-over] {
+    outline: 2px dashed var(--ui-color-primary);
+    outline-offset: -2px;
+}
+
+[data-ui-file-drop-over="refused"] {
+    outline-color: var(--ui-color-danger);
 }
 
 // Chrome is pressed and dragged, never selected (a caption's drag, a menu entry's press); Selectable is for prose, not inside chrome.

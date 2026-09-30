@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Items;
 
@@ -180,8 +181,9 @@ public static class UIComparisonEvaluator
     /// <summary>
     /// Whether the value is text on the client: a string, or a moment, which travels as one.
     /// </summary>
+    // A phrase is text too: its key, or an author's text's own words — the client's `comparable`.
     private static bool IsText(object? value)
-        => value is string or DateTime or DateTimeOffset or DateOnly or TimeOnly;
+        => value is string or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
 
     private static bool IsIn(string text, object? right)
     {

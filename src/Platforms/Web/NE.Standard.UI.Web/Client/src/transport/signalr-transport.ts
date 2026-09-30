@@ -1,5 +1,5 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
-import { ServerChangeSet, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
+import { ServerChangeSet, ThemeColorsModel, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
 import { AttachGate, ConnectionDropped } from "./attach-gate";
 import { ChangeSink, InboundOrder } from "./inbound-order";
@@ -164,6 +164,13 @@ export class SignalRTransport {
     /** Tells the session which theme the client is now in. */
     public async setThemeAsync(theme: string): Promise<void> {
         await this.invokeAsync<void>("SetThemeAsync", [{ theme }]);
+    }
+
+    /** Tells the session the reader's own colours, or none for the application's palette; answers the stylesheet they make. */
+    public async setThemeColorsAsync(colors: ThemeColorsModel | null): Promise<string> {
+        const answer = await this.invokeAsync<{ readonly css?: string }>("SetThemeColorsAsync", [{ colors }]);
+
+        return answer?.css ?? "";
     }
 
     /** Tells the session the language the page switches to; answers where that language's words are. */

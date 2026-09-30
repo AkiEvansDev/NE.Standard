@@ -371,6 +371,32 @@
         object-fit: cover;
     }
 
+// A file that is no picture, where a picture's thumbnail would be: its kind's `ne-` glyph over its name, on a faint ground of its own.
+.ui-image-input__tile--file {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: @ui-space-1;
+    padding: @ui-space-1;
+    background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+    color: var(--ui-text-muted);
+}
+
+    .ui-image-input__file-glyph {
+        font-size: 1.75rem;
+    }
+
+    .ui-image-input__file-name {
+        max-width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--ui-color-on-surface);
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.
 .ui-image-input__remove {
     position: absolute;
@@ -418,6 +444,23 @@
     display: none;
 }
 
+// How much of the square's file has gone: a bar along its foot over the veil, from the engine's --ui-image-progress, until it lands.
+.ui-image-input__progress {
+    display: none;
+}
+
+    .ui-image-input__tile.ui-loading > .ui-image-input__progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        z-index: 3;
+        display: block;
+        width: var(--ui-image-progress, 0%);
+        height: 0.1875rem;
+        background: var(--ui-color-primary);
+        transition: width @ui-motion-fast @ui-motion-ease;
+    }
+
 // The square that picks more: the empty surface's dashed edge and glyph, at a square's size.
 .ui-image-input__add {
     display: flex;
@@ -462,4 +505,36 @@
 
     .ui-image-input--multiple > .ui-image-input__surface:has(> .ui-image-input__tiles > .ui-image-input__tile) > .ui-image-input__text {
         display: none;
+    }
+
+// A shelf of thumbnails and nothing else: no ground, no edge, no picking square; while empty it draws nothing at all, its chooser
+// opened from elsewhere and its drops taken on the component it names.
+.ui-image-input--shelf > .ui-image-input__surface {
+    padding: 0;
+    border-style: none;
+    background: none;
+}
+
+    .ui-image-input--shelf > .ui-image-input__surface:not(:has(> .ui-image-input__tiles > .ui-image-input__tile)) {
+        display: none;
+    }
+
+    // The root too, and with it its margin, its gap and a caption: an empty shelf is nothing at all, but for a validation line it has
+    // to show — a file refused for its size lands on an empty shelf.
+    .ui-image-input--shelf:not(:has(.ui-image-input__tile)):not(.ui-invalid, .ui-validation--warning, .ui-validation--info) {
+        display: none;
+    }
+
+    .ui-image-input--shelf:not(:has(.ui-image-input__tile)) > .ui-input__header {
+        display: none;
+    }
+
+    // The shelf's own drop mark, where a file is let go on the thumbnails themselves.
+    .ui-image-input--shelf[data-ui-image-dragging] > .ui-image-input__surface {
+        outline: var(--ui-border-width, 1px) dashed var(--ui-color-primary);
+        outline-offset: @ui-space-1;
+    }
+
+    .ui-image-input--shelf[data-ui-image-dragging="refused"] > .ui-image-input__surface {
+        outline-color: var(--ui-color-danger);
     }

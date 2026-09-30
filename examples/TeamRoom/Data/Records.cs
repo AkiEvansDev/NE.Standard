@@ -29,8 +29,13 @@ public static class ConversationKinds
     public const string Direct = "direct";
 }
 
-/// <summary>A conversation as one account sees it: its own name for it, and how much of it that account has not read.</summary>
-public sealed record ConversationRecord(string Id, string Kind, string Title, long LastReadMessageId, int Unread);
+/// <summary>
+/// A conversation as one account sees it: its own name for it, how much of it that account has not read, and its newest message.
+/// </summary>
+public sealed record ConversationRecord(string Id, string Kind, string Title, long LastReadMessageId, int Unread, LastMessageRecord? Last = null);
+
+/// <summary>The newest message of a conversation as its list shows it: who, what, when; the author's name is null once the account is gone.</summary>
+public sealed record LastMessageRecord(string AuthorId, string? AuthorName, string Text, DateTime SentUtc);
 
 public sealed record MessageRecord(long Id, string ConversationId, string AuthorId, string Text, DateTime SentUtc, DateTime? EditedUtc, IReadOnlyList<AttachmentRecord> Attachments);
 

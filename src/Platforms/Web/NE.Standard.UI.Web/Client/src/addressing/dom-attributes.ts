@@ -47,6 +47,9 @@ export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
 export const TooltipMarkAttribute = "data-ui-tooltip-mark";
 /** On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it. */
 export const TooltipPressAttribute = "data-ui-tooltip-press";
+/** On a badge: its text shown, "compact" while it fits a circle; and its text given at all, blank included (a menu corner's dot). */
+export const BadgeTextAttribute = "data-ui-badge-text";
+export const BadgeSetAttribute = "data-ui-badge-set";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
@@ -81,6 +84,8 @@ export const EmptyTemplateAttribute = "data-ui-empty-template";
 export const GroupTemplateAttribute = "data-ui-group-template";
 export const EmptyPlaceholderAttribute = "data-ui-empty-placeholder";
 export const GroupHeaderAttribute = "data-ui-group-header";
+/** On a group header: the key of the row it is drawn from, which its components stand in as a row's stand in its key. */
+export const GroupAnchorAttribute = "data-ui-group-anchor";
 export const GroupAttribute = "data-ui-group";
 
 /** Marks the one element a component keeps its value on, where that is not the element the reader starts from. */
@@ -116,6 +121,8 @@ export const WindowOffsetAttribute = "data-ui-window-offset";
 export const WindowTotalAttribute = "data-ui-window-total";
 export const WindowMoreBeforeAttribute = "data-ui-window-more-before";
 export const WindowMoreAfterAttribute = "data-ui-window-more-after";
+/** On a windowed host: the group of the item just before its window, which the window's first row is headed against. */
+export const WindowGroupBeforeAttribute = "data-ui-window-group-before";
 /** On a windowed host: the totals over its whole source, as JSON, written with each window. */
 const WindowAggregatesAttribute = "data-ui-window-aggregates";
 export const FormIdAttribute = "data-ui-form-id";
@@ -144,6 +151,8 @@ export const MenuItemKindAttribute = "data-ui-menu-item-kind";
 /** A menu's entry, and a check entry turned on. */
 export const MenuItemClass = "ui-menu-item";
 const MenuItemCheckedClass = "ui-menu-item--checked";
+/** A rail (UIMenuDisplay.Rail): it never folds and has no room inline, so its groups fly out, and a label it cuts shows as a tooltip. */
+export const MenuRailClass = "ui-menu--rail";
 /** A menu entry that runs nothing when pressed: a caption or a rule. */
 export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 /** A group's own entry, which opens its block rather than running anything. */
@@ -211,10 +220,14 @@ export const ImageSourceAttribute = "data-ui-image-source";
 export const FileMaxSizeAttribute = "data-ui-file-max-size";
 /** On a file or image input's control that opens the native file dialog. */
 export const FilePickAttribute = "data-ui-file-pick";
+/** On a file or image input's root: the component id whose dropped and pasted files the input takes. */
+export const FileDropTargetIdAttribute = "data-ui-file-drop-target-id";
 /** On `<html>`: the theme opts every button, action and menu item into the press ripple. */
 export const PressRippleAttribute = "data-ui-press-ripple";
 /** On `<html>`, or on an element whose subtree keeps a theme of its own: `light`, `dark` or `auto`. */
 export const ThemeAttribute = "data-ui-theme";
+/** On the head's `style` holding the reader's own colours, after the theme's (`WebAttributes.ThemeColors`). */
+export const ThemeColorsAttribute = "data-ui-theme-colors";
 /** An element's chrome words with their keys (`WebWords`, `strings.write`), which a language switch writes again. */
 export const WordsAttribute = "data-ui-words";
 /** The language switcher's root, whose value says what its button shows for a language: `code` or `name`. */

@@ -40,6 +40,13 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     public partial bool HasMoreBefore { get; protected set; }
 
     /// <summary>
+    /// Gets the group of the item just before the realized window, or <see langword="null"/> when there is none or the source does
+    /// not say; a grouped host heads the window's first row against it.
+    /// </summary>
+    [RecursiveMember]
+    public partial string? GroupBefore { get; protected set; }
+
+    /// <summary>
     /// Gets whether the source has items after the realized window.
     /// </summary>
     [RecursiveMember]
@@ -126,6 +133,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         TotalCount = window.TotalCount;
         HasMoreBefore = window.HasMoreBefore;
         HasMoreAfter = window.HasMoreAfter;
+        GroupBefore = window.GroupBefore;
     }
 
     /// <summary>
@@ -168,9 +176,14 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         TotalCount = window.TotalCount ?? TotalCount;
 
         if (before)
+        {
             HasMoreBefore = window.HasMoreBefore;
+            GroupBefore = window.GroupBefore;
+        }
         else
+        {
             HasMoreAfter = window.HasMoreAfter;
+        }
 
         // The far side from the way the viewer travels, and never into the rows just read: the count is within the limit.
         TrimWindow(fromTheEnd: before);
@@ -191,6 +204,9 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         }
         else
         {
+            // The last item trimmed is the one before the window now.
+            GroupBefore = Items[excess - 1] is IBindableGroup trimmed ? trimmed.Group : null;
+
             Items.RemoveRange(0, excess);
             HasMoreBefore = true;
 
@@ -321,5 +337,6 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         TotalCount = null;
         HasMoreBefore = false;
         HasMoreAfter = false;
+        GroupBefore = null;
     }
 }

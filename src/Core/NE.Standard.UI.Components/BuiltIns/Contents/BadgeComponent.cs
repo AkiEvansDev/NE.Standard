@@ -3,6 +3,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
@@ -52,7 +53,7 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Text { get; set; }
+    public UIPhrase? Text { get; set; }
 
     /// <summary>
     /// Gets or sets the text style used to render <see cref="Text"/>.

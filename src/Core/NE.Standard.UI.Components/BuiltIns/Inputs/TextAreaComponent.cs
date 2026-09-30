@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -30,15 +32,17 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     /// <inheritdoc/>
     [Translatable]
     [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public string? Placeholder { get; set; }
+    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
-    /// Gets the controls at the start of the field, beside its text at the bottom edge, in the order they stand.
+    /// Gets the controls at the start of the field, beside its text at the bottom edge, in the order they stand; a flyout among them
+    /// by the button it opens from.
     /// </summary>
     public IReadOnlyList<IButtonComponent> LeadingActions => _actions.Leading;
 
     /// <summary>
-    /// Gets the controls at the end of the field, beside its text at the bottom edge, in the order they stand.
+    /// Gets the controls at the end of the field, beside its text at the bottom edge, in the order they stand; a flyout among them
+    /// by the button it opens from.
     /// </summary>
     public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
 
@@ -134,11 +138,31 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     }
 
     /// <summary>
+    /// Adds a flyout at the start of the field, after the actions added before: its anchor, a button, stands with them, and its
+    /// content opens from it — an emoji panel, a list of snippets.
+    /// </summary>
+    public T AddLeadingAction(FlyoutComponent flyout)
+    {
+        _actions.AddLeading(flyout);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the end of the field, beside its text at the bottom edge, after those added before.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action)
     {
         _actions.AddTrailing(action);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the end of the field, after the actions added before: its anchor, a button, stands with them, and its
+    /// content opens from it.
+    /// </summary>
+    public T AddTrailingAction(FlyoutComponent flyout)
+    {
+        _actions.AddTrailing(flyout);
         return Self;
     }
 

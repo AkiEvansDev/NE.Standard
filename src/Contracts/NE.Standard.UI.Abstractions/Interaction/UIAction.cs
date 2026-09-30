@@ -82,6 +82,16 @@ public sealed class UIAction
     }
 
     /// <summary>
+    /// Creates an action argument entry resolved from the current item's group — in a group header, the group the header heads,
+    /// whichever item it is drawn from.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgGroupKey(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new KeyValuePair<string, UIActionArgument>(name, UIActionArgument.GroupKey());
+    }
+
+    /// <summary>
     /// Creates an action argument entry resolved from one key of the event's own chain, identified by its place
     /// (for events with more than one key).
     /// </summary>

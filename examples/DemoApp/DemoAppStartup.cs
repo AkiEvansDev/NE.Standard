@@ -9,8 +9,10 @@ using DemoApp.Controllers.Contents.Paragraph;
 using DemoApp.Controllers.Contents.Separator;
 using DemoApp.Controllers.Contents.Text;
 using DemoApp.Controllers.Contents.Timestamp;
+using DemoApp.Controllers.Design.Colors;
 using DemoApp.Controllers.Indicators.Progress;
 using DemoApp.Controllers.Indicators.Spinner;
+using DemoApp.Controllers.Inputs.Calendar;
 using DemoApp.Controllers.Inputs.ColorInput;
 using DemoApp.Controllers.Inputs.FileInput;
 using DemoApp.Controllers.Inputs.ImageInput;
@@ -58,6 +60,7 @@ using DemoApp.Views.Contents.Timestamp;
 using DemoApp.Views.Design.Colors;
 using DemoApp.Views.Indicators.Progress;
 using DemoApp.Views.Indicators.Spinner;
+using DemoApp.Views.Inputs.Calendar;
 using DemoApp.Views.Inputs.ColorInput;
 using DemoApp.Views.Inputs.FileInput;
 using DemoApp.Views.Inputs.ImageInput;
@@ -129,6 +132,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<ColorsView>("/design/colors");
         _ = application.Route<ColorsSemanticView>("/design/colors/semantic");
         _ = application.Route<ColorsComponentsView>("/design/colors/components");
+        _ = application.Route<ColorsThemeView, ColorsThemeController>("/design/colors/theme");
 
         // Actions
         _ = application.Route<ButtonMainView, ButtonMainController>("/actions/button");
@@ -211,7 +215,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<ColorInputMainView, ColorInputMainController>("/inputs/color-input");
         _ = application.Route<ColorInputExamplesView>("/inputs/color-input/examples");
         _ = application.Route<SelectMainView, SelectMainController>("/inputs/select");
-        _ = application.Route<SelectExamplesView>("/inputs/select/examples");
+        _ = application.Route<SelectExamplesView, SelectExamplesController>("/inputs/select/examples");
         _ = application.Route<MultiSelectMainView, MultiSelectMainController>("/inputs/multi-select");
         _ = application.Route<MultiSelectExamplesView>("/inputs/multi-select/examples");
         _ = application.Route<SearchMainView, SearchMainController>("/inputs/search");
@@ -219,11 +223,13 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<FileInputMainView, FileInputMainController>("/inputs/file-input");
         _ = application.Route<FileInputExamplesView>("/inputs/file-input/examples");
         _ = application.Route<ImageInputMainView, ImageInputMainController>("/inputs/image-input");
-        _ = application.Route<ImageInputExamplesView>("/inputs/image-input/examples");
+        _ = application.Route<ImageInputExamplesView, ImageInputExamplesController>("/inputs/image-input/examples");
         _ = application.Route<SliderMainView, SliderMainController>("/inputs/slider");
         _ = application.Route<SliderExamplesView>("/inputs/slider/examples");
         _ = application.Route<DateInputMainView, DateInputMainController>("/inputs/date-input");
-        _ = application.Route<DateInputExamplesView>("/inputs/date-input/examples");
+        _ = application.Route<DateInputExamplesView, DateInputExamplesController>("/inputs/date-input/examples");
+        _ = application.Route<CalendarMainView, CalendarMainController>("/inputs/calendar");
+        _ = application.Route<CalendarExamplesView, CalendarExamplesController>("/inputs/calendar/examples");
         _ = application.Route<TimeInputMainView, TimeInputMainController>("/inputs/time-input");
         _ = application.Route<TimeInputExamplesView>("/inputs/time-input/examples");
         _ = application.Route<DateTimeInputMainView, DateTimeInputMainController>("/inputs/date-time-input");
@@ -231,7 +237,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<TextAreaMainView, TextAreaMainController>("/inputs/text-area");
         _ = application.Route<TextAreaExamplesView, TextAreaExamplesController>("/inputs/text-area/examples");
         _ = application.Route<NumberInputMainView, NumberInputMainController>("/inputs/number-input");
-        _ = application.Route<NumberInputExamplesView>("/inputs/number-input/examples");
+        _ = application.Route<NumberInputExamplesView, NumberInputExamplesController>("/inputs/number-input/examples");
         _ = application.Route<CheckboxMainView, CheckboxMainController>("/inputs/checkbox");
         _ = application.Route<CheckboxExamplesView>("/inputs/checkbox/examples");
         _ = application.Route<SwitchMainView, SwitchMainController>("/inputs/switch");

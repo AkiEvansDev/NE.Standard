@@ -78,6 +78,17 @@ public interface IItemsHostComponent : IItemsComponent
     bool WindowHasMoreAfter { get; }
 
     /// <summary>
+    /// Gets the registered property key for <see cref="WindowGroupBefore"/>.
+    /// </summary>
+    static UIProperty WindowGroupBeforeProperty { get; } = new(nameof(WindowGroupBefore));
+
+    /// <summary>
+    /// Gets the group of the item just before the realized window, as the source last reported it; bound by the compiler only.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false, IsBindable = false)]
+    string? WindowGroupBefore { get; }
+
+    /// <summary>
     /// Gets the registered property key for <see cref="WindowAggregates"/>.
     /// </summary>
     static UIProperty WindowAggregatesProperty { get; } = new(nameof(WindowAggregates));

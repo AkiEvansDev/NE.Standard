@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using TeamRoom.Data;
 using TeamRoom.Services;
 
@@ -15,8 +16,8 @@ public sealed partial class PictureRow : KeyValueActionItem
 }
 
 /// <summary>
-/// The account's own page as a list of rows, each edited in place — the picture, the name, the chat's background and its fit — and
-/// the password, changed in a dialog that asks for the current one first.
+/// The account's own page as a list of rows, each edited in place — the picture, the name, the chat's background and its fit, the
+/// reader's own colour — and the password, changed in a dialog that asks for the current one first.
 /// </summary>
 public sealed partial class SettingsController : TeamRoomController
 {
@@ -25,6 +26,7 @@ public sealed partial class SettingsController : TeamRoomController
     public const string PasswordRowId = "password";
     public const string BackgroundRowId = "background";
     public const string FitRowId = "fit";
+    public const string ColorRowId = "color";
     public const string PasswordDialogKey = "settings-password";
 
     private const long MaxPictureBytes = 8 * 1024 * 1024;
@@ -43,6 +45,10 @@ public sealed partial class SettingsController : TeamRoomController
     private readonly KeyValueActionItem _password = Row<KeyValueActionItem>(PasswordRowId, "Password", inputTemplate: null);
     private readonly PictureRow _background = Row<PictureRow>(BackgroundRowId, "Chat background", "picture");
     private readonly KeyValueActionItem _fit = Row<KeyValueActionItem>(FitRowId, "Background fit", "fit");
+    private readonly KeyValueActionItem _color = Row<KeyValueActionItem>(ColorRowId, "Your colour", "color");
+
+    /// <summary>The colours this session wears over the team's, as the last Save or Reset here left them.</summary>
+    private UIThemeColors? _colors;
 
     /// <summary>The login and the role, under the card's title.</summary>
     [RecursiveMember]
@@ -88,11 +94,14 @@ public sealed partial class SettingsController : TeamRoomController
         Rows.Add(_password);
         Rows.Add(_background);
         Rows.Add(_fit);
+        Rows.Add(_color);
 
         Text(_password).Title = PasswordMask;
+        _colors = Context.Handle.Session.ThemeColors;
 
         ShowAccount();
         ShowBackground();
+        ShowColor();
 
         return Task.CompletedTask;
     }
@@ -132,6 +141,14 @@ public sealed partial class SettingsController : TeamRoomController
         return Fits[0].Title;
     }
 
+    /// <summary>The colour row: the swatch paints in the primary colour the page wears now, the reader's own or the team's.</summary>
+    private void ShowColor()
+    {
+        Text(_color).Icon = AppIcons.Palette;
+        Text(_color).IconColor = UIThemeColor.Primary;
+        Text(_color).Title = _colors is null ? "The team's" : "Your own";
+    }
+
     private static TextItem Text(KeyValueActionItem row)
         => (TextItem)row.Value;
 
@@ -161,6 +178,7 @@ public sealed partial class SettingsController : TeamRoomController
             FitRowId => Account.BackgroundFit ?? nameof(UIImageFit.Cover),
             PictureRowId => AvatarSource,
             BackgroundRowId => BackgroundSource,
+            ColorRowId => _colors?.LightPrimary is { } primary ? UIThemeColor.FromColorVariant(primary) : null,
             _ => null
         };
         row.ShowInput = true;
@@ -188,6 +206,9 @@ public sealed partial class SettingsController : TeamRoomController
         if (row is null)
             return Refuse("No such row.");
 
+        if (id == ColorRowId)
+            return ApplyColor(row);
+
         var draft = Convert.ToString(row.EditValue, CultureInfo.InvariantCulture) ?? string.Empty;
 
         var error = id switch
@@ -213,6 +234,34 @@ public sealed partial class SettingsController : TeamRoomController
         ShowBackground();
 
         return Notify("Saved.", UIColorStyle.Success);
+    }
+
+    /// <summary>
+    /// Save on the colour row: the picked colour becomes the reader's primary, in both themes — kept on the account for the next
+    /// sign-in anywhere, worn by this session now — and the page repaints in it; what stands on it or shares its hue follows by the
+    /// palette's own rule.
+    /// </summary>
+    private UICommandResult ApplyColor(KeyValueActionItem row)
+    {
+        UIThemeColor? picked = row.EditValue switch
+        {
+            UIThemeColor given => given,
+            string text when UIThemeColor.TryParse(text, out UIThemeColor parsed) => parsed,
+            _ => null
+        };
+
+        // A palette colour may differ between the themes; a free one is the same in both. A role names no colour of its own.
+        if (picked is not { } color || (color.Light ?? color.Dark) is not { } either)
+            return Refuse("Pick a colour first.");
+
+        _colors = new UIThemeColors { LightPrimary = color.Light ?? either, DarkPrimary = color.Dark ?? either };
+        AccountStore.SetThemeColors(AccountId, _colors);
+
+        row.ShowInput = false;
+        row.EditValue = null;
+        ShowColor();
+
+        return UICommandResult.Ok([new SetThemeColorsEffect(_colors), new ShowNotificationEffect("Your colour is on.", UIColorStyle.Success)]);
     }
 
     private string? ChooseFit(string id)
@@ -305,6 +354,19 @@ public sealed partial class SettingsController : TeamRoomController
         NewPassword = string.Empty;
 
         return UICommandResult.Ok([new CloseDialogEffect(PasswordDialogKey)]);
+    }
+
+    /// <summary>Back to the team's colours: the account and this session drop the reader's own.</summary>
+    [UICommand]
+    public UICommandResult ResetColor()
+    {
+        _colors = null;
+        AccountStore.SetThemeColors(AccountId, null);
+        _color.ShowInput = false;
+        _color.EditValue = null;
+        ShowColor();
+
+        return UICommandResult.Ok([new SetThemeColorsEffect(), new ShowNotificationEffect("Back to the team's colour.")]);
     }
 
     [UICommand]

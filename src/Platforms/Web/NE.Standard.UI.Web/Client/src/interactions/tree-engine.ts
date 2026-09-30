@@ -22,7 +22,7 @@ import { openInlineRename } from "./inline-rename";
 import { removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { isInert, isItemDisabled } from "./interactive-state";
-import { focusedRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
+import { focusedRow, litRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
 import { chooseRow, choosesOnEnter, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
@@ -456,7 +456,7 @@ export class TreeEngine {
 
         const rows = this.rowsOf(tree);
         const current = focusedRow(rows);
-        const next = resolveRowTarget(domEvent.key, rows, current, "vertical");
+        const next = resolveRowTarget(domEvent.key, rows, litRow(rows), "vertical");
 
         if (next !== null) {
             domEvent.preventDefault();

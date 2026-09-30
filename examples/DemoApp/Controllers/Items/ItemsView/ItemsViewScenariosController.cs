@@ -149,7 +149,8 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
     private sealed record MatchedRows(string Key, int[] Rows);
 }
 
-internal sealed partial class DemoChatMessage(string id, string author, string text) : RecursiveObservable, IBindableItem
+/// <summary>A message of the conversation, grouped by the day it was sent so a day header stands over each day's first.</summary>
+internal sealed partial class DemoChatMessage(string id, string author, string text, DateTimeOffset sent) : RecursiveObservable, IBindableGroup
 {
     [RecursiveMember(false)]
     public string Id { get; } = id;
@@ -159,28 +160,65 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
 
     [RecursiveMember]
     public partial string Text { get; set; } = text;
+
+    /// <summary>When it was sent; the day header draws it as a date.</summary>
+    [RecursiveMember(false)]
+    public DateTimeOffset Sent { get; } = sent;
+
+    /// <summary>The day it was sent, <c>yyyy-MM-dd</c>: the group, and what a press on its header hands the command.</summary>
+    /// <remarks>
+    /// A UTC day, since the history is written before the reader's zone is heard; an application that knows the zone keys by the
+    /// reader's day (<c>UIContext.ToLocalTime</c>).
+    /// </remarks>
+    [RecursiveMember(false)]
+    public string Group { get; } = sent.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 }
 
 /// <summary>
-/// The other shape of the same feature: a conversation read from its end backwards, carrying a total.
+/// The other shape of the same feature: a conversation read from its end backwards, carrying a total, and a day header over the first
+/// message of each day.
 /// </summary>
 internal sealed class DemoChatSource : UIItemSourceBase<DemoChatMessage>
 {
-    private readonly List<DemoChatMessage> _history =
-    [
-        .. Enumerable.Range(1, 400).Select(static i => new DemoChatMessage(
-            string.Create(CultureInfo.InvariantCulture, $"msg-{i}"),
-            i % 3 == 0 ? "Ada" : "Grace",
-            string.Create(CultureInfo.InvariantCulture, $"Message {i} of the conversation.")
-        ))
-    ];
+    /// <summary>How many messages the history gives each of its days.</summary>
+    private const int MessagesPerDay = 24;
+
+    private readonly List<DemoChatMessage> _history = CreateHistory(400);
+
+    /// <summary>
+    /// Days that end yesterday, so the first message received today starts a day of its own; a day is shorter than the first window,
+    /// which opens on one header and in the middle of the day before it.
+    /// </summary>
+    /// <remarks>Sent between 06:00 and 12:00 UTC: the same date for a reader anywhere from UTC−6 to UTC+12.</remarks>
+    private static List<DemoChatMessage> CreateHistory(int count)
+    {
+        var days = (count + MessagesPerDay - 1) / MessagesPerDay;
+        DateTimeOffset firstDay = new(DateTime.UtcNow.Date.AddDays(-days), TimeSpan.Zero);
+        List<DemoChatMessage> history = new(count);
+
+        for (var i = 1; i <= count; i++)
+        {
+            var day = (i - 1) / MessagesPerDay;
+            var minutes = 360 + ((i - 1) % MessagesPerDay * 15);
+
+            history.Add(new DemoChatMessage(
+                string.Create(CultureInfo.InvariantCulture, $"msg-{i}"),
+                i % 3 == 0 ? "Ada" : "Grace",
+                string.Create(CultureInfo.InvariantCulture, $"Message {i} of the conversation."),
+                firstDay.AddDays(day).AddMinutes(minutes)
+            ));
+        }
+
+        return history;
+    }
 
     public DemoChatMessage Receive(string author, string text)
     {
         DemoChatMessage message = new(
             string.Create(CultureInfo.InvariantCulture, $"msg-{_history.Count + 1}"),
             author,
-            text
+            text,
+            DateTimeOffset.UtcNow
         );
 
         _history.Add(message);
@@ -215,7 +253,9 @@ internal sealed class DemoChatSource : UIItemSourceBase<DemoChatMessage>
             Offset = start,
             TotalCount = _history.Count,
             HasMoreBefore = start > 0,
-            HasMoreAfter = start + items.Length < _history.Count
+            HasMoreAfter = start + items.Length < _history.Count,
+            // Only the source knows the day of the message just above the window: the window's first row is headed when that differs.
+            GroupBefore = start > 0 ? _history[start - 1].Group : null
         });
     }
 
@@ -304,6 +344,13 @@ internal sealed partial class ItemsViewScenariosController() : DemoController
 
         ChatGroup.LogEvent($"Received '{message.Text}'");
     }
+
+    /// <summary>
+    /// A press on a day header: the group names the day whichever message the header is drawn from, the key names that message.
+    /// </summary>
+    [UICommand]
+    public void ShowDay(string day, string id)
+        => ChatGroup.LogEvent($"The header of {day}, drawn from {id}.");
 
     [UICommand]
     public static UICommandResult JumpToNewest()

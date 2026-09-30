@@ -10,7 +10,8 @@
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(height, --ui-height, fit-content);
     gap: @ui-space-1;
-    .ui-responsive-floor(min-width, --ui-min-width, 12rem, --ui-width);
+    // Never past the room it stands in, as a select's floor (ui-select.less).
+    .ui-responsive-floor(min-width, --ui-min-width, ~"min(12rem, 100%)", --ui-width);
     font: inherit;
 }
 

@@ -30,7 +30,8 @@ public interface IUISessions
     /// <remarks>
     /// The store is what every command's access check reads, so a changed role holds for pages already open from their next
     /// command, and for a route from the next page load. A page open under a changed session whose route it no longer passes is
-    /// sent back to its own address — to sign in or the forbidden page, as its resolution decides — and its runtime ended. A change
+    /// sent back to its own address — to sign in or the forbidden page, as its resolution decides — and its runtime ended; one it
+    /// still passes follows a new language, theme mode or set of colours at once, its controller told as a command runs. A change
     /// made straight through <see cref="IUserSessionStore"/>, or by another process, reaches open pages only at their next command.
     /// </remarks>
     Task<int> UpdateUserSessionsAsync(string userId, Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default);

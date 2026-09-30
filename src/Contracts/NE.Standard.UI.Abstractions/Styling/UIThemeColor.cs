@@ -154,6 +154,12 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
     public static UIThemeColor Overlay => FromStyle(UIColorStyle.Overlay);
 
     /// <summary>
+    /// No fill: a colour of no opacity, the same in both themes. A background written it shows what is behind it, and what stands
+    /// on it takes the page's ink, as on the page's own grounds.
+    /// </summary>
+    public static UIThemeColor Transparent => FromColorVariant(ColorName.IronFog, opacity: 0);
+
+    /// <summary>
     /// Reads the canonical wire form a client sends back: <c>@Role</c> for a semantic role, <c>#RRGGBBAA</c>
     /// for an explicit colour, or <c>Name/Adjustment/factor/opacity</c> for a palette variant.
     /// </summary>

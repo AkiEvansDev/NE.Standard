@@ -111,6 +111,15 @@ public sealed class UIItemWindow<TItem>
     public bool HasMoreBefore { get; init; }
 
     /// <summary>
+    /// Gets the group of the item just before this window, or <see langword="null"/> when there is none or the source does not say.
+    /// </summary>
+    /// <remarks>
+    /// A windowed host with a group template heads a row whose group differs from the row before it; the window's first row is
+    /// measured against this, which only the source knows. Left <see langword="null"/>, the first grouped row is always headed.
+    /// </remarks>
+    public string? GroupBefore { get; init; }
+
+    /// <summary>
     /// Gets whether the source has items after this window.
     /// </summary>
     public bool HasMoreAfter { get; init; }

@@ -1,11 +1,12 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 
 /// <summary>
-/// Text content: a title, and a description beside or under it, each on one line.
+/// Text content: a title, and a description beside or under it; each keeps one line unless the host lets it wrap (<see cref="ITextWrapModel"/>).
 /// </summary>
 public interface ITextModel : ITextBaseModel
 {
@@ -24,7 +25,7 @@ public interface ITextModel : ITextBaseModel
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextComponent), DefaultValue = null)]
-    string? Description { get; }
+    UIPhrase? Description { get; }
 
     /// <summary>
     /// Gets the secondary text type.

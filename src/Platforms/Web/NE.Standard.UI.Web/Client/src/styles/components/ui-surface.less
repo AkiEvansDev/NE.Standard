@@ -33,8 +33,8 @@
 
 // Deliberately no pointer-events: none on a non-clickable card: it inherits and would block clicks and selection on everything nested.
 
-// The controls a clickable surface may hold, which answer the pointer themselves.
-@ui-surface-inner-control: ~"a, button, input, select, textarea, summary, [role='button']";
+// The controls a clickable surface may hold, which answer the pointer themselves: own-control.ts's `ControlSelector`, word for word.
+@ui-surface-inner-control: ~"button, a, input, select, textarea, label, summary, [role='button'], [contenteditable=''], [contenteditable='true'], .ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger, .ui-field-box, [role='listbox'], [role='menu'], [role='dialog'], .ui-row__grip";
 
 // Behaviour only: the states below mix into whichever fill Surface chose, so a flat and a raised card both react without a shared look.
 .ui-surface--clickable {

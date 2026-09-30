@@ -9,6 +9,214 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.0-rc.3
+
+A third release candidate: what NE.ProjectC and NE.Home found on 1.4.0-rc.2 (GitHub issues #46–#65), bugs and missing pieces
+alike, and what the review of that round found in its code.
+
+**Words and languages**
+
+- **Any text takes a phrase, so a moment can stand in it.** A text property is a `UIPhrase?` now, and a string converts to one
+  as the author's text (`UIPhrase.Text`), so `SetTitle("Anna")` and `Title = "Anna"` compile as before while
+  `SetDescription(UIPhrase.Of("chat.sent", ("at", instant)))` puts a translated phrase, or a moment, where only a string went: the
+  title, description, tooltip, badge text and badge tooltip of every item model and every text component (`TextBaseItem`,
+  `TextItem`, `BadgeItem`, `MenuItem` and the interfaces behind them), a menu entry's `Value`, every `Placeholder`,
+  `AccessibleName`, `PrefixText`/`SuffixText`, `BadgeComponent.Text`, `ImageComponent.AltText`, the `Label` of a separator, a
+  progress bar and a spinner, `ProgressComponent.ValueUnit` and an input's `FormatMessage`; `SetHelp` takes a phrase too, and
+  refuses a blank text. An author's text shows as written where the item or the instance is content, a key is always
+  translated; a filter, a sort and a comparison read a phrase by its key or its text, the same on both sides (the comparison
+  corpus carries the cases). Addresses, image sources, a gauge's number format and a table's columns stay strings.
+  **Breaking:** these properties are `UIPhrase?` — code reading one as a string reads `.Key` or `.ToString()`; a conditional
+  mixing a string and a `UIPhrase` types as a phrase, so a branch meant as a plain value casts to `object`.
+  **Breaking:** `UIPhrase.FromString` is the implicit conversion's named form, an author's text; a key is `new UIPhrase(key)` or
+  `UIPhrase.Of(key)`. An author's text may be empty (a badge's empty text is its dot); a key may not.
+  **Breaking:** `ServerValidationUIUpdate.Message` is a `UIPhrase?`.
+- **A text property's value travels as lean as before.** Standing as a property's whole value, an author's text goes as the plain
+  string it stands for and a key as `{key,args}` (**New:** `UIPhraseValueJsonConverter`, `UIPhrase.AsValue`); a phrase argument
+  that is text goes as `{text}`, and so do a notification's words and a controller's `UIValidationMessage`; a refusal's
+  `ServerValidationUIUpdate.Message` is a property's value, a plain string when it is text. `UIPhraseJsonConverter` reads a plain
+  string as an author's text.
+- **A moment in words in a row drawn with the page is written in the reader's zone.** A phrase holding a moment, bound in an item
+  template and drawn by the server's first paint, kept that paint — UTC, " UTC" after it — until a push or a switch wrote it
+  again; the page now finds it as it finds one outside a template (#49).
+
+**Sessions and themes**
+
+- **A language switch reaches every page of the session.** `OnLanguageChangedAsync` ran on the runtime of the page the switch was
+  made on alone; a kept runtime of another route came back with the controller's own text in the old language. A switch — the
+  page's switcher, `UIContext.UpdateSessionAsync`, the hub's `SetLanguageAsync`, `IUISessions.UpdateUserSessionsAsync` — now
+  reaches every runtime of the session once: a page open on it is switched and its controller told as a command runs, and a
+  runtime no page shows hears it at its next attach, before `OnNavigatedAsync`, or before a page render paints it, so the first
+  paint is already in the new language (#50). **Breaking:** the session's other tabs no longer stay in the old language until
+  reloaded.
+- **A controller hears the theme switch: `OnThemeChangedAsync(previousMode, cancellationToken)`**, reached as the language's
+  hook is — the page's switcher, a `SetThemeEffect`, an `UpdateSessionAsync` that changes `ThemeMode` — for an application that
+  keeps the mode on the reader's account (#62).
+- **A theme per reader: their own primary and accent.** `UIThemeColors` (`LightPrimary`, `LightAccent`, `DarkPrimary`,
+  `DarkAccent`; `Create(primary, accent)` for both themes) is kept on the session beside its theme mode, set by
+  `SetThemeColorsEffect` from the page or by `UpdateSessionAsync`, and reaches every page of the session as the language does.
+  The page writes the colours as one small stylesheet after the application's (`WebThemeCssBuilder.BuildColors`), and what stands
+  on them follows by the palette's own rule: **New:** `UIColorPalette.WithPrimary`/`WithAccent` keep an on-colour that still reads
+  at 4.5:1 and otherwise take the page's, step the colour's ink toward the text until it reads on the background, and carry the
+  selection and focus ring along where they were drawn from the old hue; `UIColorContrast.Ratio`. **Breaking:**
+  `UserSessionState` gains `ThemeColors` and `IUserSessionContext` a `ThemeColors` member (default null); a store keeping a
+  session field by field keeps them as one JSON text, and a session stored without them reads as the application's palette.
+- **Breaking: `UserSessionStoreExtensions.SetThemeModeAsync` answers the session as stored**, as `SetLanguageAsync` and the new
+  `SetThemeColorsAsync` do, where it answered a `bool`.
+- **A page switched by another page's change does not report it back.** The theme and colours pushed to a session's other pages
+  are marked already stored, as a pushed language was, so no page writes them again and a late echo cannot turn the session back.
+- **`UIThemeColor.Transparent`: no fill.** A background written it shows what is behind it, and what stands on it takes the page's
+  ink — the on-colour of any colour of no opacity is the page's now, where it was computed from the invisible hue. A background
+  bound to it and then to null goes back to its default (#57).
+
+**Dates and times**
+
+- **`CalendarComponent`: the month grid on its own**, placed in a page or a dialog and bound to a `DateOnly?` (and a period, as
+  the date input's `IsRange`/`EndValue`), with its `Min`/`Max`, first day of the week, month pane and keyboard; `OnChange` runs on
+  a day's press. It is the date input's own calendar, drawn in place (one engine, `temporal-picker-engine.ts`): no footer, and a
+  read-only one turns months but chooses no day (#48).
+- **Marked days.** `SetMarkedDays(days)` draws a dot under each of those days in the calendar and in the date input's popup, and
+  `SetMarkedDaysOnly()` offers only them: every other day is disabled, the arrows walk past it, a typed one is refused, and the
+  server refuses an unmarked `Value` or `EndValue` sent anyway (a cleared one passes). Both are extensions over
+  `IMarkedDaysInputComponent`, shared by the date input and the calendar, bindable through `BindMarkedDays`/`BindMarkedDaysOnly`.
+- **The calendar's arrows walk past disabled days and stop at `Min`/`Max`**, where they jumped, and it reaches no month past its
+  bounds, in the popup and in place: the page buttons, the month pane and PageUp/PageDown stop there.
+- **In place, a press on the day already chosen raises the change again**, so `OnChange` runs — a press on a calendar is a
+  choice, and a dialog opened on the day it would jump to still jumps.
+- **The calendar's chosen day reads as pressed (`aria-pressed`), a period's ends by name, today as the current date** — in the
+  popup and in place; the month pane's shown month is current, not chosen. The days are buttons, on which a screen reader
+  passed over the `aria-selected` they wore.
+- **A date-time picker's clock columns read as lists of options**, the chosen reading of each selected (`role="option"`,
+  `aria-selected`), where they were buttons a screen reader heard no choice on.
+- **Breaking:** `TemporalInputComponentBase.ValidateOrderedPeriod` is gone; a period is checked by `OrderedRange.ValidatePeriod`.
+
+**Tables and lists**
+
+- **A windowed items view draws its group headers.** A source-bound, windowed list — a chat feed read backwards — left its
+  group template out; it now heads each row whose group differs from the row before it, and the window's first row against the
+  group of the item just before the window, which only the source knows: **New:** `UIItemWindow<T>.GroupBefore`, kept by
+  `UIItemSourceBase.GroupBefore` as windows are read, trimmed and invalidated, and handed to the page as
+  `IItemsHostComponent.WindowGroupBefore`. Left null, the first grouped row is always headed (#46).
+- **A group header is drawn from the first shown row of its group**, on the server's first paint and on the page, filtered or
+  not — the anchor that its words, its commands and its focus stand in (`data-ui-group-anchor`).
+- **A group header's command knows its group.** **New:** `UIAction.ArgGroupKey(name)` sends the group the header heads, read on
+  the server off the row the header stands in; `ArgCurrentItemKey` in a header is that row's key, where it was refused.
+- **An end-anchored list stays at its end while a row grows.** A picture without a fixed size finishing its load left the feed
+  short of its newest row; at its end the list keeps to its end, and scrolled up it keeps what the reader looks at in place (#65).
+- **A jump to the end of an end-anchored list stands at the end.** A `ScrollEffect` to the end of one holds it there while the
+  window lays out and rows grow, until the reader scrolls, presses or types; a jump after reading back to the top landed short.
+- **The first arrow into a list with no cursor lights its near end** — the first row for Down or Right, the last for Up or
+  Left — in an items view, a table and a tree.
+- **A list whose rows are each one button is one keyboard stop.** The buttons leave the Tab order, and Enter or Space on the row
+  under the cursor presses its button (Space chooses the row where the list chooses) — an emoji panel's tiles are reached by the
+  arrows and pressed from the keyboard.
+- **A row that changes variant sends each of its lists once, and none to the variant it left.** A reset of a list withdraws what
+  was queued for it before, and a nested template counts as on the page only when every row around it wears it.
+
+**Menus**
+
+- **A menu entry has a second line.** `MenuItem` is a `TextItem`, so its `Description` shows under the title — one muted,
+  ellipsised line, the icon centred across both — and hides when the menu folds (#47). **Breaking:** `IMenuItemModel` extends
+  `ITextModel`, so a model of one's own carries a `Description`.
+- **A navigation rail: `MenuComponent.SetDisplay(UIMenuDisplay.Rail)`.** A narrow column, each entry its icon over a one-line
+  label, its badge on the icon's corner, the selected one marked by a bar on the rail's side edge and a filled icon; horizontal,
+  it is a bottom navigation bar. A rail never folds, its groups fly out beside it as a folded menu's do, its ground is its
+  `Surface`, and a label cut short shows whole as a tooltip. A rail takes no search: its groups fly out, so a match among their
+  entries would not show (#53).
+- **A folded menu keeps its badges and its names.** The badge sits on the icon's corner, and an empty `BadgeText` (not null) is
+  a dot there and in a rail; an entry's title is its tooltip on hover and keyboard focus unless it has a tooltip of its own, and
+  stays in the page, visually hidden, so a screen reader still names the entry. Both open and close by the page's tooltip
+  rules, and an entry's own tooltip shows on keyboard focus too.
+- **A group's flyout and a hidden or cut title's tooltip open toward the content**: to the right of a menu on the left side, to
+  the left of one on the right, below a top bar and above a bottom one. The menu's side wins whenever the words are its own, so
+  a `TooltipPlacement` on an entry with no tooltip of its own no longer places its title's.
+- **Breaking:** a group's own entry raises no item click in any menu: a press on it opens or closes the group and does nothing
+  else, as the menu engine always said.
+
+**Forms and surfaces**
+
+- **The server refuses a value outside an input's bounds.** A date, date-time, time, calendar or number input, a period's
+  `EndValue` and a slider are refused and answered with the server's value, as a closed component's value is, when the value lies
+  outside `Min`/`Max` — static or bound, read through the input's format and culture, a date-time by its clock time, a slider's
+  unset bound its 0 or 100; a cleared value passes. A date field sends a typed day already pulled inside its bounds, and a number
+  typed past `Max` snaps back.
+- **A select shrinks to its cell.** Select, Search and MultiSelect, and a horizontal Slider, keep their 12rem floor only where the
+  cell has room for it (`min(12rem, 100%)`), so in a narrow form row they ellipsise their value instead of running over the next
+  field (#51).
+- **A split button among a field's actions is compacted as a plain button is**, so it no longer stands taller than the line and
+  lifts the whole group off it (#58), and an icon-only split button anywhere no longer carries a plain icon button's padding on
+  top of its parts'.
+- **A text input with buttons in it is named by its caption or its placeholder.** Its root is a `<label>`, so with neither a
+  caption nor an `AccessibleName` the buttons' names became its own ("Attach Emoji Send"); the placeholder names it now, and
+  follows it through a push and a language switch.
+- **A field's action can open a flyout.** `AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` on a text input, and
+  `AddLeadingAction`/`AddTrailingAction` on a text area, take a `FlyoutComponent` whose anchor is a button; one without a button
+  anchor is refused where it is added, and the action lists hold its anchor (#56).
+- **Text inserted at a field's caret: `InsertTextEffect`.** `InsertTextEffect.Literal(fieldId, text)` puts the text in place of
+  the field's selection as typing would — the caret after it, the field's input raised so its binding and validation follow, the
+  edit in its own undo — and `InsertTextEffect.CurrentItemKey(fieldId)` inserts the key of the row whose press raised it (an
+  interaction's alone). Run from an interaction it needs no round trip; a read-only or disabled field takes nothing, a text that
+  would pass `maxlength` is refused whole, and a press in a panel beside the field inserts where the reader left the caret,
+  the focus going back to the field (#55).
+- **An effect raised by a row's interaction reaches a component outside the row**, where it looked for its target inside the
+  row alone — a copy or a focus included.
+- **A press on the empty part of a popup opened from a field's action no longer moves the field's caret.**
+- **An image input can be cleared from the server.** A controller setting `SelectionId` null or empty clears a single picture —
+  preview, name and handle — and the control shows `Value` again, as an empty `SelectionIds` clears a shelf; a pick still
+  uploading stays. A controller answering a pick by emptying `Value` drops the file's name from the inline row (#59).
+- **A file too large is refused with a word.** A file or image input refuses a file over `MaxFileSize` on the field's validation
+  line — "The file is larger than 1 MB.", in the page's language —, a multi-file input or a shelf names the files it left out, and
+  the next pick clears it; the console alone heard of it before. `ui.file.oversized` takes `{limit}`; new word `ui.file.leftout`
+  (`UIStrings.FileLeftOut`), in Russian and Chinese too (#63).
+- **Attach like a messenger.** `UIImageInputShape.Shelf` is a row of thumbnails and nothing else, each with its remove and its
+  upload's progress, several files whatever `Multiple` says, and not on the page at all while empty but for a validation line.
+  With an empty `Accept` (`SetAccept(string.Empty)`) it takes any file: a picture as its thumbnail, any other file — and a
+  picture the browser cannot draw — as a square with its kind's glyph over its name. New word `ui.file.remove` ("Remove the
+  file"), in Russian and Chinese too. `OpenPickerEffect(inputId)` opens a
+  file or image input's chooser from another control: raised by an interaction it runs inside the reader's press, returned from
+  a command a browser may refuse it. `SetDropTargetId(componentId)` on an image or file input takes the files dropped, and the
+  pictures pasted, on that component by the input's own `Accept`, `MaxFileSize` and `Multiple`, the component edged while a drag
+  is over it; a paste carrying text stays the field's, and an id the view does not have fails the render (#64).
+- **New: eight file-kind glyphs and `UIFileGlyphs.For(fileName, contentType)`.** `Draft`, `PictureAsPdf`, `TextSnippet`,
+  `TableChart`, `Slideshow`, `FolderZip`, `AudioFile` and `VideoFile` join `UIGlyphs` (the face is 122 glyphs, 13.7 KB), and
+  `UIFileGlyphs.For` names a file's by its extension first, then its MIME type — a PDF, text, a document, a spreadsheet, slides,
+  an archive, audio, video, a picture, code, or a blank page — the table the shelf's `file-glyphs.ts` keeps too (the file-glyph
+  corpus holds both).
+- **A clickable surface or card takes the keyboard.** It is a tab stop, pressed by Enter at once and by Space on release (the page
+  does not scroll), a `button` to a screen reader when it holds no control of its own and a `group` when it does; a disabled or
+  loading one is no stop. A group header drawn as one is reached the same way. A press on a clickable surface inside a row is the
+  surface's, as a button's is: it does not also choose the row.
+- **The focus given back after a pointer opened a popup stays the pointer's.** A dialog, flyout or menu opened by a press and
+  closed by any key gives the focus back with no tooltip and no keyboard ring (#49).
+
+**Text and layout**
+
+- **A card's and an expander's header run a long description on**, where they cut it with an ellipsis; a `TextComponent` keeps
+  its description to one line unless `SetWrapMode(UITextWrapMode.Wrap)`, and `SetTitleWrap(true)` lets its title run on (#52).
+  **Breaking:** `WrapMode` and `TitleWrap` move from `IParagraphModel`/`IParagraphComponent` to `ITextWrapModel`/
+  `ITextWrapComponent`, shared by the paragraph and the text; a package's text host renders them with
+  `TextContentRendererBase.RenderTextWrap`.
+- **`UILayoutLength.Fill()` takes the parent's room less the component's own margin on that axis**, where a filled component with
+  a margin overflowed its parent by the margin, and a child's width is capped at that same room. A dialog's `Fill` is the
+  overlay's room less the panel's margins, and its guards count an authored margin (#60).
+
+**Renderers**
+
+- **New:** `ResponsiveRenderer.ApplyResponsiveSize(…, axis)` and `ApplyResponsiveMargin`, and `WebResponsiveCss.WriteSize`/
+  `WriteMargin`, which a package's component goes through for `Fill` less its margins; `CollapsibleChromeRenderer.RenderCollapsible(
+  context, root, folds)`, `false` for a host that never folds; `NativeInputRendererBase.RenderDropTargetId`;
+  `TemporalCalendarRenderer`, the calendar's first day, names, bounds and marked days, shared by the date input and the calendar;
+  `WebAttributes.BadgeSet` (`data-ui-badge-set`, a badge whose text is set, empty included), `WindowGroupBefore` and
+  `GroupAnchor`.
+
+**The demos**
+
+- TeamRoom keeps a reader's colours with their session and on their account, and a sign-in puts the account's back: the
+  `sessions` and `accounts` tables gain a `theme_colors` column, added to an existing database on open. Its chat attaches like a
+  messenger — one shelf above the composer for pictures and files, the clip, drop and paste, an emoji panel — in a composer
+  that is a one-row text area growing with its text and sending on Enter (`SubmitOnEnter`, so the focus stays in it), and a
+  day's header opens a calendar of the days with messages.
+
 ## 1.4.0-rc.2
 
 A second release candidate: what two applications found on 1.4.0-rc.1 (GitHub issues #40–#45).

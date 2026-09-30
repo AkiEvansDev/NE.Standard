@@ -491,6 +491,11 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 AppendEventBindingArgument(builder, view, argument);
                 break;
 
+            case CompiledUIActionArgumentKind.GroupKey:
+                _ = builder.Append("groupKey ");
+                AppendEventBindingArgument(builder, view, argument);
+                break;
+
             case CompiledUIActionArgumentKind.Binding:
                 AppendEventBindingArgument(builder, view, argument);
                 break;

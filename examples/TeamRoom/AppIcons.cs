@@ -20,6 +20,8 @@ public static class AppIcons
     public const string Direct = MaterialIcons.Person;
     public const string Send = MaterialIcons.Send;
     public const string Attach = MaterialIcons.AttachFile;
+    public const string Emoji = MaterialIcons.Mood;
+    public const string Palette = MaterialIcons.Palette;
     public const string Search = MaterialIcons.Search;
     public const string Download = MaterialIcons.Download;
     public const string Accounts = MaterialIcons.AdminPanelSettings;

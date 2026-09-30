@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
@@ -48,7 +49,8 @@ public partial class BadgeItem : RecursiveObservable, IBadgeModel, IContentItem
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
-    public partial string? BadgeText { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? BadgeText { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
@@ -57,7 +59,8 @@ public partial class BadgeItem : RecursiveObservable, IBadgeModel, IContentItem
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
-    public partial string? BadgeTooltip { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? BadgeTooltip { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]

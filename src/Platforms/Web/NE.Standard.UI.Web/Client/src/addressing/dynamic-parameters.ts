@@ -1,5 +1,5 @@
 // With extensions: the node test runner loads this module as is.
-import { ComponentKeyAttribute, ComponentParameterCountAttribute } from "./dom-attributes.ts";
+import { ComponentKeyAttribute, ComponentParameterCountAttribute, GroupAnchorAttribute } from "./dom-attributes.ts";
 import { logWarn } from "../runtime/logger.ts";
 
 export function readParameterCount(element: Element): number {
@@ -90,6 +90,7 @@ export function readNumberAttribute(element: Element, name: string): number {
 }
 
 // Keys only: every item collection is keyed, so an element with no key introduces no scope; a positional fallback would misaddress.
+// A group header stands in the row it is drawn from, as the server renders it.
 function readDynamicParameter(element: Element): unknown {
-    return element.getAttribute(ComponentKeyAttribute) ?? undefined;
+    return element.getAttribute(ComponentKeyAttribute) ?? element.getAttribute(GroupAnchorAttribute) ?? undefined;
 }

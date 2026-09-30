@@ -1,6 +1,7 @@
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -57,7 +58,7 @@ public interface IBadgeModel : IBindableItem
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    string? BadgeText { get; }
+    UIPhrase? BadgeText { get; }
 
     /// <summary>
     /// Gets the badge text's role, defaulting to <see cref="DefaultBadgeTextType"/>.
@@ -70,7 +71,7 @@ public interface IBadgeModel : IBindableItem
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    string? BadgeTooltip { get; }
+    UIPhrase? BadgeTooltip { get; }
 
     /// <summary>
     /// Gets the side the badge's own tooltip prefers, placed against the badge rather than against the row.

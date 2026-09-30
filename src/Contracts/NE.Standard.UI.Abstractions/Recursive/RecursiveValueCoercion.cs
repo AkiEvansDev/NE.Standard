@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Abstractions.Recursive;
 
@@ -91,6 +92,10 @@ public static class RecursiveValueCoercion
                 // AssumeLocal, not RoundtripKind (.NET rejects combining them): an offset-less string becomes the server's local time.
                 _ when underlyingType == typeof(DateTimeOffset) && value is string dateTimeOffsetText => DateTimeOffset.Parse(dateTimeOffsetText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
                 _ when underlyingType == typeof(Guid) && value is string guidText => Guid.Parse(guidText),
+                // A text property takes a plain string (a rename's) as the author's text, and gives back its text or its key (a
+                // command's text argument read off an item) — the one rule for a phrase read as a string.
+                _ when underlyingType == typeof(UIPhrase) && value is string phraseText => UIPhrase.Text(phraseText),
+                _ when underlyingType == typeof(string) && value is UIPhrase phrase => phrase.Key,
                 // A colour travels back as the canonical text UIThemeColor.TryParse reads.
                 _ when underlyingType == typeof(UIThemeColor) && value is string colorText => UIThemeColor.TryParse(colorText, out UIThemeColor color) ? color : null,
                 // A list of keys arrives as the client's own array, one text per element.

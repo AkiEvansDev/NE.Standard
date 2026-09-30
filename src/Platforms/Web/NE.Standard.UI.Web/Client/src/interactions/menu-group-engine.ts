@@ -4,7 +4,7 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 import { ClientStore } from "../state/client-store.ts";
 
@@ -22,6 +22,9 @@ const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
 
 const OpenGroupSlot = "menu-open-group";
+
+// A group's own entry raises no click of the menu's: its press opens or closes the group, never picks it (event-pipeline.ts).
+const NoClickAttribute = eventSuppressAttribute("click");
 
 export type MenuGroupEngineOptions = {
     readonly root?: ParentNode;
@@ -211,7 +214,7 @@ export class MenuGroupEngine {
         }
     }
 
-    /** Places the submenu itself beside the icon as a popup, for a collapsed menu with no room inline. */
+    /** Places the submenu itself beside the icon as a popup, for a collapsed menu or a rail with no room inline. */
     private toggleFlyout(menu: HTMLElement, group: HTMLElement, anchor: HTMLElement): void {
         const submenu = this.submenuOf(group);
 
@@ -230,7 +233,7 @@ export class MenuGroupEngine {
 
         this.closeGroups(menu);
 
-        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: "right-start", gap: 4 } }))
+        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: `${towardContent(menu)}-start`, gap: 4 } }))
             return;
 
         // From the keyboard, into its first entry, as a submenu opened by a key is; a press leaves the focus on the rail.
@@ -265,7 +268,7 @@ export class MenuGroupEngine {
     }
 }
 
-/** Writes on a group's own entry whether its block is open, and whether it opens as a popup — a select's, or any in a folded menu. */
+/** Writes on a group's own entry whether its block is open, and whether it opens as a popup — a select's, or any in a folded menu or a rail. */
 function describeGroup(group: HTMLElement): void {
     const entry = group.querySelector<HTMLElement>(`:scope > .${ItemClass}`);
     const menu = group.closest<HTMLElement>(`.${RootClass}`);
@@ -273,6 +276,9 @@ function describeGroup(group: HTMLElement): void {
     if (entry === null)
         return;
 
+    // Its own command skipped, and the walk stopped at it, so no component around the menu takes the press either.
+    entry.setAttribute(NoClickAttribute, "");
+    entry.setAttribute(EventBoundaryAttribute, "");
     entry.setAttribute("aria-expanded", group.hasAttribute(OpenAttribute) ? "true" : "false");
 
     if (group.hasAttribute(SelectAttribute) || (menu !== null && isCollapsed(menu)))
@@ -287,6 +293,21 @@ function dropFlyouts(menu: HTMLElement): void {
         submenu.removeAttribute(FlyoutAttribute);
 }
 
+/**
+ * The side a menu's popups open on: toward the content, away from the edge the menu sits on (`Side`) — a right-hand rail's flyout
+ * and titles to its left. The tooltip of a hidden title takes the same side (menu-engine.ts).
+ */
+export function towardContent(menu: Element): "left" | "right" | "top" | "bottom" {
+    if (menu.classList.contains("ui-side--right"))
+        return "left";
+
+    if (menu.classList.contains("ui-side--top"))
+        return "bottom";
+
+    return menu.classList.contains("ui-side--bottom") ? "top" : "right";
+}
+
+/** Whether the menu's groups fly out: folded to its icons, or a rail, which is never unfolded. */
 function isCollapsed(menu: HTMLElement): boolean {
-    return menu.hasAttribute(CollapsedAttribute);
+    return menu.hasAttribute(CollapsedAttribute) || menu.classList.contains(MenuRailClass);
 }

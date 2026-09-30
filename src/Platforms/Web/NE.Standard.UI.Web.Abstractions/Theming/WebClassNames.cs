@@ -270,13 +270,14 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    /// <summary>The three shapes an image input takes, on its root.</summary>
+    /// <summary>The four shapes an image input takes, on its root.</summary>
     public static string ImageInputShape(UIImageInputShape value)
         => value switch
         {
             UIImageInputShape.Picture => "ui-image-input--picture",
             UIImageInputShape.Avatar => "ui-image-input--avatar",
             UIImageInputShape.Inline => "ui-image-input--inline",
+            UIImageInputShape.Shelf => "ui-image-input--shelf",
             _ => string.Empty
         };
 

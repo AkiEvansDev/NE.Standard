@@ -13,7 +13,9 @@
     flex-direction: column;
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(height, --ui-height, fit-content);
-    .ui-responsive-floor(min-width, --ui-min-width, 12rem, --ui-width);
+    // The floor keeps an unsized select from shrinking to its placeholder, but never past the room it stands in: in a form row's
+    // cell narrower than 12rem it shrinks with the cell, its value ellipsised, instead of running over the neighbour.
+    .ui-responsive-floor(min-width, --ui-min-width, ~"min(12rem, 100%)", --ui-width);
     gap: @ui-space-1;
     font: inherit;
 }

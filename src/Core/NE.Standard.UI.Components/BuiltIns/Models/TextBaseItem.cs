@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
@@ -50,7 +52,8 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
-    public partial string? Title { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? Title { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
@@ -71,7 +74,8 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
-    public partial string? Tooltip { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? Tooltip { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]

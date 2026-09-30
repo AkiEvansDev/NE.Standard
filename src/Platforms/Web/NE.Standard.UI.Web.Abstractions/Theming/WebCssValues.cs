@@ -91,6 +91,25 @@ public static class WebCssValues
     public static string ResponsiveLayoutLength(UILayoutLength value)
         => value.Kind == UILayoutLengthKind.Auto ? string.Empty : LayoutLength(value);
 
+    /// <summary>
+    /// A component's own size along <paramref name="axis"/> as a responsive custom property's value: as <see cref="ResponsiveLayoutLength"/>,
+    /// but <c>Fill</c> is the parent's room less the component's margins on that axis (<see cref="FillSize"/>), so a filled box with a
+    /// margin fits its parent rather than overflowing it by the margin.
+    /// </summary>
+    public static string ResponsiveSize(UILayoutLength value, UIOrientation axis)
+        => value.Kind == UILayoutLengthKind.Fill ? FillSize(axis) : ResponsiveLayoutLength(value);
+
+    /// <summary>
+    /// <c>Fill</c> along an axis: the stylesheet's <c>--ui-fill-width</c> or <c>--ui-fill-height</c>, <c>100%</c> less what the element's
+    /// own margin tiers take (<see cref="ThicknessSum"/>); plain <c>100%</c> where the stylesheet computes none.
+    /// </summary>
+    public static string FillSize(UIOrientation axis)
+        => axis == UIOrientation.Horizontal ? "var(--ui-fill-width, 100%)" : "var(--ui-fill-height, 100%)";
+
+    /// <summary>The two sides of a thickness along an axis, summed: the room a margin takes out of a <c>Fill</c> size.</summary>
+    public static string ThicknessSum(UIThickness value, UIOrientation axis)
+        => Pixels(axis == UIOrientation.Horizontal ? value.Left + value.Right : value.Top + value.Bottom);
+
     public static string Thickness(UIThickness value)
         => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px {value.Right}px {value.Bottom}px {value.Left}px");
 
@@ -270,8 +289,8 @@ public static class WebCssValues
 
     /// <summary>
     /// The text colour that reads on a filled ground of this colour: a role's on-colour, a raw colour's on-light or on-dark by its
-    /// lightness; <c>initial</c> for the page's own grounds (Background, Surface), which are no filled ground and take back the page's
-    /// ink from one around them; empty for a colour no text is meant to stand on (Muted, the On* roles, Border…).
+    /// lightness; <c>initial</c> for the page's own grounds (Background, Surface) and a colour of no opacity, which are no filled ground
+    /// and take back the page's ink from one around them; empty for a colour no text is meant to stand on (Muted, the On* roles, Border…).
     /// </summary>
     public static string ThemeOnColor(UIThemeColor value)
     {
@@ -280,6 +299,11 @@ public static class WebCssValues
 
         if (light is not null && dark is not null)
         {
+            // A colour of no opacity is no ground at all (UIThemeColor.Transparent): judged over white it would name the light
+            // theme's text in the dark one too.
+            if (light.Value.Opacity == 0 && dark.Value.Opacity == 0)
+                return PageGroundOnColor;
+
             var lightCss = OnColorToken(light.Value.IsLightOverWhite());
             var darkCss = OnColorToken(dark.Value.IsLightOverWhite());
 

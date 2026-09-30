@@ -39,11 +39,14 @@ public sealed class ChatService(AppDatabase database, AppEvents events)
                    COALESCE(m.last_read_message_id, 0),
                    {UnreadOf},
                    {OtherMember},
-                   {OtherNickname}
+                   {OtherNickname},
+                   l.author_id, la.nickname, l.text, l.sent_utc
             FROM conversations c
             LEFT JOIN conversation_members m ON m.conversation_id = c.id AND m.account_id = $me
+            LEFT JOIN messages l ON l.id = (SELECT MAX(x.id) FROM messages x WHERE x.conversation_id = c.id)
+            LEFT JOIN accounts la ON la.id = l.author_id
             WHERE c.kind = $room OR m.account_id IS NOT NULL
-            ORDER BY c.kind DESC, COALESCE((SELECT MAX(x.id) FROM messages x WHERE x.conversation_id = c.id), 0) DESC, c.created_utc
+            ORDER BY c.kind DESC, COALESCE(l.id, 0) DESC, c.created_utc
             """;
         _ = command.Parameters.AddWithValue("$me", accountId);
         _ = command.Parameters.AddWithValue("$room", ConversationKinds.Room);
@@ -59,11 +62,19 @@ public sealed class ChatService(AppDatabase database, AppEvents events)
                 ? reader.IsDBNull(2) ? id : reader.GetString(2)
                 : DirectTitle(reader.IsDBNull(5) ? null : reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6));
 
-            result.Add(new ConversationRecord(id, kind, title, reader.GetInt64(3), (int)reader.GetInt64(4)));
+            LastMessageRecord? last = reader.IsDBNull(7)
+                ? null
+                : new LastMessageRecord(reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetString(9), ReadUtc(reader.GetString(10)));
+
+            result.Add(new ConversationRecord(id, kind, title, reader.GetInt64(3), (int)reader.GetInt64(4), last));
         }
 
         return result;
     }
+
+    /// <summary>A moment as the database keeps it: written round-trip, so it reads back as UTC.</summary>
+    private static DateTime ReadUtc(string text)
+        => DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
     /// <summary>The messages of conversation <c>c</c> the reader <c>$me</c> has not read, their own not counted.</summary>
     private const string UnreadOf = "(SELECT COUNT(*) FROM messages x WHERE x.conversation_id = c.id AND x.id > COALESCE(m.last_read_message_id, 0) AND x.author_id <> $me)";
@@ -208,6 +219,38 @@ public sealed class ChatService(AppDatabase database, AppEvents events)
         return (int)(long)command.ExecuteScalar()!;
     }
 
+    /// <summary>When each message of a conversation was sent, oldest first: the days a jump can land on.</summary>
+    public IReadOnlyList<DateTime> SentTimes(string conversationId)
+    {
+        using SqliteConnection connection = database.Open();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT sent_utc FROM messages WHERE conversation_id = $id ORDER BY id";
+        _ = command.Parameters.AddWithValue("$id", conversationId);
+
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<DateTime> times = [];
+
+        while (reader.Read())
+            times.Add(ReadUtc(reader.GetString(0)));
+
+        return times;
+    }
+
+    /// <summary>
+    /// How many messages of a conversation were sent before a moment: the position of the first one sent at it or after, for a jump
+    /// to a day. The moments are written round-trip in UTC, so they compare as text.
+    /// </summary>
+    public int CountSentBefore(string conversationId, DateTime utc)
+    {
+        using SqliteConnection connection = database.Open();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM messages WHERE conversation_id = $id AND sent_utc < $utc";
+        _ = command.Parameters.AddWithValue("$id", conversationId);
+        _ = command.Parameters.AddWithValue("$utc", utc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+
+        return (int)(long)command.ExecuteScalar()!;
+    }
+
     public MessageRecord? FindMessage(long messageId)
     {
         using SqliteConnection connection = database.Open();
@@ -230,7 +273,7 @@ public sealed class ChatService(AppDatabase database, AppEvents events)
         {
             while (reader.Read())
             {
-                rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
+                rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), ReadUtc(reader.GetString(4)), reader.IsDBNull(5) ? null : ReadUtc(reader.GetString(5))));
             }
         }
 
@@ -454,7 +497,7 @@ public sealed class ChatService(AppDatabase database, AppEvents events)
                 ? reader.IsDBNull(3) ? conversation : reader.GetString(3)
                 : DirectTitle(reader.IsDBNull(7) ? null : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8));
 
-            hits.Add(new MessageSearchHit(reader.GetInt64(0), conversation, name, reader.GetString(4), reader.GetString(5), DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
+            hits.Add(new MessageSearchHit(reader.GetInt64(0), conversation, name, reader.GetString(4), reader.GetString(5), ReadUtc(reader.GetString(6))));
         }
 
         return hits;

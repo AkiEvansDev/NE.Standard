@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Shell.Sessions;
@@ -21,6 +22,10 @@ public interface IUserSessionContext
     /// Gets the preferred theme mode, or <see langword="null"/> to follow the platform's own preference.
     /// </summary>
     UIThemeMode? ThemeMode { get; }
+
+    /// <summary>Gets the reader's own brand colours over the application's palette, or <see langword="null"/> for the application's.</summary>
+    /// <remarks>The store's, never a resolver's: a page is rendered in the stored session's colours whatever the resolver answered.</remarks>
+    UIThemeColors? ThemeColors => null;
 
     /// <summary>Gets the time zone the reader's client reported, an IANA id, or <see langword="null"/> while it has reported none.</summary>
     string? TimeZone { get; }

@@ -18,7 +18,7 @@ public abstract class DateTimeInputComponent<T>(string? id = null) : TemporalInp
 
     /// <inheritdoc/>
     protected override void ValidatePeriod(DateTimeOffset? start, DateTimeOffset? end)
-        => ValidateOrderedPeriod(start, end, "date-time");
+        => OrderedRange.ValidatePeriod(start, end, "date-time");
 }
 
 /// <summary>

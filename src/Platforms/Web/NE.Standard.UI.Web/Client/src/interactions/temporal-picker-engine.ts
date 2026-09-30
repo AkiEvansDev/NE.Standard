@@ -1,24 +1,34 @@
-import { componentParts } from "../addressing/dom-registry";
-import { formatTemporal, InvariantTemporalLetters, localDate, TemporalCulturePack, TemporalLetters, temporalPlaceholder } from "../rendering/temporal-format";
-import { ClientStringKey, clientStrings } from "../runtime/client-strings";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { observeComponents } from "./dom-mutations";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
-import { OwnedPopups } from "./owned-popup";
-import { focusAsLastInput, focusByPointer } from "./popup-focus";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { componentParts } from "../addressing/dom-registry.ts";
+import { formatTemporal, InvariantTemporalLetters, temporalPlaceholder } from "../rendering/temporal-format.ts";
+import type { TemporalLetters } from "../rendering/temporal-format.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import type { ClientStringKey } from "../runtime/client-strings.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
+import { OwnedPopups } from "./owned-popup.ts";
+import { focusAsLastInput, focusByPointer } from "./popup-focus.ts";
+import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
 import {
-    applyPageLanguage, clampPushedValue, clampToRange, defaultMoment, hourLabel, isEndPart, isRange, isTwelveHour, MaxAttribute, MinAttribute, orderPeriod,
-    parseCanonical, PickerAttributes, readBound, readCulturePack, readFormat, readMode, readStep, readValue, readValueOf, RootClass,
-    TemporalMode, TimeStep, TimeUnit, toCanonical, typedValue, valueInputOf, writeValueOf
-} from "./temporal-dom";
-import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, PeriodEnd, startOfDay } from "./temporal-range";
-import { turnWheel, wheelPixels } from "./wheel-notches";
+    applyPeriodPreview, applyRovingDay, chooseCalendarDay, createCalendarState, DayAttribute, DayClass, element, moveByKey, navButton,
+    navigateCalendar, NavAttribute, renderCalendar, renderPeriodCaption, startOfMonth
+} from "./temporal-calendar.ts";
+import type { CalendarState } from "./temporal-calendar.ts";
+import {
+    applyPageLanguage, CalendarRootClass, clampPushedValue, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
+    MaxAttribute, MinAttribute, orderPeriod, parseCanonical, PickerAttributes, readBound, readCulturePack, readDayOffer, readFormat,
+    readMode, readStep, readValue, readValueOf, RootClass, TemporalRootSelector, toCanonical, typedValue, valueInputOf, writeValueOf
+} from "./temporal-dom.ts";
+import type { TemporalMode, TimeStep, TimeUnit } from "./temporal-dom.ts";
+import type { PeriodEnd } from "./temporal-range.ts";
+import { turnWheel, wheelPixels } from "./wheel-notches.ts";
 
 const FieldClass = "ui-temporal-input__field";
 const PopupClass = "ui-temporal-input__popup";
 const OpenClass = "ui-temporal-input--open";
-const DayClass = "ui-temporal-input__day";
-const MonthClass = "ui-temporal-input__month";
+/** Where a calendar drawn in place draws its grid, as a temporal input draws it into its popup. */
+const CalendarBodyClass = "ui-calendar__body";
 const TimeCellClass = "ui-temporal-input__time-cell";
 const TimeColumnClass = "ui-temporal-input__time-column";
 
@@ -28,30 +38,10 @@ const PopupGap = 4;
 const ScrollSettleDelay = 140;
 
 const ToggleAttribute = "data-ui-temporal-toggle";
-const FirstDayAttribute = "data-ui-temporal-first-day";
-const NavAttribute = "data-ui-temporal-nav";
-const DayAttribute = "data-ui-temporal-day";
 const UnitAttribute = "data-ui-temporal-unit";
 const CellValueAttribute = "data-ui-temporal-cell";
 /** Where the engine parked a clock column's chosen reading; a column standing elsewhere was moved by hand. */
 const CentredAttribute = "data-ui-temporal-centred";
-
-type CalendarPane = "days" | "months";
-
-type PickerState = {
-    /** The month the grid is showing, which is not the selection: paging must not pick a day. */
-    view: Date;
-    pane: CalendarPane;
-
-    focusedDay: Date | null;
-
-    /** Which end of a period the next choice sets; a single value is always its start. */
-    activeEnd: PeriodEnd;
-    /** The day under the pointer while an end is being chosen, for the span drawn ahead of the click. */
-    hoverDay: Date | null;
-    /** A start was chosen on the calendar and its end not yet: the span to an end kept from before is not tinted meanwhile. */
-    choosingEnd: boolean;
-};
 
 export type TemporalPickerEngineOptions = {
     readonly root?: ParentNode;
@@ -59,10 +49,14 @@ export type TemporalPickerEngineOptions = {
     readonly propertyPatchEngine?: PropertyPatchEngine;
 };
 
+/**
+ * The date, time and date-time inputs' popups and the calendars drawn in place (`CalendarComponent`): one engine and one month grid
+ * (`temporal-calendar.ts`) for both, so the popup's calendar and the page's cannot drift.
+ */
 export class TemporalPickerEngine {
     private readonly options: TemporalPickerEngineOptions;
     private readonly root: ParentNode;
-    private readonly states = new WeakMap<HTMLElement, PickerState>();
+    private readonly states = new WeakMap<HTMLElement, CalendarState>();
     // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
     private readonly written = new WeakSet<HTMLInputElement>();
     // The language the page's own temporal names and formats are drawn in: the server's, until a switch.
@@ -73,7 +67,7 @@ export class TemporalPickerEngine {
         show: ({ owner, popup }) => {
             owner.classList.add(OpenClass);
             popup.addEventListener("wheel", this.onColumnWheel, { passive: false });
-            this.renderPopup(owner, true);
+            this.renderSurface(owner, true);
         },
         hide: ({ owner, popup }) => {
             for (const settle of this.columnSettles.values())
@@ -97,32 +91,40 @@ export class TemporalPickerEngine {
         this.options = options;
         this.root = options.root ?? document;
 
-        this.applyDisplay(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.arrive(this.root.querySelectorAll<HTMLElement>(TemporalRootSelector));
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             // Min/Max/DisplayFormat are live-patchable, and the picker's disabled cells are computed from them.
-            const pickers = componentParts(change.components, `.${RootClass}`);
+            const pickers = componentParts(change.components, TemporalRootSelector);
+            const pushedValue = change.propertyName === "Value" || change.propertyName === "EndValue";
 
             this.applyDisplay(pickers);
 
-            // A value that arrived while the popup is up redraws it, as a pick of the reader's own does: the grid marks the new day.
-            if (this.openPicker !== null && pickers.includes(this.openPicker))
-                this.renderPopup(this.openPicker);
-        });
-
-        // A patched attribute re-renders what is showing.
-        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [...PickerAttributes] }, pickers => {
             for (const picker of pickers) {
-                this.applyDisplay([picker]);
+                // A calendar in place turns to a value the controller pushed, as it opens on its value; a popup keeps the month it shows.
+                if (pushedValue && isInline(picker))
+                    this.states.set(picker, createCalendarState(picker));
 
-                if (picker === this.openPicker)
-                    this.renderPopup(picker);
+                // A value that arrived while the grid is up redraws it, as a pick of the reader's own does: the grid marks the new day.
+                if (this.isShowing(picker))
+                    this.renderSurface(picker);
             }
         });
 
-        // A picker may arrive late (a built row, a cell's editor), so its field is written here; drawing children here would wake itself forever.
-        observeComponents(this.root, `.${RootClass}`, { childList: true }, pickers => this.applyDisplay(pickers));
+        // A patched attribute re-renders what is showing.
+        observeComponents(this.root, TemporalRootSelector, { attributeFilter: [...PickerAttributes] }, pickers => {
+            for (const picker of pickers) {
+                this.applyDisplay([picker]);
+
+                if (this.isShowing(picker))
+                    this.renderSurface(picker);
+            }
+        });
+
+        // A picker may arrive late (a built row, a cell's editor), so its field is written here, and a calendar in place drawn — once:
+        // drawing its grid wakes this again, and a grid drawn every time would wake itself forever.
+        observeComponents(this.root, TemporalRootSelector, { childList: true }, pickers => this.arrive(pickers));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
@@ -147,12 +149,24 @@ export class TemporalPickerEngine {
         clientStrings.onChange(() => this.applyWords());
     }
 
+    /** Writes the fields of the pickers that arrived, and draws the grid of a calendar in place that has none yet. */
+    private arrive(pickers: Iterable<HTMLElement>): void {
+        const arrived = [...pickers];
+
+        this.applyDisplay(arrived);
+
+        for (const picker of arrived) {
+            if (isInline(picker) && surfaceOf(picker)?.firstElementChild === null)
+                this.renderSurface(picker);
+        }
+    }
+
     /**
      * The page's words changed: a switch draws the fields in the page's culture in the new language, and every placeholder is written
-     * again in its letters. The clocks follow the attributes this writes.
+     * again in its letters. The clocks and the grids follow the attributes this writes.
      */
     private applyWords(): void {
-        const pickers = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)];
+        const pickers = [...this.root.querySelectorAll<HTMLElement>(TemporalRootSelector)];
         const language = clientStrings.temporal;
 
         if (language !== null && clientStrings.language !== this.drawnLanguage) {
@@ -164,12 +178,34 @@ export class TemporalPickerEngine {
 
         this.applyDisplay(pickers);
 
-        if (this.openPicker !== null)
-            this.renderPopup(this.openPicker);
+        for (const picker of pickers) {
+            if (this.isShowing(picker))
+                this.renderSurface(picker);
+        }
     }
 
     private get openPicker(): HTMLElement | null {
         return this.popups.current;
+    }
+
+    /** Whether a picker's grid is on the page: a calendar in place always, a temporal input's while its popup is open. */
+    private isShowing(picker: HTMLElement): boolean {
+        return picker === this.openPicker || isInline(picker);
+    }
+
+    /** The grid an event happened in: a calendar in place, or the open popup; null outside both. */
+    private calendarFor(target: EventTarget | null): HTMLElement | null {
+        if (!(target instanceof Element))
+            return null;
+
+        const inline = target.closest(`.${CalendarBodyClass}`)?.closest<HTMLElement>(`.${CalendarRootClass}`) ?? null;
+
+        if (inline !== null)
+            return inline;
+
+        const picker = this.openPicker;
+
+        return picker !== null && surfaceOf(picker)?.contains(target) === true ? picker : null;
     }
 
     // Formatted here, not server-side, so a live patch and the initial render produce the same string; formatTemporal mirrors WebTemporalFormat.
@@ -219,11 +255,25 @@ export class TemporalPickerEngine {
         if (picker === null || valueInput === null)
             return;
 
+        const typed = typedValue(picker, domEvent.target.value);
+        const moment = parseCanonical(typed, readMode(picker));
+        // Pulled inside Min/Max before it goes, as a pushed value is: the server refuses one outside them as it stands.
+        const canonical = moment === null ? typed : toCanonical(clampToRange(picker, moment), readMode(picker));
+
+        // A day the grid would not offer — as typed, or as the bounds pulled it — is not taken but written back over: no day near an
+        // unmarked one stands for it.
+        if (isUnmarkedDay(picker, canonical)) {
+            const held = readValueOf(picker, isEndPart(domEvent.target));
+
+            domEvent.target.value = held === null ? "" : formatTemporal(held, readFormat(picker), readCulturePack(picker));
+            return;
+        }
+
         // A typed end is an end chosen, as a click on the calendar is.
         if (isEndPart(domEvent.target))
             this.getState(picker).choosingEnd = false;
 
-        valueInput.value = typedValue(picker, domEvent.target.value);
+        valueInput.value = canonical;
         valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 
         // Both ends typed and the wrong way round: the ends swap, and both fields are written again from what they hold.
@@ -242,16 +292,12 @@ export class TemporalPickerEngine {
     }
 
     private handleDayHover(domEvent: Event): void {
-        const picker = this.openPicker;
+        const picker = this.calendarFor(domEvent.target);
 
-        if (picker === null || !(domEvent.target instanceof Element))
+        if (picker === null || !(domEvent.target instanceof Element) || !isRange(picker))
             return;
 
         const day = domEvent.type === "mouseover" ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}]`) : null;
-
-        if ((day !== null && !picker.contains(day)) || !isRange(picker))
-            return;
-
         const state = this.getState(picker);
         const hovered = day === null ? null : parseCanonical(day.getAttribute(DayAttribute) ?? "", "date");
 
@@ -263,10 +309,10 @@ export class TemporalPickerEngine {
     }
 
     private handlePointerMove(domEvent: Event): void {
-        const picker = this.openPicker;
         const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}], .${TimeCellClass}`) : null;
+        const picker = this.calendarFor(entry);
 
-        if (picker === null || entry === null || !picker.contains(entry) || entry === document.activeElement || entry.matches(":disabled"))
+        if (picker === null || entry === null || entry === document.activeElement || entry.matches(":disabled"))
             return;
 
         if (entry.classList.contains(TimeCellClass))
@@ -277,15 +323,15 @@ export class TemporalPickerEngine {
 
     /** The day under the pointer takes the keyboard's while the calendar holds the focus, as a native list's entry does. */
     private followPointer(picker: HTMLElement, day: HTMLElement): void {
-        const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
+        const surface = surfaceOf(picker);
         const moment = parseCanonical(day.getAttribute(DayAttribute) ?? "", "date");
 
-        if (popup === null || moment === null || !popup.contains(document.activeElement))
+        if (surface === null || moment === null || !surface.contains(document.activeElement))
             return;
 
         // So no day under a resting pointer is lit beside the keyboard's.
         this.getState(picker).focusedDay = moment;
-        applyRovingTabIndex([...popup.querySelectorAll<HTMLElement>(`.${DayClass}`)], day);
+        applyRovingTabIndex([...surface.querySelectorAll<HTMLElement>(`.${DayClass}`)], day);
         focusByPointer(day);
     }
 
@@ -311,9 +357,9 @@ export class TemporalPickerEngine {
             return;
         }
 
-        const picker = domEvent.target.closest<HTMLElement>(`.${PopupClass}`)?.closest<HTMLElement>(`.${RootClass}`);
+        const picker = this.calendarFor(domEvent.target);
 
-        if (picker === null || picker === undefined)
+        if (picker === null)
             return;
 
         const action = domEvent.target.closest<HTMLElement>(`[${NavAttribute}]`);
@@ -348,24 +394,13 @@ export class TemporalPickerEngine {
     private applyNavigation(picker: HTMLElement, action: string): void {
         const state = this.getState(picker);
 
-        // The month pane sends its selection as a parameterized action rather than one action per month.
-        if (action.startsWith("month:")) {
-            state.view = localDate(state.view.getFullYear(), Number(action.slice("month:".length)), 1);
-            state.pane = "days";
-            this.renderPopup(picker);
+        if (navigateCalendar(picker, state, action)) {
+            this.renderSurface(picker);
             return;
         }
 
+        // The rest is the popup's footer's.
         switch (action) {
-            case "previous":
-                state.view = addMonths(state.view, state.pane === "months" ? -12 : -1);
-                break;
-            case "next":
-                state.view = addMonths(state.view, state.pane === "months" ? 12 : 1);
-                break;
-            case "pane":
-                state.pane = state.pane === "days" ? "months" : "days";
-                break;
             case "now":
                 state.choosingEnd = false;
                 this.commit(picker, defaultMoment(picker), state.activeEnd === "end");
@@ -387,49 +422,35 @@ export class TemporalPickerEngine {
             default:
                 return;
         }
-
-        this.renderPopup(picker);
     }
 
     private chooseDay(picker: HTMLElement, canonicalDay: string): void {
         const day = parseCanonical(canonicalDay, "date");
 
-        if (day === null)
+        // A calendar in place the reader may not change still pages, and a popup does not open on one at all; a day the grid draws
+        // disabled takes no press from anything.
+        if (day === null || isReadOnly(picker) || isInert(picker) || !isDayOffered(readDayOffer(picker), canonicalDay))
             return;
 
         const state = this.getState(picker);
 
-        if (isRange(picker)) {
-            this.choosePeriodDay(picker, state, day);
-            return;
-        }
+        // A calendar in place has no fields to say which end comes next: once its period is whole, a press starts the next one.
+        if (isInline(picker) && isRange(picker) && !state.choosingEnd && readValueOf(picker, false) !== null && readValueOf(picker, true) !== null)
+            state.activeEnd = "start";
 
-        const current = readValue(picker) ?? defaultMoment(picker);
-        const next = localDate(day.getFullYear(), day.getMonth(), day.getDate(), current.getHours(), current.getMinutes(), current.getSeconds());
+        const start = valueInputOf(picker, false);
+        const before = `${start?.value ?? ""}|${valueInputOf(picker, true)?.value ?? ""}`;
 
-        state.focusedDay = next;
-        // A day picked from the fringe of the grid belongs to the month beside it, and the grid turns to that month.
-        state.view = startOfMonth(next);
         // Nothing closes here, in any mode: the popup goes with Done or a press outside, so a mis-picked day is one press from the right one.
-        this.commit(picker, next);
-    }
+        chooseCalendarDay(picker, state, day);
 
-    /** One calendar for both ends: the first click is the start, the second the end, and the clock edits whichever was set last. */
-    private choosePeriodDay(picker: HTMLElement, state: PickerState, day: Date): void {
-        const seeded = defaultMoment(picker);
-        const choice = choosePeriodDay({ start: readValueOf(picker, false), end: readValueOf(picker, true) }, state.activeEnd, withTimeOf(day, seeded));
+        // In place, a press is the choice itself: the day already chosen raises the change too, so a command hung on it runs — a dialog
+        // that opens on the day it would jump to. The popup's field has nothing new to say.
+        if (isInline(picker) && `${start?.value ?? ""}|${valueInputOf(picker, true)?.value ?? ""}` === before)
+            start?.dispatchEvent(new Event("change", { bubbles: true }));
 
-        state.focusedDay = choice.end ?? choice.start;
-        state.view = startOfMonth(day);
-        state.activeEnd = choice.active;
-        state.choosingEnd = !choice.complete;
-        state.hoverDay = null;
-
-        // The end first: writing a start past the old end would show an inverted period for a change set.
-        writeValueOf(picker, choice.end, true);
-        writeValueOf(picker, choice.start, false);
         this.applyDisplay([picker]);
-        this.renderPopup(picker);
+        this.renderSurface(picker);
     }
 
     private chooseTime(picker: HTMLElement, unit: TimeUnit, cellValue: number): void {
@@ -455,8 +476,8 @@ export class TemporalPickerEngine {
         orderPeriod(picker);
         this.applyDisplay([picker]);
 
-        if (picker === this.openPicker)
-            this.renderPopup(picker);
+        if (this.isShowing(picker))
+            this.renderSurface(picker);
     }
 
     private handleKeydown(domEvent: Event): void {
@@ -470,10 +491,10 @@ export class TemporalPickerEngine {
             return;
         }
 
-        if (this.openPicker === null)
-            return;
+        const picker = this.calendarFor(domEvent.target);
 
-        const picker = this.openPicker;
+        if (picker === null)
+            return;
 
         if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TimeCellClass)) {
             applyTimeColumnKey(domEvent);
@@ -494,7 +515,7 @@ export class TemporalPickerEngine {
             return;
         }
 
-        const moved = moveByKey(focused, domEvent.key, readFirstDay(picker));
+        const moved = moveByKey(picker, focused, domEvent.key);
 
         if (moved === null)
             return;
@@ -505,7 +526,7 @@ export class TemporalPickerEngine {
         state.focusedDay = moved;
         state.view = startOfMonth(moved);
 
-        this.renderPopup(picker, true);
+        this.renderSurface(picker, true);
     }
 
     private handleColumnScroll(domEvent: Event): void {
@@ -629,11 +650,11 @@ export class TemporalPickerEngine {
         this.popups.close();
     }
 
-    private getState(picker: HTMLElement): PickerState {
+    private getState(picker: HTMLElement): CalendarState {
         let state = this.states.get(picker);
 
         if (state === undefined) {
-            state = { view: startOfMonth(readValue(picker) ?? new Date()), pane: "days", focusedDay: readValue(picker), activeEnd: "start", hoverDay: null, choosingEnd: false };
+            state = createCalendarState(picker);
             this.states.set(picker, state);
         }
 
@@ -641,12 +662,13 @@ export class TemporalPickerEngine {
     }
 
     // Rebuilt from browsing state on every change, so the disabled/selected marks are derived rather than patched.
-    private renderPopup(picker: HTMLElement, moveFocus = false): void {
-        const popup = picker.querySelector<HTMLElement>(`.${PopupClass}`);
+    private renderSurface(picker: HTMLElement, moveFocus = false): void {
+        const surface = surfaceOf(picker);
 
-        if (popup === null)
+        if (surface === null)
             return;
 
+        const inline = isInline(picker);
         const mode = readMode(picker);
         const state = this.getState(picker);
         const culture = readCulturePack(picker);
@@ -654,134 +676,70 @@ export class TemporalPickerEngine {
         const value = readValueOf(picker, range && state.activeEnd === "end");
 
         // The rebuild throws away the focused element, so what it was is remembered; anything else lands on the calendar's day.
-        const focusedUnit = activeTimeUnit(popup);
-        const focusedNav = activeNavAction(popup);
-        const focusWasInside = popup.contains(document.activeElement);
+        const focusedUnit = activeTimeUnit(surface);
+        const focusedNav = activeNavAction(surface);
+        const focusWasInside = surface.contains(document.activeElement);
 
-        popup.replaceChildren();
+        surface.replaceChildren();
 
         // A period says which end the next click sets, above the calendar.
         if (range)
-            popup.append(renderPeriodCaption(state));
+            surface.append(renderPeriodCaption(state));
 
-        // The panes go in their own box: as a sibling of them the footer counted into the popup's shrink-to-fit width.
-        const panes = element("div", `${RootClass}__panes`);
+        if (inline) {
+            // The grid alone: a press on a day is the choice, so there is nothing to finish and no clock beside it.
+            surface.append(renderCalendar(picker, state, culture, value));
+        } else {
+            // The panes go in their own box: as a sibling of them the footer counted into the popup's shrink-to-fit width.
+            const panes = element("div", `${RootClass}__panes`);
 
-        // The clock goes to the right of the calendar; only DateInput and DateTimeInput reach the popup at all.
-        panes.append(renderCalendar(picker, state, culture, value));
+            // The clock goes to the right of the calendar; only DateInput and DateTimeInput reach the popup at all.
+            panes.append(renderCalendar(picker, state, culture, value));
 
-        if (mode === "date-time")
-            panes.append(renderTimePane(picker, value));
+            if (mode === "date-time")
+                panes.append(renderTimePane(picker, value));
 
-        popup.append(panes, renderFooter(mode));
+            surface.append(panes, renderFooter(mode));
+        }
 
-        // A month chosen from the month pane is gone after the rebuild, so its focus falls to the day like any other.
-        const navTarget = focusedNav === null ? null : popup.querySelector<HTMLElement>(`[${NavAttribute}="${CSS.escape(focusedNav)}"]`);
+        // A month chosen from the month pane is gone after the rebuild, and a page button that reached a bound is disabled, so the focus
+        // of either falls to the day like any other.
+        const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${NavAttribute}="${CSS.escape(focusedNav)}"]:not(:disabled)`);
 
-        applyRovingDay(popup, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
+        applyRovingDay(surface, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
         applyPeriodPreview(picker, state);
-        fitTimeColumns(popup);
-        centreTimeColumns(popup);
-        restoreTimeFocus(popup, focusedUnit);
+
+        if (!inline) {
+            fitTimeColumns(surface);
+            centreTimeColumns(surface);
+            restoreTimeFocus(surface, focusedUnit);
+        }
 
         if (navTarget !== null)
             focusAsLastInput(navTarget);
 
         // Re-placed after every render: the height changes between panes, and a fixed popup does not re-lay-out.
-        this.popups.reposition(picker);
+        if (!inline)
+            this.popups.reposition(picker);
     }
 }
 
-function renderCalendar(picker: HTMLElement, state: PickerState, culture: TemporalCulturePack, value: Date | null): HTMLElement {
-    const calendar = element("div", `${RootClass}__calendar`);
-    const header = element("div", `${RootClass}__calendar-header`);
-
-    header.append(navButton("previous", "‹", clientStrings.text("ui.picker.previous")));
-
-    const label = navButton("pane", state.pane === "days" ? `${culture.monthNames[state.view.getMonth()]} ${state.view.getFullYear()}` : String(state.view.getFullYear()));
-    label.classList.add(`${RootClass}__calendar-label`);
-    header.append(label);
-
-    header.append(navButton("next", "›", clientStrings.text("ui.picker.next")));
-    calendar.append(header);
-
-    calendar.append(state.pane === "days"
-        ? renderDayGrid(picker, state, culture, value)
-        : renderMonthGrid(state, culture));
-
-    return calendar;
+/** Whether a root is a calendar drawn in place rather than a temporal input's. */
+function isInline(picker: HTMLElement): boolean {
+    return picker.classList.contains(CalendarRootClass);
 }
 
-function renderDayGrid(picker: HTMLElement, state: PickerState, culture: TemporalCulturePack, value: Date | null): HTMLElement {
-    const firstDay = readFirstDay(picker);
-    const weekdays = element("div", `${RootClass}__weekdays`);
-
-    for (let offset = 0; offset < 7; offset++) {
-        const weekday = element("span", `${RootClass}__weekday`);
-        weekday.textContent = culture.abbreviatedDayNames[(firstDay + offset) % 7];
-        weekdays.append(weekday);
-    }
-
-    const grid = element("div", `${RootClass}__days`);
-    const today = startOfDay(new Date());
-    const range = isRange(picker);
-    // A period marks both ends and tints the days between them; a single value marks its one day.
-    const periodStart = range ? readValueOf(picker, false) : value;
-    const periodEnd = range ? readValueOf(picker, true) : null;
-    const start = startOfGrid(state.view, firstDay);
-
-    for (let index = 0; index < 42; index++) {
-        const day = addDays(start, index);
-        const cell = element("button", DayClass);
-
-        cell.type = "button";
-        cell.tabIndex = -1;
-        cell.textContent = String(day.getDate());
-        cell.setAttribute(DayAttribute, toCanonical(day, "date"));
-
-        if (day.getMonth() !== state.view.getMonth())
-            cell.classList.add(`${DayClass}--outside`);
-
-        if (isSameDay(day, today))
-            cell.classList.add(`${DayClass}--today`);
-
-        if ((periodStart !== null && isSameDay(day, periodStart)) || (periodEnd !== null && isSameDay(day, periodEnd))) {
-            cell.classList.add(`${DayClass}--selected`);
-            cell.setAttribute("aria-selected", "true");
-        }
-
-        if (isWithinChosenPeriod(day, { start: periodStart, end: periodEnd }, state.choosingEnd))
-            cell.classList.add(`${DayClass}--within`);
-
-        if (isDayDisabled(picker, day))
-            cell.disabled = true;
-
-        grid.append(cell);
-    }
-
-    const pane = element("div", `${RootClass}__calendar-pane`);
-    pane.append(weekdays, grid);
-
-    return pane;
+/** Where a picker's grid is drawn: a calendar's body, or a temporal input's popup. */
+function surfaceOf(picker: HTMLElement): HTMLElement | null {
+    return picker.querySelector<HTMLElement>(`.${isInline(picker) ? CalendarBodyClass : PopupClass}`);
 }
 
-function renderMonthGrid(state: PickerState, culture: TemporalCulturePack): HTMLElement {
-    const grid = element("div", `${RootClass}__months`);
+/** A typed day that is none of the marked days, where only those are on offer. */
+function isUnmarkedDay(picker: HTMLElement, canonical: string): boolean {
+    const offer = readDayOffer(picker);
+    const day = offer.markedOnly ? parseCanonical(canonical, readMode(picker)) : null;
 
-    for (let month = 0; month < 12; month++) {
-        const cell = element("button", MonthClass);
-
-        cell.type = "button";
-        cell.textContent = culture.abbreviatedMonthNames[month];
-        cell.setAttribute(NavAttribute, `month:${month}`);
-
-        if (month === state.view.getMonth())
-            cell.classList.add(`${MonthClass}--selected`);
-
-        grid.append(cell);
-    }
-
-    return grid;
+    return day !== null && !offer.marked.has(toCanonical(day, "date"));
 }
 
 /** Every unit at once, one scrolling column each, scrolled to what is chosen. */
@@ -837,11 +795,13 @@ function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number
         cell.tabIndex = -1;
         cell.textContent = unit === "hour" ? hourLabel(candidate, twelveHour, culture) : String(candidate).padStart(2, "0");
         cell.setAttribute(CellValueAttribute, String(candidate));
+        // A column is a list of readings with one chosen, the keyboard moving between them: its entries are options, each saying
+        // whether it is the chosen one, as a button with `aria-selected` could not.
+        cell.setAttribute("role", "option");
+        cell.setAttribute("aria-selected", candidate === current ? "true" : "false");
 
-        if (candidate === current) {
+        if (candidate === current)
             cell.classList.add(`${TimeCellClass}--selected`);
-            cell.setAttribute("aria-selected", "true");
-        }
 
         if (isTimeCellDisabled(picker, unit, candidate, value))
             cell.disabled = true;
@@ -912,20 +872,20 @@ function centredTimeCell(column: HTMLElement): HTMLElement | null {
 }
 
 /** Which clock column holds focus, read before a rebuild throws its cells away. */
-function activeTimeUnit(popup: HTMLElement): string | null {
+function activeTimeUnit(surface: HTMLElement): string | null {
     const active = document.activeElement;
 
-    if (!(active instanceof HTMLElement) || !popup.contains(active) || !active.classList.contains(TimeCellClass))
+    if (!(active instanceof HTMLElement) || !surface.contains(active) || !active.classList.contains(TimeCellClass))
         return null;
 
     return active.closest<HTMLElement>(`.${TimeColumnClass}`)?.getAttribute(UnitAttribute) ?? null;
 }
 
 /** Which header or footer button holds focus, read before a rebuild throws it away. */
-function activeNavAction(popup: HTMLElement): string | null {
+function activeNavAction(surface: HTMLElement): string | null {
     const active = document.activeElement;
 
-    return active instanceof HTMLElement && popup.contains(active) ? active.getAttribute(NavAttribute) : null;
+    return active instanceof HTMLElement && surface.contains(active) ? active.getAttribute(NavAttribute) : null;
 }
 
 function restoreTimeFocus(popup: HTMLElement, unit: string | null): void {
@@ -952,28 +912,6 @@ function renderFooter(mode: TemporalMode): HTMLElement {
     return footer;
 }
 
-/** "Start" or "End": which end of the period the next click on the calendar sets. */
-function renderPeriodCaption(state: PickerState): HTMLElement {
-    const caption = element("div", `${RootClass}__period-caption`);
-
-    caption.textContent = clientStrings.text(state.activeEnd === "end" ? "ui.picker.end" : "ui.picker.start");
-
-    return caption;
-}
-
-/** Tints the days a click on the hovered day would take into the period: from the start up to the pointer, ahead of the click. */
-function applyPeriodPreview(picker: HTMLElement, state: PickerState): void {
-    const start = state.activeEnd === "end" && state.hoverDay !== null ? readValueOf(picker, false) : null;
-    const hover = state.hoverDay;
-
-    for (const cell of picker.querySelectorAll<HTMLElement>(`.${DayClass}`)) {
-        const day = parseCanonical(cell.getAttribute(DayAttribute) ?? "", "date");
-
-        cell.classList.toggle(`${DayClass}--preview`, day !== null && start !== null && hover !== null && isWithinPeriod(day, start, addDays(hover, 1)));
-    }
-}
-
-/** The field holding one end of a period, or the only field. */
 /** The letters a placeholder writes a format's units in, from the page's words; a word the table lacks keeps the format's letter. */
 function placeholderLetters(): TemporalLetters {
     return {
@@ -993,6 +931,7 @@ function placeholderLetter(key: ClientStringKey, fallback: string): string {
     return word === undefined || word.trim().length === 0 ? fallback : word;
 }
 
+/** The field holding one end of a period, or the only field. */
 function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
     for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
         if (isEndPart(field) === end)
@@ -1000,53 +939,6 @@ function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
     }
 
     return picker.querySelector<HTMLInputElement>(`.${FieldClass}`);
-}
-
-/** The day at the hour, minute and second another moment holds. */
-function withTimeOf(day: Date, timeOf: Date): Date {
-    return localDate(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
-}
-
-/** A glyph button says its name through `ariaLabel`; a word button is its own name. */
-function navButton(action: string, label: string, ariaLabel?: string): HTMLButtonElement {
-    const button = element("button", `${RootClass}__nav`);
-
-    button.type = "button";
-    button.textContent = label;
-    button.setAttribute(NavAttribute, action);
-
-    if (ariaLabel !== undefined)
-        button.setAttribute("aria-label", ariaLabel);
-
-    return button;
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string): HTMLElementTagNameMap[K] {
-    const created = document.createElement(tag);
-    created.className = className;
-
-    return created;
-}
-
-function applyRovingDay(popup: HTMLElement, state: PickerState, value: Date | null, moveFocus: boolean): void {
-    const cells = [...popup.querySelectorAll<HTMLButtonElement>(`.${DayClass}`)];
-
-    if (cells.length === 0)
-        return;
-
-    const target = state.focusedDay ?? value ?? new Date();
-    const canonical = toCanonical(startOfDay(target), "date");
-    const focused = cells.find(cell => cell.getAttribute(DayAttribute) === canonical && !cell.disabled)
-        ?? cells.find(cell => !cell.disabled);
-
-    if (focused === undefined)
-        return;
-
-    applyRovingTabIndex(cells, focused);
-
-    // A day the pointer chose is focused again as the pointer's, so the grid shows no keyboard mark for it.
-    if (moveFocus)
-        focusAsLastInput(focused);
 }
 
 /** The dial's cell under the pointer takes the keyboard's while a dial cell holds the focus, as a day does in the grid. */
@@ -1105,14 +997,6 @@ function scrollCellIntoColumn(cell: HTMLElement): void {
         centreCell(column, cell);
 }
 
-function isDayDisabled(picker: HTMLElement, day: Date): boolean {
-    const min = readBound(picker, MinAttribute);
-    const max = readBound(picker, MaxAttribute);
-
-    return (min !== null && day.getTime() < startOfDay(min).getTime())
-        || (max !== null && day.getTime() > startOfDay(max).getTime());
-}
-
 function isTimeCellDisabled(picker: HTMLElement, unit: TimeUnit, cellValue: number, value: Date | null): boolean {
     const min = readBound(picker, MinAttribute);
     const max = readBound(picker, MaxAttribute);
@@ -1142,53 +1026,4 @@ function isTimeCellDisabled(picker: HTMLElement, unit: TimeUnit, cellValue: numb
     }
 
     return (min !== null && upper.getTime() < min.getTime()) || (max !== null && lower.getTime() > max.getTime());
-}
-
-function readFirstDay(picker: HTMLElement): number {
-    const firstDay = Number(picker.getAttribute(FirstDayAttribute));
-
-    return Number.isInteger(firstDay) && firstDay >= 0 && firstDay <= 6 ? firstDay : 1;
-}
-
-/** The day a key moves to; Home and End are the ends of the row from the culture's first day of the week. */
-function moveByKey(day: Date, key: string, firstDay: number): Date | null {
-    const column = ((day.getDay() - firstDay) + 7) % 7;
-
-    switch (key) {
-        case "ArrowLeft": return addDays(day, -1);
-        case "ArrowRight": return addDays(day, 1);
-        case "ArrowUp": return addDays(day, -7);
-        case "ArrowDown": return addDays(day, 7);
-        case "PageUp": return addMonths(day, -1);
-        case "PageDown": return addMonths(day, 1);
-        case "Home": return addDays(day, -column);
-        case "End": return addDays(day, 6 - column);
-        default: return null;
-    }
-}
-
-function startOfMonth(value: Date): Date {
-    return localDate(value.getFullYear(), value.getMonth(), 1);
-}
-
-function startOfGrid(view: Date, firstDay: number): Date {
-    const first = startOfMonth(view);
-
-    return addDays(first, -(((first.getDay() - firstDay) + 7) % 7));
-}
-
-function addDays(value: Date, days: number): Date {
-    return localDate(value.getFullYear(), value.getMonth(), value.getDate() + days, value.getHours(), value.getMinutes(), value.getSeconds());
-}
-
-function addMonths(value: Date, months: number): Date {
-    // Clamped to the target month's length: Date would roll 31 January + 1 month over into March.
-    const target = localDate(value.getFullYear(), value.getMonth() + months, 1);
-    const lastDay = localDate(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-
-    return localDate(target.getFullYear(), target.getMonth(), Math.min(value.getDate(), lastDay), value.getHours(), value.getMinutes(), value.getSeconds());
-}
-
-function isSameDay(left: Date, right: Date): boolean {
-    return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
 }

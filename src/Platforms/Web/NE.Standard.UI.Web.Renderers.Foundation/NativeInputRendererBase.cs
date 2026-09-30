@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -156,6 +157,25 @@ public static class NativeInputRendererBase
             if (value > 0)
                 _ = target.Attribute(WebAttributes.FileMaxSize, value.Value.ToString(CultureInfo.InvariantCulture));
         }, MaxFileSizeOperations);
+    }
+
+    /// <summary>The component whose dropped and pasted files the input takes, as the id it is found by on the page; render-time only.</summary>
+    /// <exception cref="InvalidOperationException">The view has no component of that id.</exception>
+    public static void RenderDropTargetId(WebRenderContext context, IHtmlElementBuilder root, UIProperty dropTargetIdProperty)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, dropTargetIdProperty, out string? dropTarget, out _);
+
+        if (string.IsNullOrWhiteSpace(dropTarget))
+            return;
+
+        // A misspelled id would leave the composer silently taking nothing: said at once, as a misspelled effect target is.
+        if (!context.ViewResolution.View.Graph.TryGetComponentId(dropTarget, out UIComponentId target))
+            throw new InvalidOperationException($"DropTargetId names component '{dropTarget}', which the view does not have.");
+
+        _ = root.Attribute(WebAttributes.FileDropTargetId, target.Value.ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>The native file picker, present but hidden: only a real file input opens the OS dialog, and a control's own press is what is used.</summary>

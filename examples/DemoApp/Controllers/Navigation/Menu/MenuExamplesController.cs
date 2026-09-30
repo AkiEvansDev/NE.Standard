@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Navigation.Menu;
@@ -146,7 +148,7 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
         foreach (MenuItem other in select.Items)
         {
             if (other.Checked == true && other.Id != AllRegionsId)
-                chosen.Add(other.Title ?? other.Id);
+                chosen.Add(other.Title?.ToString() ?? other.Id);
         }
 
         if (chosen.Count == 0)
@@ -209,6 +211,8 @@ internal sealed partial class SidebarGroupContext : DemoGroupContext
         return
         [
             new MenuItem { Id = "/", Title = "Home", Icon = DemoIcons.Outline(DemoIcons.Home), Url = "/" },
+            // A count on a top-level entry: folded, the badge stands on the icon's corner.
+            new MenuItem { Id = "/screens/inbox", Title = "Inbox", Icon = DemoIcons.Outline(DemoIcons.Mail), Url = "/screens/inbox", BadgeText = "4", BadgeStyle = UIBadgeType.Primary },
             layouts,
             navigation,
             inputs
@@ -216,8 +220,171 @@ internal sealed partial class SidebarGroupContext : DemoGroupContext
     }
 }
 
+/// <summary>
+/// A messenger's folder rail: a count on Chat, a label too long for the rail, a dot on Profile, a group of two, and the current
+/// entry the controller moves.
+/// </summary>
+/// <remarks>Three rails show the same entries, so a push lands on each at once.</remarks>
+internal sealed partial class RailGroupContext : DemoGroupContext
+{
+    private static readonly string[] Order = ["chat", "archive", "profile", "admin/people", "admin/audit"];
+
+    private int _unread = 19;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<MenuItem> Entries { get; } = [.. CreateEntries()];
+
+    private static MenuItem[] CreateEntries()
+    {
+        MenuItem admin = new() { Id = "admin", Title = "Administration", Icon = DemoIcons.Outline(DemoIcons.Admin) };
+
+        admin.Items.Add(new MenuItem { Id = "admin/people", Title = "People", Icon = DemoIcons.Outline(DemoIcons.Groups) });
+        admin.Items.Add(new MenuItem { Id = "admin/audit", Title = "Audit log", Icon = DemoIcons.Outline(DemoIcons.History) });
+
+        return
+        [
+            new MenuItem { Id = "chat", Title = "Chat", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), BadgeText = "19", BadgeStyle = UIBadgeType.Primary, Selected = true },
+            new MenuItem { Id = "archive", Title = "Archived conversations", Icon = DemoIcons.Outline(DemoIcons.Folder) },
+            // Empty, not null: a dot on the icon's corner, something new with nothing to count.
+            new MenuItem { Id = "profile", Title = "Profile", Icon = DemoIcons.Outline(DemoIcons.User), BadgeText = "" },
+            admin
+        ];
+    }
+
+    /// <summary>One more unread message on Chat.</summary>
+    public void PushCount()
+    {
+        _unread++;
+        Find("chat")!.BadgeText = _unread.ToString(CultureInfo.InvariantCulture);
+        LogEvent($"Chat has {_unread} unread");
+    }
+
+    /// <summary>The current mark moves to the next entry, into the group and out of it again.</summary>
+    public void MoveSelection()
+    {
+        var current = Array.FindIndex(Order, id => Find(id)?.Selected == true);
+
+        Select(Order[(current + 1) % Order.Length]);
+    }
+
+    /// <summary>Marks the entry as current and clears the rest, the group's sub-entries too.</summary>
+    public void Select(string id)
+    {
+        foreach (MenuItem entry in Entries)
+        {
+            entry.Selected = entry.Id == id;
+
+            foreach (MenuItem child in entry.Items)
+                child.Selected = child.Id == id;
+        }
+
+        LogEvent($"'{id}' is the current entry");
+    }
+
+    private MenuItem? Find(string id)
+    {
+        foreach (MenuItem entry in Entries)
+        {
+            if (entry.Id == id)
+                return entry;
+
+            foreach (MenuItem child in entry.Items)
+            {
+                if (child.Id == id)
+                    return child;
+            }
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// A messenger's contact list: each name over the conversation's last words and when they came, the unread count as the badge.
+/// </summary>
+/// <remarks>
+/// The last words are a phrase: the words the person wrote as they are, and the moment in words, which the page keeps current and
+/// writes in its language.
+/// </remarks>
+internal sealed partial class ContactsGroupContext : DemoGroupContext
+{
+    private const string Said = "demo.navigation.menu.contact.said";
+
+    private int _pushed;
+    private int _robinUnread = 5;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<MenuItem> Contacts { get; } = [.. CreateContacts(DateTimeOffset.UtcNow)];
+
+    private static MenuItem[] CreateContacts(DateTimeOffset now)
+        =>
+        [
+            CreateContact("grace", "Grace Kim", "I'll watch the disk until the resize lands.", now.AddMinutes(-2), "2", selected: true),
+            CreateContact("alex", "Alex Warren", "The queue drained in two minutes.", now.AddMinutes(-47), null),
+            CreateContact("robin", "Robin Hale", "See you at eight", now.AddHours(-26), "5")
+        ];
+
+    // The person's name and words are theirs, never a key: IsContent keeps them as written.
+    private static MenuItem CreateContact(string id, string name, string words, DateTimeOffset at, string? unread, bool selected = false)
+        => new()
+        {
+            Id = id,
+            Title = name,
+            Icon = DemoIcons.Outline(DemoIcons.UserRound),
+            Description = LastWords(words, at),
+            BadgeText = unread,
+            BadgeStyle = UIBadgeType.Primary,
+            Selected = selected,
+            IsContent = true
+        };
+
+    private static UIPhrase LastWords(string words, DateTimeOffset at)
+        => UIPhrase.Of(Said, ("words", words), ("at", new UIMoment(at, UITimestampFormat.Relative)));
+
+    /// <summary>A new message from Robin: new last words, just now, and one more unread.</summary>
+    public void PushMessage()
+    {
+        _pushed++;
+        _robinUnread++;
+
+        foreach (MenuItem contact in Contacts)
+        {
+            if (contact.Id != "robin")
+                continue;
+
+            contact.Description = LastWords(_pushed % 2 == 1 ? "Running late, start without me." : "On my way.", DateTimeOffset.UtcNow);
+            contact.BadgeText = _robinUnread.ToString(CultureInfo.InvariantCulture);
+        }
+
+        LogEvent("Robin wrote again");
+    }
+
+    /// <summary>Opening a conversation makes it current and reads it: its badge goes.</summary>
+    public void Open(string id)
+    {
+        foreach (MenuItem contact in Contacts)
+        {
+            contact.Selected = contact.Id == id;
+
+            if (contact.Id == id)
+                contact.BadgeText = null;
+        }
+
+        if (id == "robin")
+            _robinUnread = 0;
+
+        LogEvent($"the conversation with '{id}' is open");
+    }
+}
+
 internal sealed partial class MenuExamplesController() : DemoController
 {
+    [RecursiveMember]
+    public partial RailGroupContext RailGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial ContactsGroupContext ContactsGroup { get; set; } = new();
+
     [RecursiveMember]
     public partial SidebarGroupContext SidebarGroup { get; set; } = new();
 
@@ -256,6 +423,26 @@ internal sealed partial class MenuExamplesController() : DemoController
     [UICommand]
     public void AddSection()
         => SidebarGroup.AddSection();
+
+    [UICommand]
+    public void SelectRailEntry(string id)
+        => RailGroup.Select(id);
+
+    [UICommand]
+    public void PushRailCount()
+        => RailGroup.PushCount();
+
+    [UICommand]
+    public void MoveRailSelection()
+        => RailGroup.MoveSelection();
+
+    [UICommand]
+    public void OpenContact(string id)
+        => ContactsGroup.Open(id);
+
+    [UICommand]
+    public void PushContactMessage()
+        => ContactsGroup.PushMessage();
 
     /// <summary>
     /// Reached by a click or by the entry's shortcut, which the command cannot tell apart.

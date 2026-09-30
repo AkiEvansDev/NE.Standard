@@ -106,16 +106,48 @@ public static class WebDomConverters
     /// <summary>A tab menu's chosen entries as the tokens <c>WebClassNames.TabMenuEntries</c> writes; none removes the attribute.</summary>
     public const string TabMenuEntriesAttribute = "tabMenuEntriesAttribute";
 
+    /// <summary>A set of days as the space-separated <c>yyyy-MM-dd</c> tokens <c>WebTemporalFormat.Days</c> writes; none removes the attribute.</summary>
+    public const string MarkedDaysAttribute = "markedDaysAttribute";
+
     public const string ResponsiveLayoutLengthBaseCss = "responsiveLayoutLengthBaseCss";
     public const string ResponsiveLayoutLengthSmCss = "responsiveLayoutLengthSmCss";
     public const string ResponsiveLayoutLengthMdCss = "responsiveLayoutLengthMdCss";
     public const string ResponsiveLayoutLengthXlCss = "responsiveLayoutLengthXlCss";
     public const string ResponsiveLayoutLengthXxlCss = "responsiveLayoutLengthXxlCss";
+
+    /// <summary>A component's width tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins across.</summary>
+    public const string ResponsiveWidthBaseCss = "responsiveWidthBaseCss";
+    public const string ResponsiveWidthSmCss = "responsiveWidthSmCss";
+    public const string ResponsiveWidthMdCss = "responsiveWidthMdCss";
+    public const string ResponsiveWidthXlCss = "responsiveWidthXlCss";
+    public const string ResponsiveWidthXxlCss = "responsiveWidthXxlCss";
+
+    /// <summary>A component's height tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins down.</summary>
+    public const string ResponsiveHeightBaseCss = "responsiveHeightBaseCss";
+    public const string ResponsiveHeightSmCss = "responsiveHeightSmCss";
+    public const string ResponsiveHeightMdCss = "responsiveHeightMdCss";
+    public const string ResponsiveHeightXlCss = "responsiveHeightXlCss";
+    public const string ResponsiveHeightXxlCss = "responsiveHeightXxlCss";
+
     public const string ResponsiveThicknessBaseCss = "responsiveThicknessBaseCss";
     public const string ResponsiveThicknessSmCss = "responsiveThicknessSmCss";
     public const string ResponsiveThicknessMdCss = "responsiveThicknessMdCss";
     public const string ResponsiveThicknessXlCss = "responsiveThicknessXlCss";
     public const string ResponsiveThicknessXxlCss = "responsiveThicknessXxlCss";
+
+    /// <summary>A margin tier's left and right summed (<c>WebCssValues.ThicknessSum</c>), what a <c>Fill</c> width leaves out.</summary>
+    public const string ResponsiveThicknessHorizontalBaseCss = "responsiveThicknessHorizontalBaseCss";
+    public const string ResponsiveThicknessHorizontalSmCss = "responsiveThicknessHorizontalSmCss";
+    public const string ResponsiveThicknessHorizontalMdCss = "responsiveThicknessHorizontalMdCss";
+    public const string ResponsiveThicknessHorizontalXlCss = "responsiveThicknessHorizontalXlCss";
+    public const string ResponsiveThicknessHorizontalXxlCss = "responsiveThicknessHorizontalXxlCss";
+
+    /// <summary>A margin tier's top and bottom summed (<c>WebCssValues.ThicknessSum</c>), what a <c>Fill</c> height leaves out.</summary>
+    public const string ResponsiveThicknessVerticalBaseCss = "responsiveThicknessVerticalBaseCss";
+    public const string ResponsiveThicknessVerticalSmCss = "responsiveThicknessVerticalSmCss";
+    public const string ResponsiveThicknessVerticalMdCss = "responsiveThicknessVerticalMdCss";
+    public const string ResponsiveThicknessVerticalXlCss = "responsiveThicknessVerticalXlCss";
+    public const string ResponsiveThicknessVerticalXxlCss = "responsiveThicknessVerticalXxlCss";
     public const string ResponsivePixelsBaseCss = "responsivePixelsBaseCss";
     public const string ResponsivePixelsSmCss = "responsivePixelsSmCss";
     public const string ResponsivePixelsMdCss = "responsivePixelsMdCss";

@@ -27,6 +27,18 @@ public static class UIColorContrast
         return RelativeLuminance(Over(color.R, alpha), Over(color.G, alpha), Over(color.B, alpha)) > Threshold;
     }
 
+    /// <summary>The WCAG contrast ratio of two colours, from 1 (the same) to 21 (black on white); opacity is not weighed.</summary>
+    public static double Ratio(ColorVariant first, ColorVariant second)
+    {
+        var a = RelativeLuminance(first.ToColor());
+        var b = RelativeLuminance(second.ToColor());
+
+        return (System.Math.Max(a, b) + 0.05) / (System.Math.Min(a, b) + 0.05);
+    }
+
+    private static double RelativeLuminance(System.Drawing.Color color)
+        => RelativeLuminance(color.R, color.G, color.B);
+
     private static double Over(byte channel, double alpha)
         => (channel * alpha) + (255 * (1 - alpha));
 

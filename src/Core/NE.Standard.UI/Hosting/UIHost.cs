@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
@@ -59,6 +60,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         [LoggerMessage(EventId = 25, Level = LogLevel.Warning, Message = "Disposing the runtime of route '{Route}' failed; the others go on being disposed.")]
         public static partial void RuntimeDisposeFailed(ILogger logger, Exception exception, string route);
+
+        [LoggerMessage(EventId = 26, Level = LogLevel.Debug, Message = "Switching connection '{InstanceId}' to its session's new language or theme failed; it follows at its next render.")]
+        public static partial void SessionReachFailed(ILogger logger, Exception exception, string instanceId);
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "UI view resolution failed for route '{Route}'.")]
         public static partial void ViewResolutionFailed(ILogger logger, Exception exception, string route);
@@ -428,24 +432,30 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     private static IUserSessionContext WithTimeZone(IUserSessionContext session, string? timeZone)
         => string.Equals(session.TimeZone, timeZone, StringComparison.Ordinal)
             ? session
-            : new UserSessionContext(session.SessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions, timeZone);
+            : UserSessionContext.Copy(session.SessionId, session, session.Language, session.ThemeMode, timeZone, session.ThemeColors);
 
     /// <summary>
     /// The session as the store holds it now, where the stock resolver only echoed an earlier read of it: a role revoked or a
     /// language picked since stands. The identity a host's principal brings, and whatever a resolver of the application's own
-    /// answered, are the request's.
+    /// answered, are the request's; the reader's colours are always the store's, which no resolver is asked about.
     /// </summary>
     private IUserSessionContext AsStoredNow(IUserSessionContext session, UserSessionState stored)
     {
         if (_sessionResolver is not StoredUserSessionResolver)
-            return session;
+            return WithThemeColors(session, stored.ThemeColors);
 
         var claims = _application.Security.IdentitySource == UIIdentitySource.Claims;
 
         return claims
-            ? new UserSessionContext(session.SessionId, stored.Language, stored.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions, stored.TimeZone)
+            ? UserSessionContext.Copy(session.SessionId, session, stored.Language, stored.ThemeMode, stored.TimeZone, stored.ThemeColors)
             : UserSessionContext.WithSessionId(stored, session.SessionId);
     }
+
+    /// <summary>The session in the reader's colours, the very one where it already is in them.</summary>
+    private static IUserSessionContext WithThemeColors(IUserSessionContext session, UIThemeColors? colors)
+        => Equals(session.ThemeColors, colors)
+            ? session
+            : UserSessionContext.Copy(session.SessionId, session, session.Language, session.ThemeMode, session.TimeZone, colors);
 
     private static UserSessionState ToStoredSession(IUserSessionContext session, UserSessionState? stored, UIViewRequestPhase phase, DateTime utcNow)
         => new()
@@ -453,6 +463,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             SessionId = session.SessionId,
             Language = session.Language,
             ThemeMode = session.ThemeMode,
+            ThemeColors = session.ThemeColors,
             TimeZone = session.TimeZone,
             IsAuthenticated = session.IsAuthenticated,
             UserId = session.UserId,
@@ -1031,6 +1042,35 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         updater.UpdateConnection(handle, ResolveClientServices());
     }
 
+    /// <summary>
+    /// Tells a kept runtime a page render is about to paint what moved in its session since it last heard, as a command runs, so the
+    /// paint is already in it; one that heard it all is left alone.
+    /// </summary>
+    /// <remarks>
+    /// The render's own connection is the hook's handle, as it is for a render that builds a runtime: no tab, so what the hook
+    /// sends goes nowhere, while what it writes is what the render reads.
+    /// </remarks>
+    internal static Task HearBeforeRenderAsync(IUIRuntime runtime, UIViewResolution resolution, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(resolution);
+
+        if (runtime is not IUIRuntimeConnectionUpdater updater || !updater.HasSessionMoved(resolution.Session))
+            return Task.CompletedTask;
+
+        var pageId = Guid.NewGuid().ToString("N");
+
+        UIInstance instance = new()
+        {
+            Id = pageId,
+            WindowId = pageId,
+            Navigation = resolution.Navigation,
+            PageId = pageId
+        };
+
+        return updater.NotifySessionChangedAsync(new UIHandle(instance, resolution.Session, resolution.Connection), cancellationToken);
+    }
+
     /// <inheritdoc />
     public IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution)
     {
@@ -1280,27 +1320,95 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     }
 
     /// <summary>
-    /// Makes a session the page itself stored (its language switcher) this connection's, and on a new language tells the
-    /// controller as a command runs; a page with no controller only has its handle refreshed.
+    /// Makes a session the page itself stored (its language or theme switcher, its colours) this connection's, tells its controller
+    /// what moved as a command runs, and reaches the session's other pages (<see cref="ReachSessionAsync"/>).
     /// </summary>
     /// <remarks>
     /// The hub's half of what <see cref="UIContext.UpdateSessionAsync"/> does inside a command, where the page, having asked,
-    /// switches itself: no effect is sent back.
+    /// switches itself: no effect is sent back to it.
     /// </remarks>
     internal async Task ApplySessionChangeAsync(UIHandle handle, UserSessionState session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(session);
 
-        var previousLanguage = handle.Session.Language;
+        IUserSessionContext previous = handle.Session;
 
         handle.RefreshSession(session);
 
-        if (string.Equals(previousLanguage, session.Language, StringComparison.Ordinal))
+        if (!UISessionMoves.Any(previous, session))
             return;
 
+        IUIRuntime? own = null;
+
         if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) && entry!.Runtime is IUIRuntimeConnectionUpdater updater)
-            await updater.NotifyLanguageChangedAsync(handle, previousLanguage, cancellationToken).ConfigureAwait(false);
+        {
+            own = entry.Runtime;
+
+            await updater.NotifySessionChangedAsync(handle, cancellationToken).ConfigureAwait(false);
+        }
+
+        await ReachSessionAsync(session, handle, own, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Brings every page open under a session's runtimes, but <paramref name="origin"/>, to the session as stored — its handle
+    /// refreshed and the effects that switch it sent — and tells each of those runtimes' controllers, but
+    /// <paramref name="originRuntime"/>'s, what moved, queued as a command runs.
+    /// </summary>
+    /// <remarks>
+    /// A runtime no page shows is told at its next attach, where its session is weighed against the one it last heard; a page with
+    /// no controller is not reached and follows at its next render. A send that fails leaves the rest to go.
+    /// </remarks>
+    internal async Task ReachSessionAsync(UserSessionState session, UIHandle? origin, IUIRuntime? originRuntime, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        UIRuntimeKey[] keys = RuntimeStore.GetSessionKeys(session.SessionId);
+        IUIUpdateSink? updates = null;
+
+        for (var i = 0; i < keys.Length; i++)
+        {
+            if (!RuntimeStore.TryGet(keys[i], out IUIRuntime? runtime) || runtime is not IUIRuntimeConnectionUpdater connections)
+                continue;
+
+            UIHandle? reached = null;
+
+            foreach (UIHandle viewer in connections.ViewerHandles)
+            {
+                if (origin is not null && StringComparer.Ordinal.Equals(viewer.Instance.Id, origin.Instance.Id))
+                    continue;
+
+                ClientEffect[] effects = UISessionMoves.Effects(viewer.Session, session);
+
+                viewer.RefreshSession(session);
+
+                // A page already in the session heard it with its runtime: whatever refreshed its handle told the controller too.
+                if (effects.Length == 0)
+                    continue;
+
+                reached ??= viewer;
+                updates ??= _services.GetRequiredService<IUIUpdateSink>();
+
+                UICommandExecutionResult result = new()
+                {
+                    Command = UICommandResult.Ok(effects),
+                    Changes = ServerChangeSet.Empty
+                };
+
+                try
+                {
+                    await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                {
+                    Log.SessionReachFailed(_logger, exception, viewer.Instance.Id);
+                }
+            }
+
+            if (reached is not null && !ReferenceEquals(runtime, originRuntime))
+                connections.PostSessionChanged(reached);
+        }
     }
 
     /// <inheritdoc />
@@ -1426,7 +1534,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
             // Read back rather than taken from the update, which a store may run more than once.
             if (await store.TryGetAsync(sessions[i], cancellationToken).ConfigureAwait(false) is UserSessionState current)
+            {
                 await EndRefusedRuntimesAsync(current).ConfigureAwait(false);
+                await ReachSessionAsync(current, origin: null, originRuntime: null, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return updated;

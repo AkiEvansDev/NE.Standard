@@ -357,6 +357,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         {
             ThemeMode = resolution.Session.ThemeMode,
             Theme = application.Theme,
+            ThemeColors = resolution.Session.ThemeColors,
             Assets = assets.Assets,
             Language = resolution.Session.Language,
             Title = TranslateTitle(application.Translator, resolution),

@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
@@ -19,9 +20,11 @@ public sealed class ServerValidationUIUpdate : ServerUIUpdate
     public required UIPropertyAddress Address { get; init; }
 
     /// <summary>
-    /// Gets the message to display, or <see langword="null"/> to clear a previously reported one.
+    /// Gets the message to display — the author's text or a key, travelling as a plain string, or a phrase — or
+    /// <see langword="null"/> to clear a previously reported one.
     /// </summary>
-    public string? Message { get; init; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public UIPhrase? Message { get; init; }
 
     /// <summary>
     /// Gets whether <see cref="Message"/> is the author's text the input marked content: the page shows it as written rather than

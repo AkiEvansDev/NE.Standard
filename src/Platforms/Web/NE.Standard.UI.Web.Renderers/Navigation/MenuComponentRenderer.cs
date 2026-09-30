@@ -26,6 +26,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     private const string ItemClassName = "ui-menu__item";
     private const string SubmenuClassName = "ui-menu__submenu";
     private const string NestedClassName = "ui-menu--nested";
+    private const string RailClassName = "ui-menu--rail";
     // The client's own half of RenderSubmenu, for a row it builds (`menu-row-decorator.ts`).
     private const string RowDecoratorKind = "menu";
 
@@ -50,6 +51,14 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (nested == true)
             _ = root.Class(NestedClassName);
 
+        // Render-time only: a rail is a shape of the page, drawn by the stylesheet and read by the group engine to fly its groups out.
+        _ = ResolveRenderValue(context, MenuComponent.DisplayProperty, out UIMenuDisplay? display, out _);
+
+        var rail = display == UIMenuDisplay.Rail;
+
+        if (rail)
+            _ = root.Class(RailClassName);
+
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
 
         if (search == true)
@@ -61,7 +70,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))
             _ = root.Attribute("role", "menu");
 
-        CollapsibleChromeRenderer.RenderCollapsible(context, root);
+        // A rail has nothing left to fold: no fold, no switch.
+        CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: !rail);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty);
 

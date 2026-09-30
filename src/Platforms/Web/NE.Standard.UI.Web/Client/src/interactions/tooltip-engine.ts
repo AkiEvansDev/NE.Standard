@@ -46,6 +46,25 @@ let hideTimer = 0;
 let lastHiddenAt = 0;
 let started = false;
 
+/**
+ * Words a part of the page speaks with where it wrote no tooltip of its own — a folded menu's hidden title, a rail's cut label: the
+ * element under the pointer or the focus that speaks through the provider, and its words as they stand (null or empty says nothing).
+ * The engine's own rules open and close them, as any tooltip's.
+ */
+export type TooltipWordsProvider = {
+    anchor(target: Element): Element | null;
+    words(anchor: Element): string | null;
+    /** The side the words take where the anchor names none (a rail's title beside it, toward the content); unset, the default. */
+    placement?(anchor: Element): AnchoredPopupPlacement | null;
+};
+
+const providers = new Set<TooltipWordsProvider>();
+
+/** Registers words for elements that write no tooltip; registering one provider twice keeps it once. */
+export function registerTooltipWords(provider: TooltipWordsProvider): void {
+    providers.add(provider);
+}
+
 export function startTooltips(root: ParentNode = document): void {
     if (started)
         return;
@@ -203,6 +222,21 @@ function findAnchor(target: EventTarget | null): Element | null {
     if (!(target instanceof Element))
         return null;
 
+    const own = findOwnAnchor(target);
+
+    // A provider's element inside the one with a tooltip of its own is nearer the reader and speaks first; a written tooltip on the
+    // element itself wins, which a provider is not asked about.
+    for (const provider of providers) {
+        const provided = provider.anchor(target);
+
+        if (provided !== null && (own === null || (own !== provided && own.contains(provided))) && providedWords(provided).length > 0)
+            return provided;
+    }
+
+    return own;
+}
+
+function findOwnAnchor(target: Element): Element | null {
     const element = target.closest(`[${TooltipAttribute}], [${MarkAttribute}]`);
 
     if (element === null)
@@ -215,6 +249,27 @@ function findAnchor(target: EventTarget | null): Element | null {
         return null;
 
     return (spoken.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? spoken : null;
+}
+
+/** An anchor's words: its own tooltip, else what a provider says for it. */
+function anchorWords(target: Element): string {
+    const own = (target.getAttribute(TooltipAttribute) ?? "").trim();
+
+    return own.length > 0 ? own : providedWords(target);
+}
+
+function providedWords(target: Element): string {
+    for (const provider of providers) {
+        if (provider.anchor(target) !== target)
+            continue;
+
+        const words = provider.words(target)?.trim() ?? "";
+
+        if (words.length > 0)
+            return words;
+    }
+
+    return "";
 }
 
 function schedule(target: Element, words?: string): void {
@@ -258,7 +313,7 @@ function schedule(target: Element, words?: string): void {
 }
 
 function show(target: Element, words?: string): void {
-    const text = (words ?? target.getAttribute(TooltipAttribute) ?? "").trim();
+    const text = (words ?? anchorWords(target)).trim();
 
     // A control scrolled out of its box (a field at the top of a dialog scrolled down) would have its words float outside the box.
     if (text.length === 0 || !target.isConnected || isOpen(target) || isClippedOut(target))
@@ -380,6 +435,17 @@ export function updateTooltip(element: Element): void {
 }
 
 function readPlacement(target: Element): AnchoredPopupPlacement {
+    // Words a provider speaks with take the side it names whenever they are the provider's (the anchor has no tooltip of its own):
+    // the anchor's placement attribute is its own tooltip's, written even at the default, so it is not asked first.
+    if ((target.getAttribute(TooltipAttribute) ?? "").trim().length === 0) {
+        for (const provider of providers) {
+            const placement = provider.anchor(target) === target ? provider.placement?.(target) ?? null : null;
+
+            if (placement !== null)
+                return placement;
+        }
+    }
+
     const token = target.getAttribute(PlacementAttribute);
 
     return token !== null && isAnchoredPopupPlacement(token) ? token : DefaultPlacement;

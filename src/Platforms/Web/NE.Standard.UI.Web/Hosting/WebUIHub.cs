@@ -11,6 +11,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
@@ -79,6 +80,18 @@ internal sealed partial class WebUIHub : Hub
     {
         /// <summary>The theme the document is now in: <c>light</c>, <c>dark</c>, or <c>auto</c>.</summary>
         public required string Theme { get; init; }
+    }
+
+    internal sealed class WebUISetThemeColorsRequest
+    {
+        /// <summary>The colours the page puts over the application's palette, or none for the application's.</summary>
+        public UIThemeColors? Colors { get; init; }
+    }
+
+    /// <summary>The stylesheet the reader's colours make, to follow the theme's; empty for the application's palette.</summary>
+    internal sealed class WebUIThemeColorsResult
+    {
+        public required string Css { get; init; }
     }
 
     internal sealed class WebUISetLanguageRequest
@@ -170,6 +183,12 @@ internal sealed partial class WebUIHub : Hub
 
         [LoggerMessage(EventId = 12, Level = LogLevel.Debug, Message = "Language '{Language}' was not stored: connection '{ConnectionId}' presented no stored session.")]
         public static partial void LanguageNotStored(ILogger logger, string language, string connectionId);
+
+        [LoggerMessage(EventId = 13, Level = LogLevel.Debug, Message = "Stored theme colours on connection '{ConnectionId}'s session.")]
+        public static partial void ThemeColorsStored(ILogger logger, string connectionId);
+
+        [LoggerMessage(EventId = 14, Level = LogLevel.Debug, Message = "Theme colours were not stored: connection '{ConnectionId}' presented no stored session.")]
+        public static partial void ThemeColorsNotStored(ILogger logger, string connectionId);
     }
 
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
@@ -342,16 +361,69 @@ internal sealed partial class WebUIHub : Hub
             return;
         }
 
-        var stored = await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
+        UserSessionState? written = await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
 
-        if (stored)
-            Log.ThemeStored(_logger, request.Theme, Context.ConnectionId);
+        if (written is null)
+            return;
+
+        Log.ThemeStored(_logger, request.Theme, Context.ConnectionId);
+
+        await ApplyStoredSessionAsync(written).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Makes a session the page stored its connection's — its controller told, where it has one — and reaches the session's other
+    /// pages, which follow as the page did.
+    /// </summary>
+    private async Task ApplyStoredSessionAsync(UserSessionState written)
+    {
+        if (_host is not UIHost host)
+            return;
+
+        if (Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle)
+            await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
+        else
+            await host.ReachSessionAsync(written, origin: null, originRuntime: null, Context.ConnectionAborted).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Records the colours the page moved to, so the next page render starts in them, and answers the stylesheet they make — the
+    /// one a render of the session carries.
+    /// </summary>
+    /// <remarks>Answered whether or not a session stored them: the page wears them for as long as it lives, as it does a theme.</remarks>
+    public async Task<WebUIThemeColorsResult> SetThemeColorsAsync(WebUISetThemeColorsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        request.Colors?.Validate();
+
+        HttpContext? http = Context.GetHttpContext();
+        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
+        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+            ? null
+            : await _sessions.SetThemeColorsAsync(sessionId, request.Colors, Context.ConnectionAborted).ConfigureAwait(false);
+
+        if (written is null)
+        {
+            Log.ThemeColorsNotStored(_logger, Context.ConnectionId);
+        }
+        else
+        {
+            Log.ThemeColorsStored(_logger, Context.ConnectionId);
+
+            await ApplyStoredSessionAsync(written).ConfigureAwait(false);
+        }
+
+        return new WebUIThemeColorsResult
+        {
+            Css = WebThemeColorsCss.For(_application.Theme, request.Colors)
+        };
     }
 
     /// <summary>Switches the session to a language the translator lists and answers where its words are.</summary>
     /// <remarks>
     /// The next page renders in it. With a controller, this page's session is refreshed and the controller told as a command would;
-    /// without one it switches all the same, as the theme does.
+    /// without one it switches all the same, as the theme does. Either way the session's other pages under a controller follow.
     /// </remarks>
     public async Task<WebUILanguageResult> SetLanguageAsync(WebUISetLanguageRequest request)
     {
@@ -378,8 +450,7 @@ internal sealed partial class WebUIHub : Hub
         {
             Log.LanguageStored(_logger, request.Language, Context.ConnectionId);
 
-            if (Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle && _host is UIHost host)
-                await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
+            await ApplyStoredSessionAsync(written).ConfigureAwait(false);
         }
 
         WebWordsAsset words = WebWordsEndpoint.Resolve(_application, request.Language, _packageStrings);

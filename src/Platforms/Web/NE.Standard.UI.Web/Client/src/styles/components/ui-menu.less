@@ -8,6 +8,17 @@
 
 // Collapsed, and not mid-slide: while collapsible-engine.ts folds the menu the open layout stays, clipped, so nothing jumps ahead of the edge.
 @ui-menu-collapsed: ~".ui-menu[data-ui-collapsed]:not([data-ui-folding])";
+// A collapsed menu's own entries, not those of the flyout that gives the titles back.
+@ui-menu-collapsed-entry: ~"@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *)";
+// A rail (UIMenuDisplay.Rail) never folds, but its groups fly out as a collapsed menu's do, and its captions are rules.
+@ui-menu-rail: ~".ui-menu--rail";
+// A rail's own entries: its direct rows, never a flyout's, which are a plain nested menu.
+@ui-menu-rail-entry: ~".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item";
+// Either: a menu with no room for its groups inline, nor for a shortcut; in :is(), at the collapsed menu's own weight.
+@ui-menu-folded: ~":is(@{ui-menu-collapsed}, @{ui-menu-rail})";
+// An entry whose badge stands on its icon's corner, as the words beside the icon are gone or under it.
+@ui-menu-icon-entry: ~":is(@{ui-menu-collapsed-entry}, @{ui-menu-rail-entry})";
+@ui-menu-rail-width: 4.5rem;
 
 // The column, switch and fold come from ui-collapsible.less; what is here is the list, and what a collapsed list keeps.
 .ui-menu {
@@ -19,8 +30,9 @@
     .ui-responsive-property(min-width, --ui-min-width, 0);
 }
 
-// Collapsed, the list is a column of squares and the authored MinWidth — sized for the captions — would hold the page's column open.
-@{ui-menu-collapsed} {
+// Collapsed, the list is a column of squares and the authored MinWidth — sized for the captions — would hold the page's column open;
+// a rail is as narrow.
+@{ui-menu-folded} {
     min-width: 0;
 }
 
@@ -132,9 +144,9 @@
 }
 
 // A section unfolds in place as an expander does (interpolate-size is on in reset.less), `display` held until the fold is over.
-// Not a select's choices or a folded rail's groups: they fly out, and one closing must not play a fold in the rail. One curve both
-// ways, as an accordion's: the section opening and the one closing with it cancel frame by frame.
-.ui-menu:not([data-ui-collapsed]) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+// Not a select's choices or a folded menu's or rail's groups: they fly out, and one closing must not play a fold in the rail. One
+// curve both ways, as an accordion's: the section opening and the one closing with it cancel frame by frame.
+.ui-menu:not([data-ui-collapsed], .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
     transition:
         block-size @ui-motion-normal @ui-motion-ease,
         padding-top @ui-motion-normal @ui-motion-ease,
@@ -162,7 +174,7 @@
 }
 
 // In step with the section folding under it, as an expander's chevron, not at the fast tempo of a chevron with nothing to follow.
-.ui-menu:not([data-ui-collapsed]) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
+.ui-menu:not([data-ui-collapsed], .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
     transition-duration: @ui-motion-normal;
 }
 
@@ -239,20 +251,42 @@
         display: none;
     }
 
-// A caption and a rule take no key, and a collapsed menu has no room for the text.
+// A caption and a rule take no key, and a collapsed menu or a rail has no room for the text.
 .ui-menu-item[data-ui-menu-item-kind="header"] > .ui-menu-item__shortcut,
 .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-menu-item__shortcut,
-@{ui-menu-collapsed} .ui-menu-item__shortcut {
+@{ui-menu-folded} .ui-menu-item__shortcut {
     display: none;
 }
 
-// Collapsed: the title goes, the icon centres; the title stays in the DOM as the tooltip the content region renders, so nothing is lost.
+// Collapsed: the words go, the icon centres. The title is only hidden from sight, as it is the entry's name to a screen reader and
+// its tooltip (menu-engine.ts), and the body stays, empty to the eye, so its badge can stand on the icon's corner.
 @{ui-menu-collapsed} .ui-menu-item {
     justify-content: center;
 }
 
-    @{ui-menu-collapsed} .ui-menu-item > .ui-button__content > .ui-text__body {
+    // No width: a header that lays a badge out as a grid keeps its column gap with nothing in it, which would push the glyph aside.
+    @{ui-menu-collapsed-entry} > .ui-button__content.ui-text > .ui-text__body {
+        width: 0;
+    }
+
+    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title {
+        .ui-visually-hidden();
+    }
+
+    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__description {
         display: none;
+    }
+
+    // The badge on the icon's corner (the rule shared with a rail below), held to the entry's end: the entry is barely wider than
+    // its icon and clips (Overflow), so a longer count grows over the icon rather than past the edge.
+    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
+        inset-block-start: 0;
+        inset-inline-end: 0;
+    }
+
+    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+        inset-block-start: 0.125rem;
+        inset-inline-end: 0.25rem;
     }
 
     @{ui-menu-collapsed} .ui-menu-item > .ui-button__content > .ui-text__icon {
@@ -267,27 +301,27 @@
         justify-content: center;
     }
 
-@{ui-menu-collapsed} .ui-menu-item[data-ui-menu-item-kind="header"] {
-    // A caption with no text would be an empty gap, so it becomes the rule it visually stands in for.
+@{ui-menu-folded} .ui-menu-item[data-ui-menu-item-kind="header"] {
+    // A caption with no text (or none that fits a rail) would be an empty gap, so it becomes the rule it visually stands in for.
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
     .ui-responsive-property(padding, --ui-padding, 0);
     border-top: 1px solid var(--ui-color-border);
 }
 
-// Collapsed, the indent and the chevron both go: there is no title for them to relate to; the mark inside the flyout popup stays.
-@{ui-menu-collapsed} .ui-menu__submenu:not([data-ui-menu-flyout]) {
+// Collapsed or a rail, the indent and the chevron both go: the groups fly out; the mark inside the flyout popup stays.
+@{ui-menu-folded} .ui-menu__submenu:not([data-ui-menu-flyout]) {
     display: none;
 }
 
-@{ui-menu-collapsed} [data-ui-menu-group] > .ui-menu-item::after {
+@{ui-menu-folded} [data-ui-menu-group] > .ui-menu-item::after {
     display: none;
 }
 
 // A group whose current entry is out of sight carries the mark itself, as a layer over its ground: the pointer's and a press's
 // washes stay that ground, as on its neighbours, so a rule quieting them (a key holding this entry or another) never takes the mark.
 .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected),
-@{ui-menu-collapsed} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
+@{ui-menu-folded} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
     background-image: linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
     color: var(--ui-color-primary-ink);
 
@@ -297,21 +331,40 @@
     }
 }
 
-@{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] {
+@{ui-menu-folded} .ui-menu__submenu[data-ui-menu-flyout] {
     padding-left: @ui-space-1;
 }
 
-// Inside the flyout entries are not collapsed: the popup gives back the titles the rail has no room for; every collapsed rule is undone.
+// Inside the flyout entries are not collapsed: the popup gives back the titles the rail has no room for; every collapsed rule the
+// flyout's entries could meet is undone (the words' own rules reach the menu's own entries only).
 @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item {
     justify-content: flex-start;
 }
 
-    @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item > .ui-button__content > .ui-text__body {
-        display: grid;
+    @{ui-menu-folded} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item__shortcut {
+        display: block;
     }
 
-    @{ui-menu-collapsed} .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item__shortcut {
-        display: block;
+// On the icon's corner the badge is small and its own size, placed against the entry (the button's positioned root), inside it,
+// since the entry clips (its Overflow) — the icon is centred in it, so the corner is half a glyph past the middle.
+@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
+    position: absolute;
+    max-width: none;
+    margin: 0;
+    font-size: 0.625rem;
+}
+
+// An empty text is a badge with nothing to say: a dot, in the badge's style, the primary's when it has none.
+@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+    display: inline-flex;
+    width: 0.5rem;
+    min-height: 0;
+    height: 0.5rem;
+    padding: 0;
+}
+
+    :where(@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])) {
+        background-color: var(--ui-color-primary);
     }
 
 // A check entry: a mark at the row's end says the option is on; its square is kept either way, so a list of checks lines up.
@@ -411,7 +464,106 @@
     text-align: center;
 }
 
-    // A folded menu is a rail of icons, where a line of words has no room.
-    .ui-menu[data-ui-collapsed] > .ui-menu__host > [data-ui-empty-placeholder] {
+    // A folded menu is a rail of icons, and a rail a column of short labels: a line of words has no room in either.
+    .ui-menu:is([data-ui-collapsed], .ui-menu--rail) > .ui-menu__host > [data-ui-empty-placeholder] {
+        display: none;
+    }
+
+// A rail: a narrow column of entries, each its icon over a one-line label, centred. Its ground is Surface's (ui-surface.less).
+.ui-menu--rail.ui-orientation--vertical {
+    .ui-responsive-property(width, --ui-width, @ui-menu-rail-width);
+}
+
+// Along a bar the same entries share its length, as a bottom navigation's do.
+.ui-menu--rail.ui-orientation--horizontal > .ui-menu__host {
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+
+    .ui-menu--rail.ui-orientation--horizontal > .ui-menu__host > .ui-menu__item {
+        flex: 1 1 0;
+    }
+
+// A square slice of the rail, so the current entry's mark lies on the rail's own edge; the icon and the label in one centred column.
+@{ui-menu-rail-entry} {
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 0;
+    gap: 0;
+    .ui-responsive-property(min-height, --ui-min-height, 3.5rem);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-1);
+    text-align: center;
+}
+
+    // A column, not the text's grid: the grid's icon track and subgrid would stand the label beside the icon, whatever the alignment.
+    @{ui-menu-rail-entry} > .ui-button__content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: @ui-space-1;
+        width: 100%;
+        text-align: center;
+    }
+
+    // A label still at the button's Body role is a caption here; an author's own TitleType is left alone.
+    @{ui-menu-rail-entry} > .ui-button__content.ui-text-type--body {
+        font-size: var(--ui-text-caption-font-size);
+        line-height: var(--ui-text-caption-line-height);
+        font-weight: var(--ui-text-caption-font-weight);
+    }
+
+    // As tall as the glyph, not the label's line; a rail's glyph is larger than a row's unless the entry sized it.
+    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__icon {
+        align-self: center;
+        height: 1em;
+        line-height: 0;
+    }
+
+        @{ui-menu-rail-entry} > .ui-button__content > .ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
+            font-size: 1.5rem;
+        }
+
+    // The current entry wears its icon's filled drawing: the FILL axis a pack's glyph reads (MECHANISMS §7); a glyph without one is unchanged.
+    @{ui-menu-rail-entry}.ui-menu-item--selected > .ui-button__content > .ui-text__icon::before {
+        --ui-icon-fill: 1;
+    }
+
+    // The label's column is the entry's width, and the label one line cut with an ellipsis (menu-engine.ts shows it whole as a tooltip).
+    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 0;
+    }
+
+        @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+            @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title {
+                flex: 0 1 auto;
+                text-align: center;
+            }
+
+        // No room for a second line under a short label.
+        @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__description {
+            display: none;
+        }
+
+    // A rail's glyph is larger than a row's, its corner further from the middle.
+    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
+        inset-block-start: 0.25rem;
+        inset-inline-start: calc(50% + 0.25rem);
+    }
+
+    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+        inset-block-start: 0.5rem;
+        inset-inline-start: calc(50% + 0.5rem);
+    }
+
+    // A select's value has no room under the label either.
+    @{ui-menu-rail-entry} > .ui-menu-item__value {
         display: none;
     }

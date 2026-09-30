@@ -61,6 +61,16 @@ export function inlineMarkupToPlainText(text: string | null | undefined): string
     return parseInlineMarkup(text).map(segment => isFold(segment) ? `${segment.fold} ${inlineMarkupToPlainText(segment.text)}` : segment.text).join("");
 }
 
+/** Every marker escaped, so words already shown (a label's text) read as themselves where markup is parsed; `UIInlineMarkup.Escape`'s twin. */
+export function escapeInlineMarkup(text: string): string {
+    let escaped = "";
+
+    for (const character of text)
+        escaped += isMarkerCharacter(character) ? Escape + character : character;
+
+    return escaped;
+}
+
 /** Replaces an element's content with the runs the text parses into; plain text takes the textContent path. */
 export function applyInlineMarkup(target: Element, text: string | null | undefined, options: InlineMarkupOptions = {}): void {
     const segments = parseInlineMarkup(text);

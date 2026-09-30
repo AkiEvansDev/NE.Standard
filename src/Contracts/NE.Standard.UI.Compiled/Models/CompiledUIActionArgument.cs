@@ -10,7 +10,8 @@ public enum CompiledUIActionArgumentKind
     Literal = 0,
     CurrentItemKey = 1,
     Binding = 2,
-    EventKey = 3
+    EventKey = 3,
+    GroupKey = 4
 }
 
 /// <summary>

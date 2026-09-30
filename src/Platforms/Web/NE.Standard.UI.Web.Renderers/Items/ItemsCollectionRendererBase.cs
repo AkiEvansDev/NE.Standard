@@ -275,6 +275,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         RenderWindowValue(context, host, IItemsHostComponent.WindowTotalCountProperty, WebAttributes.WindowTotal);
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreBeforeProperty, WebAttributes.WindowMoreBefore);
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreAfterProperty, WebAttributes.WindowMoreAfter);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowGroupBeforeProperty, WebAttributes.WindowGroupBefore);
 
         // The totals as JSON, in the wire's conventions; a live patch writes the same text through the client's own stringify.
         _ = RenderProperty<IReadOnlyDictionary<string, object>?>(context, host, IItemsHostComponent.WindowAggregatesProperty, static (target, value) =>
@@ -487,6 +488,12 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         RegisterServerRenderedItemValues(context, items, isGrouped, publishValues);
 
+        if (isGrouped && ResolveHostMode(context) == UIItemsHostMode.Windowed)
+        {
+            RenderGroupRuns(context, host, items, itemClassName, itemElementName, decorateItem, appendItem);
+            return;
+        }
+
         if (!isGrouped)
         {
             var count = limit is int max && max < items.Count ? max : items.Count;
@@ -524,6 +531,27 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
             foreach (var index in indexes)
                 RenderItem(context, host, items[index], index, itemClassName, itemElementName, decorateItem, appendItem);
+        }
+    }
+
+    /// <summary>
+    /// A window's rows in the source's order, a header over each row whose group differs from the row before it: its boundaries run
+    /// past the window, so it is never bucketed, and its first row is measured against the item before the window, as the source
+    /// reports it.
+    /// </summary>
+    private static void RenderGroupRuns(WebRenderContext context, IHtmlElementBuilder host, IReadOnlyList<object?> items, string itemClassName, string itemElementName, Action<IHtmlElementBuilder, object?, int>? decorateItem, Action<IHtmlElementBuilder, object?, int>? appendItem)
+    {
+        _ = ResolveRenderValue(context, IItemsHostComponent.WindowGroupBeforeProperty, out string? previous, out _);
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var group = items[i] is IBindableGroup grouped ? grouped.Group ?? string.Empty : string.Empty;
+
+            if (group.Length > 0 && !string.Equals(group, previous, StringComparison.Ordinal))
+                RenderGroupHeader(context, host, items[i]);
+
+            previous = group;
+            RenderItem(context, host, items[i], i, itemClassName, itemElementName, decorateItem, appendItem);
         }
     }
 
@@ -633,6 +661,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         _ = host.Element("div", headerRoot =>
         {
             _ = headerRoot.Attribute(WebAttributes.GroupHeader);
+            // The header's components stand in the item it is drawn from: a command in it reads that item's key and group.
+            _ = headerRoot.Attribute(WebAttributes.GroupAnchor, parameter.Key);
             context.Renderer.RenderComponent(headerContext.ForHtml(headerRoot), slot.RootComponentId);
         });
     }

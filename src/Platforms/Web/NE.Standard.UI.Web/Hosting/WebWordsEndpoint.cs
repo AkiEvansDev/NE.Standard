@@ -250,7 +250,7 @@ internal sealed class WebPageWords
             StringsJson = asset.StringsJson,
             Title = string.IsNullOrWhiteSpace(title)
                 ? null
-                : resolution.View.TitleArguments is { Count: > 0 } arguments ? new UIPhrase(title, arguments) : title
+                : resolution.View.TitleArguments is { Count: > 0 } arguments ? new UIPhrase(title, arguments) : (object)title
         };
     }
 }

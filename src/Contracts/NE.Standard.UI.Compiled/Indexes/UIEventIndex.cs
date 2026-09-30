@@ -167,8 +167,9 @@ public sealed class UIEventIndex
                 break;
 
             // A current-item key is addressed the same way as a binding argument: the resolved path's last
-            // segment is the key, verified at runtime against the collection it belongs to.
+            // segment is the key, verified at runtime against the collection it belongs to; a group key reads that item's group.
             case CompiledUIActionArgumentKind.CurrentItemKey:
+            case CompiledUIActionArgumentKind.GroupKey:
             case CompiledUIActionArgumentKind.Binding:
                 ValidateBindingLikeArgument(compiledEvent, argument, sources, templates);
                 break;

@@ -1,7 +1,8 @@
 // The one rule over every focus while the pointer was the last input: marked as the pointer's, so no keyboard mark is drawn for
 // it, except an editable text entry, whose edge says where typing goes; a real key takes every mark off, a modifier held alone
 // does not. The first element a popup's focus may land on, what takes the keyboard back from a field, where the focus goes back as a
-// dialog closes, and where a dialog opened again starts: at its top, on its first field.
+// dialog closes, and where a dialog opened again starts: at its top, on its first field. The focus a closing popup gives back after the
+// pointer opened it is the pointer's, whatever key closed it; after a keyboard's opening it is the keyboard's.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +10,7 @@ import { FakeElement, FakeInput, FakeKeyboardEvent, FakeLabel, FakeTextArea, fak
 
 installFakeDom();
 
-const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteFocus, noteKey, notePress, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
+const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteFocus, noteKey, notePress, restoreFocusTo, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
 
 const Mark = "data-ui-pointer-focus";
 
@@ -330,4 +331,60 @@ test("a first field below the dialog's fold is scrolled into view inside the dia
     moveFocusIntoFromStart(real(surface));
 
     assert.equal(surface.scrollTop, 320);
+});
+
+/** A dialog opened from a surface holding the focus, its first field taking it, the way the dialog engine opens one. */
+function openDialog(): { readonly opener: FakeElement; readonly surface: FakeElement; readonly field: FakeInput } {
+    const field = new FakeInput();
+    const surface = FakeElement.of("ui-dialog__surface", { tabindex: "-1" }).append(field);
+    const opener = FakeElement.of("ui-surface", { tabindex: "0", role: "button" });
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(opener, surface);
+    fakeDocument.activeElement = fakeDocument.body;
+
+    return { opener, surface, field };
+}
+
+test("a dialog the pointer opened gives its focus back as the pointer's, even when Escape closed it: no tooltip comes up for it", () => {
+    const { opener, surface } = openDialog();
+
+    notePress(real(opener));
+    focusBy(opener);
+    moveFocusIntoFromStart(real(surface));
+    noteKey(key("Escape"));
+    restoreFocusTo(real(opener), real(surface));
+
+    assert.equal(fakeDocument.activeElement, opener);
+    assert.equal(opener.hasAttribute(Mark), true);
+});
+
+test("a dialog the keyboard opened gives its focus back as the keyboard's", () => {
+    const { opener, surface } = openDialog();
+
+    noteKey(key("Tab"));
+    focusBy(opener);
+    noteKey(key("Enter"));
+    moveFocusIntoFromStart(real(surface));
+    notePress(real(surface));
+    noteKey(key("Escape"));
+    restoreFocusTo(real(opener), real(surface));
+
+    assert.equal(fakeDocument.activeElement, opener);
+    assert.equal(opener.hasAttribute(Mark), false);
+});
+
+test("a text entry the focus goes back to after a pointer's opening keeps its edge, as any focused text entry does", () => {
+    const { surface } = openDialog();
+    const entry = new FakeInput();
+
+    fakeDocument.body.append(entry);
+    notePress(real(entry));
+    focusBy(entry);
+    moveFocusIntoFromStart(real(surface));
+    noteKey(key("Escape"));
+    restoreFocusTo(real(entry), real(surface));
+
+    assert.equal(fakeDocument.activeElement, entry);
+    assert.equal(entry.hasAttribute(Mark), false);
 });

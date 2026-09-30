@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
@@ -22,10 +23,19 @@ internal interface IUIRuntimeConnectionUpdater
     Task NotifyAttachedAsync(UIHandle handle, bool created, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Tells the controller a connection's session moved to another language, as a command runs — what the page's own switch
+    /// Tells the controller what moved in a connection's session since it last heard, as a command runs — what the page's own switch
     /// takes; the handle is already refreshed.
     /// </summary>
-    Task NotifyLanguageChangedAsync(UIHandle handle, string previousLanguage, CancellationToken cancellationToken);
+    Task NotifySessionChangedAsync(UIHandle handle, CancellationToken cancellationToken);
+
+    /// <summary>Whether the session moved in anything the controller hears since it last heard it.</summary>
+    bool HasSessionMoved(IUserSessionContext session);
+
+    /// <summary>
+    /// Queues telling the controller what moved in its session since it last heard, as a command runs, for a page of it another
+    /// page's switch reached; the handle is already refreshed.
+    /// </summary>
+    void PostSessionChanged(UIHandle handle);
 
     void DetachConnection(string instanceId);
 

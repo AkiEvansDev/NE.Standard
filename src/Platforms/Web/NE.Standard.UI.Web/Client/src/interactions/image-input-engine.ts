@@ -1,14 +1,22 @@
 // A picture chosen by file: shown at once, uploaded beside the hub, and kept until the controller answers with its own picture.
-// A shelf (Multiple) keeps a square per file, each uploaded as its own selection, the handles sent as a list.
+// A shelf (Multiple, or the Shelf shape) keeps a square per file, each uploaded as its own selection, the handles sent as a list: a
+// picture as its thumbnail, any other file its `Accept` lets in as its kind's glyph and its name.
 
-import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes";
-import { clientStrings, forgetWords } from "../runtime/client-strings";
-import { logWarn } from "../runtime/logger";
-import { observeComponents } from "./dom-mutations";
-import { DraftDroppedEventName } from "./draft-events";
-import { attachFileDrop } from "./file-drop";
-import { isInert, isReadOnly } from "./interactive-state";
-import { filterWithinFileSizeLimit, publishSelection, uploadFilesAsync } from "./file-upload";
+// `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
+import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
+import { componentParts } from "../addressing/dom-registry.ts";
+import { fileGlyph } from "../rendering/file-glyphs.ts";
+import { applyIconValue } from "../rendering/icon-value.ts";
+import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { DraftDroppedEventName } from "./draft-events.ts";
+import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
+import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
+import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import type { FieldValidation } from "./validation-engine.ts";
 
 const RootClass = "ui-image-input";
 const MultipleClass = "ui-image-input--multiple";
@@ -21,6 +29,16 @@ const SelectionsClass = "ui-image-input__selections";
 const TilesClass = "ui-image-input__tiles";
 const TileClass = "ui-image-input__tile";
 const RemoveClass = "ui-image-input__remove";
+const ProgressClass = "ui-image-input__progress";
+const FileTileClass = "ui-image-input__tile--file";
+const FileGlyphClass = "ui-image-input__file-glyph";
+const FileNameClass = "ui-image-input__file-name";
+
+/** The property whose emptying from the controller clears a single picture. */
+const SelectionIdProperty = "SelectionId";
+
+/** On a square while its file is on its way: how much of it has gone, which the stylesheet draws as a bar. */
+const ProgressProperty = "--ui-image-progress";
 
 /** Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it. */
 const PreviewAttribute = "data-ui-image-preview";
@@ -32,15 +50,26 @@ type Tile = {
     selectionId: string | null;
 };
 
+/** The chosen file standing in for the controller's picture, and whether its handle has gone to the controller. */
+type Preview = {
+    readonly url: string;
+    landed: boolean;
+};
+
 export type ImageInputEngineOptions = {
     readonly root?: ParentNode;
+    /** Where a picture refused for its size is said; left out, the refusal goes to the console. */
+    readonly validation?: FieldValidation;
+    /** Tells a single picture that the controller emptied its handle. */
+    readonly propertyPatchEngine?: PropertyPatchEngine;
 };
 
 export class ImageInputEngine {
     private readonly root: ParentNode;
+    private readonly validation: FieldValidation | undefined;
 
-    /** The object URL each root shows as its preview, to be revoked when the controller's picture arrives or another file is chosen. */
-    private readonly previews = new WeakMap<HTMLElement, string>();
+    /** The preview each root shows, its object URL revoked when the controller's picture arrives or another file is chosen. */
+    private readonly previews = new WeakMap<HTMLElement, Preview>();
 
     /** A shelf's squares, in the order they were chosen. */
     private readonly shelves = new WeakMap<HTMLElement, Tile[]>();
@@ -53,35 +82,53 @@ export class ImageInputEngine {
 
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.validation = options.validation;
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         // The picture follows the root's source (a Value patch), outranked by a preview until it changes; a shelf follows its handles.
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => this.applyAll(roots));
 
+        // The handle lives on a hidden input's value, which no mutation reports: the controller emptying it is heard as a value change.
+        options.propertyPatchEngine?.addValueChangeHandler(change => {
+            if (change.propertyName === SelectionIdProperty && (change.value === null || change.value === undefined || change.value === ""))
+                this.clearAll(componentParts(change.components, `.${RootClass}`));
+        });
+
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleRemoveClick(domEvent), true);
         this.root.addEventListener("change", domEvent => void this.handleNativeChangeAsync(domEvent), true);
+        // Asked from a control elsewhere, the chooser is refused as the surface's own press is: while read-only, or its picture loads.
+        this.root.addEventListener(OpenPickerEventName, domEvent => answerOpenPicker(domEvent, {
+            rootSelector: `.${RootClass}`,
+            nativeSelector: `.${NativeClass}`,
+            pressed: root => root.querySelector(`.${SurfaceClass}`)
+        }));
 
         // An editor that closed on a cancel lets the chosen picture go too: the controller's own picture is painted again.
         this.root.addEventListener(DraftDroppedEventName, domEvent => this.handleDraftDropped(domEvent));
 
-        // A drop is a pick, of one file unless a shelf; a loading surface refuses it, or a second file would race the first to the controller.
+        // A drop or a paste is a pick, of one file unless a shelf, on the surface or on the component the input names as its drop
+        // target; a loading surface refuses it, or a second file would race the first to the controller.
         attachFileDrop({
             root: this.root,
             draggingAttribute: DraggingAttribute,
             resolveTarget: target => {
                 const surface = target.closest<HTMLElement>(`.${SurfaceClass}`);
-                const root = surface?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const own = surface?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+                const other = own === null ? findDropTargetField(this.root, target, `.${RootClass}`) : null;
+                const root = own ?? other?.field ?? null;
+                const rootSurface = surface ?? root?.querySelector<HTMLElement>(`.${SurfaceClass}`) ?? null;
 
-                if (surface === null || root === null)
+                if (root === null || rootSurface === null)
                     return null;
 
                 return {
                     host: root,
+                    mark: other?.component,
                     accept: root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.getAttribute("accept") ?? "",
                     multiple: isShelf(root),
-                    refused: isReadOnly(root) || isInert(surface)
+                    refused: isReadOnly(root) || isInert(rootSurface)
                 };
             },
             onFiles: (root, files) => void (isShelf(root) ? this.takeManyAsync(root, files) : this.takeFileAsync(root, files[0]))
@@ -112,8 +159,11 @@ export class ImageInputEngine {
             return;
         }
 
-        // The controller answering the chosen file keeps the file's name on the row; any other source names itself.
-        this.dropPreview(root, answered);
+        // The controller answering the chosen file with its picture keeps the file's name on the row; an answer of no picture, or any
+        // other source, names itself.
+        const keepName = answered && source.length > 0;
+
+        this.dropPreview(root, keepName);
 
         if (source.length === 0)
             picture.removeAttribute("src");
@@ -121,7 +171,7 @@ export class ImageInputEngine {
             picture.setAttribute("src", source);
 
         // The controller's own word for the picture outranks whatever its address ends in.
-        if (!answered)
+        if (!keepName)
             writeText(root, root.getAttribute(ImageCaptionAttribute) ?? fileNameOf(source));
 
         nameSurface(root, source.length > 0);
@@ -167,6 +217,23 @@ export class ImageInputEngine {
         for (const tile of [...tiles]) {
             if (tile.selectionId !== null && !handles.has(tile.selectionId))
                 this.dropTile(root, tile);
+        }
+    }
+
+    /**
+     * The controller emptied a single picture's handle: the chosen picture, its name and its handle go, and the controller's own
+     * picture shows again. A preview still on its way is a later pick the controller has not seen, and stands.
+     */
+    private clearAll(roots: Iterable<HTMLElement>): void {
+        for (const root of roots) {
+            if (isShelf(root) || this.previews.get(root)?.landed !== true)
+                continue;
+
+            // A picture the controller answered with in the same breath is its answer, which keeps the file's name as it always does.
+            if (root.dataset.previewFor === (root.getAttribute(ImageSourceAttribute) ?? ""))
+                this.dropPreview(root);
+
+            this.apply(root);
         }
     }
 
@@ -224,7 +291,6 @@ export class ImageInputEngine {
             await this.takeFileAsync(root, files[0]);
     }
 
-    /** Shows the file at once, sends it, and hands the controller the handle; a failure leaves the handle empty and says so. */
     private handleDraftDropped(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
@@ -241,6 +307,7 @@ export class ImageInputEngine {
         }
     }
 
+    /** Shows the file at once, sends it, and hands the controller the handle; a failure leaves the handle empty and says so. */
     private async takeFileAsync(root: HTMLElement, file: File): Promise<void> {
         const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
         const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
@@ -250,17 +317,17 @@ export class ImageInputEngine {
             return;
 
         // Refused for size: the controller's current picture stands rather than being replaced with nothing.
-        if (filterWithinFileSizeLimit(root, [file]).length === 0)
+        if (takeWithinSizeLimit(root, [file], false, this.validation).length === 0)
             return;
 
         this.dropPreview(root);
 
-        const preview = URL.createObjectURL(file);
+        const preview: Preview = { url: URL.createObjectURL(file), landed: false };
 
         this.previews.set(root, preview);
         root.dataset.previewFor = root.getAttribute(ImageSourceAttribute) ?? "";
         root.setAttribute(PreviewAttribute, "");
-        picture.setAttribute("src", preview);
+        picture.setAttribute("src", preview.url);
 
         writeText(root, file.name);
         nameSurface(root, true);
@@ -270,8 +337,10 @@ export class ImageInputEngine {
             const uploaded = await uploadFilesAsync([file], () => undefined);
 
             // The preview let go while the file was in flight: the upload is nobody's, and its handle is not written.
-            if (this.previews.get(root) === preview)
+            if (this.previews.get(root) === preview) {
+                preview.landed = true;
                 publishSelection(selection, uploaded.selectionId);
+            }
         }
         catch (error) {
             writeFailure(root);
@@ -287,7 +356,7 @@ export class ImageInputEngine {
     /** Puts a square per file on the shelf, each sent on its own so one can leave without the others; the list goes out as each lands. */
     private async takeManyAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
         const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
-        const accepted = filterWithinFileSizeLimit(root, files);
+        const accepted = takeWithinSizeLimit(root, files, true, this.validation);
 
         if (host === null || accepted.length === 0)
             return;
@@ -303,7 +372,7 @@ export class ImageInputEngine {
             host.appendChild(tile.element);
 
             try {
-                const uploaded = await uploadFilesAsync([file], () => undefined);
+                const uploaded = await uploadFilesAsync([file], percent => tile.element.style.setProperty(ProgressProperty, `${percent}%`));
 
                 // Taken off the shelf while on its way: nothing to land on.
                 if (!tiles.includes(tile))
@@ -357,7 +426,7 @@ export class ImageInputEngine {
         if (preview === undefined)
             return;
 
-        URL.revokeObjectURL(preview);
+        URL.revokeObjectURL(preview.url);
         this.previews.delete(root);
         delete root.dataset.previewFor;
         root.removeAttribute(PreviewAttribute);
@@ -371,23 +440,54 @@ function isShelf(root: HTMLElement): boolean {
     return root.classList.contains(MultipleClass);
 }
 
-/** A square on the shelf: the file itself as the picture, the cross over it, and the ring until the upload has landed. */
+/**
+ * A square on the shelf: a picture as its own thumbnail, any other file as its kind's glyph over its name; the cross over it, and
+ * the ring and the bar until the upload has landed.
+ */
 function createTile(file: File): Tile {
     const element = document.createElement("span");
-    const picture = document.createElement("img");
     const remove = document.createElement("button");
+    const progress = document.createElement("span");
     const url = URL.createObjectURL(file);
 
     element.className = `${TileClass} ${LoadingClass}`;
-    picture.src = url;
-    picture.alt = file.name;
     remove.type = "button";
     remove.className = RemoveClass;
-    clientStrings.write(remove, "aria-label", "ui.image.remove");
+    progress.className = ProgressClass;
 
-    element.append(picture, remove);
+    if (file.type.startsWith("image/")) {
+        const picture = document.createElement("img");
+
+        picture.src = url;
+        picture.alt = file.name;
+        clientStrings.write(remove, "aria-label", "ui.image.remove");
+
+        // A picture the browser cannot draw — a camera's HEIC — is shown as the file it is.
+        picture.addEventListener("error", () => element.replaceChildren(...fileParts(element, remove, file), remove, progress), { once: true });
+        element.append(picture, remove, progress);
+    }
+    else {
+        element.append(...fileParts(element, remove, file), remove, progress);
+    }
 
     return { element, url, selectionId: null };
+}
+
+/** A file's square's face: its kind's glyph and its name, the whole name on its title, and a cross that says it takes a file away. */
+function fileParts(element: HTMLElement, remove: HTMLElement, file: File): HTMLElement[] {
+    const glyph = document.createElement("span");
+    const label = document.createElement("span");
+
+    element.classList.add(FileTileClass);
+    element.setAttribute("title", file.name);
+    glyph.className = FileGlyphClass;
+    glyph.setAttribute("aria-hidden", "true");
+    applyIconValue(glyph, fileGlyph(file.name, file.type));
+    label.className = FileNameClass;
+    label.textContent = file.name;
+    clientStrings.write(remove, "aria-label", "ui.file.remove");
+
+    return [glyph, label];
 }
 
 /** Writes the inline row's text — a file's name or the controller's caption — only when it changes. */

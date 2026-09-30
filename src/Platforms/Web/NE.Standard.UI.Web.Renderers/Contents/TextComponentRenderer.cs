@@ -19,6 +19,7 @@ public class TextComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderTooltip(context, root);
+        RenderTextWrap(context, root);
 
         RenderTextBody(context, root, root, new WebTextBodyOptions
         {

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -21,7 +22,11 @@ internal enum UIComponentGateKind
     Loading,
     Visibility,
     ReadOnly,
-    CanSelect
+    CanSelect,
+    MarkedDaysOnly,
+
+    /// <summary>Not a closing value: one a check reads through the gate's binding — an input's bound, its marked days.</summary>
+    Read
 }
 
 /// <summary>
@@ -34,15 +39,28 @@ internal enum UIComponentGateKind
 /// </remarks>
 internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount);
 
-/// <summary>A component's gates: its own and its ancestors' that close it whole, and its own for a write or a row's choice.</summary>
-internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIComponentGate? CanSelect);
+/// <summary>
+/// A component's gates: its own and its ancestors' that close it whole, and its own for a write, a row's choice or the value written.
+/// </summary>
+internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIComponentGate? CanSelect, UIValueChecks? Values);
+
+/// <summary>A value a check reads: the compiled static one, or the controller's through <see cref="Bound"/>.</summary>
+internal readonly record struct UIGateValue(object? Static, UIComponentGate? Bound);
+
+/// <summary>
+/// What an input's written value — and a period's end — is held to, in the value's own <see cref="ValueType"/>: its <c>Min</c> and
+/// <c>Max</c>, and a day input's marked days while <see cref="MarkedOnly"/> closes. One unset, or bound to what the server cannot
+/// read, holds nothing.
+/// </summary>
+internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays);
 
 /// <summary>An items host's rows: the template root a row is drawn from, and how many keys address one row.</summary>
 internal readonly record struct UIRowGates(UIComponentId TemplateRootId, int RowParameterCount);
 
 /// <summary>
 /// The server's half of what closes a component — <c>Enabled</c>, <c>Loading</c> and <c>Visibility</c> up the ancestors,
-/// <c>IsReadOnly</c> and a row's <c>CanSelect</c> of its own — built once per compiled view.
+/// <c>IsReadOnly</c> and a row's <c>CanSelect</c> of its own, an input's <c>Min</c>/<c>Max</c> and a day input's <c>MarkedDaysOnly</c>
+/// for the value written — built once per compiled view.
 /// </summary>
 /// <remarks>
 /// Only what the server can know goes in: a static value, or a binding to the controller. An interaction's state
@@ -52,6 +70,13 @@ internal readonly record struct UIRowGates(UIComponentId TemplateRootId, int Row
 internal sealed class UIComponentGateIndex
 {
     private static readonly ConditionalWeakTable<CompiledView, UIComponentGateIndex> Indexes = [];
+
+    // An input's bounds by name, whatever type they hold: a number's, a slider's, a temporal input's, a calendar's.
+    private static readonly UIProperty MinProperty = new("Min");
+    private static readonly UIProperty MaxProperty = new("Max");
+
+    /// <summary>A period's end: the second value a temporal input or a calendar writes, held to what <c>Value</c> is held to.</summary>
+    internal static readonly UIProperty PeriodEndProperty = new("EndValue");
 
     private readonly FrozenDictionary<UIComponentId, UIComponentGates> _components;
     private readonly FrozenDictionary<UIComponentId, UIRowGates> _rows;
@@ -67,9 +92,10 @@ internal sealed class UIComponentGateIndex
             UIComponentGate[] chain = GetChain(view, node, chains);
             UIComponentGate? readOnly = CreateGate(view, node.ComponentId, IInputComponent.IsReadOnlyProperty, UIComponentGateKind.ReadOnly);
             UIComponentGate? canSelect = CreateGate(view, node.ComponentId, IItemAbilitiesComponent.CanSelectProperty, UIComponentGateKind.CanSelect);
+            UIValueChecks? values = CreateValueChecks(view, node.ComponentId);
 
-            if (chain.Length > 0 || readOnly is not null || canSelect is not null)
-                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, canSelect));
+            if (chain.Length > 0 || readOnly is not null || canSelect is not null || values is not null)
+                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, canSelect, values));
         }
 
         foreach (UIComponentNode node in view.Graph.All)
@@ -145,6 +171,12 @@ internal sealed class UIComponentGateIndex
         if (!value.IsBind)
             return Closes(kind, value.Value) ? new UIComponentGate(kind, Binding: null, FixedPath: null, DynamicCount: 0) : null;
 
+        return CreateBoundGate(view, componentId, property, kind);
+    }
+
+    /// <summary>The gate a property bound to the controller makes; none for a binding to anything else, which the server cannot read.</summary>
+    private static UIComponentGate? CreateBoundGate(CompiledView view, UIComponentId componentId, UIProperty property, UIComponentGateKind kind)
+    {
         if (!view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, property), out CompiledUIBinding? binding)
             || !view.Sources.TryGet(binding.SourceId, out CompiledUIBindingSource? source)
             || source.Kind != CompiledUIBindingSourceKind.Controller)
@@ -158,7 +190,66 @@ internal sealed class UIComponentGateIndex
         return new UIComponentGate(kind, binding, fixedPath, dynamicCount);
     }
 
-    /// <summary>Whether a property's value closes the component: disabled, loading, hidden at every width, read-only, not to be chosen.</summary>
+    /// <summary>
+    /// What an input's written value is held to, or none: an input with no bound set that offers every day costs a write nothing. A
+    /// slider's unset bound is the one the page draws, as its authoring check reads it; a day input's unset marked days offer no day.
+    /// </summary>
+    private static UIValueChecks? CreateValueChecks(CompiledView view, UIComponentId componentId)
+    {
+        // Only an input the page writes a value to: a progress bar's bounds hold nothing, nor does a value no binding takes.
+        if (!view.State.TryGetValue(componentId, IInputComponent.IsReadOnlyProperty, out _) || WrittenValueType(view, componentId) is not Type valueType)
+            return null;
+
+        UIGateValue? min = CreateGateValue(view, componentId, MinProperty, valueType, unset: null);
+        UIGateValue? max = CreateGateValue(view, componentId, MaxProperty, valueType, unset: null);
+        UIComponentGate? markedOnly = CreateGate(view, componentId, IMarkedDaysComponent.MarkedDaysOnlyProperty, UIComponentGateKind.MarkedDaysOnly);
+        UIGateValue? markedDays = markedOnly is null ? null : CreateGateValue(view, componentId, IMarkedDaysComponent.MarkedDaysProperty, valueType: null, unset: Array.Empty<DateOnly>());
+
+        return min is null && max is null && markedDays is null ? null : new UIValueChecks(valueType, min, max, markedOnly, markedDays);
+    }
+
+    /// <summary>The type the page's writes to an input's value — or a period's end, the same type — are read in; none where neither is bound.</summary>
+    private static Type? WrittenValueType(CompiledView view, UIComponentId componentId)
+    {
+        if (!view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, IInputComponent.ValueProperty), out CompiledUIBinding? binding)
+            && !view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, PeriodEndProperty), out binding))
+        {
+            return null;
+        }
+
+        return binding.TargetValueType is Type type ? Nullable.GetUnderlyingType(type) ?? type : null;
+    }
+
+    /// <summary>
+    /// A property a check reads: its static value brought to <paramref name="valueType"/> once, here, or <paramref name="unset"/> for
+    /// none; none at all where that is nothing too, where it is of no kind the type takes, or where it is bound to anything but the
+    /// controller.
+    /// </summary>
+    private static UIGateValue? CreateGateValue(CompiledView view, UIComponentId componentId, UIProperty property, Type? valueType, object? unset)
+    {
+        if (!view.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value))
+            return null;
+
+        if (!value.IsBind)
+        {
+            if ((value.Value ?? unset) is not { } read)
+                return null;
+
+            if (valueType is null)
+                return new UIGateValue(read, Bound: null);
+
+            return RecursiveValueCoercion.TryCoerce(read, valueType, out var typed) && typed is not null ? new UIGateValue(typed, Bound: null) : null;
+        }
+
+        UIComponentGate? bound = CreateBoundGate(view, componentId, property, UIComponentGateKind.Read);
+
+        return bound is null ? null : new UIGateValue(Static: null, bound);
+    }
+
+    /// <summary>
+    /// Whether a property's value closes the component: disabled, loading, hidden at every width, read-only, not to be chosen, or
+    /// offering only its marked days.
+    /// </summary>
     public static bool Closes(UIComponentGateKind kind, object? value)
         => kind switch
         {
@@ -166,6 +257,7 @@ internal sealed class UIComponentGateIndex
             UIComponentGateKind.Loading => value is true,
             UIComponentGateKind.ReadOnly => value is true,
             UIComponentGateKind.CanSelect => value is false,
+            UIComponentGateKind.MarkedDaysOnly => value is true,
             UIComponentGateKind.Visibility => IsHiddenEverywhere(value),
             _ => false
         };

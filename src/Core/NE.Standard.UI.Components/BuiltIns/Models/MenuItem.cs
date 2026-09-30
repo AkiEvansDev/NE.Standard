@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
@@ -9,7 +11,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Models;
 /// <summary>
 /// A data model describing one menu entry for use in collections bound to <see cref="IMenuItemModel"/>.
 /// </summary>
-public partial class MenuItem : TextBaseItem, IMenuItemModel
+/// <remarks>A text item, so an entry carries a description: one muted line under its title, gone while the menu is folded.</remarks>
+public partial class MenuItem : TextItem, IMenuItemModel
 {
     /// <inheritdoc />
     [RecursiveMember]
@@ -37,7 +40,8 @@ public partial class MenuItem : TextBaseItem, IMenuItemModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial string? Value { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? Value { get; set; }
 
     /// <summary>
     /// Gets the nested entries. See <see cref="IMenuItemModel.Items"/> on how deep a menu actually renders.

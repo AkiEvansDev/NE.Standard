@@ -10,6 +10,7 @@ import { getIdValue, getValidationTrigger } from "../metadata/metadata-index.ts"
 import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
 import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
+import { isPhrase } from "../runtime/words.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
 import type { UpdateProcessor } from "../updates/update-processor.ts";
 import { observeComponents } from "./dom-mutations.ts";
@@ -177,9 +178,11 @@ export class ValidationEngine implements FieldValidation {
         const componentId = getIdValue(update.address?.component?.id);
         const dynamicParameters = update.address?.component?.dynamicParameters ?? [];
         const message = update.message ?? "";
+        // The author's text or a key as a plain string, or a phrase (a FormatMessage given as one).
+        const spoken = isPhrase(message) || (typeof message === "string" && message.length > 0);
 
         for (const element of this.options.dom.findAllComponents(componentId, dynamicParameters)) {
-            if (typeof message !== "string" || message.length === 0) {
+            if (!spoken) {
                 this.refusalByElement.delete(element);
             } else {
                 this.refusalByElement.set(element, { message, severity: toSeverityName(update.severity), content: update.content === true });

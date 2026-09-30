@@ -49,12 +49,20 @@
     .ui-responsive-reset(--ui-min-height);
     .ui-responsive-reset(--ui-max-height);
     .ui-responsive-reset(--ui-margin);
+    .ui-responsive-reset(--ui-margin-x);
+    .ui-responsive-reset(--ui-margin-y);
+    // Fill and the screen's guard are the overlay's room less the panel's margins, as a component's Fill is (core/runtime.less): an
+    // authored margin's sums, else the default margin, which the phone's and a sheet's rules restate beside their own.
+    .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, (@ui-space-4 * 2));
+    .ui-responsive-property(--ui-fill-margin-y, --ui-margin-y, (@ui-space-4 * 2));
+    --ui-fill-width: calc(100% - var(--ui-fill-margin-x));
+    --ui-fill-height: calc(100% - var(--ui-fill-margin-y));
     .ui-responsive-property(width, --ui-width, auto);
     .ui-responsive-property(min-width, --ui-min-width, 0);
-    .ui-responsive-property(max-width, --ui-max-width, calc(100% - (@ui-space-4 * 2)));
+    .ui-responsive-property(max-width, --ui-max-width, var(--ui-fill-width));
     .ui-responsive-property(height, --ui-height, auto);
     .ui-responsive-property(min-height, --ui-min-height, 0);
-    .ui-responsive-property(max-height, --ui-max-height, calc(100% - (@ui-space-4 * 2)));
+    .ui-responsive-property(max-height, --ui-max-height, var(--ui-fill-height));
     .ui-responsive-property(margin, --ui-margin, @ui-space-4);
     justify-self: var(--ui-align-h, center);
     align-self: var(--ui-align-v, center);
@@ -98,16 +106,20 @@
 // On a phone a centred dialog fills the screen less a margin, not a card lost in the middle; an authored width still wins.
 @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
     .ui-dialog:not([data-ui-dialog-placement]) > .ui-dialog__surface {
-        .ui-responsive-property(width, --ui-width, calc(100% - (@ui-space-2 * 2)));
+        .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, (@ui-space-2 * 2));
+        .ui-responsive-property(--ui-fill-margin-y, --ui-margin-y, (@ui-space-2 * 2));
+        .ui-responsive-property(width, --ui-width, var(--ui-fill-width));
         // Still the screen's guard, not none: a width the author named is honoured up to the screen, never past it.
-        .ui-responsive-property(max-width, --ui-max-width, calc(100% - (@ui-space-2 * 2)));
-        .ui-responsive-property(max-height, --ui-max-height, calc(100% - (@ui-space-2 * 2)));
+        .ui-responsive-property(max-width, --ui-max-width, var(--ui-fill-width));
+        .ui-responsive-property(max-height, --ui-max-height, var(--ui-fill-height));
         .ui-responsive-property(margin, --ui-margin, @ui-space-2);
     }
 }
 
 // A sheet against one edge, filling its length; defaults over the same tiers, so an authored size or alignment still wins.
 .ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {
+    .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, 0px);
+    .ui-responsive-property(--ui-fill-margin-y, --ui-margin-y, 0px);
     .ui-responsive-property(margin, --ui-margin, 0);
     border-radius: 0;
     animation-name: ui-dialog-sheet-in;

@@ -1,3 +1,4 @@
+using DemoApp.Controllers.Inputs.NumberInput;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Inputs.NumberInput;
@@ -7,6 +8,8 @@ namespace DemoApp.Views.Inputs.NumberInput;
 /// </summary>
 internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinition
 {
+    private const string BoundsGroup = nameof(NumberInputExamplesController.BoundsGroup);
+
     public static string ViewKey => "demo.inputs.number-input.examples";
 
     protected override string ComponentRoute => "/inputs/number-input";
@@ -19,6 +22,8 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
         _ = container.AddChildren(DemoUI.CreateColumns([CreateQuantityGroup()], [CreateFormatGroup()]));
 
         _ = container.AddChild(CreateBoundsGroup());
+
+        _ = container.AddChild(CreateServerBoundsGroup());
     }
 
     /// <summary>
@@ -139,6 +144,23 @@ internal sealed class NumberInputExamplesView : DemoExamplesView, IUIViewDefinit
             columns: 24,
             note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too. "
                 + "The spend carries two `Validate` rules on the `Change` trigger, so both are answered on every keystroke — type 5 and the error speaks, 50 and the warning does, 150 and neither."
+        );
+    }
+
+    /// <summary>
+    /// A bound the server holds as well as the page: the controller's copy, written under the group, never goes past it.
+    /// </summary>
+    private static ContainerComponent CreateServerBoundsGroup()
+    {
+        return DemoUI.CreateExample("A bound the server holds",
+            new NumberInputComponent()
+                .SetTitle("Replicas")
+                .SetRange(1, 10)
+                .SetShowStepper()
+                .BindValue(nameof(NumberBoundsGroupContext.Replicas), UIBindingScope.Relative)
+                .OnChange(nameof(NumberInputExamplesController.ReplicasChanged)),
+            note: "`Max` is 10. Type 15 and leave the field: a value past the bound never becomes the controller's — the server refuses one that reaches it and the field returns to what the controller holds. The line above is the controller's copy after every change.",
+            context: BoundsGroup
         );
     }
 }

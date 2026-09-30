@@ -1,3 +1,4 @@
+using System.Linq;
 using DemoApp.Controllers.Inputs.TextArea;
 using DemoApp.Views.Base;
 
@@ -16,6 +17,8 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
 
     private const string Incident = "The scheduler stopped acknowledging heartbeats at 09:14 UTC. Three regions failed over cleanly; eu-west held its lease for another ninety seconds and served stale reads for the duration.";
 
+    private static readonly string[] Emoji = ["😀", "😂", "😍", "🤔", "😢", "👍", "👀", "🙏", "🎉", "🔥", "🚀", "✅"];
+
     public static string ViewKey => "demo.inputs.text-area.examples";
 
     protected override string ComponentRoute => "/inputs/text-area";
@@ -26,6 +29,8 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
     protected override void DrawContent(WrapPanelComponent container)
     {
         _ = container.AddChildren(DemoUI.CreateColumns([CreateFormGroup(), CreateChatGroup()], [CreateCommentGroup(), CreateGrowGroup()]));
+
+        _ = container.AddChild(CreateActionSizesGroup());
 
         _ = container.AddChild(CreateHeightGroup());
     }
@@ -110,7 +115,7 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                         )
                     )
                 )
-                .AddChild(new TextAreaComponent()
+                .AddChild(new TextAreaComponent(TextAreaExamplesController.ComposerId)
                     .SetFormId(ChatFormId)
                     .SetPlaceholder("Write to the on-call channel")
                     .SetRows(1)
@@ -122,10 +127,34 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                         .SetIcon(DemoIcons.Outline(DemoIcons.Attach))
                         .SetTooltip("Attach a file")
                     )
-                    .AddLeadingAction(new ButtonComponent()
+                    // A tile's press puts its key at the caret on the page itself: no round trip, and the draft's own undo takes it back.
+                    .AddLeadingAction(new FlyoutComponent()
+                        .SetFlyoutPlacement(UIPopupPlacement.TopStart)
+                        .SetAnchor(new ButtonComponent()
+                            .SetType(UIButtonType.Ghost)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
+                            .SetTooltip("Emoji")
+                        )
+                        .SetContent(new ItemsViewComponent()
+                            .SetItems(CreateEmoji())
+                            .SetLayoutType(UIItemsLayoutType.Wrap)
+                            .SetSpacing(2)
+                            .SetWidth(UILayoutLength.Absolute(236))
+                            .SetTemplate(new ButtonComponent()
+                                .SetType(UIButtonType.Ghost)
+                                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                                .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(TextAreaExamplesController.ComposerId))
+                            )
+                        )
+                    )
+                    // A quick reply is the controller's words, so its command answers with the text to insert rather than rewriting the draft.
+                    .AddLeadingAction(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
                         .SetType(UIButtonType.Ghost)
-                        .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
-                        .SetTooltip("Emoji")
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
+                        .SetTooltip("Quick replies")
+                        .SetItems(TextAreaExamplesController.QuickReplies())
+                        .OnItemClickWithItemKey(nameof(TextAreaExamplesController.InsertQuickReply))
                     )
                     .AddTrailingAction(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
@@ -134,8 +163,70 @@ internal sealed class TextAreaExamplesView : DemoExamplesView, IUIViewDefinition
                         .OnSubmit(ChatFormId, nameof(TextAreaExamplesController.Send))
                     )
                 ),
-            note: "Type past the edge and the box grows a row at a time, to six, then scrolls. Enter presses Send, the form's submit, with the text committed first; Shift+Enter breaks the line. The buttons follow the text in the tab order, whichever end they stand at; attach and emoji only show where they stand.",
+            note: "Type past the edge and the box grows a row at a time, to six, then scrolls. Enter presses Send, the form's submit, with the text committed first; Shift+Enter breaks the line. "
+                + "The emoji panel is a `FlyoutComponent` among the field's actions: a tile puts its emoji where the caret was, in place of a selection, on the page alone (`InsertTextEffect.CurrentItemKey`). "
+                + "The bolt is a split button in `Menu` mode, as compact as its neighbours; a quick reply runs a command that answers `InsertTextEffect.Literal` with its words.",
             context: ChatGroup
+        );
+    }
+
+    /// <summary>The panel's tiles, each keyed by its emoji, so the key is the text a press inserts.</summary>
+    private static TextItem[] CreateEmoji()
+        => [.. Emoji.Select(static emoji => new TextItem { Id = emoji, Title = emoji, IsContent = true })];
+
+    /// <summary>
+    /// A split button among a field's actions takes the others' compact height whatever its own size, so the row stays level with the text.
+    /// </summary>
+    private static ContainerComponent CreateActionSizesGroup()
+    {
+        return DemoUI.CreateExample("A split button among a field's actions",
+            UILayout.Stack(12)
+                .AddChild(new TextAreaComponent()
+                    .SetPlaceholder("Normal field, a small split button")
+                    .SetRows(1)
+                    .AddLeadingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Attach))
+                        .SetTooltip("Attach a file")
+                    )
+                    .AddLeadingAction(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
+                        .SetTooltip("Quick replies")
+                        .SetItems(TextAreaExamplesController.QuickReplies())
+                    )
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Send))
+                        .SetTooltip("Send")
+                    )
+                )
+                .AddChild(new TextAreaComponent()
+                    .SetSize(UIInputSize.Small)
+                    .SetPlaceholder("Small field, a large split button")
+                    .SetRows(1)
+                    .AddLeadingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Attach))
+                        .SetTooltip("Attach a file")
+                    )
+                    .AddLeadingAction(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Large)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
+                        .SetTooltip("Quick replies")
+                        .SetItems(TextAreaExamplesController.QuickReplies())
+                    )
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Send))
+                        .SetTooltip("Send")
+                    )
+                ),
+            note: "Whatever `Size` the split button is given, among a field's actions it stands as tall as a plain action, so the leading group and Send sit level with the text."
         );
     }
 

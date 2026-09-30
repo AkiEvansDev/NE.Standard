@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -11,6 +12,9 @@ namespace NE.Standard.UI.Sessions;
 /// </summary>
 public class UserSessionContext : IUserSessionContext
 {
+    // Who an anonymous session is: no one, whatever its id; only its identity is ever read.
+    private static readonly UserSessionContext NoOne = Anonymous("anonymous");
+
     /// <summary>
     /// Creates a user session context from its identity, locale, and authorization data.
     /// </summary>
@@ -43,6 +47,9 @@ public class UserSessionContext : IUserSessionContext
     public UIThemeMode? ThemeMode { get; }
 
     /// <inheritdoc />
+    public UIThemeColors? ThemeColors { get; init; }
+
+    /// <inheritdoc />
     public string? TimeZone { get; }
 
     /// <inheritdoc />
@@ -71,9 +78,16 @@ public class UserSessionContext : IUserSessionContext
 
     /// <summary>The same session — identity, language, theme and zone — under <paramref name="sessionId"/>.</summary>
     internal static UserSessionContext WithSessionId(IUserSessionContext session, string sessionId)
-        => new(sessionId, session.Language, session.ThemeMode, session.IsAuthenticated, session.UserId, session.Roles, session.Permissions, session.TimeZone);
+        => Copy(sessionId, session, session.Language, session.ThemeMode, session.TimeZone, session.ThemeColors);
 
     /// <summary>A signed-out session under <paramref name="sessionId"/> that keeps the reader's language, theme and zone.</summary>
     internal static UserSessionContext AnonymousAs(IUserSessionContext session, string sessionId)
-        => new(sessionId, session.Language, session.ThemeMode, isAuthenticated: false, timeZone: session.TimeZone);
+        => Copy(sessionId, NoOne, session.Language, session.ThemeMode, session.TimeZone, session.ThemeColors);
+
+    /// <summary>
+    /// The one way a session is copied: <paramref name="identity"/>'s identity — signed in or not, the user, roles and permissions —
+    /// under <paramref name="sessionId"/>, in the reader's language, theme, zone and colours given.
+    /// </summary>
+    internal static UserSessionContext Copy(string sessionId, IUserSessionContext identity, string language, UIThemeMode? themeMode, string? timeZone, UIThemeColors? themeColors)
+        => new(sessionId, language, themeMode, identity.IsAuthenticated, identity.UserId, identity.Roles, identity.Permissions, timeZone) { ThemeColors = themeColors };
 }

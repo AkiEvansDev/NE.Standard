@@ -89,6 +89,7 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
                 .SetSpacing(4)
                 .SetHeight(UILayoutLength.Absolute(260))
                 .SetTemplate(CreateMessageTemplate())
+                .SetGroupTemplate(CreateDayHeader())
                 .SetPlacement(1, 1, 24, 1)
             ),
             controls => DemoUI.InitControls(controls, new Dictionary<string, string>
@@ -97,7 +98,7 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
                 ["Jump to newest"] = nameof(ItemsViewScenariosController.JumpToNewest),
             }),
             contentMinHeight: 300,
-            note: "The window is anchored at the end, so the newest message is what the reader lands on and older ones are read going up."
+            note: "The window is anchored at the end, so the newest message is what the reader lands on and older ones are read going up. A day header stands over each day's first message, also at the top of a window read in the middle of a day, where the source says which day the message above it was; press one (or Tab to it and press Enter) and the command hears the day and the message it is drawn from. The first message received today starts a day of its own."
         );
     }
 
@@ -130,6 +131,26 @@ internal sealed class ItemsViewScenariosView : DemoScenariosView, IUIViewDefinit
             contentMinHeight: 300,
             note: "The other half of the feature: the client holds every row's value and draws the rows as they come into view — a few dozen elements stand for two thousand. The filter runs over the values, not the rows."
         );
+    }
+
+    /// <summary>
+    /// The day as a date on a pill in the middle, drawn from the day's first message; the group key names the day to the command, the
+    /// item key the message the header stands over.
+    /// </summary>
+    private static SurfaceComponent CreateDayHeader()
+    {
+        return new SurfaceComponent()
+            .SetClickable(true)
+            .SetSurface(UISurfaceStyle.Tinted)
+            .SetPadding(UIThickness.All(10, 2, 10, 2))
+            .SetMargin(UIThickness.All(0, 8, 0, 4))
+            .SetHorizontalAlignment(UIAlignment.Center)
+            .OnClick(nameof(ItemsViewScenariosController.ShowDay), UIAction.ArgGroupKey("day"), UIAction.ArgCurrentItemKey("id"))
+            .SetContent(new TimestampComponent()
+                .BindValue(nameof(DemoChatMessage.Sent), UIBindingScope.Relative)
+                .SetFormat(UITimestampFormat.Date)
+                .SetTextType(UITextAppearance.Caption)
+            );
     }
 
     /// <summary>The author over the message, the message as a paragraph's body so a long one wraps rather than ending in an ellipsis.</summary>

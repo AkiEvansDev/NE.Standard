@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
@@ -13,7 +15,8 @@ public partial class TextItem : TextBaseItem, ITextModel
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
-    public partial string? Description { get; set; }
+    [JsonConverter(typeof(UIPhraseValueJsonConverter))]
+    public partial UIPhrase? Description { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]

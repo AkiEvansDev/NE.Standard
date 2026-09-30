@@ -226,15 +226,16 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     /// </summary>
     private static void RenderDialogLayout(CompiledDialog dialog, IHtmlElementBuilder surface)
     {
-        WriteDialogLength(surface, dialog.Width, "--ui-width");
-        WriteDialogLength(surface, dialog.MinWidth, "--ui-min-width");
-        WriteDialogLength(surface, dialog.MaxWidth, "--ui-max-width");
-        WriteDialogLength(surface, dialog.Height, "--ui-height");
-        WriteDialogLength(surface, dialog.MinHeight, "--ui-min-height");
-        WriteDialogLength(surface, dialog.MaxHeight, "--ui-max-height");
+        // A component's words, written as a component's are: Fill is the overlay's room less the panel's margins (ui-dialog.less).
+        WriteDialogLength(surface, dialog.Width, "--ui-width", UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.MinWidth, "--ui-min-width", UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.MaxWidth, "--ui-max-width", UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.Height, "--ui-height", UIOrientation.Vertical);
+        WriteDialogLength(surface, dialog.MinHeight, "--ui-min-height", UIOrientation.Vertical);
+        WriteDialogLength(surface, dialog.MaxHeight, "--ui-max-height", UIOrientation.Vertical);
 
         if (dialog.Margin is UIResponsive<UIThickness> margin)
-            WebResponsiveCss.WriteTiers(surface, margin, "--ui-margin", WebCssValues.Thickness);
+            WebResponsiveCss.WriteMargin(surface, margin);
 
         if (dialog.HorizontalAlignment is UIAlignment horizontal)
             _ = surface.Style("--ui-align-h", WebCssValues.Alignment(horizontal));
@@ -247,10 +248,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             _ = surface.Style("--ui-max-width-sm", CenteredDialogWidthCap);
     }
 
-    private static void WriteDialogLength(IHtmlElementBuilder surface, UIResponsive<UILayoutLength>? value, string cssVariableName)
+    private static void WriteDialogLength(IHtmlElementBuilder surface, UIResponsive<UILayoutLength>? value, string cssVariableName, UIOrientation axis)
     {
         if (value is UIResponsive<UILayoutLength> responsive)
-            WebResponsiveCss.WriteTiers(surface, responsive, cssVariableName, WebCssValues.ResponsiveLayoutLength);
+            WebResponsiveCss.WriteSize(surface, responsive, cssVariableName, axis);
     }
 
     public void RenderComponent(WebRenderContext parent, UIComponentId componentId)

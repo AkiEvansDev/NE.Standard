@@ -22,6 +22,8 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
         _ = container.AddChildren(DemoUI.CreateColumns([CreateUsesGroup()], [CreateFormGroup()]));
 
         _ = container.AddChild(CreateContractGroup());
+
+        _ = container.AddChild(CreateRefusalGroup());
     }
 
     /// <summary>
@@ -122,6 +124,33 @@ internal sealed class FileInputExamplesView : DemoExamplesView, IUIViewDefinitio
                 ),
             columns: 24,
             note: "The filter and the limit are a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://docs.orvane.example/files)."
+        );
+    }
+
+    /// <summary>
+    /// A file over the limit is refused where the field is, in the page's language: one file by the limit, several by the names left out.
+    /// </summary>
+    private static ContainerComponent CreateRefusalGroup()
+    {
+        return DemoUI.CreateExample("A file over the limit",
+            UILayout.Row(24)
+                .AddChild(UIPage.Labelled("One file, 1 MB at most", new FileInputComponent()
+                    .SetTitle("Signed contract")
+                    .SetPlaceholder("A PDF of 1 MB at most")
+                    .SetMaxFileSize(Megabyte)
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    )
+                )
+                .AddChild(UIPage.Labelled("Several, each 1 MB at most", new FileInputComponent()
+                    .SetTitle("Receipts")
+                    .SetMultiple(true)
+                    .SetMaxFileSize(Megabyte)
+                    .SetPlaceholder("Pick several, one of them larger than 1 MB")
+                    .SetWidth(UILayoutLength.Absolute(320))
+                    )
+                ),
+            columns: 24,
+            note: "Pick a file over 1 MB: the first field says \"The file is larger than 1 MB.\" on its validation line; the second keeps the files within the limit and names the ones left out. Switch the language and the line is written again; the next pick clears it."
         );
     }
 }

@@ -9,7 +9,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Templates;
 /// <summary>
 /// The built-in template rendering an <see cref="IMenuItemModel"/> as a menu entry.
 /// </summary>
-/// <remarks>An entry has no second line, so nothing from <see cref="ITextModel"/> is bound here.</remarks>
 public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTemplate>
     where TTemplate : DefaultMenuItemTemplate<TTemplate>, IUIComponentDefinition
 {
@@ -23,7 +22,7 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
 
         if (binds)
         {
-            _ = this.BindTextBase();
+            _ = this.BindText();
 
             _ = Bind(VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative);
             _ = Bind(EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative);

@@ -19,6 +19,8 @@ internal static class HeaderRegionExtensions
         _ = component.SetTitleType(UITextAppearance.Title);
         _ = component.SetDescriptionType(UITextAppearance.Caption);
         _ = component.SetBadgePlacement(UITextBadgePlacement.Trailing);
+        // A header's description says what the section is about, and is read whole: it runs on rather than ending in an ellipsis.
+        _ = component.SetWrapMode(UITextWrapMode.Wrap);
 
         // Pinned to the content, not the title: a trailing mark (a chevron, an action) is centred against the whole
         // block, and a title-line badge would sit above it instead.

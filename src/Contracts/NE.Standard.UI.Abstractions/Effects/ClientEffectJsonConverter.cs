@@ -25,11 +25,14 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.DownloadFile] = typeof(DownloadFileEffect),
         [ClientEffectKinds.Scroll] = typeof(CompiledScrollEffect),
         [ClientEffectKinds.SetTheme] = typeof(SetThemeEffect),
+        [ClientEffectKinds.SetThemeColors] = typeof(SetThemeColorsEffect),
         [ClientEffectKinds.SetLanguage] = typeof(SetLanguageEffect),
         [ClientEffectKinds.RenameTab] = typeof(CompiledRenameEffect),
         [ClientEffectKinds.RenameNode] = typeof(CompiledRenameEffect),
         [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect),
-        [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect)
+        [ClientEffectKinds.InsertText] = typeof(CompiledInsertTextEffect),
+        [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect),
+        [ClientEffectKinds.OpenPicker] = typeof(CompiledOpenPickerEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

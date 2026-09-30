@@ -1,4 +1,5 @@
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -13,7 +14,7 @@ public interface ITooltipModel
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITooltipComponent), DefaultValue = null)]
-    string? Tooltip { get; }
+    UIPhrase? Tooltip { get; }
 
     /// <summary>
     /// Gets the side the tooltip prefers; flips to the opposite side when there is no room for it there.

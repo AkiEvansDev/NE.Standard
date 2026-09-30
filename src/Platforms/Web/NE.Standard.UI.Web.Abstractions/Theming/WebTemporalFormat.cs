@@ -177,6 +177,28 @@ public static class WebTemporalFormat
             // The meridiem stays as it is written: its words are the culture's, not a letter's.
             _ => token[..1]
         };
+
+    /// <summary>
+    /// A set of days as the page reads it: each <c>yyyy-MM-dd</c>, in order, separated by spaces — the <c>markedDaysAttribute</c>
+    /// converter writes the same from a pushed set.
+    /// </summary>
+    public static string Days(IEnumerable<DateOnly> days)
+    {
+        ArgumentNullException.ThrowIfNull(days);
+
+        SortedSet<DateOnly> ordered = [.. days];
+        StringBuilder result = new(ordered.Count * 11);
+
+        foreach (DateOnly day in ordered)
+        {
+            if (result.Length > 0)
+                _ = result.Append(' ');
+
+            _ = result.Append(day.ToString(WebTemporalPatterns.Canonical.Date, CultureInfo.InvariantCulture));
+        }
+
+        return result.ToString();
+    }
 }
 
 /// <summary>What a format's letters read as in a field's placeholder, one per unit: <c>dd.MM.yyyy</c> shown as <c>дд.ММ.гггг</c>.</summary>

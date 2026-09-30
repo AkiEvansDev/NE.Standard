@@ -115,6 +115,7 @@ internal sealed partial class UIViewCompilationContext
             },
             UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.GroupKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.GroupKey, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             _ => throw new UnreachableException()
         };

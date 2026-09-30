@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using DemoApp.Controllers.Base;
 
@@ -14,39 +15,88 @@ internal sealed partial class DemoFeedItem : TextItem
 
     [RecursiveMember]
     public partial string? Source { get; set; }
+
+    /// <summary>The entries of the row's context menu, which differ by kind: a flip changes them with the template.</summary>
+    [RecursiveMember(false)]
+    public RecursiveCollection<MenuItem> Menu { get; } = [];
 }
 
 /// <summary>
-/// The feed, and the one thing the page does to it: the newest entry changes kind.
+/// The feed, and what the page does to it: a note or a picture posted at its end, and the newest entry changing kind.
 /// </summary>
 internal sealed partial class FeedGroupContext : DemoGroupContext
 {
     public const string NoteKind = "note";
     public const string ImageKind = "image";
 
+    private static readonly string[] Pictures = [DemoImages.NightStreet, DemoImages.SunsetRuins, DemoImages.MeteorShore, DemoImages.HarbourSky];
+
     private int _posted;
 
     [RecursiveMember(false)]
     public RecursiveCollection<DemoFeedItem> Entries { get; } =
     [
-        new() { Id = "e1", Title = "Robin", Description = "The staging deploy is stuck on the health check again." },
-        new() { Id = "e2", Title = "Alex", Description = "Same pair as Tuesday. Rolling back to 480 while I look." },
-        new() { Id = "e3", Title = "Robin", Kind = ImageKind, Source = DemoImages.HarbourSky, Description = "The status page's banner at 09:14, before the rollback." },
-        new() { Id = "e4", Title = "Alex", Description = "481 is green. Eight of eight, four minutes twelve." }
+        WithMenu(new() { Id = "e1", Title = "Robin", Description = "The staging deploy is stuck on the health check again." }),
+        WithMenu(new() { Id = "e2", Title = "Alex", Description = "Same pair as Tuesday. Rolling back to 480 while I look." }),
+        WithMenu(new() { Id = "e3", Title = "Robin", Kind = ImageKind, Source = DemoImages.HarbourSky, Description = "The status page's banner at 09:14, before the rollback." }),
+        WithMenu(new() { Id = "e4", Title = "Alex", Description = "481 is green. Eight of eight, four minutes twelve." })
     ];
 
     public void Post()
     {
         _posted++;
 
-        Entries.Add(new DemoFeedItem
+        Entries.Add(WithMenu(new DemoFeedItem
         {
             Id = string.Create(CultureInfo.InvariantCulture, $"posted-{_posted}"),
             Title = "You",
             Description = string.Create(CultureInfo.InvariantCulture, $"Note {_posted}, posted while the page was open.")
-        });
+        }));
 
         LogEvent($"posted entry {_posted}");
+    }
+
+    /// <summary>
+    /// Posts a picture whose size the row does not know: it is drawn before the picture arrives and grows when it does.
+    /// </summary>
+    /// <remarks>A fresh address each time, as a new upload has, so the browser cannot answer it from its cache before the first paint.</remarks>
+    public void PostPicture()
+    {
+        _posted++;
+
+        Entries.Add(WithMenu(new DemoFeedItem
+        {
+            Id = string.Create(CultureInfo.InvariantCulture, $"posted-{_posted}"),
+            Title = "You",
+            Kind = ImageKind,
+            Source = string.Create(CultureInfo.InvariantCulture, $"{Pictures[_posted % Pictures.Length]}?post={_posted}"),
+            Description = string.Create(CultureInfo.InvariantCulture, $"Picture {_posted}, at its own proportions.")
+        }));
+
+        LogEvent($"posted picture {_posted}");
+    }
+
+    /// <summary>What a press on an entry of a row's context menu did.</summary>
+    public void Act(string action, string id)
+        => LogEvent($"{action} on {id}");
+
+    /// <summary>Fills the entry's context menu for its kind: a note is copied or pinned, a picture opened or saved.</summary>
+    private static DemoFeedItem WithMenu(DemoFeedItem entry)
+    {
+        entry.Menu.Clear();
+
+        if (string.Equals(entry.Kind, ImageKind, StringComparison.Ordinal))
+        {
+            entry.Menu.Add(new MenuItem { Id = "open", IsContent = true, Title = "Open the picture", Icon = DemoIcons.Outline(DemoIcons.ExternalLink) });
+            entry.Menu.Add(new MenuItem { Id = "save", IsContent = true, Title = "Save the picture", Icon = DemoIcons.Outline(DemoIcons.Upload) });
+        }
+        else
+        {
+            entry.Menu.Add(new MenuItem { Id = "copy", IsContent = true, Title = "Copy the text", Icon = DemoIcons.Outline(DemoIcons.Copy) });
+            entry.Menu.Add(new MenuItem { Id = "pin", IsContent = true, Title = "Pin", Icon = DemoIcons.Outline(DemoIcons.Bell) });
+        }
+
+        return entry;
     }
 
     /// <summary>
@@ -63,7 +113,10 @@ internal sealed partial class FeedGroupContext : DemoGroupContext
         newest.Kind = toImage ? ImageKind : NoteKind;
         newest.Source = toImage ? DemoImages.MeteorShore : null;
 
-        LogEvent($"{newest.Id} is now a {newest.Kind}");
+        // In place, with the kind: the row redrawn in the other template opens the other menu.
+        _ = WithMenu(newest);
+
+        LogEvent($"{newest.Id} is now a {newest.Kind}, and its menu with it");
     }
 }
 
@@ -147,6 +200,27 @@ internal sealed partial class RunbookGroupContext : DemoGroupContext
 }
 
 /// <summary>
+/// Pinned messages, each saying when it was sent in words with the moment in them; the list is filled before the page is first drawn.
+/// </summary>
+/// <remarks>The server writes a moment in UTC, knowing no reader's zone, and the page writes it again in the reader's.</remarks>
+internal sealed partial class PinnedGroupContext : DemoGroupContext
+{
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> Pins { get; } = CreatePins(DateTimeOffset.UtcNow);
+
+    private static RecursiveCollection<TextItem> CreatePins(DateTimeOffset now)
+        =>
+        [
+            Pin("p1", DemoIcons.Server, "Robin: the failover runbook, step by step", now.AddMinutes(-47)),
+            Pin("p2", DemoIcons.Lock, "Alex: rotate the staging keys before Friday", now.AddHours(-5)),
+            Pin("p3", DemoIcons.Upload, "Robin: 481 is the release to roll back to", now.AddDays(-2))
+        ];
+
+    private static TextItem Pin(string id, string icon, string title, DateTimeOffset sent)
+        => new() { Id = id, IsContent = true, Icon = DemoIcons.Outline(icon), Title = title, Description = UIPhrase.Of("demo.timestamp.sent", ("at", new UIMoment(sent))) };
+}
+
+/// <summary>
 /// The groups on the Examples page with state: a feed whose entries change shape, and lists put in order by a drag.
 /// </summary>
 internal sealed partial class ItemsViewExamplesController() : DemoController
@@ -159,6 +233,9 @@ internal sealed partial class ItemsViewExamplesController() : DemoController
 
     [RecursiveMember]
     public partial RunbookGroupContext RunbookGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial PinnedGroupContext PinnedGroup { get; set; } = new();
 
     [UICommand]
     public void MoveService(string id, int index)
@@ -173,6 +250,14 @@ internal sealed partial class ItemsViewExamplesController() : DemoController
         => FeedGroup.Post();
 
     [UICommand]
+    public void PostPicture()
+        => FeedGroup.PostPicture();
+
+    [UICommand]
     public void FlipNewest()
         => FeedGroup.FlipNewest();
+
+    [UICommand]
+    public void FeedMenuAction(string action, string id)
+        => FeedGroup.Act(action, id);
 }

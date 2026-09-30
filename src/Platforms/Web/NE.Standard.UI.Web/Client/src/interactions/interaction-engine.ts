@@ -1,5 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue, getInteractionActionKind } from "../metadata/metadata-index.ts";
@@ -182,12 +183,15 @@ export class InteractionEngine {
 
         // Fires only while the condition holds; falseValue has no meaning for an effect.
         if (this.evaluator.matches(interaction, sourceValue))
-            this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters), dom: this.options.dom });
+            this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters, this.options.dom), dom: this.options.dom, row: dynamicParameters });
     }
 }
 
-/** Supplies the row an effect authored in an item template could not name at compile time. */
-function withScopeParameters(effect: ClientEffect, dynamicParameters: readonly unknown[]): ClientEffect {
+/**
+ * Supplies the row an effect authored in an item template could not name at compile time: as many of its keys as the target stands
+ * in, so a row's press still reaches a field outside the list (an emoji panel's tile inserting into the composer beside it).
+ */
+function withScopeParameters(effect: ClientEffect, dynamicParameters: readonly unknown[], dom: Pick<DomRegistry, "findComponent">): ClientEffect {
     if (dynamicParameters.length === 0)
         return effect;
 
@@ -196,6 +200,18 @@ function withScopeParameters(effect: ClientEffect, dynamicParameters: readonly u
     if (target === undefined || (target.dynamicParameters?.length ?? 0) > 0)
         return effect;
 
+    const componentId = getIdValue(target.id);
+
+    for (let depth = dynamicParameters.length; depth >= 0; depth--) {
+        const scope = dynamicParameters.slice(0, depth);
+        const element = dom.findComponent(componentId, scope);
+
+        // Rowless, `findComponent` answers a templated component by its first row too: only one standing in no row is the target.
+        if (element !== null && matchesDynamicParameters(element, scope))
+            return depth === 0 ? effect : { ...effect, target: { ...target, dynamicParameters: scope } };
+    }
+
+    // Nowhere on the page: the effect says so under the whole row, as it always has.
     return { ...effect, target: { ...target, dynamicParameters } };
 }
 

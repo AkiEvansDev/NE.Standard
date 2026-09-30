@@ -11,6 +11,7 @@ import {
     writtenMomentDate
 } from "../src/rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLetters, WrittenMoment } from "../src/rendering/temporal-format.ts";
+import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
 type TemporalCase = { readonly name: string; readonly culture: string; readonly value: string; readonly format: string; readonly expected: string };
 
@@ -19,6 +20,7 @@ const corpusPath = resolve(here, "../../../../../../eng/Tests/Shared/temporal-fo
 const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as {
     readonly cultures: Readonly<Record<string, TemporalCulturePack>>;
     readonly cases: readonly TemporalCase[];
+    readonly markedDays: readonly { readonly name: string; readonly days: readonly string[]; readonly expected: string }[];
 };
 
 assert.ok(corpus.cases.length > 0, "The temporal-format corpus is empty.");
@@ -41,6 +43,13 @@ for (const testCase of corpus.cases) {
         assert.ok(culture !== undefined, `No culture '${testCase.culture}' in the corpus.`);
         assert.equal(formatTemporal(parseLocal(testCase.value), testCase.format, culture), testCase.expected);
     });
+}
+
+// A day input's marked days: the converter writes a pushed set as `WebTemporalFormat.Days` writes the render's, nothing as no attribute.
+assert.ok(corpus.markedDays.length > 0, "The temporal-format corpus has no marked days.");
+
+for (const testCase of corpus.markedDays) {
+    test(testCase.name, () => assert.equal(webDomConverters.get("markedDaysAttribute")!(testCase.days) ?? "", testCase.expected));
 }
 
 // The written-moment corpus: UIWrittenMomentParityTests reads the same file against the C# port.

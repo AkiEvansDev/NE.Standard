@@ -1,5 +1,6 @@
-// A type-only import, so `npm test` can load this module directly: node --test resolves value imports literally.
+// `.ts` on the value import and the metadata's types type-only, so `npm test` can load this module directly.
 import type { ServerChangeSet } from "../metadata/metadata-index";
+import { holdsMoment } from "./words.ts";
 
 // What the shell render put in the page: the values it rendered with, and the id of the runtime it read them from.
 
@@ -21,6 +22,14 @@ type WebPageWords = {
     readonly language: string;
     readonly href: string;
 };
+
+/**
+ * Whether the render painted a moment in words the page is handed: the title, or a value the change set carries — a row the server drew
+ * from a controller's list holds its item there and nowhere else, its words marked by nothing.
+ */
+export function paintsMoment(payload: WebHydrationPayload | null): boolean {
+    return payload !== null && (holdsMoment(payload.title) || holdsMoment(payload.changes));
+}
 
 export function readHydration(documentRoot: ParentNode = document): WebHydrationPayload | null {
     const script = documentRoot.querySelector<HTMLScriptElement>(HydrationSelector);

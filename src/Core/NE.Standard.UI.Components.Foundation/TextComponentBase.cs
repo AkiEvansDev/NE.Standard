@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Components.Foundation;
 /// <summary>
 /// What a title-and-description block is before it decides which of the two things it is.
 /// </summary>
-/// <remarks><c>TextComponent</c> adds <c>IconAlignment</c>, <c>ParagraphComponent</c> adds wrapping, so neither can be the other's parent.</remarks>
+/// <remarks><c>TextComponent</c> adds <c>IconAlignment</c>, <c>ParagraphComponent</c> a clamp and a quote line, so neither can be the other's parent.</remarks>
 [UIComponentPropertyBlock(typeof(ITextComponent))]
 public abstract partial class TextComponentBase<T> : VisualComponentBase<T>, ITextComponent
     where T : TextComponentBase<T>, IUIComponentDefinition

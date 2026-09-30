@@ -301,14 +301,16 @@ public sealed class UIContext
     /// </summary>
     /// <remarks>
     /// A no-op when the session is gone. What was stored is this connection's <see cref="UIHandle.Session"/> for the rest of the
-    /// command; a new language runs the controller's language hook and switches this page before it returns.
+    /// command. A new language or theme mode runs the controller's hook, and a new language, theme mode or set of colours switches
+    /// this page, before it returns; the session's other pages open under a controller are switched too, their controllers told as a
+    /// command runs, and a page kept for later is told at its next attach.
     /// </remarks>
     public async ValueTask UpdateSessionAsync(Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
 
         UIHandle handle = Handle;
-        var previousLanguage = handle.Session.Language;
+        IUserSessionContext previous = handle.Session;
         UserSessionState? written = null;
 
         // Applied to what the store holds at the write, so a change made meanwhile from elsewhere is not overwritten; and never
@@ -320,8 +322,8 @@ public sealed class UIContext
 
         handle.RefreshSession(written);
 
-        if (!string.Equals(previousLanguage, written.Language, StringComparison.Ordinal) && _runtime is IUILanguageChangeListener listener)
-            await listener.LanguageChangedAsync(handle, previousLanguage, cancellationToken).ConfigureAwait(false);
+        if (UISessionMoves.Any(previous, written) && _runtime is IUISessionChangeListener listener)
+            await listener.SessionChangedAsync(handle, previous, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

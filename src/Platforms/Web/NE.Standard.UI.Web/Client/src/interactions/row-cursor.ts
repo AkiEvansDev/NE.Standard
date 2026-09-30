@@ -38,9 +38,16 @@ function rowCandidates(rows: readonly HTMLElement[]): HTMLElement[] {
 
 /** The row the keyboard is on: the one marked, else the chosen one, else the first it could land on. */
 export function focusedRow(rows: readonly HTMLElement[]): HTMLElement | null {
+    return litRow(rows) ?? rowCandidates(rows)[0] ?? null;
+}
+
+/**
+ * The row the cursor lights — the one marked, else the chosen one — or null in a list with no cursor yet, whose first arrow enters at
+ * the near end (the first row for Down and Right, the last for Up and Left), as an opened list's does: what the arrows start from.
+ */
+export function litRow(rows: readonly HTMLElement[]): HTMLElement | null {
     return rows.find(row => row.hasAttribute(RowFocusAttribute))
         ?? rows.find(row => row.hasAttribute(SelectedAttribute) && !isItemDisabled(row))
-        ?? rowCandidates(rows)[0]
         ?? null;
 }
 

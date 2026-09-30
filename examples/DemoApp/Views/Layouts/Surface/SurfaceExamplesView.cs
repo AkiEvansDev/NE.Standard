@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Linq;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Layouts.Surface;
@@ -19,7 +21,7 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
     {
         _ = container.AddChildren(DemoUI.CreateColumns(
             [CreateBarGroup(), CreateChoiceGroup(), CreateEmptyStateGroup()],
-            [CreateStatsGroup(), CreateNestedGroup(), CreateAgainstCardGroup()]
+            [CreateStatsGroup(), CreateNestedGroup(), CreateAgainstCardGroup(), CreateClippedListGroup()]
             )
         );
     }
@@ -210,6 +212,37 @@ internal sealed class SurfaceExamplesView : DemoExamplesView, IUIViewDefinition
                 )
         );
     }
+
+    /// <summary>
+    /// A feed's shape: a clipping surface that fills its box, and in it a list that fills the surface less its own margin.
+    /// </summary>
+    private static ContainerComponent CreateClippedListGroup()
+    {
+        return DemoUI.CreateExample("A list that fills a clipped surface",
+            new ContainerComponent()
+                .SetHeight(UILayoutLength.Absolute(260))
+                .AddChild(new SurfaceComponent()
+                    .SetOverflow(UIOverflow.Hidden)
+                    .SetHeight(UILayoutLength.Fill())
+                    .SetContent(new ItemsViewComponent()
+                        .SetItems(CreateMessages())
+                        .SetMargin(UIThickness.Uniform(8))
+                        .SetHeight(UILayoutLength.Fill())
+                        .VerticalScrollOnly()
+                        .SetSpacing(4)
+                    )
+                ),
+            note: "The surface clips and fills its box; the list fills the surface with a margin of 8 all round. Scroll the list to its end: the last row stands whole, 8 pixels above the surface's edge — Fill is the parent's room less the component's own margin."
+        );
+    }
+
+    private static TextItem[] CreateMessages()
+        => [.. Enumerable.Range(1, 20).Select(static i => new TextItem
+        {
+            Id = string.Create(CultureInfo.InvariantCulture, $"m{i}"),
+            Title = string.Create(CultureInfo.InvariantCulture, $"Message {i}"),
+            Description = i == 20 ? "The last one — its line should not be cut." : "Sent 09:14"
+        })];
 
     /// <summary>
     /// The same content twice, so what a card adds is exactly what differs: two bands, drawn only where filled.

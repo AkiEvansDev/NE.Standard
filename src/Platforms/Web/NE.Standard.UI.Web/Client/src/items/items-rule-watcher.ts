@@ -1,4 +1,7 @@
-import { ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, ItemsHostAttribute, ItemsQueryAttribute, ItemsQueryValueKind, ValueKindAttribute, cssAttributeValue } from "../addressing/dom-attributes";
+import {
+    ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, HostModeAttribute, ItemsHostAttribute, ItemsQueryAttribute, ItemsQueryValueKind,
+    ValueKindAttribute, WindowGroupBeforeAttribute, cssAttributeValue
+} from "../addressing/dom-attributes";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry";
 import { observeComponents } from "../interactions/dom-mutations";
 import { collectDynamicParameters, matchesDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
@@ -65,6 +68,16 @@ export class ItemsRuleWatcher {
 
                 if (componentId !== null)
                     this.syncComponentHosts(componentId);
+            }
+        });
+
+        // What a window's first row is headed against, patched apart from the rows it came with (a read upwards, a trim at the start).
+        observeComponents(options.root, `[${HostModeAttribute}="windowed"]`, { attributeFilter: [WindowGroupBeforeAttribute] }, hosts => {
+            for (const host of hosts) {
+                const componentId = findOwningComponentId(host);
+
+                if (componentId !== null)
+                    this.sync(host, componentId);
             }
         });
     }

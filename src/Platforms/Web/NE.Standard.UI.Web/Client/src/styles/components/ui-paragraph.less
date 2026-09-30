@@ -1,10 +1,8 @@
 @import "../core/tokens.less";
 
-// Lifts the description out of .ui-text's one-line rule, at ui-text.less's weight so it wins by order; pre-line keeps authored breaks.
+// A paragraph's wrapping description keeps its authored breaks, where a wrapping text's fold into the run (ui-text.less).
 .ui-paragraph.ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
-    overflow: visible;
     white-space: pre-line;
-    text-overflow: clip;
 }
 
 // Centred by text-align, not by ui-text.less's content-sized tracks: a wrapping description would blow out an intrinsic track it spans.
