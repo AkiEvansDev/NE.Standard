@@ -1,9 +1,12 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
 import { WordsAttribute } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
-import { hasKeyPrefix, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
+import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
 import type { TemporalLanguage } from "../rendering/temporal-format.ts";
+import { formatTimestamp } from "../rendering/timestamp-format.ts";
+import { needRelativeTicks } from "./relative-clock.ts";
+import type { TimestampFormat } from "../rendering/timestamp-format.ts";
 import type { NumberCulturePack } from "../rendering/number-format.ts";
 
 // The keys are UIStrings on the server, which also holds the English text; the page carries them resolved for its language.
@@ -68,6 +71,9 @@ const StringsSelector = "script[type='application/json'][data-ui-strings]";
 /** The mark's name for an element's own text, as the server's `WebWords.TextTarget`. */
 const TextTarget = "#text";
 
+/** An element whose words mark may hold a moment: the mark's JSON names one. */
+const MomentMarkSelector = `[${WordsAttribute}*='"moment"']`;
+
 /** The page's words: the boot subset, then the language's table, under the page's overrides; one per document, which shows one language. */
 export class ClientWords implements WordLookup {
     private words = new Map<string, string>();
@@ -75,6 +81,10 @@ export class ClientWords implements WordLookup {
     private readonly missing = new Set<string>();
     private readonly changeHandlers = new Set<() => void>();
     private readonly tableHandlers = new Set<() => void>();
+    private readonly momentHandlers = new Set<() => void>();
+
+    // A relative moment was written since the last tick; the ticks stop once one passes with none.
+    private relativeWritten = false;
 
     private currentLanguage = "";
     private currentPrefixes: readonly string[] = [];
@@ -243,6 +253,16 @@ export class ClientWords implements WordLookup {
         return () => this.tableHandlers.delete(handler);
     }
 
+    /**
+     * Hears, on the page's relative clock while words hold a relative moment, that they are due to be written again — as a relative
+     * timestamp is. The ticks go on while each tick's writing writes a relative moment again, and stop once one writes none.
+     */
+    public onMomentTick(handler: () => void): () => void {
+        this.momentHandlers.add(handler);
+
+        return () => this.momentHandlers.delete(handler);
+    }
+
     /** Tells every listener the table changed; one that throws is logged and passed over. */
     public notifyChanged(): void {
         this.notify(this.changeHandlers, "a words change handler failed.");
@@ -305,6 +325,34 @@ export class ClientWords implements WordLookup {
         return translateKey(this, key, args);
     }
 
+    /**
+     * A moment in the reader's zone, as a timestamp writes one: a day or a time in the table's patterns — the wire's canonical ones with
+     * no table — and a relative one by `Intl` in the table's language, which starts the ticks that keep it current.
+     */
+    public readonly writeMoment = (instant: number, format: TimestampFormat): string => {
+        if (format === "relative")
+            this.noteRelative();
+
+        return formatTimestamp(instant, format, { temporal: this.currentTemporal, language: this.currentLanguage }, Date.now());
+    };
+
+    private noteRelative(): void {
+        this.relativeWritten = true;
+
+        if (this.momentHandlers.size > 0)
+            needRelativeTicks(this.tickMoments);
+    }
+
+    /** Hands the tick on where a relative moment was written since the last one; answers whether one was. */
+    private readonly tickMoments = (): boolean => {
+        if (!this.relativeWritten)
+            return false;
+
+        this.relativeWritten = false;
+        this.notify(this.momentHandlers, "a moment tick handler failed.");
+        return true;
+    };
+
     /** What a value shows on a property: a phrase translated, a plain string looked up where `translatable`, else itself. */
     public resolve(value: unknown, translatable: boolean): unknown {
         return resolveText(value, translatable, this);
@@ -349,11 +397,17 @@ export class ClientWords implements WordLookup {
         markWords(element, attribute, mark);
     }
 
-    /** Writes every marked word under `root` again in the table's language — inside the templates rows are built from too. */
-    public rewriteMarks(root: ParentNode): void {
+    /**
+     * Writes every marked word under `root` again in the table's language — inside the templates rows are built from too; with
+     * `momentsOnly`, only those holding a moment.
+     */
+    public rewriteMarks(root: ParentNode, momentsOnly = false): void {
         forEachSubtree(root, subtree => {
-            for (const element of subtree.querySelectorAll(`[${WordsAttribute}]`)) {
+            for (const element of subtree.querySelectorAll(momentsOnly ? MomentMarkSelector : `[${WordsAttribute}]`)) {
                 for (const [target, mark] of Object.entries(readMarks(element))) {
+                    if (momentsOnly && !holdsMoment(mark))
+                        continue;
+
                     const words = this.wordsOfMark(mark);
 
                     if (words !== null)
@@ -452,6 +506,17 @@ export class ClientWords implements WordLookup {
         if (added)
             this.notifyChanged();
     }
+}
+
+/** Whether a words mark under `root` — or inside a template under it — may hold a moment. */
+export function marksMoment(root: ParentNode): boolean {
+    let marked = false;
+
+    forEachSubtree(root, subtree => {
+        marked ||= subtree.querySelector(MomentMarkSelector) !== null;
+    });
+
+    return marked;
 }
 
 /** Takes a word's mark off a place a property's value now holds, so a switch never writes the chrome's word back over it. */

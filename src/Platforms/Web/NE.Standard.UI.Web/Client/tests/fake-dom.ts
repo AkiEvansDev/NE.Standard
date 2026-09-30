@@ -56,6 +56,9 @@ export class FakeElement {
     public readonly dataset: Record<string, string> = {};
     public readonly clientLeft = 0;
     public readonly clientTop = 0;
+    /** Where a scroll box stands; a test lays the boxes out as they stand after it, since nothing here moves them. */
+    public scrollTop = 0;
+    public scrollLeft = 0;
     private readonly listeners = new Map<string, Listener[]>();
     private text = "";
 
@@ -220,6 +223,10 @@ export class FakeElement {
 
     public get clientWidth(): number {
         return this.rect.width;
+    }
+
+    public get clientHeight(): number {
+        return this.rect.height;
     }
 
     /** Its own words and its children's, in order; set, the words replace the children. */
@@ -513,6 +520,12 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
     let rest = compound.trim();
 
     while (rest.length > 0) {
+        // The universal selector: any element, as a scroll effect walks every one under its target.
+        if (rest.startsWith("*")) {
+            rest = rest.slice(1);
+            continue;
+        }
+
         const token = Token.exec(rest);
 
         if (token === null)

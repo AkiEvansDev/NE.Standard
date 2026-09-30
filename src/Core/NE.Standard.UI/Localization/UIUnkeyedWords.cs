@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
@@ -14,14 +15,15 @@ namespace NE.Standard.UI.Localization;
 
 /// <summary>
 /// Reports a compiled view's static text that is no key under the key prefixes, as <see cref="UIMissingWordKind.Unkeyed"/>: a plain
-/// string on a translatable property the instance did not mark content, and one read off an author-declared item that does not say
-/// it is content.
+/// string on a translatable property the instance did not mark content, one read off an author-declared item that does not say
+/// it is content, and a table column's caption.
 /// </summary>
 /// <remarks>
 /// Bound values are data and stay silent, and so do the items a template reaches through a binding (a tree's children), and all
 /// static text under a component marked <c>AsContentTree</c> (a sample, a page of prose). Text without
 /// a letter ("—", "404") is no word to translate, nor is an address — a path, a fragment or an absolute URL on a translatable
-/// <c>Url</c>, which is translatable so a language can link elsewhere.
+/// <c>Url</c>, which is translatable so a language can link elsewhere. A caption is judged at its column, before anything else of the
+/// view, so the place named is the table's however many parts repeat it (a grid's chooser, its filters): each text is recorded once.
 /// </remarks>
 internal sealed class UIUnkeyedWords
 {
@@ -52,6 +54,18 @@ internal sealed class UIUnkeyedWords
 
             foreach (CompiledUIPropertyValue value in state.All)
             {
+                if (!value.IsBind && value.IsTranslatable && value.Value is IReadOnlyList<UITableColumn> columns)
+                    InspectCaptions(view, viewType, state.ComponentId, value.Property.Name, columns);
+            }
+        }
+
+        foreach (UIComponentState state in view.State.All)
+        {
+            if (IsInContentTree(view, state.ComponentId, silenced))
+                continue;
+
+            foreach (CompiledUIPropertyValue value in state.All)
+            {
                 if (value.IsBind)
                     continue;
 
@@ -60,6 +74,18 @@ internal sealed class UIUnkeyedWords
                 else if (value.IsTranslatable && value.Value is string text)
                     Check(text, view, viewType, state.ComponentId, value.Property.Name);
             }
+        }
+    }
+
+    /// <summary>Each column's caption the column does not say is content; the table marked <c>AsContent</c> on its columns says it of all.</summary>
+    private void InspectCaptions(CompiledView view, Type viewType, UIComponentId componentId, string property, IReadOnlyList<UITableColumn> columns)
+    {
+        for (var i = 0; i < columns.Count; i++)
+        {
+            UITableColumn column = columns[i];
+
+            if (!column.IsContent && !string.IsNullOrEmpty(column.Caption))
+                Check(column.Caption, view, viewType, componentId, $"{property} '{column.Key}'");
         }
     }
 

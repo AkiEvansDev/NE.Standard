@@ -591,11 +591,19 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// the client clones — since an id must be unique.
     /// </summary>
     protected static string? ValidationMessageId(WebRenderContext context)
+        => ComponentPartId(context, "validation");
+
+    /// <summary>
+    /// The id of a part of the component another of its elements names (<c>aria-describedby</c>); null where the component may stand
+    /// on the page more than once — a row, a template the client clones — since an id must be unique.
+    /// </summary>
+    protected static string? ComponentPartId(WebRenderContext context, string part)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentException.ThrowIfNullOrWhiteSpace(part);
 
         return context.Node.ContextParameterCount == 0 && !context.IsPresentationCopy && !context.IsTemplate
-            ? string.Create(CultureInfo.InvariantCulture, $"ui-{context.Node.ComponentId.Value}-validation")
+            ? string.Create(CultureInfo.InvariantCulture, $"ui-{context.Node.ComponentId.Value}-{part}")
             : null;
     }
 

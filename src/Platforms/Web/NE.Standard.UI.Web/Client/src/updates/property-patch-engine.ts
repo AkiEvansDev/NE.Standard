@@ -163,15 +163,18 @@ export class PropertyPatchEngine {
         };
     }
 
-    /** Writes every recorded translatable value again in the table's language; the state is unchanged, so no handler hears it. */
-    public rewriteWords(): void {
+    /**
+     * Writes every recorded translatable value again in the table's language — only those `only` names, where given; the state is
+     * unchanged, so no handler hears it.
+     */
+    public rewriteWords(only?: (value: unknown) => boolean): void {
         for (const entry of [...this.state.entries()]) {
             const value = entry.value;
             const translatable = typeof value === "string"
                 ? this.addressResolver.isTranslatable(entry.reference)
                 : isPhrase(value);
 
-            if (translatable)
+            if (translatable && (only === undefined || only(value)))
                 this.applyPropertyValue(entry.reference, entry.dynamicParameters, value, false);
         }
     }

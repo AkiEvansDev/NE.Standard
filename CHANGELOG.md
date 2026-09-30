@@ -9,6 +9,81 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.0-rc.2
+
+A second release candidate: what two applications found on 1.4.0-rc.1 (GitHub issues #40–#45).
+
+**Words and languages**
+
+- **A moment can stand in words.** A `UIPhrase` argument that is a `DateTimeOffset`, or a UTC or local `DateTime`, is written
+  by the page as a `TimestampComponent` writes its value — in the reader's time zone, in the application's patterns
+  (`ConfigureTemporal`), following a language switch. `new UIMoment(instant, UITimestampFormat.Relative)` (or `Date`, `Time`)
+  picks another form, and a relative one is kept current on the same 15 s clock as a relative timestamp. It holds wherever a
+  translatable property takes a phrase: an action's description, a menu entry, a key-value row's value, a table's text column, a
+  toast, a validation message. The server's first paint is the moment in UTC in the application's patterns, as a timestamp's
+  is, and on the wire it travels as `{"moment":"2026-09-30T14:05:00.000Z","format":"relative"}` (`UIMomentJsonConverter`).
+  **Breaking:** a `DateTime` of unspecified kind as a phrase argument is refused with `ArgumentException` where the phrase is
+  built, since it names no instant — pass a `DateTimeOffset`, or the `DateTime` through `DateTime.SpecifyKind`.
+- **Words a server translates on its own write a moment in the canonical patterns in UTC**: `UIContext.Translate` and
+  `UIWords.Format` give `2026-09-30 14:05 UTC` (`UIMoment.ToString()`), a date alone `2026-09-30`.
+- **A table column's caption is judged at the column, and can be content.** The Development unkeyed report never looked at a
+  table's header captions; it now judges each caption once, at its column, naming the table and the column's key. New:
+  `UITableColumn.IsContent` (the column is an `IContentItem`) and `content:` on `AddColumn`/`AddTextColumn` show a caption as
+  written and keep it out of the report; `AsContent(TableComponent.ColumnsProperty)` says the same of every column of a table,
+  while its cell templates are still inspected, as they are not under `AsContentTree()`. `TableComponent.Columns` is
+  `[Translatable]` so that `AsContent` takes it, and `VisualComponentBase.AsContent` is virtual, for a component that repeats a
+  property's words in parts of its own. **Breaking:** the table's virtual `AddColumn`/`AddTextColumn` take the new optional
+  parameter, so a table overriding them follows.
+
+**Dates and times**
+
+- **`UITimestampFormat`'s examples show the default patterns**: `2026-09-30 14:05`, `2026-09-30`, `14:05`.
+
+**Tables and lists**
+
+- **A row that changes its template variant in place shows its nested lists.** Writing another key into a row's template-key
+  property drew the row again in the new variant, but an items view nested in that variant, bound to a collection of the row's
+  item, came out empty until a reload. The runtime now sends the row's nested collections after the `Replace`, as it does for a
+  new row, and only to the variant the row now wears; a row moved to another group gets them the same way.
+
+**Forms and surfaces**
+
+- **A caption's help badge is no tab stop; its words describe the field.** The badge `SetHelp` fills has left the Tab order, so
+  a dialog opened from the keyboard lands on its first field, not on the field's help with its tooltip up. The help's words are
+  the field control's accessible description (`aria-describedby`, before the validation line), kept in step with a push and a
+  language switch; the pointer's hover shows them, and in a caption outside the field's box a press or a touch does too. A field
+  in a row or a template the page clones carries no description, since its id would not be unique. Any other caption badge
+  with a tooltip stays a tab stop named by its words.
+- **A dialog opens at its top.** Opening a dialog scrolls its body back to the start and brings the element taking the focus
+  into view inside the dialog, never scrolling the page — a dialog reused for every item no longer opens where the last one
+  was scrolled to.
+- **A tooltip whose control is out of sight is not shown.** A control scrolled or clipped out of a box around it, or out of the
+  window, shows no tooltip — the page's own or a package's `tooltips.show` — and a tooltip on screen closes when a scroll takes
+  its control out of sight.
+- **A notification's action stands on its own line, under the message at its end**, the message and the close sharing the
+  first line; beside the message, a label as long as "Reload" took half its width. The action follows the close in the Tab
+  order, as it is drawn. A toast is 400 pixels wide unless `UIViewOptions.NotificationWidth` says otherwise (was 360).
+
+**Values, addresses and components**
+
+- **Breaking:** `NE.Standard.UI.Primitives.Text` is a global using, so `UIInlineMarkup.ToPlainText`/`Escape` need no `using`
+  line. An explicit `using` of it is now IDE0005; delete the line.
+
+**Renderers**
+
+- **New: `WebMoments`** (`Web.Abstractions`) — `FirstPaint(instant, format, culture, options)`, the one first paint of a moment,
+  a timestamp's and a phrase argument's alike, which `TimestampComponentRenderer.FirstPaint` now calls, and `Paint(arguments,
+  language, options)` for a phrase's arguments. `WebRenderContext.Translate` and `WebWords.Write` paint a moment through it and
+  mark it in a moment's shape, so the page writes it again.
+
+**The client**
+
+- **`ScrollEffect` on a box with nothing to scroll yet is a no-op.** A box that could scroll but shows all it holds takes the
+  scroll silently, and is chosen over an overflowing box outside the addressed element — a short chat feed on a long page
+  scrolls nothing, rather than the page; the warning is kept for a target with nothing in reach that could ever scroll.
+- **New for packages: a `Moment` type on the plugin surface.** `strings.format` takes a `Moment` among its values and writes it
+  in the reader's zone, and `strings.write` keeps a relative one current; a widening only, so the contract stays 2.
+
 ## 1.4.0-rc.1
 
 A release candidate: the findings of the review of 1.3.0 and of two applications built on it (GitHub issues #1–#39), and of a

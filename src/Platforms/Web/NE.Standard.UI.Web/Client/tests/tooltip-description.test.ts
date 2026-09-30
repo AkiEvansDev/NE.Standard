@@ -8,7 +8,7 @@ import { FakeElement, FakeInput, fakeDocument, installFakeDom, real } from "./fa
 // Enough of a laid-out page for the tooltip to be placed: no transform anywhere, and a size observer that watches nothing.
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 1024, innerHeight: 768 },
-    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none" }),
+    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", position: "static", overflowX: "visible", overflowY: "visible" }),
     ResizeObserver: class {
         public observe(): void {
         }

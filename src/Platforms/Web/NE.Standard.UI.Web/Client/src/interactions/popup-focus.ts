@@ -206,6 +206,32 @@ export function moveFocusInto(popup: HTMLElement, preferred?: HTMLElement | null
 }
 
 /**
+ * Moves the focus into a surface opened afresh (a dialog shown again) as `moveFocusInto` does, its scroll back at the start first and
+ * the element taking the focus brought into view inside it; the page itself never scrolls for it.
+ */
+export function moveFocusIntoFromStart(surface: HTMLElement, preferred?: HTMLElement | null): HTMLElement | null {
+    surface.scrollTop = 0;
+    surface.scrollLeft = 0;
+
+    const target = preferred ?? firstFocusable(surface);
+
+    if (target !== null)
+        revealWithin(surface, target);
+
+    return moveFocusInto(surface, target);
+}
+
+/** Scrolls a box down by the least that shows an element inside it, or to the element's top where it is taller than the box. */
+function revealWithin(box: Element, element: Element): void {
+    const top = box.getBoundingClientRect().top + box.clientTop;
+    const bottom = top + box.clientHeight;
+    const rect = element.getBoundingClientRect();
+
+    if (rect.bottom > bottom)
+        box.scrollTop += Math.min(rect.bottom - bottom, rect.top - top);
+}
+
+/**
  * Gives an opened list the keyboard: a key's opening lights its first entry (its last for `fromEnd`); the pointer's lights none — the
  * list holds the focus with no entry a tab stop, so the first arrow enters at the near end, as a native menu's does.
  */

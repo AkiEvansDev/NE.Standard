@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Primitives.Text;
@@ -116,15 +117,20 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ContentStateTarget = $".{TextClassPrefix}__badge"
     };
 
+    // On a caption's help badge (SetHelp's), which is no tab stop: its words describe the field instead, from the element below.
+    private const string HelpBadgeAttribute = "data-ui-help-badge";
+    private const string HelpDescriptionClassName = $"{TextClassPrefix}__help";
+
     // A caption's badge its words make a tab stop (RenderReachableBadge): one type draws a caption above its field and one inside
     // its box, and a property's operations are one list per type, so these land only where the render marked the badge reachable.
-    private const string ReachableBadgeTarget = $".{TextClassPrefix}__badge[{WebAttributes.TooltipPress}]";
+    private const string ReachableBadgeTarget = $".{TextClassPrefix}__badge[{WebAttributes.TooltipPress}]:not([{HelpBadgeAttribute}])";
     private static readonly WebDomOperation[] CaptionBadgeTooltipOperations =
     [
         TooltipOperation,
         WebDomOperation.ToggleAttribute("tabindex", ReachableBadgeTarget, WebValueCondition.HasText, value: "0", optional: true),
         WebDomOperation.ToggleAttribute("role", ReachableBadgeTarget, WebValueCondition.HasText, value: "button", optional: true),
-        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = ReachableBadgeTarget, Converter = WebDomConverters.InlineMarkupPlainText, Optional = true }
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = ReachableBadgeTarget, Converter = WebDomConverters.InlineMarkupPlainText, Optional = true },
+        new WebDomOperation { Kind = nameof(WebDomOperationKind.Text), Target = $".{HelpDescriptionClassName}", Converter = WebDomConverters.InlineMarkupPlainText, Optional = true }
     ];
     private static readonly WebBadgeRenderOptions CaptionBadgeOptions = TextBadgeOptions with { TooltipOperations = CaptionBadgeTooltipOperations };
 
@@ -209,20 +215,70 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         BadgeRenderer.RenderBadge(context, root, badge, options.NamesField ? CaptionBadgeOptions : TextBadgeOptions);
 
-        if (options.NamesField && options.ReachableBadge)
+        if (!options.NamesField)
+            return;
+
+        if (IsHelpBadge(context))
+            RenderHelpBadge(context, badge, options.ReachableBadge);
+        else if (options.ReachableBadge)
             RenderReachableBadge(context, badge);
     }
 
+    // SetHelp's badge, known by the glyph it shows as the render reads it: an icon pushed later does not make or unmake one.
+    private static bool IsHelpBadge(WebRenderContext context)
+    {
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeIconProperty, out string? icon, out _);
+
+        return string.Equals(icon, UIGlyphs.Help, StringComparison.Ordinal);
+    }
+
     /// <summary>
-    /// A caption's badge whose tooltip is all it has to say (a help badge): a tab stop while it has words, a button named by them that
-    /// shows them on a press and on focus, and described by them while they show.
+    /// A caption's help badge: no tab stop, so the keyboard, a dialog's first focus included, lands on the field, which its words
+    /// describe (<see cref="RenderFieldLabel"/>); the pointer's hover shows them, and outside the field's box a press or a touch.
     /// </summary>
-    private static void RenderReachableBadge(WebRenderContext context, IHtmlElementBuilder badge)
+    private static void RenderHelpBadge(WebRenderContext context, IHtmlElementBuilder badge, bool pressable)
+    {
+        _ = badge.Attribute(HelpBadgeAttribute);
+
+        if (pressable)
+            RenderPressBadge(badge);
+
+        if (HelpDescriptionId(context) is not string id)
+            return;
+
+        // The words a reader hears, not the Markdown source; a push and a language switch write them through CaptionBadgeOptions'.
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _);
+
+        _ = badge.Element("span", description =>
+        {
+            _ = description.Class(HelpDescriptionClassName);
+            _ = description.Attribute("id", id);
+            // Never drawn: a description is read off the element it names, hidden or not.
+            _ = description.Attribute("hidden");
+
+            if (!string.IsNullOrWhiteSpace(words))
+                _ = description.Text(UIInlineMarkup.ToPlainText(words));
+        });
+    }
+
+    private static void RenderPressBadge(IHtmlElementBuilder badge)
     {
         // A touch has no hover to ask with, and a click would close a hover's words.
         _ = badge.Attribute(WebAttributes.TooltipPress);
         // Pressing it does nothing to the field it explains, nor raises the component's own events.
         _ = badge.Attribute(WebAttributes.EventBoundary);
+    }
+
+    private static string? HelpDescriptionId(WebRenderContext context)
+        => ComponentPartId(context, "help");
+
+    /// <summary>
+    /// A caption's badge whose tooltip is all it has to say, other than a help badge: a tab stop while it has words, a button named by
+    /// them that shows them on a press and on focus, and described by them while they show.
+    /// </summary>
+    private static void RenderReachableBadge(WebRenderContext context, IHtmlElementBuilder badge)
+    {
+        RenderPressBadge(badge);
 
         // The words a reader sees, not the Markdown source; a push and a language switch write them through CaptionBadgeOptions'.
         _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _);
@@ -279,7 +335,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     /// <summary>
     /// Names <paramref name="field"/> by the caption, or the component's <c>AccessibleName</c>, and marks it required, described by its
-    /// validation line and invalid where the render already knows the value was refused.
+    /// caption's help and its validation line, and invalid where the render already knows the value was refused.
     /// </summary>
     /// <remarks>
     /// For the element a screen reader lands on (the native field, a picker's trigger, a period's group): the caption drawn beside a
@@ -302,8 +358,12 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (HasRequiredValidation(context))
             _ = field.Attribute("aria-required", "true");
 
-        if (ValidationMessageId(context) is string messageId)
-            _ = field.Attribute("aria-describedby", messageId);
+        // The caption's help (RenderHelpBadge) first, then the validation line.
+        var helpId = IsHelpBadge(context) ? HelpDescriptionId(context) : null;
+        var messageId = ValidationMessageId(context);
+
+        if (helpId is not null || messageId is not null)
+            _ = field.Attribute("aria-describedby", helpId is null ? messageId : messageId is null ? helpId : $"{helpId} {messageId}");
 
         _ = ResolveRenderValue(context, IInputComponent.ValidationProperty, out UIValidationMessage? validation, out _);
 

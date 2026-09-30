@@ -48,3 +48,10 @@ test("a toast the focus came to from nowhere hands it to the next toast's close"
 
     assert.equal(fakeDocument.activeElement, real<FakeElement>(second.querySelector(".ui-notification__close")));
 });
+
+test("a toast's action comes after its close, as it is drawn under the message", () => {
+    const { engine } = page();
+    const toast = real<FakeElement>(engine.show({ message: "Lost", sticky: true, action: { label: "Reload", run: () => undefined } }));
+
+    assert.deepEqual(toast.children.map(child => child.className.split(" ")[0]), ["ui-notification__message", "ui-notification__close", "ui-notification__action"]);
+});

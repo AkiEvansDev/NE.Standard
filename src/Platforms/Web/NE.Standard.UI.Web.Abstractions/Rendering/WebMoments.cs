@@ -1,0 +1,109 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Localization;
+using NE.Standard.UI.Web.Abstractions.Theming;
+
+namespace NE.Standard.UI.Web.Abstractions.Rendering;
+
+/// <summary>
+/// A moment as the server paints it before the page writes it in the reader's zone — a timestamp's, and a phrase argument's
+/// (<see cref="UIMoment"/>): the instant in UTC in the page's names and the application's patterns, the ones the words table carries.
+/// </summary>
+/// <remarks>
+/// Not the reader's zone, because one render of a view is shared by every reader of it; the page writes the same patterns in the
+/// reader's zone, so at hydration only the time moves and " UTC" goes.
+/// </remarks>
+public static class WebMoments
+{
+    /// <summary>
+    /// The instant in UTC in the page's names and the application's patterns, said to be UTC where it shows a clock; a relative one as
+    /// the day and the time, since how long ago it was depends on when the page is read.
+    /// </summary>
+    public static string FirstPaint(DateTimeOffset instant, UITimestampFormat format, CultureInfo culture, UITemporalOptions? options)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+
+        WebTemporalPatterns patterns = WebTemporalPatterns.Resolve(culture, options, ownCulture: false);
+        WebTemporalCulturePack names = WebTemporalCulturePack.FromCulture(culture);
+        DateTime utc = instant.UtcDateTime;
+
+        return format switch
+        {
+            UITimestampFormat.Date => WebTemporalFormat.Format(utc, patterns.Date, names),
+            UITimestampFormat.Time => $"{WebTemporalFormat.Format(utc, patterns.ShortTime, names)} UTC",
+            _ => $"{WebTemporalFormat.Format(utc, patterns.DateTime(seconds: false), names)} UTC"
+        };
+    }
+
+    /// <summary>
+    /// A phrase's arguments with every moment in them — nested phrases' included — as its first paint for <paramref name="language"/>;
+    /// the arguments themselves where they hold none.
+    /// </summary>
+    public static IReadOnlyDictionary<string, object?>? Paint(IReadOnlyDictionary<string, object?>? arguments, string language, UITemporalOptions? options)
+    {
+        if (arguments is null || !HoldsMoment(arguments))
+            return arguments;
+
+        return PaintArguments(arguments, WebCultures.Resolve(language), options);
+    }
+
+    private static bool HoldsMoment(IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            if (UIMoment.TryRead(argument.Value, out _) || (argument.Value is UIPhrase { Arguments: { } nested } && HoldsMoment(nested)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static Dictionary<string, object?> PaintArguments(IReadOnlyDictionary<string, object?> arguments, CultureInfo culture, UITemporalOptions? options)
+    {
+        Dictionary<string, object?> painted = new(arguments.Count, StringComparer.Ordinal);
+
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            painted[argument.Key] = argument.Value switch
+            {
+                _ when UIMoment.TryRead(argument.Value, out UIMoment moment) => FirstPaint(moment.Instant, moment.Format, culture, options),
+                UIPhrase { IsText: false, Arguments: { } nested } phrase when HoldsMoment(nested) => new UIPhrase(phrase.Key, PaintArguments(nested, culture, options)),
+                _ => argument.Value
+            };
+        }
+
+        return painted;
+    }
+
+    /// <summary>
+    /// Arguments as the page's words mark carries them: a moment given as a <see cref="DateTimeOffset"/> or a <see cref="DateTime"/> as a
+    /// <see cref="UIMoment"/>, so it travels in a moment's shape rather than as a date's text; the arguments themselves where none is.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, object?>? ForWire(IReadOnlyDictionary<string, object?>? arguments)
+    {
+        if (arguments is null || !HoldsBareMoment(arguments))
+            return arguments;
+
+        Dictionary<string, object?> written = new(arguments.Count, StringComparer.Ordinal);
+
+        foreach (KeyValuePair<string, object?> argument in arguments)
+            written[argument.Key] = argument.Value is not UIMoment && UIMoment.TryRead(argument.Value, out UIMoment moment) ? moment : argument.Value;
+
+        return written;
+    }
+
+    // A nested phrase travels by its own converter, which writes a moment's shape itself.
+    private static bool HoldsBareMoment(IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            if (argument.Value is not UIMoment && UIMoment.TryRead(argument.Value, out _))
+                return true;
+        }
+
+        return false;
+    }
+}

@@ -113,6 +113,3 @@ export function formatRelative(offset: number, language: string): string {
 
     return words.format(Math.round(offset / (365.25 * Day)), "year");
 }
-
-/** How often a relative text is written again: past "now" its smallest unit is a minute, so it is never more than a quarter behind. */
-export const RelativeRefreshMilliseconds = 15 * Second;

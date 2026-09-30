@@ -11,8 +11,9 @@ namespace NE.Standard.UI.Primitives.Localization;
 /// <c>{"text":…}</c>, and reads it back.
 /// </summary>
 /// <remarks>
-/// An argument travels as a string, a number, a <see langword="bool"/>, <see langword="null"/> or a nested phrase; anything else as
-/// its invariant text, which is what the server formats it as, so the page shows the same.
+/// An argument travels as a string, a number, a <see langword="bool"/>, <see langword="null"/>, a nested phrase or a moment
+/// (<see cref="UIMoment"/>, in its own shape, which the page writes in the reader's zone); anything else as its invariant text, which is
+/// what the server formats it as, so the page shows the same.
 /// </remarks>
 public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
 {
@@ -69,7 +70,7 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
             JsonValueKind.Number => value.TryGetInt64(out var whole) ? (object)whole : value.GetDouble(),
             JsonValueKind.True => true,
             JsonValueKind.False => false,
-            JsonValueKind.Object => ReadPhrase(value),
+            JsonValueKind.Object => UIMomentJsonConverter.IsMoment(value) ? UIMomentJsonConverter.ReadMoment(value) : ReadPhrase(value),
             _ => null
         };
 
@@ -131,6 +132,9 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
                 break;
             case byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal:
                 JsonSerializer.Serialize(writer, value, value.GetType(), options);
+                break;
+            case var _ when UIMoment.TryRead(value, out UIMoment moment):
+                JsonSerializer.Serialize(writer, moment, options);
                 break;
             default:
                 writer.WriteStringValue(Convert.ToString(value, CultureInfo.InvariantCulture));

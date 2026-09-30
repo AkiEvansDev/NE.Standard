@@ -25,7 +25,8 @@ public readonly record struct WebTextBodyOptions
     /// <summary>
     /// Whether a badge with a tooltip is a tab stop of its own, named by the words and showing them on a press and on focus — in a field's
     /// caption that stands outside any control (above the field, a checkbox's label), never inside a button or a field's box, where a
-    /// nested tab stop is invalid. Only with <see cref="NamesField"/>.
+    /// nested tab stop is invalid. Only with <see cref="NamesField"/>. A help badge (<c>SetHelp</c>'s) there shows its words on a press
+    /// but is no stop: they describe the field instead.
     /// </summary>
     public bool ReachableBadge { get; init; }
 

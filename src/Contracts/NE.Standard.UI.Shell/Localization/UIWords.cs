@@ -13,7 +13,9 @@ namespace NE.Standard.UI.Shell.Localization;
 /// A slot name is <c>[A-Za-z0-9_]+</c>, so <c>{0}</c> is a positional one; a slot with no argument stays as written, and there is
 /// no escape. A number is written as its shortest invariant text (a culture's digits are the caller's: pass a string), a
 /// <see langword="bool"/> as <c>true</c>/<c>false</c>, <see langword="null"/> as nothing, a nested <see cref="UIPhrase"/> translated
-/// first. Twin of the client's <c>format</c>, both pinned by <c>eng/Tests/Shared/words-format-corpus.json</c>.
+/// first, a moment (<see cref="UIMoment.TryRead"/>) as <see cref="UIMoment.ToString"/> — the page writes it in the reader's zone, the
+/// web render's first paint in the application's patterns. Twin of the client's <c>format</c>, both pinned by
+/// <c>eng/Tests/Shared/words-format-corpus.json</c>.
 /// </remarks>
 public static class UIWords
 {
@@ -89,6 +91,7 @@ public static class UIWords
             string text => text,
             bool flag => flag ? "true" : "false",
             UIPhrase nested => translateNested is null ? Format(nested.Key, nested.Arguments) : translateNested(nested),
+            _ when UIMoment.TryRead(value, out UIMoment moment) => moment.ToString(),
             _ when TryReadNumber(value, out var number) => FormatNumber(number),
             _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
         };

@@ -40,10 +40,11 @@ public sealed class WebRenderContext
 
     /// <summary>
     /// Translates <paramref name="key"/> for this session's language and fills its <c>{name}</c> slots from
-    /// <paramref name="arguments"/>; a numeric <c>count</c> picks the key's plural form.
+    /// <paramref name="arguments"/>; a numeric <c>count</c> picks the key's plural form, and a moment is its first paint
+    /// (<see cref="WebMoments"/>), which the page writes again in the reader's zone.
     /// </summary>
     public string Translate(string key, IReadOnlyDictionary<string, object?>? arguments)
-        => Translator.Translate(ViewResolution.Session.Language, key, arguments) ?? key;
+        => Translator.Translate(ViewResolution.Session.Language, key, WebMoments.Paint(arguments, ViewResolution.Session.Language, Temporal)) ?? key;
 
     /// <summary>Translates a phrase — its key with its arguments — for this session's language; an author's text as a plain value.</summary>
     public string Translate(UIPhrase phrase)

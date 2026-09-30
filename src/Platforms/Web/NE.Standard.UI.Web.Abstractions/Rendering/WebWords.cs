@@ -29,17 +29,25 @@ public static class WebWords
 
     /// <summary>
     /// Writes <paramref name="key"/>'s words for the page's language on <paramref name="attribute"/>, or as the element's text when it
-    /// is <see langword="null"/>, filled from <paramref name="arguments"/>; and marks it.
+    /// is <see langword="null"/>, filled from <paramref name="arguments"/> — a moment as its first paint in the application's patterns —
+    /// and marks it.
     /// </summary>
     public static void Write(WebRenderContext context, IHtmlElementBuilder element, string? attribute, string key, IReadOnlyDictionary<string, object?>? arguments = null)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(element);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        Write(context.Translator, context.ViewResolution.Session.Language, element, attribute, key, arguments);
+        WriteMarked(element, attribute, context.Translate(key, arguments), Mark(key, arguments));
     }
 
+    /// <summary>The mark of a key's words: <c>[key]</c>, or <c>[key, arguments]</c> with each moment in a moment's shape.</summary>
+    private static object[] Mark(string key, IReadOnlyDictionary<string, object?>? arguments)
+        => arguments is null || arguments.Count == 0 ? [key] : [key, WebMoments.ForWire(arguments)!];
+
     /// <summary>
-    /// Writes and marks a word where no render context is at hand — the shell's own chrome — for <paramref name="language"/>.
+    /// Writes and marks a word where no render context is at hand — the shell's own chrome — for <paramref name="language"/>; a moment
+    /// in the canonical patterns, until the page writes it.
     /// </summary>
     public static void Write(ITranslator translator, string language, IHtmlElementBuilder element, string? attribute, string key, IReadOnlyDictionary<string, object?>? arguments = null)
     {
@@ -47,9 +55,7 @@ public static class WebWords
         ArgumentNullException.ThrowIfNull(element);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        object[] mark = arguments is null || arguments.Count == 0 ? [key] : [key, arguments];
-
-        WriteMarked(element, attribute, translator.Translate(language, key, arguments) ?? key, mark);
+        WriteMarked(element, attribute, translator.Translate(language, key, arguments) ?? key, Mark(key, arguments));
     }
 
     /// <summary>

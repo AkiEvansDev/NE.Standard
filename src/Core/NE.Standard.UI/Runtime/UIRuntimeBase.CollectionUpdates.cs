@@ -70,6 +70,7 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     /// <remarks>
     /// Neither the template key nor the group is bound on the item, so only a full <c>Replace</c> update reaches the client's redraw rules.
+    /// The row is drawn anew, so its nested collections follow as a new row's do — a variant's list would otherwise stay empty.
     /// </remarks>
     private void AppendItemReplaceUpdatesNoLock(RecursivePath path)
     {
@@ -89,6 +90,7 @@ internal abstract partial class UIRuntimeBase
             return;
 
         object? item = null;
+        string? replacedKey = null;
 
         for (var i = 0; i < collectionBindings.Count; i++)
         {
@@ -141,7 +143,12 @@ internal abstract partial class UIRuntimeBase
                 ],
                 Moves = []
             });
+
+            replacedKey = itemKey;
         }
+
+        if (replacedKey is not null)
+            AppendDescendantCollectionUpdatesNoLock(collectionPath.AppendKey(replacedKey));
     }
 
     private bool IsTemplateKeyProperty(UIComponentId componentId, string propertyName)

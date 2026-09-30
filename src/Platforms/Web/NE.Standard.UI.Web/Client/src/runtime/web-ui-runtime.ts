@@ -1,6 +1,7 @@
 import { AddressResolver } from "../addressing/address-resolver";
 import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { ClientWords, clientStrings, forEachSubtree } from "./client-strings";
+import { ClientWords, clientStrings, forEachSubtree, marksMoment } from "./client-strings";
+import { holdsMoment } from "./words";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
 import { InteractionEngine } from "../interactions/interaction-engine";
@@ -232,6 +233,8 @@ export class WebUIRuntime {
     private culturesLanguage = document.documentElement.lang;
     private readonly metadata = new MetadataIndex(readWebUIMetadata());
     private readonly hydration = readHydration();
+    // Writes again the page's words that hold a moment, which the page writes in the reader's zone.
+    private readonly rewriteMoments: () => void;
     private readonly dom: DomRegistry;
     private readonly transport: SignalRTransport;
     private readonly dispatcher: CommandDispatcher;
@@ -345,6 +348,10 @@ export class WebUIRuntime {
 
         // First among the listeners, before any engine's: the page's words are written again before a package hears the change.
         clientStrings.onChange(() => this.rewriteWords(propertyPatchEngine, itemsRenderer));
+
+        // A relative moment in words is kept current as a relative timestamp is.
+        this.rewriteMoments = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, true);
+        clientStrings.onMomentTick(this.rewriteMoments);
 
         // Everything that can put a host out of step with its own rules goes through this one watcher.
         new ItemsRuleWatcher({
@@ -609,8 +616,11 @@ export class WebUIRuntime {
         }
     }
 
-    /** Writes the page's words again in the table's language — marks, rendered values, sent values, built rows — then the title and lang. */
-    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer): void {
+    /**
+     * Writes the page's words again in the table's language — marks, rendered values, sent values, built rows — then the title and
+     * lang; with `momentsOnly`, only the words holding a moment.
+     */
+    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer, momentsOnly = false): void {
         const started = performance.now();
 
         // A package may have put parts on the page meanwhile (a grid's open detail) that the index has not seen.
@@ -621,15 +631,18 @@ export class WebUIRuntime {
             this.culturesLanguage = clientStrings.language;
             forEachSubtree(this.root, subtree => applyPageCultures(subtree, clientStrings.number, clientStrings.temporal));
         }
+
+        const only = momentsOnly ? holdsMoment : undefined;
+
         // Later over earlier: a row's own words last.
-        clientStrings.rewriteMarks(this.root);
-        this.rewriteStaticWords(propertyPatchEngine);
-        propertyPatchEngine.rewriteWords();
-        itemsRenderer.rewriteRowWords(this.root);
+        clientStrings.rewriteMarks(this.root, momentsOnly);
+        this.rewriteStaticWords(propertyPatchEngine, only);
+        propertyPatchEngine.rewriteWords(only);
+        itemsRenderer.rewriteRowWords(this.root, only);
 
         const title = this.hydration?.title ?? null;
 
-        if (title !== null) {
+        if (title !== null && (only === undefined || only(title))) {
             const words = String(clientStrings.resolve(title, true));
 
             if (document.title !== words)
@@ -639,12 +652,12 @@ export class WebUIRuntime {
         if (clientStrings.language.length > 0 && document.documentElement.lang !== clientStrings.language)
             document.documentElement.lang = clientStrings.language;
 
-        logElapsed("page's words written again", started, { language: clientStrings.language });
+        logElapsed(momentsOnly ? "page's moments written again" : "page's words written again", started, { language: clientStrings.language });
     }
 
-    /** The values the page was rendered with, on every instance and inside the templates rows are built from. */
-    private rewriteStaticWords(propertyPatchEngine: PropertyPatchEngine): void {
-        const words = this.metadata.getWords();
+    /** The values the page was rendered with — only those `only` names, where given — on every instance and inside the templates rows are built from. */
+    private rewriteStaticWords(propertyPatchEngine: PropertyPatchEngine, only?: (value: unknown) => boolean): void {
+        const words = only === undefined ? this.metadata.getWords() : this.metadata.getWords().filter(word => only(word.key));
 
         if (words.length === 0)
             return;
@@ -778,7 +791,19 @@ export class WebUIRuntime {
         await this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
+        // The server could paint a moment in words only in UTC; the page writes it in the reader's zone, as it does a timestamp.
+        if (this.holdsPaintedMoment())
+            this.rewriteMoments();
+
         logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: changes?.updates?.length ?? 0 });
+    }
+
+    /** Whether the render painted a moment in words: in a mark, a rendered value, a row the server drew or the title. */
+    private holdsPaintedMoment(): boolean {
+        return marksMoment(this.root)
+            || holdsMoment(this.hydration?.title)
+            || this.metadata.getWords().some(word => holdsMoment(word.key))
+            || holdsMoment(this.metadata.metadata.itemValues);
     }
 
     private startEnginesAwaitingHydration(): void {

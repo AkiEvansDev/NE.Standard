@@ -30,8 +30,8 @@ public static class InputComponentExtensions
 
     /// <summary>
     /// Fills the caption's badge with a help badge: the help glyph alone, a Plain badge, <paramref name="help"/> — the words or a key,
-    /// translated as a badge's tooltip is — as its tooltip. Standing in a caption outside the field, the badge is then a tab stop of its
-    /// own, named by the words and showing them on a press.
+    /// translated as a badge's tooltip is — as its tooltip. The badge is no tab stop: its words describe the field's control instead,
+    /// and show under the pointer and, in a caption outside the field, on a press or a touch.
     /// </summary>
     public static TComponent SetHelp<TComponent, TValue>(this InputComponentBase<TComponent, TValue> component, string help)
         where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition

@@ -6,13 +6,14 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Contents.Timestamp;
 
 /// <summary>
-/// A moment where the panel shows one: the four formats of a value the controller stamps, a feed kept current, and the quiet line
-/// under a record.
+/// A moment where the panel shows one: the four formats of a value the controller stamps, a feed kept current, the quiet line
+/// under a record, and a moment standing in words.
 /// </summary>
 internal sealed class TimestampExamplesView : DemoExamplesView, IUIViewDefinition
 {
     private const string StampGroup = nameof(TimestampExamplesController.StampGroup);
     private const string ActivityGroup = nameof(TimestampExamplesController.ActivityGroup);
+    private const string WordsGroup = nameof(TimestampExamplesController.WordsGroup);
 
     private static readonly DateTimeOffset Opened = new(2026, 9, 30, 9, 14, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Resolved = new(2026, 9, 30, 11, 2, 0, TimeSpan.Zero);
@@ -25,7 +26,7 @@ internal sealed class TimestampExamplesView : DemoExamplesView, IUIViewDefinitio
     protected override string HeaderDescription => "demo.contents.timestamp.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateStampGroup(), CreateRecordGroup()], [CreateFeedGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateStampGroup(), CreateRecordGroup()], [CreateFeedGroup(), CreateWordsGroup()]));
 
     /// <summary>
     /// One value of the controller's, written four ways; a press stamps it again and every one follows.
@@ -148,6 +149,32 @@ internal sealed class TimestampExamplesView : DemoExamplesView, IUIViewDefinitio
                     )
                 ),
             note: "Fixed moments in UTC, each shown where you are: the incident opened at 09:14 UTC, whatever your clock says it was."
+        );
+    }
+
+    /// <summary>
+    /// A moment inside a sentence: an action's description is a phrase whose argument is a moment, and so is a toast's message.
+    /// </summary>
+    private static ContainerComponent CreateWordsGroup()
+    {
+        return DemoUI.CreateExample("A moment in words",
+            UILayout.Stack(4)
+                .AddChild(new ActionComponent()
+                    .SetIcon(DemoIcons.Mail)
+                    .SetTitle("Release notes for 1.4")
+                    .BindDescription(nameof(MomentWordsGroupContext.Sent), UIBindingScope.Relative)
+                )
+                .AddChild(new ActionComponent()
+                    .SetIcon(DemoIcons.Clock)
+                    .SetTitle("Maintenance window")
+                    .BindDescription(nameof(MomentWordsGroupContext.Starts), UIBindingScope.Relative)
+                ),
+            note: "Each description is a phrase whose argument is a moment, written as a timestamp writes its value: in your time zone and language, the relative one kept current. The toast's message is a phrase with a moment too.",
+            context: WordsGroup,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["Back up now"] = nameof(TimestampExamplesController.BackUpNow)
+            })
         );
     }
 }

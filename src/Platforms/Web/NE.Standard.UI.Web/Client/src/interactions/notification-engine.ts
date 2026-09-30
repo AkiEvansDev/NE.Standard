@@ -77,9 +77,6 @@ export class NotificationEngine {
 
         element.append(message);
 
-        if (request.action !== undefined)
-            element.append(createAction(request.action));
-
         const close = document.createElement("button");
 
         close.type = "button";
@@ -88,6 +85,10 @@ export class NotificationEngine {
         close.addEventListener("click", () => this.dismiss(element));
 
         element.append(close);
+
+        // After the cross: the action is drawn on a line of its own under the message, and Tab reads the toast as it is drawn.
+        if (request.action !== undefined)
+            element.append(createAction(request.action));
         this.ensureHost().append(element);
 
         element.addEventListener("focusin", domEvent => {

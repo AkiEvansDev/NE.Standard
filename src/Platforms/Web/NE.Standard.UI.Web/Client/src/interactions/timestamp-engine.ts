@@ -1,8 +1,9 @@
 // A timestamp written in the reader's zone in the page's patterns, and a relative one kept current as time passes.
 
 import { componentParts } from "../addressing/dom-registry";
-import { formatTimestamp, readInstant, readTimestampFormat, RelativeRefreshMilliseconds } from "../rendering/timestamp-format";
+import { formatTimestamp, readInstant, readTimestampFormat } from "../rendering/timestamp-format";
 import { clientStrings } from "../runtime/client-strings";
+import { needRelativeTicks } from "../runtime/relative-clock";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { observeComponents } from "./dom-mutations";
 
@@ -18,8 +19,6 @@ export type TimestampEngineOptions = {
 
 export class TimestampEngine {
     private readonly root: ParentNode;
-    // Running only while a relative timestamp is on the page.
-    private timer: number | null = null;
 
     public constructor(options: TimestampEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -63,20 +62,19 @@ export class TimestampEngine {
             relative ||= format === "relative" && instant !== null;
         }
 
-        if (relative && this.timer === null)
-            this.timer = window.setInterval(() => this.refreshRelative(), RelativeRefreshMilliseconds);
+        // On the page's one relative clock, which a relative moment in words ticks by too.
+        if (relative)
+            needRelativeTicks(this.refreshRelative);
     }
 
-    /** Writes every relative timestamp again, and stops once none is left on the page. */
-    private refreshRelative(): void {
+    /** Writes every relative timestamp again; answers whether one is left on the page, which keeps the ticks coming. */
+    private readonly refreshRelative = (): boolean => {
         const stamps = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}[${FormatAttribute}="relative"]`)];
 
-        if (stamps.length === 0 && this.timer !== null) {
-            window.clearInterval(this.timer);
-            this.timer = null;
-            return;
-        }
+        if (stamps.length === 0)
+            return false;
 
         this.apply(stamps);
-    }
+        return true;
+    };
 }

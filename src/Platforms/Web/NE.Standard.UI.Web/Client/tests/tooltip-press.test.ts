@@ -1,6 +1,7 @@
-// A caption's badge whose words are all it holds (a help badge) shows them on a press (a touch has no hover to ask with) and keeps them
-// through the pointer leaving, until a second press on it or a press anywhere else; the press is not the label's around it, and a
-// keyboard focus shows and describes them too. An ordinary control's tooltip still closes on a press.
+// A caption's badge whose words are all it holds shows them on a press (a touch has no hover to ask with) and keeps them through the
+// pointer leaving, until a second press on it or a press anywhere else; the press is not the label's around it, and a keyboard focus
+// shows and describes them too. The help badge, no tab stop, shows them on a press all the same, and a focus on its field shows
+// nothing of it. An ordinary control's tooltip still closes on a press.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +10,7 @@ import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fa
 // Enough of a laid-out page for the tooltip to be placed: no transform anywhere, and a size observer that watches nothing.
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 1024, innerHeight: 768 },
-    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none" }),
+    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", position: "static", overflowX: "visible", overflowY: "visible" }),
     ResizeObserver: class {
         public observe(): void {
         }
@@ -126,4 +127,27 @@ test("a keyboard focus on the badge shows its words and has the badge described 
     raise("focusout", mark);
 
     assert.equal(shows(mark), false);
+});
+
+test("the help badge, no tab stop, shows its words on a press all the same, and its field's keyboard focus shows nothing of them", () => {
+    const { mark } = page();
+    const field = FakeElement.of("ui-text-input__input", {}, "input");
+
+    mark.removeAttribute("tabindex");
+    mark.removeAttribute("role");
+    mark.setAttribute("data-ui-help-badge", "");
+    mark.parent?.append(field);
+
+    fakeDocument.activeElement = field;
+    raise("focusin", field);
+
+    assert.equal(shows(mark), false);
+    assert.equal(field.hasAttribute("aria-describedby"), false);
+
+    raise("pointerdown", mark);
+    raise("pointerout", mark);
+
+    assert.equal(shows(mark), true);
+
+    tooltips.hide();
 });

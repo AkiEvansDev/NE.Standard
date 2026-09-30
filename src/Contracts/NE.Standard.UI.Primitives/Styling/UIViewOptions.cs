@@ -44,5 +44,5 @@ public sealed record UIViewOptions
     {
         get;
         init => field = double.IsFinite(value) && value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A notification's width is a positive number of pixels.");
-    } = 360;
+    } = 400;
 }

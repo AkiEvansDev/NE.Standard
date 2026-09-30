@@ -1,7 +1,7 @@
 // The one rule over every focus while the pointer was the last input: marked as the pointer's, so no keyboard mark is drawn for
 // it, except an editable text entry, whose edge says where typing goes; a real key takes every mark off, a modifier held alone
-// does not. The first element a popup's focus may land on, what takes the keyboard back from a field, and where the focus goes
-// back as a dialog closes.
+// does not. The first element a popup's focus may land on, what takes the keyboard back from a field, where the focus goes back as a
+// dialog closes, and where a dialog opened again starts: at its top, on its first field.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +9,7 @@ import { FakeElement, FakeInput, FakeKeyboardEvent, FakeLabel, FakeTextArea, fak
 
 installFakeDom();
 
-const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, noteFocus, noteKey, notePress, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
+const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteFocus, noteKey, notePress, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
 
 const Mark = "data-ui-pointer-focus";
 
@@ -290,4 +290,44 @@ test("focus outside a modal, fallen to the body or left there by a press on its 
     assert.equal(tabFrom(dialog, fakeDocument.body, true), last);
     assert.equal(tabFrom(dialog, last), first);
     assert.equal(tabFrom(dialog, first, true), last);
+});
+
+test("a dialog opened again starts at its top and on its first field, past the field's help badge, which is no tab stop", () => {
+    const badge = FakeElement.of("ui-text__badge ui-badge", { "data-ui-tooltip": "Printed on the card", "data-ui-tooltip-press": "", "data-ui-help-badge": "" }, "span");
+    const field = new FakeInput();
+    const surface = FakeElement.of("ui-dialog__surface", { tabindex: "-1" }).append(FakeElement.of("ui-text-input").append(FakeElement.of("ui-input__header").append(badge), field));
+    const opener = FakeElement.of("", {}, "button");
+
+    // Scrolled to the bottom the last time it was open; laid out as it stands at the top again.
+    surface.scrollTop = 600;
+    surface.rect = { left: 0, top: 100, width: 400, height: 300 };
+    field.rect = { left: 16, top: 140, width: 300, height: 32 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(opener, surface);
+    fakeDocument.activeElement = opener;
+
+    assert.equal(moveFocusIntoFromStart(real(surface), firstFocusable(real(surface))), opener);
+    assert.equal(surface.scrollTop, 0);
+    assert.equal(fakeDocument.activeElement, field);
+});
+
+test("a first field below the dialog's fold is scrolled into view inside the dialog, from its top where it is taller than the dialog", () => {
+    const field = new FakeInput();
+    const surface = FakeElement.of("ui-dialog__surface").append(field);
+
+    surface.rect = { left: 0, top: 100, width: 400, height: 300 };
+    field.rect = { left: 16, top: 420, width: 300, height: 32 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(surface);
+    fakeDocument.activeElement = fakeDocument.body;
+
+    moveFocusIntoFromStart(real(surface));
+
+    assert.equal(surface.scrollTop, 52);
+    assert.equal(fakeDocument.activeElement, field);
+
+    field.rect = { left: 16, top: 420, width: 300, height: 500 };
+    moveFocusIntoFromStart(real(surface));
+
+    assert.equal(surface.scrollTop, 320);
 });

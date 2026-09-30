@@ -5,6 +5,7 @@ import {
 import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
+import { isClippedOut } from "./element-visibility.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
@@ -59,7 +60,7 @@ export function startTooltips(root: ParentNode = document): void {
     host.addEventListener("focusin", onFocusIn, true);
     host.addEventListener("focusout", onFocusOut, true);
     host.addEventListener("keydown", onKeyDown, true);
-    host.addEventListener("scroll", dropOrphan, true);
+    host.addEventListener("scroll", onScroll, true);
     host.addEventListener("pointerdown", onPointerDown, true);
     host.addEventListener("click", onClick, true);
     window.addEventListener("blur", () => {
@@ -92,6 +93,25 @@ function dropOrphan(): void {
 
     pinned = null;
     hide(true);
+}
+
+/** Closes a tooltip whose control the scroll just took out of sight, where it would float against nothing the reader sees. */
+function onScroll(event: Event): void {
+    dropOrphan();
+
+    if (anchor === null)
+        return;
+
+    // Only a scroll of a box around the anchor, or of the page, can move it out of sight.
+    const scrolled = event.target;
+
+    if (scrolled instanceof Node && !(scrolled instanceof Document) && !scrolled.contains(anchor))
+        return;
+
+    if (isClippedOut(anchor)) {
+        pinned = null;
+        hide(true);
+    }
 }
 
 function onPointerOut(event: Event): void {
@@ -240,7 +260,8 @@ function schedule(target: Element, words?: string): void {
 function show(target: Element, words?: string): void {
     const text = (words ?? target.getAttribute(TooltipAttribute) ?? "").trim();
 
-    if (text.length === 0 || !target.isConnected || isOpen(target))
+    // A control scrolled out of its box (a field at the top of a dialog scrolled down) would have its words float outside the box.
+    if (text.length === 0 || !target.isConnected || isOpen(target) || isClippedOut(target))
         return;
 
     window.clearTimeout(showTimer);

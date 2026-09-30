@@ -3,15 +3,19 @@ namespace NE.Standard.UI.Primitives.Styling;
 /// <summary>
 /// How a timestamp shows its moment, in the reader's own time zone and language.
 /// </summary>
+/// <remarks>
+/// The examples are the application's patterns left unset (<c>UITemporalOptions</c>): <c>yyyy-MM-dd</c> and <c>HH:mm</c>, or the
+/// culture's own where the options follow it.
+/// </remarks>
 public enum UITimestampFormat
 {
     /// <summary>
-    /// The day and the time of day: "30 Sep 2026, 14:05".
+    /// The day and the time of day: "2026-09-30 14:05".
     /// </summary>
     DateTime = 0,
 
     /// <summary>
-    /// The day alone: "30 Sep 2026".
+    /// The day alone: "2026-09-30".
     /// </summary>
     Date = 1,
 

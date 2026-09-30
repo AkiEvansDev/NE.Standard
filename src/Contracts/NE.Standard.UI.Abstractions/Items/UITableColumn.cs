@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -8,7 +9,7 @@ namespace NE.Standard.UI.Abstractions.Items;
 /// One column of a table: its template key, header caption, track and cell alignment. A record class, not a struct,
 /// so a package's column may subclass it.
 /// </summary>
-public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITextAlignment? Alignment = null)
+public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITextAlignment? Alignment = null) : IContentItem
 {
     /// <summary>The prefix a column's template variant is keyed under.</summary>
     public const string TemplatePrefix = "column";
@@ -48,6 +49,13 @@ public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITex
     /// and a chooser leaves it out.
     /// </summary>
     public bool Fixed { get; init; }
+
+    /// <summary>
+    /// Whether the caption is content — a name such as <c>AP</c> or <c>SPD</c>, shown as written wherever the column is named (the
+    /// header, a chooser's entry, a filter's caption) and never looked up as a key.
+    /// </summary>
+    /// <remarks><c>AsContent(TableComponent.ColumnsProperty)</c> on the table says it of every column at once.</remarks>
+    public bool IsContent { get; init; }
 
     public void Validate()
     {

@@ -146,8 +146,11 @@ export class ItemsTemplateRenderer {
         this.fillRow = fill;
     }
 
-    /** Writes every built row's translatable values again in the table's language, each re-read off its item stack. */
-    public rewriteRowWords(root: ParentNode): void {
+    /**
+     * Writes every built row's translatable values again in the table's language, each re-read off its item stack — only those `only`
+     * names, where given.
+     */
+    public rewriteRowWords(root: ParentNode, only?: (value: unknown) => boolean): void {
         this.translatableRowBindings ??= this.findTranslatableRowBindings();
 
         for (const [binding, selector] of this.translatableRowBindings) {
@@ -156,7 +159,7 @@ export class ItemsTemplateRenderer {
 
                 // A row the server drew holds no scope for an item nested in it (a slot's value): the words it was drawn with stay.
                 if (holdsScopes(binding, stack))
-                    this.applyBoundAttribute(element, String(getIdValue(binding.bindingId)), stack);
+                    this.applyBoundAttribute(element, String(getIdValue(binding.bindingId)), stack, only);
             }
         }
     }
@@ -253,7 +256,7 @@ export class ItemsTemplateRenderer {
         this.applyBoundAttribute(element, bindingIdText, stack);
     }
 
-    private applyBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[]): void {
+    private applyBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[], only?: (value: unknown) => boolean): void {
         const bindingId = Number(bindingIdText);
 
         if (!Number.isInteger(bindingId) || bindingId <= 0)
@@ -281,7 +284,12 @@ export class ItemsTemplateRenderer {
 
         // An unset property falls back to the template's value; its words are looked up as a patch's are, unless the item is content.
         const scope = "scope" in resolution ? resolution.scope : undefined;
-        const value = shownValue(resolution.value ?? binding.fallbackValue, () => this.metadata.isTranslatable(binding) && !isContentItem(scope));
+        const held = resolution.value ?? binding.fallbackValue;
+
+        if (only !== undefined && !only(held))
+            return;
+
+        const value = shownValue(held, () => this.metadata.isTranslatable(binding) && !isContentItem(scope));
 
         const componentId = getIdValue(binding.componentId);
         const componentRoot = element.closest<Element>(`[${ComponentIdAttribute}="${componentId}"]`);

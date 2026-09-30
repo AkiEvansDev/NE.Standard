@@ -267,8 +267,9 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// Marks translatable properties of this instance as content — shown as written, bound or static, never looked up as a key,
     /// even a name that happens to equal one.
     /// </summary>
+    /// <remarks>Virtual, so a component that repeats a property's words in parts of its own (a grid's chooser) keeps them level.</remarks>
     /// <exception cref="InvalidOperationException">A property is not registered for the component or is not translatable.</exception>
-    public TComponent AsContent(params UIProperty[] properties)
+    public virtual TComponent AsContent(params UIProperty[] properties)
     {
         ArgumentNullException.ThrowIfNull(properties);
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
@@ -362,9 +363,25 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         {
             _ = caption.Class(CaptionClassName);
 
-            if (!string.IsNullOrEmpty(column.Caption))
+            if (string.IsNullOrEmpty(column.Caption))
+                return;
+
+            // Content is written as it stands and left unmarked, so a language switch has nothing to look up there.
+            if (IsContentCaption(context, column))
+                _ = caption.Text(column.Caption);
+            else
                 WebWords.WriteText(context, caption, null, column.Caption);
         });
+    }
+
+    /// <summary>Whether a column's caption is content: the column says so, or the table marked its columns <c>AsContent</c>.</summary>
+    protected static bool IsContentCaption(WebRenderContext context, UITableColumn column)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(column);
+
+        return column.IsContent
+            || (context.ViewResolution.View.State.TryGetValue(context.Node.ComponentId, TableComponent.ColumnsProperty, out CompiledUIPropertyValue? columns) && columns.IsContent);
     }
 
     /// <summary>The handle that sizes the column, carrying the column's index for the client; a fixed column is the control's own and carries none.</summary>

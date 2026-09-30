@@ -10,8 +10,10 @@ namespace NE.Standard.UI.Primitives.Localization;
 /// one of an author's text instead, looked up as a plain value is.
 /// </summary>
 /// <remarks>
-/// An argument is a string, a number, a <see langword="bool"/> or a nested <see cref="UIPhrase"/> (translated first); a numeric
-/// <c>count</c> picks the key's plural form. Equal by key, arguments and kind, so a value set again unchanged is no change.
+/// An argument is a string, a number, a <see langword="bool"/>, a nested <see cref="UIPhrase"/> (translated first) or a moment — a
+/// <see cref="DateTimeOffset"/>, a UTC or local <see cref="DateTime"/> or a <see cref="UIMoment"/>, written by the page in the reader's
+/// zone as a timestamp is (a <see cref="DateTime"/> of unspecified kind is refused); a numeric <c>count</c> picks the key's plural form.
+/// Equal by key, arguments and kind, so a value set again unchanged is no change.
 /// </remarks>
 [JsonConverter(typeof(UIPhraseJsonConverter))]
 public sealed record UIPhrase
@@ -19,6 +21,7 @@ public sealed record UIPhrase
     /// <summary>
     /// Creates a phrase from its key and, optionally, its arguments.
     /// </summary>
+    /// <exception cref="ArgumentException">An argument is a <see cref="DateTime"/> of unspecified kind, which names no instant.</exception>
     public UIPhrase(string key, IReadOnlyDictionary<string, object?>? arguments = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -26,7 +29,19 @@ public sealed record UIPhrase
         Key = key;
         Arguments = arguments is null || arguments.Count == 0
             ? null
-            : arguments.ToFrozenDictionary(StringComparer.Ordinal);
+            : Freeze(arguments);
+    }
+
+    private static FrozenDictionary<string, object?> Freeze(IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            // Refused where it is written: a guessed zone would show the moment hours off, on every page, with nothing said.
+            if (argument.Value is DateTime { Kind: DateTimeKind.Unspecified })
+                throw new ArgumentException($"The argument '{argument.Key}' is a DateTime of unspecified kind, which names no instant: pass a DateTimeOffset, or the DateTime through DateTime.SpecifyKind.", nameof(arguments));
+        }
+
+        return arguments.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     private UIPhrase(string text, bool isText)
@@ -56,6 +71,7 @@ public sealed record UIPhrase
     /// <summary>
     /// Creates a phrase from its key and named arguments.
     /// </summary>
+    /// <exception cref="ArgumentException">An argument is a <see cref="DateTime"/> of unspecified kind, which names no instant.</exception>
     public static UIPhrase Of(string key, params (string Name, object? Value)[] arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);

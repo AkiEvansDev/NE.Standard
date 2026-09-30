@@ -29,6 +29,7 @@ import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { logError, logWarn } from "../runtime/logger";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { buildNavigationUrl } from "./navigation-url";
+import { resolveScroller } from "./scroller.ts";
 
 export type EffectContext = {
     readonly effect: ClientEffect;
@@ -168,6 +169,7 @@ export class EffectRegistry {
             const vertical = getScrollAxis(effect.axis) !== "Horizontal";
             const scroller = resolveScroller(element, vertical);
 
+            // Nothing in reach could ever scroll; a box that could, but shows all it holds, takes the scroll as a no-op.
             if (scroller === null) {
                 logWarn("scroll effect target has no scrollable element.", context.effect);
                 return;
@@ -321,37 +323,6 @@ function resolveTarget(context: EffectContext): Element | null {
 /** Smooth only where the reader has not asked for less motion: a scroll a script asks for is smooth whatever the setting says. */
 function scrollBehavior(behavior: string): ScrollBehavior {
     return behavior === "Smooth" && !prefersReducedMotion() ? "smooth" : "auto";
-}
-
-/** The nearest scroller to the addressed element: itself first, then inside it, then outwards. */
-function resolveScroller(element: Element, vertical: boolean): Element | null {
-    if (isScrollable(element, vertical))
-        return element;
-
-    for (const candidate of element.querySelectorAll("*")) {
-        if (isScrollable(candidate, vertical))
-            return candidate;
-    }
-
-    for (let current = element.parentElement; current !== null; current = current.parentElement) {
-        if (isScrollable(current, vertical))
-            return current;
-    }
-
-    return null;
-}
-
-function isScrollable(element: Element, vertical: boolean): boolean {
-    const overflow = vertical
-        ? getComputedStyle(element).overflowY
-        : getComputedStyle(element).overflowX;
-
-    if (overflow !== "auto" && overflow !== "scroll")
-        return false;
-
-    return vertical
-        ? element.scrollHeight > element.clientHeight
-        : element.scrollWidth > element.clientWidth;
 }
 
 function focusElement(element: Element): void {

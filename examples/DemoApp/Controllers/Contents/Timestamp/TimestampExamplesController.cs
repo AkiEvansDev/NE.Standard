@@ -46,7 +46,21 @@ internal sealed partial class ActivityGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// What the examples need a controller for: a moment stamped at a press, and a feed read off the clock.
+/// Moments standing in words: a message sent a few minutes before the page opened, which the page keeps current, and a fixed start.
+/// </summary>
+internal sealed partial class MomentWordsGroupContext : DemoGroupContext
+{
+    private static readonly DateTimeOffset WindowStart = new(2026, 10, 3, 22, 0, 0, TimeSpan.Zero);
+
+    [RecursiveMember]
+    public partial UIPhrase? Sent { get; set; } = UIPhrase.Of("demo.timestamp.sent", ("at", new UIMoment(DateTimeOffset.UtcNow.AddMinutes(-3), UITimestampFormat.Relative)));
+
+    [RecursiveMember]
+    public partial UIPhrase? Starts { get; set; } = UIPhrase.Of("demo.timestamp.starts", ("at", new UIMoment(WindowStart)));
+}
+
+/// <summary>
+/// What the examples need a controller for: a moment stamped at a press, a feed read off the clock, and moments in words.
 /// </summary>
 internal sealed partial class TimestampExamplesController() : DemoController
 {
@@ -56,7 +70,19 @@ internal sealed partial class TimestampExamplesController() : DemoController
     [RecursiveMember]
     public partial ActivityGroupContext ActivityGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial MomentWordsGroupContext WordsGroup { get; set; } = new();
+
     [UICommand]
     public void StampNow()
         => StampGroup.Stamp();
+
+    /// <summary>A toast whose message is a phrase with a moment: the page writes the time in the reader's zone and language.</summary>
+    [UICommand]
+    public UICommandResult BackUpNow()
+    {
+        WordsGroup.LogEvent("ShowNotification with a moment in its phrase");
+
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of("demo.timestamp.backed-up", ("at", new UIMoment(DateTimeOffset.UtcNow, UITimestampFormat.Time))), UIColorStyle.Success)]);
+    }
 }

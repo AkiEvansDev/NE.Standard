@@ -3,7 +3,7 @@ import { logWarn } from "../runtime/logger";
 import { isInRenameField } from "./inline-rename";
 import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
-import { firstFocusable, liveFocusReturn, moveFocusInto, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
+import { firstFocusable, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
 import { DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
 const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
 const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
@@ -37,8 +37,9 @@ export class DialogEngine {
 
         dialog.removeAttribute("hidden");
 
-        // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind.
-        const previous = moveFocusInto(dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog, firstFocusable(dialog));
+        // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind. Its body
+        // starts at the top, not where the last opening was scrolled to: the dialog is one per page, reused for every item it shows.
+        const previous = moveFocusIntoFromStart(dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog, firstFocusable(dialog));
 
         if (previous !== null)
             this.returnFocusByKey.set(key, previous);
