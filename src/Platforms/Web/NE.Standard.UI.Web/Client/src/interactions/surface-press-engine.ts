@@ -1,11 +1,12 @@
-// A clickable surface or card is a press target for the keyboard as for the pointer: a Tab stop while it takes presses, Enter and
-// Space raising its click. To a screen reader it is a button only while it holds no control of its own — a button's contents are
+// A clickable surface or card is a press target for the keyboard as for the pointer: a Tab stop while it takes presses (a row's one
+// control excepted, whose list is the stop), Enter and Space raising its click. To a screen reader it is a button only while it holds no control of its own — a button's contents are
 // read as its one name, and a control inside one is lost to the reader; a surface holding controls is a group the reader walks into.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ComponentIdAttribute, DisabledClass, LoadingClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
+import { ActionBarClass, ComponentIdAttribute, DisabledClass, LoadingClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { ControlSelector } from "./own-control.ts";
+import { ControlSelector, soleControlOf } from "./own-control.ts";
+import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 // Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press.
 const SurfaceSelector = `:is(.ui-surface, .ui-card)[${ComponentIdAttribute}]`;
@@ -58,9 +59,11 @@ export class SurfacePressEngine {
 
         this.pressable.add(surface);
 
-        // Its own disabled or loading state takes it out of the Tab order; a surface inside such a component is made inert already.
-        writeAttribute(surface, "tabindex", surface.matches(`.${DisabledClass}, .${LoadingClass}`) ? null : "0");
+        // The role first: whether a row is this one surface reads it.
         writeAttribute(surface, "role", holdsControl(surface) ? "group" : "button");
+
+        // Its own disabled or loading state takes it out of the Tab order; a surface inside such a component is made inert already.
+        writeAttribute(surface, "tabindex", surface.matches(`.${DisabledClass}, .${LoadingClass}`) ? null : isRowsOneControl(surface) ? "-1" : "0");
     }
 
     private handleKeyDown(domEvent: Event): void {
@@ -108,18 +111,29 @@ function pressedSurface(domEvent: Event): HTMLElement | null {
 
     const target = domEvent.target;
 
-    return target instanceof HTMLElement && target.classList.contains(ClickableClass) && target.getAttribute("tabindex") === "0" ? target : null;
+    // A row's one surface is no stop but takes the focus a press gives it, and the keys after it, as a button there does.
+    return target instanceof HTMLElement && target.classList.contains(ClickableClass) && target.hasAttribute("tabindex") ? target : null;
+}
+
+/**
+ * Whether the surface is the one control its row is, in a list whose cursor presses it (items-selection-engine.ts): the list is
+ * the stop then, as for a row that is one button, whichever engine reads the row first.
+ */
+function isRowsOneControl(surface: Element): boolean {
+    const row = surface.closest(SelectionRowSelector);
+
+    return row !== null && row.closest(SelectionRootSelector)?.matches(KeyboardRowsRootSelector) === true && soleControlOf(row) === surface;
 }
 
 /**
  * Whether a control of its own stands inside the surface — a clickable surface inside is one, as a button; a popup it owns (its
- * right-click menu) is not, nor anything in one.
+ * right-click menu) is not, nor anything in one, nor the menu's action bar, which comes and goes with the pointer.
  */
 function holdsControl(surface: Element): boolean {
     for (const control of surface.querySelectorAll(ControlSelector)) {
         const popup = control.closest(PopupRoleSelector);
 
-        if (popup === null || !surface.contains(popup))
+        if ((popup === null || !surface.contains(popup)) && control.closest(`.${ActionBarClass}`) === null)
             return true;
     }
 

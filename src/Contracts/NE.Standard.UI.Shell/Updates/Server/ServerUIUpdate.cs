@@ -10,7 +10,8 @@ public enum ServerUIUpdateKind
     Value = 0,
     CollectionChange = 1,
     FullResync = 2,
-    Validation = 3
+    Validation = 3,
+    Page = 4
 }
 
 /// <summary>

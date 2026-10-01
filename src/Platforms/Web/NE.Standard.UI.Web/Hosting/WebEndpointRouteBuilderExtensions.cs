@@ -27,6 +27,7 @@ using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Html;
+using NE.Standard.UI.Web.Rendering;
 using StringWithQualityHeaderValue = Microsoft.Net.Http.Headers.StringWithQualityHeaderValue;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -363,6 +364,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             Title = TranslateTitle(application.Translator, resolution),
             Icon = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.Icon,
             Content = content,
+            FormIds = WebPageForms.Of(resolution.View),
             NotificationPlacement = resolution.View.Options.NotificationPlacement,
             NotificationWidth = resolution.View.Options.NotificationWidth,
             ScrollContentOnly = resolution.View.Options.ScrollContentOnly,

@@ -62,7 +62,7 @@ internal sealed partial class WrapPanelGroupContext : DemoGroupContext
 /// <summary>
 /// A viewport over more than fits: which ways it may be scrolled, and where a scroll comes to rest.
 /// </summary>
-/// <remarks><c>ScrollAnchor</c> is not a row here: it is about content that grows, which the Scenarios page shows.</remarks>
+/// <remarks><c>ScrollAnchor</c> is not a row here: it is about content that grows, which the page's examples show.</remarks>
 internal sealed partial class ScrollGroupContext : DemoGroupContext
 {
     [RecursiveMember]

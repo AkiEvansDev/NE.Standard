@@ -6,7 +6,8 @@ namespace NE.Standard.UI.Primitives.Styling;
 public enum UISearchSelectionDisplayMode
 {
     /// <summary>
-    /// Keeps the user's typed search text in the input after a selection is made.
+    /// Keeps the user's typed search text in the input after a selection is made; a field with no term and no focus shows the
+    /// selected item, so a pick from an untouched list still shows.
     /// </summary>
     KeepSearchInput = 0,
 

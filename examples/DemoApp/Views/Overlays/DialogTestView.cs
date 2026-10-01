@@ -20,7 +20,6 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
     public static string ViewKey => "demo.overlays.dialog.test";
 
     protected override string ComponentRoute => "/overlays/dialog";
-    protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Test];
     protected override string Header => "demo.overlays.dialog.header";
     protected override string HeaderDescription => "demo.overlays.dialog.description";
 
@@ -125,7 +124,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 )
             ),
             contentMinHeight: 120,
-            note: "The dialog closes on neither the backdrop nor Escape: a destructive question is answered, not dismissed."
+            note: "The button's command opens the dialog with an effect, so the button knows nothing of it and a menu entry could ask the same question. It closes on neither the backdrop nor Escape: a destructive question is answered, not dismissed."
         );
     }
 

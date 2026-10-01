@@ -39,15 +39,17 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant Accent { get; init; } = new(ColorName.NovaPurple);
 
+    // The dark grounds are neutral greys a small step apart, the page near black; a card stands off by its edge more than its fill.
+
     /// <summary>
     /// The page/surface background color.
     /// </summary>
-    public ColorVariant Background { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 8);
+    public ColorVariant Background { get; init; } = ColorVariant.FromRgb(19, 19, 19);
 
     /// <summary>
     /// A raised surface's background color (e.g. a card).
     /// </summary>
-    public ColorVariant Surface { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 7);
+    public ColorVariant Surface { get; init; } = ColorVariant.FromRgb(25, 25, 25);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Primary"/>.
@@ -59,15 +61,17 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant OnAccent { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
+    // One ink on both grounds, a touch warm: the surface's was a dimmer grey, which read soft on a near-black ground.
+
     /// <summary>
     /// The color intended to sit on top of <see cref="Background"/>.
     /// </summary>
-    public ColorVariant OnBackground { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 9);
+    public ColorVariant OnBackground { get; init; } = ColorVariant.FromRgb(240, 240, 236);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Surface"/>.
     /// </summary>
-    public ColorVariant OnSurface { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 7);
+    public ColorVariant OnSurface { get; init; } = ColorVariant.FromRgb(240, 240, 236);
 
     /// <summary>
     /// The informational status color.
@@ -153,7 +157,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// The default border color.
     /// </summary>
-    public ColorVariant Border { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10, 24);
+    public ColorVariant Border { get; init; } = ColorVariant.FromRgb(255, 255, 255, ColorAdjustment.None, 0, 26);
 
     /// <summary>
     /// The color used for drop shadows.

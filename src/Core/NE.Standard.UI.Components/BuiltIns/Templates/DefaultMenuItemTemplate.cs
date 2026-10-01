@@ -33,6 +33,7 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
             _ = Bind(ShortcutProperty, nameof(IMenuItemModel.Shortcut), UIBindingScope.Relative);
             _ = Bind(CheckedProperty, nameof(IMenuItemModel.Checked), UIBindingScope.Relative);
             _ = Bind(ValueProperty, nameof(IMenuItemModel.Value), UIBindingScope.Relative);
+            _ = Bind(InActionBarProperty, nameof(IMenuItemModel.InActionBar), UIBindingScope.Relative);
         }
     }
 }

@@ -1,13 +1,18 @@
 // A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): opened by its header button, put away by a press outside,
-// Escape, a link taken inside it, or the screen growing wide again. Open, the drawer is a focus holder, as a dialog's surface is.
+// Escape, a link taken inside it, the fold switch lying where that button was, or the screen growing wide again. Open, the drawer
+// is a focus holder, as a dialog's surface is.
 
-import { DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, CollapseToggleAttribute, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 import { responsiveBreakpoints } from "../rendering/responsive-tier.ts";
 import { focusAsLastInput, isPointerLast, moveFocusInto } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
 const LinkSelector = "a[href]";
+const CollapsibleClass = "ui-collapsible";
+const RightSide = "right-side";
+const LeftEdgeClass = "ui-side--left";
+const RightEdgeClass = "ui-side--right";
 
 export type SideDrawerEngineOptions = {
     readonly root?: ParentNode;
@@ -47,6 +52,14 @@ export class SideDrawerEngine {
         }
 
         if (domEvent.target.closest(`[${DrawerBackdropAttribute}]`) !== null) {
+            this.closeAll();
+            return;
+        }
+
+        // A switch that just unfolded its panel (collapsible-engine.ts, prevented) reads as an open one by now: that press was the fold's.
+        const fold = domEvent.target.closest(`[${CollapseToggleAttribute}]`);
+
+        if (fold !== null && !domEvent.defaultPrevented && isDrawerFoldSwitch(fold)) {
             this.closeAll();
             return;
         }
@@ -160,6 +173,23 @@ export class SideDrawerEngine {
         if (addedTabIndex)
             drawer.removeAttribute("tabindex");
     }
+}
+
+/**
+ * Whether a fold switch is an open drawer's own: an open panel's hung on the drawer's edge — a sidebar menu's — stands where the
+ * header's button was, under the drawer, so a press there puts the drawer away, as a second press on that button would, rather than
+ * fold the panel (collapsible-engine.ts leaves it). A folded panel's switch still unfolds it: a drawer has room for the whole of it.
+ */
+export function isDrawerFoldSwitch(toggle: Element): boolean {
+    const panel = toggle.closest(`.${CollapsibleClass}`);
+    const drawer = panel?.closest(`[${RegionAttribute}]`);
+    const side = drawer?.getAttribute(RegionAttribute);
+    const shell = drawer?.parentElement;
+
+    if (panel === null || panel === undefined || panel.hasAttribute(CollapsedAttribute) || side === null || side === undefined || shell === null || shell === undefined)
+        return false;
+
+    return shell.matches(RootSelector) && shell.getAttribute(DrawerOpenAttribute) === side && panel.classList.contains(side === RightSide ? RightEdgeClass : LeftEdgeClass);
 }
 
 function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {

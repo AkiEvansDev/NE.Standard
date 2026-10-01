@@ -145,8 +145,20 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     public bool? ShowContextMenu { get; set; }
 
     /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), IsBindable = false, DefaultValue = null)]
+    public UIActionBarAlignment? ActionBar { get; set; }
+
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), IsBindable = false, DefaultValue = true)]
+    public bool? ActionBarRepeatInMore { get; set; }
+
+    /// <inheritdoc />
     [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = null)]
     public string? ScrollGroup { get; set; }
+
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = null)]
+    public bool? TextSelectable { get; set; }
 
     /// <summary>
     /// Sets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.
@@ -156,6 +168,17 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         ArgumentNullException.ThrowIfNull(contextMenu);
 
         ContextMenu = contextMenu;
+        return Self;
+    }
+
+    /// <summary>
+    /// Gives the component an action bar lined up as <paramref name="alignment"/> says; <paramref name="repeatInMore"/> off, the menu
+    /// its "more" opens holds only the entries the bar does not show.
+    /// </summary>
+    public TComponent SetActionBar(UIActionBarAlignment alignment, bool repeatInMore)
+    {
+        ActionBar = alignment;
+        ActionBarRepeatInMore = repeatInMore;
         return Self;
     }
 

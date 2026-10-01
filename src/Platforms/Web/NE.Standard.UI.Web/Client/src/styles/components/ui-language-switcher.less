@@ -67,19 +67,6 @@
         display: none;
     }
 
-    .ui-language-switcher__chevron {
-        .ui-glyph-host();
-    }
-
-        .ui-language-switcher__chevron::before {
-            .ui-chevron(@ui-glyph-sm);
-            .ui-chevron-down();
-        }
-
-        .ui-language-switcher--open .ui-language-switcher__chevron::before {
-            .ui-chevron-up();
-        }
-
 // The list: the context menu's surface, shown while the switcher is open and placed by language-switcher-engine.ts.
 .ui-language-switcher__menu {
     .ui-popup-surface(40);
@@ -105,7 +92,7 @@
         min-height: @ui-list-row-height;
         padding: @ui-space-1 @ui-space-2;
         border: 0;
-        border-radius: var(--ui-radius-button);
+        border-radius: @ui-list-entry-radius;
         background: none;
         color: inherit;
         font: inherit;

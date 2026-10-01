@@ -80,8 +80,9 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
     /// <summary>The pane: an empty state until a row is clicked, then the message read as prose.</summary>
     private static ContainerComponent CreateReadingPane()
         => new ContainerComponent()
+            // The page's own ground inside an edge: an empty pane is a region with nothing in it yet, not a callout in the brand's tint.
             .AddChild(new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Tinted)
+                .SetSurface(UISurfaceStyle.Background)
                 .SetMinHeight(UILayoutLength.Absolute(320))
                 .BindVisibility(nameof(InboxController.EmptyVisibility))
                 .SetContent(new TextComponent()

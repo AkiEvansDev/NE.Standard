@@ -30,8 +30,10 @@
         transition: background-color @ui-motion-fast @ui-motion-ease;
     }
 
-    &:hover {
-        background-color: var(--ui-wash-hover);
+    @media @ui-can-hover {
+        &:hover {
+            background-color: var(--ui-wash-hover);
+        }
     }
 
     &:active {
@@ -48,7 +50,14 @@
 
 // Takes .ui-reveal-hover() off an element reacting another way; the selector chain must match the ghost button's for equal specificity.
 .ui-reveal-hover-off(@rules: {}) {
-    &@{ui-button-live}:is(:hover, :active) {
+    @media @ui-can-hover {
+        &@{ui-button-live}:hover {
+            background: none;
+            @rules();
+        }
+    }
+
+    &@{ui-button-live}:active {
         background: none;
         @rules();
     }

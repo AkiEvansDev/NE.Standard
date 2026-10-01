@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
@@ -166,6 +167,32 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     protected virtual Task OnThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
+    /// <summary>Gets whether the page holds work its reader has not saved; the controller sets and clears it itself.</summary>
+    /// <remarks>
+    /// Part of the page's state, per runtime: it reaches the page with its first render, at every attach and as it changes. While it is
+    /// true, a leave the page starts — a press on one of its links, a menu's entry or a breadcrumb, or a <c>NavigateEffect</c> — asks
+    /// <see cref="OnLeaveRequestedAsync"/> instead of leaving, and closing or reloading the tab asks the browser's own question. A command
+    /// that clears it and answers with a <c>NavigateEffect</c> leaves without being asked again.
+    /// </remarks>
+    [RecursiveMember]
+    public partial bool HoldsUnsavedWork { get; protected set; }
+
+    /// <summary>Lets go of the page's unsaved work: its session ended, so nothing the page holds can be saved any more.</summary>
+    internal void ReleaseUnsavedWork()
+        => HoldsUnsavedWork = false;
+
+    /// <summary>Runs when the reader starts to leave a page that holds unsaved work: what the answer's effects do is what happens.</summary>
+    /// <remarks>
+    /// <paramref name="target"/> is the address of this site the reader leaves for, as the page named it. The effects run on the page
+    /// that asked, as a command's do — the page's own dialog (Save / Don't save / Cancel), say, whose commands clear
+    /// <see cref="HoldsUnsavedWork"/> and answer <c>new NavigateEffect(target)</c>; a <c>NavigateEffect</c> this answers itself is
+    /// followed without asking again. Unless overridden, the framework's own dialog asks "Leave without saving?"
+    /// (<see cref="ConfirmLeaveEffect"/>). Runs as a command does, under the runtime's lock; <see cref="UIContext.Handle"/> is the asking
+    /// page's connection.
+    /// </remarks>
+    protected virtual Task<UICommandResult> OnLeaveRequestedAsync(string target, CancellationToken cancellationToken)
+        => Task.FromResult(UICommandResult.Ok([new ConfirmLeaveEffect(target)]));
+
     Task IUIControllerLifecycle.NavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -202,6 +229,14 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
 
         return OnThemeChangedAsync(previousMode, cancellationToken);
+    }
+
+    Task<UICommandResult> IUIControllerLifecycle.LeaveRequestedAsync(string target, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+
+        return OnLeaveRequestedAsync(target, cancellationToken);
     }
 
     /// <inheritdoc />

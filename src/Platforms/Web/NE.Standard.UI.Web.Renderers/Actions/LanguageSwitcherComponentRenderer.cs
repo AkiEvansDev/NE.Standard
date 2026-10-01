@@ -12,8 +12,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
 /// <summary>
-/// Draws the language switcher: one press in the button's look showing the page's language, and the list of the languages it
-/// offers, each named in itself.
+/// Draws the language switcher: one press in the button's look showing the page's language — its two-letter code by default, with
+/// no chevron whatever it does — and the list of the languages it offers, each named in itself.
 /// </summary>
 /// <remarks>
 /// <c>language-switcher-engine.ts</c> switches on a press where there are two languages and opens the list where there are more;
@@ -86,11 +86,27 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             _ = trigger.Class(TriggerClassName);
             _ = trigger.Attribute("type", "button");
 
-            // What the button does, with the language it shows in the name, so the visible label is part of it.
-            WebWords.Write(context, trigger, "aria-label", UIStrings.LanguageSwitch, new Dictionary<string, object?>(StringComparer.Ordinal) { ["language"] = DisplayText(current, display) });
-
+            // The page's language by its name and the code the button shows (WCAG 2.5.3, the label in the name), and with two the one a
+            // press switches to, the same way.
             if (opensList)
+            {
+                WebWords.Write(context, trigger, "aria-label", UIStrings.LanguageCurrent, new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["language"] = NativeName(current),
+                    ["code"] = Code(current)
+                });
                 RenderPopupTrigger(trigger, "menu");
+            }
+            else
+            {
+                WebWords.Write(context, trigger, "aria-label", UIStrings.LanguageSwitch, new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["language"] = NativeName(current),
+                    ["code"] = Code(current),
+                    ["other"] = NativeName(ToggleTarget(languages, current)),
+                    ["otherCode"] = Code(ToggleTarget(languages, current))
+                });
+            }
 
             _ = trigger.Element("span", icon =>
             {
@@ -101,9 +117,6 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             });
 
             RenderLabel(trigger, languages, PageOnlyLanguages(context, languages, current), current, display);
-
-            if (opensList)
-                _ = trigger.Element("span", chevron => chevron.Class("ui-language-switcher__chevron"));
         });
 
         RenderChoices(root, languages, current);
@@ -136,6 +149,10 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
 
         return string.IsNullOrWhiteSpace(session) ? context.Translator.DefaultLanguage : session;
     }
+
+    /// <summary>What a press on a two-language switcher asks for: the other language, or the first where the page is in neither.</summary>
+    private static string ToggleTarget(IReadOnlyList<string> languages, string current)
+        => string.Equals(languages[0], current, StringComparison.Ordinal) ? languages[1] : languages[0];
 
     /// <summary>The languages the page may be in — the translator's and the page's own — that this switcher does not offer.</summary>
     private static List<string> PageOnlyLanguages(WebRenderContext context, IReadOnlyList<string> languages, string current)
@@ -203,9 +220,17 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             _ = text.Text(DisplayText(language, display));
         });
 
-    /// <summary>What the button shows for a language: its code upper-cased, or its own name.</summary>
+    /// <summary>What the button shows for a language: its two-letter code, or its own name.</summary>
     private static string DisplayText(string language, UILanguageDisplay display)
-        => display == UILanguageDisplay.Name ? NativeName(language) : language.ToUpperInvariant();
+        => display == UILanguageDisplay.Name ? NativeName(language) : Code(language);
+
+    /// <summary>A language's two-letter code upper-cased: the language before any script or region ("ZH" for zh-Hans).</summary>
+    private static string Code(string language)
+    {
+        var end = language.IndexOf('-', StringComparison.Ordinal);
+
+        return (end < 0 ? language : language[..end]).ToUpperInvariant();
+    }
 
     /// <summary>
     /// A language's own name for itself, capitalised as a name standing alone is; its code where the runtime knows no culture by

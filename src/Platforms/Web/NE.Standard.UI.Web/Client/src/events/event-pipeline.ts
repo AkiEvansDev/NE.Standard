@@ -1,4 +1,4 @@
-import { EventBoundaryAttribute, eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
+import { eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
 import { DomRegistry } from "../addressing/dom-registry";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { EffectRegistry } from "../effects/effect-registry";
@@ -9,6 +9,7 @@ import { ValidationEngine } from "../interactions/validation-engine";
 import { MetadataIndex } from "../metadata/metadata-index";
 import type { UICommandRequest } from "../metadata/metadata-index";
 import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
+import { isBehindEventBoundary } from "./event-boundary";
 import { CommandTurns } from "./command-turns";
 import type { CommandTurn } from "./command-turns";
 import { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
@@ -122,10 +123,7 @@ export class EventPipeline {
         if (isInnerBoundaryCrossing(domEvent, resolved.element))
             return;
 
-        // A boundary keeps the event on its own side: a menu entry or split-button end never hands its click to the component holding it.
-        const boundary = domEvent.target.closest(`[${EventBoundaryAttribute}]`);
-
-        if (boundary !== null && boundary !== resolved.element && resolved.element.contains(boundary))
+        if (isBehindEventBoundary(domEvent.target, resolved.element))
             return;
 
         const serverEvent = this.options.metadata.getEvent(resolved.componentId, eventName);
@@ -143,6 +141,8 @@ export class EventPipeline {
 
         // Told whatever happens, a dropped connection included, or a package awaiting its sent value's answer would wait for ever.
         try {
+            registration.started?.(context);
+
             const outcome = await this.runAsync(eventName, registration, resolved.element, context);
 
             registration.completed?.({ ...context, ...outcome });

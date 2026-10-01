@@ -14,6 +14,11 @@
     font: inherit;
 }
 
+// Starting at the group's edge, under its caption: the options have no field whose inset the message would keep.
+.ui-radio-group > .ui-validation-message {
+    padding-inline: 0;
+}
+
 .ui-radio-group__host {
     display: flex;
     flex-direction: column;

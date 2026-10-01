@@ -168,9 +168,9 @@ public static class WebShellRenderer
 
     private static void RenderBody(IHtmlElementBuilder body, WebShellContext context)
     {
-        // The page's one form, so a password field stands in a form beside its login, as a browser and a password manager expect.
-        // `dialog` makes a submission a no-op, never a navigation carrying the fields in the address, and `novalidate` keeps the
-        // browser's own checks and bubbles off: the framework's buttons are all `type="button"`, and Enter is the field keys engine's.
+        // The page's form, so a password field with no FormId stands in a form beside its login, as a browser and a password manager
+        // expect. `dialog` makes a submission a no-op, never a navigation carrying the fields in the address, and `novalidate` keeps
+        // the browser's own checks and bubbles off: the framework's buttons are all `type="button"`, and Enter is the field keys engine's.
         _ = body.Element("form", root =>
         {
             _ = root.Attribute("id", context.RootElementId);
@@ -198,6 +198,7 @@ public static class WebShellRenderer
                 _ = root.Element("div", backdrop => backdrop.Class(DrawerBackdropClass).Attribute(WebAttributes.DrawerBackdrop));
         });
 
+        RenderForms(body, context);
         RenderMetadata(body, context);
         RenderStrings(body, context);
         RenderHydration(body, context);
@@ -210,6 +211,32 @@ public static class WebShellRenderer
                 _ = script.Attribute("src", ResolvePublicPath(asset));
             });
         }
+    }
+
+    /// <summary>
+    /// A hidden form per FormId, which its fields join by <c>form</c>: beside the root, since a form inside the root's form is dropped by
+    /// the parser, and in the markup, since a browser reads a page's forms as it loads. Each submits nowhere, as the root does.
+    /// </summary>
+    private static void RenderForms(IHtmlElementBuilder body, WebShellContext context)
+    {
+        if (context.FormIds.Count == 0)
+            return;
+
+        _ = body.Element("div", holder =>
+        {
+            _ = holder.Attribute(WebAttributes.FormsHolder);
+            _ = holder.Attribute("hidden");
+
+            foreach (var formId in context.FormIds)
+            {
+                _ = holder.Element("form", form =>
+                {
+                    _ = form.Attribute("id", WebForms.ElementId(formId));
+                    _ = form.Attribute("method", "dialog");
+                    _ = form.Attribute("novalidate");
+                });
+            }
+        });
     }
 
     private static void RenderMetadata(IHtmlElementBuilder body, WebShellContext context)

@@ -7,18 +7,16 @@ internal sealed class HomeView : DemoView, IUIViewDefinition
     public static string ViewKey => "demo.home";
 
     protected override string ComponentRoute => "/";
-    protected override DemoViewKind ViewKind => DemoViewKind.Main;
-    protected override DemoViewKind[] AvailableKinds => [];
     protected override string Header => "demo.home.header";
     protected override string HeaderDescription => "demo.home.description";
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        foreach ((var sectionTitle, _, (string ComponentRoute, string Label)[] links) in DemoUI.NavSections)
+        foreach ((var sectionTitle, _, (string Route, string Label)[] links) in DemoUI.NavSections)
             _ = container.AddChild(CreateLinksGroup(sectionTitle, links));
     }
 
-    private static ContainerComponent CreateLinksGroup(string sectionTitle, (string ComponentRoute, string Label)[] links)
+    private static ContainerComponent CreateLinksGroup(string sectionTitle, (string Route, string Label)[] links)
     {
         return DemoUI.CreateGroup(null, sectionTitle,
             content =>
@@ -29,11 +27,11 @@ internal sealed class HomeView : DemoView, IUIViewDefinition
                     .SetSpacing(12)
                     .SetWrap(true);
 
-                foreach ((var componentRoute, var label) in links)
+                foreach ((var route, var label) in links)
                 {
                     _ = list.AddChild(new LinkComponent()
                         .SetTitle(label)
-                        .SetUrl(DemoUI.RouteFor(componentRoute, DemoUI.LandingKinds[componentRoute]))
+                        .SetUrl(route)
                     );
                 }
 

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using DemoApp.Controllers.Base;
-using DemoApp.Views.Base;
 
 namespace DemoApp.Views;
 
@@ -14,7 +13,7 @@ internal static class DemoUI
     /// <summary>The sidebar's authored id, which keys its collapsed state and open section.</summary>
     private const string SidebarId = "demo-sidebar";
 
-    public static readonly (string Title, string Icon, (string ComponentRoute, string Label)[] Links)[] NavSections =
+    public static readonly (string Title, string Icon, (string Route, string Label)[] Links)[] NavSections =
     [
         // First, because these are the pages a reader judges the whole by: pieces of an application, not a component each.
         ("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Home),
@@ -25,9 +24,21 @@ internal static class DemoUI
             ("/screens/catalogue", "demo.nav.screens.catalogue"),
             ("/screens/inbox", "demo.nav.screens.inbox"),
             ("/screens/article", "demo.nav.screens.article"),
+            ("/screens/chat", "demo.nav.screens.chat"),
+            ("/screens/files", "demo.nav.screens.files"),
+            ("/screens/notes", "demo.nav.screens.notes"),
             ("/screens/sign-in", "demo.nav.screens.sign-in"),
             ("/screens/account", "demo.nav.screens.account"),
             ("/screens/admin", "demo.nav.screens.admin"),
+        ]),
+        // What the framework does across components, each page a set of live experiments rather than one component's look.
+        ("demo.nav.section.mechanisms", DemoIcons.Outline(DemoIcons.Mechanism),
+        [
+            ("/design/colors", "demo.nav.design.colors"),
+            ("/mechanisms/words", "demo.nav.mechanisms.words"),
+            ("/mechanisms/commands", "demo.nav.mechanisms.commands"),
+            ("/mechanisms/values", "demo.nav.mechanisms.values"),
+            ("/mechanisms/lists", "demo.nav.mechanisms.lists"),
         ]),
         ("demo.nav.section.layouts", DemoIcons.Outline(DemoIcons.LayoutDashboard),
         [
@@ -61,7 +72,6 @@ internal static class DemoUI
             ("/actions/action", "demo.nav.actions.action"),
             ("/actions/command-bar", "demo.nav.actions.command-bar"),
             ("/actions/theme-switcher", "demo.nav.actions.theme-switcher"),
-            ("/actions/language-switcher", "demo.nav.actions.language-switcher"),
         ]),
         ("demo.nav.section.inputs", DemoIcons.Outline(DemoIcons.Sliders),
         [
@@ -110,83 +120,11 @@ internal static class DemoUI
     ];
 
     /// <summary>
-    /// The page a route lands on; the sidebar lists the routes named here, each at its <see cref="DemoViewKind.Main"/> or <see cref="DemoViewKind.Test"/> page.
-    /// </summary>
-    internal static readonly Dictionary<string, DemoViewKind> LandingKinds = new(StringComparer.Ordinal)
-    {
-        // A screen's route is its own page, which is what Main means here; it has no other kinds.
-        ["/screens/sign-up"] = DemoViewKind.Main,
-        ["/screens/checkout"] = DemoViewKind.Main,
-        ["/screens/settings"] = DemoViewKind.Main,
-        ["/screens/catalogue"] = DemoViewKind.Main,
-        ["/screens/inbox"] = DemoViewKind.Main,
-        ["/screens/article"] = DemoViewKind.Main,
-        ["/screens/sign-in"] = DemoViewKind.Main,
-        ["/screens/account"] = DemoViewKind.Main,
-        ["/screens/admin"] = DemoViewKind.Main,
-        ["/screens/forbidden"] = DemoViewKind.Main,
-        ["/actions/button"] = DemoViewKind.Main,
-        ["/actions/action"] = DemoViewKind.Main,
-        ["/actions/split-button"] = DemoViewKind.Main,
-        ["/actions/command-bar"] = DemoViewKind.Main,
-        ["/actions/theme-switcher"] = DemoViewKind.Main,
-        ["/actions/language-switcher"] = DemoViewKind.Main,
-        ["/contents/badge"] = DemoViewKind.Main,
-        ["/contents/icon"] = DemoViewKind.Main,
-        ["/contents/image"] = DemoViewKind.Main,
-        ["/contents/link"] = DemoViewKind.Main,
-        ["/contents/separator"] = DemoViewKind.Main,
-        ["/indicators/progress"] = DemoViewKind.Main,
-        ["/indicators/spinner"] = DemoViewKind.Main,
-        ["/contents/text"] = DemoViewKind.Main,
-        ["/contents/paragraph"] = DemoViewKind.Main,
-        ["/contents/timestamp"] = DemoViewKind.Main,
-        ["/items/key-value-action"] = DemoViewKind.Main,
-        ["/layouts/container"] = DemoViewKind.Main,
-        ["/layouts/surface"] = DemoViewKind.Main,
-        ["/layouts/card"] = DemoViewKind.Main,
-        ["/layouts/expander"] = DemoViewKind.Main,
-        ["/layouts/stack-panel"] = DemoViewKind.Main,
-        ["/layouts/wrap-panel"] = DemoViewKind.Main,
-        ["/layouts/scroll"] = DemoViewKind.Main,
-        ["/layouts/flyout"] = DemoViewKind.Main,
-        ["/layouts/collapsible-panel"] = DemoViewKind.Main,
-        ["/layouts/grid-splitter"] = DemoViewKind.Main,
-        ["/inputs/color-input"] = DemoViewKind.Main,
-        ["/inputs/text-input"] = DemoViewKind.Main,
-        ["/inputs/text-area"] = DemoViewKind.Main,
-        ["/inputs/number-input"] = DemoViewKind.Main,
-        ["/inputs/checkbox"] = DemoViewKind.Main,
-        ["/inputs/switch"] = DemoViewKind.Main,
-        ["/inputs/radio-group"] = DemoViewKind.Main,
-        ["/inputs/select"] = DemoViewKind.Main,
-        ["/inputs/multi-select"] = DemoViewKind.Main,
-        ["/inputs/search"] = DemoViewKind.Main,
-        ["/inputs/file-input"] = DemoViewKind.Main,
-        ["/inputs/image-input"] = DemoViewKind.Main,
-        ["/inputs/slider"] = DemoViewKind.Main,
-        ["/inputs/date-input"] = DemoViewKind.Main,
-        ["/inputs/time-input"] = DemoViewKind.Main,
-        ["/inputs/date-time-input"] = DemoViewKind.Main,
-        ["/inputs/calendar"] = DemoViewKind.Main,
-        ["/items/items-view"] = DemoViewKind.Main,
-        ["/items/table"] = DemoViewKind.Main,
-        ["/items/tree"] = DemoViewKind.Main,
-        ["/navigation/menu"] = DemoViewKind.Main,
-        ["/navigation/tabs"] = DemoViewKind.Main,
-        ["/navigation/tabs-view"] = DemoViewKind.Main,
-        ["/navigation/breadcrumbs"] = DemoViewKind.Main,
-        ["/actions/button-group"] = DemoViewKind.Main,
-        ["/overlays/dialog"] = DemoViewKind.Test,
-        ["/overlays/notification"] = DemoViewKind.Test
-    };
-
-    /// <summary>
     /// The page band from the preset; the theme and language switchers are on every page, controller or not, since the theme and the
     /// language are the framework's state.
     /// </summary>
     public static ContainerComponent CreateHeader(string title, string description)
-        => UIPage.Header(title, description,
+        => PageHeader(title, description,
             new LanguageSwitcherComponent(),
             new ThemeSwitcherComponent()
                 .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
@@ -194,30 +132,77 @@ internal static class DemoUI
         );
 
     /// <summary>
+    /// The page band: the name with the switchers at the far end of its row at every width, and the muted line under them — on a phone
+    /// the name a title's size and the line one line, cut, so the band stays about a title's height and leaves the screen to the page;
+    /// from a medium screen the name in the display role and the line up to three lines.
+    /// </summary>
+    /// <remarks>
+    /// <c>UIPage.Header</c>'s band, kept on one row on a phone too: there the preset folds the far end under the line, which took a
+    /// third of a phone's height.
+    /// </remarks>
+    private static ContainerComponent PageHeader(string title, string description, params IVisualComponent[] trailing)
+        => new ContainerComponent()
+            // 10 on a phone puts the name's line on the drawer toggle's middle (the shell's, 12 down and 36 tall).
+            .SetPadding(UIResponsive<UIThickness>.Create(UIThickness.All(24, 10, 16, 4), md: UIThickness.All(24, 20, 24, 4)))
+            .SetColumn(24, UIGridUnit.Auto())
+            // On a phone a name too long for its row wraps under itself rather than losing its end, its first line level with the
+            // switchers, which stand at the row's top.
+            .AddChild(PageTitle(title, UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed))
+                .AsTitle()
+                .SetTitleWrap(true)
+                .SetVerticalAlignment(UIAlignment.Start)
+                .SetMargin(UIThickness.All(0, PhoneTitleInset, 0, 0))
+            )
+            .AddChild(PageTitle(title, UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)).AsDisplay())
+            .AddChild(PageDescription(description, 1, UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed)).SetPlacement(1, 2, 24, 1))
+            .AddChild(PageDescription(description, 3, UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)).SetPlacement(1, 2, 23, 1))
+            .AddChild(new StackPanelComponent()
+                .SetOrientation(UIOrientation.Horizontal)
+                .SetSpacing(UIResponsive<double>.Create(8, md: 12))
+                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(8, 0, 0, 0), md: UIThickness.All(12, 0, 0, 0)))
+                .SetHorizontalAlignment(UIAlignment.End)
+                .SetVerticalAlignment(UIAlignment.Start)
+                .AddChildren(trailing)
+                .SetPlacement(24, 1, 1, 1)
+            );
+
+    // Half the switchers' 40 px less the name's 28 px line: a one-line name stands in their middle, a wrapped one's first line too.
+    private const double PhoneTitleInset = 6;
+
+    /// <summary>The page's name, where <paramref name="visibility"/> shows it.</summary>
+    private static TextComponent PageTitle(string title, UIResponsive<UIVisibility> visibility)
+        => new TextComponent()
+            .SetTitle(title)
+            .SetTitleColor(UIThemeColor.OnBackground)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .SetVisibility(visibility)
+            .SetPlacement(1, 1, 23, 1);
+
+    /// <summary>The muted line under the name, at most <paramref name="lines"/> lines, where <paramref name="visibility"/> shows it.</summary>
+    private static ParagraphComponent PageDescription(string description, int lines, UIResponsive<UIVisibility> visibility)
+        => new ParagraphComponent()
+            .SetDescription(description)
+            .SetMaxLines(lines)
+            .SetDescriptionType(UITextAppearance.Body)
+            .SetDescriptionColor(UIThemeColor.Muted)
+            .SetVisibility(visibility);
+
+    /// <summary>
     /// The sidebar every route wears, built from <see cref="MenuComponent"/>.
     /// </summary>
-    public static ContainerComponent CreateSidebar(string currentComponentRoute)
+    public static ContainerComponent CreateSidebar(string currentRoute)
     {
         List<MenuItem> entries =
         [
-            CreateNavEntry("/", "demo.nav.home", currentComponentRoute, icon: DemoIcons.Outline(DemoIcons.Home)),
-            CreateNavEntry("/design/colors", "demo.nav.design.colors", currentComponentRoute, icon: DemoIcons.Outline(DemoIcons.Palette))
+            CreateNavEntry("/", "demo.nav.home", currentRoute, DemoIcons.Outline(DemoIcons.Home))
         ];
 
-        foreach ((var sectionTitle, var sectionIcon, (string ComponentRoute, string Label)[] links) in NavSections)
+        foreach ((var sectionTitle, var sectionIcon, (string Route, string Label)[] links) in NavSections)
         {
             MenuItem section = new() { Id = sectionTitle, Title = sectionTitle, Icon = sectionIcon };
 
-            foreach ((var componentRoute, var label) in links)
-            {
-                if (!LandingKinds.TryGetValue(componentRoute, out DemoViewKind landing))
-                    continue;
-
-                section.Items.Add(CreateNavEntry(RouteFor(componentRoute, landing), label, currentComponentRoute, componentRoute));
-            }
-
-            if (section.Items.Count == 0)
-                continue;
+            foreach ((var route, var label) in links)
+                section.Items.Add(CreateNavEntry(route, label, currentRoute));
 
             // A section with one page is that page: a fold over a single entry is a click for nothing.
             if (section.Items.Count == 1)
@@ -261,14 +246,14 @@ internal static class DemoUI
     /// <summary>
     /// The entry's id is its route, which keys the collection and is stable across renders.
     /// </summary>
-    private static MenuItem CreateNavEntry(string route, string label, string currentComponentRoute, string? componentRoute = null, string? icon = null)
+    private static MenuItem CreateNavEntry(string route, string label, string currentRoute, string? icon = null)
         => new()
         {
             Id = route,
             Title = label,
             Icon = icon,
             Url = route,
-            Selected = (componentRoute ?? route) == currentComponentRoute
+            Selected = route == currentRoute
         };
 
     /// <summary>
@@ -340,9 +325,51 @@ internal static class DemoUI
         return [.. groups];
     }
 
+    /// <summary>
+    /// Several groups one under another as one half of a pair, beside a single group about as tall as they are together — where a
+    /// pair of rows would leave a hole under the shorter side and the last group alone in its row.
+    /// </summary>
+    /// <remarks>The page's wrap keeps groups 16 apart down a line; the stack keeps its groups as far apart, so the two halves read alike.</remarks>
+    public static StackPanelComponent CreateHalf(params ContainerComponent[] groups)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+
+        StackPanelComponent half = UILayout.Stack(16)
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, 12, 1));
+
+        // Each group takes the half's whole width: its own placement is a half of the page's.
+        foreach (ContainerComponent group in groups)
+            _ = half.AddChild(group.SetPlacement(1, 1, 24, 1));
+
+        return half;
+    }
+
     /// <summary>The vertical stack an Examples group lays its samples in, the width of the group.</summary>
     public static StackPanelComponent CreateStack(double spacing = 12)
         => UILayout.Stack(spacing).SetPlacement(1, 1, 24, 1);
+
+    /// <summary>
+    /// The heading over a component page's examples, across the page's width under a rule, so the options above read as finished.
+    /// </summary>
+    public static StackPanelComponent CreateSectionHeading(string title)
+        => UILayout.Stack(16,
+                new SeparatorComponent(),
+                UIText.Subtitle(title)
+            )
+            .SetPlacement(1, 1, 24, 1);
+
+    /// <summary>The line closing a component page: the screen or mechanism page that composes the component for real.</summary>
+    public static StackPanelComponent CreateComposedIn(string route, string label)
+        => UILayout.Row(6,
+                UIText.Note("demo.page.composed-in"),
+                new LinkComponent()
+                    .SetTitle(label)
+                    .SetUrl(route)
+                    .SetTitleType(UITextAppearance.Caption)
+            )
+            .SetMargin(UIThickness.All(0, 8, 0, 0))
+            .SetPlacement(1, 1, 24, 1);
 
     /// <summary>
     /// The shell every demo page is built from, so a layout fix here lands on every demo route at once.
@@ -377,12 +404,13 @@ internal static class DemoUI
         // no room for a column of 220 pixels.
         var beside = controls is not null && !controlsBelow;
         var span = beside ? 23 : 24;
-        var contextRow = hasContext ? 2 : 1;
-        var noteRow = contextRow + (hasNote ? 1 : 0);
-        var contentRow = noteRow + 1;
+        // The note under the title, the message's room under the note: an empty line reserved between a title and its note split them.
+        var noteRow = hasNote ? 2 : 1;
+        var contextRow = noteRow + (hasContext ? 1 : 0);
+        var contentRow = contextRow + 1;
 
         // No outline of its own: the preview and the options list each draw their own. No inline padding either, so a group's
-        // content starts at the page's own edge, under its heading and tab strip; the page's wrap keeps the groups apart.
+        // content starts at the page's own edge, under its heading; the page's wrap keeps the groups apart.
         // The title row is as tall as the code button, so a group with the button starts its content where one without it does.
         // A sample, its title and its note are the author's prose and API names, shown as written: content for the unkeyed report.
         ContainerComponent group = new ContainerComponent()
@@ -391,12 +419,12 @@ internal static class DemoUI
             .SetRow(1, UIGridUnit.Auto(min: 24))
             .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, columns, 1));
 
+        if (hasNote)
+            _ = group.AddRow(UIGridUnit.Auto());
+
         // Reserved for the message, so one arriving does not move the content.
         if (hasContext)
             _ = group.AddRow(UIGridUnit.Auto(min: 26));
-
-        if (hasNote)
-            _ = group.AddRow(UIGridUnit.Auto());
 
         _ = group.AddRow(UIGridUnit.Star());
 
@@ -719,29 +747,6 @@ internal static class DemoUI
             .SetContent(rows)
             .SetPlacement(1, 1, 24, 1);
     }
-
-    public static StackPanelComponent CreatePageTabs(string componentRoute, DemoViewKind current, DemoViewKind[] available)
-    {
-        (string Label, string Url)[] tabs = new (string Label, string Url)[available.Length];
-
-        for (var i = 0; i < available.Length; i++)
-            tabs[i] = (KindKey(available[i]), RouteFor(componentRoute, available[i]));
-
-        return CreateTabs(tabs, RouteFor(componentRoute, current));
-    }
-
-    /// <summary>A kind's name as the demo's key: <c>demo.kind.examples</c>.</summary>
-    public static string KindKey(DemoViewKind kind)
-        => "demo.kind." + kind.ToString().ToLowerInvariant();
-
-    /// <summary>
-    /// The page a kind lives at. A component's first page is its own route: <see cref="DemoViewKind.Main"/>, or
-    /// <see cref="DemoViewKind.Test"/> for the two that have no Main, so no component's own address is a 404.
-    /// </summary>
-    public static string RouteFor(string componentRoute, DemoViewKind kind)
-        => kind is DemoViewKind.Main or DemoViewKind.Test
-            ? componentRoute
-            : $"{componentRoute}/{kind.ToString().ToLowerInvariant()}";
 
     public static StackPanelComponent CreateTabs((string Label, string Url)[] tabs, string currentUrl)
     {

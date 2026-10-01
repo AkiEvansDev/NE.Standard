@@ -118,6 +118,17 @@
     padding-bottom: 1px;
 }
 
+// ShowEmptyTemplate off: an empty host says nothing. Hidden rather than left out, so a bound flag turned on shows it again.
+.ui-items-view--no-empty > [data-ui-items-host] > [data-ui-empty-placeholder] {
+    display: none;
+}
+
+// A list held at its end ends a step past its newest row: the scroller clips at its edge, so a raised row's shadow and the fraction of
+// a pixel a row's height rounds away would otherwise read as the list stopping short.
+.ui-items-view > [data-ui-scroll-anchor="End"] {
+    padding-block-end: @ui-space-1;
+}
+
 // The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.
 .ui-items-view > [data-ui-host-mode] {
     overflow-anchor: none;
@@ -127,6 +138,18 @@
 .ui-items-view--stack > .ui-items-view__host > *,
 .ui-items-view--stack > [data-ui-items-host] > * {
     flex-shrink: 0;
+}
+
+// A group header in a column reads its own HorizontalAlignment, as a row does: the server's wraps the template's root in a grid, as a
+// row's wrapper is, and the one the page draws is that root itself, a flex item of the column, which justify-self does not move.
+.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header]:not([data-ui-id]),
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header]:not([data-ui-id]) {
+    display: grid;
+}
+
+.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header][data-ui-id],
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header][data-ui-id] {
+    align-self: var(--ui-align-h, normal);
 }
 
 .ui-items-view__host.ui-scroll-x--disabled {
@@ -206,11 +229,14 @@
 }
 
 // The pointer's and the keyboard's wash: a stack's row paints it, a wrap's tile as a layer over its own ground (below).
-.ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover {
-    .ui-row-hover();
+@media @ui-can-hover {
+    .ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover {
+        .ui-row-hover();
+    }
 }
 
 .ui-row-cursor(~".ui-items-view", ~".ui-items-view__item");
+.ui-row-bar(~".ui-items-view", ~".ui-items-view__item");
 
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id] {
     .ui-tile-wash();

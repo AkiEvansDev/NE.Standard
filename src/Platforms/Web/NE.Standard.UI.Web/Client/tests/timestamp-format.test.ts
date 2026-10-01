@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { formatTemporal, InvariantTemporalCulture } from "../src/rendering/temporal-format.ts";
 import type { TemporalLanguage } from "../src/rendering/temporal-format.ts";
-import { formatRelative, formatTimestamp, readInstant, readTimestampFormat } from "../src/rendering/timestamp-format.ts";
+import { asHeading, formatRelative, formatTimestamp, isRelativeFormat, nearDay, readInstant, readTimestampFormat } from "../src/rendering/timestamp-format.ts";
 
 const Minute = 60_000;
 const Hour = 60 * Minute;
@@ -46,6 +46,7 @@ test("a datetime in no shape of the wire's names no instant", () => {
 
 test("a format the page does not know is the day and the time", () => {
     assert.equal(readTimestampFormat("relative"), "relative");
+    assert.equal(readTimestampFormat("relative-date"), "relative-date");
     assert.equal(readTimestampFormat("date"), "date");
     assert.equal(readTimestampFormat("time"), "time");
     assert.equal(readTimestampFormat(null), "date-time");
@@ -104,4 +105,33 @@ test("a relative instant is said in the table's language, and in the browser's o
 
     assert.equal(formatTimestamp(instant - 5 * Minute, "relative", { temporal: Russian, language: "ru" }, instant), "5 минут назад");
     assert.equal(formatTimestamp(instant, "relative", { temporal: null, language: "not a language" }, instant), formatRelative(0, ""));
+});
+
+test("a relative day names today, yesterday and tomorrow in the table's language, and writes any other day in its pattern", () => {
+    const now = new Date(2026, 8, 30, 9, 0, 0).getTime();
+    const english = { temporal: Russian, language: "en" };
+
+    assert.equal(formatTimestamp(new Date(2026, 8, 30, 0, 5).getTime(), "relative-date", english, now), "today");
+    assert.equal(formatTimestamp(new Date(2026, 8, 29, 23, 55).getTime(), "relative-date", english, now), "yesterday");
+    assert.equal(formatTimestamp(new Date(2026, 9, 1, 8, 0).getTime(), "relative-date", english, now), "tomorrow");
+    assert.equal(formatTimestamp(new Date(2026, 8, 28, 23, 0).getTime(), "relative-date", english, now), "28.09.2026");
+    assert.equal(formatTimestamp(new Date(2026, 8, 29, 12, 0).getTime(), "relative-date", { temporal: Russian, language: "ru" }, now), "вчера");
+    assert.equal(formatTimestamp(new Date(2026, 8, 28, 12, 0).getTime(), "relative-date", { temporal: null, language: "" }, now), "2026-09-28");
+});
+
+test("a relative day counts the reader's calendar days, not spans of 24 hours", () => {
+    const lateEvening = new Date(2026, 8, 30, 23, 59).getTime();
+
+    assert.equal(nearDay(new Date(2026, 8, 30, 0, 1).getTime(), lateEvening), 0);
+    assert.equal(nearDay(new Date(2026, 8, 29, 23, 59).getTime(), new Date(2026, 8, 30, 0, 1).getTime()), -1);
+    assert.equal(nearDay(new Date(2026, 8, 28, 23, 59).getTime(), new Date(2026, 8, 30, 0, 1).getTime()), null);
+    assert.equal(isRelativeFormat("relative-date"), true);
+    assert.equal(isRelativeFormat("date"), false);
+});
+
+test("a day's name heading a label takes the language's capital", () => {
+    assert.equal(asHeading("today", "en"), "Today");
+    assert.equal(asHeading("вчера", "ru"), "Вчера");
+    assert.equal(asHeading("今天", "zh-Hans"), "今天");
+    assert.equal(asHeading("", "en"), "");
 });

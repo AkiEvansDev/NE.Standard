@@ -19,6 +19,10 @@ html {
 
     // Lets a keyword size animate, so a <details> transitions its content from 0 to auto instead of jumping in one frame.
     interpolate-size: allow-keywords;
+
+    // No tap highlight (inherited, so one rule): a phone's browser flashes an unrounded box in its own colour over whatever the finger
+    // touched before the control's own pressed and hover states, which answer the press. Keyboard focus rings are untouched.
+    -webkit-tap-highlight-color: transparent;
 }
 
 // A shell that scrolls its own regions never scrolls the document, and a reserved gutter there only cuts every fixed layer —

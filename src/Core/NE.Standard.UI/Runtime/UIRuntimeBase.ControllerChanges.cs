@@ -91,6 +91,7 @@ internal abstract partial class UIRuntimeBase
             case RecursiveChangeKind.Set:
                 AppendSetUpdatesNoLock(change.Path);
                 AppendSwappedCollectionUpdatesNoLock(change.Path);
+                AppendPageStateNoLock(change.Path);
                 break;
 
             case RecursiveChangeKind.Reset:

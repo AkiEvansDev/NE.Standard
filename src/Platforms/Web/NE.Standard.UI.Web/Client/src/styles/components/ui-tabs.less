@@ -81,8 +81,10 @@
 }
 
     // Excluded rather than out-ranked, which would beat the selected rule below; the button family's guard quiets a loading header.
-    .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
-        .ui-tab-caption-hover-mark();
+    @media @ui-can-hover {
+        .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
+            .ui-tab-caption-hover-mark();
+        }
     }
 
 // Restated inside reveal-hover-off at the ghost button's hover specificity, or a set ground vanished on hover.
@@ -99,6 +101,10 @@
     // The caption's text body wears TitleType and re-declares the weight over the header's; it is said again where the words are.
     .ui-tab-header--selected .ui-text {
         font-weight: var(--ui-selected-font-weight, 600);
+    }
+
+    .ui-tab-header .ui-text__title[data-ui-caption-text]::after {
+        .ui-tab-caption-reserve();
     }
 
     // Keeps its own line under the pointer, since the hover rule above excludes selected headers outright.

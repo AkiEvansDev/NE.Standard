@@ -11,12 +11,9 @@ import { isInert, isItemDisabled } from "./interactive-state.ts";
 import type { RowAxis } from "./row-cursor.ts";
 import { dispatchRowEvent, focusedRow, litRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import {
-    chooseRow, choosesOnEnter, ensureAnchor, gestureOf, keyGestureOf, markSelectedRows, PlainGesture, selectedRows, SelectionRootSelector as RootSelector,
-    SelectionRowSelector as ItemSelector, setAnchor
+    chooseRow, choosesOnEnter, ensureAnchor, gestureOf, KeyboardRowsRootSelector as KeyboardRootSelector, keyGestureOf, markSelectedRows, PlainGesture,
+    selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
 } from "./row-selection.ts";
-
-// The two whose keyboard is this engine's; the tree's is its own.
-const KeyboardRootSelector = ".ui-items-view, .ui-table";
 
 // The keys besides the arrows this engine answers; any other passes without the rows being read.
 const ActionKeys = new Set([" ", "Enter", "Delete"]);

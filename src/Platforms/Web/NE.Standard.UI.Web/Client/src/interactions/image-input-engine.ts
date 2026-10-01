@@ -1,18 +1,24 @@
 // A picture chosen by file: shown at once, uploaded beside the hub, and kept until the controller answers with its own picture.
 // A shelf (Multiple, or the Shelf shape) keeps a square per file, each uploaded as its own selection, the handles sent as a list: a
-// picture as its thumbnail, any other file its `Accept` lets in as its kind's glyph and its name.
+// picture as its thumbnail, any other file its `Accept` lets in as its kind's glyph and its name. A single picture with a frame
+// (`Crop`) is fitted to it in the crop dialog first, and the square the frame holds is what is shown and sent.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
-import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
+import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { fileGlyph } from "../rendering/file-glyphs.ts";
 import { applyIconValue } from "../rendering/icon-value.ts";
 import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { DialogEngine } from "./dialog-engine.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { DraftDroppedEventName } from "./draft-events.ts";
 import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
+import { DefaultCropSize } from "./image-crop.ts";
+import type { CropFrame } from "./image-crop.ts";
+import { cropPictureAsync } from "./image-crop-dialog.ts";
+import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
@@ -62,11 +68,23 @@ export type ImageInputEngineOptions = {
     readonly validation?: FieldValidation;
     /** Tells a single picture that the controller emptied its handle. */
     readonly propertyPatchEngine?: PropertyPatchEngine;
+    /** Opens the crop dialog for a picture with a frame; left out, such a picture is taken as it is. */
+    readonly dialogs?: DialogEngine;
+    /** The browser's decoding and drawing of a picture to crop; a test stands in for it. */
+    readonly cropImaging?: CropImaging;
 };
 
 export class ImageInputEngine {
     private readonly root: ParentNode;
     private readonly validation: FieldValidation | undefined;
+    private readonly dialogs: DialogEngine | undefined;
+    private readonly cropImaging: CropImaging | undefined;
+
+    /** The pictures whose crop dialog is open: a second pick while it decodes is refused, as a loading surface refuses one. */
+    private readonly cropping = new WeakSet<HTMLElement>();
+
+    /** The inputs saying a picture could not be opened, a line the next picture taken takes off. */
+    private readonly unreadable = new WeakSet<HTMLElement>();
 
     /** The preview each root shows, its object URL revoked when the controller's picture arrives or another file is chosen. */
     private readonly previews = new WeakMap<HTMLElement, Preview>();
@@ -83,6 +101,8 @@ export class ImageInputEngine {
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
         this.validation = options.validation;
+        this.dialogs = options.dialogs;
+        this.cropImaging = options.cropImaging;
 
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
@@ -307,13 +327,21 @@ export class ImageInputEngine {
         }
     }
 
-    /** Shows the file at once, sends it, and hands the controller the handle; a failure leaves the handle empty and says so. */
-    private async takeFileAsync(root: HTMLElement, file: File): Promise<void> {
+    /**
+     * Shows the file at once, sends it, and hands the controller the handle; a failure leaves the handle empty and says so. Under a
+     * frame the reader crops it first, and a cancel leaves the input as it was.
+     */
+    private async takeFileAsync(root: HTMLElement, chosen: File): Promise<void> {
         const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
         const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
         const selection = root.querySelector<HTMLInputElement>(`.${SelectionClass}`);
 
         if (surface === null || picture === null)
+            return;
+
+        const file = await this.cropAsync(root, chosen);
+
+        if (file === null)
             return;
 
         // Refused for size: the controller's current picture stands rather than being replaced with nothing.
@@ -350,6 +378,41 @@ export class ImageInputEngine {
         }
         finally {
             surface.classList.remove(LoadingClass);
+        }
+    }
+
+    /** The picture as its frame holds it, the file itself where the input names no frame, or null where nothing is to be taken. */
+    private async cropAsync(root: HTMLElement, file: File): Promise<File | null> {
+        const frame = cropFrameOf(root);
+
+        if (frame === null || this.dialogs === undefined)
+            return file;
+
+        if (this.cropping.has(root))
+            return null;
+
+        this.cropping.add(root);
+
+        try {
+            const outcome = await cropPictureAsync(this.dialogs, file, { frame, size: cropSizeOf(root) }, this.cropImaging);
+
+            // Gone from the page while the reader cropped: nothing is left to show it on.
+            if (outcome === "cancelled" || !root.isConnected)
+                return null;
+
+            if (outcome === "unreadable") {
+                this.unreadable.add(root);
+                this.validation?.mark(root, "error", { key: "ui.image.unreadable" });
+                return null;
+            }
+
+            if (this.unreadable.delete(root))
+                this.validation?.mark(root, null);
+
+            return outcome;
+        }
+        finally {
+            this.cropping.delete(root);
         }
     }
 
@@ -438,6 +501,18 @@ export class ImageInputEngine {
 
 function isShelf(root: HTMLElement): boolean {
     return root.classList.contains(MultipleClass);
+}
+
+function cropFrameOf(root: HTMLElement): CropFrame | null {
+    const frame = root.getAttribute(ImageCropAttribute);
+
+    return frame === "square" || frame === "circle" ? frame : null;
+}
+
+function cropSizeOf(root: HTMLElement): number {
+    const size = Number(root.getAttribute(ImageCropSizeAttribute));
+
+    return Number.isInteger(size) && size > 0 ? size : DefaultCropSize;
 }
 
 /**

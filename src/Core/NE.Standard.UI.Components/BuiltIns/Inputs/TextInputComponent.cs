@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
@@ -151,6 +152,22 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     public T SetShowClearButton()
         => SetShowClearButton(true);
+
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter, after the value has reached the server; the field keeps the focus for the next entry.
+    /// </summary>
+    public T OnEnter(string command)
+        => On(EventNames.Enter, command);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter with UI action arguments — in a row's template, the row's key among them.
+    /// </summary>
+    public T OnEnter(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Enter, command, arguments);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter with literal argument values.
+    /// </summary>
+    public T OnEnterLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Enter, command, arguments);
 }
 
 /// <summary>

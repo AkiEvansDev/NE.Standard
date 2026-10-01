@@ -7,18 +7,20 @@ import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
 import { planRowRemoval } from "../interactions/row-cursor";
 import { SelectionRootSelector } from "../interactions/row-selection";
-import { resolveHostMode } from "../items/items-host-mode";
+import { resolveHostMode, windowOffset } from "../items/items-host-mode";
 import { syncItemsHost } from "../items/items-host-sync";
 import { renderItemRow } from "../items/items-row-renderer";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
+import { PendingMoves } from "../items/pending-moves";
 import {
     MetadataIndex,
     ServerChangeSet,
     ServerCollectionChangeUIUpdate,
     ServerCollectionItemChange,
     ServerCollectionMoveChange,
+    ServerPageUIUpdate,
     ServerUIUpdate,
     ServerValidationUIUpdate,
     ServerValueUIUpdate,
@@ -33,15 +35,26 @@ import { areValuesEqual } from "../state/value-equality";
 import { CollectionSinkRegistry, toCollectionChange } from "./collection-sinks";
 import { PropertyPatchEngine } from "./property-patch-engine";
 
+/** What a change that moves no row confirms of the rows moved ahead: nothing. */
+const NoKeys: readonly string[] = [];
+
 export type ServerValidationHandler = (update: ServerValidationUIUpdate) => void;
 export type ServerFullResyncHandler = () => void;
+export type ServerPageHandler = (update: ServerPageUIUpdate) => void;
 
 export class UpdateProcessor {
     private readonly validationHandlers: ServerValidationHandler[] = [];
     private readonly fullResyncHandlers: ServerFullResyncHandler[] = [];
+    private readonly pageHandlers: ServerPageHandler[] = [];
 
     // The collections of hosts declared inside an item template, for the rows built after they arrived.
     private readonly held = new HeldCollections();
+
+    /** The rows the reader moved ahead of their commands, put where the server says once the answers are in. */
+    public readonly moves = new PendingMoves({
+        indexOf: (host, key) => this.indexOfRow(host, key),
+        move: (host, key, index) => this.moveRow(host, key, index)
+    });
 
     public constructor(
         private readonly metadata: MetadataIndex,
@@ -256,7 +269,12 @@ export class UpdateProcessor {
         }
     }
 
+    /** A refill lands on the order the server holds, as any change does: the rows moved ahead stand again on top of it. */
     private refillHost(host: Element, refill: CollectionRefill): void {
+        this.moves.around(host, NoKeys, () => this.refillHostRows(host, refill));
+    }
+
+    private refillHostRows(host: Element, refill: CollectionRefill): void {
         // A virtualized host takes the values and draws what is in view itself.
         if (resolveHostMode(host) === "virtualized") {
             const redrawn = this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
@@ -325,6 +343,11 @@ export class UpdateProcessor {
         this.fullResyncHandlers.push(handler);
     }
 
+    /** What the page as a whole holds belongs to no component: its update goes to whoever keeps that state. */
+    public addPageHandler(handler: ServerPageHandler): void {
+        this.pageHandlers.push(handler);
+    }
+
     public applyUpdate(update: ServerUIUpdate): void {
         const kind = getUpdateKind(update);
 
@@ -340,6 +363,11 @@ export class UpdateProcessor {
                 return;
             case "FullResync":
                 this.applyFullResync();
+                return;
+            case "Page":
+                for (const handler of this.pageHandlers)
+                    handler(update);
+
                 return;
             default:
                 logWarn("server update is not supported by update processor yet.", update);
@@ -434,9 +462,11 @@ export class UpdateProcessor {
             return;
         }
 
+        const movedKeys = getCollectionUpdateAction(update.action) === "Move" ? movedKeysOf(update.moves ?? []) : NoKeys;
+
         for (const host of hosts) {
             if (!(holds && this.held.isWaiting(host)))
-                this.applyCollectionChangeToHost(host, componentId, update);
+                this.moves.around(host, movedKeys, () => this.applyCollectionChangeToHost(host, componentId, update));
         }
     }
 
@@ -473,6 +503,34 @@ export class UpdateProcessor {
         this.syncItemsHost(host, componentId);
 
         // Marked rather than rebuilt: the registry rebuilds on its next lookup, which is what lets the rest of this set address these rows.
+        this.dom.invalidate();
+    }
+
+    /** A row's index in its host's whole collection: a virtualized host's values, a windowed one's rows past its offset. */
+    private indexOfRow(host: Element, key: string): number | null {
+        const at = resolveHostMode(host) === "virtualized"
+            ? this.virtualization.keysOf(host)?.indexOf(key) ?? -1
+            : getSourceOrder(host, getRealItemElements(host)).findIndex(row => row.getAttribute(ComponentKeyAttribute) === key);
+
+        return at < 0 ? null : at + windowOffset(host);
+    }
+
+    /** A row moved on the page alone, ahead of the server or back: what the server's Move of it there does. */
+    private moveRow(host: Element, key: string, index: number): void {
+        const componentId = findOwningComponentId(host);
+
+        if (componentId === null)
+            return;
+
+        // A windowed host's rows are its window: the index in the whole collection less the rows before the window.
+        const newIndex = Math.max(0, index - windowOffset(host));
+
+        if (resolveHostMode(host) === "virtualized")
+            this.virtualization.move(host, key, newIndex);
+        else
+            applyCollectionMove(host, [{ key, newIndex }]);
+
+        this.syncItemsHost(host, componentId);
         this.dom.invalidate();
     }
 
@@ -649,6 +707,11 @@ function rowCursorRoot(host: Element): HTMLElement | null {
     return owner !== null && (owner === parent || owner === parent?.parentElement) ? owner : parent;
 }
 
+/** The keys a Move moves. */
+function movedKeysOf(moves: readonly ServerCollectionMoveChange[]): string[] {
+    return moves.map(move => move.key).filter((key): key is string => typeof key === "string");
+}
+
 function applyCollectionMove(host: Element, moves: readonly ServerCollectionMoveChange[]): void {
     const present = getRealItemElements(host);
     const order = getSourceOrder(host, present);
@@ -662,7 +725,10 @@ function applyCollectionMove(host: Element, moves: readonly ServerCollectionMove
             continue;
         }
 
-        host.insertBefore(element, moveSourceItem(order, element, move.newIndex ?? null));
+        const next = moveSourceItem(order, element, move.newIndex ?? null);
+
+        // To the end: after the last row, not after the host's last child — a windowed host's spacer stands there.
+        host.insertBefore(element, next ?? order[order.length - 2]?.nextSibling ?? null);
     }
 }
 

@@ -43,6 +43,10 @@ public partial class MenuItem : TextItem, IMenuItemModel
     [JsonConverter(typeof(UIPhraseValueJsonConverter))]
     public partial UIPhrase? Value { get; set; }
 
+    /// <inheritdoc />
+    [RecursiveMember]
+    public partial bool? InActionBar { get; set; } = false;
+
     /// <summary>
     /// Gets the nested entries. See <see cref="IMenuItemModel.Items"/> on how deep a menu actually renders.
     /// </summary>

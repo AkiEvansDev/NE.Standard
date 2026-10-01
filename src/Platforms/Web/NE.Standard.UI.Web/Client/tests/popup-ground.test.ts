@@ -20,7 +20,7 @@ function declarations(selector: string): string | null {
     return start < 0 ? null : css.slice(start + selector.length + 3, css.indexOf("}", start));
 }
 
-const Ground = "var(--ui-popup-ground, var(--ui-color-surface))";
+const Ground = "var(--ui-popup-ground, var(--ui-popup-base, var(--ui-color-surface)))";
 const Step = (fill: string): string => `--ui-popup-ground: color-mix(in srgb, ${fill} 92%, var(--ui-color-on-surface) 8%);`;
 
 test("every popup paints the popup ground, and a field or a part inside it stands on that ground", () => {

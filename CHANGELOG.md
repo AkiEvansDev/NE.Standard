@@ -9,6 +9,400 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.0-rc.4
+
+A fourth release candidate: what NE.Home found on 1.4.0-rc.3 (GitHub issues #66–#70) — a rail on a phone, a tree's press and its
+empty state, a page holding unsaved work, a row's action bar, and Enter in a text field.
+
+**Pages and leaving**
+
+- **A page can keep its reader from leaving with unsaved work.** `UIControllerBase.HoldsUnsavedWork` (set by the controller
+  itself) says the page holds work its reader has not saved; it reaches the page with the first render, at every attach and as
+  it changes. While it is true, a leave the page starts itself — a press on one of its links, a menu's entry or a breadcrumb, a
+  `NavigateEffect` — asks the controller first: `OnLeaveRequestedAsync(target, cancellationToken)` runs as a command does, and
+  what its answer's effects do is what happens — the page's own dialog, say (Save / Don't save / Cancel), whose commands clear
+  the flag and answer `new NavigateEffect(target)`, followed without asking again. Left alone it answers **New:**
+  `ConfirmLeaveEffect(target)`, the framework's own "Leave without saving?" with Leave and Stay (new words `ui.leave.title`,
+  `ui.leave.message`, `ui.leave.confirm` and `ui.leave.stay`, in Russian and Chinese too); a hook that throws is reported as a
+  failed command is, and that question asks in its place, as the page asks it by itself when the controller cannot be reached
+  (the connection lost). Closing, reloading or going back asks the browser's own question (`beforeunload`), the only one a
+  browser allows there. A link opening in another tab, a download, another site's address and a jump within the page are left to
+  the browser, a second press while a leave is being decided is swallowed, and the runtime's own reloads never ask. **New:**
+  `NavigateEffect(string address)`, a navigation to an address of this site as written, its query and fragment included — the
+  one a leave was asked about (#68).
+- **A leave waits for the values on their way.** A field still waiting out its pause is committed, and a leave pressed while
+  values are on their way waits for their answers and then asks the controller, which holds them by then — so a controller
+  that sets the flag as the value lands, in the bound property's setter, is asked; a command the value starts (`OnChange`) is
+  not waited for. With nothing on its way and nothing held, nothing waits. Once a page has held
+  unsaved work, the browser's question also asks while a value is still unanswered.
+- **Signing out never asks.** A session's end lets go of the asking page's unsaved work, and a page sent away from an ended
+  session or runtime leaves unasked: nothing it held could be saved any more.
+- **Breaking:** `IUIRuntime.RequestLeaveAsync(invoker, target, cancellationToken)` and
+  `IUIClientEndpoint.RequestLeaveAsync(handle, target, cancellationToken)` — the hub's `RequestLeaveAsync`, answered and never
+  pushed, an address not of this site refused; an implementation of either interface adds it. **Breaking** on the wire: a change
+  set carries a new update kind, `Page` (`ServerUIUpdateKind.Page`, `ServerPageUIUpdate.HoldsUnsavedWork`) — in the first
+  render's and an attach's while the page holds unsaved work, as the flag changes, and last in a command's answer that navigates,
+  so the page decides that navigation by the state the command left —, and a new effect kind, `ConfirmLeave`.
+
+**Menus and actions**
+
+- **A rail's and a bar's entries stand edge to edge, as documented.** `MenuComponent.Spacing` was written at 2 px when unset,
+  which outweighed the stylesheet's own default, so a rail's square entries and a horizontal menu's stood 2 px apart and a bar
+  had to say `SetSpacing(0)`. Unset, it now writes nothing: a list's entries keep the 2 px list gap, a rail's and a bar's none.
+- **A command bar's commands stand 8 px apart.** `CommandBarComponent.Spacing` was written at 0 when unset, over the stylesheet's
+  8 px, so the bar's rounded commands touched — a hovered one's wash against its neighbour's fill; unset, it now writes nothing.
+  A bar that wants them flush says `SetSpacing(0)`.
+- **A list's entries share one corner, finer than a button's, and the popup rounds to it plus its padding.** A select's options,
+  a popup menu's entries (a context menu, a split button's list, a folded menu's flyout), the "…" list, the language list, a
+  calendar's cells and a sidebar's entries take `@ui-list-entry-radius` — two thirds of the button radius, 4 px by default, where
+  they were 4 px or 6 px — and every popup takes **New:** `@ui-popup-radius` (both on the plugin surface): that corner plus the
+  list's 4 px padding, 8 px by default, where it was the input radius. A theme's `ButtonRadius` scales both. Buttons keep their
+  6 px; a tooltip and a slider's bubble keep the input radius; an action bar rounds to its buttons plus its padding.
+- **A current menu entry rounds as its neighbours do,** straight only on the edge its mark stands on (the menu's `Side`), where it
+  was a square slice among rounded entries; a bar's and a rail's entries stay square.
+- **The row an action bar stands over keeps the pointer's wash** while the bar shows — on a phone and from the keyboard too — so the
+  bar says whose it is; a chosen row takes it as a layer over its own ground.
+- **A key-value list with no edge keeps its rows' inset when its rows wash under the pointer.** A `RowHoverable` list with no border
+  dropped its inset to line up with its holder, so the wash touched the keys (the demo's options).
+- **A group folded over the current page says so by a short mark.** A folded menu's or a rail's group, a closed group of a sidebar
+  and a phone's bottom bar's group holding the current page draw half the current entry's line, fainter, on the same edge, beside
+  the brand's ink they wore; on a dark palette the brand's 8 % fill under them (`--ui-wash-descendant`) is gone — it moved the
+  near-black ground by nothing visible — so the short mark is its one sign there. The light palette keeps the fill.
+- **The language switcher's button is the two-letter code and nothing else.** "EN", "ZH" for `zh-Hans` (it was "ZH-HANS", and
+  every label stacked in the button made it that wide), and no chevron where a press opens the list; two languages still switch on
+  a press, more still open the list. Its name says the rest and keeps the code it shows, the languages named in themselves:
+  `ui.language.switch` is now "Language: {language} ({code}), switch to {other} ({otherCode})" (it was "Switch language,
+  {language}", the code) and **New:** `UIStrings.LanguageCurrent` (`ui.language.current`, "Language: {language} ({code})") names a
+  switcher that opens a list — in Russian and Chinese too. An application that translated `ui.language.switch` itself adds the new
+  placeholders.
+- **A component an action bar stands over shows no tooltip of its own while the bar stands.** The bar takes the place above it the
+  words would take: a graph's card, whose hover words and bar both stand over it, showed its tooltip across the bar's icons. The
+  bar's own icons still say their names.
+- **A slider's track shows on any ground.** It was painted in the raised ground, which is a dialog's own, so a slider in a dialog
+  had no track; it is now a step of the text over whatever it stands on (**New:** `@ui-range-track`, plugin surface), the same
+  colour as before on the page.
+- **An action bar: a row's frequent actions as icons above it.** `SetActionBar(UIActionBarAlignment)` on a component with
+  a context menu — **New:** `IVisualComponent.ActionBar` (render-time) and `UIActionBarAlignment` (`End`, the default and a
+  messenger's side, `Start` and `Center`: where along the component the bar stands; start and end follow the page's direction) —
+  shows a small bar over the component the reader chose: pressed or tapped (the press still does what the row does), or reached
+  by the keyboard (in a list, the row its cursor lights). Never on hover. It stays while that component is chosen — a list
+  without selection has no other meaning for it: the row last pressed or lit — and goes on a press elsewhere, on Escape, or when
+  another is chosen. It stands above the component as a floating layer, placed as a popup is, so the list's scrolling box never
+  clips it: a small gap over its top edge — a component chosen at its scrolling box's top edge is scrolled into view by what the
+  bar lacks, as a messenger brings the message into view, and has the bar under it only where the box cannot scroll that far (a
+  list's first row); only a box the reader looks through bounds it — a list's scrolling box, a canvas —, never a container that
+  merely clips its content, which the bar stands over as a popup does —, following it as the list
+  scrolls and hidden while the scroll has it wholly out of sight; a row the list draws anew — replaced, or a window scrolled past
+  it and back — keeps it. Its icons wrap rather than run past the window's width. It is a quick view of the menu, not a second list: the entries
+  marked `InActionBar` (**New** on `MenuItem` and `MenuItemComponent`, bound by the default menu item template) stand as their
+  icons, their titles the tooltips, and "…" opens the menu itself where it holds more — under "…" as a menu button opens its
+  list, and painted over the bar where the bar is lifted out of a zoomed canvas; `SetActionBar(alignment, repeatInMore: false)`
+  (**New:** `IVisualComponent.ActionBarRepeatInMore`, render-time, on by default) has "…" open the menu without the entries
+  the bar shows, and without a caption or a rule that leaves with nothing to stand over or between — one menu, filtered for that
+  opening; a right-click and a long press open the whole of it either way; a press on an icon is the entry's own
+  press, after the opening the menu would have heard, so an engine that sets its entries for what it was opened on sets them for
+  that row. Tab from a list goes to the lit row's bar, the arrows, Home and End walk it, and Escape gives the keyboard back;
+  while "…" has its menu open the bar stays and says so (`aria-expanded`), and closing the menu from the keyboard gives the focus
+  back to "…". A component with an action bar and no context menu is refused when the view compiles. New words `ui.actionbar.label` and
+  `ui.actionbar.more`, in Russian and Chinese too (#69). **Breaking:** `IMenuItemModel.InActionBar`,
+  `IVisualComponent.ActionBar` and `IVisualComponent.ActionBarRepeatInMore` — a model or a component implementing the interface
+  itself adds the member.
+- **A long press opens the context menu everywhere, with the bar's icons atop it.** The framework times a finger held still on a
+  part with a context menu itself (500 ms, within 10 px, never in a field), so the menu opens on iOS Safari too, which raises no
+  `contextmenu` for it; where the browser raises its own (Android) the menu still opens once, and a long press is never also a
+  click. On a part with an action bar the menu opens with a row of the bar's icons above it, one press each, and no bar: a bar
+  standing anywhere goes as the long press opens the menu, and nothing is chosen once it closes; "…" on a bar opens the menu
+  with no second row of the icons the bar under it shows. A menu's owner shows no callout, and on a touch screen starts no text selection under the finger; a
+  field inside it keeps both.
+- **A rail is a phone's bottom navigation bar.** Where the sides become drawers (`SideDrawers`, below the medium breakpoint), a
+  left side holding a `UIMenuDisplay.Rail` menu and nothing else — the rail itself, or containers, stack and wrap panels,
+  surfaces and scroll containers each holding only the next one down to it — is no drawer and gets no menu button: the rail lies
+  along the page's bottom as a horizontal rail, as wide as the page, on the page's ground under a hairline, the content and the
+  footer ending above it; its current entry is marked on its top edge, its groups fly out upward, and Left and Right walk it. A
+  wider screen has the column back, a group's flyout open across the breakpoint closing. A side holding anything more, a list menu, a bound `Display` and a right side stay drawers,
+  where the drawer showed a 72 px rail standing in a wide panel (#66).
+- **A horizontal rail's entries keep a press's width.** They share the bar's length down to a press's width each (the rail's
+  size says which, below), and past that the bar scrolls sideways rather than cut every label to nothing — on a 390 px phone a
+  Medium rail's six share it and a seventh scrolls; a caption or a rule between them stands as an upright line.
+- **A rail comes in three sizes.** **New:** `MenuComponent.Size` (`UIButtonSize`, render-time, a rail's alone): Large is the
+  rail as it was — a 72 px column of 24 px glyphs over caption-size labels, a bar entry no narrower than 64 px; **Medium, the
+  default**, is a 60 px column of 20 px glyphs over overline-size labels (not capitals), 56 px on the bar; Small a column of
+  48 px squares of 20 px glyphs whose labels leave the eye — each stays the entry's name to a screen reader and its tooltip,
+  as a folded menu's title does — 48 px on the bar. The phone's bottom bar follows the size. A rail that should keep its rc.3
+  look sets `SetSize(UIButtonSize.Large)`.
+- **A rail's entries stand edge to edge.** Square slices of the rail, they had the list menu's 2 px gap between their hover
+  grounds; a vertical rail, as a horizontal one and the bar already, now has none unless `Spacing` is set.
+- **The bottom bar's current entry is marked over the bar's hairline.** The hairline was the side's border, a pixel above the
+  rail, so the current entry's line lay under it; it is the rail's own now, under its entries, and the line covers it.
+- **A menu button can go without its chevron.** **New:** `SplitButtonComponent.ShowChevron` (`SetShowChevron(false)`, bindable,
+  on unless set): a `Menu`-mode split button whose icon says it opens a menu by itself — a "⋮" — draws no chevron after it, its
+  face the whole button, square with an icon alone. A split button's end part is its chevron, so there it is always drawn.
+
+**Tables and lists**
+
+- **A press on a tree's node runs a command: `OnNodeClick`.** `OnNodeClick(command, arguments)`, `OnNodeClickWithItemKey`,
+  `OnNodeClickWithItem` and `OnNodeClickWith` register what a press on a node runs once the selection has followed it, as an
+  items view's `OnItemClick` does — a notes list opening a note on a phone, which has no double click —, its answer's effects
+  applied as any command's. A press on the chevron only folds, and Enter still opens rather than presses (#67).
+- **An empty tree draws its empty template** — with no nodes, or with every node a filter leaves out — and takes it away when a
+  node comes back; the server's first paint drew it, and the page's attach wiped it. **New:** `ConfigureDefaultEmptyTemplate` on
+  the tree and on the table, as the items view has.
+- **An empty list can say nothing: `ShowEmptyTemplate`.** `SetShowEmptyTemplate(false)` (or `BindShowEmptyTemplate`; on by
+  default) on the items view, the table and the tree hides the host's empty template while it holds nothing — a short list under
+  every row of a feed need not say "nothing" under each. The template is hidden, not left out. **New:** `IEmptyStateComponent`.
+- **A screen reader names a tree's node by its title alone** (`aria-labelledby`), where the chevron's label was read into it.
+- **A press in an open rename field is the field's.** It no longer reaches the tree node, the row or the tab the field stands
+  over — no click, no choice.
+- **A row moved by a drag or Alt+Up/Down stands in its new place at once.** It waited for the server's answer — a few
+  milliseconds on one machine, about half a second over a phone's Wi-Fi. The `move` command still goes to the controller, and its
+  answer says where the row stays: the collection's Move of it leaves it there or puts it where the controller did, and an answer
+  without one — refused, failed, a lost connection — puts it back. A change the server sends meanwhile lands where the server put
+  it, and a second move before the first is answered stands on top of it. A row moved to the end of a windowed list's rows lands
+  after the last row, not past the window's spacer.
+- **A command can show a row of a list by its item's key.** **New:** `ScrollToItemEffect(hostId, key)` (`Block`, at the top
+  unless set; `Behavior`, at once unless set) brings the row of that key into view with the group header over it, and keeps it
+  there while the window around it is read and laid out, until the reader scrolls the list. A command that reads a windowed
+  source's window at a day or a search hit (`LoadWindowAsync`) and answers with it shows that window at the row: the window's
+  changes are on the page before the effect runs. A row the list has not drawn is not looked for. **Breaking** on the wire: a
+  new effect kind, `ScrollToItem`.
+- **A clickable card that is a list's whole row is no Tab stop of its own.** The list is the stop, and Enter on the cursor's row
+  presses the card, as for a row that is one button; the card was a stop until the first row was chosen and none after it, and
+  once a press had focused it, it took no key. A press on it still runs its command and leaves the chosen row alone.
+- **An items host with static items, none of them yet, scopes its template to an item.** `SetItems([])` compiled the
+  template's relative bindings against the controller, so a page with one warned of properties its controller never had.
+- **A group header in a list honours its own horizontal alignment.** It stood stretched across the list's column whatever it
+  said; a pill set to `Center` now stands in the middle, as a row does.
+- **A list held at its end (`AnchorToEnd`) shows its last row whole.** It keeps a step of room (4 px) past its newest row, where
+  a raised row's shadow and the fraction of a pixel a row's height rounds away were clipped at the scroller's edge, so a feed
+  read as stopping short. It is taken the whole way to its end, where it stopped within the few pixels that still count as being
+  there, and a row that grew between its scroll to the end and the first measure of its box is followed too.
+
+**Forms and fields**
+
+- **A search keeping its term shows what was picked while it holds none.** Under `KeepSearchInput` (the default) a pick from an
+  untouched list left the box empty, the value set and nothing showing it; a field with no term that is neither open nor focused
+  now shows the chosen option, as `ReplaceWithSelectedItem`'s closed field does. A typed term still stands whenever there is one,
+  and a focused or open field is a text field. A search's field now always carries a `placeholder`, an empty one where none was
+  set.
+- **A calendar's month off offer reads so at rest.** A month outside the bounds or with no day on offer, and an arrow that cannot
+  turn past a bound, now take a disabled day's muted ink at 0.55 opacity; they were told apart only by the hover they refused.
+- **A select's list opens on its chosen option.** A list capped at its height opened at its top, so a value further down (C# among
+  a code field's eleven languages) stood out of sight until an arrow; the list now scrolls to it, as a native select does — the
+  list alone, never the page.
+- **A select answers typing, as a native list does.** Letters typed on a select's field or in its open list move to the first
+  option whose shown words begin with them — the characters typed with no half-second pause between them make one prefix, the
+  same letter again walks the options it begins, case and accents aside in the page's language, a disabled option passed. An
+  open list moves its current option and scrolls it into view; a closed field opens on the match, as Enter opens it, and nothing
+  is chosen until Enter or a press. The multi-select's list does the same and ticks nothing. A chord, a key composing a
+  character and Space are left alone, and a search's field still takes what is typed as its term.
+- **The arrows open a closed select.** ArrowDown and ArrowUp on a select's closed field did nothing (the multi-select's opened);
+  both now open the list on the chosen option, else ArrowDown on the first and ArrowUp on the last — the multi-select's too,
+  which opened on the first either way. A search's field keeps its arrows.
+- **A click or a tap into a `ReplaceWithSelectedItem` search selects the chosen label**, as reaching it by the keyboard does, so
+  what is typed replaces it; the press's caret used to land over the selection and typing appended to the label. A selection
+  dragged by the press itself stands, and a later press in the field only places the caret.
+- **Enter can run a command: `OnEnter`.** `OnEnter(command)`, `OnEnter(command, arguments)` and `OnEnterLiteral` on the text
+  input and the text area run a command on Enter once the field's value has reached the server — committed first, as Ctrl+S
+  commits a code field's before its `OnSave`, and a refused value runs nothing —, and the field keeps the focus for the next
+  entry: an entry field whose controller takes the text and empties it. In a row's template `UIAction.ArgCurrentItemKey` names
+  the row, so a field in every row needs no form. It presses no form's button; Shift+Enter still breaks a text area's line, a
+  chord keeps a field's ordinary Enter, and a held key's repeats, a composing Enter and a read-only, disabled or loading field run
+  nothing. **New:** `EventNames.Enter`. A text area that both submits on Enter (`SubmitOnEnter`) and runs a command on it is
+  refused when the view compiles (#70).
+- **A text area sending on Enter sends a text typed again the same.** After the controller emptied the area, the same text typed
+  again was taken for committed, and the form's button sent it empty; what was typed since the field's last change now goes.
+- **A form is a form to the browser too.** Each `FormId` on a page is a hidden `<form id="ui-form-<id>" method="dialog"
+  novalidate>` written beside the page's root, and a field naming it — and its form's submit button — joins it by `form="…"`, so
+  a browser and its password manager read each form apart: two unrelated password fields no longer make Chrome warn that several
+  forms share one ("[DOM] Multiple forms should be contained in their own form elements"), and autofill no longer takes a field
+  of another form (a profile's "Display name") for a password's username. Fields in a dialog join too; the rows of a template
+  share their FormId's one form, as they share the framework's; a bound `FormId` points its field at its form as it changes, the
+  page making the form where it has none. A field with no `FormId` stands in the page's root form, as before. Nothing else
+  changes: submitting, validation, held `OnSubmit` values and `DiscardFormEffect` still go by the `FormId` (`data-ui-form-id`).
+  A radio group's radios stay in the page's form, since a name groups radios only within one.
+- **An image input can crop a picture before it uploads.** **New:** `ImageInputComponent.Crop` (`SetCrop(UIImageCrop.Square |
+  Circle)`) and `CropSize` (`SetCropSize(px)`, 1024 unset), both render-time; **New:** `UIImageCrop`. A picture picked, dropped or
+  pasted opens a crop dialog in the browser: the picture under a fixed square or circle, moved by a drag (mouse or finger), the
+  arrows (Shift for five times as far), and zoomed by the wheel, a pinch, + and − or a slider, from filling the frame to four
+  times that — the slider shown only where a pointer hovers; on a touch screen the pinch zooms, the slider kept out of sight for a
+  screen reader; Done (or Enter on the picture) uploads the square the frame holds — the circle is a frame for an avatar, the file
+  sent is still square — at the frame's own pixels up to `CropSize`, never scaled up, as a JPEG, PNG or WebP where the picture
+  was one and a PNG otherwise, transparency kept. Cancel and Escape upload nothing and leave the input as it was. A phone's photo
+  stands as its EXIF says, and a large one is held decoded at no more than a 4096 square's pixels. `MaxFileSize` weighs the
+  cropped picture. A picture the browser cannot open is said on the field's line (`ui.image.unreadable`). For the picture,
+  avatar and inline shapes; a crop on a shelf or with `Multiple` fails the render. New words `ui.crop.title`, `ui.crop.frame`,
+  `ui.crop.zoom`, `ui.crop.apply`, `ui.crop.cancel` and `ui.image.unreadable`, in Russian and Chinese too. A pointer drag
+  (`pointer-drag.ts`) takes a second finger as a pinch where its engine asks (`pinch`).
+
+**The page on a phone**
+
+- **A page whose content alone scrolls is the dynamic viewport's height (`100dvh`)**, where `100vh` reached behind a phone
+  browser's own toolbar and stood the footer or a bottom bar under it; a list-shaped popup — `.ui-popup-scroll()`, a select's
+  list — is capped by the same height.
+- **A page whose content alone scrolls is no taller than the window.** The root's `min-height: 100vh` outweighed that
+  height while a phone's toolbar showed, so the page stood a toolbar taller than the window, and a swipe past the end of its
+  content scrolled the document and slid the header up under the toolbar, where it stayed; that root's minimum is now 0.
+- **A tap flashes no box.** A phone's browser painted its own tap highlight, an unrounded box in its own blue, over a menu's
+  entry, a row or a button before the control's own pressed state; the page turns it off once
+  (`-webkit-tap-highlight-color: transparent`), and the controls' own hover, press and ripple answer the tap. Keyboard focus
+  rings are unchanged.
+- **A tap leaves no hover behind.** A touch screen keeps `:hover` on whatever a finger last tapped, so a row's, an entry's or a
+  button's hover wash stayed lit after the tap — a square of grey on a list row until the next tap elsewhere. Every hover look the
+  framework and its packages draw — a wash, an ink, a field's edge, a reveal such as a tab's close — is now drawn only where the
+  pointer can hover (`@media (hover: hover)`; `@ui-can-hover` on the plugin surface), while a press (`:active`, the ripple), the
+  keyboard's marks and a chosen thing look the same on every device. A tab's close and a picture's pencil show on a touch screen
+  as they did without a hover: on the chosen tab, and through the press. The graph's link handles and a chart's inspected series
+  still answer the touch, being how a finger reaches them. Where nothing hovers, what a hover reveals shows on the chosen thing
+  instead — a chosen tab's close — or, on a lone thing, always: a picture's pencil and a shelf tile's cross stand in the picture's
+  corner as a small round mark (on a round avatar, on its diagonal) rather than as a veil over the picture.
+- **A new dark palette: neutral grounds, neutral washes, the brand as a mark.** The default dark palette is neutral greys — the
+  page 19, a surface 25, one ink (240, 240, 236) on both, a border at 10 % white — with the pointer's wash at 9 % of the text and a
+  chosen entry's at 14 %, where a deep brand tint over a near-black page read as a flat grey on a phone. Muted words are 75 % of
+  their ink (was 68 %, both palettes), a disabled calendar day 0.55 of its muted ink (was 0.4), a popup a step off the page
+  (**New:** `--ui-popup-base`, read by `@ui-popup-ground`), and a `Tinted` surface the colour at 28 % over the raised ground
+  (**New:** `--ui-tint-share`, `--ui-tint-ground`; the light palette keeps 20 % over the page). `--ui-wash-selected-ground` is gone.
+- **A chosen row of a list on the page draws the brand's line on its leading edge** — an items view's, a table's and a tree's, as
+  a sidebar menu's current entry does — and a popup's list draws none: a folded menu's flyout's current entry is its ground alone.
+  An author's `SelectionStyle` mark still wins.
+- **No brand glow on the page.** The root's primary corner wash is gone; on a phone it tinted the whole screen.
+- **A period with its caption inside reads from the trailing edge.** A `TimeInput` or `DateInput` with `IsRange` and
+  `TitlePlacement.Inside` stood its period right after the caption; the spare width now goes between them, as for a single value.
+- **A small underlined picture row starts at the rule's start.** An `Inline` `ImageInput` with `Underline` at `Small` kept a 6 px
+  inset its neighbours do not have.
+- **A second press where the menu button was closes the drawer.** An open drawer covers its header button, and a sidebar
+  menu's own fold switch lies at that place — the same burger — so the second press folded the menu to its icons inside the
+  drawer and left the drawer open. In an open drawer the fold switch of an open panel hung on the drawer's edge now puts the
+  drawer away instead, the focus going back to the header's button; a folded panel's switch still unfolds it, and a panel on
+  another edge folds as anywhere.
+
+**Text and layout**
+
+- **Only reading words select by default.** The page's chrome no longer selects: a press-and-drag over a list, a select-all or a
+  long press lights nothing but a Text's and a Paragraph's words, a validation message and a field's value (and the CodeInput
+  package's Markdown display). Reading words standing in a row (an items view's, a table's), a clickable surface or a key-value
+  row are its caption and do not select; a control's words (a button, a tab, a menu entry, a tree's row, a table's header, a
+  select, a breadcrumb, an expander's header) never do, nor a row that drags by itself, nor — on a touch screen — anything a long
+  press opens a menu on. A mouse's press on what does not select takes a standing selection away, as a press on a page's ground
+  does, but for a press on a control or a field. **New:** `IVisualComponent.TextSelectable` (`bool?`, bindable,
+  `SetTextSelectable`): true lets the reader select the words in the component and everything inside it (a table whose cells
+  are copied, a chat bubble), false keeps them out (a Text that is a label); unset, the place decides as above, and the nearest
+  component that says wins. **Breaking:** `ITextBaseModel.Selectable`, `ITextBaseComponent.SelectableProperty` and every
+  component's `Selectable` (`SetSelectable`, `BindSelectable`, `TextBaseItem.Selectable`) are removed — `TextSelectable` is the one
+  switch; and a model or a component implementing `IVisualComponent` by hand adds `TextSelectable`. The stylesheet's text body
+  no longer wears `ui-text--selectable`; reading words wear `ui-content-text` (`WebClassNames.ContentText`), which a package's
+  renderer gives its own reading text.
+- **A wrap panel can lay its children in even columns.** **New:** `WrapPanelComponent.ItemMinWidth` (`SetItemMinWidth(px)`,
+  responsive like `Spacing`, render-time): as many columns as fit the panel at that width, each line's room shared out equally, so
+  a wrapped set of switches no longer staggers line under line; unset, the children flow at their own widths or spans as before.
+- **A description that runs on stands as close under its title as a one-line one.** A card's and an expander's header, a
+  paragraph and a description with a fold kept the description's leading above its first line, 2–3 px more than a row's
+  one-line description: wherever the two meet, a title's baseline now stands about 6 px over the description's capitals under a
+  Body title and 7 under a Subtitle or a Title, where a card's header stood 9. The leading between its own lines is kept.
+- **A field's message stands a gap under the field, not a gap and a half-leading.** The validation line's first line takes back
+  the leading above it: about 5 px from the field's edge to its capitals, where it was 7.
+- **A checkbox's, a switch's and a radio group's message starts where their words do.** It kept a field's 13 px inset, which
+  none of the three has: under a checkbox or a switch it now starts with the label's words, under a radio group at its caption's
+  edge.
+- **An icon beside a text's description alone keeps to the description's line.** With no title, the glyph's line ran a pixel
+  or two past the text by the font's metrics — two in the Title type — and made the text taller than its line.
+- **A timestamp can name the day as a messenger heads it.** **New:** `UITimestampFormat.RelativeDate`: "Today", "Yesterday"
+  and "Tomorrow" in the reader's language and calendar days, any other day as `Date` writes it, kept current as days pass; a
+  moment in words (`UIMoment`) takes it too, there in lower case as a sentence has it. **Breaking** on the wire: a moment's new
+  format name, `relative-date`.
+
+**Presses and motion**
+
+- **A press answers with a wave that fills what was pressed.** With `UITheme.PressRipple` on (the default) a circle grows from the
+  press point to the pressed thing's farthest corner while the pointer is held, and fades once it lifts; a quick click still shows
+  a whole wave, and a touch that turns into a scroll fades it at once. It is the pressed thing's own ink, so it reads in both
+  modes and on a filled button, and it is cut to the element's corners without clipping the element, so an overhanging badge stays
+  whole. It now reaches tab captions, select options, the language list and the rows whose press does something — a row that
+  chooses itself, a tree's folder, a row with a click command — so a key-value row answers a tap on a phone. A press no longer
+  flashes a square box over a tab. Nothing scales but an icon that is the whole face (an icon-only button, a rail's entry), which
+  gives a little while held and springs back. **New:** `@ui-motion-spring` on the plugin surface; `@ui-motion-ripple` is now the
+  wave's growth while held, 400 ms (it was 250 ms).
+- **A tab strip's choice moves without a jump.** The line slides from the tab chosen before instead of vanishing under the press,
+  the chosen title turning bold no longer shifts its neighbours (each title keeps room for its bold self), and the page shown fades
+  in — Tabs and TabsView alike.
+- **Fewer hard switches.** A validation message's words fade in, and a key-value row's hover wash fades as a list's row's does.
+
+**Renderers**
+
+- **New:** `WebAttributes.ActionBar`, `ActionBarRest` and `InActionBar` (`data-ui-action-bar`, `data-ui-action-bar-rest`,
+  `data-ui-in-action-bar`), `BottomBar`
+  (`data-ui-bottom-bar`) and `RunsOnEnter` (`data-ui-runs-on-enter`); `NativeInputRendererBase.RenderRunsOnEnter(context, input)`
+  for a package's field that takes `OnEnter`.
+- `NativeInputRendererBase.RenderFormId(context, input)` writes `form="ui-form-<id>"` beside `data-ui-form-id`, and a bound
+  `FormId` patches both (the `form-owner` operation); **New:** the `RenderFormId(context, element, joinsForm)` overload, `false`
+  for an element no browser's form could own (a radio group's root, a package's hidden value `div`), `WebForms` (`ElementId`,
+  `OwnerOperationKind`), `WebAttributes.FormsHolder` (`data-ui-forms`) and `WebShellContext.FormIds`.
+
+**The client**
+
+- **A popup lifted out of a zoomed canvas is placed by its own size from its first frame.** A popup under a transformed ancestor
+  (an action bar over a node) is lifted into the top layer, but its fade held it under the transform — scaled with the canvas
+  — while it was measured, so a node's bar first stood off-centre and too low, overlapping the node, until something placed it
+  again (its "…" opening, a press). The lift now takes the fade's hold on `overlay` off its showing; a popup opened from inside a
+  lifted one (the bar's "…" menu, its tooltips) is lifted too, so it paints over it. A host may widen the gap between it and its
+  bar (`--ui-action-bar-gap`, in px; the framework's is 6): Graph's nodes take 10.
+- **New for packages: an action bar over a part a package draws.** `names.actionBar` on the plugin surface — on a part that names
+  one of its owner's menus by `contextMenuUse`, the framework draws that menu's bar over it once the reader chooses it, aligned
+  `end`, `start` or `center`; the menu hears `ui-context-menu-opening` with `actionBar: true` before the bar shows and on a
+  press of the part (set the entries' state, choose nothing — a menu kept shut for that press, as a drag begins, has the bar
+  asked for again as the press ends) and again, as an opening, before an icon's press. `names.actionBarRest` on the part has its
+  "…" open the rest of the menu alone. `names.actionBarKey` on a part the package
+  draws anew (a node redrawn with its document) keeps the bar over the part drawn in its place with the same key, and a view that
+  moves its parts with no scroll (a canvas's pan and zoom) dispatches `scroll` on its viewport, which the bar and every anchored
+  popup follow. A widening only, so the contract stays 2. The plugin stylesheet's `.ui-popup-scroll()` caps at
+  `100dvh`.
+- **New for packages: `.ui-dialog-look()`,** the framework dialog's panel as one mixin on the plugin stylesheet — the raised ground,
+  its ink, a field's fill and muted text read against it, a popup opened in it lifted once more, the elevation — so a package's
+  own `<dialog>` stands on the same ground as the framework's (the graph's node picker stood on the plain surface, a step below
+  it on a dark palette). The plugin stylesheet carries `.ui-popup-ground-lifted()` with it.
+
+**The demos**
+
+- **A chat's messages and a table's server names select.** The Chat screen's message text and the Table page's "A list in a
+  cell" set `TextSelectable(true)`, since the words in a row no longer select by default; the Text, Paragraph and Card pages' option
+  is `TextSelectable` (true, false or unset), and the Button, Action, Split button and Expander pages no longer offer one — a
+  control's words never select.
+- **A page's band on a phone is a title's height.** The demo and every package's demo build their own band (`UIPage.Header`'s, kept on
+  one row): below the medium breakpoint the name at a title's size with the language and theme switchers on its row and the line
+  under it cut to one — about 72 px where it took about 170; a name too long for its row wraps to a second line, never cut, its first
+  line level with the switchers (about 96 px then); a wider screen is as before.
+- New pages: Screens → Chat (`/screens/chat`: the rail as the bottom bar at a phone's width; the chats with pictures, last
+  words, moments and unread counts, a search, and the people; the conversation read a window at a time from its end, with
+  day headers ("Today", "Yesterday", in the reader's zone), a row's action bar and menu, a composer that grows, sends on Enter
+  and carries files, emoji and quick replies, and a calendar that shows a day from its first message — beside the list on a wide screen, in its place with a back arrow on a narrow one),
+  Screens → Files (`/screens/files`: a tree beside the files open in tabs over a code field) and a note editor
+  (`/screens/notes`, a switch between its own Save / Don't save / Cancel and the framework's Leave / Stay); the tree's examples
+  open a note on a press and show an empty tree, the items view's examples carry action bars, and the text input's examples
+  run commands on Enter; the menu's examples show a rail at its three sizes; the image input's "Cropped before it uploads"
+  example frames a profile photo under a circle and an album cover under a square.
+- The demo is restructured (`docs/DECISIONS.md`, *One page per component, and pages for mechanisms*): 75 routes where there
+  were 127. A component has one page — its preview and options, then about four examples, each with its source, then the screen
+  or mechanism page that composes it — in place of the Main, Examples and Scenarios tabs; a Mechanisms section (Colors, Words —
+  the language page —, Commands, Values & validation, Large lists) holds what the framework does across components; a group
+  that only proved a fix became a test. The old addresses (`…/examples`, `…/scenarios`, `/actions/language-switcher`,
+  `/screens/messenger`, `/screens/notes-plain`) are not redirected. Every web demo has a second launch profile,
+  `<Project> (LAN)`, for a phone on the same network.
+- The tree's "Opened on a press" example: a folder takes no selection (`CanSelect` false), so a press folds it and the chosen
+  row is always the open note. The workspace settings' new-password field says so (`UIAutocomplete.NewPassword`).
+- The workspace settings' profile and security cards are forms of their own (`FormId`), so autofill no longer reads the display
+  name as the new password's username; the text input's two "Deploy token" fields each stand in a form of their own and ask
+  for no autofill (`UIAutocomplete.Off`).
+- A demo group's note stands under its title, the room kept for a command's message under the note: the empty message line
+  stood between the two (the items view's "Put in order"). The table's "A list in a cell" centres its chips on the row's line,
+  and the page band's name on a phone stands on the drawer toggle's middle (2 px off).
+- The settings over CodeInput's editor, the graph and the node sheet stand in even columns (`ItemMinWidth`), the graph's and the
+  sheet's lists with their captions inside the field; the wrap panel's page shows the columns ("Settings in even columns").
+- The chat's list header adds and removes a folder by folder glyphs; a bare cross beside a plus read as closing the screen at a
+  phone's width. The menu's horizontal bar no longer sets a spacing of 0, its default now.
+- The TeamRoom example is gone; `examples/DemoApp` is the one example application. TeamRoom was there to find the framework's
+  bugs, and an outside application does that now. Its SQLite session store and media provider, which the guides cited, are
+  no longer in the repository: the guides keep the code they show, and the graph demo's `PlannerPictures` is the complete
+  content provider they point to.
+
 ## 1.4.0-rc.3
 
 A third release candidate: what NE.ProjectC and NE.Home found on 1.4.0-rc.2 (GitHub issues #46–#65), bugs and missing pieces

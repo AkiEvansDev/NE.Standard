@@ -112,12 +112,8 @@ internal sealed partial class UIViewCompilationContext
             return false;
         }
 
-        if (!itemsComponent.HasItems)
-        {
-            resolved = default;
-            return false;
-        }
-
+        // Static items, none of them yet, are still an item scope: the template's relative bindings name an item's members, not
+        // the controller's.
         CompiledUIBindingSource source = GetOrAddComponentItemsSource(sourcesByKey, owner.Id);
         CompiledPath itemsRoot = new(source, RecursivePathTemplate.Empty, GetEnclosingScopeParameters(owner, componentContexts));
         CompiledPath itemPath = AppendDynamicParameter(itemsRoot, GetComponentId(component.Id));

@@ -69,6 +69,15 @@ public static class WebAttributes
     /// <summary>On a part inside a menu's owner: the name of the owner's menu a right press there opens, rather than its unnamed one.</summary>
     public const string ContextMenuUse = "data-ui-context-menu-use";
 
+    /// <summary>On a context menu's owner, or a part of it naming one of its menus: the action bar's alignment above it (<c>SetActionBar</c>).</summary>
+    public const string ActionBar = "data-ui-action-bar";
+
+    /// <summary>On an action bar's host: its "more" opens the menu without the entries the bar shows (<c>ActionBarRepeatInMore</c> off).</summary>
+    public const string ActionBarRest = "data-ui-action-bar-rest";
+
+    /// <summary>On a menu entry: it also stands in its owner's action bar (<c>InActionBar</c>).</summary>
+    public const string InActionBar = "data-ui-in-action-bar";
+
     public const string Dialog = "data-ui-dialog";
 
     public const string DialogBackdrop = "data-ui-dialog-backdrop";
@@ -133,6 +142,9 @@ public static class WebAttributes
     public const string FocusHolder = "data-ui-focus-holder";
 
     public const string FormId = "data-ui-form-id";
+
+    /// <summary>The hidden holder of the page's <c>FormId</c> forms (<see cref="WebForms"/>), beside the root rather than in it.</summary>
+    public const string FormsHolder = "data-ui-forms";
 
     public const string Group = "data-ui-group";
 
@@ -207,6 +219,12 @@ public static class WebAttributes
     /// <summary>The inline image input's text for the controller's picture, read by image-input-engine.ts.</summary>
     public const string ImageCaption = "data-ui-image-caption";
 
+    /// <summary>On an image input's root: the frame a chosen picture is cropped to before it uploads, <c>square</c> or <c>circle</c>.</summary>
+    public const string ImageCrop = "data-ui-image-crop";
+
+    /// <summary>On an image input's root beside <see cref="ImageCrop"/>: the side, in pixels, the cropped picture is written at.</summary>
+    public const string ImageCropSize = "data-ui-image-crop-size";
+
     public const string MenuGroup = "data-ui-menu-group";
 
     public const string MenuItemKind = "data-ui-menu-item-kind";
@@ -230,6 +248,12 @@ public static class WebAttributes
 
     /// <summary>On what an open drawer dims the page under; a press on it closes the drawer.</summary>
     public const string DrawerBackdrop = "data-ui-drawer-backdrop";
+
+    /// <summary>
+    /// On a left side that is a rail alone (<c>UIMenuDisplay.Rail</c>): below the drawer breakpoint it is a bar along the page's
+    /// bottom rather than a drawer, and its groups fly out upward (menu-group-engine.ts).
+    /// </summary>
+    public const string BottomBar = "data-ui-bottom-bar";
 
     public const string Name = "data-ui-name";
 
@@ -300,6 +324,9 @@ public static class WebAttributes
 
     /// <summary>On a text area whose Enter presses its form's submit button, Shift+Enter breaking the line.</summary>
     public const string SubmitOnEnter = "data-ui-submit-on-enter";
+
+    /// <summary>On a one-line field with <c>OnEnter</c>: Enter commits the value and raises <c>enter</c>, and the field keeps the focus.</summary>
+    public const string RunsOnEnter = "data-ui-runs-on-enter";
 
     /// <summary>A split button's mode — <c>split</c> or <c>menu</c> — which says whether the main part opens the menu too.</summary>
     public const string SplitMode = "data-ui-split-mode";

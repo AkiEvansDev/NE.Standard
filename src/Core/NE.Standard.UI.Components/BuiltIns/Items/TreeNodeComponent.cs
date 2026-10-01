@@ -70,8 +70,6 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
         TitleType = UITextAppearance.Body;
         TitleColor = UIThemeColor.FromStyle(UIColorStyle.OnBackground);
         BadgePlacement = UITextBadgePlacement.Trailing;
-        // A row is pointed at, not read out of: selecting its text fights the click that chooses it.
-        Selectable = false;
 
         if (!binds)
             return;

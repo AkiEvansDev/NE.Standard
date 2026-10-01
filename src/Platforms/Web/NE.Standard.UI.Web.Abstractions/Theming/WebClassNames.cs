@@ -15,6 +15,15 @@ public static class WebClassNames
     /// <summary>On an input's root while its <c>IsReadOnly</c> is true, whatever its own control carries for the browser.</summary>
     public const string ReadOnly = "ui-readonly";
 
+    /// <summary>On a wrap panel's root when it lays its children in even columns (<c>ItemMinWidth</c>).</summary>
+    public const string WrapPanelColumns = "ui-wrap-panel--columns";
+
+    /// <summary>
+    /// On reading words — a Text's or a Paragraph's body, a validation message, a package's rendered document: what the reader may select
+    /// where nothing around it is a row, a menu or a control (<c>TextSelectable</c> decides where set).
+    /// </summary>
+    public const string ContentText = "ui-content-text";
+
     public static string Color(UIColorStyle value)
         => value switch
         {
@@ -223,6 +232,16 @@ public static class WebClassNames
             UIButtonSize.Small => "ui-button-group--small",
             UIButtonSize.Medium => "ui-button-group--medium",
             UIButtonSize.Large => "ui-button-group--large",
+            _ => string.Empty
+        };
+
+    /// <summary>A rail's size, on the menu, whose entries and bottom bar follow it through the stylesheet.</summary>
+    public static string MenuRailSize(UIButtonSize value)
+        => value switch
+        {
+            UIButtonSize.Small => "ui-menu--small",
+            UIButtonSize.Medium => "ui-menu--medium",
+            UIButtonSize.Large => "ui-menu--large",
             _ => string.Empty
         };
 

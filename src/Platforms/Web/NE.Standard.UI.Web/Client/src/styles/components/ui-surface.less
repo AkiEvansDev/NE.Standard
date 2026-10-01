@@ -43,12 +43,16 @@
 }
 
     // The ghost wash mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over an inner control.
-    .ui-surface--clickable@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
-        background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
+    @media @ui-can-hover {
+        .ui-surface--clickable@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
+        }
     }
 
-    .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
-        .ui-elevation-2();
+    @media @ui-can-hover {
+        .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
+            .ui-elevation-2();
+        }
     }
 
 // :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
@@ -83,7 +87,9 @@
 
 // 20% keeps the hue visible and the contrast intact in both themes; mixed into the surface ground so the tint follows the element's theme.
 .ui-surface--tinted {
-    --ui-surface-fill: color-mix(in srgb, var(--ui-surface-color, var(--ui-color-primary)) 20%, var(--ui-color-background));
+    // The colour at the mode's share over the mode's ground (WebThemeCssBuilder): the page's on a light palette; the raised one at a
+    // larger share on a dark one, where a fifth over the near-black page read as a black green.
+    --ui-surface-fill: color-mix(in srgb, var(--ui-surface-color, var(--ui-color-primary)) var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)));
     background-color: var(--ui-surface-fill);
     // A fifth of the colour over the page reads in the page's ink, so the Background's on-colour written inline must not apply,
     // nor its colour as the ground: the ground is the mix.

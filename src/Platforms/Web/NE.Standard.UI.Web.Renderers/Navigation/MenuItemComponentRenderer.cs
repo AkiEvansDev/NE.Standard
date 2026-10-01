@@ -65,6 +65,9 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             }
         }, SelectedOperations);
 
+        // Read by the action bar, which shows the marked entries of its owner's menu as icons.
+        RenderFlagAttribute(context, root, MenuItemComponent.InActionBarProperty, WebAttributes.InActionBar);
+
         RenderButtonLabel(context, root);
         RenderShortcut(context, root);
         RenderValue(context, root);

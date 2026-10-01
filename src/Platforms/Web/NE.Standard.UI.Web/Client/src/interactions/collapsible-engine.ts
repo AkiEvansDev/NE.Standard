@@ -4,6 +4,7 @@ import { CollapsedAttribute, CollapseToggleAttribute, FoldingAttribute } from ".
 import { observeComponents } from "./dom-mutations.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { ClientStore } from "../state/client-store.ts";
+import { isDrawerFoldSwitch } from "./side-drawer-engine.ts";
 
 const RootClass = "ui-collapsible";
 const ContentClass = "ui-collapsible__content";
@@ -61,7 +62,8 @@ export class CollapsibleEngine {
         const toggle = domEvent.target.closest<HTMLElement>(`[${CollapseToggleAttribute}]`);
         const component = toggle?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (toggle === null || component === null)
+        // An open drawer's own switch puts the drawer away (side-drawer-engine.ts) rather than fold the sidebar inside it.
+        if (toggle === null || component === null || isDrawerFoldSwitch(toggle))
             return;
 
         domEvent.preventDefault();

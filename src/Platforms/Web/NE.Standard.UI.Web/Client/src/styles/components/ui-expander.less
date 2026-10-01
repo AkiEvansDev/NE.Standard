@@ -50,7 +50,6 @@
     border-bottom: 1px solid transparent;
     list-style: none;
     cursor: pointer;
-    user-select: none;
     transition: border-color @ui-motion-normal @ui-motion-ease;
 }
 
@@ -95,8 +94,10 @@
 }
 
 // Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames.
-:where(.ui-expander@{ui-button-live} > .ui-expander__header:hover .ui-expander__chevron) {
-    color: @ui-text-ink;
+@media @ui-can-hover {
+    :where(.ui-expander@{ui-button-live} > .ui-expander__header:hover .ui-expander__chevron) {
+        color: @ui-text-ink;
+    }
 }
 
 .ui-expander[open] > .ui-expander__header .ui-expander__chevron::before {

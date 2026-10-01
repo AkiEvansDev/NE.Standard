@@ -1,5 +1,8 @@
 // The one rename field — for a tab's caption, a tree node's title and a package's — laid over the title so a refusal leaves it as it was.
 
+// `.ts` on the value import: `node --test` runs this module directly.
+import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
+
 export type InlineRenameOptions = {
     /** The positioned element the field is appended to; the title must be inside it. */
     readonly container: HTMLElement;
@@ -42,6 +45,8 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     input.type = "text";
     input.className = options.className;
     input.setAttribute(RenameFieldAttribute, "");
+    // A press or a key in the field is the field's: never the click of the node, tab or row it covers.
+    input.setAttribute(EventBoundaryAttribute, "");
     input.value = options.value;
 
     // In the title's own type and place, so nothing moves under a rename.

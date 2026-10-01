@@ -6,6 +6,7 @@ import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { findOwningComponentId } from "../addressing/dom-registry";
 import { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import { isEndAnchored } from "../interactions/scroll-anchor-engine";
+import { keepHeldRow } from "./item-reveal";
 import { logWarn } from "../runtime/logger";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
 import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
@@ -325,6 +326,9 @@ export class ItemsWindowEngine {
 
         ensureSpacer(host, TopSpacer, before);
         ensureSpacer(host, BottomSpacer, after);
+
+        // The spacers stand for rows at an estimated height, so a row a jump brought into view is put back where it was shown.
+        keepHeldRow(host);
     }
 
     private windowSize(host: Element): number {

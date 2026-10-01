@@ -295,18 +295,21 @@ test("a read-only calendar pages but takes no day", () => {
 });
 
 test("a period in place takes two presses, and a third starts the next period", () => {
+    // An empty calendar opens on the month of today, so the days pressed are this month's.
+    const today = new Date();
+    const on = (date: number): string => `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
     const scene = calendar({}, "", "");
 
-    day(scene, "2026-09-10").click();
-    day(scene, "2026-09-14").click();
+    day(scene, on(10)).click();
+    day(scene, on(14)).click();
 
-    assert.equal(scene.value.value, "2026-09-10");
-    assert.equal(scene.end?.value, "2026-09-14");
-    assert.ok(day(scene, "2026-09-12").classes.has("ui-temporal-input__day--within"));
+    assert.equal(scene.value.value, on(10));
+    assert.equal(scene.end?.value, on(14));
+    assert.ok(day(scene, on(12)).classes.has("ui-temporal-input__day--within"));
 
-    day(scene, "2026-09-20").click();
+    day(scene, on(20)).click();
 
-    assert.equal(scene.value.value, "2026-09-20");
+    assert.equal(scene.value.value, on(20));
     // The old end falls before the new start, so the next press is the end.
     assert.equal(scene.end?.value, "");
 });

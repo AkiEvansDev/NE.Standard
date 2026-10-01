@@ -18,6 +18,9 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
     public const string ToggleClassName = "ui-split-button__toggle";
     public const string MenuClassName = "ui-split-button__menu";
 
+    /// <summary>A menu button whose chevron is off: its end part is not drawn, the main part being the whole button.</summary>
+    public const string NoChevronClassName = "ui-split-button--no-chevron";
+
     public override string ComponentTypeKey => SplitButtonComponent.ComponentTypeKey;
 
     // A span, not a button: a button may not contain the two buttons the parts are.
@@ -40,6 +43,10 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
         var menuButton = mode == UISplitButtonMode.Menu;
 
         _ = root.Attribute(WebAttributes.SplitMode, menuButton ? "menu" : "split");
+
+        // A split button's end part is nothing but its chevron, so only a menu button lets it go.
+        if (menuButton)
+            RenderFlagClass(context, root, SplitButtonComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);
 
         _ = root.Element("button", main =>
         {

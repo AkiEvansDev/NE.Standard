@@ -1,13 +1,14 @@
-import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
-import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort";
-import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
-import { firstShownRow, markGroupHeader } from "./items-group-runs";
-import { placeInOrder } from "./items-dom-order";
-import { getSourceOrder } from "./items-source-order";
-import { ItemsTemplateRenderer } from "./items-template-renderer";
-import { ItemsTemplateRegistry } from "./items-template-registry";
-import { MetadataIndex } from "../metadata/metadata-index";
-import { PropertyStateStore } from "../state/property-state-store";
+// `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
+import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
+import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort.ts";
+import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
+import { firstShownRow, markGroupHeader } from "./items-group-runs.ts";
+import { placeInOrder } from "./items-dom-order.ts";
+import { getSourceOrder } from "./items-source-order.ts";
+import type { ItemsTemplateRenderer } from "./items-template-renderer";
+import type { ItemsTemplateRegistry } from "./items-template-registry";
+import type { MetadataIndex } from "../metadata/metadata-index";
+import type { PropertyStateStore } from "../state/property-state-store";
 
 const bucketOrderByHost = new WeakMap<Element, string[]>();
 

@@ -11,6 +11,7 @@ import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
 import { focusAsLastInput, focusByPointer, isPointerLast, markPointerFocus } from "./popup-focus.ts";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
 import { clearOptionsFilter, refreshEmptyState } from "./search-input-engine.ts";
+import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
 
 const SelectValueAttribute = "data-ui-select-value";
 // Where the list opens when the author said so; below from the start edge otherwise.
@@ -50,7 +51,7 @@ export type SelectInteractionEngineOptions = {
 };
 
 // Never an attribute this engine writes itself: answering its own writes is a loop and a sync on every scroll frame.
-const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, MaxAttribute, "class", ComponentKeyAttribute];
+const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, MaxAttribute, "class", ComponentKeyAttribute, "placeholder"];
 
 /** A read-only select, search or multi-select keeps its field focusable and readable, and offers no list and no change. */
 function isFixed(select: HTMLElement | null): boolean {
@@ -104,6 +105,11 @@ export class SelectInteractionEngine {
 
     // The value each select was last synced at, so the search's filter is spent only when the value itself moves.
     private readonly syncedValues = new WeakMap<HTMLElement, string | null>();
+
+    private readonly typeAhead = new TypeAhead();
+
+    // A Replace search the pointer's press focused, whose label that press's click selects.
+    private pressFocusedSearch: HTMLInputElement | null = null;
 
     public constructor(options: SelectInteractionEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -168,6 +174,10 @@ export class SelectInteractionEngine {
 
         if (searchInput !== null) {
             const focused = document.activeElement === searchInput;
+
+            // An empty hint rather than none: the stylesheet reads a Keep field's "no term" off `:placeholder-shown`, which needs one.
+            if (!searchInput.hasAttribute("placeholder"))
+                searchInput.setAttribute("placeholder", "");
 
             if (select.classList.contains(ReplaceModeClass) && (!focused || searchInput.value.length === 0)) {
                 searchInput.value = matchedLabel ?? "";
@@ -334,6 +344,8 @@ export class SelectInteractionEngine {
         const input = domEvent.target;
         const select = input.closest<HTMLElement>(`.${SelectClass}`);
 
+        this.pressFocusedSearch = null;
+
         if (select === null || select === this.openSelect || input.readOnly || !select.classList.contains(ReplaceModeClass))
             return;
 
@@ -345,6 +357,9 @@ export class SelectInteractionEngine {
         // The label rather than whatever query was last typed and left: a term nobody chose from is spent when the field is left.
         input.value = optionLabel(optionsOf(select).find(option => option.getAttribute(ComponentKeyAttribute) === value) ?? null) ?? input.value;
         input.select();
+
+        if (isPointerLast())
+            this.pressFocusedSearch = input;
     }
 
     private handleClick(domEvent: Event): void {
@@ -399,8 +414,18 @@ export class SelectInteractionEngine {
             if (trigger.getAttribute(TriggerModeAttribute) === "input" && domEvent.target instanceof HTMLInputElement && select === this.openSelect)
                 return;
 
+            // A Replace search the press brought the focus to — on the press, or by the opening — has its caret, not its label selected.
+            const field = select?.classList.contains(ReplaceModeClass) === true ? trigger.querySelector<HTMLInputElement>(`.${SearchInputClass}`) : null;
+            const arrived = field !== null && (field === this.pressFocusedSearch || document.activeElement !== field);
+
+            this.pressFocusedSearch = null;
             domEvent.preventDefault();
             this.toggle(select);
+
+            // Typing would append to the label; a selection the press dragged stands.
+            if (arrived && select === this.openSelect && document.activeElement === field && field.selectionStart === field.selectionEnd)
+                field.select();
+
             return;
         }
 
@@ -426,6 +451,12 @@ export class SelectInteractionEngine {
             return;
         }
 
+        if ((domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && this.handleClosedArrow(domEvent))
+            return;
+
+        if (this.handleTypeAhead(domEvent))
+            return;
+
         if (domEvent.isComposing || this.handleMultipleTriggerKey(domEvent) || (domEvent.key !== "Enter" && domEvent.key !== " "))
             return;
 
@@ -446,7 +477,68 @@ export class SelectInteractionEngine {
         this.choose(select, option);
     }
 
-    /** A multi-select's field, a focusable box rather than a button: Enter, Space and the arrows open it, Backspace takes the last chip. */
+    /** An arrow on a closed field opens it on its chosen option, else at the near end: the first for ArrowDown, the last for ArrowUp. */
+    private handleClosedArrow(domEvent: KeyboardEvent): boolean {
+        const trigger = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TriggerClass) ? domEvent.target : null;
+        const select = trigger?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+
+        // A search's field keeps its arrows: its caret is a text field's.
+        if (select === null || select === this.openSelect || isFixed(select) || isSearch(select))
+            return false;
+
+        domEvent.preventDefault();
+
+        const options = optionsOf(select).filter(option => !isItemDisabled(option) && !isInert(option));
+        const start = options.find(option => option.getAttribute("aria-selected") === "true") ?? (domEvent.key === "ArrowDown" ? options[0] : options[options.length - 1]) ?? null;
+
+        this.toggle(select, false, start);
+        return true;
+    }
+
+    /**
+     * A character typed on a closed field or in an open list moves to the first option its prefix begins: a closed list opens on it,
+     * as Enter opens one, and nothing is chosen until Enter. A search's field takes the characters as its term instead.
+     */
+    private handleTypeAhead(domEvent: KeyboardEvent): boolean {
+        const character = typeAheadCharacter(domEvent);
+        const target = domEvent.target instanceof HTMLElement ? domEvent.target : null;
+
+        // The field or an option itself, not a control drawn inside an option's template, which takes its own keys.
+        if (character === null || target === null || !(target.classList.contains(TriggerClass) || target.classList.contains(OptionClass)))
+            return false;
+
+        const select = target.closest<HTMLElement>(`.${SelectClass}`);
+        const open = select !== null && select === this.openSelect;
+
+        if (select === null || isFixed(select) || isSearch(select) || (!open && !target.classList.contains(TriggerClass)))
+            return false;
+
+        // Taken whether or not it matches, as a native list takes it: a page's bare-key shortcut is not the field's prefix.
+        domEvent.preventDefault();
+
+        // Read off the options, not their layout: a closed list's options have none.
+        const options = optionsOf(select).filter(option => !isItemDisabled(option) && !isInert(option));
+        const current = open
+            ? options.find(option => option === document.activeElement) ?? options.find(option => option.hasAttribute(ActiveAttribute)) ?? null
+            : options.find(option => option.getAttribute("aria-selected") === "true") ?? null;
+        const match = this.typeAhead.next({ owner: select, character, entries: options, current, words: option => optionLabel(option) ?? "", context: select });
+
+        if (match === null)
+            return true;
+
+        if (!open) {
+            this.toggle(select, false, match);
+            return true;
+        }
+
+        applyRovingTabIndex(optionsOf(select).filter(option => !isItemDisabled(option)), match);
+        scrollIntoList(select, match);
+        focusAsLastInput(match);
+        this.markActive(select, match);
+        return true;
+    }
+
+    /** A multi-select's field, a focusable box rather than a button: Enter and Space open it, Backspace takes the last chip. */
     private handleMultipleTriggerKey(domEvent: KeyboardEvent): boolean {
         const trigger = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TriggerClass) ? domEvent.target : null;
         const select = trigger?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
@@ -459,14 +551,6 @@ export class SelectInteractionEngine {
             case " ":
                 domEvent.preventDefault();
                 this.toggle(select);
-                return true;
-            case "ArrowDown":
-            case "ArrowUp":
-                domEvent.preventDefault();
-
-                if (this.openSelect !== select)
-                    this.toggle(select);
-
                 return true;
             case "Backspace": {
                 const chips = select.querySelectorAll<HTMLElement>(`.${ChipsClass} > .${ChipClass}`);
@@ -493,8 +577,11 @@ export class SelectInteractionEngine {
         return optionsOf(select).find(option => option.hasAttribute(ActiveAttribute) && !isItemDisabled(option) && option.style.display !== "none") ?? null;
     }
 
-    /** `typing`: the list opens on a keystroke whose query the search engine is about to apply, so no old filter is taken off. */
-    private toggle(select: HTMLElement | null, typing = false): void {
+    /**
+     * `typing`: the list opens on a keystroke whose query the search engine is about to apply, so no old filter is taken off.
+     * `start`: the option a typed prefix opens the list on, in place of its chosen one.
+     */
+    private toggle(select: HTMLElement | null, typing = false, start: HTMLElement | null = null): void {
         if (select === null)
             return;
 
@@ -533,20 +620,20 @@ export class SelectInteractionEngine {
         });
 
         if (opened)
-            this.initializeFocus(select);
+            this.initializeFocus(select, start);
     }
 
     private close(): void {
         this.popups.close();
     }
 
-    private initializeFocus(select: HTMLElement): void {
+    private initializeFocus(select: HTMLElement, start: HTMLElement | null): void {
         const options = optionsOf(select).filter(option => !isItemDisabled(option));
 
         if (options.length === 0)
             return;
 
-        const selected = options.find(option => option.getAttribute("aria-selected") === "true");
+        const selected = start ?? options.find(option => option.getAttribute("aria-selected") === "true");
 
         // Opened by a press on a list with no value: no option current until an arrow, which enters at the near end. The field
         // keeps the keyboard — a search's input, else the trigger (which a press on some systems does not focus).
@@ -563,6 +650,8 @@ export class SelectInteractionEngine {
 
         // Opened by a press, the mark is the pointer's, and stays unlit until the pointer reaches it: the keyboard has not moved yet.
         this.markActive(select, target, isPointerLast());
+        // A capped list opens on its chosen option, as a native select does; the focus below scrolls nothing, so the page stays put.
+        scrollIntoList(select, target);
 
         // Search keeps focus in its field: the roving tab stop above still lets ArrowDown step into the list.
         if (isSearch(select)) {
@@ -714,6 +803,27 @@ function keepFieldFocus(select: HTMLElement): void {
         focusAsLastInput(target);
 }
 
+/** Scrolls a select's list, and nothing around it, so the option stands whole inside the list's edge and padding. */
+function scrollIntoList(select: HTMLElement, option: HTMLElement): void {
+    const list = select.querySelector<HTMLElement>(`.${PopupClass}`);
+
+    if (list === null)
+        return;
+
+    const box = list.getBoundingClientRect();
+    const own = option.getBoundingClientRect();
+    const style = getComputedStyle(list);
+    // The scrolling box starts inside the edge; its padding is room the option should clear.
+    const inside = box.top + (Number.parseFloat(style.borderTopWidth) || 0);
+    const top = inside + (Number.parseFloat(style.paddingTop) || 0);
+    const bottom = inside + list.clientHeight - (Number.parseFloat(style.paddingBottom) || 0);
+
+    if (own.top < top)
+        list.scrollTop -= top - own.top;
+    else if (own.bottom > bottom)
+        list.scrollTop += own.bottom - bottom;
+}
+
 /** What a chip says: the option's words as a field shows them, or its key where the option shows none. */
 function chipLabel(option: HTMLElement | null, key: string): string {
     const label = optionLabel(option)?.trim() ?? "";
@@ -778,6 +888,16 @@ function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTMLElemen
             for (const select of added.querySelectorAll<HTMLElement>(`.${SelectClass}`))
                 selects.add(select);
         }
+    }
+
+    // A search's hint taken off (a bound Placeholder emptied): its sync puts the empty one back.
+    if (mutation.type === "attributes" && mutation.attributeName === "placeholder") {
+        const search = mutation.target instanceof HTMLElement && mutation.target.classList.contains(SearchInputClass) ? mutation.target.closest<HTMLElement>(`.${SelectClass}`) : null;
+
+        if (search !== null)
+            selects.add(search);
+
+        return;
     }
 
     if (mutation.type === "attributes" && (mutation.attributeName === SelectValueAttribute || mutation.attributeName === SelectedKeysAttribute || mutation.attributeName === MaxAttribute)) {

@@ -51,11 +51,6 @@ public abstract partial class InputComponentBase<TComponent, TValue> : VisualCom
     public UITextAppearance? TitleType { get; set; }
 
     /// <inheritdoc/>
-    /// <remarks>A field's caption is part of the control, not content: it is not selectable unless asked.</remarks>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = false)]
-    public bool? Selectable { get; set; }
-
-    /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UITextBadgePlacement.Trailing)]
     public UITextBadgePlacement? BadgePlacement { get; set; }
 

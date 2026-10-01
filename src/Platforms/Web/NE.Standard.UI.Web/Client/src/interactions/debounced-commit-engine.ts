@@ -13,9 +13,29 @@ export type DebouncedCommitEngineOptions = {
     readonly root?: ParentNode;
 };
 
+// The page's engines, so a leave can ask whether a field still waits out its pause and commit it at once.
+const engines = new Set<DebouncedCommitEngine>();
+
+/** Whether a field still waits out its pause: typed, its value not committed yet. */
+export function hasWaitingCommits(): boolean {
+    for (const engine of engines) {
+        if (engine.waiting)
+            return true;
+    }
+
+    return false;
+}
+
+/** Commits every field still waiting out its pause now, as the pause's end would. */
+export function commitWaiting(): void {
+    for (const engine of engines)
+        engine.commitAll();
+}
+
 export class DebouncedCommitEngine {
     private readonly root: ParentNode;
-    private readonly timers = new WeakMap<DebouncedField, number>();
+    // A map, not a weak one: a leave walks the fields still waiting; each leaves it as its timer fires or a native commit lands.
+    private readonly timers = new Map<DebouncedField, number>();
 
     /** What each field last committed, so a pause that changed nothing sends nothing. */
     private readonly committed = new WeakMap<DebouncedField, string>();
@@ -25,6 +45,18 @@ export class DebouncedCommitEngine {
 
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
         this.root.addEventListener("change", domEvent => this.handleChange(domEvent), true);
+        engines.add(this);
+    }
+
+    public get waiting(): boolean {
+        return this.timers.size > 0;
+    }
+
+    public commitAll(): void {
+        for (const [input, timer] of [...this.timers]) {
+            window.clearTimeout(timer);
+            this.commit(input);
+        }
     }
 
     private handleInput(domEvent: Event): void {

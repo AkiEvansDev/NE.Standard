@@ -135,33 +135,43 @@ internal sealed partial class TextContentGroupContext : TooltipGroupContext
 }
 
 /// <summary>
-/// How a text block lays itself out: where the lines sit, and whether they can be selected.
+/// How a text block lays itself out: where the lines sit.
 /// </summary>
 internal partial class TextLayoutGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial UITextAlignment? TextAlignment { get; set; }
 
-    [RecursiveMember]
-    public partial bool? Selectable { get; set; }
-
     public TextLayoutGroupContext()
     {
         AddOption(nameof(TextAlignment), CycleTextAlignment, () => TextAlignment);
-        AddOption(nameof(Selectable), ToggleSelectable, () => Selectable);
     }
 
     public void CycleTextAlignment()
         => SetLastChange(nameof(TextAlignment), TextAlignment = CycleEnum(TextAlignment));
+}
 
-    public void ToggleSelectable()
-        => SetLastChange(nameof(Selectable), Selectable = CycleValue(Selectable, null, true, false));
+/// <summary>
+/// A text block whose words the reader may be let select, or kept from: a control's caption never is, so it has no such option.
+/// </summary>
+internal partial class SelectableTextLayoutGroupContext : TextLayoutGroupContext
+{
+    [RecursiveMember]
+    public partial bool? TextSelectable { get; set; }
+
+    public SelectableTextLayoutGroupContext()
+    {
+        AddOption(nameof(TextSelectable), CycleTextSelectable, () => TextSelectable);
+    }
+
+    public void CycleTextSelectable()
+        => SetLastChange(nameof(TextSelectable), TextSelectable = CycleValue(TextSelectable, null, true, false));
 }
 
 /// <summary>
 /// A paragraph's layout: everything a text block has, plus how far it is allowed to run.
 /// </summary>
-internal sealed partial class ParagraphLayoutGroupContext : TextLayoutGroupContext
+internal sealed partial class ParagraphLayoutGroupContext : SelectableTextLayoutGroupContext
 {
     [RecursiveMember]
     public partial UITextWrapMode? WrapMode { get; set; }

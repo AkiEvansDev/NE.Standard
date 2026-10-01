@@ -5,7 +5,7 @@
 // A floating panel's look alone — edge, corners, ground, elevation — for a panel not placed as a popup (a find panel in its field).
 .ui-popup-look() {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    border-radius: var(--ui-radius-input);
+    border-radius: @ui-popup-radius;
     background: @ui-popup-ground;
     // A field inside mixes its fill into the popup's colour, not the page's.
     --ui-surface-fill: @ui-popup-ground;
@@ -65,16 +65,20 @@
         background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
     }
 
-    &@{ui-keyboard-focus}:not(@{current}):hover:not(:active) {
-        background-color: transparent;
+    @media @ui-can-hover {
+        &@{ui-keyboard-focus}:not(@{current}):hover:not(:active) {
+            background-color: transparent;
+        }
     }
 }
 
 // A list whose entry follows the pointer: while the keyboard stands on an entry, the resting pointer's entry stays quiet, so two
 // never look current. `@entry` the entries (`~"> .x"`), `@live` their hover guard, `@current` the one keeping its ground.
 .ui-entry-quiet(@entry; @live: ~""; @current: ~"[aria-selected='true']") {
-    &:has(@{entry}@{ui-keyboard-focus}) @{entry}@{live}:not(@{ui-keyboard-focus}, @{current}):hover:not(:active) {
-        background-color: transparent;
+    @media @ui-can-hover {
+        &:has(@{entry}@{ui-keyboard-focus}) @{entry}@{live}:not(@{ui-keyboard-focus}, @{current}):hover:not(:active) {
+            background-color: transparent;
+        }
     }
 }
 
@@ -91,6 +95,6 @@
 
 // Caps a list-shaped popup to the viewport height; skip it where a tail is drawn outside the box, since overflow would clip it.
 .ui-popup-scroll() {
-    max-height: calc(100vh - 2 * @ui-popup-viewport-margin);
+    max-height: calc(100dvh - 2 * @ui-popup-viewport-margin);
     overflow: auto;
 }

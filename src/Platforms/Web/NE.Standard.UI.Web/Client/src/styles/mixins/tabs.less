@@ -28,7 +28,20 @@
     left: 0;
     height: @ui-tab-rule-width;
     background: transparent;
+    // From its start, as tab-switch.ts slides it over from the caption chosen before.
+    transform-origin: left;
     transition: background-color @ui-motion-fast @ui-motion-ease;
+}
+
+// The caption's title keeps room for its bold self (tab-switch.ts writes its words onto it), so turning bold moves nothing beside it.
+.ui-tab-caption-reserve() {
+    content: attr(data-ui-caption-text);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: var(--ui-selected-font-weight, 600);
+    pointer-events: none;
 }
 
 // A caption's states, one look on every strip (Tabs, TabsView, the colour panes). A TabsView caption also fills under the pointer:

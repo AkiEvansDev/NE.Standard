@@ -415,7 +415,7 @@ internal abstract partial class UIRuntimeBase
             return new UICommandExecutionResult
             {
                 Command = commandResult,
-                Changes = changes
+                Changes = WithPageStateAhead(changes, commandResult)
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -427,11 +427,12 @@ internal abstract partial class UIRuntimeBase
             RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, operation, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+            UICommandResult failed = ResolveCommandResult(error, exception);
 
             return new UICommandExecutionResult
             {
-                Command = ResolveCommandResult(error, exception),
-                Changes = changes
+                Command = failed,
+                Changes = WithPageStateAhead(changes, failed)
             };
         }
     }

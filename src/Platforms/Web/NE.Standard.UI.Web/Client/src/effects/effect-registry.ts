@@ -6,7 +6,9 @@ import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine } from "../interactions/notification-engine";
 import { dispatchOpenPicker } from "../interactions/picker-events";
-import { holdAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
+import { holdAtEnd, isEndAnchored, letGoOfEnd } from "../interactions/scroll-anchor-engine";
+import { itemsHostOf, letGoOfRow, revealItem } from "../items/item-reveal";
+import { hostOfScrollTarget, viewportOf } from "../items/items-viewport";
 import {
     ClientEffect,
     ClientEffectKindValue,
@@ -16,6 +18,7 @@ import {
     NotificationClientEffect,
     ScrollClientEffect,
     ScrollToClientEffect,
+    ScrollToItemClientEffect,
     SetThemeClientEffect,
     TargetedClientEffect,
     getClientEffectKind,
@@ -48,6 +51,8 @@ export type EffectRegistryOptions = {
     readonly valueReaders?: ValueReaderRegistry;
     // How the chosen theme reaches the session; left out where there is no connection to report it on.
     readonly reportTheme?: (mode: ThemeName) => void;
+    // How a local address is left for; left out, at once — the page's leave guard asks first while its work is unsaved.
+    readonly navigate?: (url: string) => void;
 };
 
 /** What the document declares, which has a third value the enum does not: no preference. */
@@ -67,12 +72,14 @@ export class EffectRegistry {
     private readonly notifications: NotificationEngine | undefined;
     private readonly valueReaders: ValueReaderRegistry | undefined;
     private readonly reportTheme: ((mode: ThemeName) => void) | undefined;
+    private readonly navigate: ((url: string) => void) | undefined;
 
     public constructor(options: EffectRegistryOptions = {}) {
         this.dialogs = options.dialogs;
         this.notifications = options.notifications;
         this.valueReaders = options.valueReaders;
         this.reportTheme = options.reportTheme;
+        this.navigate = options.navigate;
 
         this.registerDefaults();
     }
@@ -123,7 +130,10 @@ export class EffectRegistry {
             }
 
             // A full page load, not a client-side route swap: the runtime store assumes one route per connection id.
-            window.location.assign(url);
+            if (this.navigate !== undefined)
+                this.navigate(url);
+            else
+                window.location.assign(url);
         });
 
         // On the document element: the theme is the page's, not a component's.
@@ -166,6 +176,30 @@ export class EffectRegistry {
             });
         });
 
+        // A row by its item's key in the window the command's changes left, which are on the page before any effect runs.
+        this.register("ScrollToItem", context => {
+            const element = resolveTarget(context);
+
+            if (element === null)
+                return;
+
+            const effect = context.effect as ScrollToItemClientEffect;
+            const host = itemsHostOf(element);
+
+            if (host === null || typeof effect.key !== "string" || effect.key.length === 0) {
+                logWarn("scroll to item effect names no items host or no key.", context.effect);
+                return;
+            }
+
+            const block = getScrollToBlock(effect.block);
+
+            // The row is where the reader is sent: a list held at its end lets go of the end.
+            letGoOfEnd(viewportOf(host));
+
+            if (!revealItem(host, effect.key, block === "Unknown" ? "Start" : block, scrollBehavior(getScrollToBehavior(effect.behavior))))
+                logWarn("scroll to item effect names a row the host has not drawn.", context.effect);
+        });
+
         // Scrolls a container, where ScrollTo brings a component into view.
         this.register("Scroll", context => {
             const element = resolveTarget(context);
@@ -204,6 +238,11 @@ export class EffectRegistry {
             next = Math.max(0, Math.min(max, next));
 
             const behavior = scrollBehavior(getScrollToBehavior(effect.behavior));
+            const scrolledHost = hostOfScrollTarget(scroller);
+
+            // A scroll asked for moves the list from a row a jump held in view.
+            if (scrolledHost !== null)
+                letGoOfRow(scrolledHost);
 
             // An end-anchored list asked to its end stays there while the window it reads there arrives and lays out.
             if (vertical && position === "End" && isEndAnchored(scroller))

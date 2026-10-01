@@ -27,6 +27,7 @@ public sealed class UIMomentJsonConverter : JsonConverter<UIMoment>
             UITimestampFormat.Date => "date",
             UITimestampFormat.Time => "time",
             UITimestampFormat.Relative => "relative",
+            UITimestampFormat.RelativeDate => "relative-date",
             _ => "date-time"
         };
 
@@ -97,6 +98,7 @@ public sealed class UIMomentJsonConverter : JsonConverter<UIMoment>
             "date" => UITimestampFormat.Date,
             "time" => UITimestampFormat.Time,
             "relative" => UITimestampFormat.Relative,
+            "relative-date" => UITimestampFormat.RelativeDate,
             var name => throw new JsonException($"A moment has no format '{name}'.")
         };
     }

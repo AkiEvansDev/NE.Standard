@@ -1,6 +1,6 @@
 // Rules read back from the compiled stylesheet: muted words follow the ground they stand on and reach 4.5:1 on a filled one, the
 // ground itself is named wherever its ink is, a key-value list with no edge of its own drops its rows' inset whatever its default
-// Surface, and a Small radio option steps to a caption line as a Small checkbox's label does.
+// Surface unless its rows wash, and a Small radio option steps to a caption line as a Small checkbox's label does.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -51,7 +51,7 @@ function contrast(ink: string, share: number, ground: string): number {
     return (Math.max(over, under) + 0.05) / (Math.min(over, under) + 0.05);
 }
 
-test("muted words are the page's ink at 68%, and a filled ground's on-colour at a share that reads 4.5:1 on every fill", () => {
+test("muted words are the page's ink at 75%, and a filled ground's on-colour at a share that reads 4.5:1 on every fill", () => {
     const muted = /color: color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-surface\)\) (\d+(?:\.\d+)?)%, color-mix\(in srgb, var\(--ui-faint-base, transparent\) (\d+(?:\.\d+)?)%, transparent\)\);/
         .exec(declarations(".ui-color--muted") ?? "");
 
@@ -61,21 +61,25 @@ test("muted words are the page's ink at 68%, and a filled ground's on-colour at 
     // Where a base is set, the veil is the base too, so the two shares add up; unset, the veil is transparent and adds nothing.
     const filled = page + ((1 - page) * Number(muted[2]) / 100);
 
-    assert.equal(page, 0.68, "the page's own muted words changed their look");
+    assert.equal(page, 0.75, "the page's own muted words changed their look");
 
     for (const [name, [fill, onColor]] of Object.entries(Fills))
         assert.ok(contrast(onColor, filled, fill) >= 4.5, `muted words on ${name} read ${contrast(onColor, filled, fill).toFixed(2)}:1`);
 });
 
 test("a themed element's muted words lift on a filled ground as every other part's do", () => {
-    assert.match(declarations("[data-ui-theme].ui-color--muted") ?? "", /color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-background\)\) 68%, color-mix\(in srgb, var\(--ui-faint-base, transparent\) /);
+    assert.match(declarations("[data-ui-theme].ui-color--muted") ?? "", /color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-background\)\) 75%, color-mix\(in srgb, var\(--ui-faint-base, transparent\) /);
 });
 
 test("a key-value list with no edge drops its rows' inset on its default Surface, and keeps it on a fill of its own", () => {
-    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*=\"--ui-surface-color\"]) .ui-key-value-action__row";
+    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*=\"--ui-surface-color\"], .ui-key-value-action--row-hover) .ui-key-value-action__row";
 
     assert.ok(css.includes(`\n${selector},`), "the inset rule does not match a list on Surface Background, which every list carries");
     assert.doesNotMatch(css, /\.ui-border--none:not\([^)]*\.ui-surface--background/, "Surface Background still counts as an edge");
+});
+
+test("a key-value list whose rows wash under the pointer keeps its rows' inset with no edge, so the wash never touches a key", () => {
+    assert.match(css, /\.ui-key-value-action\.ui-border--none:not\([^)]*\.ui-key-value-action--row-hover\)/);
 });
 
 test("a Small radio option steps to a caption line, as a Small checkbox's label does", () => {
@@ -100,4 +104,14 @@ test("a surface's own opaque fill is its ground, and a Tinted one's mix outranks
     assert.match(declarations(".ui-surface--raised") ?? "", /--ui-ground: var\(--ui-surface-fill\);/);
     assert.match(declarations(".ui-surface--tinted") ?? "", /--ui-ground: var\(--ui-surface-fill\) !important;/);
     assert.match(declarations(".ui-button--primary") ?? "", /--ui-ground: var\(--ui-surface-color, var\(--ui-color-primary\)\);/);
+});
+
+test("a range's track is a step over whatever ground it stands on, so a slider in a dialog still shows one", () => {
+    // The mixin's own track rule, not a state's tint over it (an invalid slider's) nor a size step.
+    const tracks = [...css.matchAll(/::-(?:webkit-slider-runnable|moz-range)-track \{([^}]*)\}/g)].map(match => match[1]).filter(track => track.includes("border-radius:"));
+
+    assert.ok(tracks.length >= 2, "no range track rules");
+
+    for (const track of tracks)
+        assert.match(track, /background-color: color-mix\(in srgb, var\(--ui-color-on-surface\) 14%, transparent\);/, "a track painted in the raised ground vanishes on a dialog, whose ground it is");
 });

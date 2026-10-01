@@ -28,8 +28,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
-    private static readonly UIResponsive<double> DefaultSpacing = 2d;
-
     // UIStrings.MenuSearch: the Shell's key, written out, as the components reference no Shell.
     private const string SearchKey = "ui.menu.search";
 
@@ -66,15 +64,34 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// Render-time only. A rail has nothing to fold, so it ignores <c>Expanded</c> and draws no collapse toggle. An entry's label
     /// cut short shows whole as its tooltip unless the entry has one of its own; a badge stands on the icon's corner, an empty
     /// <c>BadgeText</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s. A rail takes no
-    /// search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show.
+    /// search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show. A rail that is the whole of
+    /// a view's left side is the page's bottom navigation bar on a phone rather than a drawer (<see cref="UIMenuDisplay.Rail"/> says
+    /// when): its entries share the width down to a press's width each (<see cref="Size"/> says which) and then scroll sideways, the
+    /// current one marked on its top edge, over the bar's hairline. A rail's entries stand edge to edge, as square slices of it.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuDisplay.List)]
     public UIMenuDisplay? Display { get; set; }
 
     /// <summary>
+    /// Gets or sets how much room a rail takes — its column, its glyphs and labels — and the bottom bar it becomes on a phone.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only, and a rail's alone (<see cref="UIMenuDisplay.Rail"/>): a list menu's rows keep their size. Large is a 72 px
+    /// column of 24 px glyphs over caption-size labels; Medium, the default, 60 px of 20 px glyphs over overline-size labels; Small
+    /// 48 px of 20 px glyphs alone, each label kept as the entry's name and shown as its tooltip. On the bar an entry is squeezed no
+    /// narrower than 64, 56 or 48 px.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIButtonSize.Medium)]
+    public UIButtonSize? Size { get; set; }
+
+    /// <summary>
     /// Gets or sets the gap between entries, optionally overridden per breakpoint.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
+    /// <remarks>
+    /// Unset, the stylesheet decides: a list's entries stand the list gap apart, so a chosen ground and the pointer's read as two, while a
+    /// bar's and a rail's stand edge to edge, their grounds square slices with no rounded hover to set apart.
+    /// </remarks>
+    [UIComponentProperty]
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>Gets or sets the ground the menu paints, unset by default.</summary>

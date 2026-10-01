@@ -12,6 +12,10 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     private const string QuietHoursId = "settings-quiet-hours";
     private const string DeleteConfirmationId = "settings-delete-confirmation";
 
+    // Real forms to the browser, apart: the security card's password is no login of the display name's.
+    private const string ProfileFormId = "settings-profile";
+    private const string SecurityFormId = "settings-security";
+
     public static string ViewKey => "demo.screens.settings";
 
     protected override string ComponentRoute => "/screens/settings";
@@ -30,10 +34,12 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             new ImageInputComponent()
                 .SetTitle("Picture")
                 .SetShape(UIImageInputShape.Avatar)
-                .SetPlaceholderIcon(DemoIcons.Outline(DemoIcons.UserRound)),
+                .SetPlaceholderIcon(DemoIcons.Outline(DemoIcons.UserRound))
+                .SetFormId(ProfileFormId),
             new TextInputComponent()
                 .SetTitle("Display name")
                 .SetAppearance(UIInputAppearance.Underline)
+                .SetFormId(ProfileFormId)
                 .BindValue(nameof(WorkspaceSettingsController.DisplayName))
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
             UIForm.Field(new TextAreaComponent()
@@ -41,6 +47,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .SetAppearance(UIInputAppearance.Underline)
                 .SetRows(2)
                 .SetMaxLength(160)
+                .SetFormId(ProfileFormId)
                 .BindValue(nameof(WorkspaceSettingsController.Bio))
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
                 "A line under your name, a hundred and sixty characters at most."),
@@ -48,6 +55,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 new SelectComponent()
                     .SetTitle("Time zone")
                     .SetAppearance(UIInputAppearance.Underline)
+                    .SetFormId(ProfileFormId)
                     .SetOptions(
                     [
                         new OptionItem { Id = "europe-amsterdam", Title = "Amsterdam (UTC+2)" },
@@ -60,6 +68,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 new SelectComponent()
                     .SetTitle("Language")
                     .SetAppearance(UIInputAppearance.Underline)
+                    .SetFormId(ProfileFormId)
                     .SetOptions(
                     [
                         new OptionItem { Id = "en", Title = "English" },
@@ -123,6 +132,8 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .BindItems(nameof(WorkspaceSettingsController.SecurityRows))
                 .AddValueInputTemplate("password", new TextInputComponent()
                     .SetType(UITextInputType.Password)
+                    .SetAutocomplete(UIAutocomplete.NewPassword)
+                    .SetFormId(SecurityFormId)
                     .SetPlaceholder("A new password")
                 )
                 .AddValueInputTemplate("two-factor", new SelectComponent()

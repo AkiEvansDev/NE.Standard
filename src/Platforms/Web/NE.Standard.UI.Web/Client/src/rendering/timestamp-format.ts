@@ -1,12 +1,13 @@
 // A timestamp's instant written in the reader's zone: a day or a time in the page's patterns — the ones the server's first paint wrote
-// it in UTC, so only the time moves — and a relative one by `Intl` in the page's language.
+// it in UTC, so only the time moves — a relative one by `Intl` in the page's language, and a relative day as "today" and "yesterday"
+// there, else as its day.
 
 // `.ts` on the value import: `node --test` runs this module and resolves files literally.
 import { dateTimePattern, formatTemporal, InvariantTemporalCulture } from "./temporal-format.ts";
 import type { TemporalLanguage } from "./temporal-format.ts";
 
 /** How a timestamp shows its instant: `TimestampComponentRenderer.FormatName`. */
-export type TimestampFormat = "date-time" | "date" | "time" | "relative";
+export type TimestampFormat = "date-time" | "date" | "time" | "relative" | "relative-date";
 
 /** A zone after the clock: `Z`, or an offset. */
 const ZonePattern = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i;
@@ -30,7 +31,12 @@ export function readInstant(text: string | null): number | null {
 }
 
 export function readTimestampFormat(text: string | null): TimestampFormat {
-    return text === "date" || text === "time" || text === "relative" ? text : "date-time";
+    return text === "date" || text === "time" || text === "relative" || text === "relative-date" ? text : "date-time";
+}
+
+/** Whether the format's text moves as time passes, so the page's relative clock writes it again. */
+export function isRelativeFormat(format: TimestampFormat): boolean {
+    return format === "relative" || format === "relative-date";
 }
 
 /** The wire's own patterns in the invariant culture's names, for a page with no words table to take its language's from. */
@@ -50,10 +56,34 @@ export function formatTimestamp(instant: number, format: TimestampFormat, words:
     if (format === "relative")
         return formatRelative(instant - now, words.language);
 
+    if (format === "relative-date") {
+        const days = nearDay(instant, now);
+
+        if (days !== null)
+            return relativeFormatter(words.language).format(days, "day");
+    }
+
     const temporal = words.temporal ?? CanonicalTemporalLanguage;
-    const pattern = format === "date" ? temporal.date : format === "time" ? temporal.shortTime : dateTimePattern(temporal, false);
+    const pattern = format === "date" || format === "relative-date" ? temporal.date : format === "time" ? temporal.shortTime : dateTimePattern(temporal, false);
 
     return formatTemporal(new Date(instant), pattern, temporal);
+}
+
+/**
+ * How many of the reader's days the instant lies from the one `now` is in — 0 today, -1 yesterday, 1 tomorrow — or null for one further:
+ * the days a relative day names. Counted between the two local dates, so a day of 23 or 25 hours is still one.
+ */
+export function nearDay(instant: number, now: number): number | null {
+    const day = new Date(instant);
+    const today = new Date(now);
+    const days = Math.round((Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / Day);
+
+    return Math.abs(days) <= 1 ? days : null;
+}
+
+/** The text as a label's first word stands — "Today" where a sentence would say "today" — in the language's own capitals. */
+export function asHeading(text: string, language: string): string {
+    return text.length === 0 ? text : text.charAt(0).toLocaleUpperCase(knownLocale(language)) + text.slice(1);
 }
 
 // One formatter per language: a page of relative stamps read again every few seconds would otherwise build one per stamp each time.

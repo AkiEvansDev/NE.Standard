@@ -29,6 +29,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 {
     private const string VisualComponentPropertyOwnerTypeKey = "standard.visual";
 
+    /// <summary>
+    /// On a component root: whether the words inside may be selected (<c>TextSelectable</c>), <c>true</c> or <c>false</c>; absent, the
+    /// place decides. Read by the stylesheet alone (<c>runtime.less</c>).
+    /// </summary>
+    public const string TextSelectAttribute = "data-ui-text-select";
+
     // Every rendered component registers these same lists, so they are built once rather than per component.
     private static readonly WebDomOperation[] ThemeOperations = [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)];
 
@@ -55,6 +61,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
     private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup)];
+    private static readonly WebDomOperation[] TextSelectOperations = [WebDomOperation.Attribute(TextSelectAttribute)];
     private static readonly WebDomOperation[] HorizontalAlignmentOperations = [WebDomOperation.Style("--ui-align-h", converter: WebDomConverters.AlignmentCss)];
 
     private static readonly WebDomOperation[] VerticalAlignmentOperations =
@@ -200,6 +207,13 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 _ = target.Attribute(WebAttributes.ScrollGroup, value.Trim());
         }, ScrollGroupOperations);
 
+        // Written as the client writes a bool, so the stylesheet reads one spelling either way; unset, the place decides (runtime.less).
+        _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.TextSelectableProperty, static (target, value) =>
+        {
+            if (value is bool selectable)
+                _ = target.Attribute(TextSelectAttribute, selectable ? "true" : "false");
+        }, TextSelectOperations);
+
         _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
         {
             if (value is UIAlignment alignment)
@@ -264,7 +278,31 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             return;
 
         RenderContextMenuHost(context, root, slot, null);
+        RenderActionBar(context, root);
     }
+
+    /// <summary>
+    /// The mark that gives the owner an action bar; the client draws the bar from the menu's marked entries once the reader chooses the
+    /// owner, so rows carry nothing for it until then.
+    /// </summary>
+    private static void RenderActionBar(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        if (ResolveRenderValue(context, IVisualComponent.ActionBarProperty, out UIActionBarAlignment? alignment, out _) != WebRenderValueKind.Static || alignment is not UIActionBarAlignment value)
+            return;
+
+        _ = root.Attribute(WebAttributes.ActionBar, ActionBarToken(value));
+
+        if (ResolveRenderValue(context, IVisualComponent.ActionBarRepeatInMoreProperty, out bool? repeatInMore, out _) == WebRenderValueKind.Static && repeatInMore == false)
+            _ = root.Attribute(WebAttributes.ActionBarRest);
+    }
+
+    private static string ActionBarToken(UIActionBarAlignment alignment)
+        => alignment switch
+        {
+            UIActionBarAlignment.Start => "start",
+            UIActionBarAlignment.Center => "center",
+            _ => "end"
+        };
 
     /// <summary>Renders one of the component's regions as a further named right-click menu of its owner.</summary>
     /// <remarks>A region the component does not have renders nothing.</remarks>
@@ -570,6 +608,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         _ = target.Element("span", line =>
         {
             _ = line.Class("ui-validation-message");
+            // What went wrong is the reader's to copy, as a Text's words are.
+            _ = line.Class(WebClassNames.ContentText);
             _ = line.Attribute(WebAttributes.ValidationMessage);
 
             // Read out when the words change, and named by the field it describes where the render can give it an id.

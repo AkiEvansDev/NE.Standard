@@ -120,6 +120,8 @@
     // No scroll cap: the tail below is drawn outside the box.
     .ui-popup-surface();
     padding: 0 @ui-space-1;
+    // A figure, not a list: a field's corner, as the tooltip's.
+    border-radius: var(--ui-radius-input);
     color: var(--ui-color-on-surface);
     font-size: var(--ui-text-caption-font-size);
     font-variant-numeric: tabular-nums;
@@ -128,7 +130,6 @@
     transition: opacity @ui-motion-fast @ui-motion-ease;
     // A readout of the handle it stands over, never a target: it must not eat the drag that shows it.
     pointer-events: none;
-    user-select: none;
 }
 
 // The bubble's own corner rotated, not a separate triangle; the edge follows data-ui-placement and the offset along it --ui-popup-arrow.

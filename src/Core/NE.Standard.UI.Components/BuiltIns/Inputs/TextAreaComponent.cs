@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -67,7 +69,7 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
 
     /// <summary>
     /// Gets or sets whether Enter presses the submit button of the area's form (<c>FormId</c>), its value committed first, and
-    /// Shift+Enter breaks the line; off, Enter breaks the line.
+    /// Shift+Enter breaks the line; off, Enter breaks the line. Refused together with <see cref="OnEnter(string)"/>.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? SubmitOnEnter { get; set; }
@@ -171,6 +173,23 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     /// </summary>
     public T SetTrimInput()
         => SetTrimInput(true);
+
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter, after the value has reached the server, and Shift+Enter breaks the line; the area
+    /// keeps the focus for the next entry and needs no form.
+    /// </summary>
+    public T OnEnter(string command)
+        => On(EventNames.Enter, command);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter with UI action arguments — in a row's template, the row's key among them.
+    /// </summary>
+    public T OnEnter(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Enter, command, arguments);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Enter with literal argument values.
+    /// </summary>
+    public T OnEnterLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Enter, command, arguments);
 }
 
 /// <summary>

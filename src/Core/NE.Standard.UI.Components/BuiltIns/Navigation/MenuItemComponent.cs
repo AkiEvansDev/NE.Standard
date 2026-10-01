@@ -57,6 +57,12 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
     public UIPhrase? Value { get; set; }
 
     /// <summary>
+    /// Gets or sets whether this entry of a context menu also stands in its owner's action bar, as its icon.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? InActionBar { get; set; }
+
+    /// <summary>
     /// Initializes the entry stretched, left-aligned and untinted.
     /// </summary>
     protected MenuItemComponent(string? id = null) : base(id)

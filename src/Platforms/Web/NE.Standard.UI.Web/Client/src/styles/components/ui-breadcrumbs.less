@@ -33,7 +33,6 @@
         .ui-chevron(@ui-glyph-xs);
         .ui-chevron-right();
         color: @ui-text-muted;
-        user-select: none;
     }
 
     // The author's own separator is text in the glyph's place, silent as the chevron it replaces, set in the trail's font: the
@@ -101,10 +100,12 @@
     }
 
     // Under the word only, as on .ui-link: a glyph is not text to underline.
-    .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover .ui-text__title {
-        text-decoration: underline;
-        text-decoration-thickness: 1px;
-        text-underline-offset: 0.15em;
+    @media @ui-can-hover {
+        .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover .ui-text__title {
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 0.15em;
+        }
     }
 
 // The page you are on: plain text that keeps the trail's rhythm, no longer a link.

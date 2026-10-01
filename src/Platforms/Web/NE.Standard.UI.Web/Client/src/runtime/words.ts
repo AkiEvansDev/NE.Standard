@@ -71,7 +71,7 @@ export function isAuthorText(value: unknown): value is AuthorText {
     return typeof record.text === "string" && record.text.trim().length > 0 && Object.keys(record).length === 1;
 }
 
-const MomentFormats: ReadonlySet<string> = new Set<TimestampFormat>(["date-time", "date", "time", "relative"]);
+const MomentFormats: ReadonlySet<string> = new Set<TimestampFormat>(["date-time", "date", "time", "relative", "relative-date"]);
 
 /** Whether a value is a moment: an object of an instant in the wire's shape and, optionally, a timestamp's format — nothing else. */
 export function isMoment(value: unknown): value is Moment {
@@ -107,7 +107,7 @@ export function holdsMoment(value: unknown): boolean {
 
 /**
  * A moment as words carry it where no page writes it — the server's `UIMoment.ToString`: the instant in UTC in the canonical patterns,
- * " UTC" after a clock, a relative one as the day and the time.
+ * " UTC" after a clock, a relative one as the day and the time, a relative day as the day.
  */
 export function writeCanonicalMoment(instant: number, format: TimestampFormat): string {
     // yyyy-MM-ddTHH:mm:ss.sssZ for every year a server's instant can name.
@@ -115,7 +115,7 @@ export function writeCanonicalMoment(instant: number, format: TimestampFormat): 
     const day = text.slice(0, 10);
     const clock = text.slice(11, 16);
 
-    return format === "date" ? day : format === "time" ? `${clock} UTC` : `${day} ${clock} UTC`;
+    return format === "date" || format === "relative-date" ? day : format === "time" ? `${clock} UTC` : `${day} ${clock} UTC`;
 }
 
 /** What a value shows: a phrase translated, an author's text or a translatable plain string looked up, anything else as it is. */

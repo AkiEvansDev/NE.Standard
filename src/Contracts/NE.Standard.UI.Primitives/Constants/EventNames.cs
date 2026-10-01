@@ -76,6 +76,11 @@ public static class EventNames
     public const string Search = "search";
 
     /// <summary>
+    /// Fires on Enter in a one-line field, once the value it holds has reached the server; the field keeps the focus.
+    /// </summary>
+    public const string Enter = "enter";
+
+    /// <summary>
     /// Fires when a label is renamed in place; distinct from <see cref="Change"/> because a component may commit more than
     /// one value that way, e.g. a tab's caption and position.
     /// </summary>

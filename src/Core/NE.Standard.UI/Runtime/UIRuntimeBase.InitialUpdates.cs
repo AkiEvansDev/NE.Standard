@@ -120,6 +120,10 @@ internal abstract partial class UIRuntimeBase
             foreach (RecursivePath path in paths)
                 AppendSetUpdatesNoLock(path);
 
+            // Only while it holds some: a page starts holding none, and an attach sets it back to none before it applies this.
+            if (HoldsUnsavedWork)
+                AddPendingUpdateNoLock(PageState());
+
             // A snapshot is an answer, not a queued change: no instance filters it.
             return new ServerChangeSet { Updates = DrainPendingUpdatesNoLock().Updates };
         }

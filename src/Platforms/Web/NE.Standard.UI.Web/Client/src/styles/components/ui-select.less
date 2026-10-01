@@ -90,7 +90,7 @@
     .ui-popup-scroll();
     .ui-popup-closed();
     .ui-entry-list();
-    max-height: min(16rem, calc(100vh - 2 * @ui-popup-viewport-margin));
+    max-height: min(16rem, calc(100dvh - 2 * @ui-popup-viewport-margin));
     padding: @ui-space-1;
 }
 
@@ -125,7 +125,7 @@
 .ui-select__option {
     display: block;
     padding: @ui-space-2 @ui-space-3;
-    border-radius: 4px;
+    border-radius: @ui-list-entry-radius;
     cursor: pointer;
     transition: background-color @ui-motion-fast @ui-motion-ease;
 }

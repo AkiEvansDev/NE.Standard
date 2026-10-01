@@ -5,6 +5,7 @@ import { isIconClassName, toIconClassName } from "../rendering/icon-value";
 import { applyInlineMarkup } from "../rendering/inline-markup";
 import { forgetWords } from "../runtime/client-strings";
 import { logWarn } from "../runtime/logger";
+import { FormOwnerOperationKind, writeFormOwner } from "./form-owner";
 import { TooltipNameOperationKind, writeTooltipName } from "./tooltip-name";
 
 export type DomOperationContext = {
@@ -142,6 +143,8 @@ export class DomOperationRegistry {
         this.register("Data", () => { });
 
         this.register(TooltipNameOperationKind, context => writeTooltipName(context.resolved.component, context.target, requireOperationName(context.operation)));
+
+        this.register(FormOwnerOperationKind, context => writeFormOwner(context.target, context.value));
 
         this.register("Property", context => {
             const name = requireOperationName(context.operation);

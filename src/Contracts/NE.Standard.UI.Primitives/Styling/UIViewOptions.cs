@@ -28,7 +28,9 @@ public sealed record UIViewOptions
     /// <summary>Gets whether the sides become drawers on a narrow screen; on unless the view turns it off.</summary>
     /// <remarks>
     /// Below the medium breakpoint the sides leave the page's columns and slide over the content, each opened by a button the header
-    /// carries, so a phone gives the content its whole width. Off, the sides keep their columns at every width.
+    /// carries, so a phone gives the content its whole width; a left side that is a rail alone is a bar along the page's bottom instead
+    /// (<see cref="UIMenuDisplay.Rail"/>). An open drawer covers its button, so a sidebar menu's fold switch lying there puts the
+    /// drawer away rather than fold the menu. Off, the sides keep their columns at every width.
     /// </remarks>
     public bool SideDrawers { get; init; } = true;
 

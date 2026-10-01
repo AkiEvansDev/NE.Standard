@@ -1,6 +1,6 @@
 // A row of an items view or a table put in another place by the reader: the index it takes, what a drop between two rows and
 // Alt+Up/Alt+Down raise, the offset a windowed host adds, and the refusals — a row that may not move, a host whose rows do not, a
-// sort that would put the row back, a place in another group.
+// sort that would put the row back, a place in another group — and the row standing in its new place until the command's answer.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -17,9 +17,20 @@ class FakePointerEvent extends FakeEvent {
     public readonly button = 0;
 }
 
-installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent });
+/** A row's `move`, which the fake DOM aims at the row it is raised on, as it does its own events. */
+class FakeCustomEvent extends FakeEvent {
+    public readonly detail: unknown;
 
-const { ItemMoveEvent, ItemsReorderEngine, movedIndex } = await import("../src/interactions/items-reorder-engine.ts");
+    public constructor(type: string, init: { readonly detail?: unknown } = {}) {
+        super(type);
+        this.detail = init.detail ?? null;
+    }
+}
+
+installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent });
+
+const { ItemsReorderEngine, itemMoveEvent, movedIndex } = await import("../src/interactions/items-reorder-engine.ts");
+const { PendingMoves } = await import("../src/items/pending-moves.ts");
 const { RowGripDecorator } = await import("../src/items/row-grip.ts");
 
 test("a row put beside another takes the index the collection's Move puts it at, and none where it would not move", () => {
@@ -327,7 +338,7 @@ test("a press on a grip gives the host the keyboard on the grip's row, so Alt+Do
 });
 
 test("a row's move carries its index after its keys, and a tree's move keeps its chain", () => {
-    const dynamicParameters = ItemMoveEvent.registration.dynamicParameters;
+    const dynamicParameters = itemMoveEvent().registration.dynamicParameters;
 
     assert.ok(dynamicParameters !== undefined);
 
@@ -335,4 +346,133 @@ test("a row's move carries its index after its keys, and a tree's move keeps its
 
     assert.deepEqual(dynamicParameters({ ...context, domEvent: new CustomEvent("move", { detail: { index: 2 } }) }), ["outer", "b", 2]);
     assert.equal(dynamicParameters({ ...context, domEvent: new Event("move") }), null);
+});
+
+/** The pipeline as far as a move needs it: the event taken, then its command answered, with or without the server's Move. */
+function pipeline(view: List): { readonly answer: (serverMove: { readonly key: string; readonly index: number } | null) => void } {
+    const mover = {
+        indexOf: (_: Element, key: string): number | null => {
+            const at = shown(view).indexOf(key);
+
+            return at < 0 ? null : at;
+        },
+        move: (_: Element, key: string, index: number): void => {
+            const row = view.host.children.find(child => child.getAttribute("data-ui-key") === key)!;
+            const rest = view.host.children.filter(child => child !== row);
+
+            view.host.insertBefore(row, rest[index] ?? null);
+        }
+    };
+    const host = real<Element>(view.host);
+    const moves = new PendingMoves(mover);
+    const registration = itemMoveEvent(moves).registration;
+    const taken: Event[] = [];
+
+    view.root.addEventListener("move", domEvent => {
+        const context = { domEvent: real<Event>(domEvent), component: real<Element>(view.root), componentId: 6, dynamicParameters: [] };
+
+        registration.started?.(context);
+        taken.push(context.domEvent);
+    });
+
+    return {
+        answer: serverMove => {
+            const domEvent = taken.shift()!;
+
+            if (serverMove !== null)
+                moves.around(host, [serverMove.key], () => mover.move(host, serverMove.key, serverMove.index));
+
+            registration.completed?.({ domEvent, component: real<Element>(view.root), componentId: 6, dynamicParameters: [], dispatched: true, success: serverMove !== null });
+        }
+    };
+}
+
+function shown(view: List): string[] {
+    return view.host.children.map(row => row.getAttribute("data-ui-key") ?? "");
+}
+
+test("Alt+Down moves the row at once, and the server's Move to the same place leaves it there", () => {
+    const view = list();
+    const page = pipeline(view);
+
+    new ItemsReorderEngine({ root: real(view.root) });
+    altKey(view.root, "ArrowDown");
+
+    assert.deepEqual(shown(view), ["a", "c", "b"]);
+
+    page.answer({ key: "b", index: 2 });
+
+    assert.deepEqual(shown(view), ["a", "c", "b"]);
+});
+
+test("a dropped row stands in its new place as it lands, before the server answers", () => {
+    const view = list();
+    const page = pipeline(view);
+    const [first, , third] = view.rows;
+
+    new ItemsReorderEngine({ root: real(view.root) });
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", first);
+    drag("dragover", third, 27);
+    drag("drop", third, 27);
+
+    assert.deepEqual(shown(view), ["b", "c", "a"]);
+
+    page.answer({ key: "a", index: 2 });
+
+    assert.deepEqual(shown(view), ["b", "c", "a"]);
+});
+
+test("a move the server refuses or fails puts the row back, and one it puts elsewhere goes there", () => {
+    const refused = list();
+    const refusing = pipeline(refused);
+
+    new ItemsReorderEngine({ root: real(refused.root) });
+    altKey(refused.root, "ArrowUp");
+
+    assert.deepEqual(shown(refused), ["b", "a", "c"]);
+
+    refusing.answer(null);
+
+    assert.deepEqual(shown(refused), ["a", "b", "c"]);
+
+    const elsewhere = list();
+    const moving = pipeline(elsewhere);
+
+    new ItemsReorderEngine({ root: real(elsewhere.root) });
+    altKey(elsewhere.root, "ArrowUp");
+    moving.answer({ key: "b", index: 2 });
+
+    assert.deepEqual(shown(elsewhere), ["a", "c", "b"]);
+});
+
+test("a second Alt+Down before the first is answered moves on from where the first left the row", () => {
+    const view = list();
+    const page = pipeline(view);
+
+    view.rows[1].removeAttribute("data-ui-row-focus");
+    view.rows[0].setAttribute("data-ui-row-focus", "");
+    new ItemsReorderEngine({ root: real(view.root) });
+    altKey(view.root, "ArrowDown");
+    altKey(view.root, "ArrowDown");
+
+    assert.deepEqual(view.moves, [1, 2]);
+    assert.deepEqual(shown(view), ["b", "c", "a"]);
+
+    page.answer({ key: "a", index: 1 });
+    page.answer({ key: "a", index: 2 });
+
+    assert.deepEqual(shown(view), ["b", "c", "a"]);
+});
+
+test("a tree's move, which carries no index, moves nothing ahead", () => {
+    const view = list();
+    const ahead: unknown[] = [];
+    const registration = itemMoveEvent(real({ ahead: (...args: unknown[]) => ahead.push(args), settle: () => undefined })).registration;
+    const domEvent = new FakeEvent("move");
+
+    domEvent.target = view.rows[0].children[0];
+    registration.started?.({ domEvent: real<Event>(domEvent), component: real<Element>(view.root), componentId: 6, dynamicParameters: [] });
+
+    assert.deepEqual(ahead, []);
 });

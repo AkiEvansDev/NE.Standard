@@ -17,8 +17,15 @@ export class FakeEvent {
         this.key = key;
     }
 
+    /** Set by `stopImmediatePropagation`: no listener after the current one hears the event, here or above. */
+    public stopped = false;
+
     public preventDefault(): void {
         this.defaultPrevented = true;
+    }
+
+    public stopImmediatePropagation(): void {
+        this.stopped = true;
     }
 }
 
@@ -136,13 +143,13 @@ export class FakeElement {
             this.classes.add(name);
     }
 
-    public get classList(): { contains(name: string): boolean; toggle(name: string, force?: boolean): boolean; add(name: string): void; remove(name: string): void } {
+    public get classList(): { contains(name: string): boolean; toggle(name: string, force?: boolean): boolean; add(...names: string[]): void; remove(...names: string[]): void } {
         const classes = this.classes;
 
         return {
             contains: name => classes.has(name),
-            add: name => void classes.add(name),
-            remove: name => void classes.delete(name),
+            add: (...names) => names.forEach(name => classes.add(name)),
+            remove: (...names) => names.forEach(name => classes.delete(name)),
             toggle: (name, force) => {
                 const on = force ?? !classes.has(name);
 
@@ -326,10 +333,15 @@ export class FakeElement {
     }
 
     private bubble(domEvent: FakeEvent): void {
-        for (const listener of this.listeners.get(domEvent.type) ?? [])
-            listener(domEvent);
+        for (const listener of this.listeners.get(domEvent.type) ?? []) {
+            if (domEvent.stopped)
+                return;
 
-        this.parent?.bubble(domEvent);
+            listener(domEvent);
+        }
+
+        if (!domEvent.stopped)
+            this.parent?.bubble(domEvent);
     }
 
     private top(): FakeElement {

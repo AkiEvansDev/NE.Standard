@@ -65,8 +65,10 @@
 }
 
     // Ink alone: the row is the surface that lifts under the pointer.
-    .ui-file-input__pick:hover:not([aria-disabled='true']) {
-        color: var(--ui-color-on-surface);
+    @media @ui-can-hover {
+        .ui-file-input__pick:hover:not([aria-disabled='true']) {
+            color: var(--ui-color-on-surface);
+        }
     }
 
     // Read-only: dimmed as a date field's calendar toggle is, so a pick that does nothing does not look like one that would.

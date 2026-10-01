@@ -20,6 +20,7 @@ import { focusAsLastInput } from "./popup-focus";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
 import { OverflowButtonClass, StripFitter } from "./strip-overflow";
+import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch";
 import {
     MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries
 } from "./tab-menu";
@@ -151,6 +152,7 @@ export class TabsViewEngine {
         }
 
         const reorderable = root.hasAttribute(TabsDraggableAttribute);
+        const previous = items.find(item => item.classList.contains(SelectedModifier))?.querySelector<HTMLElement>(`.${CaptionClass}`) ?? null;
         const captions: HTMLElement[] = [];
         let currentCaption: HTMLElement | null = null;
         let currentPage: HTMLElement | null = null;
@@ -164,6 +166,7 @@ export class TabsViewEngine {
 
             if (caption !== null) {
                 caption.draggable = reorderable;
+                reserveCaptionWidth(caption);
 
                 if (shown.includes(item)) {
                     captions.push(caption);
@@ -184,6 +187,10 @@ export class TabsViewEngine {
 
         this.fitCaptions(root, captions, currentCaption);
         this.writeStripHeight(root, currentPage);
+        slideCaptionMark(previous, currentCaption);
+
+        if (previous !== null && previous !== currentCaption)
+            fadeInPage(currentPage);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
         const labels: HTMLElement[] = [];

@@ -28,6 +28,7 @@
 @import "./styles/components/ui-collapsible-panel.less";
 @import "./styles/components/ui-menu.less";
 @import "./styles/components/ui-context-menu.less";
+@import "./styles/components/ui-action-bar.less";
 @import "./styles/components/ui-tabs.less";
 @import "./styles/components/ui-breadcrumbs.less";
 @import "./styles/components/ui-tabs-view.less";
@@ -68,6 +69,8 @@
 @import "./styles/components/ui-dialog.less";
 @import "./styles/components/ui-notification.less";
 @import "./styles/components/ui-tooltip.less";
+// After every component: the press ripple's layer is a pseudo-element some of them draw a mark on, and it wins the tie while it plays.
+@import "./styles/core/press.less";
 // Last: the reader's system preferences (less motion, forced colours) win the ties with every component's rules.
 @import "./styles/core/preferences.less";
 

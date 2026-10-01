@@ -92,8 +92,10 @@
         .ui-cross-glyph(@ui-glyph-md);
     }
 
-.ui-notification__close:hover {
-    opacity: 1;
+@media @ui-can-hover {
+    .ui-notification__close:hover {
+        opacity: 1;
+    }
 }
 
 // A press answers as every button's does, with the pressed wash, on a round plate as a chip's cross has.

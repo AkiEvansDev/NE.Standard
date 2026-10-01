@@ -107,16 +107,26 @@
     }
 
     // A link's brighter ink on the hovered part alone, as ui-button.less brightens a link's parts rather than its root.
-    .ui-split-button.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
-        .ui-brighten-hover();
+    @media @ui-can-hover {
+        .ui-split-button.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+            .ui-brighten-hover();
+        }
     }
 
-    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:is(:hover, :active) {
+    @media @ui-can-hover {
+        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:hover {
+            box-shadow: none;
+        }
+    }
+
+    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:active {
         box-shadow: none;
     }
 
-    .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
-        background-color: var(--ui-wash-hover);
+    @media @ui-can-hover {
+        .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+            background-color: var(--ui-wash-hover);
+        }
     }
 
     .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
@@ -130,16 +140,39 @@
         padding-right: @ui-space-3;
     }
 
-    .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
-        background-color: var(--ui-wash-hover);
+    @media @ui-can-hover {
+        .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
+            background-color: var(--ui-wash-hover);
+        }
     }
 
     .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:active > :is(.ui-split-button__main, .ui-split-button__toggle) {
         background-color: var(--ui-wash-active);
     }
 
-    .ui-split-button[data-ui-split-mode="menu"] > .ui-split-button__main {
+    .ui-split-button[data-ui-split-mode="menu"]:not(.ui-split-button--no-chevron) > .ui-split-button__main {
         padding-right: @ui-space-2;
+    }
+
+    // A menu button with its chevron off is its main part alone, padded and rounded as a plain button, square with an icon alone.
+    .ui-split-button--no-chevron[data-ui-split-mode="menu"] > .ui-split-button__toggle {
+        display: none;
+    }
+
+    .ui-split-button--no-chevron[data-ui-split-mode="menu"] > .ui-split-button__main {
+        border-radius: inherit;
+    }
+
+    .ui-split-button--no-chevron[data-ui-split-mode="menu"].ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        aspect-ratio: 1;
+    }
+
+    .ui-split-button--no-chevron[data-ui-split-mode="menu"][data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+    }
+
+    .ui-button--small.ui-split-button--no-chevron[data-ui-split-mode="menu"][data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
     }
 
 // The list: the context menu's surface, shown while the button is open and placed by split-button-engine.ts.

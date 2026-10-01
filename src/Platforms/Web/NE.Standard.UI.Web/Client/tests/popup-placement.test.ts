@@ -1,5 +1,6 @@
 // A popup takes the side it asks for, flips to the opposite one where that has the room, and — in a window too short for either
-// side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from.
+// side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from. A boundary
+// (a list's box) is the room its side is chosen in.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -68,4 +69,28 @@ test("a popup with room nowhere keeps the side of its axis with the more room, a
 
 test("a side popup with no room either way flips across to below", () => {
     assert.equal(place({ left: 100, top: 20, width: 800, height: 30 }, { width: 150, height: 100 }, { width: 1000, height: 300 }, "right").side, "bottom-start");
+});
+
+test("a boundary is the room a side is chosen in: a popup the window has room for above, but its box has not, stands below", () => {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 600;
+
+    const box = FakeElement.of("list");
+    const anchor = FakeElement.of("row");
+    const popup = FakeElement.of("bar");
+
+    box.rect = { left: 0, top: 200, width: 600, height: 300 };
+    anchor.rect = { left: 0, top: 210, width: 600, height: 40 };
+    popup.rect = { left: 0, top: 0, width: 100, height: 30 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(box.append(anchor), popup);
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "top-end", gap: 6 });
+    assert.equal(popup.dataset.uiPlacement, "top-end");
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "top-end", gap: 6, boundary: real(box) });
+    releaseAnchoredPopup(real(popup));
+
+    assert.equal(popup.dataset.uiPlacement, "bottom-end");
+    assert.equal(Number.parseFloat(String(popup.style.top)), 256);
 });

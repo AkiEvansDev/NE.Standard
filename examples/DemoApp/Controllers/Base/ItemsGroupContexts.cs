@@ -161,7 +161,7 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
     public void CycleDragHandlePlacement()
         => SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement = CycleEnum(DragHandlePlacement));
 
-    /// <summary>Moves the row a drop named to the place it asked for; the list moved nothing by itself.</summary>
+    /// <summary>Moves the row a drop named to the place it asked for; the page moved it ahead, and this is the answer that keeps it.</summary>
     public void MoveService(string id, int index)
     {
         for (var i = 0; i < Items.Count; i++)

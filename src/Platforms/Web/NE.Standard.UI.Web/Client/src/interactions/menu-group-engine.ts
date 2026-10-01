@@ -4,8 +4,9 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
+import { responsiveBreakpoints } from "../rendering/responsive-tier.ts";
 import { ClientStore } from "../state/client-store.ts";
 
 const RootClass = "ui-menu";
@@ -74,6 +75,18 @@ export class MenuGroupEngine {
             for (const group of groups)
                 describeGroup(group);
         });
+
+        // Across the drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
+        // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts).
+        if (typeof matchMedia === "function")
+            matchMedia(`(min-width: ${responsiveBreakpoints.md}px)`).addEventListener("change", () => this.closeBarFlyout());
+    }
+
+    private closeBarFlyout(): void {
+        const open = this.flyouts.current;
+
+        if (open !== null && open.closest(`[${BottomBarAttribute}]`) !== null)
+            this.flyouts.close(open);
     }
 
     private reconcileEach(menus: Iterable<HTMLElement>): void {
@@ -295,9 +308,12 @@ function dropFlyouts(menu: HTMLElement): void {
 
 /**
  * The side a menu's popups open on: toward the content, away from the edge the menu sits on (`Side`) — a right-hand rail's flyout
- * and titles to its left. The tooltip of a hidden title takes the same side (menu-engine.ts).
+ * and titles to its left, a bottom bar's above it. The tooltip of a hidden title takes the same side (menu-engine.ts).
  */
 export function towardContent(menu: Element): "left" | "right" | "top" | "bottom" {
+    if (isBottomBar(menu))
+        return "top";
+
     if (menu.classList.contains("ui-side--right"))
         return "left";
 
@@ -305,6 +321,17 @@ export function towardContent(menu: Element): "left" | "right" | "top" | "bottom
         return "bottom";
 
     return menu.classList.contains("ui-side--bottom") ? "top" : "right";
+}
+
+/**
+ * Whether a rail stands as the page's bottom bar: the whole of a left side (the server marks the side) on a screen below the drawer
+ * breakpoint, where the stylesheet lays it along the bottom (side-drawers.less).
+ */
+export function isBottomBar(menu: Element): boolean {
+    return menu.classList.contains(MenuRailClass)
+        && menu.closest(`[${BottomBarAttribute}]`) !== null
+        && typeof matchMedia === "function"
+        && !matchMedia(`(min-width: ${responsiveBreakpoints.md}px)`).matches;
 }
 
 /** Whether the menu's groups fly out: folded to its icons, or a rail, which is never unfolded. */

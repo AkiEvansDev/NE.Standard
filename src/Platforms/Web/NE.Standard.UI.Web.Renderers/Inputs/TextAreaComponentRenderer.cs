@@ -111,6 +111,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);
 
             NativeInputRendererBase.RenderPlaceholder(context, textarea);
+            NativeInputRendererBase.RenderRunsOnEnter(context, textarea);
             NativeInputRendererBase.RenderFormId(context, textarea);
             NativeInputRendererBase.RenderFieldName(context, textarea);
             NativeInputRendererBase.RenderIsReadOnly(context, root, textarea);

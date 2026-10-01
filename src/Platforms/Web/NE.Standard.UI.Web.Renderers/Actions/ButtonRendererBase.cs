@@ -17,6 +17,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonClass)];
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonSizeClass)];
     private static readonly WebDomOperation[] SubmitFormIdOperations = [WebDomOperation.Attribute(WebAttributes.SubmitFormId)];
+    private static readonly WebDomOperation[] SubmitButtonFormIdOperations = [WebDomOperation.Attribute(WebAttributes.SubmitFormId), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
 
     protected override string ElementName => "button";
 
@@ -43,17 +44,40 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
         RenderButtonLook(context, root);
 
-        _ = RenderProperty<string?>(context, root, ButtonComponent.SubmitFormIdProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.SubmitFormId, value);
-        }, SubmitFormIdOperations);
+        RenderSubmitFormId(context, root, IsButtonElement);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, "--ui-padding");
 
         SurfaceStyleRenderer.RenderBackground(context, root, ButtonComponent.BackgroundProperty);
 
         BorderStyleRenderer.RenderBorderStyle(context, root);
+    }
+
+    /// <summary>
+    /// The form the button submits (<c>OnSubmit</c>): the framework's, and a real button joins the browser's own by <c>form</c>, as
+    /// the form's fields do.
+    /// </summary>
+    private static void RenderSubmitFormId(WebRenderContext context, IHtmlElementBuilder root, bool joinsForm)
+    {
+        if (!joinsForm)
+        {
+            _ = RenderProperty<string?>(context, root, ButtonComponent.SubmitFormIdProperty, static (target, value) =>
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _ = target.Attribute(WebAttributes.SubmitFormId, value);
+            }, SubmitFormIdOperations);
+
+            return;
+        }
+
+        _ = RenderProperty<string?>(context, root, ButtonComponent.SubmitFormIdProperty, static (target, value) =>
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            _ = target.Attribute(WebAttributes.SubmitFormId, value);
+            _ = target.Attribute("form", WebForms.ElementId(value));
+        }, SubmitButtonFormIdOperations);
     }
 
     /// <summary>

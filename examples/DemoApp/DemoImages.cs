@@ -45,7 +45,7 @@ public static class DemoImages
     /// </summary>
     /// <remarks>
     /// Inline is a demo's shortcut: the address lives in the page's state and is sent again with every render and every attach. An
-    /// application keeps the file and names it by a content address (<c>IUIContentProvider</c>), as TeamRoom's media does.
+    /// application keeps the file and names it by a content address (<c>IUIContentProvider</c>).
     /// </remarks>
     public static bool IsInlinePicture(string? contentType, long size)
         => size <= MaxInlinePictureBytes && contentType is "image/png" or "image/jpeg" or "image/gif" or "image/webp";

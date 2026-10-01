@@ -19,9 +19,11 @@
     font: inherit;
     cursor: pointer;
 
-    // Under the label rather than under the box, which is the column the text is in.
+    // Under the label rather than under the box, which is the column the text is in, and starting where its words do: a toggle has
+    // no field whose inset the message would keep.
     > .ui-validation-message {
         grid-column: 2;
+        padding-inline: 0;
     }
 
     // The label is body; the Small size steps it to a caption line with its box. A type the author named other than body stays.

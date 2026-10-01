@@ -20,7 +20,7 @@ public static class WebMoments
 {
     /// <summary>
     /// The instant in UTC in the page's names and the application's patterns, said to be UTC where it shows a clock; a relative one as
-    /// the day and the time, since how long ago it was depends on when the page is read.
+    /// the day and the time, since how long ago it was depends on when the page is read, and a relative day as the day.
     /// </summary>
     public static string FirstPaint(DateTimeOffset instant, UITimestampFormat format, CultureInfo culture, UITemporalOptions? options)
     {
@@ -32,7 +32,7 @@ public static class WebMoments
 
         return format switch
         {
-            UITimestampFormat.Date => WebTemporalFormat.Format(utc, patterns.Date, names),
+            UITimestampFormat.Date or UITimestampFormat.RelativeDate => WebTemporalFormat.Format(utc, patterns.Date, names),
             UITimestampFormat.Time => $"{WebTemporalFormat.Format(utc, patterns.ShortTime, names)} UTC",
             _ => $"{WebTemporalFormat.Format(utc, patterns.DateTime(seconds: false), names)} UTC"
         };

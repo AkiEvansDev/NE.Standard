@@ -1,8 +1,23 @@
 @import "../core/tokens.less";
+@import "elevation.less";
+@import "lift.less";
 
 // A modal's veil over the page: the theme's overlay colour, on the framework's backdrop and on a package's native `::backdrop`.
 .ui-dialog-veil() {
     background: var(--ui-color-overlay, rgba(0, 0, 0, 0.45));
+}
+
+// A dialog's panel: the raised ground and what stands on it — a field's fill, muted ink, the ground a part cut out of it paints, a
+// popup opened in it lifted once more — for the framework's dialog and a package's own <dialog> alike, so the two are one ground.
+.ui-dialog-look() {
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-surface-raised);
+    color: var(--ui-color-on-surface);
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-surface-raised);
+    --ui-surface-fill: var(--ui-surface-raised);
+    .ui-popup-ground-lifted(var(--ui-surface-raised));
+    .ui-elevation-4();
 }
 
 // The dialog's entrance, for a package's own <dialog> too; the keyframes are ui-dialog.less's, reduced motion preferences.less's.

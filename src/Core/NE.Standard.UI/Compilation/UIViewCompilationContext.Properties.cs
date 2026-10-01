@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -31,32 +32,38 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Refuses a text area whose Enter submits its form (<c>SubmitOnEnter</c>, set or bound) but that belongs to no form: Enter would
-    /// press no button and break no line either.
+    /// Refuses a text area whose Enter submits its form (<c>SubmitOnEnter</c>, set or bound) but that also runs a command on Enter
+    /// (<c>OnEnter</c>) — one key cannot do both — or that belongs to no form: Enter would press no button and break no line either.
     /// </summary>
-    private void EnsureSubmitOnEnterHasForm(IVisualComponent component)
+    private void EnsureSubmitOnEnterIsSound(IVisualComponent component)
     {
-        if (component is not IInputComponent input
-            || !string.IsNullOrWhiteSpace(input.FormId)
-            || FindBinding(component, IInputComponent.FormIdProperty) is not null)
-        {
+        if (component is not IInputComponent input || !SubmitsOnEnter(component))
             return;
+
+        for (var i = 0; i < component.Events.Count; i++)
+        {
+            if (string.Equals(component.Events[i].Name, EventNames.Enter, StringComparison.Ordinal))
+                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' both submits on Enter and runs a command on Enter ('OnEnter'); Enter does one of them, so drop 'SubmitOnEnter' or the 'OnEnter' command.");
         }
 
+        if (string.IsNullOrWhiteSpace(input.FormId) && FindBinding(component, IInputComponent.FormIdProperty) is null)
+            throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
+    }
+
+    /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>
+    private bool SubmitsOnEnter(IVisualComponent component)
+    {
         UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
 
         for (var i = 0; i < definitions.Length; i++)
         {
             UIPropertyDefinition definition = definitions[i];
 
-            if (!definition.Property.Equals(TextAreaComponent.SubmitOnEnterProperty))
-                continue;
-
-            if (definition.Getter(component) is true || FindBinding(component, definition.Property) is not null)
-                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
-
-            return;
+            if (definition.Property.Equals(TextAreaComponent.SubmitOnEnterProperty))
+                return definition.Getter(component) is true || FindBinding(component, definition.Property) is not null;
         }
+
+        return false;
     }
 
     private UIPropertyDefinition GetRequiredPropertyDefinition(string typeKey, UIProperty property)

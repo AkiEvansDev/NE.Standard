@@ -142,6 +142,11 @@ export class SignalRTransport {
         return await this.invokeAsync<UICommandExecutionResult>("ProcessEventAsync", [request], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
     }
 
+    /** Asks the controller about leaving for `target` while the page holds unsaved work: its answer once its changes are applied, without them. */
+    public async requestLeaveAsync(target: string): Promise<UICommandExecutionResult> {
+        return await this.invokeAsync<UICommandExecutionResult>("RequestLeaveAsync", [{ target }], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
+    }
+
     /** Settles once the answer's changes are applied; `before` runs just ahead of them. Fails with `ConnectionDropped` under a reconnect. */
     public async processChangeSetAsync(request: WebUIChangeSetRequest, before?: () => void): Promise<void> {
         try {

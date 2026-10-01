@@ -76,6 +76,12 @@ internal sealed partial class WebUIHub : Hub
         public string? ValueToken { get; init; }
     }
 
+    internal sealed class WebUILeaveRequest
+    {
+        /// <summary>The address of this site the reader starts to leave for, its query and fragment included.</summary>
+        public required string Target { get; init; }
+    }
+
     internal sealed class WebUISetThemeRequest
     {
         /// <summary>The theme the document is now in: <c>light</c>, <c>dark</c>, or <c>auto</c>.</summary>
@@ -529,6 +535,20 @@ internal sealed partial class WebUIHub : Hub
 
         UICommandExecutionResult result = await _host
             .ProcessEventAsync(handle, request, Context.ConnectionAborted)
+            .ConfigureAwait(false);
+
+        return _outgoing.Stage(result, handle.Session.SessionId, 1);
+    }
+
+    /// <summary>A page holding unsaved work asks before it leaves: answered with what its controller does about it, never pushed.</summary>
+    public async Task<UICommandExecutionResult> RequestLeaveAsync(WebUILeaveRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        UIHandle handle = RequireHandle();
+
+        UICommandExecutionResult result = await _host
+            .RequestLeaveAsync(handle, request.Target, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(result, handle.Session.SessionId, 1);

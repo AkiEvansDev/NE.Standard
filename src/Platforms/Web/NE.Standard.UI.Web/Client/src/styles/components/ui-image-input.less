@@ -3,6 +3,7 @@
 @import "../mixins/focus.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
+@import "../mixins/range.less";
 @import "../mixins/responsive.less";
 
 // A colour of its own, not the field's edge: under Filled the edge is the fill, so a dashed edge in that colour would vanish.
@@ -105,8 +106,30 @@
     .ui-picture-veil(1.5rem);
 }
 
-    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]):is(:hover, @{ui-keyboard-focus}) > .ui-image-input__edit {
+    @media @ui-can-hover {
+        .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]):hover > .ui-image-input__edit {
+            opacity: 1;
+        }
+    }
+
+    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src])@{ui-keyboard-focus} > .ui-image-input__edit {
         opacity: 1;
+    }
+
+    // No hover to bring the veil up: the pencil stands in the corner over any picture, saying a press changes it.
+    @media @ui-cannot-hover {
+        .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]) > .ui-image-input__edit {
+            .ui-picture-corner-mark();
+
+            &::before {
+                .ui-pencil-glyph(@ui-glyph-sm; 0);
+            }
+        }
+
+        // A round avatar's corner is outside its circle: the mark stands on its diagonal instead, wholly inside the edge.
+        .ui-image-input--avatar@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]) > .ui-image-input__edit {
+            inset: auto calc(28% - 0.75rem) calc(28% - 0.75rem) auto;
+        }
     }
 
 // The inline row's text and pick control exist only in that shape.
@@ -241,7 +264,6 @@
 .ui-input--title-inside.ui-image-input--inline > .ui-image-input__surface > .ui-input__header {
     flex: 0 0 auto;
     max-width: 65%;
-    user-select: none;
     pointer-events: none;
 }
 
@@ -257,13 +279,17 @@
 // focus edges rather than standing below them by weight as ui-input.less's does.
 @ui-image-edge-hover: ~":not(.ui-invalid, .ui-validation--warning) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
 
-.ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
-.ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-    border-color: var(--ui-field-hover);
+@media @ui-can-hover {
+    .ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
+    .ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+        border-color: var(--ui-field-hover);
+    }
 }
 
-.ui-image-input--inline:is(.ui-input--outline, .ui-input--underline)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-    border-color: var(--ui-field-hover-accent);
+@media @ui-can-hover {
+    .ui-image-input--inline:is(.ui-input--outline, .ui-input--underline)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+        border-color: var(--ui-field-hover-accent);
+    }
 }
 
 // A drag over the surface turns the edge primary in every appearance; not when read-only, since a refused drop keeps its edge.
@@ -280,9 +306,13 @@
     // An inline row takes a field's size as a field's row does (ui-input.less), its thumbnail and mark stepping with it.
     .ui-image-input--inline.ui-input--small > .ui-image-input__surface {
         min-height: @ui-control-height-sm;
-        padding-left: 0.375rem;
         gap: 0.375rem;
     }
+
+        // Not under Underline, whose text starts at the rule's start at every size, as its neighbours' does.
+        .ui-image-input--inline.ui-input--small:not(.ui-input--underline) > .ui-image-input__surface {
+            padding-left: 0.375rem;
+        }
 
         .ui-image-input--inline.ui-input--small .ui-image-input__picture {
             width: 1.125rem;
@@ -320,8 +350,10 @@
     flex-basis: 18rem;
 }
 
-    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__pick {
-        color: var(--ui-color-on-surface);
+    @media @ui-can-hover {
+        .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__pick {
+            color: var(--ui-color-on-surface);
+        }
     }
 
 // Multiple: the surface is a shelf of squares, one per picture plus a dashed one that picks more, rather than one button.
@@ -338,8 +370,10 @@
 }
 
     // The shelf itself does not answer the pointer: its squares do. Spelled as the hover it takes back, so it steps aside for the same edges.
-    .ui-image-input--multiple@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-        border-color: @ui-image-input-drop-edge;
+    @media @ui-can-hover {
+        .ui-image-input--multiple@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+            border-color: @ui-image-input-drop-edge;
+        }
     }
 
     .ui-image-input--multiple[data-ui-image-dragging] > .ui-image-input__surface {
@@ -416,19 +450,22 @@
     .ui-cross-glyph(@ui-glyph-lg);
 }
 
-    .ui-image-input__tile:is(:hover, :focus-within) > .ui-image-input__remove {
+    @media @ui-can-hover {
+        .ui-image-input__tile:hover > .ui-image-input__remove {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
+    .ui-image-input__tile:focus-within > .ui-image-input__remove {
         opacity: 1;
         pointer-events: auto;
     }
 
     // No hover to bring the veil up: the cross stands in the corner at all times, a small target that leaves the picture visible.
-    @media (hover: none) {
+    @media @ui-cannot-hover {
         .ui-image-input__remove {
-            inset: 0.25rem 0.25rem auto auto;
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 999px;
-            opacity: 1;
+            .ui-picture-corner-mark();
             pointer-events: auto;
             .ui-cross-glyph(@ui-glyph-sm);
         }
@@ -476,9 +513,11 @@
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-image-input@{ui-field-live} .ui-image-input__add:hover {
-        background: var(--ui-field-hover);
-        color: var(--ui-color-on-surface);
+    @media @ui-can-hover {
+        .ui-image-input@{ui-field-live} .ui-image-input__add:hover {
+            background: var(--ui-field-hover);
+            color: var(--ui-color-on-surface);
+        }
     }
 
     .ui-image-input.ui-readonly .ui-image-input__add {
@@ -538,3 +577,80 @@
     .ui-image-input--shelf[data-ui-image-dragging="refused"] > .ui-image-input__surface {
         outline-color: var(--ui-color-danger);
     }
+
+// The crop dialog (image-crop-dialog.ts), on the framework's dialog: the picture under a fixed frame, the zoom, Cancel and Done.
+.ui-image-crop__surface {
+    gap: @ui-space-3;
+}
+
+.ui-image-crop__title {
+    margin: 0;
+}
+
+// A square the screen has room for: at most 400px, the window's width less the dialog's margins, its height less the rest.
+.ui-image-crop__stage {
+    position: relative;
+    flex: none;
+    width: min(400px, calc(100vw - (@ui-space-4 * 4)), calc(100dvh - 13rem));
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: var(--ui-radius-button);
+    background: color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent);
+    cursor: grab;
+    // The finger's drag and pinch are the picture's, not the page's scroll and zoom.
+    touch-action: none;
+    user-select: none;
+}
+
+    // On a phone the dialog already fills the screen less its margin: the stage takes its whole width.
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-image-crop__stage {
+            width: min(100%, calc(100dvh - 13rem));
+        }
+    }
+
+    .ui-image-crop__stage[data-ui-splitting] {
+        cursor: grabbing;
+    }
+
+.ui-image-crop__canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+// A clear window over the picture, everything around it veiled — dark whatever the theme, as the picture's own surround; the circle is
+// the same square rounded, the square under it what is sent.
+.ui-image-crop__frame {
+    position: absolute;
+    inset: 8%;
+    // Wide enough to reach the stage's corners from the circle; Chrome draws no shadow at all whose spread is the window's size.
+    box-shadow: 0 0 0 200px color-mix(in srgb, black 55%, transparent);
+    outline: 2px solid color-mix(in srgb, white 85%, transparent);
+    pointer-events: none;
+}
+
+    .ui-image-crop__stage[data-ui-image-crop-frame="circle"] > .ui-image-crop__frame {
+        border-radius: 50%;
+    }
+
+.ui-image-crop__zoom {
+    width: 100%;
+    .ui-range-input();
+}
+
+    // Where nothing hovers the fingers pinch, and a slider under the thumb is one more thing to miss: out of sight, but still the
+    // dialog's labelled zoom for a screen reader, which cannot pinch.
+    @media @ui-cannot-hover {
+        .ui-image-crop__zoom {
+            .ui-visually-hidden();
+        }
+    }
+
+.ui-image-crop__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: @ui-space-2;
+}

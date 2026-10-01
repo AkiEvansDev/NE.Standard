@@ -8,6 +8,7 @@ import { ownDescendants } from "./own-descendants.ts";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
 import { writeSelectedKey } from "./selected-key.ts";
 import { OverflowButtonClass, StripFitter } from "./strip-overflow.ts";
+import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch.ts";
 
 const RootClass = "ui-tabs";
 const HeaderClass = "ui-tab-header";
@@ -74,6 +75,7 @@ export class TabsEngine {
             }
         }
 
+        const previous = headers.find(header => header.classList.contains(SelectedModifier)) ?? null;
         let current: HTMLElement | null = null;
 
         for (const header of headers) {
@@ -81,18 +83,24 @@ export class TabsEngine {
 
             header.classList.toggle(SelectedModifier, own);
             header.setAttribute("aria-selected", own ? "true" : "false");
+            reserveCaptionWidth(header);
 
             if (own)
                 current = header;
         }
 
         this.fitHeaders(root, headers.filter(isShown), current);
+        slideCaptionMark(previous, current);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
         applyRovingTabIndex(headers.filter(header => !header.classList.contains(OverflowedModifier)), current);
 
-        for (const page of this.ownPages(root))
+        for (const page of this.ownPages(root)) {
             page.hidden = (page.getAttribute(PageAttribute) ?? "") !== selected;
+
+            if (!page.hidden && previous !== null && previous !== current)
+                fadeInPage(page);
+        }
     }
 
     /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */

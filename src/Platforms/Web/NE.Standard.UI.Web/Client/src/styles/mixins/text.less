@@ -17,6 +17,13 @@
     overflow-clip-margin: 0.25em;
 }
 
+// The second line of one unit that runs on (a wrapping description under its title, a field's message under the field) starts at
+// its words, not at its leading: the half-leading above its first line is taken back, so it stands as close as a one-line
+// description does. Half the leading only, so the two lines' selection highlights never cross the other's words.
+.ui-text-leading-trim-start() {
+    margin-top: calc((1em - 1lh) / 2);
+}
+
 // A link in running text (`[label](url)`, Markdown): accent and underline, brightening under the pointer by a filter; on a filled
 // ground the ground's ink, the underline still saying it is a link.
 .ui-inline-link() {
@@ -25,8 +32,10 @@
     text-underline-offset: 0.15em;
     transition: filter @ui-motion-fast @ui-motion-ease;
 
-    &:hover {
-        .ui-brighten-hover();
+    @media @ui-can-hover {
+        &:hover {
+            .ui-brighten-hover();
+        }
     }
 }
 

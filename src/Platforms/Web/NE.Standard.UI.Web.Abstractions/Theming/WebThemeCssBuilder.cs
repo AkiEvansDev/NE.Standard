@@ -38,7 +38,7 @@ public static class WebThemeCssBuilder
 
         StringBuilder builder = new();
 
-        AppendTheme(builder, ":root", palette: null, theme.Typography, theme.Shape, includeSemantic: true);
+        AppendTheme(builder, ":root", palette: null, theme.Typography, theme.Shape, includeSemantic: true, dark: false);
 
         // Only on :root: the variable's fallback is 0, so whether it exists is the whole switch; a differing subtree sets it itself.
         if (theme.FocusRing)
@@ -48,26 +48,29 @@ public static class WebThemeCssBuilder
         AppendOnColorVariables(builder, theme);
 
         // Re-emitted for every [data-ui-theme] element, not only :root: an overriding subtree must re-resolve them against its own palette.
-        AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, includeSemantic: true);
+        AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, includeSemantic: true, dark: false);
 
-        AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false);
-        AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false, dark: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false, dark: true);
 
-        AppendMediaTheme(builder, "(prefers-color-scheme: light)", theme.Light, AppendPaletteTheme);
-        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", theme.Dark, AppendPaletteTheme);
+        AppendMediaTheme(builder, "(prefers-color-scheme: light)", theme.Light, AppendLightTheme);
+        AppendMediaTheme(builder, "(prefers-color-scheme: dark)", theme.Dark, AppendDarkTheme);
 
         return builder.ToString();
     }
 
-    private static void AppendPaletteTheme(StringBuilder builder, string selector, UIColorPalette palette)
-        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false);
+    private static void AppendLightTheme(StringBuilder builder, string selector, UIColorPalette palette)
+        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false, dark: false);
 
-    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, bool includeSemantic)
+    private static void AppendDarkTheme(StringBuilder builder, string selector, UIColorPalette palette)
+        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false, dark: true);
+
+    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, bool includeSemantic, bool dark)
     {
         _ = builder.Append(selector).AppendLine(" {");
 
         if (palette is not null)
-            AppendColorVariables(builder, palette);
+            AppendColorVariables(builder, palette, dark);
 
         if (typography is not null)
             AppendTypographyVariables(builder, typography);
@@ -99,7 +102,7 @@ public static class WebThemeCssBuilder
         _ = builder.AppendLine("}");
     }
 
-    private static void AppendColorVariables(StringBuilder builder, UIColorPalette palette)
+    private static void AppendColorVariables(StringBuilder builder, UIColorPalette palette, bool dark)
     {
         // The brand's colours with what stands on, writes in and shares their hue: the ink is the colour as words, a fill the base.
         AppendBrandVariables(builder, palette);
@@ -136,6 +139,26 @@ public static class WebThemeCssBuilder
         Append(builder, "color-series-count", palette.Series.Count.ToString(CultureInfo.InvariantCulture));
 
         Append(builder, "disabled-opacity", WebCssValues.Opacity(palette.DisabledOpacity));
+
+        // Set on both palettes, or a light subtree under a dark page would inherit the dark one's, resolved there.
+        AppendModeVariables(builder, dark);
+    }
+
+    /// <summary>
+    /// What differs by mode beyond the palette. On a dark page the washes are neutral — a deep brand colour at a low share over a
+    /// near-black ground read dimmer than the pointer's wash — and a chosen entry of a list on the page says "brand" by its mark;
+    /// a popup and a tint stand off the near-black page a step further, a tint over the raised ground at a larger share.
+    /// </summary>
+    private static void AppendModeVariables(StringBuilder builder, bool dark)
+    {
+        Append(builder, "wash-hover", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 9%, transparent)" : "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");
+        Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)" : "color-mix(in srgb, var(--ui-color-primary) 16%, transparent)");
+        // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
+        // None on a dark page, where a neutral one would read as the pointer's: there the group's short mark says it alone (ui-menu.less).
+        Append(builder, "wash-descendant", dark ? "transparent" : "color-mix(in srgb, var(--ui-color-primary) 8%, transparent)");
+        Append(builder, "popup-base", dark ? "color-mix(in srgb, var(--ui-color-surface) 96%, var(--ui-color-on-surface) 4%)" : "var(--ui-color-surface)");
+        Append(builder, "tint-ground", dark ? "var(--ui-surface-raised)" : "var(--ui-color-background)");
+        Append(builder, "tint-share", dark ? "28%" : "20%");
     }
 
     private static void AppendBrandVariables(StringBuilder builder, UIColorPalette palette)
@@ -182,16 +205,13 @@ public static class WebThemeCssBuilder
         // The one absolute level: what a panel lifted off the page is made of. The same step lifts a popup off a raised panel or a
         // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
         Append(builder, "surface-raised", "color-mix(in srgb, var(--ui-color-surface) 92%, var(--ui-color-on-surface) 8%)");
-        // The wash a control with no fill shows when pointed at, pressed, or chosen; translucent since it may sit on the page or a surface.
-        Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");
+        // The wash a control with no fill shows when pressed; translucent since it may sit on the page or a surface. The pointer's
+        // and the chosen one's differ by mode (AppendModeVariables).
         Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) 16%, transparent)");
-        Append(builder, "wash-selected", "color-mix(in srgb, var(--ui-color-primary) 16%, transparent)");
-        // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
-        Append(builder, "wash-descendant", "color-mix(in srgb, var(--ui-color-primary) 8%, transparent)");
         // The other half of a selectable strip: the mark under a tab; stronger than a wash since a thin line needs more than 10% to read.
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
         Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
-        Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 68%, transparent)");
+        Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 75%, transparent)");
         // An ink on a ground tinted with its own colour (a tinted badge), pulled toward the text colour until it reads 4.5:1 there
         // over the page, a card and a raised card; the page's inks themselves are left as they are. Resolved here, so a badge may
         // put it in the ink's place. A brand ink is its raw fill, lighter in the dark theme, so it moves further than a status ink,

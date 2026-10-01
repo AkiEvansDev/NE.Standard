@@ -202,6 +202,11 @@
         padding: @ui-space-2 @ui-space-3;
     }
 
+    // ShowEmptyTemplate off: an empty table says nothing; hidden, so a bound flag turned on shows it again.
+    .ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder] {
+        display: none;
+    }
+
 .ui-table__host.ui-scroll-x--disabled {
     overflow-x: hidden;
 }
@@ -250,11 +255,14 @@
     --ui-row-wash: @ui-table-ground;
 }
 
-.ui-table--row-hover > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live}:hover {
-    .ui-row-hover();
+@media @ui-can-hover {
+    .ui-table--row-hover > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live}:hover {
+        .ui-row-hover();
+    }
 }
 
 .ui-row-cursor(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ");
+.ui-row-bar(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ", ~"> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar");
 
 .ui-table__cell {
     display: flex;
@@ -464,7 +472,7 @@
         position: absolute;
         inset: 0;
         z-index: 1;
-        .ui-selected-mark();
+        .ui-selected-mark(@ui-selected-mark-left);
         pointer-events: none;
     }
 

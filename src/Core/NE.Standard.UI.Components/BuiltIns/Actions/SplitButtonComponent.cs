@@ -38,6 +38,13 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     public UISplitButtonMode? Mode { get; set; }
 
     /// <summary>
+    /// Whether a menu button draws the chevron at its end; off, its icon alone says it opens a menu (a "⋮"). A split button's end
+    /// part is its chevron and always draws it.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = true)]
+    public bool? ShowChevron { get; set; }
+
+    /// <summary>
     /// Gets the menu the button drops — its entries, their template and the command an entry runs.
     /// </summary>
     public MenuComponent Menu { get; }

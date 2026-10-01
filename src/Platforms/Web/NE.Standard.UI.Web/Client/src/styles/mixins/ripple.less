@@ -1,36 +1,66 @@
 @import "../core/tokens.less";
 
-// The press ripple, which press-ripple-engine.ts starts (`.ui-pressing`, `--ui-press-x/y`) unless a theme turns it off.
-.ui-press-ripple() {
-    // Clipped to the corners only while it plays, so an adornment's overhang is untouched at rest.
-    // Not while loading: runtime.less's veil is the same pseudo-element, and the ripple would flash behind the label.
-    &.ui-pressing:not(.ui-loading) {
-        overflow: hidden;
+// The press ripple, which press-ripple-engine.ts plays unless a theme turns it off: `.ui-pressing` while the wave lives,
+// `.ui-press-held` while the pointer is down, `--ui-press-x/y` the point it went down at, and the two properties below the wave's
+// size and fade, which the engine animates on the pressed element.
+
+// Registered, so a script animates them as a length and a number; not inherited, so a frame restyles the pressed element alone, and
+// the wave takes them from it by `inherit`.
+@property --ui-ripple-radius {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-ripple-opacity {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 1;
+}
+
+// The pressed thing's own ink: a dark wave on a light ground, a light one on a dark ground and on a filled button.
+@ui-ripple-ink: color-mix(in srgb, currentColor 16%, transparent);
+
+// How far an icon that is the whole face gives under a held press.
+@ui-press-icon-scale: 0.88;
+
+// The wave, on a pseudo-element covering the element's frame with its corners and cut to the circle: nothing is clipped on the
+// element itself, so an adornment overhanging it stays whole. `@pseudo` is whichever of the two the element leaves free.
+// Not while loading: the loading veil is a pseudo-element too, and the wave would flash behind the label.
+.ui-press-ripple(@pseudo: after) {
+    & when (@pseudo = after) {
+        &.ui-pressing:not(.ui-loading)::after {
+            .ui-press-ripple-layer();
+        }
     }
 
-    &.ui-pressing:not(.ui-loading)::after {
-        content: "";
-        position: absolute;
-        left: var(--ui-press-x, 50%);
-        top: var(--ui-press-y, 50%);
-        width: 250%;
-        height: 250%;
-        border-radius: 50%;
-        background: radial-gradient(circle, var(--ui-wash-active) 0%, transparent 70%);
-        transform: translate(-50%, -50%) scale(0);
-        pointer-events: none;
-        animation: ui-press-ripple @ui-motion-ripple @ui-motion-enter;
+    & when (@pseudo = before) {
+        &.ui-pressing:not(.ui-loading)::before {
+            .ui-press-ripple-layer();
+        }
     }
 }
 
-@keyframes ui-press-ripple {
-    from {
-        transform: translate(-50%, -50%) scale(0);
-        opacity: 1;
-    }
+.ui-press-ripple-layer() {
+    --ui-ripple-radius: inherit;
+    --ui-ripple-opacity: inherit;
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: @ui-ripple-ink;
+    clip-path: circle(var(--ui-ripple-radius) at var(--ui-press-x, 50%) var(--ui-press-y, 50%));
+    opacity: var(--ui-ripple-opacity);
+    pointer-events: none;
+}
 
-    to {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0;
-    }
+// An icon that is the whole face (an icon-only button, a rail's entry) gives a little while held, and springs back on release.
+.ui-press-icon() {
+    transition: scale @ui-motion-normal @ui-motion-spring;
+}
+
+.ui-press-icon-held() {
+    scale: @ui-press-icon-scale;
+    transition-duration: @ui-motion-fast;
+    transition-timing-function: @ui-motion-ease;
 }

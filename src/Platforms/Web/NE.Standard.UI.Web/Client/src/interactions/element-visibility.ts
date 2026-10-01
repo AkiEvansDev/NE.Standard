@@ -46,6 +46,33 @@ export function isClippedOut(element: Element): boolean {
     return isEmpty(visible);
 }
 
+/**
+ * The nearest box around the element that is a view onto it — a scroll container, its overflow `hidden`, `auto` or `scroll`: a
+ * list's scrolling box, a canvas — or null where none is. A box that only clips (`overflow: clip`, every container's default) cuts
+ * its content off but shows no more of it, so a popup floating over the element may stand outside it.
+ */
+export function viewportOf(element: Element): Element | null {
+    let position = getComputedStyle(element).position;
+
+    for (let current = element.parentElement; current !== null && position !== "fixed"; current = current.parentElement) {
+        const style = getComputedStyle(current);
+
+        if (position === "absolute" && style.position === "static" && style.transform === "none")
+            continue;
+
+        if (isViewOverflow(style.overflowX) || isViewOverflow(style.overflowY))
+            return current;
+
+        position = style.position;
+    }
+
+    return null;
+}
+
+function isViewOverflow(overflow: string): boolean {
+    return overflow === "hidden" || overflow === "auto" || overflow === "scroll";
+}
+
 function clip(box: Box, start: number, end: number, horizontal: boolean): void {
     if (horizontal) {
         box.left = Math.max(box.left, start);

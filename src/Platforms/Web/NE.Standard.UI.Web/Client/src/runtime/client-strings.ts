@@ -4,7 +4,7 @@ import { logDebug, logWarn } from "./logger.ts";
 import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
 import type { TemporalLanguage } from "../rendering/temporal-format.ts";
-import { formatTimestamp } from "../rendering/timestamp-format.ts";
+import { formatTimestamp, isRelativeFormat } from "../rendering/timestamp-format.ts";
 import { needRelativeTicks } from "./relative-clock.ts";
 import type { TimestampFormat } from "../rendering/timestamp-format.ts";
 import type { NumberCulturePack } from "../rendering/number-format.ts";
@@ -39,11 +39,23 @@ export type ClientStringKey =
     | "ui.image.choose"
     | "ui.image.change"
     | "ui.image.remove"
+    | "ui.crop.title"
+    | "ui.crop.frame"
+    | "ui.crop.zoom"
+    | "ui.crop.apply"
+    | "ui.crop.cancel"
+    | "ui.image.unreadable"
     | "ui.select.remove"
     | "ui.row.drag"
     | "ui.tree.loading"
     | "ui.connection.lost"
-    | "ui.connection.reload";
+    | "ui.connection.reload"
+    | "ui.leave.title"
+    | "ui.leave.message"
+    | "ui.leave.confirm"
+    | "ui.leave.stay"
+    | "ui.actionbar.label"
+    | "ui.actionbar.more";
 
 /** A language's words as `/_ne/words/{language}.json` serves them. */
 export type WordsTable = {
@@ -329,10 +341,10 @@ export class ClientWords implements WordLookup {
 
     /**
      * A moment in the reader's zone, as a timestamp writes one: a day or a time in the table's patterns — the wire's canonical ones with
-     * no table — and a relative one by `Intl` in the table's language, which starts the ticks that keep it current.
+     * no table — and a relative one, or a relative day, by `Intl` in the table's language, which starts the ticks that keep it current.
      */
     public readonly writeMoment = (instant: number, format: TimestampFormat): string => {
-        if (format === "relative")
+        if (isRelativeFormat(format))
             this.noteRelative();
 
         return formatTimestamp(instant, format, { temporal: this.currentTemporal, language: this.currentLanguage }, Date.now());

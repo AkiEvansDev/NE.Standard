@@ -19,8 +19,10 @@ const ModifierKeys = new Set([
     "Shift", "Control", "Alt", "AltGraph", "Meta", "OS", "Hyper", "Super", "Fn", "FnLock", "Symbol", "SymbolLock", "CapsLock", "NumLock", "ScrollLock"
 ]);
 
-// Whether the reader's last input was a press of the pointer rather than a key, and what held the focus as that press began.
+// Whether the reader's last input was a press of the pointer rather than a key, whether that press was a finger's, and what held the
+// focus as that press began.
 let pointerLast = false;
+let touchLast = false;
 let focusedBeforePress: Element | null = null;
 
 // Every element wearing the mark, the focused one or not (a search's current option): the first real key takes it off them all.
@@ -31,15 +33,16 @@ const openedByPointer = new WeakSet<Element>();
 
 // On the window, capturing: ahead of any engine that stops the press or the key before it reaches the document.
 if (typeof window !== "undefined") {
-    window.addEventListener("pointerdown", domEvent => notePress(domEvent.target), true);
+    window.addEventListener("pointerdown", domEvent => notePress(domEvent.target, domEvent.pointerType), true);
     window.addEventListener("keydown", domEvent => noteKey(domEvent), true);
     window.addEventListener("focusin", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusout", domEvent => markPointerFocus(domEvent.target, false), true);
 }
 
 /** Notes a press; one inside the focused element marks it here, since no focusin follows, or unmarks an editable entry. */
-export function notePress(target: EventTarget | null): void {
+export function notePress(target: EventTarget | null, pointerType = ""): void {
     pointerLast = true;
+    touchLast = pointerType === "touch";
 
     const active = document.activeElement;
 
@@ -83,6 +86,11 @@ export function focusBeforePress(): HTMLElement | null {
 /** Whether the reader's last input was the pointer's: what a list asks before it draws the keyboard's mark on an entry. */
 export function isPointerLast(): boolean {
     return pointerLast;
+}
+
+/** Whether the last input was a finger's press: a screen with no hover, where a long press stands for the right one. */
+export function isTouchLast(): boolean {
+    return pointerLast && touchLast;
 }
 
 /** Puts the pointer's mark on an element, or takes it off; for a current entry the keyboard does not stand on (a search's option). */

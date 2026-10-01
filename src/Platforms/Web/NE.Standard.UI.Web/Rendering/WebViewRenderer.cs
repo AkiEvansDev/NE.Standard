@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Frozen;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Hosting;
@@ -23,6 +26,13 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private const string DialogPlacementAttribute = "data-ui-dialog-placement";
     private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
     private const string DrawerToggleClass = "ui-shell__drawer-toggle";
+
+    // The plain boxes a rail may stand in and still be a side's whole content: they give it room and ground, nothing of their own.
+    private static readonly FrozenSet<string> RailWrapperTypeKeys = new[]
+    {
+        ContainerComponent.ComponentTypeKey, StackPanelComponent.ComponentTypeKey, WrapPanelComponent.ComponentTypeKey,
+        SurfaceComponent.ComponentTypeKey, ScrollContainerComponent.ComponentTypeKey
+    }.ToFrozenSet(StringComparer.Ordinal);
 
     private readonly IWebRendererRegistry _renderers;
     private readonly ITranslator _translator;
@@ -70,8 +80,12 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         ArgumentNullException.ThrowIfNull(metadata);
 
         CompiledView view = viewResolution.View;
+        // A left side that is a rail alone is a bar along the page's bottom on a phone, not a drawer, so it has no button.
+        var bottomBar = view.Options.SideDrawers && IsRailAlone(view, RegionNames.LeftSide);
+        var leftDrawer = !bottomBar && HasRegion(view, RegionNames.LeftSide);
+        var rightDrawer = HasRegion(view, RegionNames.RightSide);
         // The band that carries the drawers' buttons: the header, or the content where a page has none.
-        var toggles = view.Options.SideDrawers ? ToggleHost(view) : null;
+        var toggles = view.Options.SideDrawers ? ToggleHost(view, leftDrawer, rightDrawer) : null;
 
         for (var i = 0; i < view.Regions.Length; i++)
         {
@@ -85,34 +99,88 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
                     _ = section.Attribute(StickyAttribute);
 
+                if (bottomBar && string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal))
+                    _ = section.Attribute(WebAttributes.BottomBar);
+
                 var carriesToggles = string.Equals(region.Key, toggles, StringComparison.Ordinal);
 
-                if (carriesToggles && HasRegion(view, RegionNames.LeftSide))
+                if (carriesToggles && leftDrawer)
                     RenderDrawerToggle(section, RegionNames.LeftSide, viewResolution);
 
                 RenderRoot(viewResolution, region.RootComponentId, section, metadata, values);
 
-                if (carriesToggles && HasRegion(view, RegionNames.RightSide))
+                if (carriesToggles && rightDrawer)
                     RenderDrawerToggle(section, RegionNames.RightSide, viewResolution);
             });
         }
     }
 
-    private static string? ToggleHost(CompiledView view)
-        => !HasRegion(view, RegionNames.LeftSide) && !HasRegion(view, RegionNames.RightSide) ? null
-            : HasRegion(view, RegionNames.Header) ? RegionNames.Header
-            : RegionNames.Content;
+    /// <summary>
+    /// Whether a side holds a rail and nothing else (<see cref="UIMenuDisplay.Rail"/>): the rail itself, or plain boxes each holding
+    /// only the next, down to it.
+    /// </summary>
+    private static bool IsRailAlone(CompiledView view, string side)
+    {
+        if (FindRegion(view, side) is not CompiledRegion region)
+            return false;
 
-    private static bool HasRegion(CompiledView view, string key)
+        UIComponentNode node = view.Graph.GetRequired(region.RootComponentId);
+
+        while (RailWrapperTypeKeys.Contains(node.TypeKey))
+        {
+            if (OnlyHeld(node) is not UIComponentId held)
+                return false;
+
+            node = view.Graph.GetRequired(held);
+        }
+
+        return string.Equals(node.TypeKey, MenuComponent.ComponentTypeKey, StringComparison.Ordinal)
+            && view.State.TryGetValue(node.ComponentId, MenuComponent.DisplayProperty, out CompiledUIPropertyValue? display)
+            && display is { IsBind: false, Value: UIMenuDisplay.Rail };
+    }
+
+    private static CompiledRegion? FindRegion(CompiledView view, string key)
     {
         foreach (CompiledRegion region in view.Regions)
         {
             if (string.Equals(region.Key, key, StringComparison.Ordinal))
-                return true;
+                return region;
         }
 
-        return false;
+        return null;
     }
+
+    /// <summary>The one component a box holds, as a child or as its content region; none where it holds more, or anything else.</summary>
+    private static UIComponentId? OnlyHeld(UIComponentNode node)
+    {
+        UIComponentId? held = null;
+
+        foreach (UIComponentId child in node.Children)
+        {
+            if (held is not null && held != child)
+                return null;
+
+            held = child;
+        }
+
+        foreach (UIComponentSlot slot in node.Slots)
+        {
+            if (slot.Kind is not (UIComponentSlotKind.Child or UIComponentSlotKind.Region) || (held is not null && held != slot.RootComponentId))
+                return null;
+
+            held = slot.RootComponentId;
+        }
+
+        return held;
+    }
+
+    private static bool HasRegion(CompiledView view, string key)
+        => FindRegion(view, key) is not null;
+
+    private static string? ToggleHost(CompiledView view, bool leftDrawer, bool rightDrawer)
+        => !leftDrawer && !rightDrawer ? null
+            : HasRegion(view, RegionNames.Header) ? RegionNames.Header
+            : RegionNames.Content;
 
     /// <summary>The button that opens one side as a drawer; the stylesheet shows it only on a narrow screen, and draws its burger.</summary>
     private void RenderDrawerToggle(IHtmlElementBuilder section, string side, UIViewResolution resolution)

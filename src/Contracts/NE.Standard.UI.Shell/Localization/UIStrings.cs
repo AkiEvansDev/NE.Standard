@@ -74,6 +74,14 @@ public static partial class UIStrings
     public const string ImageChoose = "ui.image.choose";
     public const string ImageChange = "ui.image.change";
     public const string ImageRemove = "ui.image.remove";
+
+    /// <summary>The crop dialog an image input opens on a chosen picture (<c>SetCrop</c>), and a picture it cannot open.</summary>
+    public const string ImageCropTitle = "ui.crop.title";
+    public const string ImageCropFrame = "ui.crop.frame";
+    public const string ImageCropZoom = "ui.crop.zoom";
+    public const string ImageCropApply = "ui.crop.apply";
+    public const string ImageCropCancel = "ui.crop.cancel";
+    public const string ImageUnreadable = "ui.image.unreadable";
     public const string RowEdit = "ui.row.edit";
     public const string RowSave = "ui.row.save";
     public const string RowCancel = "ui.row.cancel";
@@ -88,6 +96,7 @@ public static partial class UIStrings
     public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
     public const string LanguageSwitch = "ui.language.switch";
+    public const string LanguageCurrent = "ui.language.current";
     public const string NotFoundTitle = "ui.notfound.title";
     public const string NotFoundDescription = "ui.notfound.description";
 
@@ -101,6 +110,16 @@ public static partial class UIStrings
     public const string TreeLoading = "ui.tree.loading";
     public const string ConnectionLost = "ui.connection.lost";
     public const string ConnectionReload = "ui.connection.reload";
+
+    /// <summary>The framework's own question before a page holding unsaved work is left (<c>ConfirmLeaveEffect</c>).</summary>
+    public const string LeaveTitle = "ui.leave.title";
+    public const string LeaveMessage = "ui.leave.message";
+    public const string LeaveConfirm = "ui.leave.confirm";
+    public const string LeaveStay = "ui.leave.stay";
+
+    /// <summary>An action bar's name, and its "more" that opens the context menu it is a view of (<c>SetActionBar</c>).</summary>
+    public const string ActionBarLabel = "ui.actionbar.label";
+    public const string ActionBarMore = "ui.actionbar.more";
 
     private const string ColorNamePrefix = "ui.color.name.";
 
@@ -166,6 +185,12 @@ public static partial class UIStrings
         [ImageChoose] = "Choose a picture",
         [ImageChange] = "Change the picture",
         [ImageRemove] = "Remove the picture",
+        [ImageCropTitle] = "Crop the picture",
+        [ImageCropFrame] = "The picture in the frame: drag it or use the arrow keys to move it, the wheel or + and − to zoom",
+        [ImageCropZoom] = "Zoom",
+        [ImageCropApply] = "Done",
+        [ImageCropCancel] = "Cancel",
+        [ImageUnreadable] = "The picture could not be opened.",
         [RowEdit] = "Edit",
         [RowSave] = "Save",
         [RowCancel] = "Cancel",
@@ -177,7 +202,8 @@ public static partial class UIStrings
         [SideOpen] = "Open the side panel",
         [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
-        [LanguageSwitch] = "Switch language, {language}",
+        [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",
+        [LanguageCurrent] = "Language: {language} ({code})",
         [NotFoundTitle] = "404",
         [NotFoundDescription] = "The page you are looking for does not exist.",
         [NotFoundPageTitle] = "Page not found",
@@ -188,7 +214,13 @@ public static partial class UIStrings
         [ValueFormat] = "The value does not match the expected format.",
         [TreeLoading] = "Loading…",
         [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
-        [ConnectionReload] = "Reload"
+        [ConnectionReload] = "Reload",
+        [LeaveTitle] = "Leave without saving?",
+        [LeaveMessage] = "The changes on this page are not saved and will be lost.",
+        [LeaveConfirm] = "Leave",
+        [LeaveStay] = "Stay",
+        [ActionBarLabel] = "Actions",
+        [ActionBarMore] = "More actions"
     }).ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

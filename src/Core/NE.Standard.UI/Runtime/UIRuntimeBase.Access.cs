@@ -147,10 +147,11 @@ internal abstract partial class UIRuntimeBase
             return;
 
         // The command-result channel with no command behind it, as SendEffectsAsync takes to its one connection.
+        UICommandResult command = UICommandResult.Ok(ResolveEffects(effects));
         UICommandExecutionResult result = new()
         {
-            Command = UICommandResult.Ok(ResolveEffects(effects)),
-            Changes = ServerChangeSet.Empty
+            Command = command,
+            Changes = WithPageStateAhead(ServerChangeSet.Empty, command)
         };
 
         IUIUpdateSink updates = Connection.ClientServices.Updates;

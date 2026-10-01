@@ -64,7 +64,8 @@ public readonly record struct UIMoment
 
     /// <summary>
     /// Returns the moment as words carry it where no page writes it: the instant in UTC in the canonical patterns, said to be UTC where
-    /// it shows a clock — a relative one as the day and the time, since how long ago it was depends on when it is read.
+    /// it shows a clock — a relative one as the day and the time, since how long ago it was depends on when it is read, and a relative
+    /// day as the day.
     /// </summary>
     public override string ToString()
     {
@@ -72,7 +73,7 @@ public readonly record struct UIMoment
 
         return Format switch
         {
-            UITimestampFormat.Date => utc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            UITimestampFormat.Date or UITimestampFormat.RelativeDate => utc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             UITimestampFormat.Time => utc.ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture),
             _ => utc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture)
         };

@@ -13,6 +13,7 @@ public static class ClientEffectKinds
     public const string Navigate = "Navigate";
     public const string Focus = "Focus";
     public const string ScrollTo = "ScrollTo";
+    public const string ScrollToItem = "ScrollToItem";
     public const string Show = "Show";
     public const string Hide = "Hide";
     public const string Collapse = "Collapse";
@@ -30,6 +31,7 @@ public static class ClientEffectKinds
     public const string InsertText = "InsertText";
     public const string DiscardForm = "DiscardForm";
     public const string OpenPicker = "OpenPicker";
+    public const string ConfirmLeave = "ConfirmLeave";
 }
 
 /// <summary>

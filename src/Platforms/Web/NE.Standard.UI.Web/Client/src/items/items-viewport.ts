@@ -1,7 +1,8 @@
 // The element a host's rows are seen through: the host, or its parent under `data-ui-host-viewport="parent"` (a wide table's root, so
 // header and rows move together); the scroll is read in the host's own coordinates, a top of 0 being its first row.
 
-import { HostViewportAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
+// `.ts` on the value import: `node --test` runs this module through `item-reveal.ts`.
+import { HostViewportAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
 
 /** Where the host's rows stand in their viewport. */
 export type HostScroll = {

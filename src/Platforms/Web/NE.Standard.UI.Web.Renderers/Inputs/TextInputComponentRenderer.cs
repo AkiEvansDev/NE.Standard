@@ -73,8 +73,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute("maxlength")]);
 
-                // What the browser may fill in. A password manager reads the sign-in pair from these words alone; a password
-                // wrapped in its own form gets treated as a login with no username, so it stays in the page's one form.
+                // What the browser may fill in. A password manager reads the sign-in pair from these words and the form the
+                // field stands in: the page's, or its FormId's, so a sign-in pair shares one.
                 _ = RenderProperty<string?>(context, input, TextInputComponent.AutocompleteProperty, static (target, value) =>
                 {
                     if (!string.IsNullOrWhiteSpace(value))
@@ -112,6 +112,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
 
+                NativeInputRendererBase.RenderRunsOnEnter(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
                 RenderFieldLabel(context, input);

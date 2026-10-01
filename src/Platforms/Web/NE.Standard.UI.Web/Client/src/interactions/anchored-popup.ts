@@ -32,6 +32,11 @@ export type AnchoredPopupOptions = {
     readonly crossAnchor?: Element;
     /** The popup draws an arrow at the anchor, so it may be shifted along the cross axis to let the arrow reach a small anchor's centre. */
     readonly arrow?: boolean;
+    /**
+     * The box whose room the side is chosen in, where the popup belongs (a list's scrolling box, a canvas), rather than the window's
+     * alone: an action bar over a row the list's top edge cuts stands under the row, inside the list.
+     */
+    readonly boundary?: Element;
 };
 
 // The anchor is any element — an SVG shape as well as a control — since only its box is read.
@@ -88,15 +93,18 @@ export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options:
     tracked.set(popup, { anchor, options });
     attachListeners();
     resizeObserver?.observe(popup);
-    liftOutOfTransform(popup);
+    liftOutOfTransform(anchor, popup);
     position(anchor, popup, options);
 }
 
 // On a popup lifted into the top layer, for the stylesheet to take the popover's own box back off it.
 const LiftedAttribute = "data-ui-popup-lifted";
 
-/** Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer. */
-function liftOutOfTransform(popup: HTMLElement): void {
+/**
+ * Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer — and one opened from
+ * inside a popup lifted there, which would otherwise be painted under it whatever its stacking.
+ */
+function liftOutOfTransform(anchor: Element, popup: HTMLElement): void {
     // Still lifted from the last opening, its fade out not over yet: shown again where it stands.
     if (popup.hasAttribute(LiftedAttribute)) {
         if (!popup.matches(":popover-open"))
@@ -105,13 +113,38 @@ function liftOutOfTransform(popup: HTMLElement): void {
         return;
     }
 
-    if (!hasTransformedAncestor(popup))
+    if (!hasTransformedAncestor(popup) && anchor.closest(`[${LiftedAttribute}]`) === null)
         return;
 
     // A manual popover rather than a move in the document: its engine still finds its options under it.
     popup.setAttribute("popover", "manual");
     popup.setAttribute(LiftedAttribute, "");
+    showInTopLayerAtOnce(popup);
+}
+
+/**
+ * Shows a popover in the top layer from its first frame. A popup's fade holds `overlay` so its exit is seen there, and on the way
+ * in that would keep it drawn under its transformed ancestor — scaled with it, and measured so by the placement that follows —
+ * until the fade is over: the hold is taken off this one showing.
+ */
+function showInTopLayerAtOnce(popup: HTMLElement): void {
+    const style = getComputedStyle(popup);
+    const properties = style.transitionProperty.split(",").map(property => property.trim());
+    const overlay = properties.indexOf("overlay");
+
+    if (overlay === -1) {
+        popup.showPopover();
+        return;
+    }
+
+    // The durations repeat over the properties when the list is shorter.
+    const durations = style.transitionDuration.split(",").map(duration => duration.trim());
+
+    popup.style.setProperty("transition-duration", properties.map((_, index) => index === overlay ? "0s" : durations[index % durations.length]).join(", "));
     popup.showPopover();
+    // The style is settled with the hold off before it goes back on; the fade already under way keeps its own duration.
+    void getComputedStyle(popup).getPropertyValue("overlay");
+    popup.style.removeProperty("transition-duration");
 }
 
 function hasTransformedAncestor(element: Element): boolean {
@@ -141,6 +174,14 @@ function lowerIntoPlace(popup: HTMLElement): void {
         popup.removeAttribute("popover");
         popup.removeAttribute(LiftedAttribute);
     }, motion.fast);
+}
+
+/** Places a tracked popup again, for an engine that knows its anchor moved with no scroll or resize (a list redrawn around a row). */
+export function repositionAnchoredPopup(popup: HTMLElement): void {
+    const tracking = tracked.get(popup);
+
+    if (tracking !== undefined)
+        position(tracking.anchor, popup, tracking.options);
 }
 
 export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): void {
@@ -207,7 +248,7 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     const anchorRect = anchor.getBoundingClientRect();
     const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
     const popupRect = popup.getBoundingClientRect();
-    const side = resolveSide(anchorRect, popupRect, options);
+    const side = resolveSide(anchorRect, popupRect, options, roomOf(options.boundary));
 
     let top = topOffset(anchorRect, crossRect, popupRect, side, options.gap);
     let left = leftOffset(anchorRect, crossRect, popupRect, side, options.gap);
@@ -276,29 +317,51 @@ function setArrowOffset(popup: HTMLElement, crossRect: DOMRect, popupRect: DOMRe
     popup.style.setProperty("--ui-popup-arrow", `${Math.max(ArrowInset, Math.min(centre, span - ArrowInset))}px`);
 }
 
-function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, options: AnchoredPopupOptions): AnchoredPopupPlacement {
+/** The room a popup's side is chosen in: the window, or the part of a boundary inside it. */
+type Room = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+
+function roomOf(boundary: Element | undefined): Room {
+    const room = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+
+    if (boundary === undefined || !boundary.isConnected)
+        return room;
+
+    // Its client box: a scrollbar or a border is no room for the popup.
+    const box = boundary.getBoundingClientRect();
+    const left = box.left + boundary.clientLeft;
+    const top = box.top + boundary.clientTop;
+
+    return {
+        left: Math.max(room.left, left),
+        top: Math.max(room.top, top),
+        right: Math.min(room.right, left + boundary.clientWidth),
+        bottom: Math.min(room.bottom, top + boundary.clientHeight)
+    };
+}
+
+function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, options: AnchoredPopupOptions, room: Room): AnchoredPopupPlacement {
     const side = options.placement;
     const opposite = flip(side);
 
-    if (fits(anchorRect, popupRect, side, options.gap))
+    if (fits(anchorRect, popupRect, side, options.gap, room))
         return side;
 
-    if (fits(anchorRect, popupRect, opposite, options.gap))
+    if (fits(anchorRect, popupRect, opposite, options.gap, room))
         return opposite;
 
     // Clamped into a window too short (or too narrow) for either side of its axis, the popup would cover its own anchor: beside it
     // across the axis, it leaves the anchor in sight.
     for (const across of acrossSides(side)) {
-        if (fits(anchorRect, popupRect, across, options.gap))
+        if (fits(anchorRect, popupRect, across, options.gap, room))
             return across;
     }
 
     // A popup that fits nowhere keeps the side it asked for rather than flipping to an equally bad one.
-    return sideSpace(anchorRect, opposite) > sideSpace(anchorRect, side) ? opposite : side;
+    return sideSpace(anchorRect, opposite, room) > sideSpace(anchorRect, side, room) ? opposite : side;
 }
 
-function fits(anchorRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): boolean {
-    return sideSpace(anchorRect, placement) >= mainAxisSpan(popupRect, placement) + gap;
+function fits(anchorRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number, room: Room): boolean {
+    return sideSpace(anchorRect, placement, room) >= mainAxisSpan(popupRect, placement) + gap;
 }
 
 /** The sides across a placement's axis, the reading direction's first, each aligned to run on the way the placement asked for. */
@@ -323,17 +386,17 @@ function isVertical(placement: AnchoredPopupPlacement): boolean {
     return placement.startsWith("top") || placement.startsWith("bottom");
 }
 
-function sideSpace(anchorRect: DOMRect, placement: AnchoredPopupPlacement): number {
+function sideSpace(anchorRect: DOMRect, placement: AnchoredPopupPlacement, room: Room): number {
     if (placement.startsWith("top"))
-        return anchorRect.top;
+        return anchorRect.top - room.top;
 
     if (placement.startsWith("bottom"))
-        return window.innerHeight - anchorRect.bottom;
+        return room.bottom - anchorRect.bottom;
 
     if (placement.startsWith("left"))
-        return anchorRect.left;
+        return anchorRect.left - room.left;
 
-    return window.innerWidth - anchorRect.right;
+    return room.right - anchorRect.right;
 }
 
 function flip(placement: AnchoredPopupPlacement): AnchoredPopupPlacement {

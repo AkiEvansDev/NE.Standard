@@ -34,10 +34,19 @@
     }
 
     // The keyboard predicate, not :focus: a press focuses the handle too, and the bar must rest once the pointer leaves.
-    &@{live}:hover::before,
-    &@{ui-keyboard-focus}::before,
-    &[data-ui-splitting]::before {
+    @thick: {
         --ui-drag-bar-line: 3px;
         background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+    };
+
+    @media @ui-can-hover {
+        &@{live}:hover::before {
+            @thick();
+        }
+    }
+
+    &@{ui-keyboard-focus}::before,
+    &[data-ui-splitting]::before {
+        @thick();
     }
 }

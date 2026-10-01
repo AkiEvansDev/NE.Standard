@@ -52,6 +52,9 @@ public interface IUIClientEndpoint
     /// </remarks>
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle handle, UICommandRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>Answers a page asking to leave for <paramref name="target"/> while it holds unsaved work.</summary>
+    Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle handle, string target, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Reads a window of items for a windowed host.
     /// </summary>

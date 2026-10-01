@@ -1,0 +1,88 @@
+using System;
+using System.Collections.Generic;
+using DemoApp.Controllers.Base;
+
+namespace DemoApp.Controllers.Navigation.Breadcrumbs;
+
+/// <summary>
+/// A folder tree walked from a trail: the trail is the path, the list under it is what that folder holds.
+/// </summary>
+internal sealed partial class FolderBrowserContext : DemoGroupContext
+{
+    private const string Root = "buckets";
+
+    private static readonly Dictionary<string, (string Title, string? Parent)> Folders = new(StringComparer.Ordinal)
+    {
+        [Root] = ("Buckets", null),
+        ["backups-eu-west"] = ("backups-eu-west", Root),
+        ["backups-us-east"] = ("backups-us-east", Root),
+        ["invoices"] = ("invoices", Root),
+        ["2026"] = ("2026", "backups-eu-west"),
+        ["2025"] = ("2025", "backups-eu-west"),
+        ["api-eu-west-1"] = ("api-eu-west-1", "2026"),
+        ["db-eu-west-1"] = ("db-eu-west-1", "2026"),
+        ["db-us-east-2"] = ("db-us-east-2", "backups-us-east"),
+        ["invoices-2026"] = ("2026", "invoices"),
+    };
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<BreadcrumbItem> Path { get; } = [];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> Entries { get; } = [];
+
+    public FolderBrowserContext()
+    {
+        Open(Root);
+    }
+
+    /// <summary>
+    /// Rebuilds both halves from the folder, so a clicked step and an opened folder are the same move.
+    /// </summary>
+    public void Open(string id)
+    {
+        if (!Folders.TryGetValue(id, out (string Title, string? Parent) folder))
+            return;
+
+        List<BreadcrumbItem> trail = [];
+
+        for (var current = (string?)id; current is not null; current = Folders[current].Parent)
+            trail.Insert(0, new BreadcrumbItem { Id = current, Title = Folders[current].Title, Icon = current == Root ? DemoIcons.Outline(DemoIcons.Cloud) : null });
+
+        Path.Clear();
+        Path.AddRange(trail);
+
+        Entries.Clear();
+
+        foreach ((var key, (var title, var parent)) in Folders)
+        {
+            if (parent == id)
+                Entries.Add(new TextItem { Id = key, Title = title, Icon = DemoIcons.Outline(DemoIcons.Folder) });
+        }
+
+        LogEvent($"Opened {folder.Title}");
+    }
+}
+
+/// <summary>
+/// One trail and every property that can be bound to it, and the folder browser whose trail is its path.
+/// </summary>
+internal sealed partial class BreadcrumbsController() : DemoStandardController
+{
+    [RecursiveMember]
+    public partial BreadcrumbsGroupContext TrailGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial FolderBrowserContext Browser { get; set; } = new();
+
+    [UICommand]
+    public void CycleTrailGroupOption(string id)
+        => TrailGroup.CycleOption(id);
+
+    /// <summary>
+    /// One command for both a step and a folder row, each naming the folder it stands for.
+    /// </summary>
+    [UICommand]
+    public void Open(string id)
+        => Browser.Open(id);
+}

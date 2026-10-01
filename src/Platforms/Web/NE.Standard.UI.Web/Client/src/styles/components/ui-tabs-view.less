@@ -101,20 +101,26 @@
 }
 
 // The whole caption is the press (tabs-view-engine.ts), so it takes a fill where a Tabs caption changes only words and line (mixins/tabs.less).
-.ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:hover {
-    background: var(--ui-wash-hover);
+@media @ui-can-hover {
+    .ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:hover {
+        background: var(--ui-wash-hover);
+    }
 }
 
 .ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:active:not(:has(.ui-tab-item__close:active)) {
     background: var(--ui-wash-active);
 }
 
-    .ui-tab-item__caption:hover .ui-tab-item__label {
-        .ui-tab-caption-hover-ink();
+    @media @ui-can-hover {
+        .ui-tab-item__caption:hover .ui-tab-item__label {
+            .ui-tab-caption-hover-ink();
+        }
     }
 
-    .ui-tab-item__caption:hover::after {
-        .ui-tab-caption-hover-mark();
+    @media @ui-can-hover {
+        .ui-tab-item__caption:hover::after {
+            .ui-tab-caption-hover-mark();
+        }
     }
 
 // Same selected vocabulary as .ui-tab-header: no ground, surface ink, primary line unless the author overrides it.
@@ -122,9 +128,14 @@
     .ui-selected-ground(transparent);
 }
 
-.ui-tab-item--selected .ui-tab-item__label,
-.ui-tab-item--selected .ui-tab-item__caption:hover .ui-tab-item__label {
+.ui-tab-item--selected .ui-tab-item__label {
     .ui-tab-caption-selected-ink();
+}
+
+@media @ui-can-hover {
+    .ui-tab-item--selected .ui-tab-item__caption:hover .ui-tab-item__label {
+        .ui-tab-caption-selected-ink();
+    }
 }
 
     // As in a tab strip: the label's text body wears TitleType and would re-declare the weight over the one set just above.
@@ -132,9 +143,18 @@
         font-weight: var(--ui-selected-font-weight, 600);
     }
 
-    .ui-tab-item--selected .ui-tab-item__caption::after,
-    .ui-tab-item--selected .ui-tab-item__caption:hover::after {
+    .ui-tab-item__label .ui-text__title[data-ui-caption-text]::after {
+        .ui-tab-caption-reserve();
+    }
+
+    .ui-tab-item--selected .ui-tab-item__caption::after {
         .ui-tab-caption-selected-mark();
+    }
+
+    @media @ui-can-hover {
+        .ui-tab-item--selected .ui-tab-item__caption:hover::after {
+            .ui-tab-caption-selected-mark();
+        }
     }
 
 // A pinned tab's mark, the library's own glyph, in the close control's place: a pinned tab has no close, so the caption keeps its width.
@@ -182,7 +202,13 @@
     transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-tab-item__caption:hover .ui-tab-item__close,
+    @media @ui-can-hover {
+        .ui-tab-item__caption:hover .ui-tab-item__close {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
     .ui-tab-item--selected .ui-tab-item__close,
     .ui-tab-item__close@{ui-keyboard-focus} {
         opacity: 1;
@@ -190,8 +216,10 @@
     }
 
     // Ink alone: the caption is the surface that washes under the pointer.
-    .ui-tab-item__close:hover {
-        color: @ui-text-ink;
+    @media @ui-can-hover {
+        .ui-tab-item__close:hover {
+            color: @ui-text-ink;
+        }
     }
 
     // A tab that cannot be removed keeps the close's slot but not the control, so it aligns with neighbours that can.

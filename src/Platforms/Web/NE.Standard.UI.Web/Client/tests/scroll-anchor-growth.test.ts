@@ -1,9 +1,13 @@
 // An end-anchored list that stood at its end stays there while a row grows after its first paint (a picture loading), until the reader
 // scrolls away; one the reader scrolled up keeps the row being read in place while rows above it grow. Rows are watched by their boxes,
-// since growing touches no node and no text.
+// since growing touches no node and no text. The end is the whole way down, with a step of room the stylesheet keeps past the last row.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import less from "less";
 
 import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
@@ -83,6 +87,33 @@ test("a list standing at its end follows a row that grows after its first paint"
     resized(photo);
 
     assert.equal(host.scrollTop, 1334);
+});
+
+test("a list stopped inside the end's slack is taken the whole way, so its last row is not a few pixels short", () => {
+    const host = feed(698, rowAt("m1", 0, 100));
+
+    new ScrollAnchorEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    assert.equal(host.scrollTop, 1000);
+});
+
+test("a row that grew between the list's scroll to its end and its first sight is followed", () => {
+    const photo = rowAt("m1", 0, 100);
+    const host = feed(700, photo);
+
+    new ScrollAnchorEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    grow(photo, 434, host);
+    resized(photo);
+
+    assert.equal(host.scrollTop, 1334);
+});
+
+test("an end-anchored list keeps a step of room past its last row, where a raised row's shadow stands", async () => {
+    const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
+    const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
+
+    assert.match(css, /\n\.ui-items-view > \[data-ui-scroll-anchor="End"\] \{\s*padding-block-end: 0\.25rem;\s*\}/);
 });
 
 test("a list the reader scrolled up keeps the row they read in place while a row above it grows, and one below moves nothing", () => {

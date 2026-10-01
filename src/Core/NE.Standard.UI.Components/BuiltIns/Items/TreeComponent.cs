@@ -9,13 +9,14 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
 /// <summary>A tree on the file list's model: thin rows with a glyph and title, folded by a chevron kept on the client.</summary>
 /// <remarks>
-/// Selected like an items view, opened by double click or Enter, renamed in place, with a menu by kind. Nodes are a flat keyed list
-/// in walking order, each naming the node above it.
+/// Selected and pressed like an items view, opened by double click or Enter, renamed in place, with a menu by kind. Nodes are a flat
+/// keyed list in walking order, each naming the node above it.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
@@ -24,7 +25,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
-public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IEmptyStateComponent
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
@@ -66,8 +68,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public bool? Removable { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node that can unfold draws its chevron; off, folding still works from the keyboard or a click on
-    /// the node.
+    /// Gets or sets whether a node that can unfold draws its chevron; off, folding still works from the keyboard (arrows), and a
+    /// click folds only an unselectable node.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowFoldChevron { get; set; }
@@ -101,6 +103,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => Self.ConfigureTemplate(NodeTemplate, configure, "template");
 
     /// <summary>
+    /// Configures the built-in default empty template, throwing if a different template has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+
+    /// <summary>
     /// Sets the node template a node is drawn with when no variant matches its kind.
     /// </summary>
     public T SetNodeTemplate(TreeNodeComponent template)
@@ -129,6 +137,31 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
 
         return AddNodeKind(kind, template);
     }
+
+    /// <summary>
+    /// Registers the command a press on a node runs, with the node's key as an argument.
+    /// </summary>
+    public T OnNodeClickWithItemKey(string command, string argumentName = "id")
+        => OnNodeClick(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Registers the command a press on a node runs, with the node's item as an argument.
+    /// </summary>
+    public T OnNodeClickWithItem(string command, string argumentName = "item")
+        => OnNodeClick(command, UIAction.ArgCurrentItem(argumentName));
+
+    /// <summary>
+    /// Registers the command a press on a node runs, after the selection has followed the press; a press on the chevron only folds,
+    /// and Enter opens rather than presses, as in an items view.
+    /// </summary>
+    public T OnNodeClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnRowClick(command, arguments);
+
+    /// <summary>
+    /// Registers the command a press on a node runs, with an argument derived from the specified <paramref name="argumentKind"/>.
+    /// </summary>
+    public T OnNodeClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
+        => OnNodeClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
 
     /// <summary>
     /// Registers the command a double click or Enter on a node runs, with the node's key as an argument.

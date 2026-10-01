@@ -76,8 +76,10 @@
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
-    &@{ui-adornment-live}:hover {
-        color: var(--ui-color-on-surface);
+    @media @ui-can-hover {
+        &@{ui-adornment-live}:hover {
+            color: var(--ui-color-on-surface);
+        }
     }
 
     &:is(:disabled, [aria-disabled='true']) {
@@ -163,6 +165,16 @@
     }
 }
 
+// Where nothing hovers, a veil's mark stands in the picture's corner at all times instead of over the whole picture: a small round
+// mark that leaves the picture to be seen (a shelf tile's cross, a picture's pencil).
+.ui-picture-corner-mark() {
+    inset: 0.25rem 0.25rem auto auto;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    opacity: 1;
+}
+
 // The up/down pair at a field's end (number input, time input): one column behind a rule, two chevrons from the shared glyph.
 .ui-field-stepper() {
     display: flex;
@@ -191,8 +203,10 @@
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
-    &:hover {
-        color: var(--ui-color-on-surface);
+    @media @ui-can-hover {
+        &:hover {
+            color: var(--ui-color-on-surface);
+        }
     }
 
     &::before {
@@ -233,8 +247,10 @@
 
 // The states of an own field-shaped control on `.ui-field-ground()`: hover, and the active edge on a field's focus or an open popup.
 .ui-field-states(@hover: var(--ui-field-hover)) {
-    &@{ui-button-live}:hover {
-        .ui-field-edge-hover(@hover);
+    @media @ui-can-hover {
+        &@{ui-button-live}:hover {
+            .ui-field-edge-hover(@hover);
+        }
     }
 
     &@{ui-button-live}:is(@{ui-field-focus}, [aria-expanded="true"]) {

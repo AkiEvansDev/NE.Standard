@@ -3,6 +3,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
@@ -20,6 +21,7 @@ public sealed class ParagraphComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         _ = root.Class("ui-paragraph");
+        _ = root.Class(WebClassNames.ContentText);
 
         RenderTooltip(context, root);
         RenderParagraphFlow(context, root, root);

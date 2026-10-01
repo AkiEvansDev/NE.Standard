@@ -1263,6 +1263,28 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         }
     }
 
+    /// <inheritdoc />
+    public async Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle handle, string target, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (!UIRoutePath.IsLocal(target))
+            throw new ArgumentException("A leave names an address of this site.", nameof(target));
+
+        UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
+
+        if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
+        {
+            return new UICommandExecutionResult
+            {
+                Command = UICommandResult.Fail("The session has ended."),
+                Changes = ServerChangeSet.Empty
+            };
+        }
+
+        return await entry.Runtime.RequestLeaveAsync(handle, target, cancellationToken).ConfigureAwait(false);
+    }
+
     private void CompleteCommand(Activity? activity, string route, string? command, bool succeeded, long started)
     {
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
@@ -1445,7 +1467,13 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         // The asking page's runtime stays to finish its answer, but under PerClient other tabs share it; they go as well.
         if (except is not null && keep is UIRuntimeKey kept && RuntimeStore.TryGet(kept, out IUIRuntime? shared) && shared is not null)
+        {
+            // Nothing it holds can be saved under an ended session: the sign-out's own navigation leaves unasked.
+            if (shared.Controller is UIControllerBase controller)
+                controller.ReleaseUnsavedWork();
+
             await SendViewersAwayAsync(shared, signIn: true, except).ConfigureAwait(false);
+        }
 
         for (var i = 0; i < ended.Length; i++)
             await EndRuntimeAsync(ended[i], signIn: true).ConfigureAwait(false);
@@ -1480,10 +1508,11 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
             UINavigationRequest page = viewer.Instance.Navigation;
 
+            // Ahead of the navigation: its runtime is gone, so nothing the page held can be saved, and nothing is asked.
             UICommandExecutionResult result = new()
             {
                 Command = UICommandResult.Ok([new NavigateEffect(signIn && viewer.Session.IsAuthenticated ? SignInOrReload(page) : page)]),
-                Changes = ServerChangeSet.Empty
+                Changes = new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] }
             };
 
             try

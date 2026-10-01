@@ -32,6 +32,7 @@ internal sealed partial class UIViewCompilationContext
         UIPropertyRegister.EnsureRegistered(component.GetType());
         ValidateSplitButton(component);
         ValidateKeyValueEditing(component);
+        ValidateActionBar(component);
         AddComponentContent(component);
     }
 
@@ -53,6 +54,13 @@ internal sealed partial class UIViewCompilationContext
     {
         if (component is IKeyValueActionComponent { Editable: true, HasActionClick: true })
             throw new InvalidOperationException($"Key-value list '{component.Id}' edits its rows in place and has an action click command; the rows' action is then the edit pencil, which cannot be both. Drop OnActionClick, or pass the command to EnableEditing as its edit command.");
+    }
+
+    // The bar is a quick view of the context menu's entries, so with no menu it would have nothing to show and nothing behind "more".
+    private static void ValidateActionBar(IVisualComponent component)
+    {
+        if (component.ActionBar is not null && component.ContextMenu is null)
+            throw new InvalidOperationException($"'{component.Id}' has an action bar and no context menu; the bar shows the menu's entries marked InActionBar, so set the menu with SetContextMenu.");
     }
 
     private void AddComponentContent(IVisualComponent component)

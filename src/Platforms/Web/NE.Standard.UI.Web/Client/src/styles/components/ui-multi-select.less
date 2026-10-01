@@ -50,9 +50,11 @@
     height: 1.125rem;
     color: inherit;
 
-    &@{ui-adornment-live}:hover {
-        color: inherit;
-        background: color-mix(in srgb, currentColor 16%, transparent);
+    @media @ui-can-hover {
+        &@{ui-adornment-live}:hover {
+            color: inherit;
+            background: color-mix(in srgb, currentColor 16%, transparent);
+        }
     }
 }
 

@@ -15,19 +15,20 @@ import { ImageInputEngine } from "../interactions/image-input-engine";
 import { KeyValueActionEngine } from "../interactions/key-value-action-engine";
 import { ToggleButtonEngine } from "../interactions/toggle-button-engine";
 import { FieldBoxPressEngine } from "../interactions/field-box-press-engine";
-import { FieldKeysEngine } from "../interactions/field-keys-engine";
+import { FieldEnterEvent, FieldKeysEngine } from "../interactions/field-keys-engine";
 import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
 import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
 import { SearchInputEngine } from "../interactions/search-input-engine";
-import { DebouncedCommitEngine } from "../interactions/debounced-commit-engine";
+import { commitWaiting, DebouncedCommitEngine, hasWaitingCommits } from "../interactions/debounced-commit-engine";
 import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
 import { RangeValueEngine } from "../interactions/range-value-engine";
 import { NumberInputEngine } from "../interactions/number-input-engine";
-import { ItemMoveEvent, ItemsReorderEngine } from "../interactions/items-reorder-engine";
+import { ItemsReorderEngine, itemMoveEvent } from "../interactions/items-reorder-engine";
 import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
 import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine";
+import { ActionBarEngine } from "../interactions/action-bar-engine";
 import { ContextMenuEngine } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
@@ -50,6 +51,7 @@ import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
 import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { SurfacePressEngine } from "../interactions/surface-press-engine";
+import { TextSelectionEngine } from "../interactions/text-selection-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
 import { PressRippleEngine } from "../interactions/press-ripple-engine";
 import { startRefusals } from "../interactions/refusal-engine";
@@ -69,7 +71,7 @@ import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine"
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import {
-    ClientEffectKinds, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest, WebUIAttachResult,
+    ClientEffectKinds, ConfirmLeaveClientEffect, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest, WebUIAttachResult,
     getIdValue
 } from "../metadata/metadata-index";
 import { applyThemeColors } from "../rendering/theme-colors";
@@ -83,8 +85,11 @@ import { SignalRTransport } from "../transport/signalr-transport";
 import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
 import { fetchStagedValuesAsync, hasStagedValues } from "../transport/value-staging";
 import { DomOperationRegistration } from "../updates/dom-operation-registry";
+import { ensureFormOwners } from "../updates/form-owner";
 import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { DialogEngine } from "../interactions/dialog-engine";
+import { showLeaveDialog } from "../interactions/leave-dialog";
+import { LeaveGuard } from "../interactions/leave-guard";
 import { observeComponents } from "../interactions/dom-mutations";
 import { NotificationEngine } from "../interactions/notification-engine";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
@@ -101,7 +106,7 @@ import { writeBadgeCount } from "../rendering/web-dom-converters";
 import { numberFormatting } from "../rendering/number-format";
 import { temporalFormatting } from "../rendering/temporal-format";
 import { applyPageCultures } from "../rendering/page-culture";
-import { asBrowserReads, isImageSource } from "../rendering/url-safety";
+import { asBrowserReads, isImageSource, isLocalRoute } from "../rendering/url-safety";
 import { ClientStore } from "../state/client-store";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
 import { ValueConverterRegistration } from "../extensions/converters";
@@ -125,6 +130,7 @@ type EngineContext = {
     readonly propertyPatchEngine: PropertyPatchEngine;
     readonly effects: EffectRegistry;
     readonly validation: FieldValidation;
+    readonly dialogs: DialogEngine;
 };
 
 /** Icons as a package draws them on elements it builds itself: an icon value written the way a renderer writes it. */
@@ -148,7 +154,6 @@ export type PluginEngineContext = EngineContext & {
     readonly strings: ClientWords;
     readonly observeComponents: typeof observeComponents;
     readonly observeSize: typeof observeSize;
-    readonly dialogs: DialogEngine;
     readonly store: ClientStore;
     readonly numbers: typeof numberFormatting;
     readonly temporal: typeof temporalFormatting;
@@ -183,7 +188,7 @@ export type PropertyWriting = {
 const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
     ["refusal", ({ root }) => startRefusals(root)],
     ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
-    ["image input", ({ root, validation, propertyPatchEngine }) => new ImageInputEngine({ root, validation, propertyPatchEngine })],
+    ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
     ["key value action", ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine })],
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
     ["field keys", ({ root }) => new FieldKeysEngine({ root })],
@@ -208,6 +213,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
     ["button group", ({ root }) => new ButtonGroupEngine({ root })],
     ["menu", ({ root }) => new MenuEngine({ root })],
+    ["action bar", ({ root }) => new ActionBarEngine({ root })],
     // Before the group engine: it restores a menu's fold, and groups are opened against the shape that leaves.
     ["collapsible", ({ root }) => new CollapsibleEngine({ root })],
     ["menu group", ({ root }) => new MenuGroupEngine({ root })],
@@ -221,12 +227,11 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
     ["surface press", ({ root }) => new SurfacePressEngine({ root })],
+    ["text selection", ({ root }) => new TextSelectionEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
     ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root })],
     ["text fold", ({ root }) => new TextFoldEngine({ root })],
-    ["tooltip", ({ root }) => startTooltips(root)],
-    // A theme flag, not a per-page choice: off the flag, the whole engine never starts.
-    ["press ripple", ({ root }) => document.documentElement.hasAttribute(PressRippleAttribute) ? new PressRippleEngine({ root }) : undefined]
+    ["tooltip", ({ root }) => startTooltips(root)]
 ];
 
 export class WebUIRuntime {
@@ -254,6 +259,7 @@ export class WebUIRuntime {
     private readonly virtualization: ItemsVirtualizationEngine;
     private readonly notifications: NotificationEngine;
     private readonly effects: EffectRegistry;
+    private readonly leaveGuard: LeaveGuard;
 
     /** Public so a plugin's own Source-driven config can reuse this dispatch. */
     public readonly reactiveSources: ReactiveSourceRegistry;
@@ -312,7 +318,9 @@ export class WebUIRuntime {
             notifications: this.notifications,
             valueReaders: this.extensions.valueReaders,
             // Nothing waits on this: the theme is already on screen, and the session only has to catch up.
-            reportTheme: theme => void this.transport.setThemeAsync(theme).catch(error => logWarn("reporting the theme to the session failed.", error))
+            reportTheme: theme => void this.transport.setThemeAsync(theme).catch(error => logWarn("reporting the theme to the session failed.", error)),
+            // The leave guard is built once the value engine is: no effect runs before the constructor ends.
+            navigate: url => this.leaveGuard.navigate(url)
         });
 
         const interactionIndex = new InteractionIndex(this.metadata);
@@ -436,6 +444,39 @@ export class WebUIRuntime {
             for (const element of valueBinding?.releaseForm(formId) ?? [])
                 propertyPatchEngine.restoreBoundValue(element, context.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
         });
+
+        // Asked behind every value given before the leave, so the controller answers on what the reader typed last.
+        this.leaveGuard = new LeaveGuard({
+            window,
+            ask: async target => {
+                await valueBinding?.whenSent();
+
+                return (await this.transport.requestLeaveAsync(target)).command?.effects;
+            },
+            apply: effects => {
+                this.effects.applyAll(effects, this.dom);
+                this.windows.reconsider();
+            },
+            confirm: (_target, leave) => showLeaveDialog(this.dialogs, leave),
+            // The first edit's value may be what sets the flag: a leave while one is unanswered waits for its answer.
+            pending: () => hasWaitingCommits() || valueChangeDispatcher.isBusy,
+            settle: async () => {
+                commitWaiting();
+                await valueChangeDispatcher.whenAnsweredAsync();
+            }
+        });
+        this.updateProcessor.addPageHandler(update => this.leaveGuard.set(update.holdsUnsavedWork === true));
+        this.effects.register(ClientEffectKinds.ConfirmLeave, context => {
+            const target = (context.effect as ConfirmLeaveClientEffect).target;
+
+            if (!isLocalRoute(target)) {
+                logWarn("confirm leave effect names no address of this site; nothing asked.", context.effect);
+                return;
+            }
+
+            this.leaveGuard.confirm(target as string);
+        });
+
         const validationEngine = new ValidationEngine({
             root: this.root,
             metadata: this.metadata,
@@ -445,7 +486,7 @@ export class WebUIRuntime {
             valueReaders: this.extensions.valueReaders
         });
 
-        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine };
+        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs };
 
         for (const [name, start] of ComponentEngines)
             startEngine(name, start, this.engineContext);
@@ -460,6 +501,13 @@ export class WebUIRuntime {
 
         // Apart from the list: whether a sort orders a host is the rules', and a virtualized host's order its values'.
         startEngine("items reorder", ({ root }) => new ItemsReorderEngine({ root, services: { metadata: this.metadata, state: propertyState, keysOf: host => this.virtualization.keysOf(host) } }), this.engineContext);
+
+        // A theme flag, not a per-page choice: off the flag, the whole engine never starts. Apart from the list: a row answers a press
+        // where its click is the view's, which the metadata knows.
+        startEngine("press ripple", ({ root }) => document.documentElement.hasAttribute(PressRippleAttribute) ? new PressRippleEngine({
+            root,
+            clicks: component => this.metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component))
+        }) : undefined, this.engineContext);
 
         this.eventPipeline = new EventPipeline({
             root: this.root,
@@ -481,8 +529,11 @@ export class WebUIRuntime {
 
         // After them, since each is added bare: the tab menu's entry names its own keys, the entry and the tab, as a package's event does.
         this.eventPipeline.addEvent(TabMenuEntryEvent.name, TabMenuEntryEvent.registration);
-        // A row's move carries the index it takes after its keys; a tree's carries none and keeps its chain.
-        this.eventPipeline.addEvent(ItemMoveEvent.name, ItemMoveEvent.registration);
+        // A row's move carries the index it takes after its keys, the row standing there until the answer; a tree's carries none.
+        const itemMove = itemMoveEvent(this.updateProcessor.moves);
+        this.eventPipeline.addEvent(itemMove.name, itemMove.registration);
+        // A field's Enter waits for the value it committed, so the command reads what was typed.
+        this.eventPipeline.addEvent(FieldEnterEvent.name, FieldEnterEvent.registration);
 
         // Held by name, since a package's chooser reaches it through the engine context.
         this.tables = new TableColumnsEngine({ root: this.root });
@@ -499,7 +550,6 @@ export class WebUIRuntime {
             strings: clientStrings,
             observeComponents,
             observeSize,
-            dialogs: this.dialogs,
             store: new ClientStore(),
             numbers: numberFormatting,
             temporal: temporalFormatting,
@@ -744,7 +794,14 @@ export class WebUIRuntime {
             message: clientStrings.text("ui.connection.lost"),
             severity: "danger",
             sticky: true,
-            action: { label: clientStrings.text("ui.connection.reload"), run: () => window.location.reload() }
+            // Unasked: the page can save nothing now, and what reached its runtime is still there after the reload while the runtime lives.
+            action: {
+                label: clientStrings.text("ui.connection.reload"),
+                run: () => {
+                    this.leaveGuard.release();
+                    window.location.reload();
+                }
+            }
         });
     }
 
@@ -757,6 +814,7 @@ export class WebUIRuntime {
 
         logWarn("the page was rendered from another compile of its view; reloading.", { view });
         rememberReloadedView(view);
+        this.leaveGuard.release();
         window.location.reload();
     }
 
@@ -766,6 +824,9 @@ export class WebUIRuntime {
 
     public async startAsync(): Promise<void> {
         exposeGlobalApi(this, this.options.handlerGlobalKey);
+
+        // Before DOMContentLoaded, when a browser reads the page's forms: the markup is parsed by the time a module runs.
+        ensureFormOwners(this.root);
 
         // A package's module registers as it runs, after this one; every module has run by DOMContentLoaded, so hydration waits for it.
         await documentParsedAsync();
@@ -983,6 +1044,9 @@ export class WebUIRuntime {
 
             // Behind whatever was already queued, and applied here rather than through the queue the hold closes.
             await hold.previous;
+
+            // The snapshot says the page holds unsaved work only where it does: a runtime that saved meanwhile says nothing.
+            this.leaveGuard.set(false);
             await this.applyAttachChangesAsync(result.initialChanges);
 
             this.updateProcessor.initializeItemsHosts();

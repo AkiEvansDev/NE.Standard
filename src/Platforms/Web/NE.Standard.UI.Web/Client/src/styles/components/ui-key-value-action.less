@@ -36,16 +36,20 @@
     // A pixel short at the bottom, which the separator below takes back: see the note on .ui-expander__header.
     padding: @ui-space-1 @ui-space-4 calc(@ui-space-1 - 1px);
     border-bottom: 1px solid var(--ui-color-border);
+    // The pointer's wash fades in and out, as a list's or a table's row's does; a row is a component root, whose fade leads the list.
+    transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease;
 }
 
 // Clipped to the padding box, off the separator.
-.ui-key-value-action--row-hover .ui-key-value-action__row:hover {
-    .ui-row-hover();
-    background-clip: padding-box;
+@media @ui-can-hover {
+    .ui-key-value-action--row-hover .ui-key-value-action__row:hover {
+        .ui-row-hover();
+        background-clip: padding-box;
 
-    // One wash, not two: the editing cell's own focus-within wash (below) comes off under a hover the row already answers.
-    .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
-        background: none;
+        // One wash, not two: the editing cell's own focus-within wash (below) comes off under a hover the row already answers.
+        .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+            background: none;
+        }
     }
 }
 
@@ -74,8 +78,9 @@
 
 // With no edge of its own — no border, no fill — the list stands in its holder's inset, so its keys line up with what is beside them
 // in a card or an expander; the separators stay. The fill is read off the inline Background, the one place it is written. Surface
-// Background is not an edge: every list carries it by default, and its ground is the page's own.
-.ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*="--ui-surface-color"]) {
+// Background is not an edge: every list carries it by default, and its ground is the page's own. A list whose rows wash under the
+// pointer keeps the inset, since the wash is then the row's edge and the key would stand on it.
+.ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*="--ui-surface-color"], .ui-key-value-action--row-hover) {
     .ui-key-value-action__row,
     .ui-key-value-action__host > [data-ui-empty-placeholder] {
         padding-inline: 0;

@@ -23,7 +23,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IEmptyStateComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -88,8 +89,8 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
 
     /// <summary>
     /// Registers the command a row dropped at another place among the rows raises — by a drag with <c>Draggable</c> on, or Alt+Up and
-    /// Alt+Down — with the item's key and the index it now takes in the collection; the controller moves it, since nothing moves on the
-    /// client.
+    /// Alt+Down — with the item's key and the index it now takes in the collection. The row stands there at once; the controller's
+    /// Move of it keeps it there or puts it where the controller did, and an answer without one puts it back.
     /// </summary>
     /// <remarks>
     /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.

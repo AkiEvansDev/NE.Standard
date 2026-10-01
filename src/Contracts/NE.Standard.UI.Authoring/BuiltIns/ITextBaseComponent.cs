@@ -35,11 +35,6 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty TitleTypeProperty { get; } = new(nameof(TitleType));
 
     /// <summary>
-    /// Gets the registered property key for <see cref="ITextBaseModel.Selectable"/>.
-    /// </summary>
-    static UIProperty SelectableProperty { get; } = new(nameof(Selectable));
-
-    /// <summary>
     /// Gets the registered property key for <see cref="ITextBaseModel.TitleColor"/>.
     /// </summary>
     static UIProperty TitleColorProperty { get; } = new(nameof(TitleColor));

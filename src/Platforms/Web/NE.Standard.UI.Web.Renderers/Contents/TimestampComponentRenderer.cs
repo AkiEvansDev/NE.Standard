@@ -70,7 +70,8 @@ public sealed class TimestampComponentRenderer : WebComponentRendererBase
 
     /// <summary>
     /// The instant as the server can write it, in UTC in the page's names and the application's patterns, until the page writes it
-    /// in the reader's zone; a relative one as the day and the time, since how long ago it was depends on when the page is read.
+    /// in the reader's zone; a relative one as the day and the time, since how long ago it was depends on when the page is read, and a
+    /// relative day as the day.
     /// </summary>
     public static string FirstPaint(DateTimeOffset instant, UITimestampFormat format, CultureInfo culture, UITemporalOptions? options)
         => WebMoments.FirstPaint(instant, format, culture, options);

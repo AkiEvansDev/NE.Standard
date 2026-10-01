@@ -18,8 +18,10 @@
     color: @ui-link-ink;
 }
 
-.ui-link@{ui-button-live}:hover {
-    .ui-brighten-hover();
+@media @ui-can-hover {
+    .ui-link@{ui-button-live}:hover {
+        .ui-brighten-hover();
+    }
 }
 
 .ui-link__content {
@@ -37,6 +39,8 @@
     transition: text-decoration-color @ui-motion-fast @ui-motion-ease;
 }
 
-.ui-link@{ui-button-live}:hover .ui-text__title {
-    text-decoration-color: currentColor;
+@media @ui-can-hover {
+    .ui-link@{ui-button-live}:hover .ui-text__title {
+        text-decoration-color: currentColor;
+    }
 }

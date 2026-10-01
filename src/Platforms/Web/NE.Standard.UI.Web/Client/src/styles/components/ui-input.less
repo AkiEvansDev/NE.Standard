@@ -16,7 +16,6 @@
     min-width: 0;
     color: var(--ui-text-muted);
     white-space: nowrap;
-    user-select: none;
     pointer-events: none;
 }
 
@@ -54,7 +53,6 @@
 .ui-input--title-inside > :is(@{ui-input-field}) > .ui-input__header {
     flex: 0 0 auto;
     max-width: 65%;
-    user-select: none;
     pointer-events: none;
 }
 
@@ -91,7 +89,13 @@
     cursor: help;
 
     // A plain badge has no ground to say it is live, so its muted ink comes up to the text's.
-    &.ui-badge-style--plain:is(:hover, @{ui-keyboard-focus}) {
+    @media @ui-can-hover {
+        &.ui-badge-style--plain:hover {
+            color: @ui-text-ink;
+        }
+    }
+
+    &.ui-badge-style--plain@{ui-keyboard-focus} {
         color: @ui-text-ink;
     }
 
@@ -250,15 +254,19 @@
 }
 
 // States are a ladder by source order, hover weightless so every later state outranks it; its edge alone, since a field is no button.
-:where(.ui-input--filled@{ui-field-live}) > :is(@{ui-input-field}):hover,
-:where(.ui-input--filled@{ui-field-live}) > .ui-field-box:hover {
-    .ui-field-edge-hover();
+@media @ui-can-hover {
+    :where(.ui-input--filled@{ui-field-live}) > :is(@{ui-input-field}):hover,
+    :where(.ui-input--filled@{ui-field-live}) > .ui-field-box:hover {
+        .ui-field-edge-hover();
+    }
 }
 
 // Primary but dimmed: full colour is reserved for focus, or Underline's ringless hover would look the same as its focus.
-:where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > :is(@{ui-input-field}):hover,
-:where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > .ui-field-box:hover {
-    .ui-field-edge-hover(var(--ui-field-hover-accent));
+@media @ui-can-hover {
+    :where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > :is(@{ui-input-field}):hover,
+    :where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > .ui-field-box:hover {
+        .ui-field-edge-hover(var(--ui-field-hover-accent));
+    }
 }
 
 // An open popup's control reads as active, since opening moves no focus into it; a ghost, having no edge, reuses its focus wash.

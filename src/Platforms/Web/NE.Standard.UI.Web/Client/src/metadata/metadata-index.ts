@@ -273,7 +273,8 @@ export type UIUpdateKindName =
     | "Value"
     | "CollectionChange"
     | "FullResync"
-    | "Validation";
+    | "Validation"
+    | "Page";
 
 type UIUpdateKindValue = UIUpdateKindName | number;
 
@@ -282,6 +283,7 @@ export type ServerUIUpdate =
     | ServerCollectionChangeUIUpdate
     | ServerFullResyncUIUpdate
     | ServerValidationUIUpdate
+    | ServerPageUIUpdate
     | UnknownServerUIUpdate;
 
 export type ServerValueUIUpdate = {
@@ -302,6 +304,12 @@ export type ServerValidationUIUpdate = {
     readonly severity?: WebValidationSeverity;
     /** The input's own refusal words marked content (`AsContent`): shown as written, never looked up. */
     readonly content?: boolean;
+};
+
+/** What the page as a whole holds: whether its controller says it holds work its reader has not saved. */
+export type ServerPageUIUpdate = {
+    readonly kind: UIUpdateKindValue;
+    readonly holdsUnsavedWork?: boolean;
 };
 
 export type CollectionUpdateActionName =
@@ -368,6 +376,7 @@ export type ClientEffectKindName =
     | "Navigate"
     | "Focus"
     | "ScrollTo"
+    | "ScrollToItem"
     | "Show"
     | "Hide"
     | "Collapse"
@@ -384,7 +393,8 @@ export type ClientEffectKindName =
     | "InsertText"
     | "DiscardForm"
     | "OpenPicker"
-    | "SetLanguage";
+    | "SetLanguage"
+    | "ConfirmLeave";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -394,6 +404,7 @@ export const ClientEffectKinds = {
     Navigate: "Navigate",
     Focus: "Focus",
     ScrollTo: "ScrollTo",
+    ScrollToItem: "ScrollToItem",
     Show: "Show",
     Hide: "Hide",
     Collapse: "Collapse",
@@ -410,7 +421,8 @@ export const ClientEffectKinds = {
     InsertText: "InsertText",
     DiscardForm: "DiscardForm",
     OpenPicker: "OpenPicker",
-    SetLanguage: "SetLanguage"
+    SetLanguage: "SetLanguage",
+    ConfirmLeave: "ConfirmLeave"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -468,6 +480,13 @@ export type ScrollToClientEffect = TargetedClientEffect & {
     readonly block?: ScrollToBlockName | number;
 };
 
+/** Brings the row of an items host whose item has `key` into view, its group header with it, and holds it there until the reader scrolls. */
+export type ScrollToItemClientEffect = TargetedClientEffect & {
+    readonly key?: string;
+    readonly block?: ScrollToBlockName | number;
+    readonly behavior?: ScrollToBehaviorName | number;
+};
+
 export type ScrollClientEffect = TargetedClientEffect & {
     readonly position?: ScrollPositionName | number;
     readonly axis?: ScrollAxisName | number;
@@ -483,6 +502,11 @@ export type DownloadFileClientEffect = ClientEffect & {
 /** Lets go of the edits a form's `OnSubmit` fields hold, so they show the server's values again. */
 export type DiscardFormClientEffect = ClientEffect & {
     readonly formId?: string;
+};
+
+/** Asks in the framework's own dialog whether to leave a page holding unsaved work for its target. */
+export type ConfirmLeaveClientEffect = ClientEffect & {
+    readonly target?: string;
 };
 
 export type DialogClientEffect = ClientEffect & {
@@ -866,7 +890,7 @@ export function getPropertyKeyName(value: UIPropertyAddress["property"] | null |
 }
 
 export function getUpdateKind(update: ServerUIUpdate): UIUpdateKindName | "Unknown" {
-    return resolveEnumName(update.kind, ["Value", "CollectionChange", "FullResync", "Validation"] as const);
+    return resolveEnumName(update.kind, ["Value", "CollectionChange", "FullResync", "Validation", "Page"] as const);
 }
 
 /** The key a handler is registered and looked up under, as written: folding unknown kinds together would collide them. */

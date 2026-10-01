@@ -48,6 +48,12 @@ public interface IMenuItemModel : ITextModel
     UIPhrase? Value { get; }
 
     /// <summary>
+    /// Gets whether this entry also stands in its owner's action bar (<c>SetActionBar</c>) as its icon, its title the icon's tooltip.
+    /// </summary>
+    /// <remarks>A context menu's plain entry only: a caption, a rule or a group's own entry never stands in the bar.</remarks>
+    bool? InActionBar { get; }
+
+    /// <summary>
     /// Gets the nested entries, empty for a leaf; for a <see cref="UIMenuItemKind.Select"/> entry, its choices.
     /// </summary>
     IEnumerable<IMenuItemModel> Items { get; }

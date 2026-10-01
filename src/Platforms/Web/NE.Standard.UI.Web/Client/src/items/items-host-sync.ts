@@ -1,17 +1,20 @@
-import { MetadataIndex } from "../metadata/metadata-index";
-import { PropertyStateStore } from "../state/property-state-store";
-import { ensureEmptyState } from "./items-empty-renderer";
-import { applyItemFilters } from "./items-filter-sort";
-import { createGroupHeader, regroupHost } from "./items-group-renderer";
-import { regroupWindow } from "./items-group-runs";
-import { resolveHostMode } from "./items-host-mode";
-import { ItemsTemplateRegistry } from "./items-template-registry";
-import { ItemsTemplateRenderer } from "./items-template-renderer";
-import { ItemsVirtualizationEngine } from "./items-virtualization-engine";
+// `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
+import type { MetadataIndex } from "../metadata/metadata-index";
+import type { PropertyStateStore } from "../state/property-state-store";
+import { ensureEmptyState } from "./items-empty-renderer.ts";
+import { applyItemFilters } from "./items-filter-sort.ts";
+import { createGroupHeader, regroupHost } from "./items-group-renderer.ts";
+import { regroupWindow } from "./items-group-runs.ts";
+import { resolveHostMode } from "./items-host-mode.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry";
+import type { ItemsTemplateRenderer } from "./items-template-renderer";
+import type { ItemsVirtualizationEngine } from "./items-virtualization-engine";
 
 /** Raised on a tree's host when its rules or their sources changed; the tree engine answers with a walk. */
 export const TreeRulesEventName = "ui-tree-rules";
 const TreeRootClass = "ui-tree";
+// A tree's node rows its walk has not filtered out; a row of waiting stands only beside a node, so it is never counted.
+const ShownTreeRowSelector = ":scope > .ui-tree__row:not(.ui-tree__row--filtered)";
 
 export type ItemsHostSyncContext = {
     readonly metadata: MetadataIndex;
@@ -26,6 +29,8 @@ export function syncItemsHost(host: Element, componentId: number, context: Items
     // A tree runs its own walk (a filter keeps a match's ancestors); the plain pass would hide a folder whose child matches.
     if (host.parentElement?.classList.contains(TreeRootClass) === true) {
         host.dispatchEvent(new Event(TreeRulesEventName, { bubbles: true }));
+        // After the walk, which marks what a filter leaves out: a tree with no node to show draws its empty state, as a list does.
+        ensureEmptyState(host, componentId, context.templates, context.renderer, host.querySelector(ShownTreeRowSelector) !== null);
         return;
     }
 

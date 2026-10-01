@@ -5,6 +5,13 @@
 
 @ui-focus-ring-offset: 2px;
 
+// Every pointer-hover look is drawn under this query: a touch screen keeps `:hover` on whatever a finger last tapped, so a wash, an
+// ink or a reveal there would stay lit after the tap. A press (`:active`, the ripple), the keyboard's marks and selection are not.
+@ui-can-hover: ~"(hover: hover)";
+// Its other half: where nothing hovers, what a hover would reveal shows on the thing the reader chose instead (a chosen tab's close),
+// or, on a lone thing with no state to wait for, at all times (a picture's pencil, a shelf tile's cross).
+@ui-cannot-hover: ~"(hover: none)";
+
 @ui-space-1: 0.25rem;  
 @ui-space-2: 0.5rem;   
 @ui-space-3: 0.75rem;  
@@ -25,6 +32,17 @@
 // The air between two entries of a list, so two grounds side by side (the chosen one, the pointer's) read as two, not one block.
 @ui-list-entry-gap: 2px;
 
+// An entry's corner in a list (a select's options, a popup menu's entries, the "…" and language lists, a calendar's cells, a sidebar's
+// entries): two thirds of a button's, 4 px to its 6, so a theme's shape scales both and a list reads finer than its buttons.
+@ui-list-entry-radius: ~"calc(var(--ui-radius-button) * 2 / 3)";
+
+// A popup's corner: its entries' widened by the list's padding, so the two curves run parallel — 8 px by default.
+@ui-popup-radius: ~"calc(var(--ui-radius-button) * 2 / 3 + @{ui-space-1})";
+
+// A range's track: a step of the text over whatever ground it stands on, so it reads on the page, a card and a dialog alike (the
+// raised ground it was is the dialog's own, where it vanished); on the page it is the raised step it was.
+@ui-range-track: ~"color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)";
+
 // How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
 @ui-popup-viewport-margin: 4px;
 
@@ -44,7 +62,7 @@
 // Muted is the ink at 68% on the page and at 87% on a filled ground, which reads 4.5:1 on every theme fill (Success, the lowest,
 // 4.6:1). One expression rather than a second property to set beside every base: the base's own veil, mixed under the page's
 // share, lifts the ink only where a base is set — unset or reset, the veil is transparent and the page's muted is what it was.
-@ui-text-muted-share: 0.68;
+@ui-text-muted-share: 0.75;
 @ui-text-muted-filled-share: 0.87;
 @ui-faint-lift: color-mix(in srgb, var(--ui-faint-base, transparent) percentage(((@ui-text-muted-filled-share - @ui-text-muted-share) / (1 - @ui-text-muted-share))), transparent);
 @ui-text-muted: color-mix(in srgb, @ui-text-ink percentage(@ui-text-muted-share), @ui-faint-lift);
@@ -58,7 +76,7 @@
 // the dialog, what the panel writes to `--ui-popup-ground` — its fill with 8 % more of the text, the step the panel is off the
 // surface. A Background or Tinted ground is the page's level again and takes the step back; a popup on the body is handed its
 // opener's (`carryPopupGround`, anchored-popup.ts).
-@ui-popup-ground: var(--ui-popup-ground, var(--ui-color-surface));
+@ui-popup-ground: var(--ui-popup-ground, var(--ui-popup-base, var(--ui-color-surface)));
 
 // A link on a filled ground: the brand ink could be the ground's own colour (1:1 on Primary), so there it takes the ground's ink,
 // as the text around it does, and its underline — at rest only there; on the page the hue says "link" and a hover draws the line.
@@ -77,12 +95,14 @@
 // A script that animates by itself reads these from rendering/motion.ts, which MotionSyncTests holds to the same numbers.
 @ui-motion-fast: 120ms;
 @ui-motion-normal: 200ms;
-// The press ripple: long enough to read as a flash, short enough not to outlast a quick click.
-@ui-motion-ripple: 250ms;
+// The press ripple's growth to the pressed thing's frame while the pointer is held; a quick click's finishes in @ui-motion-fast.
+@ui-motion-ripple: 400ms;
 @ui-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
 // The standard enter/exit pair. Use @ui-motion-ease where two boxes move against each other and their heights have to cancel.
 @ui-motion-enter: cubic-bezier(0, 0, 0.2, 1);
 @ui-motion-exit: cubic-bezier(0.4, 0, 1, 1);
+// A spring back past the rest and home again: what a press gave (an icon that shrank under the finger) returning.
+@ui-motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
 // Every component root's fade for Show and Hide, `visibility` held to its end; an own transition list starts with it, or the root
 // stops fading. No `display`: a collapse goes at once as a show arrives at once, or the page below would jump 200 ms late.

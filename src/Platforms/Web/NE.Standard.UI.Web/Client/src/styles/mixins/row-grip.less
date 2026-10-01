@@ -19,7 +19,9 @@
     }
 
     // Ink alone: the row is the surface that washes under the pointer.
-    &:hover {
-        color: inherit;
+    @media @ui-can-hover {
+        &:hover {
+            color: inherit;
+        }
     }
 }

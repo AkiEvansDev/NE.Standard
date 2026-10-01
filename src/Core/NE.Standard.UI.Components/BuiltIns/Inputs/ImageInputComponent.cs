@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
@@ -12,7 +13,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>A picture the viewer replaces by choosing a file, shown as an avatar, a drop area, a file-input row, or a shelf of thumbnails.</summary>
 /// <remarks>
 /// <c>Value</c> holds the picture's URL; the chosen file uploads at once, its handle landing in <see cref="SelectionId"/>, with a
-/// local preview shown until the controller replies. Nothing removes the picture on its own — offer a button that clears
+/// local preview shown until the controller replies — under <see cref="Crop"/>, once the reader has framed it. Nothing removes the picture on its own — offer a button that clears
 /// <c>Value</c>. With <see cref="Multiple"/>, or in the <see cref="UIImageInputShape.Shelf"/> shape, the control becomes a shelf of
 /// pictures whose handles arrive in <see cref="SelectionIds"/>, and <c>Value</c>, <c>Caption</c> and <see cref="SelectionId"/> go unused.
 /// </remarks>
@@ -109,6 +110,37 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// <remarks>Unset, it falls back to the file name from the picture's address, or nothing if the address carries none.</remarks>
     [UIComponentProperty(DefaultValue = null)]
     public string? Caption { get; set; }
+
+    /// <summary>
+    /// Gets or sets the frame a chosen picture is fitted to before it uploads: the reader moves and zooms it under a square or a
+    /// circle, and the square the frame holds is what is sent.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only, as the shape is. For a single picture — the picture, avatar and inline shapes; a shelf takes its pictures
+    /// as they are, and a crop on one fails the render. The crop runs in the browser, so <see cref="MaxFileSize"/> weighs the
+    /// cropped picture, and Cancel leaves the input as it was.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIImageCrop.None)]
+    public UIImageCrop? Crop { get; set; }
+
+    /// <summary>
+    /// Gets or sets the side, in pixels, the cropped picture is written at; unset, 1024. A frame holding fewer of the picture's own
+    /// pixels writes those, never scaled up.
+    /// </summary>
+    /// <remarks>Render-time only, as <see cref="Crop"/> is.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null, GenerateSetter = false)]
+    public int? CropSize { get; set; }
+
+    /// <summary>
+    /// Sets the side, in pixels, the cropped picture is written at.
+    /// </summary>
+    public T SetCropSize(int cropSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cropSize);
+
+        CropSize = cropSize;
+        return Self;
+    }
 }
 
 /// <summary>

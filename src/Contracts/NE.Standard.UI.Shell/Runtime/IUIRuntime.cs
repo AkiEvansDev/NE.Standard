@@ -104,6 +104,13 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Answers the reader starting to leave the page for <paramref name="target"/>, an address of this site: the controller's answer
+    /// while it holds unsaved work, else the navigation itself.
+    /// </summary>
+    /// <remarks>Runs in a command's turn; its effects come back in the answer, never pushed, whatever the runtime's update mode.</remarks>
+    Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle invoker, string target, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Reads a window of items for a windowed host, and returns what that changed.
     /// </summary>
     Task<ServerChangeSet> RequestItemWindowAsync(UIItemWindowClientRequest request, CancellationToken cancellationToken = default);

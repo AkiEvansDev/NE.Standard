@@ -22,7 +22,7 @@ import { openInlineRename } from "./inline-rename";
 import { removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { isInert, isItemDisabled } from "./interactive-state";
-import { focusedRow, litRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
+import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
 import { chooseRow, choosesOnEnter, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
@@ -195,6 +195,8 @@ export class TreeEngine {
 
             row.style.setProperty(DepthVariable, String(depth));
             row.setAttribute("aria-level", String(depth + 1));
+            // Named by its text, not its content: the chevron's own words ("Expand or collapse") are no part of the node's name.
+            nameRowBy(row, node?.querySelector(`:scope > .${TextClass}`) ?? null);
             row.classList.toggle(FoldedClass, !shown);
             row.classList.toggle(FilteredClass, filtered);
             row.removeAttribute(TreeBootAttribute);

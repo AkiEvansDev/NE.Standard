@@ -47,11 +47,6 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     public UITextBadgePlacement? BadgePlacement { get; set; }
 
     /// <inheritdoc/>
-    /// <remarks>A button's label is a control's caption, not content: a press must not start a selection.</remarks>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = false)]
-    public bool? Selectable { get; set; }
-
-    /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(ITextComponent), DefaultValueMember = nameof(DefaultDescriptionType))]
     public UITextAppearance? DescriptionType { get; set; }
 

@@ -2,17 +2,10 @@
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 
-// The page's own accent: a soft corner wash fixed to the window, so anything painted over the page can repeat it exactly.
-.ui-root-wash() {
-    background:
-        radial-gradient(ellipse 80rem 40rem at -14rem -14rem,
-            color-mix(in srgb, var(--ui-color-primary) 12%, transparent) 20%,
-            color-mix(in srgb, var(--ui-color-primary) 8%, transparent) 20%,
-            color-mix(in srgb, var(--ui-color-primary) 4%, transparent) 60%,
-            color-mix(in srgb, var(--ui-color-primary) 1%, transparent) 80%,
-            transparent 100%
-        ) fixed,
-        var(--ui-color-background);
+// The page's own ground, which a band standing over the page (the sticky header, the phone's bottom bar) repeats. No brand glow:
+// on a phone's width the corner wash covered the whole screen and tinted the near-black ground.
+.ui-root-ground() {
+    background: var(--ui-color-background);
 }
 
 [data-ui-root] {
@@ -27,19 +20,13 @@
     color: var(--ui-color-on-background);
     z-index: 1;
 }
-    // Fixed to the window, not the page, so the sticky header's own wash stays lined up with this one at every scroll position.
-    [data-ui-root]::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        .ui-root-wash();
-        z-index: -1;
-    }
-
-// The page is the viewport: the header and the sides stand, and each scrolling band scrolls by itself.
+// The page is the viewport: the header and the sides stand, and each scrolling band scrolls by itself. The dynamic height, since
+// on a phone 100vh reaches behind the browser's own toolbar, and the footer or a bottom bar would stand under it.
 [data-ui-root][data-ui-scroll-content] {
-    height: 100vh;
+    height: 100dvh;
+    // The root's 100vh minimum would outweigh the height while the toolbar shows: the page would outgrow the window by it, and a
+    // swipe past a region's end would scroll the document, sliding the header up under the toolbar and leaving it there.
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -74,7 +61,7 @@
     position: sticky;
     top: 0;
     z-index: 30;
-    .ui-root-wash();
+    .ui-root-ground();
 }
 
 [data-ui-region="left-side"] {
@@ -243,26 +230,83 @@
     outline-color: var(--ui-color-danger);
 }
 
-// Chrome is pressed and dragged, never selected (a caption's drag, a menu entry's press); Selectable is for prose, not inside chrome.
-@ui-chrome-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-key-value-action__action";
-
-:is(@{ui-chrome-hosts}),
-:is(@{ui-chrome-hosts}) .ui-text--selectable {
-    user-select: none;
+// Text selection, the one rule set (STYLING.md): the page is pressed, not read, so nothing selects but reading words — a Text's or a
+// Paragraph's body, a validation message, a package's rendered document (`.ui-content-text`, WebClassNames.ContentText) — and a field's
+// value. A component's TextSelectable (`data-ui-text-select`) sets the custom property its subtree reads, so the nearest one that says
+// wins; unset, the place decides. `-webkit-` too: Safari selects by the prefixed property alone.
+.ui-user-select(@value) {
+    -webkit-user-select: @value;
+    user-select: @value;
 }
 
-// A row dragged by itself (Draggable with no grip) is chrome too: selectable words in a draggable box take the press for a selection,
-// in place of the drag. A row that may not move keeps its words, as does a part a press never drags it by (a grid's open detail); a
-// host dragged by grips leaves them to the reader, but for a wrapped tile, which draws no grip and drags whole.
+body {
+    .ui-user-select(none);
+}
+
+[data-ui-text-select="true"] {
+    --ui-text-select: text;
+}
+
+[data-ui-text-select="false"] {
+    --ui-text-select: none;
+}
+
+[data-ui-text-select] {
+    .ui-user-select(var(--ui-text-select));
+}
+
+.ui-content-text {
+    .ui-user-select(var(--ui-text-select, text));
+}
+
+// Reading words standing in a row or a pressable surface are its caption: a press there chooses or opens, and a highlight would be
+// left behind. TextSelectable reaches them (a table whose cells are copied, a chat bubble).
+@ui-pressed-rows: ~".ui-items-view__item, .ui-table__row, .ui-surface--clickable, .ui-key-value-action";
+
+:is(@{ui-pressed-rows}) .ui-content-text {
+    .ui-user-select(var(--ui-text-select, none));
+}
+
+// A control's words are never selected, whatever a TextSelectable says around or inside it: a press is the control's, a drag its
+// drag (a caption's, a tab's), and a double press must not light a word of a label.
+@ui-control-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action";
+
+:is(@{ui-control-hosts}),
+:is(@{ui-control-hosts}) :is(.ui-content-text, [data-ui-text-select]) {
+    .ui-user-select(none);
+}
+
+// A row dragged by itself (Draggable with no grip) never selects either: selectable words in a draggable box take the press for a
+// selection, in place of the drag. A row that may not move keeps the place's rule, as does a part a press never drags it by (a grid's
+// open detail); a host dragged by grips leaves its rows to the place, but for a wrapped tile, which draws no grip and drags whole.
 @ui-dragged-rows: ~".ui-items-view[data-ui-rows-draggable]:is(:not([data-ui-rows-drag-handle]), .ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item:not([data-ui-undraggable]), .ui-table[data-ui-rows-draggable]:not([data-ui-rows-drag-handle]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:not([data-ui-undraggable])";
 
 :is(@{ui-dragged-rows}),
-:is(@{ui-dragged-rows}) .ui-text--selectable:not([data-ui-no-row-drag] *) {
-    user-select: none;
+:is(@{ui-dragged-rows}) :is(.ui-content-text, [data-ui-text-select]):not([data-ui-no-row-drag] *) {
+    .ui-user-select(none);
 }
 
 :is(@{ui-dragged-rows}) [data-ui-no-row-drag] {
-    user-select: text;
+    .ui-user-select(var(--ui-text-select, none));
+}
+
+// A long press on a menu's owner is the menu's (long-press.ts): no callout, and where there is no hover no selection starting under
+// the finger, reading words and a TextSelectable inside included. A pointer with hover keeps selecting what the place lets it.
+[data-ui-context-menu-owner] {
+    -webkit-touch-callout: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    [data-ui-context-menu-owner],
+    [data-ui-context-menu-owner] :is(.ui-content-text, [data-ui-text-select]) {
+        .ui-user-select(none);
+    }
+}
+
+// Last, to win every tie above: a field's value is always the reader's to select, and inside a menu's owner keeps its callout.
+:is(input, textarea, [contenteditable=""], [contenteditable="true"]) {
+    -webkit-touch-callout: default;
+    .ui-user-select(text);
 }
 
 // Loading fades the ground and turns the ring. A button without an icon dims its label instead (Chrome paints its label box over the

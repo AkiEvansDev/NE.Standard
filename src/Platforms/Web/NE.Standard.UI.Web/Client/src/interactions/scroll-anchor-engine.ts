@@ -9,8 +9,8 @@ const EndAnchor = "End";
 // Slack rather than an exact comparison: fractional scroll positions and sub-pixel row heights fall short of it.
 const EndThreshold = 4;
 
-// What the reader does to scroll a list themselves, which lets go of a list held at its end.
-const ReaderScrollEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+// What the reader does to scroll a list themselves, which lets go of a list held at its end, and of a row held in view (`item-reveal.ts`).
+export const ReaderScrollEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
 
 // The containers a jump to the end stands at the end of — through the window it reads there, and whatever grows meanwhile — until the
 // reader scrolls: the scroll it causes and a window swapped under it are not the reader leaving the end.
@@ -19,6 +19,11 @@ const heldAtEnd = new WeakSet<Element>();
 /** Holds an end-anchored container at its end until the reader scrolls it themselves: what a Scroll effect to the end asks for. */
 export function holdAtEnd(container: Element): void {
     heldAtEnd.add(container);
+}
+
+/** Lets go of a container held at its end, for a scroll the page was asked for elsewhere in it (a row brought into view). */
+export function letGoOfEnd(container: Element): void {
+    heldAtEnd.delete(container);
 }
 
 export type ScrollAnchorEngineOptions = {
@@ -142,11 +147,12 @@ export class ScrollAnchorEngine {
 
             this.heights.set(row, box.height);
 
-            // The first sight of a row is its drawing, which the container's own change already answered.
-            if (before === undefined || before === box.height)
+            if (before === box.height)
                 continue;
 
-            const above = box.top + before <= container.getBoundingClientRect().top ? box.height - before : 0;
+            // The first sight of a row is its drawing, which the container's own change answered — but it may have grown since that
+            // answer measured it (a picture sized between the two), which only a container held at its end has to follow.
+            const above = before !== undefined && box.top + before <= container.getBoundingClientRect().top ? box.height - before : 0;
 
             grown.set(container, (grown.get(container) ?? 0) + above);
         }
@@ -177,9 +183,10 @@ function letGo(domEvent: Event): void {
         heldAtEnd.delete(container);
 }
 
+// All the way, not to within `isAtEnd`'s slack: that slack says the reader is still at the end, but a list stopped inside it shows its
+// last row a few pixels short. A list already there is not moved and raises no scroll.
 function scrollToEnd(container: Element): void {
-    if (!isAtEnd(container))
-        container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight;
 }
 
 export function isEndAnchored(container: Element): boolean {

@@ -51,6 +51,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-items-view--no-empty", WebValueCondition.IsFalse);
         RenderFlagAttribute(context, root, ItemsViewComponent.DraggableProperty, WebAttributes.RowsDraggable);
         RenderFlagAttribute(context, root, ItemsViewComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
         RenderDragHandlePlacement(context, root, ItemsViewComponent.DragHandlePlacementProperty);

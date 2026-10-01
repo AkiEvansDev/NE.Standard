@@ -67,7 +67,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     // A text body is drawn per row, so its operation lists are built once rather than per body.
     private static readonly WebDomOperation[] TextAlignmentOperations = [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)];
-    private static readonly WebDomOperation[] SelectableOperations = [WebDomOperation.ToggleClass($"{TextClassPrefix}--selectable")];
     private static readonly WebDomOperation[] BadgePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementClass)];
     private static readonly WebDomOperation[] AffixTextOperations = [WebDomOperation.Text()];
     private static readonly WebDomOperation[] InputAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
@@ -193,12 +192,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UITextAlignment alignment)
                 _ = target.Class(WebClassNames.TextAlignment(alignment));
         }, TextAlignmentOperations);
-
-        _ = RenderProperty<bool?>(context, container, ITextBaseComponent.SelectableProperty, static (target, value) =>
-        {
-            if (value is true)
-                _ = target.Class($"{TextClassPrefix}--selectable");
-        }, SelectableOperations);
     }
 
     private static void RenderTextBadge(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder badge, WebTextBodyOptions options)

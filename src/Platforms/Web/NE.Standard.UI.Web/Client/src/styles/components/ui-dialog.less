@@ -68,17 +68,9 @@
     align-self: var(--ui-align-v, center);
     overflow: auto;
     padding: @ui-space-4;
-    border-radius: var(--ui-radius-card);
-    background: var(--ui-surface-raised);
-    color: var(--ui-color-on-surface);
-    // A ground of its own: muted text inside fades this ink, not a filled panel's the dialog was declared in.
-    --ui-faint-base: initial;
-    --ui-ground: var(--ui-surface-raised);
-    // A field inside mixes its fill into the dialog's, as in a raised card, not into the page it covers.
-    --ui-surface-fill: var(--ui-surface-raised);
-    // A popup opened in the dialog is lifted once more, as a raised card's is.
-    .ui-popup-ground-lifted(var(--ui-surface-raised));
-    .ui-elevation-4();
+    // A ground of its own: muted text inside fades this ink, a field mixes its fill into it and a popup opened in it is lifted
+    // once more, as in a raised card, not on the page it covers.
+    .ui-dialog-look();
     .ui-dialog-enter();
 }
 
@@ -168,6 +160,22 @@
 
 .ui-dialog[data-ui-dialog-placement="bottom"] {
     --ui-dialog-sheet-from: translateY(100%);
+}
+
+// The framework's own "Leave without saving?" (leave-dialog.ts): a title, a line, and its two answers at the end, Stay first.
+.ui-leave-dialog__title {
+    margin: 0 0 @ui-space-2;
+}
+
+.ui-leave-dialog__message {
+    margin: 0 0 @ui-space-4;
+}
+
+.ui-leave-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: @ui-space-2;
 }
 
 @keyframes ui-dialog-backdrop-in {

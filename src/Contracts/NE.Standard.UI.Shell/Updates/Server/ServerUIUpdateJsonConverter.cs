@@ -23,6 +23,7 @@ public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
             ServerUIUpdateKind.CollectionChange => typeof(ServerCollectionChangeUIUpdate),
             ServerUIUpdateKind.FullResync => typeof(ServerFullResyncUIUpdate),
             ServerUIUpdateKind.Validation => typeof(ServerValidationUIUpdate),
+            ServerUIUpdateKind.Page => typeof(ServerPageUIUpdate),
             _ => throw new JsonException($"Server UI update kind '{kind}' is not supported.")
         };
 

@@ -44,6 +44,11 @@
         padding: @ui-space-1 @ui-space-2;
     }
 
+    // ShowEmptyTemplate off: an empty tree says nothing; hidden, so a bound flag turned on shows it again.
+    .ui-tree--no-empty > .ui-tree__host > [data-ui-empty-placeholder] {
+        display: none;
+    }
+
 .ui-tree__host.ui-scroll-x--disabled {
     overflow-x: hidden;
 }
@@ -126,11 +131,14 @@
     background-color: var(--ui-wash-hover);
 }
 
-.ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover {
-    .ui-row-hover();
+@media @ui-can-hover {
+    .ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover {
+        .ui-row-hover();
+    }
 }
 
 .ui-row-cursor(~".ui-tree", ~".ui-tree__row");
+.ui-row-bar(~".ui-tree"; ~".ui-tree__row"; ~""; ~"> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar");
 
 .ui-tree[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
 .ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live} {
@@ -188,8 +196,10 @@
     }
 
     // Ink alone: the row is the surface that washes under the pointer.
-    .ui-tree-node__toggle:hover {
-        color: inherit;
+    @media @ui-can-hover {
+        .ui-tree-node__toggle:hover {
+            color: inherit;
+        }
     }
 
     // The menu's size, a whole pixel count: in em of the title the mark reads too faint beside it.

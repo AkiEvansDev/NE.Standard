@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -20,7 +21,8 @@ public static class NativeInputRendererBase
     /// </summary>
     public static WebDomOperation ReadOnlyMarkOperation { get; } = WebDomOperation.ToggleClass(WebClassNames.ReadOnly, target: "root", condition: WebValueCondition.IsTrue);
 
-    private static readonly WebDomOperation[] FormIdOperations = [WebDomOperation.Attribute(WebAttributes.FormId)];
+    private static readonly WebDomOperation[] FormIdOperations = [WebDomOperation.Attribute(WebAttributes.FormId), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
+    private static readonly WebDomOperation[] FormMarkOperations = [WebDomOperation.Attribute(WebAttributes.FormId)];
     private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
     private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
@@ -29,16 +31,56 @@ public static class NativeInputRendererBase
     private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept")];
     private static readonly WebDomOperation[] SelectionOperations = [WebDomOperation.Property("value")];
 
+    /// <summary>
+    /// The field's <c>FormId</c>: the framework's form, and the browser's own the field joins by <c>form</c> — the hidden form the
+    /// shell writes for it (<see cref="WebForms"/>).
+    /// </summary>
     public static void RenderFormId(WebRenderContext context, IHtmlElementBuilder input)
+        => RenderFormId(context, input, joinsForm: true);
+
+    /// <summary>
+    /// The <c>FormId</c> on an element; <paramref name="joinsForm"/> false where it is not a field the browser could own (a radio
+    /// group's root), so it carries the framework's form alone.
+    /// </summary>
+    public static void RenderFormId(WebRenderContext context, IHtmlElementBuilder element, bool joinsForm)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(element);
+
+        if (!joinsForm)
+        {
+            _ = WebComponentRendererBase.RenderProperty<string?>(context, element, IInputComponent.FormIdProperty, static (target, value) =>
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _ = target.Attribute(WebAttributes.FormId, value);
+            }, FormMarkOperations);
+
+            return;
+        }
+
+        _ = WebComponentRendererBase.RenderProperty<string?>(context, element, IInputComponent.FormIdProperty, static (target, value) =>
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            _ = target.Attribute(WebAttributes.FormId, value);
+            _ = target.Attribute("form", WebForms.ElementId(value));
+        }, FormIdOperations);
+    }
+
+    /// <summary>
+    /// Marks a text field whose Enter runs a command or an interaction (<c>OnEnter</c>): the field keys engine commits the value and
+    /// raises <c>enter</c> where the field stands, rather than leaving it or breaking the line.
+    /// </summary>
+    public static void RenderRunsOnEnter(WebRenderContext context, IHtmlElementBuilder input)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
 
-        _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IInputComponent.FormIdProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.FormId, value);
-        }, FormIdOperations);
+        CompiledUIEventAddress enter = new(context.Node.ComponentId, EventNames.Enter);
+
+        if (context.ViewResolution.View.Events.TryGet(enter, out _) || context.ViewResolution.View.Interactions.GetBySource(enter).Count > 0)
+            _ = input.Attribute(WebAttributes.RunsOnEnter);
     }
 
     /// <summary>Writes the <c>name</c> a native field carries; <paramref name="part"/> separates several fields of one component.</summary>

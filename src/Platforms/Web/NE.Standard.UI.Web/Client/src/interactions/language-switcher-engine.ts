@@ -28,7 +28,9 @@ const MenuClass = "ui-language-switcher__menu";
 const ChoiceClass = "ui-language-switcher__choice";
 const OpenClass = "ui-language-switcher--open";
 const MenuGap = 4;
+// The button's name: with two languages what it switches to, with more the page's language alone (the list says the rest).
 const SwitchKey = "ui.language.switch";
+const CurrentKey = "ui.language.current";
 
 export class LanguageSwitcherEngine {
     private readonly options: LanguageSwitcherEngineOptions;
@@ -186,11 +188,11 @@ export class LanguageSwitcherEngine {
             if (trigger === null)
                 continue;
 
-            // A language it does not offer checks none.
-            for (const choice of choicesOf(switcher))
-                choice.setAttribute("aria-checked", choice.getAttribute(LanguageAttribute) === language ? "true" : "false");
+            const choices = choicesOf(switcher);
 
-            let shown = language.toUpperCase();
+            // A language it does not offer checks none.
+            for (const choice of choices)
+                choice.setAttribute("aria-checked", choice.getAttribute(LanguageAttribute) === language ? "true" : "false");
 
             for (const text of trigger.querySelectorAll<HTMLElement>(`.${LabelTextClass}`)) {
                 const current = text.getAttribute(LanguageAttribute) === language;
@@ -200,16 +202,43 @@ export class LanguageSwitcherEngine {
 
                 if (text.classList.contains(PageLabelClass))
                     text.toggleAttribute("hidden", !current);
-
-                if (current)
-                    shown = text.textContent ?? shown;
             }
 
-            clientStrings.write(trigger, "aria-label", SwitchKey, { language: shown });
+            // By its name and the code the button shows, as the renderer writes it (the label in the name).
+            if (choices.length === 2) {
+                const other = choices.find(choice => choice.getAttribute(LanguageAttribute) !== language) ?? choices[0];
+                const otherLanguage = other.getAttribute(LanguageAttribute) ?? "";
+
+                clientStrings.write(trigger, "aria-label", SwitchKey, { language: nameOf(choices, language), code: codeOf(language), other: nameOf(choices, otherLanguage), otherCode: codeOf(otherLanguage) });
+            }
+            else
+                clientStrings.write(trigger, "aria-label", CurrentKey, { language: nameOf(choices, language), code: codeOf(language) });
         }
     }
 }
 
 function choicesOf(switcher: HTMLElement): HTMLElement[] {
     return [...switcher.querySelectorAll<HTMLElement>(`:scope > .${MenuClass} > .${ChoiceClass}`)];
+}
+
+/** A language named in itself: as the list names it, else — one the switcher does not offer — as the browser does, capitalised. */
+function nameOf(choices: readonly HTMLElement[], language: string): string {
+    const listed = choices.find(choice => choice.getAttribute(LanguageAttribute) === language)?.textContent;
+
+    if (listed !== null && listed !== undefined && listed.length > 0)
+        return listed;
+
+    try {
+        const name = new Intl.DisplayNames([language], { type: "language" }).of(language) ?? language;
+
+        return name.charAt(0).toLocaleUpperCase(language) + name.slice(1);
+    }
+    catch {
+        return codeOf(language);
+    }
+}
+
+/** The two-letter code the button shows: the language before any script or region ("ZH" for zh-Hans). */
+function codeOf(language: string): string {
+    return language.split("-")[0].toUpperCase();
 }

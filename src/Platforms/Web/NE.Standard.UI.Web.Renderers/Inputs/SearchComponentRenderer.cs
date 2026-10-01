@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Constants;
@@ -93,6 +94,12 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
             // The trigger is the input here, so the placeholder goes on the native attribute, not a span.
             NativeInputRendererBase.RenderPlaceholder(context, input);
+
+            // An empty hint rather than none: the stylesheet tells a Keep field with no term by `:placeholder-shown`, which needs one.
+            _ = ResolveRenderValue(context, IPlaceholderInputComponent.PlaceholderProperty, out string? placeholder, out _);
+
+            if (string.IsNullOrEmpty(placeholder))
+                _ = input.Attribute("placeholder", string.Empty);
 
             _ = RenderProperty<string?>(context, input, SearchComponent.SearchTextProperty, static (target, value) =>
             {

@@ -56,6 +56,8 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         NativeInputRendererBase.RenderMaxFileSize(context, root, ImageInputComponent.MaxFileSizeProperty);
         NativeInputRendererBase.RenderDropTargetId(context, root, ImageInputComponent.DropTargetIdProperty);
 
+        RenderCrop(context, root, shelf: multiple == true || shape == UIImageInputShape.Shelf);
+
         // The thumbnails-only shelf is a shelf whatever Multiple says: a row of one picture is not what it is for.
         if (multiple == true || shape == UIImageInputShape.Shelf)
         {
@@ -72,6 +74,34 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         }
 
         RenderValidationMessage(context, root);
+    }
+
+    /// <summary>The frame the client crops a chosen picture to before it uploads, and the side it writes it at; render-time only.</summary>
+    /// <exception cref="InvalidOperationException">A shelf names a crop: it takes its pictures as they are.</exception>
+    private static void RenderCrop(WebRenderContext context, IHtmlElementBuilder root, bool shelf)
+    {
+        _ = ResolveRenderValue(context, ImageInputComponent.CropProperty, out UIImageCrop? crop, out _);
+
+        var frame = crop switch
+        {
+            UIImageCrop.Square => "square",
+            UIImageCrop.Circle => "circle",
+            _ => null
+        };
+
+        if (frame is null)
+            return;
+
+        // One dialog per picture: a crop asked of several at once would open a dialog per file, which no reader wants.
+        if (shelf)
+            throw new InvalidOperationException("Crop frames a single picture; a shelf, or an image input with Multiple, takes its pictures as they are.");
+
+        _ = root.Attribute(WebAttributes.ImageCrop, frame);
+
+        _ = ResolveRenderValue(context, ImageInputComponent.CropSizeProperty, out int? size, out _);
+
+        if (size > 0)
+            _ = root.Attribute(WebAttributes.ImageCropSize, size.Value.ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>The button the viewer presses or drops on: the picture, the glyph shown without one, the text of the inline row, the pencil.</summary>

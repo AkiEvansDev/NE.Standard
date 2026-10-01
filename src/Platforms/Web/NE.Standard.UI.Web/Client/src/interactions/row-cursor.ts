@@ -51,6 +51,14 @@ export function litRow(rows: readonly HTMLElement[]): HTMLElement | null {
         ?? null;
 }
 
+/** Names a row by one of its parts rather than its whole content, where the content holds a control with words of its own. */
+export function nameRowBy(row: Element, label: Element | null): void {
+    if (label === null)
+        row.removeAttribute("aria-labelledby");
+    else
+        row.setAttribute("aria-labelledby", ensureElementId(label, "ui-row-name"));
+}
+
 /** Moves the mark to the row and tells the root, which holds the focus, which row that is. */
 export function setRowFocus(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement): void {
     for (const other of rows) {

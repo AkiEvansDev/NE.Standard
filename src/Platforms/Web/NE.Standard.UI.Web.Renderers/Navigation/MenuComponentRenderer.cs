@@ -57,7 +57,11 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         var rail = display == UIMenuDisplay.Rail;
 
         if (rail)
-            _ = root.Class(RailClassName);
+        {
+            // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class.
+            _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIButtonSize? size, out _);
+            _ = root.Class(RailClassName).Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
+        }
 
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
 

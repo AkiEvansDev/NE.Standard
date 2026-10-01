@@ -7,7 +7,7 @@ import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./r
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
 import { matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
-import { towardContent } from "./menu-group-engine.ts";
+import { isBottomBar, towardContent } from "./menu-group-engine.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { logWarn } from "../runtime/logger.ts";
@@ -131,8 +131,8 @@ export class MenuEngine {
             key: domEvent.key,
             items,
             current: item,
-            // One axis only: the other arrows belong to whatever the menu sits in.
-            axis: menu.classList.contains(HorizontalClass) ? "horizontal" : "vertical"
+            // One axis only: the other arrows belong to whatever the menu sits in. A rail laid along the bottom bar runs across.
+            axis: menu.classList.contains(HorizontalClass) || isBottomBar(menu) ? "horizontal" : "vertical"
         });
 
         if (next === null)

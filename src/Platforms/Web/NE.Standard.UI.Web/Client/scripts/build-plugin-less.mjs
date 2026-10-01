@@ -19,6 +19,7 @@ const Sources = [
     "mixins/focus.less",
     "mixins/drag-bar.less",
     "mixins/popup.less",
+    "mixins/lift.less",
     "mixins/dialog.less",
     "mixins/placement.less",
     "mixins/field.less",

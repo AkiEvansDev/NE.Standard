@@ -65,10 +65,6 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial bool? Selectable { get; set; }
-
-    /// <inheritdoc />
-    [RecursiveMember]
     public partial UITextBadgePlacement? BadgePlacement { get; set; }
 
     /// <inheritdoc />

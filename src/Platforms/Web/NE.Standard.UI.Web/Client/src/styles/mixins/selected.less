@@ -38,12 +38,14 @@
     box-shadow: var(--ui-selected-mark, @default);
 }
 
-// A chosen row: ground, inherited ink, mark, and the cursor's layer — transparent until `.ui-row-cursor-layer()`, so it fades both ways.
+// A chosen row: ground, inherited ink, the brand's line on its leading edge — a list on the page, which the reader goes by, says which
+// row it holds in the brand's colour while its ground stays neutral — and the cursor's layer, transparent until
+// `.ui-row-cursor-layer()`, so it fades both ways. A list in a popup marks no line: its chosen entry is its ground and its own check.
 .ui-selected-row() {
     .ui-selected-ground();
     background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent));
     .ui-selected-ink(inherit);
-    .ui-selected-mark();
+    .ui-selected-mark(@ui-selected-mark-left);
 }
 
 // A chosen tile: a chosen row over the tile's own picture, which the row's `background` shorthand would reset (`.ui-tile-wash()`
@@ -85,16 +87,18 @@
         .ui-reveal-hover-off();
     }
 
-    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover,
-    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
-        background-color: transparent;
-    }
+    @media @ui-can-hover {
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover,
+        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+            background-color: transparent;
+        }
 
-    // The parts, never a root (a split button's hovered part alone): a filter makes the root the containing block of a popup inside
-    // it, which would jump.
-    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
-    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
-        .ui-brighten-hover();
+        // The parts, never a root (a split button's hovered part alone): a filter makes the root the containing block of a popup
+        // inside it, which would jump.
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
+        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+            .ui-brighten-hover();
+        }
     }
 
     :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:active,
@@ -113,8 +117,10 @@
 .ui-entry-hover(@current: ~"[aria-selected='true']") {
     transition: background-color @ui-motion-fast @ui-motion-ease;
 
-    &:not(@{current}):hover {
-        background-color: var(--ui-wash-hover);
+    @media @ui-can-hover {
+        &:not(@{current}):hover {
+            background-color: var(--ui-wash-hover);
+        }
     }
 
     &:not(@{current}):active {
@@ -130,6 +136,19 @@
     }
 
     @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
+        .ui-row-cursor-layer();
+    }
+}
+
+// The row an action bar stands over (action-bar-engine.ts) washes as the keyboard's row does, so the bar says whose it is when no
+// pointer is on the row — a finger lifted, the keyboard; on a chosen row, as the cursor's layer. `@bar` is the path from the row to
+// the bar, which stands in its host: the row itself or a part of it.
+.ui-row-bar(@host; @row; @via: ~""; @bar: ~"> [data-ui-action-bar] > .ui-action-bar") {
+    @{host} > @{via}[data-ui-items-host] > @{row}:not([data-ui-selected]):has(@{bar}) {
+        .ui-row-hover();
+    }
+
+    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-selected]:has(@{bar}) {
         .ui-row-cursor-layer();
     }
 }

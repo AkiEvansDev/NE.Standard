@@ -1,0 +1,123 @@
+// Every pointer-hover look read back from the compiled stylesheet: drawn under `@media (hover: hover)`, since a touch screen keeps
+// `:hover` on whatever a finger last tapped and a wash, an ink or a reveal there would stay lit after the tap. A press, the keyboard's
+// marks and selection stand outside it, so a phone still shows them.
+
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import less from "less";
+
+const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
+const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+type CssRule = { readonly conditions: readonly string[]; readonly selector: string; readonly body: string };
+
+/** Every style rule with the at-rules it stands in, one entry per selector of its list. */
+function rulesOf(text: string): CssRule[] {
+    const rules: CssRule[] = [];
+    const conditions: string[] = [];
+    let index = 0;
+
+    while (index < text.length) {
+        const open = text.indexOf("{", index);
+        const close = text.indexOf("}", index);
+
+        if (close >= 0 && (open < 0 || close < open)) {
+            conditions.pop();
+            index = close + 1;
+            continue;
+        }
+
+        if (open < 0)
+            break;
+
+        const head = text.slice(index, open).split(";").pop()!.trim();
+
+        if (head.startsWith("@")) {
+            conditions.push(head);
+            index = open + 1;
+            continue;
+        }
+
+        const end = text.indexOf("}", open);
+
+        for (const selector of selectorsOf(head))
+            rules.push({ conditions: [...conditions], selector, body: text.slice(open + 1, end) });
+
+        index = end + 1;
+    }
+
+    return rules;
+}
+
+/** A selector list split on its top-level commas only, so `:is(a, b)` stays one selector. */
+function selectorsOf(list: string): string[] {
+    const selectors: string[] = [];
+    let depth = 0;
+    let current = "";
+
+    for (const character of list) {
+        if (character === "(" || character === "[")
+            depth++;
+        else if (character === ")" || character === "]")
+            depth--;
+
+        if (character === "," && depth === 0) {
+            selectors.push(current.trim());
+            current = "";
+        }
+        else
+            current += character;
+    }
+
+    selectors.push(current.trim());
+
+    return selectors.filter(selector => selector.length > 0);
+}
+
+/** The selector with what only asks about a hover elsewhere taken out: a guard in `:has()`, and a list's current option. */
+function ownHover(selector: string): string {
+    return selector
+        .replace(/:has\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)/g, "")
+        .replace("[data-ui-active]:is(:not([data-ui-pointer-focus]), :hover)", "");
+}
+
+const rules = rulesOf(css);
+const underHover = (rule: CssRule) => rule.conditions.some(condition => condition.startsWith("@media") && condition.includes("(hover: hover)"));
+
+test("every hover look is drawn only where the pointer can hover", () => {
+    // Autofill's own box is the browser's, clipped away under the pointer as at rest: no look of the framework's.
+    const loose = rules.filter(rule => ownHover(rule.selector).includes(":hover") && !underHover(rule) && !rule.selector.includes(":-webkit-autofill"));
+
+    assert.deepEqual(loose.map(rule => rule.selector), []);
+});
+
+test("a press, the keyboard's marks and selection are drawn for every pointer", () => {
+    const pressedOrKeyed = rules.filter(rule => /:active|:focus-visible|\[data-ui-selected\]|--selected/.test(rule.selector) && !rule.selector.includes(":hover"));
+
+    assert.ok(pressedOrKeyed.length > 0);
+    assert.deepEqual(pressedOrKeyed.filter(underHover).map(rule => rule.selector), []);
+});
+
+test("a row's wash and a ghost button's wash wait for a hovering pointer, their press does not", () => {
+    const itemsHover = rules.find(rule => rule.selector.startsWith(".ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item") && rule.selector.endsWith(":hover"));
+    const ghostHover = rules.find(rule => /^\.ui-button--ghost:not\(\.ui-disabled\).*:hover$/.test(rule.selector));
+    const ghostPress = rules.find(rule => /^\.ui-button--ghost:not\(\.ui-disabled\).*:active$/.test(rule.selector) && rule.body.includes("--ui-wash-active"));
+
+    assert.ok(itemsHover !== undefined && underHover(itemsHover), "the items view's row hover is not under the hover query");
+    assert.ok(ghostHover !== undefined && underHover(ghostHover), "the ghost button's hover is not under the hover query");
+    assert.ok(ghostPress !== undefined && !underHover(ghostPress), "the ghost button's press must show on a touch screen too");
+});
+
+test("where nothing hovers, what a hover reveals shows on the chosen thing, or always on a lone one", () => {
+    const noHover = (rule: CssRule) => rule.conditions.some(condition => condition.startsWith("@media") && condition.includes("(hover: none)"));
+    const pencil = rules.find(rule => noHover(rule) && rule.selector.endsWith(":has(> .ui-image-input__picture[src]) > .ui-image-input__edit"));
+    const cross = rules.find(rule => noHover(rule) && rule.selector === ".ui-image-input__remove");
+    const chosenClose = rules.find(rule => rule.selector === ".ui-tab-item--selected .ui-tab-item__close");
+
+    assert.ok(pencil !== undefined && pencil.body.includes("opacity: 1;") && pencil.body.includes("inset: 0.25rem 0.25rem auto auto;"), "a picture's pencil does not stand in its corner without a hover");
+    assert.ok(cross !== undefined && cross.body.includes("opacity: 1;"), "a shelf tile's cross does not show without a hover");
+    assert.ok(chosenClose !== undefined && !underHover(chosenClose) && chosenClose.body.includes("opacity: 1;"), "the chosen tab's close waits for a hover");
+});

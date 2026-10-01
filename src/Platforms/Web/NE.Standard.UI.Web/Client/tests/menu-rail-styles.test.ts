@@ -35,7 +35,7 @@ test("a folded entry's and a rail entry's badge stands on the icon's corner, an 
 
     assert.match(declarations(corner) ?? "", /position: absolute;[\s\S]*max-width: none;/);
     assert.match(declarations(`${collapsedEntry}${header} > .ui-text__badge`) ?? "", /inset-inline-end: 0;/, "a folded entry clips, so its badge is held to its end");
-    assert.match(declarations(`${railEntry}${header} > .ui-text__badge`) ?? "", /inset-inline-start: calc\(50% \+ 0\.25rem\);/);
+    assert.match(declarations(`${railEntry}${header} > .ui-text__badge`) ?? "", /inset-inline-start: calc\(50% \+ var\(--ui-menu-rail-glyph\) \/ 2 - 0\.5rem\);/);
     assert.match(declarations(`:is(${collapsedEntry}, ${railEntry})${header} > ${dot}`) ?? "", /display: inline-flex;[\s\S]*width: 0\.5rem;/);
     assert.match(declarations(`:where(:is(${collapsedEntry}, ${railEntry})${header} > ${dot})`) ?? "", /background-color: var\(--ui-color-primary\);/, "a dot with no style has no ground");
 });
@@ -49,9 +49,35 @@ test("a rail's groups never unfold inline and its captions are rules, as a folde
 });
 
 test("a rail is narrow and its entries stand icon over a one-line label, the current one's icon filled", () => {
-    assert.match(declarations(".ui-menu--rail.ui-orientation--vertical") ?? "", /width: var\(--ui-width-xxl, [^;]*4\.5rem\)/, "the rail's width is not the authored Width's fallback");
+    assert.match(declarations(".ui-menu--rail.ui-orientation--vertical") ?? "", /width: var\(--ui-width-xxl, [^;]*var\(--ui-menu-rail-width\)\)/, "the rail's width is not the authored Width's fallback");
     assert.match(declarations(railEntry) ?? "", /flex-direction: column;/);
     assert.match(declarations(`${railEntry} > .ui-button__content`) ?? "", /display: flex;\s*flex-direction: column;\s*align-items: center;/);
     assert.match(declarations(`${railEntry} > .ui-button__content > .ui-text__body > .ui-text__description`) ?? "", /display: none;/);
     assert.match(declarations(`${railEntry}.ui-menu-item--selected > .ui-button__content > .ui-text__icon::before`) ?? "", /--ui-icon-fill: 1;/);
+});
+
+test("a rail's size sets its measures: Medium unless it says otherwise, Large the 72 px column, Small 48 px squares", () => {
+    const medium = declarations(".ui-menu--rail") ?? "";
+    const large = declarations(".ui-menu--rail.ui-menu--large") ?? "";
+    const small = declarations(".ui-menu--rail.ui-menu--small") ?? "";
+
+    assert.match(medium, /--ui-menu-rail-width: 3\.75rem;[\s\S]*--ui-menu-rail-glyph: 1\.25rem;[\s\S]*--ui-menu-rail-label-size: var\(--ui-text-overline-font-size\);[\s\S]*--ui-menu-bar-entry-width: 3\.5rem;/);
+    assert.match(large, /--ui-menu-rail-width: 4\.5rem;[\s\S]*--ui-menu-rail-glyph: 1\.5rem;[\s\S]*--ui-menu-rail-label-size: var\(--ui-text-caption-font-size\);[\s\S]*--ui-menu-bar-entry-width: 4rem;/);
+    assert.match(small, /--ui-menu-rail-width: 3rem;[\s\S]*--ui-menu-rail-entry-height: 3rem;[\s\S]*--ui-menu-bar-entry-width: 3rem;/);
+
+    assert.match(declarations(railEntry) ?? "", /min-height: var\(--ui-min-height-xxl, [^;]*var\(--ui-menu-rail-entry-height\)\)/);
+    assert.match(declarations(`${railEntry} > .ui-button__content > .ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)`) ?? "", /font-size: var\(--ui-menu-rail-glyph\);/);
+    assert.match(declarations(`${railEntry} > .ui-button__content.ui-text-type--body`) ?? "", /font-size: var\(--ui-menu-rail-label-size\);/);
+});
+
+test("a small rail's label leaves the eye but stays the entry's name, and its tooltip", () => {
+    const title = ".ui-menu--rail.ui-menu--small > .ui-menu__host > .ui-menu__item > .ui-menu-item > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title";
+
+    assert.match(declarations(title) ?? "", /position: absolute;[\s\S]*clip: rect\(0, 0, 0, 0\);/);
+});
+
+test("a rail's entries stand edge to edge, square slices with no rounded hover to set apart", () => {
+    assert.match(declarations(".ui-menu--rail.ui-orientation--vertical > .ui-menu__host") ?? "", /gap: var\(--ui-menu-spacing-xxl, [^;]*var\(--ui-menu-spacing, 0\)\)/);
+    assert.match(declarations(".ui-menu--rail.ui-orientation--horizontal > .ui-menu__host") ?? "", /gap: var\(--ui-menu-spacing-xxl, [^;]*var\(--ui-menu-spacing, 0\)\)/);
+    assert.match(declarations(railEntry) ?? "", /border-radius: 0;/);
 });

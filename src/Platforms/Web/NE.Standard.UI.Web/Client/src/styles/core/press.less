@@ -1,0 +1,55 @@
+@import "./tokens.less";
+@import "../mixins/ripple.less";
+@import (reference) "../components/ui-menu.less";
+
+// Every element press-ripple-engine.ts presses, and the pseudo-element its wave takes. One list beside the engine's own, imported
+// after every component so the wave's layer wins the ties with a component's own pseudo-element rules.
+
+// A button, an action, a list entry: `::after`, since a button's `::before` may be its glyph (a key-value row's pencil, a "…").
+.ui-button:not(.ui-tab-header, .ui-menu-item),
+.ui-action,
+.ui-language-switcher__choice {
+    .ui-press-ripple(after);
+}
+
+// Where `::after` is the element's own mark — a tab's line, a menu entry's chevron or tick, a multi-select option's tick, a row's
+// drop line, a pinned row's chosen mark — the wave takes `::before`.
+.ui-tab-header,
+.ui-menu-item,
+.ui-select__option,
+.ui-items-view__item,
+.ui-items-view__item > [data-ui-id],
+.ui-table__row,
+.ui-tree__row,
+.ui-key-value-action__row {
+    .ui-press-ripple(before);
+}
+
+// The wave stands on the element's frame, so an element not positioned of its own is while it plays.
+:is(.ui-language-switcher__choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
+    position: relative;
+}
+
+// A pinned cell's opaque ground (a layer at 1, after the wave in the row) would cover it: the wave lies over the row's cells instead.
+.ui-table__row.ui-pressing:not(.ui-loading)::before {
+    z-index: 2;
+}
+
+// A tab's caption is square on the strip; its wave is rounded as a list's entry is, so a press never flashes a box.
+.ui-tab-header.ui-pressing:not(.ui-loading)::before {
+    border-radius: @ui-list-entry-radius;
+}
+
+// An icon that is the whole face gives a little while held: an icon-only button's, a folded menu's or a rail's entry's, and a control
+// drawn as its own glyph (the "…" of a strip, a bar or an action bar; a key-value row's pencil and its save and cancel).
+.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon,
+@{ui-menu-icon-entry} > .ui-button__content > .ui-text__icon,
+:is(.ui-tab-overflow, .ui-command-bar__overflow, .ui-action-bar__more, .ui-key-value-action__action .ui-button, .ui-key-value-action__edit-action .ui-button)::before {
+    .ui-press-icon();
+}
+
+.ui-button[data-ui-text-icon]:not([data-ui-text-title]).ui-press-held > .ui-button__content > .ui-text__icon,
+@{ui-menu-icon-entry}.ui-press-held > .ui-button__content > .ui-text__icon,
+:is(.ui-tab-overflow, .ui-command-bar__overflow, .ui-action-bar__more, .ui-key-value-action__action .ui-button, .ui-key-value-action__edit-action .ui-button).ui-press-held::before {
+    .ui-press-icon-held();
+}

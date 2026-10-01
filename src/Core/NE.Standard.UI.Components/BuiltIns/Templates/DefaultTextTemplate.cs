@@ -30,8 +30,6 @@ public abstract partial class DefaultTextTemplate<TTemplate> : TextComponent<TTe
         BadgeAlignment = UITextBadgeAlignment.Content;
         DescriptionType = UITextAppearance.Caption;
         DescriptionColor = UIThemeColor.FromStyle(UIColorStyle.OnSurface);
-        // A row is pointed at, not read out of: selecting its text fights the click that chooses it.
-        Selectable = false;
 
         if (!string.IsNullOrWhiteSpace(itemPath))
             _ = BindContext(itemPath, UIBindingScope.Relative);

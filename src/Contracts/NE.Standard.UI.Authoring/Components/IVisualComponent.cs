@@ -223,6 +223,35 @@ public interface IVisualComponent : IBindableComponent
     bool? ShowContextMenu { get; }
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ActionBar"/>.
+    /// </summary>
+    static UIProperty ActionBarProperty { get; } = new(nameof(ActionBar));
+
+    /// <summary>
+    /// Gets how the component's action bar lines up with it, or <see langword="null"/> for none: the <see cref="ContextMenu"/>'s entries
+    /// marked for the bar (a menu item's <c>InActionBar</c>) as icons, and "more" opening the menu itself, floating above the component
+    /// once the reader chooses it — a press, a tap, the keyboard's cursor — until a press elsewhere, Escape, or another chosen.
+    /// </summary>
+    /// <remarks>
+    /// A quick view of the menu, not a second list: a press on an icon is that entry's press. Render-time only; a component with an
+    /// action bar and no context menu is refused when the view compiles.
+    /// </remarks>
+    UIActionBarAlignment? ActionBar { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="ActionBarRepeatInMore"/>.
+    /// </summary>
+    static UIProperty ActionBarRepeatInMoreProperty { get; } = new(nameof(ActionBarRepeatInMore));
+
+    /// <summary>
+    /// Gets whether the menu the <see cref="ActionBar"/>'s "more" opens repeats the entries the bar shows (the default), or holds the
+    /// rest alone — no caption or rule left with nothing to stand over or between. A right-click and a long press open the whole menu
+    /// either way, and a bar whose menu holds nothing more draws no "more".
+    /// </summary>
+    /// <remarks>Render-time only.</remarks>
+    bool? ActionBarRepeatInMore { get; }
+
+    /// <summary>
     /// Gets the registered property key for <see cref="ScrollGroup"/>.
     /// </summary>
     static UIProperty ScrollGroupProperty { get; } = new(nameof(ScrollGroup));
@@ -233,4 +262,20 @@ public interface IVisualComponent : IBindableComponent
     /// display) sync line-for-line; otherwise by scroll fraction.
     /// </remarks>
     string? ScrollGroup { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="TextSelectable"/>.
+    /// </summary>
+    static UIProperty TextSelectableProperty { get; } = new(nameof(TextSelectable));
+
+    /// <summary>
+    /// Gets whether the reader can select the words in this component and everything inside it: true lets them (a table whose cells
+    /// are copied, a chat bubble), false keeps them out; unset, the place decides — a Text's and a Paragraph's words and a validation
+    /// message select, unless they stand in a row, a menu or another control, and nothing else does. The nearest component that says wins.
+    /// </summary>
+    /// <remarks>
+    /// A control's own words (a button's label, a tab, a menu entry, a field's caption), a surface the pointer drags (a row that drags by
+    /// itself, a canvas, a grip) and, on a touch screen, anything a long press opens a menu on never select; a field's value always does.
+    /// </remarks>
+    bool? TextSelectable { get; }
 }

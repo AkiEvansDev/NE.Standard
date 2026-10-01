@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Commands;
 
 namespace NE.Standard.UI.Controllers;
 
@@ -24,4 +25,7 @@ internal interface IUIControllerLifecycle
 
     /// <summary>A connection's session moved to another theme mode; <see cref="Shell.Runtime.UIContext.Handle"/> is that connection.</summary>
     Task ThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken);
+
+    /// <summary>The reader starts to leave a page that holds unsaved work, for <paramref name="target"/>; answers what happens instead.</summary>
+    Task<UICommandResult> LeaveRequestedAsync(string target, CancellationToken cancellationToken);
 }

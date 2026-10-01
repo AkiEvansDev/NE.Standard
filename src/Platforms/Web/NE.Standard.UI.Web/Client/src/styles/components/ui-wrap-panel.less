@@ -5,6 +5,7 @@
 .ui-wrap-panel {
     .ui-responsive-reset(--ui-wrap-panel-spacing);
     .ui-responsive-reset(--ui-wrap-panel-line-spacing);
+    .ui-responsive-reset(--ui-wrap-panel-item-min-width);
 
     display: flex;
     flex-direction: row;
@@ -23,6 +24,14 @@
     border-color: transparent;
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
+}
+
+// ItemMinWidth: even columns, as many to a line as fit at the narrowest width, each line's room shared out equally. A grid, since a
+// flex line sizes each child to its own content and the next line staggers under it; a column never wider than the panel.
+.ui-wrap-panel--columns {
+    display: grid;
+    .ui-responsive-property(--ui-wrap-panel-item-min, --ui-wrap-panel-item-min-width, 0px);
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--ui-wrap-panel-item-min), 100%), 1fr));
 }
 
 :where(.ui-wrap-panel) > [data-ui-id] {

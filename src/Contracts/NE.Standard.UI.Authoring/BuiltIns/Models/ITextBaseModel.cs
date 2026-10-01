@@ -69,12 +69,6 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     UIThemeColor? TitleColor { get; }
 
     /// <summary>
-    /// Gets whether the text can be selected with the pointer; content says yes, a control's caption says no.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = true)]
-    bool? Selectable { get; }
-
-    /// <summary>
     /// Gets where badge content is placed.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UITextBadgePlacement.Inline)]

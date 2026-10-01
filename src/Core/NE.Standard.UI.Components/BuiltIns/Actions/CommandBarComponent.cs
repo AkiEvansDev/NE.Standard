@@ -16,8 +16,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IButtonTemplatedItemsComponent
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
-    private static readonly UIResponsive<double> DefaultSpacing = 0d;
-
     /// <summary>
     /// Gets or sets the layout direction of the command bar's items.
     /// </summary>
@@ -33,7 +31,8 @@ public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase
     /// <summary>
     /// Gets or sets the spacing between items, optionally overridden per breakpoint.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
+    /// <remarks>Unset, the stylesheet's 8 px: the commands keep a button's corners, and two rounded grounds need air between them.</remarks>
+    [UIComponentProperty]
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>

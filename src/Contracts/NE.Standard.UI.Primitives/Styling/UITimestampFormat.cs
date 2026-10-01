@@ -28,4 +28,10 @@ public enum UITimestampFormat
     /// How long ago or how far ahead, kept current as time passes: "5 minutes ago", "yesterday", "in 2 hours".
     /// </summary>
     Relative = 3,
+
+    /// <summary>
+    /// The day as a messenger heads it, kept current as days pass: "Today", "Yesterday" and "Tomorrow" in the reader's language, else
+    /// the day as <see cref="Date"/> writes it.
+    /// </summary>
+    RelativeDate = 4,
 }

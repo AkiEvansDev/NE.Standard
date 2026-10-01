@@ -20,7 +20,6 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     public override UIViewOptions Options => base.Options with { NotificationPlacement = UINotificationPlacement.Top };
 
     protected override string ComponentRoute => "/overlays/notification";
-    protected override DemoViewKind[] AvailableKinds => [DemoViewKind.Test];
     protected override string Header => "demo.overlays.notification.header";
     protected override string HeaderDescription => "demo.overlays.notification.description";
 

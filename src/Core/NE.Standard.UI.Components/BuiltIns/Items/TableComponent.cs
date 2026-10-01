@@ -29,7 +29,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
-public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IEmptyStateComponent
     where T : TableComponent<T>, IUIComponentDefinition
 {
     // The table draws an edge where the contract leaves the stylesheet's own.
@@ -116,6 +117,12 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         _ = SetRowTemplate(new DefaultRowTemplate());
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
     }
+
+    /// <summary>
+    /// Configures the built-in default empty template, throwing if a different template has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
 
     /// <summary>Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties.</summary>
     /// <remarks>
@@ -226,7 +233,8 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
 
     /// <summary>
     /// Registers the command a row dropped at another place among the rows raises, with the row's key and the index it now takes in
-    /// the collection; the controller moves it, since nothing moves on the client.
+    /// the collection. The row stands there at once; the controller's Move of it keeps it there or puts it where the controller did,
+    /// and an answer without one puts it back.
     /// </summary>
     /// <remarks>
     /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.

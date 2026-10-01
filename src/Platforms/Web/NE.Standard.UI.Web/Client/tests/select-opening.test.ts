@@ -130,6 +130,30 @@ test("a select with a value starts from it however it opened, and the arrow goes
     close(at);
 });
 
+test("a capped list opens scrolled to its chosen option, and one already in view stays where it is", () => {
+    const at = scene({ value: "singapore" });
+    const list = at.select.querySelector(".ui-select__popup")!;
+
+    // A list two options tall over three, each option 32 px: the chosen third stands under the list's foot.
+    list.rect = { left: 0, top: 100, width: 200, height: 64 };
+    at.options.forEach((option, i) => {
+        option.rect = { left: 0, top: 100 + i * 32, width: 200, height: 32 };
+    });
+
+    press(at);
+
+    assert.equal(list.scrollTop, 32);
+    close(at);
+
+    list.scrollTop = 0;
+    at.options[2].setAttribute("aria-selected", "false");
+    at.options[1].setAttribute("aria-selected", "true");
+    press(at);
+
+    assert.equal(list.scrollTop, 0);
+    close(at);
+});
+
 test("a search a press opened marks no option while its field keeps the keyboard; ArrowDown then enters at the first", () => {
     const at = scene({ search: true });
 
@@ -141,4 +165,61 @@ test("a search a press opened marks no option while its field keeps the keyboard
     arrow("ArrowDown");
 
     assert.equal(active(at), "amsterdam");
+});
+
+test("an arrow on a closed select opens it on its chosen option, else ArrowDown on the first and ArrowUp on the last", () => {
+    const at = scene();
+
+    noteKey(real<Event>(new FakeKeyboardEvent("Tab")));
+    at.trigger.focus();
+    arrow("ArrowDown");
+
+    assert.equal(at.select.classes.has("ui-select--open"), true);
+    assert.equal(active(at), "amsterdam");
+    assert.equal(fakeDocument.activeElement, at.options[0]);
+    close(at);
+
+    at.trigger.focus();
+    arrow("ArrowUp");
+
+    assert.equal(active(at), "singapore");
+    close(at);
+
+    const chosen = scene({ value: "ashburn" });
+
+    chosen.trigger.focus();
+    arrow("ArrowUp");
+
+    assert.equal(active(chosen), "ashburn");
+    close(chosen);
+});
+
+test("a press that focuses a Replace search selects its label, as the keyboard's arrival does, but leaves a drag's selection", () => {
+    // A press on the field itself, on the chosen option drawn over it whose box hands the field the focus, or one whose opening does.
+    for (const [caret, expected, onField, focusedFirst] of [[[14, 14], [0, 14], true, true], [[14, 14], [0, 14], false, true], [[14, 14], [0, 14], false, false], [[0, 7], [0, 7], true, true]] as const) {
+        const at = scene({ search: true, value: "ashburn" });
+        const input = Object.assign(at.input!, { selectionStart: 0, selectionEnd: 0 });
+
+        input.select = () => {
+            input.selectionStart = 0;
+            input.selectionEnd = input.value.length;
+        };
+
+        at.select.classes.add("ui-search-mode--replace");
+        at.select.setAttribute("data-ui-select-value", "ashburn");
+        at.options[1].textContent = "Ashburn (east)";
+
+        notePress(real(input));
+        input.value = "Ashburn (east)";
+
+        if (focusedFirst)
+            input.focus();
+
+        // Where the press put the caret, or what a drag selected.
+        [input.selectionStart, input.selectionEnd] = caret;
+        (onField ? input : at.trigger).dispatchEvent(new FakeEvent("click"));
+
+        assert.deepEqual([input.selectionStart, input.selectionEnd], expected);
+        close(at);
+    }
 });

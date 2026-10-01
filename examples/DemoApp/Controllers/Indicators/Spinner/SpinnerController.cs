@@ -1,0 +1,16 @@
+using DemoApp.Controllers.Base;
+
+namespace DemoApp.Controllers.Indicators.Spinner;
+
+/// <summary>
+/// One waiting mark, and every property that can be bound to it.
+/// </summary>
+internal sealed partial class SpinnerController() : DemoStandardController
+{
+    [RecursiveMember]
+    public partial SpinnerGroupContext SpinnerGroup { get; set; } = new();
+
+    [UICommand]
+    public void CycleSpinnerGroupOption(string id)
+        => SpinnerGroup.CycleOption(id);
+}

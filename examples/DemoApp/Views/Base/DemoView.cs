@@ -11,20 +11,15 @@ internal abstract class DemoView : UIViewBase
     public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides };
 
     protected abstract string ComponentRoute { get; }
-    protected abstract DemoViewKind ViewKind { get; }
-    protected abstract DemoViewKind[] AvailableKinds { get; }
     protected abstract string Header { get; }
     protected abstract string HeaderDescription { get; }
 
-    /// <summary>The tab's name: the page's header, and which of its pages when there are several — a key, so it follows a switch.</summary>
-    public override string Title
-        => ViewKind is DemoViewKind.Main or DemoViewKind.Test ? "demo.title" : "demo.title.kind";
+    /// <summary>The tab's name: the page's header, a key, so it follows a switch.</summary>
+    public override string Title => "demo.title";
 
-    /// <summary>The header and the page's kind, each a key.</summary>
+    /// <summary>The header, as a key.</summary>
     public override IReadOnlyDictionary<string, object?>? TitleArguments
-        => ViewKind is DemoViewKind.Main or DemoViewKind.Test
-            ? new Dictionary<string, object?> { ["page"] = new UIPhrase(Header) }
-            : new Dictionary<string, object?> { ["page"] = new UIPhrase(Header), ["kind"] = new UIPhrase(DemoUI.KindKey(ViewKind)) };
+        => new Dictionary<string, object?> { ["page"] = new UIPhrase(Header) };
 
     protected override IVisualComponent? CreateHeader()
         => DemoUI.CreateHeader(Header, HeaderDescription);
@@ -39,10 +34,6 @@ internal abstract class DemoView : UIViewBase
             .SetPadding(UIThickness.All(24, 4, 24, 24))
             .SetSpacing(40)
             .SetLineSpacing(16);
-
-        // A component with one kind has no other page to switch to, so a strip of one link would be a label, not navigation.
-        if (AvailableKinds.Length > 1)
-            _ = container.AddChild(DemoUI.CreatePageTabs(ComponentRoute, ViewKind, AvailableKinds));
 
         DrawContent(container);
 

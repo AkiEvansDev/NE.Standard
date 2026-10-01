@@ -2,7 +2,6 @@
 @import "../mixins/interactive.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
-@import "../mixins/ripple.less";
 @import "../mixins/selected.less";
 @import "../mixins/text.less";
 
@@ -25,10 +24,7 @@
     text-decoration: none;
     vertical-align: middle;
     cursor: pointer;
-    user-select: none;
     transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, opacity @ui-motion-fast @ui-motion-ease, filter @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
-    // `.ui-action` and `.ui-menu-item` wear this class too, so the theme flag's ripple reaches every pressable one from here.
-    .ui-press-ripple();
 }
 
 // A non-root button would inherit these from its host; a root resets them in runtime.less, this one here.
@@ -182,10 +178,12 @@
     }
 
 // An inset tint rather than a raised shadow, for the same reason the resting state carries no elevation.
-.ui-button--primary@{ui-button-live}:hover,
-.ui-button--accent@{ui-button-live}:hover,
-.ui-button--danger@{ui-button-live}:hover {
-    box-shadow: inset 0 0 0 999px color-mix(in srgb, black 10%, transparent);
+@media @ui-can-hover {
+    .ui-button--primary@{ui-button-live}:hover,
+    .ui-button--accent@{ui-button-live}:hover,
+    .ui-button--danger@{ui-button-live}:hover {
+        box-shadow: inset 0 0 0 999px color-mix(in srgb, black 10%, transparent);
+    }
 }
 
 // 16%, the --ui-wash-hover -> --ui-wash-active step; only the three filled variants, since the rest already answer a press with the wash.
@@ -201,8 +199,10 @@
 }
 
     // 48%, not near-solid: only firms up the hairline edge, since the wash above already says "pointed at".
-    .ui-button--outline@{ui-button-live}:hover {
-        border-color: color-mix(in srgb, currentColor 48%, transparent);
+    @media @ui-can-hover {
+        .ui-button--outline@{ui-button-live}:hover {
+            border-color: color-mix(in srgb, currentColor 48%, transparent);
+        }
     }
 
     // currentColor, not the shared wash, so a recoloured outline button presses in its own hue, at the active 16% so it beats hover.
@@ -217,8 +217,10 @@
 
 // A surface button owns an opaque ground, so the wash is mixed into it rather than laid translucent over the page.
 .ui-button--surface@{ui-button-live} {
-    &:hover {
-        background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-color, var(--ui-surface-raised)));
+    @media @ui-can-hover {
+        &:hover {
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-color, var(--ui-surface-raised)));
+        }
     }
 
     &:active {
@@ -228,8 +230,10 @@
 
     // Link is the one variant whose label is the brand colour, so hover brightens the text too, via the Link component's mixin. On
     // the parts, never the root: a filter makes the root the containing block of a popup inside it (a language list), which would jump.
-    .ui-button--link:not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]) {
-        .ui-brighten-hover();
+    @media @ui-can-hover {
+        .ui-button--link:not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]) {
+            .ui-brighten-hover();
+        }
     }
 
     .ui-button--ghost@{ui-button-live}:active,

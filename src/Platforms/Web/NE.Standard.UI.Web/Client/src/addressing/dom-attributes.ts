@@ -39,6 +39,21 @@ export const TabsRemovesAttribute = "data-ui-tabs-removes";
 export const ContextMenuAttribute = "data-ui-context-menu";
 /** On a part of a context menu's owner: the name of the owner's menu a right press there opens. */
 export const ContextMenuUseAttribute = "data-ui-context-menu-use";
+/**
+ * On a context menu's owner, or a part of it naming one of its menus (a node a package draws): its action bar's alignment over
+ * it — `end`, `start` or `center`.
+ */
+export const ActionBarAttribute = "data-ui-action-bar";
+/** On a host a package draws anew (a node redrawn with its document): what it stands for, so a bar chosen over it outlives the redraw. */
+export const ActionBarKeyAttribute = "data-ui-action-bar-key";
+/** On a host carrying `ActionBarAttribute` whose bar's "more" opens the rest of its menu: the entries the bar shows are left out. */
+export const ActionBarRestAttribute = "data-ui-action-bar-rest";
+/** Client-only: on a context menu's row this opening leaves out (the bar's own entries, under its "more"); the next opening clears it. */
+export const MenuLeftOutAttribute = "data-ui-menu-left-out";
+/** On a menu entry: it also stands in its owner's action bar, as its icon. */
+export const InActionBarAttribute = "data-ui-in-action-bar";
+/** Client-only: the bar the action bar engine draws inside its host, and the row of its icons atop a menu a long press opened. */
+export const ActionBarClass = "ui-action-bar";
 /** On the row the keyboard is on in a host with rows; the host's engine moves it. */
 export const RowFocusAttribute = "data-ui-row-focus";
 /** The words of a component's tooltip, where it shows them, and a mark inside a control the tooltip belongs to instead. */
@@ -65,6 +80,10 @@ export const eventSuppressAttribute = (eventName: string): string => `data-ui-no
 /** An element no event crosses outward: a component above it never takes an event raised inside it. */
 export const EventBoundaryAttribute = "data-ui-event-boundary";
 export const ImageCaptionAttribute = "data-ui-image-caption";
+/** On an image input's root: the frame a chosen picture is cropped to before it uploads, "square" or "circle". */
+export const ImageCropAttribute = "data-ui-image-crop";
+/** Beside it: the side, in pixels, the cropped picture is written at. */
+export const ImageCropSizeAttribute = "data-ui-image-crop-size";
 /** A split button's mode: "split" (the end part opens the menu) or "menu" (the whole button does). */
 export const SplitModeAttribute = "data-ui-split-mode";
 export const ItemsHostAttribute = "data-ui-items-host";
@@ -126,6 +145,8 @@ export const WindowGroupBeforeAttribute = "data-ui-window-group-before";
 /** On a windowed host: the totals over its whole source, as JSON, written with each window. */
 const WindowAggregatesAttribute = "data-ui-window-aggregates";
 export const FormIdAttribute = "data-ui-form-id";
+/** The hidden holder of the page's FormId forms, beside the root (`form-owner.ts`). */
+export const FormsHolderAttribute = "data-ui-forms";
 
 export const VisibilityAttribute = "data-ui-visibility";
 
@@ -144,6 +165,8 @@ export const MenuUnmatchedAttribute = "data-ui-menu-unmatched";
 export const DrawerToggleAttribute = "data-ui-drawer-toggle";
 export const DrawerOpenAttribute = "data-ui-drawer-open";
 export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
+/** On a left side that is a rail alone: below the drawer breakpoint a bar along the page's bottom, its groups flying out upward. */
+export const BottomBarAttribute = "data-ui-bottom-bar";
 /** On each band of the page, naming it: a side's drawer is found by it. */
 export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
@@ -311,6 +334,9 @@ export const pluginDomNames = {
     tooltipPlacement: TooltipPlacementAttribute,
     contextMenu: ContextMenuAttribute,
     contextMenuUse: ContextMenuUseAttribute,
+    actionBar: ActionBarAttribute,
+    actionBarKey: ActionBarKeyAttribute,
+    actionBarRest: ActionBarRestAttribute,
     disabledClass: DisabledClass,
     loadingClass: LoadingClass,
     readOnlyClass: ReadOnlyClass,

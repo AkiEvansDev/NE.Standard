@@ -62,7 +62,9 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
                 _ = target.Attribute(WebAttributes.RadioValue, value);
         }, [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")]);
 
-        NativeInputRendererBase.RenderFormId(context, root);
+        // On the root alone: the radios stay in the page's form, all of them, as a name groups radios only within one form and the
+        // client adds radios for the rows it builds; a choice is nothing a browser fills in.
+        NativeInputRendererBase.RenderFormId(context, root, joinsForm: false);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, "label", ItemClassName);

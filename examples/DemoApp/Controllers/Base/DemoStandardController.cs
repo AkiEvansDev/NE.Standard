@@ -30,7 +30,7 @@ internal sealed partial class StandardGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial bool Loading { get; set; }
 
-    // The rows every Main page's "Standard" section shows, in this order; the extents are left out on purpose.
+    // The rows every component page's "Standard" section shows, in this order; the extents are left out on purpose.
     public StandardGroupContext()
     {
         AddOption(nameof(Visibility), CycleVisibility, () => Visibility);

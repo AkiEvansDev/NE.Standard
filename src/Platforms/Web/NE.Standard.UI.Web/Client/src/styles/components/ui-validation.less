@@ -1,4 +1,5 @@
 ﻿@import "../core/tokens.less";
+@import "../mixins/text.less";
 
 // The message line under a field, in the severity's ink, not the edge's fill: warning's fill is 1.1:1 on a light page, its ink 5.9:1.
 .ui-validation-message {
@@ -8,12 +9,20 @@
     color: var(--ui-color-danger-ink);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
+    // One unit with its field: the field's gap and the words, not a half-leading more.
+    .ui-text-leading-trim-start();
 }
 
 .ui-invalid > .ui-validation-message,
 .ui-validation--warning > .ui-validation-message,
 .ui-validation--info > .ui-validation-message {
     display: block;
+    // The words fade in rather than snap; the room they take comes at once, as a layout change in a form must not animate.
+    transition: opacity @ui-motion-fast @ui-motion-enter;
+
+    @starting-style {
+        opacity: 0;
+    }
 }
 
 // A mark without words (a package's edge alone) raises no empty line; one filled later shows, since `:empty` is live.

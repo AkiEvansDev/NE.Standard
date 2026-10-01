@@ -1,7 +1,8 @@
-// A timestamp written in the reader's zone in the page's patterns, and a relative one kept current as time passes.
+// A timestamp written in the reader's zone in the page's patterns, and a relative one — a relative day too — kept current as time passes.
 
 import { componentParts } from "../addressing/dom-registry";
-import { formatTimestamp, readInstant, readTimestampFormat } from "../rendering/timestamp-format";
+import { asHeading, formatTimestamp, isRelativeFormat, nearDay, readInstant, readTimestampFormat } from "../rendering/timestamp-format";
+import type { TimestampFormat } from "../rendering/timestamp-format";
 import { clientStrings } from "../runtime/client-strings";
 import { needRelativeTicks } from "../runtime/relative-clock";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
@@ -50,16 +51,18 @@ export class TimestampEngine {
             const instant = readInstant(stamp.getAttribute(InstantAttribute));
             const text = stamp.querySelector<HTMLElement>(`.${TextClass}`);
 
-            if (text === null || (relativeOnly && format !== "relative"))
+            if (text === null || (relativeOnly && !needsNoPatterns(format, instant, now)))
                 continue;
 
-            const written = instant === null ? "" : formatTimestamp(instant, format, words, now);
+            const formatted = instant === null ? "" : formatTimestamp(instant, format, words, now);
+            // A day's name standing alone heads what follows it: "Today", where a moment in a sentence says "today".
+            const written = format === "relative-date" ? asHeading(formatted, words.language) : formatted;
 
             // Written only when it changes: a relative text read again every few seconds mostly reads the same.
             if (text.textContent !== written)
                 text.textContent = written;
 
-            relative ||= format === "relative" && instant !== null;
+            relative ||= isRelativeFormat(format) && instant !== null;
         }
 
         // On the page's one relative clock, which a relative moment in words ticks by too.
@@ -69,7 +72,7 @@ export class TimestampEngine {
 
     /** Writes every relative timestamp again; answers whether one is left on the page, which keeps the ticks coming. */
     private readonly refreshRelative = (): boolean => {
-        const stamps = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}[${FormatAttribute}="relative"]`)];
+        const stamps = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}:is([${FormatAttribute}="relative"], [${FormatAttribute}="relative-date"])`)];
 
         if (stamps.length === 0)
             return false;
@@ -77,4 +80,9 @@ export class TimestampEngine {
         this.apply(stamps);
         return true;
     };
+}
+
+/** Whether a stamp's text needs no table's patterns: a relative one, and a relative day that is a word of its own ("today"). */
+function needsNoPatterns(format: TimestampFormat, instant: number | null, now: number): boolean {
+    return format === "relative" || (format === "relative-date" && instant !== null && nearDay(instant, now) !== null);
 }

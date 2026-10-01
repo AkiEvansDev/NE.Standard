@@ -36,6 +36,12 @@ public sealed class WebShellContext
     public IHtmlContent? Content { get; init; }
 
     /// <summary>
+    /// Gets the <c>FormId</c>s the page's fields name, each written as a hidden form of the browser's own beside the root, so a
+    /// password manager and autofill read each form apart (<see cref="WebForms"/>).
+    /// </summary>
+    public IReadOnlyList<string> FormIds { get; init; } = [];
+
+    /// <summary>
     /// Gets the corner this page's notifications stack in.
     /// </summary>
     public UINotificationPlacement NotificationPlacement { get; init; } = UINotificationPlacement.Bottom;

@@ -25,14 +25,14 @@
     &::-webkit-slider-runnable-track {
         height: 0.35rem;
         border-radius: 999px;
-        background-color: var(--ui-surface-raised);
+        background-color: @ui-range-track;
         .ui-range-fill();
     }
 
     &::-moz-range-track {
         height: 0.35rem;
         border-radius: 999px;
-        background-color: var(--ui-surface-raised);
+        background-color: @ui-range-track;
         .ui-range-fill();
     }
 
@@ -61,12 +61,14 @@
     }
 
     // A ring rather than a colour change: darkening the thumb under the pointer read as disabled.
-    &@{ui-range-live}:hover::-webkit-slider-thumb {
-        box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
-    }
+    @media @ui-can-hover {
+        &@{ui-range-live}:hover::-webkit-slider-thumb {
+            box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+        }
 
-    &@{ui-range-live}:hover::-moz-range-thumb {
-        box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+        &@{ui-range-live}:hover::-moz-range-thumb {
+            box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+        }
     }
 
     // On the thumb as well as the input: the thumb is what the pointer is over, and it carries its own hand.

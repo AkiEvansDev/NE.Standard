@@ -8,6 +8,9 @@
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
 @ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before";
 
+// The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
+@ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item:has(> [data-ui-action-bar] > .ui-action-bar), .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar), .ui-tree > [data-ui-items-host] > .ui-tree__row:has(> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar)";
+
 // Movement goes, its end state stays. On every element, a package's too, so none keeps a guard of its own; a script's own animation
 // asks rendering/motion.ts, since this reaches no Web Animation.
 @media (prefers-reduced-motion: reduce) {
@@ -50,11 +53,13 @@
         outline-offset: -2px;
     }
 
-    // The keyboard's row and a list's current option: dashed, to tell it from a chosen one, in the selection colour when it is one.
+    // The keyboard's row, the row an action bar stands over and a list's current option: dashed, to tell it from a chosen one, in the
+    // selection colour when it is one.
     .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
     .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
     .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
     .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus],
+    @{ui-bar-rows},
     .ui-select__option@{ui-list-current} {
         outline: 2px dashed CanvasText;
         outline-offset: -2px;
@@ -64,6 +69,7 @@
         .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
         .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
         .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected],
+        :is(@{ui-bar-rows})[data-ui-selected],
         .ui-select__option@{ui-list-current}[aria-selected="true"] {
             outline-color: Highlight;
         }
@@ -118,13 +124,22 @@
     }
 
     // The calendar's chosen day or month filled; a period's days tinted, and today ringed.
-    .ui-temporal-input__day--selected,
-    .ui-temporal-input__month--selected,
-    .ui-temporal-input__day--selected:hover:not(:disabled),
-    .ui-temporal-input__month--selected:hover:not(:disabled) {
+    @ui-forced-selected-cell: {
         forced-color-adjust: none;
         background: Highlight;
         color: HighlightText;
+    };
+
+    .ui-temporal-input__day--selected,
+    .ui-temporal-input__month--selected {
+        @ui-forced-selected-cell();
+    }
+
+    @media @ui-can-hover {
+        .ui-temporal-input__day--selected:hover:not(:disabled),
+        .ui-temporal-input__month--selected:hover:not(:disabled) {
+            @ui-forced-selected-cell();
+        }
     }
 
     // Not under the keyboard's dashed mark, which the same outline would replace.
@@ -157,10 +172,16 @@
         background: CanvasText;
     }
 
-    .ui-grid-splitter@{ui-button-live}:hover::before,
+    @media @ui-can-hover {
+        .ui-grid-splitter@{ui-button-live}:hover::before,
+        .ui-table__resizer:hover::before {
+            forced-color-adjust: none;
+            background: Highlight;
+        }
+    }
+
     .ui-grid-splitter@{ui-keyboard-focus}::before,
     .ui-grid-splitter[data-ui-splitting]::before,
-    .ui-table__resizer:hover::before,
     .ui-table__resizer@{ui-keyboard-focus}::before,
     .ui-table__resizer[data-ui-splitting]::before {
         forced-color-adjust: none;
@@ -242,12 +263,16 @@
         .ui-forced-range-thumb();
     }
 
-        .ui-slider__input@{ui-range-live}:hover::-webkit-slider-thumb {
-            box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+        @media @ui-can-hover {
+            .ui-slider__input@{ui-range-live}:hover::-webkit-slider-thumb {
+                box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+            }
         }
 
-        .ui-slider__input@{ui-range-live}:hover::-moz-range-thumb {
-            box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+        @media @ui-can-hover {
+            .ui-slider__input@{ui-range-live}:hover::-moz-range-thumb {
+                box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
+            }
         }
 
     // A tinted picture is a mask's filled ground, forced to Canvas: the mode's text colour fills it. Glyphs and plain pictures keep theirs.

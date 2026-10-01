@@ -116,6 +116,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, TableComponent.ShowColumnSeparatorsProperty, "ui-table--column-lines");
         RenderFlagClass(context, root, TableComponent.ShowRowSeparatorsProperty, "ui-table--no-separators", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-table--row-hover");
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-table--no-empty", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
         RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
         RenderFlagAttribute(context, root, TableComponent.DraggableProperty, WebAttributes.RowsDraggable);

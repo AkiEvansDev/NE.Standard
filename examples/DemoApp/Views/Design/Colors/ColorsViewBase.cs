@@ -3,13 +3,11 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// Shared shell for the Colors reference pages, with a Palette/Semantic/Components strip in place of the kind tabs.
+/// Shared shell for the Colors reference pages, with a Palette/Semantic/Components/Theme strip of its own.
 /// </summary>
 internal abstract class ColorsViewBase : DemoView
 {
     protected override string ComponentRoute => "/design/colors";
-    protected override DemoViewKind ViewKind => DemoViewKind.Main;
-    protected override DemoViewKind[] AvailableKinds => [];
     protected override string Header => "demo.design.colors.header";
     protected override string HeaderDescription => "demo.design.colors.description";
 

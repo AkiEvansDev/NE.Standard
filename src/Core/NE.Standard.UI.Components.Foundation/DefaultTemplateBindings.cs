@@ -62,7 +62,5 @@ public static class DefaultTemplateBindings
             .Bind(ITextComponent.DescriptionTypeProperty, nameof(ITextModel.DescriptionType), UIBindingScope.Relative, optional: true)
             .Bind(ITextComponent.DescriptionColorProperty, nameof(ITextModel.DescriptionColor), UIBindingScope.Relative, optional: true)
 
-            .Bind(ITextComponent.TextAlignmentProperty, nameof(ITextModel.TextAlignment), UIBindingScope.Relative, optional: true)
-
-            .Bind(ITextBaseComponent.SelectableProperty, nameof(ITextModel.Selectable), UIBindingScope.Relative, optional: true);
+            .Bind(ITextComponent.TextAlignmentProperty, nameof(ITextModel.TextAlignment), UIBindingScope.Relative, optional: true);
 }

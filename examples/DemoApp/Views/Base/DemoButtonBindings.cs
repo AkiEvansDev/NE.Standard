@@ -38,7 +38,6 @@ internal static class DemoButtonBindings
             .BindTooltip($"{contentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
             .BindTooltipPlacement($"{contentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
             .BindTextAlignment($"{layoutGroup}.{nameof(TextLayoutGroupContext.TextAlignment)}")
-            .BindSelectable($"{layoutGroup}.{nameof(TextLayoutGroupContext.Selectable)}")
             .BindBadgePlacement($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
             .BindBadgeStyle($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
             .BindBadgeColor($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")

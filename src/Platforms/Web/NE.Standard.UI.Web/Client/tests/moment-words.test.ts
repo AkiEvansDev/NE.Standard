@@ -25,6 +25,7 @@ function tableOf(language: string, words: Record<string, string>, temporal?: Tem
 test("only an object of an instant in the wire's shape and a timestamp's format is a moment", () => {
     assert.equal(isMoment({ moment: Written }), true);
     assert.equal(isMoment({ moment: Written, format: "relative" }), true);
+    assert.equal(isMoment({ moment: Written, format: "relative-date" }), true);
     assert.equal(isMoment({ moment: Written, format: "long" }), false);
     assert.equal(isMoment({ moment: Written, key: "a" }), false);
     assert.equal(isMoment({ moment: "30.09.2026" }), false);
@@ -46,6 +47,7 @@ test("where no page writes it a moment reads as the server writes it: UTC in the
     assert.equal(writeCanonicalMoment(Instant, "date"), "2026-09-30");
     assert.equal(writeCanonicalMoment(Instant, "time"), "14:05 UTC");
     assert.equal(writeCanonicalMoment(Instant, "relative"), "2026-09-30 14:05 UTC");
+    assert.equal(writeCanonicalMoment(Instant, "relative-date"), "2026-09-30");
     assert.equal(formatWords("Sent {at}", { at: { moment: Written } }), "Sent 2026-09-30 14:05 UTC");
 });
 

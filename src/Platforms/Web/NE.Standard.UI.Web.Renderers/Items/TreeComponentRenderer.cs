@@ -67,6 +67,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         RenderFlagAttribute(context, root, TreeComponent.DraggableProperty, WebAttributes.TreeDraggable);
         RenderFlagAttribute(context, root, TreeComponent.RemovableProperty, WebAttributes.TreeUnremovable, WebValueCondition.IsFalse);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-tree--row-hover");
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-tree--no-empty", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TreeComponent.ShowFoldChevronProperty, "ui-tree--no-chevron", WebValueCondition.IsFalse);
 
         // The tree takes the focus whatever it chooses: the arrows fold and walk its rows.

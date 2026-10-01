@@ -38,8 +38,6 @@
   <Folder Name="/examples/">
     <Project Path="examples/DemoApp.Web/DemoApp.Web.csproj" />
     <Project Path="examples/DemoApp/DemoApp.csproj" />
-    <Project Path="examples/TeamRoom.Web/TeamRoom.Web.csproj" />
-    <Project Path="examples/TeamRoom/TeamRoom.csproj" />
   </Folder>
 
   <Folder Name="/solution/">

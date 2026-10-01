@@ -1,20 +1,22 @@
 // An items view's or a table's rows put in another order by the reader: dragged between rows, or moved a place by Alt+Up and
-// Alt+Down. Nothing moves on the client — the row raises `move` with the index it takes, the controller moves it in its collection
-// and the collection's own Move puts the row there. The tree's drag is the model: the same marks, the same event, the same refusals.
+// Alt+Down. The row raises `move` with the index it takes and stands there at once; the controller moves it in its collection, and
+// the answer says where it stays — the collection's Move leaves it there or puts it where the controller did, and a move the answer
+// does not carry puts it back (`PendingMoves`). The tree's drag is the model: the same marks, the same event, the same refusals.
 // A grouped view's row moves within its own group: the group is read off the row, so a move across one would regroup it.
 // A host dragged by grips (`DragHandle`) lifts a row only by its grip, and the rest of the row keeps its text and presses.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
     GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass, RowsDraggableAttribute,
-    RowsDragHandleAttribute, UndraggableAttribute, WindowOffsetAttribute
+    RowsDragHandleAttribute, UndraggableAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { getRealItemElements } from "../items/items-empty-renderer.ts";
 import { getActiveSorts, readItemsQuery } from "../items/items-filter-sort.ts";
-import { resolveHostMode } from "../items/items-host-mode.ts";
+import { resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
 import { getSourceOrder } from "../items/items-source-order.ts";
+import type { PendingMove, PendingMoves } from "../items/pending-moves.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { clearDragMarks, markDragStart } from "./drag-marks.ts";
@@ -50,18 +52,56 @@ type ItemMoveDetail = {
     readonly index: number;
 };
 
-/** How the pipeline reads a row's `move`: the index rides after the row's own keys, where `UIAction.ArgEventValue` reads it. */
-export const ItemMoveEvent: { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } = {
-    name: MoveEventName,
-    registration: {
-        // A tree's `move` carries nothing and keeps its chain: its target travels on the node's own two-way value.
-        dynamicParameters: context => {
-            const index = context.domEvent instanceof CustomEvent ? (context.domEvent.detail as Partial<ItemMoveDetail> | null)?.index : undefined;
+/** What a row's move asks of the rows moved ahead: the row put in its new place now, and settled once its command is answered. */
+export type MovesAhead = Pick<PendingMoves, "ahead" | "settle">;
 
-            return typeof index === "number" ? [...context.dynamicParameters, index] : null;
+/**
+ * How the pipeline reads a row's `move`: the index rides after the row's own keys, where `UIAction.ArgEventValue` reads it. Once the
+ * pipeline takes it, the row stands at that index ahead of the command, and the command's answer settles it; with no `moves`, the
+ * row waits for the server.
+ */
+export function itemMoveEvent(moves?: MovesAhead): { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } {
+    const pending = new WeakMap<Event, PendingMove>();
+
+    return {
+        name: MoveEventName,
+        registration: {
+            // A tree's `move` carries nothing and keeps its chain: its target travels on the node's own two-way value.
+            dynamicParameters: context => {
+                const index = moveIndexOf(context.domEvent);
+
+                return index === null ? null : [...context.dynamicParameters, index];
+            },
+            // Not at the drop: a move no command or interaction takes would stand with no answer to put it back.
+            started: context => {
+                const index = moveIndexOf(context.domEvent);
+                const row = index === null || !(context.domEvent.target instanceof Element) ? null : context.domEvent.target.closest<HTMLElement>(RowSelector);
+                const host = row?.parentElement ?? null;
+
+                if (moves === undefined || index === null || row === null || host === null || !host.hasAttribute(ItemsHostAttribute))
+                    return;
+
+                const move = moves.ahead(host, rowKey(row), index);
+
+                if (move !== null)
+                    pending.set(context.domEvent, move);
+            },
+            completed: context => {
+                const move = pending.get(context.domEvent);
+
+                if (move !== undefined)
+                    moves?.settle(move);
+            }
         }
-    }
-};
+    };
+}
+
+/** The index a row's `move` carries; null for a tree's, which carries none. */
+function moveIndexOf(domEvent: Event): number | null {
+    const index = domEvent instanceof CustomEvent ? (domEvent.detail as Partial<ItemMoveDetail> | null)?.index : undefined;
+
+    return typeof index === "number" ? index : null;
+}
 
 /** The rules and the values the engine reads: whether a sort orders a host, and a virtualized host's whole collection. */
 export type ItemsReorderServices = {
@@ -251,7 +291,7 @@ export class ItemsReorderEngine {
 
         const index = movedIndex(this.orderOf(drag.host), rowKey(drag.row), rowKey(anchor), side);
 
-        return index === null ? null : index + windowOffsetOf(drag.host);
+        return index === null ? null : index + windowOffset(drag.host);
     }
 
     /** Every item's key in the collection's order: the values a virtualized host holds, the source order of a host holding its rows. */
@@ -437,12 +477,6 @@ function nearestRow(rows: readonly HTMLElement[], point: { readonly clientX: num
 /** The host's rows a reader sees, in the order they are drawn: a row a filter hid or a fold took is no place to land beside. */
 function shownRows(host: Element): HTMLElement[] {
     return getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement && row.matches(RowSelector) && rowBox(row) !== null);
-}
-
-function windowOffsetOf(host: Element): number {
-    const offset = resolveHostMode(host) === "windowed" ? Number(host.getAttribute(WindowOffsetAttribute) ?? "0") : 0;
-
-    return Number.isInteger(offset) && offset > 0 ? offset : 0;
 }
 
 /** Marks the side of the row the dragged one lands on, on the row's box, and takes the mark off every other row of the root. */

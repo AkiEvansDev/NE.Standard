@@ -29,7 +29,7 @@ internal sealed partial class UIViewCompilationContext
     private UIComponentState BuildState(IVisualComponent component, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, List<CompiledUIBinding> bindings, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
         ValidateItemsView(component);
-        EnsureSubmitOnEnterHasForm(component);
+        EnsureSubmitOnEnterIsSound(component);
 
         UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
         List<CompiledUIPropertyValue> values = new(definitions.Length);

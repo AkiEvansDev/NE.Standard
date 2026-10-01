@@ -28,8 +28,10 @@ html {
         background-clip: content-box;
     }
 
-    html::-webkit-scrollbar-thumb:hover,
-    *::-webkit-scrollbar-thumb:hover {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 38%, transparent);
+    @media @ui-can-hover {
+        html::-webkit-scrollbar-thumb:hover,
+        *::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--ui-color-on-surface) 38%, transparent);
+        }
     }
 }

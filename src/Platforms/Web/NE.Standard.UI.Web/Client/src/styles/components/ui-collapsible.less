@@ -27,8 +27,10 @@
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-collapsible__toggle:hover {
-        color: @ui-text-ink;
+    @media @ui-can-hover {
+        .ui-collapsible__toggle:hover {
+            color: @ui-text-ink;
+        }
     }
 
     .ui-collapsible__toggle::before {

@@ -30,6 +30,8 @@ export type EventRegistration<TEvent extends Event = Event> = {
     readonly submitsForm?: boolean;
     /** The keys the command carries, named by the engine in place of the `data-ui-key` chain above the target; null keeps the chain. */
     dynamicParameters?(context: EventDispatchContext<TEvent>): readonly unknown[] | null;
+    /** Told, as the pipeline takes the event, that a command or an interaction runs for it: `completed` follows whatever happens. */
+    started?(context: EventDispatchContext<TEvent>): void;
     /** Told what became of the command this event raised, whatever happens — a dropped connection included. */
     completed?(context: EventCompletionContext<TEvent>): void;
     createRequest?(context: EventDispatchContext<TEvent>): UICommandRequest | null;

@@ -61,6 +61,20 @@ export class ValueChangeDispatcher {
         return new Promise<void>(resolve => this.sentWaiters.push({ through, resolve }));
     }
 
+    /** Whether a value given is still waiting to leave, on its way, or waiting for its answer. */
+    public get isBusy(): boolean {
+        return this.flight !== null || this.queue.length > 0;
+    }
+
+    /**
+     * Resolves once every value given so far, and any given meanwhile, has its answer applied — or failed; at once while none waits.
+     * A value the dropped connection took waits for the page to be attached again, as its send does.
+     */
+    public async whenAnsweredAsync(): Promise<void> {
+        while (this.flight !== null)
+            await this.flight.catch(Ignore);
+    }
+
     /** Sends one value, a large one staged beside the hub, settling once the answer's changes are applied; `before` runs just ahead of them. */
     public dispatchAsync(update: WebUIValueChangeRequest, before?: () => void): Promise<void> {
         this.given++;

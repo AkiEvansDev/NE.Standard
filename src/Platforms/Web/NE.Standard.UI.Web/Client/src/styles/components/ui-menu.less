@@ -18,7 +18,12 @@
 @ui-menu-folded: ~":is(@{ui-menu-collapsed}, @{ui-menu-rail})";
 // An entry whose badge stands on its icon's corner, as the words beside the icon are gone or under it.
 @ui-menu-icon-entry: ~":is(@{ui-menu-collapsed-entry}, @{ui-menu-rail-entry})";
-@ui-menu-rail-width: 4.5rem;
+// A rail's measures follow its Size (MenuComponent.Size, a class on the rail), Medium's the default: set on the rail below.
+@ui-menu-rail-width: var(--ui-menu-rail-width);
+// A rail laid along the page's bottom: the whole of a left side on a phone (WebViewRenderer marks the side, side-drawers.less places it).
+@ui-menu-bottom-bar: ~"[data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] .ui-menu--rail";
+// The narrowest a bar's entry is squeezed to, a press's room for the icon and a short label; past it the bar scrolls sideways.
+@ui-menu-bar-entry-width: var(--ui-menu-bar-entry-width);
 
 // The column, switch and fold come from ui-collapsible.less; what is here is the list, and what a collapsed list keeps.
 .ui-menu {
@@ -63,10 +68,10 @@
     min-width: 0;
 }
 
-// An entry's states are .ui-button's; here its row shape: rounded, but for the current entry, a square slice of the rail.
+// An entry's states are .ui-button's; here its row shape: rounded, the current entry straight on the edge its mark stands on.
 .ui-menu-item {
     justify-content: flex-start;
-    border-radius: var(--ui-radius-button);
+    border-radius: @ui-list-entry-radius;
     gap: @ui-space-2;
     // Re-called with this control's own default; 1.75rem, not 2, keeps rows close enough to read as one list rather than loose items.
     .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
@@ -79,12 +84,15 @@
     border-radius: 0;
 }
 
+// In a popup an entry's corner runs parallel to the popup's, a bar's flyout too (after the bar's rule, which it ties with).
+:is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {
+    border-radius: @ui-list-entry-radius;
+}
+
 // The current entry keeps its ground under the pointer: restated at the ghost button's hover specificity, which this file wins by order.
-// It is square, its mark a straight line on the edge the sidebar hangs off, unless the author moved or removed it.
 .ui-menu-item--selected {
     .ui-selected-ground();
     .ui-selected-ink();
-    border-radius: 0;
     .ui-reveal-hover-off({ .ui-selected-ground(); });
 }
 
@@ -98,25 +106,43 @@
     .ui-entry-quiet(~".ui-menu-item"; @ui-button-live; ~".ui-menu-item--selected");
 }
 
+// The mark is a straight line on the edge the menu hangs off, so the current entry is straight there and rounds its other side as
+// its neighbours do; a bar's and a rail's entries are square slices whatever their side. A mark the author moved (SelectionStyle)
+// keeps the side's corners.
 .ui-menu.ui-side--left .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-left);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
 .ui-menu.ui-side--right .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-right);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .ui-menu.ui-side--top .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-top);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 .ui-menu.ui-side--bottom .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 // A bar's current entry is marked along its bottom edge whatever Side says: a line on one side of a row reads as a box.
 .ui-menu.ui-orientation--horizontal .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
+}
+
+// A folded group's flyout is a popup, and a popup's list marks no line: its current entry is its ground and ink alone, rounded as
+// its neighbours.
+.ui-menu .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item--selected {
+    .ui-selected-mark(none);
+    border-radius: @ui-list-entry-radius;
 }
 
 // Collapsed, an entry keeps its padding so the glyph stays in line with the page title's edge; not in the flyout, which keeps titles.
@@ -329,6 +355,35 @@
     &@{ui-button-live}@{ui-keyboard-focus} {
         background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
     }
+
+    // "Current inside": a short, faint piece of the current entry's line on the same edge, half its length, so it never reads as the
+    // current entry itself nor as the pointer's wash — on a dark palette, whose descendant wash is none, it is the group's one mark.
+    // Not while a press's wave plays: the wave is the same pseudo-element (core/press.less).
+    &:not(.ui-pressing)::before {
+        content: "";
+        position: absolute;
+        inset: var(--ui-menu-group-mark-inset, 25% auto 25% 0);
+        width: var(--ui-menu-group-mark-width, 2px);
+        height: var(--ui-menu-group-mark-height, auto);
+        background: @ui-selected-mark-color;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+}
+
+// The edge a folded group's short mark stands on: the current entry's (the menu's side; a bar's bottom; a phone's bottom bar's top).
+.ui-menu.ui-side--right {
+    --ui-menu-group-mark-inset: 25% 0 25% auto;
+}
+
+.ui-menu:is(.ui-side--top, .ui-side--bottom, .ui-orientation--horizontal) {
+    --ui-menu-group-mark-width: auto;
+    --ui-menu-group-mark-height: 2px;
+    --ui-menu-group-mark-inset: auto 25% 0 25%;
+}
+
+.ui-menu.ui-side--top:not(.ui-orientation--horizontal) {
+    --ui-menu-group-mark-inset: 0 25% auto 25%;
 }
 
 @{ui-menu-folded} .ui-menu__submenu[data-ui-menu-flyout] {
@@ -469,20 +524,111 @@
         display: none;
     }
 
-// A rail: a narrow column of entries, each its icon over a one-line label, centred. Its ground is Surface's (ui-surface.less).
+// A rail's measures by its size, Medium's unless the rail is another: its column's width, an entry's least height, its padding, the
+// glyph's size and how far down it stands (where a badge's corner is), the label's type, and a bar entry's least width. Large is
+// a 72 px column of 24 px glyphs over caption labels; Medium shrinks it all by a sixth, the label to the overline's size (not its
+// capitals); Small is a column of 48 px squares, its labels gone from sight: a word cut on every entry reads worse than none.
+.ui-menu--rail {
+    --ui-menu-rail-width: 3.75rem;
+    --ui-menu-rail-entry-height: 3rem;
+    --ui-menu-rail-padding: 0.375rem 0.25rem;
+    --ui-menu-rail-gap: 0.125rem;
+    --ui-menu-rail-glyph: 1.25rem;
+    --ui-menu-rail-glyph-top: 0.375rem;
+    --ui-menu-rail-label-size: var(--ui-text-overline-font-size);
+    --ui-menu-rail-label-line: var(--ui-text-overline-line-height);
+    --ui-menu-bar-entry-width: 3.5rem;
+}
+
+.ui-menu--rail.ui-menu--large {
+    --ui-menu-rail-width: 4.5rem;
+    --ui-menu-rail-entry-height: 3.5rem;
+    --ui-menu-rail-padding: @ui-space-2 @ui-space-1;
+    --ui-menu-rail-gap: @ui-space-1;
+    --ui-menu-rail-glyph: 1.5rem;
+    --ui-menu-rail-glyph-top: @ui-space-2;
+    --ui-menu-rail-label-size: var(--ui-text-caption-font-size);
+    --ui-menu-rail-label-line: var(--ui-text-caption-line-height);
+    --ui-menu-bar-entry-width: 4rem;
+}
+
+// The glyph centred in its square, so its top is half of what the square has to spare.
+.ui-menu--rail.ui-menu--small {
+    --ui-menu-rail-width: 3rem;
+    --ui-menu-rail-entry-height: 3rem;
+    --ui-menu-rail-padding: @ui-space-1;
+    --ui-menu-rail-gap: 0;
+    --ui-menu-rail-glyph: 1.25rem;
+    --ui-menu-rail-glyph-top: 0.875rem;
+    --ui-menu-bar-entry-width: 3rem;
+}
+
+// A rail: a narrow column of entries, each its icon over a one-line label, centred, edge to edge: square slices of the rail have no
+// rounded hover for a gap to set apart. Its ground is Surface's (ui-surface.less).
 .ui-menu--rail.ui-orientation--vertical {
     .ui-responsive-property(width, --ui-width, @ui-menu-rail-width);
 }
 
-// Along a bar the same entries share its length, as a bottom navigation's do.
-.ui-menu--rail.ui-orientation--horizontal > .ui-menu__host {
-    flex-wrap: nowrap;
-    align-items: stretch;
+    .ui-menu--rail.ui-orientation--vertical > .ui-menu__host {
+        .ui-responsive-property(gap, --ui-menu-spacing, 0);
+    }
+
+// Along a bar the same entries share its length, as a bottom navigation's do, each no narrower than a press: more than fit, and the
+// bar scrolls sideways rather than cut every label to nothing. A caption or a rule stands between them as an upright line, its own width.
+.ui-menu-rail-along() {
+    > .ui-menu__host {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        .ui-responsive-property(gap, --ui-menu-spacing, 0);
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+    }
+
+        > .ui-menu__host > .ui-menu__item {
+            flex: 1 1 0;
+            min-width: @ui-menu-bar-entry-width;
+        }
+
+        > .ui-menu__host > .ui-menu__item:has(> .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])) {
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+
+        > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) {
+            align-self: stretch;
+            .ui-responsive-property(width, --ui-width, 0);
+            .ui-responsive-property(margin, --ui-margin, @ui-space-2 @ui-space-1);
+            border-top: none;
+            border-left: 1px solid var(--ui-color-border);
+        }
 }
 
-    .ui-menu--rail.ui-orientation--horizontal > .ui-menu__host > .ui-menu__item {
-        flex: 1 1 0;
+.ui-menu--rail.ui-orientation--horizontal {
+    .ui-menu-rail-along();
+}
+
+// A rail standing as the page's bottom bar on a phone is the horizontal rail, whatever its authored orientation: as wide as the page,
+// its ground running under the phone's home bar. Its current entry keeps the rail's look — a square slice, a line on one edge, the icon
+// filled — the line on the top edge, facing the content: at the bottom it would sit on the screen's edge, over the home bar.
+@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+    // The bar's hairline is the rail's own, not its side's border: drawn under the entries, so the current one's line lies over it
+    // rather than a pixel below it.
+    @{ui-menu-bottom-bar} {
+        width: auto;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-shadow: inset 0 1px 0 0 var(--ui-color-border);
+        // A folded group's short mark stands on the top edge, with the current entry's line.
+        --ui-menu-group-mark-width: auto;
+        --ui-menu-group-mark-height: 2px;
+        --ui-menu-group-mark-inset: 0 25% auto 25%;
+        .ui-menu-rail-along();
     }
+
+        @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item--selected {
+            .ui-selected-mark(@ui-selected-mark-top);
+        }
+}
 
 // A square slice of the rail, so the current entry's mark lies on the rail's own edge; the icon and the label in one centred column.
 @{ui-menu-rail-entry} {
@@ -490,8 +636,8 @@
     justify-content: center;
     border-radius: 0;
     gap: 0;
-    .ui-responsive-property(min-height, --ui-min-height, 3.5rem);
-    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-1);
+    .ui-responsive-property(min-height, --ui-min-height, var(--ui-menu-rail-entry-height));
+    .ui-responsive-property(padding, --ui-padding, var(--ui-menu-rail-padding));
     text-align: center;
 }
 
@@ -500,15 +646,15 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: @ui-space-1;
+        gap: var(--ui-menu-rail-gap);
         width: 100%;
         text-align: center;
     }
 
-    // A label still at the button's Body role is a caption here; an author's own TitleType is left alone.
+    // A label still at the button's Body role takes the rail's label size; an author's own TitleType is left alone.
     @{ui-menu-rail-entry} > .ui-button__content.ui-text-type--body {
-        font-size: var(--ui-text-caption-font-size);
-        line-height: var(--ui-text-caption-line-height);
+        font-size: var(--ui-menu-rail-label-size);
+        line-height: var(--ui-menu-rail-label-line);
         font-weight: var(--ui-text-caption-font-weight);
     }
 
@@ -520,7 +666,7 @@
     }
 
         @{ui-menu-rail-entry} > .ui-button__content > .ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
-            font-size: 1.5rem;
+            font-size: var(--ui-menu-rail-glyph);
         }
 
     // The current entry wears its icon's filled drawing: the FILL axis a pack's glyph reads (MECHANISMS §7); a glyph without one is unchanged.
@@ -552,15 +698,21 @@
             display: none;
         }
 
-    // A rail's glyph is larger than a row's, its corner further from the middle.
+    // A rail's glyph is larger than a row's, its corner further from the middle: a count starts a quarter rem over the glyph's top and
+    // half a rem inside its end, a dot on its top, a quarter inside.
     @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
-        inset-block-start: 0.25rem;
-        inset-inline-start: calc(50% + 0.25rem);
+        inset-block-start: calc(var(--ui-menu-rail-glyph-top) - 0.25rem);
+        inset-inline-start: calc(50% + var(--ui-menu-rail-glyph) / 2 - 0.5rem);
     }
 
     @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
-        inset-block-start: 0.5rem;
-        inset-inline-start: calc(50% + 0.5rem);
+        inset-block-start: var(--ui-menu-rail-glyph-top);
+        inset-inline-start: calc(50% + var(--ui-menu-rail-glyph) / 2 - 0.25rem);
+    }
+
+    // A small rail's label leaves the eye but not a screen reader, and is the entry's tooltip (menu-engine.ts), as a folded menu's title.
+    .ui-menu--rail.ui-menu--small > .ui-menu__host > .ui-menu__item > .ui-menu-item > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title {
+        .ui-visually-hidden();
     }
 
     // A select's value has no room under the label either.

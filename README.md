@@ -124,12 +124,11 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application: every built-in component has its pages, 124 routes in all,
-with the sign-in, account, admin and forbidden pages showing what the security mechanism does; the mini
-application `examples/TeamRoom` exercises the same mechanism end to end. Every component but the dialog and the
-notification, which have a test page each, has a **Main** page — a preview beside every bindable property, each row stepping its value — plus, where they earn their keep, an
-**Examples** page for variants worth putting side by side and a **Scenarios** page for what needs a story rather
-than a property.
+`examples/DemoApp` is the reference application, 75 routes in all: screens that compose many components into a piece of an
+application (a sign-up, a checkout, a chat, a file editor, the sign-in, account, admin and forbidden pages of the security
+mechanism), pages for what the framework does across components (words, commands, values and validation, large lists, colours),
+and one page per component — a preview beside every bindable property, each row stepping its value, then examples of it in use,
+each with its source.
 
 ```
 dotnet run --project examples/DemoApp.Web    # http://localhost:5000

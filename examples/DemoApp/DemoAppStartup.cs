@@ -40,6 +40,7 @@ using DemoApp.Controllers.Layouts.Scroll;
 using DemoApp.Controllers.Layouts.StackPanel;
 using DemoApp.Controllers.Layouts.Surface;
 using DemoApp.Controllers.Layouts.WrapPanel;
+using DemoApp.Controllers.Mechanisms;
 using DemoApp.Controllers.Navigation.Breadcrumbs;
 using DemoApp.Controllers.Navigation.Menu;
 using DemoApp.Controllers.Navigation.Tabs;
@@ -88,6 +89,7 @@ using DemoApp.Views.Layouts.Scroll;
 using DemoApp.Views.Layouts.StackPanel;
 using DemoApp.Views.Layouts.Surface;
 using DemoApp.Views.Layouts.WrapPanel;
+using DemoApp.Views.Mechanisms;
 using DemoApp.Views.Navigation.Breadcrumbs;
 using DemoApp.Views.Navigation.Menu;
 using DemoApp.Views.Navigation.Tabs;
@@ -121,6 +123,9 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<CatalogueView, CatalogueController>("/screens/catalogue");
         _ = application.Route<InboxView, InboxController>("/screens/inbox");
         _ = application.Route<ArticleView, ArticleController>("/screens/article");
+        _ = application.Route<ChatView, ChatController>("/screens/chat");
+        _ = application.Route<FilesView, FilesController>("/screens/files");
+        _ = application.Route<NoteEditorView, NoteEditorController>("/screens/notes");
 
         // The security screens. SignInView and ForbiddenView also record where the host sends a refused request, so the two
         // answers a refusal has are both real pages of the demo.
@@ -134,126 +139,76 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<ColorsComponentsView>("/design/colors/components");
         _ = application.Route<ColorsThemeView, ColorsThemeController>("/design/colors/theme");
 
+        // Mechanisms
+        _ = application.Route<WordsView, WordsController>("/mechanisms/words");
+        _ = application.Route<CommandsView, CommandsController>("/mechanisms/commands");
+        _ = application.Route<ValuesView, ValuesController>("/mechanisms/values");
+        _ = application.Route<ListsView, ListsController>("/mechanisms/lists");
+
         // Actions
-        _ = application.Route<ButtonMainView, ButtonMainController>("/actions/button");
-        _ = application.Route<ButtonExamplesView>("/actions/button/examples");
-        _ = application.Route<ButtonScenariosView, ButtonScenariosController>("/actions/button/scenarios");
-        _ = application.Route<ActionMainView, ActionMainController>("/actions/action");
-        _ = application.Route<ActionExamplesView>("/actions/action/examples");
-        _ = application.Route<CommandBarMainView, CommandBarMainController>("/actions/command-bar");
-        _ = application.Route<CommandBarExamplesView, CommandBarExamplesController>("/actions/command-bar/examples");
-        _ = application.Route<ThemeSwitcherMainView, ThemeSwitcherMainController>("/actions/theme-switcher");
-        _ = application.Route<LanguageSwitcherMainView, LanguageSwitcherMainController>("/actions/language-switcher");
-        _ = application.Route<SplitButtonMainView, SplitButtonMainController>("/actions/split-button");
-        _ = application.Route<SplitButtonExamplesView, SplitButtonExamplesController>("/actions/split-button/examples");
+        _ = application.Route<ButtonView, ButtonController>("/actions/button");
+        _ = application.Route<SplitButtonView, SplitButtonController>("/actions/split-button");
+        _ = application.Route<ButtonGroupView, ButtonGroupController>("/actions/button-group");
+        _ = application.Route<ActionView, ActionController>("/actions/action");
+        _ = application.Route<CommandBarView, CommandBarController>("/actions/command-bar");
+        _ = application.Route<ThemeSwitcherView, ThemeSwitcherController>("/actions/theme-switcher");
 
         // Layouts
-        _ = application.Route<ContainerMainView, ContainerMainController>("/layouts/container");
-        _ = application.Route<SurfaceMainView, SurfaceMainController>("/layouts/surface");
-        _ = application.Route<SurfaceExamplesView>("/layouts/surface/examples");
-        _ = application.Route<CardMainView, CardMainController>("/layouts/card");
-        _ = application.Route<CardExamplesView>("/layouts/card/examples");
-        _ = application.Route<CardScenariosView, CardScenariosController>("/layouts/card/scenarios");
-        _ = application.Route<ExpanderMainView, ExpanderMainController>("/layouts/expander");
-        _ = application.Route<ExpanderExamplesView>("/layouts/expander/examples");
-        _ = application.Route<ExpanderScenariosView, ExpanderScenariosController>("/layouts/expander/scenarios");
-        _ = application.Route<StackPanelMainView, StackPanelMainController>("/layouts/stack-panel");
-        _ = application.Route<WrapPanelMainView, WrapPanelMainController>("/layouts/wrap-panel");
-        _ = application.Route<ScrollMainView, ScrollMainController>("/layouts/scroll");
-        _ = application.Route<ScrollExamplesView>("/layouts/scroll/examples");
-        _ = application.Route<ScrollScenariosView, ScrollScenariosController>("/layouts/scroll/scenarios");
-        _ = application.Route<FlyoutMainView, FlyoutMainController>("/layouts/flyout");
-        _ = application.Route<FlyoutExamplesView>("/layouts/flyout/examples");
-        _ = application.Route<CollapsiblePanelMainView, CollapsiblePanelMainController>("/layouts/collapsible-panel");
-        _ = application.Route<CollapsiblePanelExamplesView>("/layouts/collapsible-panel/examples");
-        _ = application.Route<GridSplitterMainView, GridSplitterMainController>("/layouts/grid-splitter");
-        _ = application.Route<GridSplitterExamplesView>("/layouts/grid-splitter/examples");
+        _ = application.Route<ContainerView, ContainerController>("/layouts/container");
+        _ = application.Route<SurfaceView, SurfaceController>("/layouts/surface");
+        _ = application.Route<CardView, CardController>("/layouts/card");
+        _ = application.Route<ExpanderView, ExpanderController>("/layouts/expander");
+        _ = application.Route<StackPanelView, StackPanelController>("/layouts/stack-panel");
+        _ = application.Route<WrapPanelView, WrapPanelController>("/layouts/wrap-panel");
+        _ = application.Route<ScrollView, ScrollController>("/layouts/scroll");
+        _ = application.Route<FlyoutView, FlyoutController>("/layouts/flyout");
+        _ = application.Route<CollapsiblePanelView, CollapsiblePanelController>("/layouts/collapsible-panel");
+        _ = application.Route<GridSplitterView, GridSplitterController>("/layouts/grid-splitter");
 
         // Contents
-        _ = application.Route<BadgeMainView, BadgeMainController>("/contents/badge");
-        _ = application.Route<BadgeExamplesView>("/contents/badge/examples");
-        _ = application.Route<IconMainView, IconMainController>("/contents/icon");
-        _ = application.Route<IconExamplesView>("/contents/icon/examples");
-        _ = application.Route<ImageMainView, ImageMainController>("/contents/image");
-        _ = application.Route<ImageExamplesView>("/contents/image/examples");
-        _ = application.Route<LinkMainView, LinkMainController>("/contents/link");
-        _ = application.Route<LinkExamplesView>("/contents/link/examples");
-        _ = application.Route<SeparatorMainView, SeparatorMainController>("/contents/separator");
-        _ = application.Route<SeparatorExamplesView>("/contents/separator/examples");
+        _ = application.Route<BadgeView, BadgeController>("/contents/badge");
+        _ = application.Route<IconView, IconController>("/contents/icon");
+        _ = application.Route<ImageView, ImageController>("/contents/image");
+        _ = application.Route<LinkView, LinkController>("/contents/link");
+        _ = application.Route<SeparatorView, SeparatorController>("/contents/separator");
+        _ = application.Route<TextView, TextController>("/contents/text");
+        _ = application.Route<ParagraphView, ParagraphController>("/contents/paragraph");
+        _ = application.Route<TimestampView, TimestampController>("/contents/timestamp");
 
         // Indicators
-        _ = application.Route<ProgressMainView, ProgressMainController>("/indicators/progress");
-        _ = application.Route<ProgressExamplesView>("/indicators/progress/examples");
-        _ = application.Route<SpinnerMainView, SpinnerMainController>("/indicators/spinner");
-        _ = application.Route<SpinnerExamplesView>("/indicators/spinner/examples");
-        _ = application.Route<TextMainView, TextMainController>("/contents/text");
-        _ = application.Route<TextExamplesView>("/contents/text/examples");
-        _ = application.Route<ParagraphMainView, ParagraphMainController>("/contents/paragraph");
-        _ = application.Route<ParagraphExamplesView>("/contents/paragraph/examples");
-        _ = application.Route<TimestampMainView, TimestampMainController>("/contents/timestamp");
-        _ = application.Route<TimestampExamplesView, TimestampExamplesController>("/contents/timestamp/examples");
-        _ = application.Route<KeyValueActionMainView, KeyValueActionMainController>("/items/key-value-action");
-        _ = application.Route<KeyValueActionExamplesView>("/items/key-value-action/examples");
-        _ = application.Route<KeyValueActionScenariosView, KeyValueActionScenariosController>("/items/key-value-action/scenarios");
+        _ = application.Route<ProgressView, ProgressController>("/indicators/progress");
+        _ = application.Route<SpinnerView, SpinnerController>("/indicators/spinner");
+        _ = application.Route<KeyValueActionView, KeyValueActionController>("/items/key-value-action");
 
         // Navigation
-        _ = application.Route<MenuMainView, MenuMainController>("/navigation/menu");
-        _ = application.Route<MenuExamplesView, MenuExamplesController>("/navigation/menu/examples");
-        _ = application.Route<TabsMainView, TabsMainController>("/navigation/tabs");
-        _ = application.Route<TabsExamplesView>("/navigation/tabs/examples");
-        _ = application.Route<TabsViewMainView, TabsViewMainController>("/navigation/tabs-view");
-        _ = application.Route<TabsViewExamplesView>("/navigation/tabs-view/examples");
-        _ = application.Route<TabsViewScenariosView, TabsViewScenariosController>("/navigation/tabs-view/scenarios");
-        _ = application.Route<BreadcrumbsMainView, BreadcrumbsMainController>("/navigation/breadcrumbs");
-        _ = application.Route<BreadcrumbsExamplesView, BreadcrumbsExamplesController>("/navigation/breadcrumbs/examples");
-        _ = application.Route<ButtonGroupMainView, ButtonGroupMainController>("/actions/button-group");
-        _ = application.Route<ButtonGroupExamplesView>("/actions/button-group/examples");
+        _ = application.Route<MenuView, MenuController>("/navigation/menu");
+        _ = application.Route<TabsView, TabsController>("/navigation/tabs");
+        _ = application.Route<TabsViewView, TabsViewController>("/navigation/tabs-view");
+        _ = application.Route<BreadcrumbsView, BreadcrumbsController>("/navigation/breadcrumbs");
 
         // Inputs
-        _ = application.Route<TextInputExamplesView>("/inputs/text-input/examples");
-        _ = application.Route<TextInputMainView, TextInputMainController>("/inputs/text-input");
-        _ = application.Route<ColorInputMainView, ColorInputMainController>("/inputs/color-input");
-        _ = application.Route<ColorInputExamplesView>("/inputs/color-input/examples");
-        _ = application.Route<SelectMainView, SelectMainController>("/inputs/select");
-        _ = application.Route<SelectExamplesView, SelectExamplesController>("/inputs/select/examples");
-        _ = application.Route<MultiSelectMainView, MultiSelectMainController>("/inputs/multi-select");
-        _ = application.Route<MultiSelectExamplesView>("/inputs/multi-select/examples");
-        _ = application.Route<SearchMainView, SearchMainController>("/inputs/search");
-        _ = application.Route<SearchExamplesView, SearchExamplesController>("/inputs/search/examples");
-        _ = application.Route<FileInputMainView, FileInputMainController>("/inputs/file-input");
-        _ = application.Route<FileInputExamplesView>("/inputs/file-input/examples");
-        _ = application.Route<ImageInputMainView, ImageInputMainController>("/inputs/image-input");
-        _ = application.Route<ImageInputExamplesView, ImageInputExamplesController>("/inputs/image-input/examples");
-        _ = application.Route<SliderMainView, SliderMainController>("/inputs/slider");
-        _ = application.Route<SliderExamplesView>("/inputs/slider/examples");
-        _ = application.Route<DateInputMainView, DateInputMainController>("/inputs/date-input");
-        _ = application.Route<DateInputExamplesView, DateInputExamplesController>("/inputs/date-input/examples");
-        _ = application.Route<CalendarMainView, CalendarMainController>("/inputs/calendar");
-        _ = application.Route<CalendarExamplesView, CalendarExamplesController>("/inputs/calendar/examples");
-        _ = application.Route<TimeInputMainView, TimeInputMainController>("/inputs/time-input");
-        _ = application.Route<TimeInputExamplesView>("/inputs/time-input/examples");
-        _ = application.Route<DateTimeInputMainView, DateTimeInputMainController>("/inputs/date-time-input");
-        _ = application.Route<DateTimeInputExamplesView>("/inputs/date-time-input/examples");
-        _ = application.Route<TextAreaMainView, TextAreaMainController>("/inputs/text-area");
-        _ = application.Route<TextAreaExamplesView, TextAreaExamplesController>("/inputs/text-area/examples");
-        _ = application.Route<NumberInputMainView, NumberInputMainController>("/inputs/number-input");
-        _ = application.Route<NumberInputExamplesView, NumberInputExamplesController>("/inputs/number-input/examples");
-        _ = application.Route<CheckboxMainView, CheckboxMainController>("/inputs/checkbox");
-        _ = application.Route<CheckboxExamplesView>("/inputs/checkbox/examples");
-        _ = application.Route<SwitchMainView, SwitchMainController>("/inputs/switch");
-        _ = application.Route<SwitchExamplesView>("/inputs/switch/examples");
-        _ = application.Route<RadioGroupMainView, RadioGroupMainController>("/inputs/radio-group");
-        _ = application.Route<RadioGroupExamplesView>("/inputs/radio-group/examples");
-        _ = application.Route<TextInputScenariosView, TextInputScenariosController>("/inputs/text-input/scenarios");
+        _ = application.Route<TextInputView, TextInputController>("/inputs/text-input");
+        _ = application.Route<ColorInputView, ColorInputController>("/inputs/color-input");
+        _ = application.Route<SelectView, SelectController>("/inputs/select");
+        _ = application.Route<MultiSelectView, MultiSelectController>("/inputs/multi-select");
+        _ = application.Route<SearchView, SearchController>("/inputs/search");
+        _ = application.Route<FileInputView, FileInputController>("/inputs/file-input");
+        _ = application.Route<ImageInputView, ImageInputController>("/inputs/image-input");
+        _ = application.Route<SliderView, SliderController>("/inputs/slider");
+        _ = application.Route<DateInputView, DateInputController>("/inputs/date-input");
+        _ = application.Route<CalendarView, CalendarController>("/inputs/calendar");
+        _ = application.Route<TimeInputView, TimeInputController>("/inputs/time-input");
+        _ = application.Route<DateTimeInputView, DateTimeInputController>("/inputs/date-time-input");
+        _ = application.Route<TextAreaView, TextAreaController>("/inputs/text-area");
+        _ = application.Route<NumberInputView, NumberInputController>("/inputs/number-input");
+        _ = application.Route<CheckboxView, CheckboxController>("/inputs/checkbox");
+        _ = application.Route<SwitchView, SwitchController>("/inputs/switch");
+        _ = application.Route<RadioGroupView, RadioGroupController>("/inputs/radio-group");
 
         // Items
-        _ = application.Route<ItemsViewMainView, ItemsViewMainController>("/items/items-view");
-        _ = application.Route<ItemsViewExamplesView, ItemsViewExamplesController>("/items/items-view/examples");
-        _ = application.Route<ItemsViewScenariosView, ItemsViewScenariosController>("/items/items-view/scenarios");
-        _ = application.Route<TableMainView, TableMainController>("/items/table");
-        _ = application.Route<TableExamplesView, TableExamplesController>("/items/table/examples");
-        _ = application.Route<TreeMainView, TreeMainController>("/items/tree");
-        _ = application.Route<TreeExamplesView, TreeExamplesController>("/items/tree/examples");
+        _ = application.Route<ItemsViewView, ItemsViewController>("/items/items-view");
+        _ = application.Route<TableView, TableController>("/items/table");
+        _ = application.Route<TreeView, TreeController>("/items/tree");
 
         // Overlays
         _ = application.Route<DialogTestView, DialogTestController>("/overlays/dialog");

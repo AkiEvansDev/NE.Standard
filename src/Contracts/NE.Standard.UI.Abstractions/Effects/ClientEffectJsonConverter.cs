@@ -16,6 +16,7 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.Navigate] = typeof(NavigateEffect),
         [ClientEffectKinds.Focus] = typeof(CompiledFocusEffect),
         [ClientEffectKinds.ScrollTo] = typeof(CompiledScrollToEffect),
+        [ClientEffectKinds.ScrollToItem] = typeof(CompiledScrollToItemEffect),
         [ClientEffectKinds.Show] = typeof(CompiledShowEffect),
         [ClientEffectKinds.Hide] = typeof(CompiledHideEffect),
         [ClientEffectKinds.Collapse] = typeof(CompiledCollapseEffect),
@@ -32,7 +33,8 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.CopyToClipboard] = typeof(CompiledCopyToClipboardEffect),
         [ClientEffectKinds.InsertText] = typeof(CompiledInsertTextEffect),
         [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect),
-        [ClientEffectKinds.OpenPicker] = typeof(CompiledOpenPickerEffect)
+        [ClientEffectKinds.OpenPicker] = typeof(CompiledOpenPickerEffect),
+        [ClientEffectKinds.ConfirmLeave] = typeof(ConfirmLeaveEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

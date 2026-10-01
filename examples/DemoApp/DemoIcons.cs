@@ -20,6 +20,7 @@ public static class DemoIcons
     public const string Close = MaterialIcons.Close;
 
     public const string ArrowRight = MaterialIcons.ArrowForward;
+    public const string ArrowBack = MaterialIcons.ArrowBack;
     public const string ChevronRight = MaterialIcons.ChevronRight;
     public const string ExternalLink = MaterialIcons.OpenInNew;
     public const string Link = MaterialIcons.Link;
@@ -39,6 +40,8 @@ public static class DemoIcons
 
     public const string Clock = MaterialIcons.Schedule;
     public const string Folder = MaterialIcons.Folder;
+    public const string FolderAdd = MaterialIcons.CreateNewFolder;
+    public const string FolderRemove = MaterialIcons.FolderDelete;
     public const string Cloud = MaterialIcons.Cloud;
     public const string History = MaterialIcons.History;
 
@@ -70,6 +73,8 @@ public static class DemoIcons
     public const string Bolt = MaterialIcons.Bolt;
     public const string Calendar = MaterialIcons.CalendarMonth;
     public const string Admin = MaterialIcons.AdminPanelSettings;
+    public const string Mechanism = MaterialIcons.Science;
+    public const string MoreVertical = MaterialIcons.MoreVert;
 
     /// <summary>
     /// The warm light yellow of a folder in a file list (near <c>#FFDD96</c>): the palette's Photon, a light tint on the dark page and

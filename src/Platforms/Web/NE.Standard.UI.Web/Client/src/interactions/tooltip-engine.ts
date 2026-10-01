@@ -1,6 +1,6 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import {
-    PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute
+    ActionBarClass, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute
 } from "../addressing/dom-attributes.ts";
 import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
@@ -342,8 +342,9 @@ function show(target: Element, words?: string): void {
 }
 
 // A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.
+// Nor does a host its action bar stands over: the bar takes the place the words would, a graph's card has both above it.
 function isOpen(target: Element): boolean {
-    return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null;
+    return target.matches(OpenSelector) || target.querySelector(OpenSelector) !== null || target.querySelector(`:scope > .${ActionBarClass}`) !== null;
 }
 
 /** The element a screen reader stands on for the anchor: the focused one inside it (a field's own input), else the anchor itself. */
