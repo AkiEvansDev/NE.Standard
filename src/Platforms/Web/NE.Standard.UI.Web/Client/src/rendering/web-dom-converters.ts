@@ -231,6 +231,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["selectionMarkColorCss", value => toThemeColor(toSelectionStylePart(value, "markColor"))],
     ["selectionMarkCss", value => toSelectionMark(toSelectionStylePart(value, "mark"))],
     ["selectionFontWeightCss", value => toSelectionFontWeight(toSelectionStylePart(value, "bold"))],
+    ["selectionActionBarBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "actionBarBackground"))],
     ["itemsViewLayoutClass", value => `ui-items-view--${toToken(value, itemsViewLayoutTokens)}`],
     ["dragHandlePlacementClass", value => `ui-drag-handle--${toToken(value, dragHandlePlacementTokens)}`],
     ["scrollXClass", value => `ui-scroll-x--${toToken(value, scrollTokens)}`],
@@ -707,7 +708,7 @@ function toGridPlacementPart(value: unknown, part: "column" | "row" | "columnSpa
     }
 }
 
-function toSelectionStylePart(value: unknown, part: "background" | "foreground" | "mark" | "markColor" | "bold"): unknown {
+function toSelectionStylePart(value: unknown, part: "background" | "foreground" | "mark" | "markColor" | "bold" | "actionBarBackground"): unknown {
     if (value === null || value === undefined || typeof value !== "object")
         return null;
 

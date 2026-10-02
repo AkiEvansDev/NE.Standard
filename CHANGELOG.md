@@ -9,6 +9,17 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.1
+
+- **A short list's first row has its action bar above it.** In a list that does not scroll (`DisableScroll()`), the first row's
+  bar stood under the row, over the next one, as if it were that row's: the list's box — hidden only to clip — was taken for a box
+  the reader looks through, and bounded the bar. A list whose scroll is switched off bounds it no more (GitHub issue #74).
+
+- **The row an action bar stands over can wash in another colour, or not at all.** **New:** `UISelectionStyle.ActionBarBackground`
+  (a sixth, optional part of `SelectionStyle`): the ground of the row whose bar is open, which says whose the bar is — unset the
+  pointer's wash as before, `UIThemeColor.Transparent` none, for a list whose rows are cards that cover the row's own ground and
+  left a strip of the wash showing around them.
+
 ## 1.4.0
 
 The release: what came after 1.4.0-rc.4 — NE.ProjectC's and NE.Home's last requests (GitHub issues #71–#73), the owner's

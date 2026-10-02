@@ -386,6 +386,20 @@ test("a host the box around it leaves no room above has its bar under it, inside
     assert.equal(bar.style.left, "480px");
 });
 
+test("a list that does not scroll is no boundary: its first row's bar stands above it while the page has room, not over the next row", () => {
+    const at = scene();
+    const list = FakeElement.of("ui-items-view__host ui-scroll-x--disabled ui-scroll-y--disabled");
+
+    // `DisableScroll()`: hidden only to clip, scrolling never.
+    list.style.overflowY = "hidden";
+    list.rect = { left: 0, top: 465, width: 600, height: 221 };
+    into(list, at.host);
+    at.host.rect = { left: 0, top: 465, width: 600, height: 94 };
+    drawnAtSize(() => press(at.text));
+
+    assert.equal(barOf(at.host)!.dataset.uiPlacement, "top-end");
+});
+
 test("a container that only clips is no boundary: a host at its top edge has its bar above while the window has room, and one inside a list is measured against the list", () => {
     const at = scene();
     const panel = FakeElement.of("ui-container");

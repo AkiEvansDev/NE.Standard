@@ -325,6 +325,8 @@ export const ButtonClass = "ui-button";
 /** A small ghost button's look, as the page draws one of its own (an action bar's icon, a strip's overflow entry). */
 export const SmallGhostButtonClasses = `${ButtonClass} ui-button--ghost ui-button--small`;
 export const SelectClass = "ui-select";
+// A list, table or tree whose scroll is switched off (`DisableScroll()`, `WebClassNames.ScrollY`): clipped with `hidden`, scrolling never.
+export const ScrollYDisabledClass = "ui-scroll-y--disabled";
 const TextInputClass = "ui-text-input";
 export const InvalidClass = "ui-invalid";
 

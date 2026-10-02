@@ -8,7 +8,7 @@ using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
-/// <summary>Writes <c>SelectionStyle</c> as the five custom properties the <c>selected</c> mixins read.</summary>
+/// <summary>Writes <c>SelectionStyle</c> as the six custom properties the <c>selected</c> mixins read.</summary>
 public static class SelectionStyleRenderer
 {
     public const string BackgroundVariable = "--ui-selected-background";
@@ -16,6 +16,7 @@ public static class SelectionStyleRenderer
     public const string MarkColorVariable = "--ui-selected-mark-color";
     public const string MarkVariable = "--ui-selected-mark";
     public const string FontWeightVariable = "--ui-selected-font-weight";
+    public const string ActionBarBackgroundVariable = "--ui-selected-bar-ground";
 
     private static readonly WebDomOperation[] Operations =
     [
@@ -23,7 +24,8 @@ public static class SelectionStyleRenderer
         WebDomOperation.Style(ForegroundVariable, converter: WebDomConverters.SelectionForegroundCss),
         WebDomOperation.Style(MarkColorVariable, converter: WebDomConverters.SelectionMarkColorCss),
         WebDomOperation.Style(MarkVariable, converter: WebDomConverters.SelectionMarkCss),
-        WebDomOperation.Style(FontWeightVariable, converter: WebDomConverters.SelectionFontWeightCss)
+        WebDomOperation.Style(FontWeightVariable, converter: WebDomConverters.SelectionFontWeightCss),
+        WebDomOperation.Style(ActionBarBackgroundVariable, converter: WebDomConverters.SelectionActionBarBackgroundCss)
     ];
 
     public static void RenderSelectionStyle(WebRenderContext context, IHtmlElementBuilder root)
@@ -51,6 +53,9 @@ public static class SelectionStyleRenderer
 
             if (style.Bold is bool bold)
                 _ = target.Style(FontWeightVariable, WebCssValues.SelectionFontWeight(bold));
+
+            if (style.ActionBarBackground is UIThemeColor barGround && WebCssValues.ThemeColor(barGround) is { Length: > 0 } barGroundCss)
+                _ = target.Style(ActionBarBackgroundVariable, barGroundCss);
         }, Operations);
     }
 }

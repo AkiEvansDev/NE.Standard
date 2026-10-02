@@ -55,14 +55,14 @@ test("a menu's owner shows no callout on a long press, and only a screen with no
     assert.match(touch.slice(0, touch.indexOf("}")), /user-select: none;/);
 });
 
-test("the row a bar stands over washes as the keyboard's row does, outside the hover query, and as a layer on a chosen row", () => {
+test("the row a bar stands over washes as the keyboard's row does, outside the hover query, and as a layer on a chosen row; SelectionStyle may change or drop it", () => {
     for (const [row, bar] of [
         [".ui-items-view > [data-ui-items-host] > .ui-items-view__item", "> [data-ui-action-bar] > .ui-action-bar"],
         [".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row", "> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar"],
         [".ui-tree > [data-ui-items-host] > .ui-tree__row", "> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar"]
     ]) {
-        assert.match(rule(`${row}:not([data-ui-selected]):has(${bar})`), /background-color: var\(--ui-wash-hover\);/);
-        assert.match(rule(`${row}[data-ui-selected]:has(${bar})`), /--ui-row-cursor-wash: var\(--ui-wash-hover\);/);
+        assert.match(rule(`${row}:not([data-ui-selected]):has(${bar})`), /background-color: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
+        assert.match(rule(`${row}[data-ui-selected]:has(${bar})`), /--ui-row-cursor-wash: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
     }
 
     assert.ok(css.includes("\n.ui-items-view > [data-ui-items-host] > .ui-items-view__item:not([data-ui-selected]):has("), "the row's wash stands inside a media query");

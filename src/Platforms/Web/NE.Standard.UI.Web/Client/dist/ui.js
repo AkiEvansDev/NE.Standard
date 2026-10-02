@@ -7892,7 +7892,7 @@ function Hx(e) {
 	for (let n = e.parentElement; n !== null && t !== "fixed"; n = n.parentElement) {
 		let e = getComputedStyle(n);
 		if (t !== "absolute" || e.position !== "static" || e.transform !== "none") {
-			if (Ux(e.overflowX) || Ux(e.overflowY)) return n;
+			if (!(n.classList.contains("ui-scroll-y--disabled") && !zx(n, !1)) && (Ux(e.overflowX) || Ux(e.overflowY))) return n;
 			t = e.position;
 		}
 	}
@@ -16719,6 +16719,7 @@ var EF = [
 	["selectionMarkColorCss", (e) => FI(MI(e, "markColor"))],
 	["selectionMarkCss", (e) => PI(MI(e, "mark"))],
 	["selectionFontWeightCss", (e) => NI(MI(e, "bold"))],
+	["selectionActionBarBackgroundCss", (e) => FI(MI(e, "actionBarBackground"))],
 	["itemsViewLayoutClass", (e) => `ui-items-view--${Q(e, YF)}`],
 	["dragHandlePlacementClass", (e) => `ui-drag-handle--${Q(e, XF)}`],
 	["scrollXClass", (e) => `ui-scroll-x--${Q(e, ZF)}`],

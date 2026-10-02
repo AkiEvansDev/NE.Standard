@@ -83,6 +83,7 @@ public static class WebDomConverters
     public const string SelectionMarkCss = "selectionMarkCss";
 
     public const string SelectionFontWeightCss = "selectionFontWeightCss";
+    public const string SelectionActionBarBackgroundCss = "selectionActionBarBackgroundCss";
     public const string TextAppearanceFontSizeCss = "textAppearanceFontSizeCss";
     public const string TextAppearanceFontWeightCss = "textAppearanceFontWeightCss";
     public const string TextAppearanceLineHeightCss = "textAppearanceLineHeightCss";

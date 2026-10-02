@@ -3,13 +3,17 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Abstractions.Styling;
 
 /// <summary>What a chosen item looks like: ground, ink, and an edge mark; unset parts keep the control's default.</summary>
-/// <remarks>Reaches the stylesheet as five custom properties (<c>--ui-selected-*</c>), shared by custom and built-in looks alike.</remarks>
+/// <remarks>Reaches the stylesheet as six custom properties (<c>--ui-selected-*</c>), shared by custom and built-in looks alike.</remarks>
 /// <param name="Background">The ground a chosen item is drawn on.</param>
 /// <param name="Foreground">The ink a chosen item's text takes.</param>
 /// <param name="Mark">The edge a chosen item is marked on.</param>
 /// <param name="MarkColor">The mark's own colour.</param>
 /// <param name="Bold">Whether a chosen item's text is drawn bold.</param>
-public readonly record struct UISelectionStyle(UIThemeColor? Background, UIThemeColor? Foreground, UISelectionMark? Mark, UIThemeColor? MarkColor, bool? Bold = null)
+/// <param name="ActionBarBackground">
+/// The ground of the item its action bar stands over, which says whose the bar is; unset the pointer's wash,
+/// <see cref="UIThemeColor.Transparent"/> none — for a row its own card covers.
+/// </param>
+public readonly record struct UISelectionStyle(UIThemeColor? Background, UIThemeColor? Foreground, UISelectionMark? Mark, UIThemeColor? MarkColor, bool? Bold = null, UIThemeColor? ActionBarBackground = null)
 {
     /// <summary>
     /// A chosen item that says so only by its ground.

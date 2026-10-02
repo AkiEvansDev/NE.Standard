@@ -1,3 +1,5 @@
+import { ScrollYDisabledClass } from "../addressing/dom-attributes.ts";
+
 /** A box the reader scrolls along the axis, which a script may scroll too; a box that clips alone (`overflow: clip`) has nothing to scroll. */
 export function canScroll(element: Element, vertical: boolean): boolean {
     const style = getComputedStyle(element);
@@ -57,7 +59,8 @@ export function isClippedOut(element: Element): boolean {
 /**
  * The nearest box around the element that is a view onto it — a scroll container, its overflow `hidden`, `auto` or `scroll`: a
  * list's scrolling box, a canvas — or null where none is. A box that only clips (`overflow: clip`, every container's default) cuts
- * its content off but shows no more of it, so a popup floating over the element may stand outside it.
+ * its content off but shows no more of it, and so does a list whose scroll is switched off: a popup floating over the element may
+ * stand outside either.
  */
 export function viewBoxAround(element: Element): Element | null {
     let position = getComputedStyle(element).position;
@@ -68,7 +71,10 @@ export function viewBoxAround(element: Element): Element | null {
         if (position === "absolute" && style.position === "static" && style.transform === "none")
             continue;
 
-        if (isViewOverflow(style.overflowX) || isViewOverflow(style.overflowY))
+        // A list whose scroll is switched off clips with `hidden` but shows every row it holds: no view onto them.
+        const scrollsNever = current.classList.contains(ScrollYDisabledClass) && !canScroll(current, false);
+
+        if (!scrollsNever && (isViewOverflow(style.overflowX) || isViewOverflow(style.overflowY)))
             return current;
 
         position = style.position;
