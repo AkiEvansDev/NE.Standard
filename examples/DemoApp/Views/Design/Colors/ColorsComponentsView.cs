@@ -1,7 +1,8 @@
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// The same component compositions side by side in both themes, through the per-component <c>Theme</c> override.
+/// The same component compositions side by side in both themes, through the per-component <c>Theme</c> override: the theme's name
+/// in the page's language, the compositions a sample's own words, shown as written.
 /// </summary>
 internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
 {
@@ -23,13 +24,13 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
         StackPanelComponent stack = UILayout.Stack(16)
             .SetPlacement(1, 1, 24, 1)
             .AddChild(new TextComponent()
-                .SetTitle(mode.ToString())
+                .SetTitle(ThemeWord(mode == UIThemeMode.Dark))
                 .SetTitleType(UITextAppearance.Overline)
                 .SetTitleColor(UIThemeColor.Muted)
             )
-            .AddChild(CreateArticleCard())
-            .AddChild(CreateStatusCard())
-            .AddChild(CreateActionsCard());
+            .AddChild(CreateArticleCard().AsContentTree())
+            .AddChild(CreateStatusCard().AsContentTree())
+            .AddChild(CreateActionsCard().AsContentTree());
 
         return new ContainerComponent()
             .SetTheme(mode)
@@ -52,6 +53,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
             .SetContent(new TextComponent()
                 .SetDescription("Servers filter by region, invoices download as one PDF a month, and every server shows its plan.")
                 .SetDescriptionType(UITextAppearance.Body)
+                .SetWrapMode(UITextWrapMode.Wrap)
             );
 
     private static CardComponent CreateStatusCard()
@@ -65,6 +67,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
                 .AddChild(new TextComponent()
                     .SetTitle("419 of 612 servers snapshotted, uploads in progress.")
                     .SetTitleType(UITextAppearance.Body)
+                    .SetTitleWrap(true)
                     .SetDescription("Started 12 minutes ago")
                     .SetDescriptionType(UITextAppearance.Caption)
                     .SetDescriptionColor(UIThemeColor.Muted)
@@ -84,6 +87,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
             .SetContent(new TextComponent()
                 .SetDescription("Billing can see invoices, Viewer can see servers, and an Admin can change both.")
                 .SetDescriptionType(UITextAppearance.Body)
+                .SetWrapMode(UITextWrapMode.Wrap)
             )
             .SetFooter(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)

@@ -81,7 +81,8 @@ export class NotificationEngine {
 
         close.type = "button";
         close.className = CloseClass;
-        close.setAttribute("aria-label", clientStrings.text("ui.notification.close"));
+        // Marked, so a language switched while the toast stays says the close in the new one.
+        clientStrings.write(close, "aria-label", "ui.notification.close");
         close.addEventListener("click", () => this.dismiss(element));
 
         element.append(close);

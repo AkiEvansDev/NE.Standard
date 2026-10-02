@@ -60,6 +60,11 @@
         border-radius: inherit;
     }
 
+// A round picture's tile is the circle itself, which the picture above inherits; later and as specific, so it wins.
+.ui-text--icon-content > .ui-text__icon.ui-icon--image.ui-icon--circle {
+    border-radius: 50%;
+}
+
 // The icon's column exists in both modes; gated on an icon actually being drawn, else the single-track layout above applies.
 @{ui-text-with-icon} {
     grid-template-columns: auto minmax(0, 1fr);

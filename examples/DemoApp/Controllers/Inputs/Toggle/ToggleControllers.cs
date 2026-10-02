@@ -39,4 +39,4 @@ internal abstract partial class ToggleController(string sampleTitle, string samp
 
 internal sealed partial class CheckboxController() : ToggleController("Take automatic backups", "Every server is snapshotted each night.");
 
-internal sealed partial class SwitchController() : ToggleController("Restart on a failed health check", "A server that stops answering is restarted.");
+internal sealed partial class SwitchController() : ToggleController("Restart a stuck server", "One that stops answering restarts.");

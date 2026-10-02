@@ -49,9 +49,10 @@ export function isExternalLink(address: string): boolean {
 
 /** Whether a navigation target is a path of this site, so a return address cannot send the reader to another. */
 export function isLocalRoute(value: unknown): boolean {
-    // A control character anywhere is refused: the URL parser drops a tab or a line break, so `/\t/host` navigates as `//host`.
+    // A control character anywhere is refused, C1 included as `char.IsControl` refuses it on the server: the URL parser drops a tab
+    // or a line break, so `/\t/host` navigates as `//host`.
     // oxlint-disable-next-line no-control-regex -- a control character is what it refuses
-    if (typeof value !== "string" || /[\x00-\x1f\x7f]/.test(value))
+    if (typeof value !== "string" || /[\x00-\x1f\x7f-\x9f]/.test(value))
         return false;
 
     return value === "/" || isSitePath(value);
@@ -61,6 +62,14 @@ export function isLocalRoute(value: unknown): boolean {
 function isSitePath(reading: string): boolean {
     // `//host` and `/\host` start with one slash too, and a browser reads both as another site: a backslash reads as a slash.
     return reading.length > 1 && reading[0] === "/" && reading[1] !== "/" && reading[1] !== "\\";
+}
+
+/**
+ * Whether an address as the browser reads it is a path relative to the page — `img/x.png`, `./x.png`, `x.png`: no scheme, and no
+ * slash or backslash first, which only a path of this site or another host starts with; mirrors `WebUrlSafety.IsRelativePath`.
+ */
+function isRelativePath(reading: string): boolean {
+    return reading.length > 0 && reading[0] !== "/" && reading[0] !== "\\" && !/^[A-Za-z][A-Za-z\d+.-]*:/.test(reading);
 }
 
 /**
@@ -81,7 +90,10 @@ export function asBrowserReads(address: string): string {
     return address.slice(start, end).replace(/[\t\n\r]/g, "");
 }
 
-/** Whether a picture may be fetched from an address: a path of this site, http(s), or an image data URL, as the browser reads it. */
+/**
+ * Whether a picture may be fetched from an address: a path of this site, absolute or relative to the page, http(s), or an image
+ * data URL, as the browser reads it.
+ */
 export function isImageSource(address: string): boolean {
     return readImageSource(address) !== null;
 }
@@ -92,7 +104,7 @@ export function readImageSource(address: string): string | null {
     const lower = reading.toLowerCase();
 
     // `data:` is narrowed to images, since a blanket `data:` would carry whatever an author was handed by a third party.
-    return isSitePath(reading) || lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("data:image/") ? reading : null;
+    return isSitePath(reading) || isRelativePath(reading) || lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("data:image/") ? reading : null;
 }
 
 /** The image source as the browser reads it, or undefined for one no picture may be fetched from. */

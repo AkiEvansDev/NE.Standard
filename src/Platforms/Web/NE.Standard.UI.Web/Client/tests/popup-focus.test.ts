@@ -257,6 +257,19 @@ function tabFrom(dialog: FakeElement, active: FakeElement, backwards = false): u
     return wrappedTabStop(real<Element>(dialog), stops, real<Element>(active), backwards);
 }
 
+test("a control taken out of the tab order is no stop, so Tab from the last real one goes round", () => {
+    const field = FakeElement.of("", {}, "input");
+    const toggle = FakeElement.of("", { tabindex: "-1" }, "button");
+    const save = FakeElement.of("", {}, "button");
+    const dialog = FakeElement.of("ui-dialog__surface").append(field, save, toggle);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(dialog);
+
+    assert.deepEqual(tabStops(real<ParentNode>(dialog), null), [field, save]);
+    assert.equal(tabFrom(dialog, save), field);
+});
+
 test("a radio group is one tab stop, its checked radio, so Tab from it at a modal's end goes round rather than out", () => {
     const button = FakeElement.of("", {}, "button");
     const small = radio("size");

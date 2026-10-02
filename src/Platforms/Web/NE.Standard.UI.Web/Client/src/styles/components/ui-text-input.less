@@ -40,17 +40,9 @@
     .ui-cross-glyph(@ui-glyph-sm);
 }
 
-// The author's buttons, sized like the adornments; half a step into the padding, as a wash touching the corner reads stuck.
+// The author's buttons, sized like the adornments, and the leading group (`--leading`).
 .ui-text-input__action {
     .ui-field-actions();
-    margin-right: -@ui-space-1;
-}
-
-// The leading group follows the value in the tab order and stands first all the same, before a caption inside too.
-.ui-text-input__action--leading {
-    order: -1;
-    margin-right: 0;
-    margin-left: -@ui-space-1;
 }
 
 // Underline has no side padding to give back (ui-input.less says the same of the trailing group).

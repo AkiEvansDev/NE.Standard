@@ -16,11 +16,14 @@
 }
 
 // Every floating panel: the look and the fade, placed fixed because layout panels clip (`overflow: hidden`).
-.ui-popup-surface(@z-index: 30) {
+// Never wider than the window less the margin a placement keeps from its edges: a flyout of wide content ran past a phone's window,
+// its placement holding it flush to one side. A popup's own narrower cap, later in its rule, still wins.
+.ui-popup-surface(@z-index: @ui-z-popup) {
     position: fixed;
     top: 0;
     left: 0;
     z-index: @z-index;
+    max-width: calc(100vw - 2 * @ui-popup-viewport-margin);
     .ui-popup-look();
     .ui-popup-fade();
 }

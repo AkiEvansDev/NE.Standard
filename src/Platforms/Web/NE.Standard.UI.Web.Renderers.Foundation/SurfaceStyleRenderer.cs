@@ -16,6 +16,12 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// </summary>
 public static class SurfaceStyleRenderer
 {
+    /// <summary>On a surface showing a background picture: what the stylesheet draws its dim and blur over.</summary>
+    public const string ImageAttribute = "data-ui-surface-image";
+
+    /// <summary><c>vignette</c> while the picture's dim lies on its edges alone; absent, it lies evenly.</summary>
+    public const string ImageDimAttribute = "data-ui-surface-image-dim";
+
     private static readonly WebDomOperation[] BackgroundOperations =
     [
         WebDomOperation.Style("--ui-surface-color", converter: WebDomConverters.ThemeColorCss),
@@ -23,8 +29,21 @@ public static class SurfaceStyleRenderer
         WebDomOperation.Style("--ui-faint-base", converter: WebDomConverters.ThemeOnColorCss)
     ];
 
-    private static readonly WebDomOperation[] BackgroundImageOperations = [WebDomOperation.Style("--ui-surface-image", converter: WebDomConverters.BackgroundImageCss)];
+    private static readonly WebDomOperation[] BackgroundImageOperations =
+    [
+        WebDomOperation.Style("--ui-surface-image", converter: WebDomConverters.BackgroundImageCss),
+        WebDomOperation.Attribute(ImageAttribute, converter: WebDomConverters.BackgroundImageAttribute)
+    ];
+
     private static readonly WebDomOperation[] BackgroundImageFitOperations = [WebDomOperation.Style("--ui-surface-image-size", converter: WebDomConverters.ImageFitSizeCss)];
+    private static readonly WebDomOperation[] BackgroundImageDimOperations = [WebDomOperation.Style("--ui-surface-image-dim", converter: WebDomConverters.BackgroundImageDimCss)];
+    private static readonly WebDomOperation[] BackgroundImageDimModeOperations = [WebDomOperation.Attribute(ImageDimAttribute, converter: WebDomConverters.BackgroundImageDimModeAttribute)];
+
+    private static readonly WebDomOperation[] BackgroundImageBlurOperations =
+    [
+        WebDomOperation.Style("--ui-surface-image-blur", converter: WebDomConverters.BackgroundImageBlurCss),
+        WebDomOperation.Attribute(WebAttributes.SurfaceImageBlur, converter: WebDomConverters.BackgroundImageBlurAttribute)
+    ];
     private static readonly WebDomOperation[] SurfaceOperations = [WebDomOperation.Class(converter: WebDomConverters.SurfaceStyleClass)];
 
     public static void RenderBackground(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
@@ -49,7 +68,11 @@ public static class SurfaceStyleRenderer
         }, BackgroundOperations);
     }
 
-    /// <summary>Two custom properties the root's Less reads: the picture and its <c>background-size</c>.</summary>
+    /// <summary>
+    /// The custom properties the root's Less reads — the picture, its <c>background-size</c>, its dim and its blur — and the attributes
+    /// saying a picture is shown, blurred, and dimmed at the edges alone. The browser draws the dim and the blur
+    /// (<c>mixins/surface-image.less</c>), so a bound value moves them with no new picture.
+    /// </summary>
     public static void RenderBackgroundImage(WebRenderContext context, IHtmlElementBuilder target)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -58,7 +81,7 @@ public static class SurfaceStyleRenderer
         _ = WebComponentRendererBase.RenderProperty<string?>(context, target, ISurfaceComponent.BackgroundImageProperty, static (element, value) =>
         {
             if (WebIconValue.TryReadImage(value, out var source, out _))
-                _ = element.Style("--ui-surface-image", WebIconValue.ImageSourceCss(source));
+                _ = element.Style("--ui-surface-image", WebIconValue.ImageSourceCss(source)).Attribute(ImageAttribute);
         }, BackgroundImageOperations);
 
         _ = WebComponentRendererBase.RenderProperty<UIImageFit?>(context, target, ISurfaceComponent.BackgroundImageFitProperty, static (element, value) =>
@@ -66,6 +89,25 @@ public static class SurfaceStyleRenderer
             if (value is UIImageFit fit)
                 _ = element.Style("--ui-surface-image-size", WebCssValues.ImageFitSize(fit));
         }, BackgroundImageFitOperations);
+
+        // Held to its range rather than refused: a bound value is the reader's (a slider), and a static one was refused at authoring.
+        _ = WebComponentRendererBase.RenderProperty<double?>(context, target, ISurfaceComponent.BackgroundImageDimProperty, static (element, value) =>
+        {
+            if (value is double dim && WebCssValues.BackgroundImageDim(dim) is { Length: > 0 } css)
+                _ = element.Style("--ui-surface-image-dim", css);
+        }, BackgroundImageDimOperations);
+
+        _ = WebComponentRendererBase.RenderProperty<UIBackgroundDimMode?>(context, target, ISurfaceComponent.BackgroundImageDimModeProperty, static (element, value) =>
+        {
+            if (value == UIBackgroundDimMode.Vignette)
+                _ = element.Attribute(ImageDimAttribute, "vignette");
+        }, BackgroundImageDimModeOperations);
+
+        _ = WebComponentRendererBase.RenderProperty<double?>(context, target, ISurfaceComponent.BackgroundImageBlurProperty, static (element, value) =>
+        {
+            if (value is double blur && WebCssValues.IsBackgroundImageBlurred(blur))
+                _ = element.Style("--ui-surface-image-blur", WebCssValues.BackgroundImageBlur(blur)).Attribute(WebAttributes.SurfaceImageBlur);
+        }, BackgroundImageBlurOperations);
     }
 
     public static void RenderSurface(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)

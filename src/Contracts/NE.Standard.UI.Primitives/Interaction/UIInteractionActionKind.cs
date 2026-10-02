@@ -14,4 +14,9 @@ public enum UIInteractionActionKind
     /// The interaction runs a client effect.
     /// </summary>
     Effect = 1,
+
+    /// <summary>
+    /// The interaction copies the source property's value into the target property, live while the reader moves the source.
+    /// </summary>
+    CopyValue = 2,
 }

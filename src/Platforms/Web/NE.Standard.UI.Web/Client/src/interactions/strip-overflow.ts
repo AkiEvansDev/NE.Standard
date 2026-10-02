@@ -2,7 +2,7 @@
 // One fitter serves the tabs component's strip and the tabs view's — the selected tab kept, every tab listed — and the command bar's
 // row, whose trailing commands go and are the ones listed.
 
-import { ComponentKeyAttribute, DisabledClass } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, DisabledClass, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
 import { carryPopupGround } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
@@ -379,7 +379,7 @@ function createEntry(entry: StripOverflowEntry): HTMLElement {
     const button = document.createElement("button");
 
     button.type = "button";
-    button.className = `${EntryClass} ui-button ui-button--ghost ui-button--small`;
+    button.className = `${EntryClass} ${SmallGhostButtonClasses}`;
     button.classList.toggle(EntryCurrentClass, entry.current);
     button.setAttribute("role", "menuitem");
     button.setAttribute(ComponentKeyAttribute, entry.key);

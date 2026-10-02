@@ -1,5 +1,6 @@
 import {
     ComponentIdAttribute,
+    cssAttributeValue,
     ItemsHostAttribute,
     ScrollGroupAttribute,
     ScrollLinesAttribute,
@@ -66,7 +67,7 @@ export class ScrollGroupEngine {
         if (cached !== undefined && now - cached.at < MembersLifetime && cached.found.every(member => member.isConnected))
             return cached.found;
 
-        const found = [...this.root.querySelectorAll<HTMLElement>(`[${ScrollGroupAttribute}="${CSS.escape(group)}"]`)];
+        const found = [...this.root.querySelectorAll<HTMLElement>(`[${ScrollGroupAttribute}="${cssAttributeValue(group)}"]`)];
 
         this.members.set(group, { found, at: now });
 

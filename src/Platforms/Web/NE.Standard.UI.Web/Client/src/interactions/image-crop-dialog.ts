@@ -1,20 +1,20 @@
 // The crop dialog an image input opens on a chosen picture when it names a frame: the picture under a fixed square or circle, moved
-// by a drag, the arrows, a wheel, a pinch or the zoom slider, and written out at Done as the square the frame holds. Built by the page
-// in the framework's dialog markup, as the leave dialog is, so the dialog engine traps the focus in it and gives it back.
+// by a drag, the arrows, a wheel, a pinch or the zoom slider, and written out at Done as the square the frame holds. A page dialog
+// (page-dialog.ts), as the leave dialog is, so the dialog engine traps the focus in it and gives it back.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports, and types imported as types.
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
 import { centredView, cropFileName, cropOutputSide, cropOutputType, cropRect, cropScale, MaxCropZoom, panView, workingScale, zoomView } from "./image-crop.ts";
 import type { CropFrame, CropPicture, CropRect, CropView } from "./image-crop.ts";
-import { DialogAttribute, ModalAttribute } from "./open-dialogs.ts";
+import { buildPageDialog, PageDialogParts } from "./page-dialog.ts";
 import { PointerDrag } from "./pointer-drag.ts";
 import type { PinchStep } from "./pointer-drag.ts";
 import { wheelPixels } from "./wheel-notches.ts";
 
 const CropDialogKey = "ui-image-crop";
 const TitleId = "ui-image-crop-title";
-const PartAttribute = "data-ui-image-crop-part";
+const Parts = new PageDialogParts("data-ui-image-crop-part");
 const FrameAttribute = "data-ui-image-crop-frame";
 
 /** How far an arrow moves the picture, in screen pixels; with Shift, five times as far. */
@@ -73,9 +73,13 @@ type Session = {
     view: CropView;
 };
 
-/** What a drag works on: the screen point the last move stood at, null while a pinch has it, so the next move starts afresh. */
+/**
+ * What a drag works on: the screen point the last move stood at, null while a pinch has it, so the next move starts afresh; and
+ * the view it began on, which Escape puts back, zoom and all.
+ */
 type PanContext = {
     last: { readonly x: number; readonly y: number } | null;
+    readonly start: CropView;
 };
 
 type CropParts = {
@@ -85,37 +89,57 @@ type CropParts = {
     readonly canvas: HTMLCanvasElement;
     readonly frame: HTMLElement;
     readonly zoom: HTMLInputElement;
+    readonly cancel: HTMLButtonElement;
+    readonly apply: HTMLButtonElement;
 };
 
 let session: Session | null = null;
+// Claimed before the picture is decoded, so a second crop asked meanwhile is refused rather than taking the dialog from the first.
+let opening = false;
+// Built once and kept, with its listeners: a page that took it off the body gets it back.
 let parts: CropParts | null = null;
 let paintPending = false;
 
 /** Opens the crop dialog on a picture and answers what the reader chose: the cropped file, a cancel, or a picture the browser cannot open. */
 export async function cropPictureAsync(dialogs: DialogEngine, file: File, request: CropRequest, imaging: CropImaging = browserImaging): Promise<CropOutcome> {
-    // A crop already open answers first: a second picture cannot reach a modal dialog, so this is a page that asked twice.
-    if (session !== null)
+    // A crop already open, or opening, answers first: a second picture cannot reach a modal dialog, so this is a page that asked twice.
+    if (session !== null || opening)
         return "cancelled";
 
-    const source = await imaging.decodeAsync(file, request.size);
+    opening = true;
+
+    let source: CropSource | null;
+
+    try {
+        source = await imaging.decodeAsync(file, request.size);
+    }
+    finally {
+        opening = false;
+    }
 
     if (source === null)
         return "unreadable";
 
-    return new Promise<CropOutcome>(resolve => {
-        const crop = parts !== null && parts.dialog.isConnected ? parts : buildDialog();
+    const decoded = source;
 
-        parts = crop;
+    return new Promise<CropOutcome>(resolve => {
+        parts ??= buildDialog();
+
+        const crop = parts;
+
+        if (!crop.dialog.isConnected)
+            document.body.append(crop.dialog);
+
         session = {
             file,
-            source,
+            source: decoded,
             request,
             imaging,
-            view: centredView(source),
+            view: centredView(decoded),
             finish: outcome => {
                 session = null;
                 dialogs.close(CropDialogKey);
-                source.release();
+                decoded.release();
                 resolve(outcome);
             }
         };
@@ -124,8 +148,8 @@ export async function cropPictureAsync(dialogs: DialogEngine, file: File, reques
         clientStrings.write(crop.title, null, "ui.crop.title");
         clientStrings.write(crop.stage, "aria-label", "ui.crop.frame");
         clientStrings.write(crop.zoom, "aria-label", "ui.crop.zoom");
-        clientStrings.write(part(crop.dialog, "cancel"), null, "ui.crop.cancel");
-        clientStrings.write(part(crop.dialog, "apply"), null, "ui.crop.apply");
+        clientStrings.write(crop.cancel, null, "ui.crop.cancel");
+        clientStrings.write(crop.apply, null, "ui.crop.apply");
         crop.stage.setAttribute(FrameAttribute, request.frame);
 
         dialogs.open(CropDialogKey);
@@ -134,59 +158,50 @@ export async function cropPictureAsync(dialogs: DialogEngine, file: File, reques
 }
 
 function buildDialog(): CropParts {
-    const dialog = element("div", "ui-dialog ui-image-crop");
-
-    dialog.setAttribute(DialogAttribute, CropDialogKey);
-    dialog.setAttribute(ModalAttribute, "");
     // No close on Escape or the backdrop by the dialog engine: both are a Cancel, which the dialog answers itself. A press that ends
     // a drag on the backdrop is no Cancel either.
-    dialog.setAttribute("hidden", "");
+    const { dialog, surface } = buildPageDialog({
+        key: CropDialogKey,
+        className: "ui-image-crop",
+        surfaceClassName: "ui-image-crop__surface",
+        role: "dialog",
+        labelledBy: TitleId,
+        closesOnEscapeAndBackdrop: false
+    });
 
-    const backdrop = element("div", "ui-dialog__backdrop");
-
-    backdrop.setAttribute("data-ui-dialog-backdrop", "");
-
-    const surface = element("div", "ui-dialog__surface ui-image-crop__surface");
-
-    surface.setAttribute("role", "dialog");
-    surface.setAttribute("tabindex", "-1");
-    surface.setAttribute("aria-modal", "true");
-    surface.setAttribute("aria-labelledby", TitleId);
-
-    const title = element("h2", "ui-image-crop__title ui-text-type--subtitle");
+    const title = Parts.element("h2", "ui-image-crop__title ui-text-type--subtitle");
 
     title.id = TitleId;
 
     // The stage is the picture's control: the first stop, where the arrows, + and − and Enter work.
-    const stage = element("div", "ui-image-crop__stage", "stage");
+    const stage = Parts.element("div", "ui-image-crop__stage", "stage");
 
     stage.setAttribute("tabindex", "0");
     stage.setAttribute("role", "group");
 
-    const canvas = element("canvas", "ui-image-crop__canvas") as HTMLCanvasElement;
-    const frame = element("span", "ui-image-crop__frame");
+    const canvas = Parts.element("canvas", "ui-image-crop__canvas") as HTMLCanvasElement;
+    const frame = Parts.element("span", "ui-image-crop__frame");
 
     canvas.setAttribute("aria-hidden", "true");
     frame.setAttribute("aria-hidden", "true");
     stage.append(canvas, frame);
 
-    const zoom = element("input", "ui-image-crop__zoom", "zoom") as HTMLInputElement;
+    const zoom = Parts.element("input", "ui-image-crop__zoom", "zoom") as HTMLInputElement;
 
     zoom.type = "range";
     zoom.min = "1";
     zoom.max = String(MaxCropZoom);
     zoom.step = "0.01";
 
-    const actions = element("div", "ui-image-crop__actions");
+    const cancel = Parts.button("ui-button--outline", "cancel");
+    const apply = Parts.button("ui-button--primary", "apply");
 
-    actions.append(button("ui-button--outline", "cancel"), button("ui-button--primary", "apply"));
-    surface.append(title, stage, zoom, actions);
-    dialog.append(backdrop, surface);
+    surface.append(title, stage, zoom, Parts.actions(cancel, apply));
 
-    const crop: CropParts = { dialog, title, stage, canvas, frame, zoom };
+    const crop: CropParts = { dialog, title, stage, canvas, frame, zoom, cancel, apply };
 
     dialog.addEventListener("click", domEvent => {
-        const choice = domEvent.target instanceof Element ? domEvent.target.closest(`[${PartAttribute}]`)?.getAttribute(PartAttribute) : null;
+        const choice = Parts.pressed(domEvent);
 
         if (choice === "cancel")
             session?.finish("cancelled");
@@ -202,7 +217,7 @@ function buildDialog(): CropParts {
     new PointerDrag<PanContext>({
         root: dialog,
         resolveHandle: target => stage.contains(target) ? stage : null,
-        begin: (_handle, point) => session === null ? null : { last: point },
+        begin: (_handle, point) => session === null ? null : { last: point, start: session.view },
         move: (context, _delta, point) => {
             if (context.last !== null)
                 pan(crop, point.x - context.last.x, point.y - context.last.y);
@@ -210,13 +225,18 @@ function buildDialog(): CropParts {
             context.last = point;
         },
         end: () => undefined,
+        cancel: (_handle, context) => {
+            if (session === null)
+                return;
+
+            session.view = context.start;
+            show(crop);
+        },
         pinch: (context, step) => {
             context.last = null;
             pinch(crop, step);
         }
     });
-
-    document.body.append(dialog);
 
     return crop;
 }
@@ -388,29 +408,6 @@ function paintSoon(crop: CropParts): void {
             stageHeight
         });
     });
-}
-
-function part(dialog: HTMLElement, name: string): HTMLElement {
-    return dialog.querySelector<HTMLElement>(`[${PartAttribute}="${name}"]`) ?? dialog;
-}
-
-function button(look: string, choice: string): HTMLButtonElement {
-    const pressable = element("button", `ui-button ${look}`, choice) as HTMLButtonElement;
-
-    pressable.type = "button";
-
-    return pressable;
-}
-
-function element(tagName: string, className: string, partName?: string): HTMLElement {
-    const created = document.createElement(tagName);
-
-    created.className = className;
-
-    if (partName !== undefined)
-        created.setAttribute(PartAttribute, partName);
-
-    return created;
 }
 
 /** The browser's own: decoded upright from the file's orientation, scaled down before it is drawn, written out through a canvas. */

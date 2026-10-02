@@ -115,3 +115,20 @@ test("a range's track is a step over whatever ground it stands on, so a slider i
     for (const track of tracks)
         assert.match(track, /background-color: color-mix\(in srgb, var\(--ui-color-on-surface\) 14%, transparent\);/, "a track painted in the raised ground vanishes on a dialog, whose ground it is");
 });
+
+test("a popup is never wider than the window less the margin its placement keeps", () => {
+    assert.match(declarations(".ui-flyout__content") ?? "", /max-width: calc\(100vw - 2 \* 4px\);/);
+});
+
+test("a list on Background takes its holder's ground rather than painting the page's, unless it has a colour or a theme of its own", () => {
+    const list = declarations(":is(.ui-key-value-action, .ui-table__scroll, .ui-tree).ui-surface--background:not([data-ui-theme], [data-ui-theme]:not(:root) *, [style*=\"--ui-surface-color\"])") ?? "";
+
+    assert.match(list, /background-color: transparent;/);
+    assert.match(list, /--ui-ground: inherit;/);
+    assert.match(list, /--ui-surface-fill: inherit;/);
+});
+
+test("on a phone a key-value list's key track is capped under half the row; wider, it keeps its floor and its longest key", () => {
+    assert.match(css, /--ui-key-value-key-track: fit-content\(45%\);/);
+    assert.match(declarations(".ui-key-value-action__host") ?? "", /--ui-key-value-key-track: minmax\(8rem, max-content\);[\s\S]*grid-template-columns: var\(--ui-key-value-key-track\) minmax\(0, 1fr\) auto;/);
+});

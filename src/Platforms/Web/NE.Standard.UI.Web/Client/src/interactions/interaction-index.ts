@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { getIdValue, getInteractionSourceKind, normalizeEventName } from "../metadata/metadata-index.ts";
+import { getIdValue, getInteractionActionKind, getInteractionSourceKind, normalizeEventName } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebRenderInteractionMetadata } from "../metadata/metadata-index.ts";
 
 /** The property an input's value is: the one `data-ui-bind-value` names when it is bound. */
@@ -12,12 +12,18 @@ export class InteractionIndex {
     private readonly propertyInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly valueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
     private readonly metadata: MetadataIndex;
+    private copiesValues = false;
 
     public constructor(metadata: MetadataIndex) {
         this.metadata = metadata;
 
         for (const interaction of metadata.metadata.interactions)
             this.addInteraction(interaction);
+    }
+
+    /** Whether any interaction copies a value, which alone is heard while the reader drags or types. */
+    public get hasCopyValues(): boolean {
+        return this.copiesValues;
     }
 
     public hasEvent(eventName: string): boolean {
@@ -94,6 +100,9 @@ export class InteractionIndex {
                 }
 
                 bucket.push(interaction);
+
+                if (getInteractionActionKind(interaction.actionKind) === "CopyValue")
+                    this.copiesValues = true;
 
                 if (this.metadata.getPropertyDefinition(propertyId)?.propertyName === ValuePropertyName) {
                     const values = this.valueInteractions.get(componentId) ?? [];

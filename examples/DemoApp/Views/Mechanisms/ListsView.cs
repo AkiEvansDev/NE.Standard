@@ -8,7 +8,10 @@ namespace DemoApp.Views.Mechanisms;
 /// What a list does once it is too big to hold: a hundred thousand rows the server never sends whole, in a list and in a table,
 /// two thousand rows held whole but laid out thirty at a time, and a window of rows each carrying fields of its own.
 /// </summary>
-/// <remarks>What differs from the component pages is where the items come from, which is a story rather than a property.</remarks>
+/// <remarks>
+/// What differs from the component pages is where the items come from, which is a story rather than a property. The page is words,
+/// not samples: every title, note, caption and line is a key, in each of the demo's languages; the rows are data.
+/// </remarks>
 internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
 {
     /// <summary>
@@ -20,6 +23,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     private const string LocalFilterId = "items-view-local-filter";
 
     private const string ChecklistGroup = nameof(ListsController.ChecklistGroup);
+    private const string Words = "demo.mechanisms.lists.";
 
     public static string ViewKey => "demo.mechanisms.lists";
 
@@ -32,10 +36,10 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
 
     private static ContainerComponent CreateRowsGroup()
     {
-        return DemoUI.CreateGroup(nameof(ListsController.RowsGroup), "100 000 rows, 50 at a time",
+        return DemoUI.CreateGroup(nameof(ListsController.RowsGroup), Words + "rows.title",
             content => content
                 .AddChild(new TextInputComponent(RowsFilterId)
-                    .SetTitle("Filter by title")
+                    .SetTitle(Words + "filter")
                     .BindValue(nameof(ListsController.RowsFilter))
                     .SetMargin(UIThickness.All(0, 0, 0, 8))
                     .SetPlacement(1, 1, 24, 1)
@@ -51,13 +55,14 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                 ),
             controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                ["Jump to 50 000"] = nameof(ListsController.JumpToMiddleAsync),
-                ["Back to start"] = nameof(ListsController.BackToStartAsync),
+                [Words + "rows.jump"] = nameof(ListsController.JumpToMiddleAsync),
+                [Words + "rows.start"] = nameof(ListsController.BackToStartAsync),
             }),
             contentMinHeight: 300,
             // A row needs the group's width: beside a column of controls its detail is cut short.
             controlsBelow: true,
-            note: "Scroll, and the rows are read as they are reached. The filter field is bound because the rule is resolved on the server — an unbound value never leaves the browser."
+            note: Words + "rows.note",
+            words: true
         );
     }
 
@@ -86,10 +91,10 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLocalGroup()
     {
-        return DemoUI.CreateGroup(nameof(ListsController.LocalGroup), "2 000 rows held, 30 in the document",
+        return DemoUI.CreateGroup(nameof(ListsController.LocalGroup), Words + "local.title",
             content => content
                 .AddChild(new TextInputComponent(LocalFilterId)
-                    .SetTitle("Filter by title")
+                    .SetTitle(Words + "filter")
                     .SetDebounceMilliseconds(150)
                     .SetMargin(UIThickness.All(0, 0, 0, 8))
                     .SetPlacement(1, 1, 24, 1)
@@ -105,12 +110,13 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                 ),
             controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                ["Add a row"] = nameof(ListsController.AddLocalRow),
+                [Words + "local.add"] = nameof(ListsController.AddLocalRow),
             }),
             contentMinHeight: 300,
             // A row needs the group's width: beside a column of controls its detail is cut short.
             controlsBelow: true,
-            note: "The other half of the feature: the client holds every row's value and draws the rows as they come into view — a few dozen elements stand for two thousand. The filter runs over the values, not the rows."
+            note: Words + "local.note",
+            words: true
         );
     }
 
@@ -119,16 +125,17 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTableGroup()
     {
-        return DemoUI.CreateExample("A hundred thousand rows, a window at a time",
+        return DemoUI.CreateExample(Words + "table.title",
             new TableComponent("windowed-rows")
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .BindSource(nameof(ListsController.TableRows))
-                .AddTextColumn("Row", nameof(DemoRowItem.Title), UIGridUnit.Absolute(160))
-                .AddTextColumn("Detail", nameof(DemoRowItem.Detail))
+                .AddTextColumn("demo.mechanisms.lists.table.row", nameof(DemoRowItem.Title), UIGridUnit.Absolute(160))
+                .AddTextColumn("demo.mechanisms.lists.table.detail", nameof(DemoRowItem.Detail))
                 .SetResizableColumns(true)
                 .SetShowColumnSeparators(true)
                 .SetMaxHeight(UILayoutLength.Absolute(300)),
-            note: "Drag a column's edge in the header to resize it; a double-click on the edge puts the authored width back."
+            note: Words + "table.note",
+            words: true
         );
     }
 
@@ -139,7 +146,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     /// <remarks>The checklists are a source's window: the field writes its draft back through the source, and the row's Enter reads it there.</remarks>
     private static ContainerComponent CreateChecklistGroup()
     {
-        return DemoUI.CreateExample("A field in every row",
+        return DemoUI.CreateExample(Words + "checklist.title",
             new ItemsViewComponent()
                 .BindSource(nameof(ListsController.Checklists))
                 .SetSpacing(16)
@@ -194,8 +201,9 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                         .OnEnter(nameof(ListsController.AddChecklistComment), UIAction.ArgCurrentItemKey("id"))
                     )
                 ),
-            note: "`OnEnter(command, UIAction.ArgCurrentItemKey(\"id\"))` in the row's template: Enter in a checklist's field adds the line to that checklist and keeps the caret for the next. The field writes its draft through the source's `TryWriteAsync`, and the command runs once that write has landed. The comment box is a text area with `OnEnter`: Enter adds the comment, Shift+Enter breaks its line, and no form is needed. The lines and the comments say nothing while there are none (`SetShowEmptyTemplate(false)`).",
-            context: ChecklistGroup
+            note: Words + "checklist.note",
+            context: ChecklistGroup,
+            words: true
         );
     }
 }

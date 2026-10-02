@@ -7,8 +7,8 @@ using NE.Standard.UI.Primitives.Interaction;
 namespace NE.Standard.UI.Compiled.Models;
 
 /// <summary>
-/// Represents a compiled interaction that updates a target property, or runs a client effect, from a property
-/// or event source.
+/// Represents a compiled interaction that updates a target property, copies the source's value into it, or runs a client effect,
+/// from a property or event source.
 /// </summary>
 public sealed class CompiledUIInteraction
 {
@@ -58,7 +58,8 @@ public sealed class CompiledUIInteraction
     public object? TrueValue { get; init; }
 
     /// <summary>
-    /// Gets the value applied when the interaction condition is not satisfied.
+    /// Gets the value applied when the interaction condition is not satisfied; for a copy, the target's authored value, written when
+    /// the source holds nothing.
     /// </summary>
     public object? FalseValue { get; init; }
 
@@ -119,6 +120,21 @@ public sealed class CompiledUIInteraction
 
                 if (Target is not null)
                     throw new InvalidOperationException("Effect interaction must not specify a target property.");
+
+                break;
+
+            case UIInteractionActionKind.CopyValue:
+                if (SourceKind != UIInteractionSourceKind.Property)
+                    throw new InvalidOperationException("Value-copying interaction must read a source property.");
+
+                if (Target is null)
+                    throw new InvalidOperationException("Value-copying interaction target is required.");
+
+                if (Target.Value.Component.Id.IsEmpty)
+                    throw new InvalidOperationException("Interaction target component id is invalid.");
+
+                if (Effect is not null)
+                    throw new InvalidOperationException("Value-copying interaction must not specify an effect.");
 
                 break;
 

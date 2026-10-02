@@ -52,10 +52,13 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// </summary>
     private static CardComponent CreateWaysOff()
         => UIPage.Card("Ways off the page", "Who asks: the note's own dialog — Save, Don't save, Cancel — or, with the switch off, the framework's Leave or Stay.", UILayout.Stack(12,
-            new SwitchComponent()
-                .SetTitle("Ask in the note's own dialog")
-                .SetDescription("Off, OnLeaveRequestedAsync hands the leave to the base.")
-                .BindValue(nameof(NoteEditorController.OwnDialog)),
+            UILayout.Stack(2,
+                new SwitchComponent()
+                    .SetTitle("Ask in the note's own dialog")
+                    .BindValue(nameof(NoteEditorController.OwnDialog)),
+                // Under the switch rather than its description, which keeps one line: the sentence reads whole on a phone.
+                UIText.Note("Off, OnLeaveRequestedAsync hands the leave to the base.").SetMargin(UIThickness.All(44, 0, 0, 0))
+            ),
             UIText.Paragraph("A press on any page in the sidebar, or on the link below, asks first. So does a command that answers with a NavigateEffect. The browser's back button, a reload or closing the tab ask the browser's own question instead — the only one a browser allows there."),
             new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetTitle("The inbox, by a link").SetUrl("/screens/inbox").SetHorizontalAlignment(UIAlignment.Start),
             UIButtons.Secondary("The inbox, by a command", DemoIcons.Outline(DemoIcons.Mail))

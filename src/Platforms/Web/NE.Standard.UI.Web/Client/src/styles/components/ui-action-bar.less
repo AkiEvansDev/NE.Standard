@@ -12,7 +12,7 @@
 // under the popups (a menu its "…" opens stands over it). Drawn only while it is wanted, so it fades in and is gone at once. Never
 // wider than the window: its icons wrap rather than run off a phone's edge.
 .ui-action-bar:not(.ui-action-bar--strip) {
-    .ui-popup-surface(29);
+    .ui-popup-surface(@ui-z-action-bar);
     display: flex;
     flex-wrap: wrap;
     max-width: calc(100vw - 2 * @ui-space-1);

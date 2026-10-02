@@ -219,6 +219,9 @@ internal sealed partial class ChatController : UIControllerBase
     /// <summary>The "go to a day" dialog's key.</summary>
     public const string DayKey = "chat-day";
 
+    /// <summary>The wallpaper dialog's key.</summary>
+    public const string WallpaperKey = "chat-wallpaper";
+
     private const string You = "You";
     private const string Said = "demo.screens.chat.said";
 
@@ -323,6 +326,26 @@ internal sealed partial class ChatController : UIControllerBase
     [RecursiveMember]
     public partial IReadOnlyCollection<DateOnly>? MessageDays { get; set; }
 
+    /// <summary>The wallpaper dialog's three settings, as the reader moves them: a switch, a dim as a share, a blur in pixels.</summary>
+    [RecursiveMember]
+    public partial bool WallpaperShown { get; set; } = true;
+
+    [RecursiveMember]
+    public partial decimal WallpaperDim { get; set; } = 0.5m;
+
+    [RecursiveMember]
+    public partial decimal WallpaperBlur { get; set; }
+
+    /// <summary>What the messages' ground draws from those settings (<see cref="UpdateWallpaper"/>).</summary>
+    [RecursiveMember]
+    public partial string? WallpaperImage { get; set; } = DemoImages.HarbourSky;
+
+    [RecursiveMember]
+    public partial double? WallpaperDimShare { get; set; } = 0.5;
+
+    [RecursiveMember]
+    public partial double? WallpaperBlurLength { get; set; }
+
     /// <summary>Opens on the first chat, so a wide screen shows a conversation beside the list from the start.</summary>
     public ChatController()
     {
@@ -331,7 +354,7 @@ internal sealed partial class ChatController : UIControllerBase
         foreach (DemoChatItem chat in Chats)
         {
             if (!chat.IsGroup)
-                People.Add(new MenuItem { Id = chat.Id, Title = chat.Title, Icon = chat.Avatar, BadgeStyle = UIBadgeType.Primary, IsContent = true });
+                People.Add(new MenuItem { Id = chat.Id, Title = chat.Title, Icon = chat.Avatar, IconShape = UIIconShape.Circle, BadgeStyle = UIBadgeType.Primary, IsContent = true });
         }
 
         Describe(_open);
@@ -472,7 +495,7 @@ internal sealed partial class ChatController : UIControllerBase
     private static string Initials(string name, string colour)
     {
         var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var letters = words.Length == 1 ? words[0][..1] : string.Concat(words[0][..1], words[1][..1]);
+        var letters = (words.Length == 1 ? words[0][..1] : string.Concat(words[0][..1], words[1][..1])).ToUpperInvariant();
         var svg = $"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' fill='{colour}'/>"
             + $"<text x='20' y='20' dy='0.35em' text-anchor='middle' font-family='system-ui, sans-serif' font-size='15' font-weight='600' fill='#fff'>{letters}</text></svg>";
 
@@ -707,7 +730,8 @@ internal sealed partial class ChatController : UIControllerBase
         [
             new MenuItem { Id = "day", Title = "Go to a day", Icon = DemoIcons.Outline(DemoIcons.Calendar), IsContent = true },
             new MenuItem { Id = "newest", Title = "Jump to the newest", Icon = DemoIcons.Outline(DemoIcons.History), IsContent = true },
-            new MenuItem { Id = "receive", Title = "Receive a message", Icon = DemoIcons.Outline(DemoIcons.Bell), IsContent = true }
+            new MenuItem { Id = "receive", Title = "Receive a message", Icon = DemoIcons.Outline(DemoIcons.Bell), IsContent = true },
+            new MenuItem { Id = "wallpaper", Title = "Wallpaper", Icon = DemoIcons.Outline(DemoIcons.Palette), IsContent = true }
         ];
 
     [UICommand]
@@ -723,6 +747,8 @@ internal sealed partial class ChatController : UIControllerBase
             case "receive":
                 Receive();
                 return UICommandResult.Ok();
+            case "wallpaper":
+                return UICommandResult.Ok([new OpenDialogEffect(WallpaperKey)]);
             default:
                 return UICommandResult.Ok();
         }
@@ -744,6 +770,18 @@ internal sealed partial class ChatController : UIControllerBase
         message.KeyDay(_zone);
         Conversation.Add(message);
         Raise(_open);
+    }
+
+    /// <summary>
+    /// The wallpaper's settings as the messages' ground draws them: the picture or none, the dim as a share, the blur as a length. Only
+    /// these values travel; the browser dims and blurs the picture it already has.
+    /// </summary>
+    [UICommand]
+    public void UpdateWallpaper()
+    {
+        WallpaperImage = WallpaperShown ? DemoImages.HarbourSky : null;
+        WallpaperDimShare = (double)WallpaperDim;
+        WallpaperBlurLength = (double)WallpaperBlur;
     }
 
     [UICommand]

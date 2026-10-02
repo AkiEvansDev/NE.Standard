@@ -58,7 +58,6 @@ export type EffectRegistryOptions = {
 /** What the document declares, which has a third value the enum does not: no preference. */
 export type ThemeName = "light" | "dark" | "auto";
 
-
 export type EffectHandler = (context: EffectContext) => void;
 
 export type EffectRegistration = {

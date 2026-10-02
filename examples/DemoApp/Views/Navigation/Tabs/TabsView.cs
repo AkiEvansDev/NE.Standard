@@ -209,12 +209,12 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
 
         return DemoUI.CreateExample("Against TabsView",
             UILayout.Columns(32,
-                UIPage.Labelled("Tabs — pages are regions the view wrote", new TabsComponent()
+                DemoUI.CreateLabelled("Tabs — pages are regions the view wrote", new TabsComponent()
                     .AddTab("incident", "incident-report.md", UILayout.Stack(10).AddChild(new ParagraphComponent().SetDescription("A paragraph, written for this page.")))
                     .AddTab("health", "health-check.cs", UILayout.Stack(10).AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.File)).SetTitle("A text row, written for this one.")))
                     .AddTab("server", "server.json", UILayout.Stack(10).AddChild(new SwitchComponent().SetTitle("And a switch for the third.")))
                 ),
-                UIPage.Labelled("TabsView — pages are one template over a collection", new TabsViewComponent()
+                DemoUI.CreateLabelled("TabsView — pages are one template over a collection", new TabsViewComponent()
                     .SetItems(documents)
                     .SetPageTemplate(new ParagraphComponent()
                         .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)

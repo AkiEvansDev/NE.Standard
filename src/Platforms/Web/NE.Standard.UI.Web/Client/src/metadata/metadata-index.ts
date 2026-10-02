@@ -181,7 +181,7 @@ export type WebRenderInteractionMetadata = {
 export type WebInteractionSourceKindName = "Property" | "Event";
 export type WebInteractionSourceKind = WebInteractionSourceKindName | number;
 
-export type WebInteractionActionKindName = "SetProperty" | "Effect";
+export type WebInteractionActionKindName = "SetProperty" | "Effect" | "CopyValue";
 export type WebInteractionActionKind = WebInteractionActionKindName | number;
 
 export type WebInteractionOperatorName =
@@ -844,7 +844,7 @@ export function getInteractionActionKind(value: WebInteractionActionKind | null 
     // An interaction that names no action is a property assignment.
     return value === null || value === undefined
         ? "SetProperty"
-        : resolveEnumName(value, ["SetProperty", "Effect"] as const);
+        : resolveEnumName(value, ["SetProperty", "Effect", "CopyValue"] as const);
 }
 
 export function getInteractionOperator(value: WebInteractionOperator | null | undefined): WebInteractionOperatorName | "Unknown" {

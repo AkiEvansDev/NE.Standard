@@ -26,13 +26,12 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     private const string ItemClassName = "ui-menu__item";
     private const string SubmenuClassName = "ui-menu__submenu";
     private const string NestedClassName = "ui-menu--nested";
-    private const string RailClassName = "ui-menu--rail";
     // The client's own half of RenderSubmenu, for a row it builds (`menu-row-decorator.ts`).
     private const string RowDecoratorKind = "menu";
 
     public override string ComponentTypeKey => MenuComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-menu";
+    protected override string ClassName => WebClassNames.Menu;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -60,7 +59,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         {
             // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class.
             _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIButtonSize? size, out _);
-            _ = root.Class(RailClassName).Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
+            _ = root.Class(WebClassNames.MenuRail).Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
         }
 
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);

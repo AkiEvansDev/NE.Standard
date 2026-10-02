@@ -68,8 +68,9 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetMargin(UIThickness.All(0, 0, 0, 4))
                     )
                     .AddChild(new ActionComponent()
-                        // The same Icon property carrying a picture instead of a glyph name.
+                        // The same Icon property carrying a picture instead of a glyph name, drawn round: a person.
                         .SetIcon(DemoImages.Avatar)
+                        .SetIconShape(UIIconShape.Circle)
                         .SetTitle("Profile")
                         .SetDescription("Robin Hale · Admin")
                         .SetTrailingText("Signed in")
@@ -83,7 +84,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                     .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
-                        .SetDescription("A second step from a new device")
+                        .SetDescription("Asked on a new device")
                         .SetBadgeText("Recommended")
                         .SetBadgeStyle(UIBadgeType.Warning)
                     )

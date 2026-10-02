@@ -7,6 +7,7 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
@@ -70,13 +71,6 @@ internal readonly record struct UIRowGates(UIComponentId TemplateRootId, int Row
 internal sealed class UIComponentGateIndex
 {
     private static readonly ConditionalWeakTable<CompiledView, UIComponentGateIndex> Indexes = [];
-
-    // An input's bounds by name, whatever type they hold: a number's, a slider's, a temporal input's, a calendar's.
-    private static readonly UIProperty MinProperty = new("Min");
-    private static readonly UIProperty MaxProperty = new("Max");
-
-    /// <summary>A period's end: the second value a temporal input or a calendar writes, held to what <c>Value</c> is held to.</summary>
-    internal static readonly UIProperty PeriodEndProperty = new("EndValue");
 
     private readonly FrozenDictionary<UIComponentId, UIComponentGates> _components;
     private readonly FrozenDictionary<UIComponentId, UIRowGates> _rows;
@@ -200,8 +194,8 @@ internal sealed class UIComponentGateIndex
         if (!view.State.TryGetValue(componentId, IInputComponent.IsReadOnlyProperty, out _) || WrittenValueType(view, componentId) is not Type valueType)
             return null;
 
-        UIGateValue? min = CreateGateValue(view, componentId, MinProperty, valueType, unset: null);
-        UIGateValue? max = CreateGateValue(view, componentId, MaxProperty, valueType, unset: null);
+        UIGateValue? min = CreateGateValue(view, componentId, IBoundedInputComponent.MinProperty, valueType, unset: null);
+        UIGateValue? max = CreateGateValue(view, componentId, IBoundedInputComponent.MaxProperty, valueType, unset: null);
         UIComponentGate? markedOnly = CreateGate(view, componentId, IMarkedDaysComponent.MarkedDaysOnlyProperty, UIComponentGateKind.MarkedDaysOnly);
         UIGateValue? markedDays = markedOnly is null ? null : CreateGateValue(view, componentId, IMarkedDaysComponent.MarkedDaysProperty, valueType: null, unset: Array.Empty<DateOnly>());
 
@@ -212,7 +206,7 @@ internal sealed class UIComponentGateIndex
     private static Type? WrittenValueType(CompiledView view, UIComponentId componentId)
     {
         if (!view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, IInputComponent.ValueProperty), out CompiledUIBinding? binding)
-            && !view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, PeriodEndProperty), out binding))
+            && !view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, IPeriodInputComponent.EndValueProperty), out binding))
         {
             return null;
         }

@@ -17,6 +17,10 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
     private const string RowsVariable = "--ui-text-area-rows";
     private const string MaxRowsVariable = "--ui-text-area-max-rows";
 
+    // Through converters, so a pushed count of zero or less writes nothing, as the first paint does.
+    private static readonly WebDomOperation[] RowsOperations = [WebDomOperation.Attribute("rows", converter: WebDomConverters.PositiveCount), WebDomOperation.Style(RowsVariable, converter: WebDomConverters.PositiveCount)];
+    private static readonly WebDomOperation[] MaxRowsOperations = [WebDomOperation.Attribute(WebAttributes.TextAreaGrow, converter: WebDomConverters.PositiveFlagAttribute), WebDomOperation.Style(MaxRowsVariable, converter: WebDomConverters.PositiveCount)];
+
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-text-area";
@@ -78,13 +82,13 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             {
                 if (value is int rows and > 0)
                     _ = target.Attribute("rows", rows.ToString(CultureInfo.InvariantCulture)).Style(RowsVariable, rows.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.Attribute("rows"), WebDomOperation.Style(RowsVariable)]);
+            }, RowsOperations);
 
             _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxRowsProperty, static (target, value) =>
             {
                 if (value is int maxRows and > 0)
                     _ = target.Attribute(WebAttributes.TextAreaGrow).Style(MaxRowsVariable, maxRows.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.ToggleAttribute(WebAttributes.TextAreaGrow), WebDomOperation.Style(MaxRowsVariable)]);
+            }, MaxRowsOperations);
 
             RenderFlagAttribute(context, textarea, TextAreaComponent.SubmitOnEnterProperty, WebAttributes.SubmitOnEnter);
 

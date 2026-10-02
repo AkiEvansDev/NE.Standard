@@ -55,8 +55,8 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Against a control's own Loading",
             new SurfaceComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(12)
-                    .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(UIText.Label("The control says it"))
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Primary)
@@ -119,8 +119,8 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Beside a word",
             new SurfaceComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(14)
-                    .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(new SpinnerComponent()
                         .SetLabel("Reading metrics")
                         .SetSize(UIIconSize.Small)

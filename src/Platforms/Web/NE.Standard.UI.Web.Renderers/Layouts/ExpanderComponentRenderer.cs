@@ -3,6 +3,7 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Layouts;
@@ -41,7 +42,7 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
             {
                 _ = chevron.Class("ui-expander__chevron");
 
-                RenderFlagClass(context, chevron, ExpanderComponent.ShowChevronProperty, "ui-hidden", WebValueCondition.IsFalse);
+                RenderFlagClass(context, chevron, ExpanderComponent.ShowChevronProperty, WebClassNames.Hidden, WebValueCondition.IsFalse);
             });
         });
 

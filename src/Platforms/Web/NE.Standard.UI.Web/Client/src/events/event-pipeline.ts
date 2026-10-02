@@ -201,6 +201,7 @@ export class EventPipeline {
         if (submitFormId !== null) {
             if (this.options.validationEngine?.runSubmitValidation(submitFormId) === false) {
                 context.domEvent.preventDefault();
+                this.options.validationEngine.focusFirstInvalid(submitFormId);
                 return Refused;
             }
 
@@ -242,6 +243,10 @@ export class EventPipeline {
         this.options.afterEffects?.();
 
         this.applyAfterEvent(eventName, context);
+
+        // A submit the server answered with a field's error (its refusal, the controller's message) takes the reader to that field.
+        if (submitFormId !== null)
+            this.options.validationEngine?.focusFirstInvalid(submitFormId);
 
         return { dispatched: true, success: result.command?.success !== false, error: result.command?.error ?? null };
     }

@@ -359,14 +359,14 @@ internal abstract partial class UIRuntimeBase
         if (key is null || item is null || ReadStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty) is not { } keyProperty)
             return true;
 
-        Type? type = item.GetType().GetProperty(keyProperty)?.PropertyType;
+        Type? type = ItemProperties.GetOrAdd((item.GetType(), keyProperty), static key => key.Type.GetProperty(key.Name))?.PropertyType;
 
         if (type is null)
             return true;
 
         type = Nullable.GetUnderlyingType(type) ?? type;
 
-        return !type.IsEnum || Enum.IsDefined(type, key) || Array.IndexOf(Enum.GetNames(type), key) >= 0;
+        return !type.IsEnum || Enum.IsDefined(type, key);
     }
 
     private string? ReadStaticString(UIComponentId componentId, UIProperty property)

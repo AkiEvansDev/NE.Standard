@@ -4,11 +4,11 @@
 import { EventBoundaryAttribute, PopupRoleSelector } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { FieldBoxSelector } from "./own-control.ts";
+import { FieldBoxSelector, NativeControlSelector } from "./own-control.ts";
 
 // What inside a box is a control of its own (a stepper, a clear, a picker's toggle), or a popup one of its actions opened (a flyout,
 // a split button's list): its press stays its own, and the field keeps the caret the reader left there for an insertion.
-const OwnPartSelector = `button, a, input, select, textarea, label, [tabindex], [contenteditable], ${PopupRoleSelector}, [${EventBoundaryAttribute}]`;
+const OwnPartSelector = `${NativeControlSelector}, [tabindex], [contenteditable], ${PopupRoleSelector}, [${EventBoundaryAttribute}]`;
 // The box's text field: the framework's field class on a caret input or a multi-line field.
 const FieldSelector = ":scope > input.ui-field, :scope > textarea.ui-field";
 
@@ -41,6 +41,10 @@ export class FieldBoxPressEngine {
         // Taken, or the press would move the focus to the box and begin a selection there.
         domEvent.preventDefault();
         field.focus({ preventScroll: true });
+
+        // An email or a number field keeps no selection a page can set, and throws if asked: its caret stays where the browser puts it.
+        if (field.selectionStart === null)
+            return;
 
         const end = field.value.length;
 

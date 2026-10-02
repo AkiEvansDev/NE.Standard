@@ -4,15 +4,13 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
-import { responsiveBreakpoints } from "../rendering/responsive-tier.ts";
+import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
 import { ClientStore } from "../state/client-store.ts";
 
-const RootClass = "ui-menu";
 // A submenu's nested menu has no authored name to keep state under: only a menu the server named remembers its open group.
 const NestedClass = "ui-menu--nested";
-const SelectedModifier = "ui-menu-item--selected";
 const SubmenuClass = "ui-menu__submenu";
 
 const GroupAttribute = MenuGroupAttribute;
@@ -79,7 +77,7 @@ export class MenuGroupEngine {
         // Across the drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
         // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts).
         if (typeof matchMedia === "function")
-            matchMedia(`(min-width: ${responsiveBreakpoints.md}px)`).addEventListener("change", () => this.closeBarFlyout());
+            matchMedia(DrawerBreakpointQuery).addEventListener("change", () => this.closeBarFlyout());
     }
 
     private closeBarFlyout(): void {
@@ -331,7 +329,7 @@ export function isBottomBar(menu: Element): boolean {
     return menu.classList.contains(MenuRailClass)
         && menu.closest(`[${BottomBarAttribute}]`) !== null
         && typeof matchMedia === "function"
-        && !matchMedia(`(min-width: ${responsiveBreakpoints.md}px)`).matches;
+        && !matchMedia(DrawerBreakpointQuery).matches;
 }
 
 /** Whether the menu's groups fly out: folded to its icons, or a rail, which is never unfolded. */

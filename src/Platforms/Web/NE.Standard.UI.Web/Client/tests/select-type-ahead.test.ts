@@ -1,10 +1,10 @@
 // Type-ahead on a select, as on a native list: typed characters with no pause between them make a prefix, the same letter again walks
 // the options it begins, disabled options are passed; a closed field opens on the match, an open list moves its current option, and
-// nothing is chosen. A chord, a composing key and a search's own field are left alone.
+// nothing is chosen. A chord and a composing key are left alone; a search's typing is its term (search-field.test.ts).
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
@@ -33,11 +33,10 @@ new SelectInteractionEngine({ root: real<ParentNode>(fakeDocument.body) });
 
 const Cities = ["Amsterdam", "Ashburn", "Ålesund", "Berlin", "Bern", "Singapore"];
 
-type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[]; readonly input: FakeInput | null };
+type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[] };
 
-function scene(options: { readonly search?: boolean; readonly multiple?: boolean; readonly value?: string; readonly disabled?: string } = {}): Scene {
-    const field = options.search === true ? Object.assign(new FakeInput("search"), { className: "ui-search__input" }) : null;
-    const trigger = FakeElement.of("ui-select__trigger", options.search === true ? { "data-ui-select-trigger-mode": "input" } : { tabindex: "0" }, options.search === true || options.multiple === true ? "div" : "button");
+function scene(options: { readonly multiple?: boolean; readonly value?: string; readonly disabled?: string } = {}): Scene {
+    const trigger = FakeElement.of("ui-select__trigger", { tabindex: "0" }, options.multiple === true ? "div" : "button");
     const list = Cities.map(city => {
         const key = city.toLowerCase();
         const option = FakeElement.of(`ui-select__option${key === options.disabled ? " ui-disabled" : ""}`, { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" });
@@ -45,20 +44,17 @@ function scene(options: { readonly search?: boolean; readonly multiple?: boolean
         option.append(Object.assign(FakeElement.of("ui-text__title", {}, "span"), { textContent: city }));
         return option;
     });
-    const popup = FakeElement.of("ui-select__popup", { role: "listbox" }).append(...list);
+    const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...list);
     const select = FakeElement.of(`ui-select${options.multiple === true ? " ui-multi-select" : ""}`, { "data-ui-id": "3", lang: "en" }).append(trigger, popup);
 
     if (options.value !== undefined)
         select.setAttribute(options.multiple === true ? "data-ui-selected-keys" : "data-ui-select-value", options.multiple === true ? JSON.stringify([options.value]) : options.value);
 
-    if (field !== null)
-        trigger.append(field);
-
     fakeDocument.body.children.length = 0;
     fakeDocument.body.append(select);
     fakeDocument.activeElement = fakeDocument.body;
 
-    return { select, trigger, options: list, input: field };
+    return { select, trigger, options: list };
 }
 
 function type(characters: string, extra: Readonly<Record<string, unknown>> = {}): FakeKeyboardEvent[] {
@@ -73,7 +69,7 @@ function type(characters: string, extra: Readonly<Record<string, unknown>> = {})
 
 function focusField(at: Scene): void {
     noteKey(real<Event>(new FakeKeyboardEvent("Tab")));
-    (at.input ?? at.trigger).focus();
+    at.trigger.focus();
 }
 
 function press(at: Scene): void {
@@ -228,17 +224,6 @@ test("AltGr, which arrives as Ctrl and Alt, types its letter", () => {
 
     assert.equal(active(at), "berlin");
     close(at);
-});
-
-test("a search's field takes the characters as its term, its list left where it is", () => {
-    const at = scene({ search: true });
-
-    focusField(at);
-    const [event] = type("b");
-
-    assert.equal(event.defaultPrevented, false);
-    assert.equal(isOpen(at), false);
-    assert.equal(active(at), null);
 });
 
 test("a multi-select's list moves its current option and ticks nothing", () => {

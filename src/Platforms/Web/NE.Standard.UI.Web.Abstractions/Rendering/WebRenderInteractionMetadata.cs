@@ -31,7 +31,7 @@ public sealed class WebRenderInteractionMetadata
     {
         switch (ActionKind)
         {
-            case UIInteractionActionKind.SetProperty:
+            case UIInteractionActionKind.SetProperty or UIInteractionActionKind.CopyValue:
                 if (Target is not WebRenderPropertyMetadata target)
                     throw new InvalidOperationException("Interaction target property is required.");
 

@@ -134,6 +134,7 @@ internal sealed class CommandBarView : DemoComponentView, IUIViewDefinition
                     .SetColumn(24, UIGridUnit.Auto())
                     .AddChild(new ParagraphComponent()
                         .SetIcon(DemoImages.Avatar)
+                        .SetIconShape(UIIconShape.Circle)
                         .SetTitle("Grace")
                         .SetTitleType(UITextAppearance.Subtitle)
                         .SetDescription("The eu-west rollout is paused — error rate doubled at 14:07. I have the logs open if anyone wants to look before we roll back.")

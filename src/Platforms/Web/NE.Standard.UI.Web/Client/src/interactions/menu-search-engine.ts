@@ -1,13 +1,12 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
 // them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
 import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
 import { foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
-const RootClass = "ui-menu";
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
 const BarSelector = ":scope > .ui-collapsible__bar";
 const HostSelector = ":scope > .ui-menu__host";

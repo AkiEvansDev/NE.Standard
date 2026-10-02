@@ -11,6 +11,9 @@ public sealed record UIColorPalette
     // WCAG's floor for words: an on-colour and an ink derived from a colour clear it.
     private const double ReadableRatio = 4.5;
 
+    // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card.
+    private const double GraphicRatio = 3;
+
     // Eight, far apart on the wheel; the Info and Success hues are among them, the warning and danger ones are not.
     private static readonly ColorVariant[] DefaultSeries =
     [
@@ -27,7 +30,17 @@ public sealed record UIColorPalette
     /// <summary>
     /// The categorical run a chart's series take in turn — <c>--ui-color-series-{n}</c> on the page, cycled by the count.
     /// </summary>
-    public IReadOnlyList<ColorVariant> Series { get; init; } = DefaultSeries;
+    /// <remarks>
+    /// Unset, eight hues far apart on the wheel, each moved toward the page's text — lifted on a dark palette, deepened on a light
+    /// one — by the fewest tenths that read 3:1 on both <see cref="Background"/> and <see cref="Surface"/>, so a line, a bar or a
+    /// sector stands off whichever ground it is drawn on. Drawn when read, so a palette with other grounds draws them for its own.
+    /// </remarks>
+    public IReadOnlyList<ColorVariant> Series
+    {
+        // Null until an author sets a run: the default hues are drawn for this palette's grounds.
+        get => field ?? DefaultSeriesOn(Background, Surface);
+        init;
+    }
 
     /// <summary>
     /// The theme's primary brand color.
@@ -61,7 +74,7 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant OnAccent { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
-    // One ink on both grounds, a touch warm: the surface's was a dimmer grey, which read soft on a near-black ground.
+    // One ink on both grounds, a touch warm: a dimmer grey reads soft on a near-black ground.
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Background"/>.
@@ -243,16 +256,35 @@ public sealed record UIColorPalette
     /// <paramref name="ground"/>; all the way (white or black) where none does, which reads on any colour the move leads away from.
     /// </summary>
     private static ColorVariant FirstReadable(ColorVariant color, ColorAdjustment adjustment, ColorVariant ground)
+        => FirstClearing(color, adjustment, ReadableRatio, ground, ground);
+
+    /// <summary>
+    /// <paramref name="color"/>, or moved by <paramref name="adjustment"/> by the fewest tenths that read <paramref name="ratio"/> on
+    /// both grounds; all the way where none does.
+    /// </summary>
+    private static ColorVariant FirstClearing(ColorVariant color, ColorAdjustment adjustment, double ratio, ColorVariant ground, ColorVariant otherGround)
     {
         for (var factor = 0; factor < ColorVariant.MaxFactor; factor++)
         {
             ColorVariant step = factor == 0 ? color : Adjusted(color, adjustment, factor, color.Opacity);
 
-            if (UIColorContrast.Ratio(step, ground) >= ReadableRatio)
+            if (UIColorContrast.Ratio(step, ground) >= ratio && UIColorContrast.Ratio(step, otherGround) >= ratio)
                 return step;
         }
 
         return Adjusted(color, adjustment, ColorVariant.MaxFactor, color.Opacity);
+    }
+
+    /// <summary>The default hues, each moved toward the page's text by the fewest tenths that read 3:1 on both grounds.</summary>
+    private static ColorVariant[] DefaultSeriesOn(ColorVariant background, ColorVariant surface)
+    {
+        ColorAdjustment toText = UIColorContrast.IsLight(background) ? ColorAdjustment.Shade : ColorAdjustment.Tint;
+        ColorVariant[] series = new ColorVariant[DefaultSeries.Length];
+
+        for (var i = 0; i < series.Length; i++)
+            series[i] = FirstClearing(DefaultSeries[i], toText, GraphicRatio, background, surface);
+
+        return series;
     }
 
     /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>

@@ -30,7 +30,6 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 {
     private const string DefaultTemplateName = "default";
     private const string ItemsQueryClassName = "ui-items-query";
-    private const string RowGripClassName = "ui-row__grip";
 
     /// <summary>The client's row decorator that gives a row it builds its grip (<see cref="RenderRowGrip"/>).</summary>
     protected const string RowGripDecorator = "grip";
@@ -394,23 +393,30 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
     }
 
+    private static readonly WebDomOperation[] DragHandlePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.DragHandlePlacementClass)];
+
     /// <summary>
-    /// Where the rows' grip stands, as the root's <c>ui-drag-handle--start</c> or <c>--end</c>; a bound one moves it live, the grip being
-    /// placed by the stylesheet alone.
+    /// What an <see cref="IDraggableRowsComponent"/>'s root says of its rows' moves: draggable, by the grip alone, and where the grip
+    /// stands, as <c>ui-drag-handle--start</c> or <c>--end</c> — a bound one moving it live, since the stylesheet alone places the grip.
     /// </summary>
-    protected static void RenderDragHandlePlacement(WebRenderContext context, IHtmlElementBuilder root, UIProperty placementProperty)
-        => _ = RenderProperty<UIDragHandlePlacement?>(context, root, placementProperty, static (target, value) =>
+    protected static void RenderDraggableRows(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        RenderFlagAttribute(context, root, IDraggableRowsComponent.DraggableProperty, WebAttributes.RowsDraggable);
+        RenderFlagAttribute(context, root, IDraggableRowsComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
+
+        _ = RenderProperty<UIDragHandlePlacement?>(context, root, IDraggableRowsComponent.DragHandlePlacementProperty, static (target, value) =>
         {
             if (value is UIDragHandlePlacement placement)
                 _ = target.Class(WebClassNames.DragHandlePlacement(placement));
-        }, [WebDomOperation.Class(converter: WebDomConverters.DragHandlePlacementClass)]);
+        }, DragHandlePlacementOperations);
+    }
 
     /// <summary>
-    /// Whether rows carry the grip they are dragged by: a drag and a handle each on or bound. The stylesheet shows it only while both
-    /// say so, so a bound one flips it with no row drawn again.
+    /// Whether an <see cref="IDraggableRowsComponent"/>'s rows carry the grip they are dragged by (<see cref="RenderRowGrip"/>): a drag
+    /// and a handle each on or bound. The stylesheet shows it only while both say so, so a bound one flips it with no row drawn again.
     /// </summary>
-    protected static bool DrawsRowGrip(WebRenderContext context, UIProperty draggableProperty, UIProperty dragHandleProperty)
-        => MayBeTrue(context, draggableProperty) && MayBeTrue(context, dragHandleProperty);
+    protected static bool DrawsRowGrip(WebRenderContext context)
+        => MayBeTrue(context, IDraggableRowsComponent.DraggableProperty) && MayBeTrue(context, IDraggableRowsComponent.DragHandleProperty);
 
     private static bool MayBeTrue(WebRenderContext context, UIProperty property)
         => ResolveRenderValue(context, property, out bool? value, out _) == WebRenderValueKind.Binding || value == true;
@@ -427,7 +433,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         _ = row.Element("span", grip =>
         {
-            _ = grip.Class(RowGripClassName);
+            _ = grip.Class(WebClassNames.RowGrip);
             _ = grip.Attribute("role", "button");
             WebWords.Write(context, grip, "aria-label", UIStrings.RowDrag);
         });

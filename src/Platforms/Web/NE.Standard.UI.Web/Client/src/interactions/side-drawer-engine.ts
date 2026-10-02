@@ -2,10 +2,10 @@
 // Escape, a link taken inside it, the fold switch lying where that button was, or the screen growing wide again. Open, the drawer
 // is a focus holder, as a dialog's surface is.
 
-import { CollapsedAttribute, CollapseToggleAttribute, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
-import { responsiveBreakpoints } from "../rendering/responsive-tier.ts";
-import { focusAsLastInput, isPointerLast, moveFocusInto } from "./popup-focus.ts";
+import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
+import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
 const LinkSelector = "a[href]";
@@ -32,7 +32,7 @@ export class SideDrawerEngine {
 
         // Wide again, the side stands in its column: a drawer left open would hold the page under its backdrop.
         if (typeof matchMedia === "function")
-            matchMedia(`(min-width: ${responsiveBreakpoints.md}px)`).addEventListener("change", () => this.closeAll());
+            matchMedia(DrawerBreakpointQuery).addEventListener("change", () => this.closeAll());
     }
 
     private handleClick(domEvent: Event): void {
@@ -144,9 +144,12 @@ export class SideDrawerEngine {
         const active = document.activeElement;
 
         if (active === null || active === document.body || drawer?.contains(active) === true) {
-            const toggle = shell.querySelector<HTMLElement>(`[${DrawerToggleAttribute}="${CSS.escape(side)}"]`);
+            const toggle = shell.querySelector<HTMLElement>(`[${DrawerToggleAttribute}="${cssAttributeValue(side)}"]`);
 
-            if (toggle !== null)
+            // From inside the drawer as any popup gives it back, a pointer's opening's as the pointer's; from the body, plainly.
+            if (toggle !== null && drawer !== null && drawer.contains(active))
+                restoreFocusTo(toggle, drawer);
+            else if (toggle !== null)
                 focusAsLastInput(toggle);
         }
 
@@ -193,5 +196,5 @@ export function isDrawerFoldSwitch(toggle: Element): boolean {
 }
 
 function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {
-    return shell.querySelector<HTMLElement>(`:scope > [${RegionAttribute}="${CSS.escape(side)}"]`);
+    return shell.querySelector<HTMLElement>(`:scope > [${RegionAttribute}="${cssAttributeValue(side)}"]`);
 }

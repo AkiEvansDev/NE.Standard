@@ -34,6 +34,13 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     [UIComponentProperty(DefaultValue = UIIconSize.Medium)]
     public UIIconSize? Size { get; set; }
 
+    /// <summary>
+    /// Gets or sets the shape an icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar; a
+    /// glyph keeps its own.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIIconShape? Shape { get; set; }
+
     protected IconComponent(string? id = null) : base(id)
     {
         HorizontalAlignment = UIAlignment.Center;

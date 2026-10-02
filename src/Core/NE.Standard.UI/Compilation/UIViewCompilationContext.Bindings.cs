@@ -30,6 +30,7 @@ internal sealed partial class UIViewCompilationContext
     {
         ValidateItemsView(component);
         EnsureSubmitOnEnterIsSound(component);
+        EnsureDropTargetIsInView(component);
 
         UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
         List<CompiledUIPropertyValue> values = new(definitions.Length);
@@ -253,8 +254,7 @@ internal sealed partial class UIViewCompilationContext
         {
             IUIResolvableValue resolvable => resolvable.Resolve(this),
             // An author's text compiles as its plain string, which a renderer and the page read as a string, content or not.
-            UIPhrase { IsText: true } text => text.Key,
-            _ => value
+            _ => UIPhrase.AsValue(value)
         };
 
     /// <summary>

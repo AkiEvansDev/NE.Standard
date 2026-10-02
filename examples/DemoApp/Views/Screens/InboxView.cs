@@ -74,6 +74,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                     .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
                     .SetTitle("Nothing here")
                     .SetDescription("No message matches; loosen the search or the switch.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                 )
         );
 
@@ -90,6 +91,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                     .SetIconColor(UIThemeColor.Muted)
                     .SetTitle("Pick a message")
                     .SetDescription("It opens here, and stays open while you narrow the list.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                     .Muted()
                     .SetTextAlignment(UITextAlignment.Center)
                     .SetHorizontalAlignment(UIAlignment.Center)

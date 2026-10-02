@@ -36,6 +36,8 @@ const MonthsGenitiveAttribute = "data-ui-temporal-months-genitive";
 const MonthsShortAttribute = "data-ui-temporal-months-short";
 const DayNamesAttribute = "data-ui-temporal-daynames";
 const WeekdaysAttribute = "data-ui-temporal-weekdays";
+/** The day a calendar's week starts on, by the culture's: 0 for Sunday. */
+export const FirstDayAttribute = "data-ui-temporal-first-day";
 const AmAttribute = "data-ui-temporal-am";
 const PmAttribute = "data-ui-temporal-pm";
 
@@ -104,7 +106,7 @@ export function applyPageLanguage(root: HTMLElement, language: TemporalLanguage)
     if (!root.hasAttribute(PageCultureAttribute))
         return;
 
-    // Names first: the default format's change is what redraws the control, and it has to read the new names.
+    // In any order: the engines watching `PickerAttributes` redraw the control once, after all of them, whichever changed.
     writeAttribute(root, MonthsGenitiveAttribute, language.monthGenitiveNames.join("|"));
     writeAttribute(root, MonthsShortAttribute, language.abbreviatedMonthNames.join("|"));
     writeAttribute(root, DayNamesAttribute, language.dayNames.join("|"));

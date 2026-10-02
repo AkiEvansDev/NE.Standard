@@ -187,10 +187,10 @@ public static class UIGlyphs
     public const string Home = "ne-home";
     public const string Logout = "ne-logout";
 
-    /// <summary>
-    /// A file by its kind, as <see cref="UIFileGlyphs.For"/> picks one: a PDF, text, a spreadsheet, slides, an archive, audio, video,
-    /// and a blank page for any other file; a document, a picture and code are <see cref="Description"/>, <see cref="Image"/> and <see cref="Code"/>.
-    /// </summary>
+    // A file by its kind, as UIFileGlyphs.For picks one: a PDF, text, a spreadsheet, slides, an archive, audio, video, and a blank
+    // page for any other file; a document, a picture and code are Description, Image and Code.
+
+    /// <summary>A blank page: a file of a kind no other glyph names (<see cref="UIFileGlyphs.For"/>).</summary>
     public const string Draft = "ne-draft";
     public const string PictureAsPdf = "ne-picture-as-pdf";
     public const string TextSnippet = "ne-text-snippet";

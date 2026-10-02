@@ -6,8 +6,8 @@ using NE.Standard.UI.Primitives.Interaction;
 namespace NE.Standard.UI.Abstractions.Interaction;
 
 /// <summary>
-/// Describes a client-side interaction that updates a target property, or runs a client effect, when another
-/// property or an event says so.
+/// Describes a client-side interaction that updates a target property, copies another property's value into it, or runs a client
+/// effect, when another property or an event says so.
 /// </summary>
 public readonly record struct UIInteraction
 {
@@ -106,6 +106,32 @@ public readonly record struct UIInteraction
     }
 
     /// <summary>
+    /// Creates an interaction that copies a source property's value into the target property, live while the reader moves the source.
+    /// </summary>
+    public static UIInteraction CopyValue(string componentId, UIProperty source, UIProperty target)
+        => new(componentId, source, target);
+
+    private UIInteraction(string componentId, UIProperty source, UIProperty target)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(componentId);
+
+        SourceKind = UIInteractionSourceKind.Property;
+        ActionKind = UIInteractionActionKind.CopyValue;
+
+        ComponentId = componentId;
+        SourceProperty = source;
+        SourceEvent = null;
+
+        TargetProperty = target;
+
+        // A copy compares nothing: every value the source takes is the target's.
+        Operator = UIComparisonOperator.Required;
+        Value = null;
+        TrueValue = null;
+        FalseValue = null;
+    }
+
+    /// <summary>
     /// Gets the source kind that triggers the interaction.
     /// </summary>
     public UIInteractionSourceKind SourceKind { get; }
@@ -131,7 +157,7 @@ public readonly record struct UIInteraction
     public string? SourceEvent { get; }
 
     /// <summary>
-    /// Gets the target property updated by a property-assigning interaction.
+    /// Gets the target property updated by a property-assigning or value-copying interaction.
     /// </summary>
     public UIProperty? TargetProperty { get; }
 

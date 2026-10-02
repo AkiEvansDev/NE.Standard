@@ -64,7 +64,7 @@ public static class UITemporalPattern
         ArgumentNullException.ThrowIfNull(pattern);
 
         if (!isTime)
-            return pattern.Contains('y', StringComparison.Ordinal) && pattern.Contains('M', StringComparison.Ordinal) && pattern.Contains('d', StringComparison.Ordinal);
+            return IsCompleteDate(pattern);
 
         var twelveHour = IsTwelveHour(pattern);
 
@@ -72,6 +72,32 @@ public static class UITemporalPattern
             && pattern.Contains('m', StringComparison.Ordinal)
             && (!twelveHour || pattern.Contains('t', StringComparison.Ordinal))
             && !pattern.Contains('y', StringComparison.Ordinal) && !pattern.Contains('M', StringComparison.Ordinal) && !pattern.Contains('d', StringComparison.Ordinal);
+    }
+
+    /// <summary>Token by token: a weekday's name (<c>ddd</c>, <c>dddd</c>) is no day the page's reader can read a date back by.</summary>
+    private static bool IsCompleteDate(string pattern)
+    {
+        var day = false;
+        var month = false;
+        var year = false;
+
+        for (var index = 0; index < pattern.Length;)
+        {
+            var token = Match(pattern, index);
+
+            if (token is null)
+            {
+                index++;
+                continue;
+            }
+
+            day |= token is "d" or "dd";
+            month |= token[0] == 'M';
+            year |= token == "yyyy";
+            index += token.Length;
+        }
+
+        return day && month && year;
     }
 
     /// <summary>Whether a time pattern counts its hours to 12.</summary>

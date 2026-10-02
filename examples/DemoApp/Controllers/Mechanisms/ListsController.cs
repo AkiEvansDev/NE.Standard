@@ -252,6 +252,8 @@ internal sealed class DemoChecklistSource : UIItemSourceBase<DemoChecklist>
 /// </summary>
 internal sealed partial class ListsController() : DemoController
 {
+    private const string Words = "demo.mechanisms.lists.";
+
     /// <summary>
     /// What the filter box holds; on the controller because a windowed host's rules are resolved server-side.
     /// </summary>
@@ -294,7 +296,7 @@ internal sealed partial class ListsController() : DemoController
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At(50_000), 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.LogEvent($"Jumped to offset {Rows.Offset} of {Rows.TotalCount}.");
+        RowsGroup.LogEvent(UIPhrase.Of(Words + "log.jumped", ("offset", Rows.Offset), ("total", Rows.TotalCount)));
     }
 
     [UICommand]
@@ -302,7 +304,7 @@ internal sealed partial class ListsController() : DemoController
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.LogEvent($"Back at offset {Rows.Offset}.");
+        RowsGroup.LogEvent(UIPhrase.Of(Words + "log.start", ("offset", Rows.Offset)));
     }
 
     [UICommand]
@@ -310,20 +312,20 @@ internal sealed partial class ListsController() : DemoController
     {
         LocalRows.Add(new DemoRowItem(LocalRows.Count));
 
-        LocalGroup.LogEvent($"{LocalRows.Count} rows held, and as many laid out as fit.");
+        LocalGroup.LogEvent(UIPhrase.Of(Words + "log.added", ("count", LocalRows.Count)));
     }
 
     [UICommand]
     public void AddChecklistLine(string id)
     {
         if (Checklists.AddLine(id) is string line)
-            ChecklistGroup.LogEvent($"{id}: \"{line}\" added");
+            ChecklistGroup.LogEvent(UIPhrase.Of(Words + "log.line", ("checklist", id), ("line", line)));
     }
 
     [UICommand]
     public void AddChecklistComment(string id)
     {
         if (Checklists.AddComment(id) is string comment)
-            ChecklistGroup.LogEvent($"{id}: comment of {comment.Length} characters added");
+            ChecklistGroup.LogEvent(UIPhrase.Of(Words + "log.comment", ("checklist", id), ("count", comment.Length)));
     }
 }

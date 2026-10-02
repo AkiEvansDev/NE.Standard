@@ -1,6 +1,6 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
-import { ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 
 export type AnchoredPopupPlacement =
@@ -43,6 +43,8 @@ export type AnchoredPopupOptions = {
 type TrackedPopup = {
     readonly anchor: Element;
     readonly options: AnchoredPopupOptions;
+    /** The side it stands on, kept while it fits as its own size changes: a list narrowed as the reader types would jump across. */
+    side?: AnchoredPopupPlacement;
 };
 
 const ViewportMargin = 4;
@@ -101,8 +103,9 @@ export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options:
 const LiftedAttribute = "data-ui-popup-lifted";
 
 /**
- * Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer — and one opened from
- * inside a popup lifted there, which would otherwise be painted under it whatever its stacking.
+ * Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer — and one under a
+ * surface blurring its picture, whose isolated stacking would paint it under a later sibling, and one opened from inside a popup
+ * lifted there, which would otherwise be painted under it whatever its stacking.
  */
 function liftOutOfTransform(anchor: Element, popup: HTMLElement): void {
     // Still lifted from the last opening, its fade out not over yet: shown again where it stands.
@@ -113,7 +116,7 @@ function liftOutOfTransform(anchor: Element, popup: HTMLElement): void {
         return;
     }
 
-    if (!hasTransformedAncestor(popup) && anchor.closest(`[${LiftedAttribute}]`) === null)
+    if (!hasConfiningAncestor(popup) && anchor.closest(`[${LiftedAttribute}]`) === null)
         return;
 
     // A manual popover rather than a move in the document: its engine still finds its options under it.
@@ -147,11 +150,15 @@ function showInTopLayerAtOnce(popup: HTMLElement): void {
     popup.style.removeProperty("transition-duration");
 }
 
-function hasTransformedAncestor(element: Element): boolean {
+function hasConfiningAncestor(element: Element): boolean {
     for (let current = element.parentElement; current !== null; current = current.parentElement) {
         const style = getComputedStyle(current);
 
         if (style.transform !== "none" || style.filter !== "none" || style.perspective !== "none")
+            return true;
+
+        // Only while its blur layer is drawn (mixins/surface-image.less), which a loading surface does not.
+        if (current.hasAttribute(SurfaceImageBlurAttribute) && style.isolation === "isolate")
             return true;
     }
 
@@ -202,6 +209,9 @@ function attachListeners(): void {
     // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
     document.addEventListener("scroll", repositionAll, true);
     window.addEventListener("resize", repositionAll);
+    // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
+    window.visualViewport?.addEventListener("resize", repositionAll);
+    window.visualViewport?.addEventListener("scroll", repositionAll);
 
     // A fixed popup does not re-lay-out for free when its own contents change size.
     resizeObserver = new ResizeObserver(entries => {
@@ -211,8 +221,9 @@ function attachListeners(): void {
 
             const tracking = tracked.get(entry.target);
 
+            // Its own size changed, not where its anchor stands: it keeps its side while that fits.
             if (tracking !== undefined)
-                position(tracking.anchor, entry.target, tracking.options);
+                position(tracking.anchor, entry.target, tracking.options, true);
         }
     });
 }
@@ -229,7 +240,7 @@ function repositionAll(): void {
     }
 }
 
-function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOptions): void {
+function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOptions, keepSide = false): void {
     // An anchor the page redrew away measures as a zero box at the corner: the popup stays where it stood rather than jumping there.
     if (!placed.isConnected)
         return;
@@ -248,7 +259,13 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     const anchorRect = anchor.getBoundingClientRect();
     const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
     const popupRect = popup.getBoundingClientRect();
-    const side = resolveSide(anchorRect, popupRect, options, roomOf(options.boundary));
+    const room = roomOf(options.boundary);
+    const tracking = tracked.get(popup);
+    const kept = keepSide ? tracking?.side : undefined;
+    const side = kept !== undefined && fits(anchorRect, popupRect, kept, options.gap, room) ? kept : resolveSide(anchorRect, popupRect, options, room);
+
+    if (tracking !== undefined)
+        tracking.side = side;
 
     let top = topOffset(anchorRect, crossRect, popupRect, side, options.gap);
     let left = leftOffset(anchorRect, crossRect, popupRect, side, options.gap);
@@ -261,7 +278,9 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
             top = aimAtAnchor(top, crossRect.top + (crossRect.height / 2), popupRect.height);
     }
 
-    top = clampToViewport(top, popupRect.height, window.innerHeight);
+    const band = visibleBand();
+
+    top = band.top + clampToViewport(top - band.top, popupRect.height, band.bottom - band.top);
     left = clampToViewport(left, popupRect.width, window.innerWidth);
 
     popup.style.top = `${top}px`;
@@ -273,7 +292,6 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
 
     setArrowOffset(popup, crossRect, popupRect, side, top, left);
 }
-
 
 /**
  * The stand-in named for a part around the anchor that is out of sight, else the anchor itself — also for an anchor inside a popup
@@ -321,7 +339,8 @@ function setArrowOffset(popup: HTMLElement, crossRect: DOMRect, popupRect: DOMRe
 type Room = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
 
 function roomOf(boundary: Element | undefined): Room {
-    const room = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    const band = visibleBand();
+    const room = { left: 0, top: band.top, right: window.innerWidth, bottom: band.bottom };
 
     if (boundary === undefined || !boundary.isConnected)
         return room;
@@ -448,6 +467,33 @@ function align(anchorStart: number, anchorSpan: number, popupSpan: number, place
         return anchorStart + anchorSpan - popupSpan;
 
     return anchorStart + (anchorSpan - popupSpan) / 2;
+}
+
+/**
+ * The part of the window's height the reader sees: above a phone's on-screen keyboard, which shrinks the visual viewport and not the
+ * window — a popup placed in the window's room stood under it — and above the page's bottom bar, which stands over whatever is under
+ * it. The window whole while the page is zoomed, as it always was.
+ */
+function visibleBand(): { readonly top: number; readonly bottom: number } {
+    const viewport = window.visualViewport;
+    const zoomed = viewport === null || viewport === undefined || Math.abs(viewport.scale - 1) > 0.01;
+    const top = zoomed ? 0 : Math.max(0, viewport.offsetTop);
+    const bottom = zoomed ? window.innerHeight : Math.min(window.innerHeight, viewport.offsetTop + viewport.height);
+
+    return { top, bottom: Math.min(bottom, bottomBarTop(bottom)) };
+}
+
+/** Where the page's bottom bar starts while it shows (a phone's rail, stepped aside while the on-screen keyboard is up), else `fallback`. */
+function bottomBarTop(fallback: number): number {
+    const bar = document.querySelector(`[${BottomBarAttribute}]`);
+
+    if (bar === null)
+        return fallback;
+
+    const rect = bar.getBoundingClientRect();
+
+    // From the drawer breakpoint up the region is the page's side column, as wide as the rail rather than the window.
+    return rect.height > 0 && rect.width >= window.innerWidth - 1 && rect.top > 0 ? rect.top : fallback;
 }
 
 /** Keeps a popup inside the viewport: past the far edge it moves back by its own size rather than clipping. */

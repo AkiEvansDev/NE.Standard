@@ -74,7 +74,8 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveItem))
             // One line per row: the properties are the exhibit here, the richer rows are in the examples below.
             .SetTemplate(new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle(nameof(TextItem.Title), UIBindingScope.Relative))
-            .SetMaxHeight(UILayoutLength.Absolute(240))
+            // Room for every row at the default spacing: at 240 the last row stood cut by four pixels, a scroll that read as a fault.
+            .SetMaxHeight(UILayoutLength.Absolute(264))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 320);
 
@@ -187,6 +188,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.Outline(DemoIcons.Search))
                         .SetTitle("No service matches")
                         .SetDescription("Loosen the box or the region.")
+                        .SetWrapMode(UITextWrapMode.Wrap)
                     )
                 ),
             note: "Two filters and a sort on one list, all in the browser; type what no service holds and the empty template takes the list's place. The inbox and the catalogue under Screens are the same list with more of them."
@@ -290,7 +292,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Put in order",
             UILayout.Columns(24,
-                UIPage.Labelled("By a drag: the order a release reaches the services in", new ItemsViewComponent()
+                DemoUI.CreateLabelled("By a drag: the order a release reaches the services in", new ItemsViewComponent()
                     .BindItems(nameof(RolloutOrderGroupContext.Services), UIBindingScope.Relative)
                     .SetDraggable(true)
                     .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveService))
@@ -307,7 +309,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     )
                 ),
-                UIPage.Labelled("By a grip: a failover's steps in the order they are run", new ItemsViewComponent()
+                DemoUI.CreateLabelled("By a grip: a failover's steps in the order they are run", new ItemsViewComponent()
                     .BindItems(nameof(RolloutOrderGroupContext.Steps), UIBindingScope.Relative)
                     .SetDraggable(true)
                     .SetDragHandle(true)
@@ -341,7 +343,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A row's own menu",
             UILayout.Columns(24,
-                UIPage.Labelled("Actions over a row", new ItemsViewComponent()
+                DemoUI.CreateLabelled("Actions over a row", new ItemsViewComponent()
                     .BindItems(nameof(RowMenusGroupContext.Files), UIBindingScope.Relative)
                     .SetRowHoverable(true)
                     .SetSpacing(2)
@@ -361,7 +363,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                         .SetActionBar(UIActionBarAlignment.End, repeatInMore: false)
                     )
                 ),
-                UIPage.Labelled("A feed of two kinds", new ItemsViewComponent()
+                DemoUI.CreateLabelled("A feed of two kinds", new ItemsViewComponent()
                     .BindItems(nameof(RowMenusGroupContext.Entries), UIBindingScope.Relative)
                     .SetTemplateKeyProperty(nameof(DemoFeedItem.Kind))
                     .SetFallbackTemplateKey(RowMenusGroupContext.NoteKind)
@@ -409,7 +411,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             ),
             columns: 24,
             note: "Press a file, or Tab into the list and arrow to one: share, download and delete stand in a bar above the row's end, and the … opens the rest of the menu (a right click opens all of it); Tab again goes into the bar. A press on the row opens the file and shows its bar; a press on the bar runs only its entry. On a phone a tap does the same, and a long press opens the menu with the bar's icons atop it. "
-                + "Right-click a feed entry: a note offers copy and pin, a picture open and save — the menu is the entry's own list. Flip the newest and right-click it again: the row is drawn in the other kind with the other kind's menu. Post a picture: its size is not known until it has loaded, and the feed stays at its end as the row grows.",
+                + "Right-click or long-press a feed entry: a note offers copy and pin, a picture open and save — the menu is the entry's own list. Flip the newest and right-click it again: the row is drawn in the other kind with the other kind's menu. Post a picture: its size is not known until it has loaded, and the feed stays at its end as the row grows.",
             context: RowMenusGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {

@@ -6,6 +6,7 @@ using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
@@ -35,7 +36,7 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-button");
+        _ = root.Class(WebClassNames.Button);
 
         RenderButtonChrome(context, root);
 

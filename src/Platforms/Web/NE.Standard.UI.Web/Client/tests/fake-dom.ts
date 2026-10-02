@@ -36,6 +36,9 @@ export class FakeKeyboardEvent extends FakeEvent {
     }
 }
 
+/** The elements the browser puts in the tab order with no `tabindex` of their own. */
+const NativeStops = new Set(["button", "input", "select", "textarea"]);
+
 export class FakeElement {
     public readonly tagName: string;
     public parent: FakeElement | null = null;
@@ -203,8 +206,14 @@ export class FakeElement {
         return on;
     }
 
+    /** The browser's: a control is in the tab order by itself, anything else only by its own `tabindex`. */
     public get tabIndex(): number {
-        return Number(this.attributes.get("tabindex") ?? "-1");
+        const own = this.attributes.get("tabindex");
+
+        if (own !== undefined)
+            return Number(own);
+
+        return NativeStops.has(this.tagName.toLowerCase()) || (this.tagName.toLowerCase() === "a" && this.attributes.has("href")) ? 0 : -1;
     }
 
     public set tabIndex(value: number) {
@@ -243,6 +252,10 @@ export class FakeElement {
 
     public get offsetWidth(): number {
         return this.rect.width;
+    }
+
+    public get offsetHeight(): number {
+        return this.rect.height;
     }
 
     public get clientWidth(): number {
@@ -370,10 +383,22 @@ export class FakeInput extends FakeElement {
     public select(): void {
     }
 
+    /** The browser's: null on a type that keeps no selection a page can read (an email, a number field). */
+    public get selectionStart(): number | null {
+        return SelectionInputTypes.has(this.type) ? this.selection?.[0] ?? this.value.length : null;
+    }
+
+    /** Throws on a type that keeps no selection, as the browser does. */
     public setSelectionRange(start: number, end: number): void {
+        if (!SelectionInputTypes.has(this.type))
+            throw new DOMException(`The input element's type ('${this.type}') does not support selection.`, "InvalidStateError");
+
         this.selection = [start, end];
     }
 }
+
+/** The input types whose text a page can select and put the caret in. */
+const SelectionInputTypes: ReadonlySet<string> = new Set(["text", "search", "url", "tel", "password"]);
 
 export class FakeTextArea extends FakeElement {
     public value = "";
@@ -425,7 +450,16 @@ export const fakeDocument = {
     createElement: (tagName: string): FakeElement => tagName === "input" ? new FakeInput() : new FakeElement(tagName),
     addEventListener: (type: string, listener: Listener): void => fakeDocument.documentElement.addEventListener(type, listener),
     removeEventListener: (type: string, listener: Listener): void => fakeDocument.documentElement.removeEventListener(type, listener),
-    querySelectorAll: (selector: string): FakeElement[] => fakeDocument.body.querySelectorAll(selector)
+    querySelectorAll: (selector: string): FakeElement[] => fakeDocument.body.querySelectorAll(selector),
+    querySelector: (selector: string): FakeElement | null => fakeDocument.body.querySelector(selector),
+    /** The reader's text selection, as much of it as an engine reads: whether it holds any text, and taking it away. */
+    selection: {
+        isCollapsed: true,
+        removeAllRanges(): void {
+            this.isCollapsed = true;
+        }
+    },
+    getSelection: (): { isCollapsed: boolean; removeAllRanges(): void } => fakeDocument.selection
 };
 
 fakeDocument.activeElement = fakeDocument.body;

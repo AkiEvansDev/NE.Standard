@@ -23,6 +23,51 @@
     scrollbar-width: none;
 }
 
+// How far a strip that scrolls fades at each end, registered so its scroll can carry the two.
+@property --ui-strip-fade-start {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-strip-fade-end {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@ui-strip-fade: 1.5rem;
+
+// A strip that scrolls fades toward each end it can still scroll to, the one cue on a phone that there is more: the fade follows the
+// strip's own scroll, so a strip that fits has no timeline and no fade. Where scroll-driven animations are missing it only scrolls.
+@supports (animation-timeline: scroll()) {
+    .ui-button-group {
+        mask-image: linear-gradient(to right, transparent, #000 var(--ui-strip-fade-start), #000 calc(100% - var(--ui-strip-fade-end)), transparent);
+        animation: ui-strip-fade linear both;
+        animation-timeline: scroll(self inline);
+    }
+}
+
+@keyframes ui-strip-fade {
+    0% {
+        --ui-strip-fade-start: 0px;
+        --ui-strip-fade-end: @ui-strip-fade;
+    }
+
+    8% {
+        --ui-strip-fade-start: @ui-strip-fade;
+    }
+
+    92% {
+        --ui-strip-fade-end: @ui-strip-fade;
+    }
+
+    100% {
+        --ui-strip-fade-start: @ui-strip-fade;
+        --ui-strip-fade-end: 0px;
+    }
+}
+
 .ui-button-group--small {
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
 }

@@ -30,7 +30,9 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
 
         return UILayout.Stack(4)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1), xl: UIGridPlacement.At(1, 1, 8, 1))
+            // A name and its values, shown as written.
             .AddChild(new ContainerComponent()
+                .AsContentTree()
                 .SetBackground(UIThemeColor.FromColorVariant(baseVariant))
                 .SetBorderRadius(UICornerRadius.Top(8))
                 .SetHeight(UILayoutLength.Absolute(88))
@@ -46,8 +48,8 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
                     .AddChild(CreateSwatchLabel($"rgb({color.R}, {color.G}, {color.B})", UITextAppearance.Caption, textColor))
                 )
             )
-            .AddChild(CreateAdjustmentRow("Shade", name, ColorAdjustment.Shade, "S"))
-            .AddChild(CreateAdjustmentRow("Tint", name, ColorAdjustment.Tint, "T"));
+            .AddChild(CreateAdjustmentRow("demo.colors.palette.shade", name, ColorAdjustment.Shade, "S"))
+            .AddChild(CreateAdjustmentRow("demo.colors.palette.tint", name, ColorAdjustment.Tint, "T"));
     }
 
     private static TextComponent CreateSwatchLabel(string text, UITextAppearance type, UIThemeColor color)
@@ -84,7 +86,9 @@ internal sealed class ColorsView : ColorsViewBase, IUIViewDefinition
         {
             ColorVariant variant = new(name, adjustment, factor);
 
+            // The factor's chip says its value as written.
             _ = row.AddChild(new ContainerComponent()
+                .AsContentTree()
                 .SetBackground(UIThemeColor.FromColorVariant(variant))
                 .SetBorderRadius(UICornerRadius.Uniform(4))
                 .SetWidth(UILayoutLength.Absolute(24))

@@ -9,6 +9,291 @@ describes the release, not a list of packages that moved. Other slices keep thei
 The release workflow cuts the matching section out to become the body of the GitHub release — a tag with no
 section fails the release before anything is published.
 
+## 1.4.0
+
+The release: what came after 1.4.0-rc.4 — NE.ProjectC's and NE.Home's last requests (GitHub issues #71–#73), the owner's
+walks of it, and a last review with fresh eyes: the code for what it does twice and for summaries that drifted, every demo page on
+a desktop, a tablet and a real phone, and the scenarios across them (dragging, validation, the keyboard, popups on a phone).
+
+**Colour**
+
+- **A current entry's words and icon are the text's ink; the brand stays in its mark.** A menu's current entry wrote in the
+  primary's ink, which fell under 4.5:1 over its chosen wash — 3.16:1 on the dark palette, 4.36:1 on the light one, down to 2.3:1
+  on a raised card — so the one entry a reader looks for was the hardest to read. It now writes in the text's ink, as its
+  neighbours do (11:1 on both palettes), its ground and the 2 px brand line on its leading edge unchanged: a sidebar's, a bar's,
+  a rail's and a phone's bottom bar's current entry (its glyph still filled), a folded menu's flyout, the language list's current
+  language and a pressed toggle button. The ink does not follow a reader's own primary, so no colour picked there brings it back
+  under. A multi-select's chips write in the primary's ink lifted for their tint, as a tinted badge does (3.3:1 → 6.0:1 dark,
+  3.8:1 → 5.9:1 light), and a chosen option's check in the option's ink. An author's `SelectionStyle` foreground still wins; the
+  plugin contract's `.ui-selected-ink()` now defaults to the text's ink (#71).
+- **The brand's mark reads on the dark palette.** The 2 px line on a chosen entry (and a tab's) was the raw primary, 2.09:1 on the
+  dark chosen wash; it is now the primary's ink in both modes — the primary itself on light in the default palette, a step
+  lighter on dark (3.15:1 on the chosen wash). **New:** the
+  theme variable `--ui-mark-selected`, which every mark reads after an author's `SelectionStyle` colour. A group folded over the
+  current page writes its words and icon in the ink too (its brand ink read 2.88:1 on a tinted rail), its short mark whole (#71).
+- **A tinted dialog and a tinted menu's popup take the dark palette's tint.** Both mixed a fifth of the primary over the page
+  whatever the mode — the black green a Tinted surface stopped being on dark; they now mix as a Tinted surface does, the mode's
+  share over the mode's ground. **New** in the plugin contract: `@ui-tinted-fill`.
+- **A chart's series read on both themes; every chart's colours shift slightly.** The default `UIColorPalette.Series` was one
+  run for both modes, and three of its eight fell under 3:1 against a ground: the first series' blue 2.43:1 and the purple 2.34:1
+  on the dark page, the cyan 2.00:1 and the fern 1.83:1 on a light card. Unset, `Series` is now drawn for its palette's own
+  grounds: each of the eight hues moved toward the page's text — lifted on the dark palette, deepened on the light one — by the
+  fewest tenths that read 3:1 on `Background` and on `Surface` (the blue `#2850A0` → `#5373B3` on dark, the cyan `#28B4B4` →
+  `#209090` on light; five of the eight move in one mode or the other). A palette with grounds of its own draws the run for them;
+  a `Series` an application sets is used as given, as before.
+- **High-contrast modes draw what 1.4.0 added.** Under forced colours a row's drop line (a list's, a table's — inset on its cells,
+  and across its grip), a calendar's marked day's dot and an image's upload bar vanished with the colours the mode drops; they are
+  drawn in the system's colours.
+
+**Pictures**
+
+- **A picture can be drawn round — a person's avatar in a list, a row or a header.** **New:** `UIIconShape` (`Default`,
+  `Circle`) as `IconShape` wherever a text's icon is: on `TextBaseItem`, so a menu's, a select's, a tree's, a tab's, a
+  breadcrumb's and a button group's entries carry it to their default templates, which bind it, and on every component with a
+  text body — a text, a paragraph, a link, a button, an action, a split button, a menu entry, a tab, a tree node, a field's
+  caption, a card's header — plus `IconComponent.Shape` and `BadgeComponent.IconShape`; bindable. `Circle` cuts a picture icon
+  to a circle and fills it, so a portrait or a landscape is cropped to its middle rather than letterboxed, the tile a text
+  draws for a picture with no size included; a glyph keeps its own shape. **New:** `UIImageShape` and `ImageComponent.Shape`:
+  `Circle` squares the image's box (one length given, the other follows), crops the picture to its middle unless `Fit` says
+  otherwise, and outranks `CornerRadius` — no radius of half its size to set. **Breaking:** `ITextBaseModel` gains
+  `IconShape`; an application's own implementation of it or of an interface over it (`IMenuItemModel`, `IOptionModel`,
+  `ITreeNodeModel`, …) adds the property (#72).
+- **A background picture can be dimmed and blurred, by the browser.** **New:** `BackgroundImageDim` (0 to 1),
+  `BackgroundImageBlur` (pixels, zero or more) and `BackgroundImageDimMode` (**New:** `UIBackgroundDimMode`: `Uniform`, the
+  default, or `Vignette`, the edges dimmed and the middle clear) on every component that takes a `BackgroundImage` — a container,
+  a stack and a wrap panel, a scroll container, a surface, a card, an expander, a collapsible panel, a button and a button
+  group; bindable. The dim lays the ground the content reads on over the picture — darker in a dark theme, lighter in a light
+  one — so text reads in both and one number holds across a theme switch; the blur softens the picture alone, under the content,
+  inside the component's edge and corners, and a scroll container's stays in view as its picture does. The page draws both over
+  the picture it already has, so a reader's slider sends its value and nothing else: no picture baked again on the server. A
+  value written in the view outside its range is refused when the view is built; a bound one is held to it. A popup opened
+  inside a blurred surface is lifted over the page, so a later neighbour never covers it. **Breaking:** `ISurfaceComponent`
+  gains the three properties; an application's own implementation of it adds them. The plugin contract's
+  `.ui-tile-wash()` and `.ui-selected-tile()` lay the dim (`--ui-surface-image-veil`) under their layer (#73).
+- **Two crops asked at once no longer strand the first.** Two image inputs given a picture before the first had been read both
+  opened the crop dialog, the second taking it over: the first input never answered again and refused every later pick, its
+  picture never let go. The second is now refused while the first is read, and both inputs take a pick afterwards.
+- **Escape while dragging the crop's picture puts it back where the drag began, zoom included,** and leaves the dialog open — a
+  pinch was kept before, and only the pan went back.
+- **A pressed tile that is a button keeps its press's wave over a blurred picture.** The blur's layer and the wave shared the
+  tile's `::before`; the blur steps aside for the press.
+
+**Inputs**
+
+- **The search field in a search's list has its own look, Ghost unless set.** **New:** `SearchComponent.SearchFieldAppearance`
+  (`UIInputAppearance`, bindable): Ghost draws the field on the list's own ground with a line under it across the list, and no
+  focus look, since the field holds the keyboard whenever the list is open; Filled, Outline and Underline as a field's. A list
+  standing above its field keeps the height it opened at, so narrowing it no longer pulls the search field down and up with each
+  keystroke.
+- **An open popup keeps its side while it still fits there.** A popup whose own content changed size (a list narrowed as the reader
+  types) chose its side afresh and could jump across its anchor; it now stays where it opened while it fits. A scroll, a resize or
+  an anchor that moved still choose afresh.
+- **A popup on a phone opens clear of the bottom bar.** The bar stood over the window's foot, but a popup counted that room as its
+  own: the chat composer's quick replies opened under the bar, cut short. The bar's top is now the room's foot, so such a list
+  opens upward.
+
+- **A calendar drawn in place is the size of the date input's popup grid, and no wider.** `CalendarComponent` stretched to
+  whatever its layout gave it — a dialog's width, a column, `Fill` — its seven columns spread far apart. It now stops at the
+  popup's grid (15 rem, more only where a culture's words need it) whatever the room, `Fill`, a wider `Width` or a `MaxWidth`;
+  the spare room is `HorizontalAlignment`'s, start by default, and a long caption wraps at the grid. A `Width` below the grid
+  still applies.
+- **A search is a select with its field in the list.** A pick from a search (Enter or a press) closed the list and gave the
+  keyboard back to the text field in the trigger, which under the default `KeepSearchInput` showed the typed term or nothing — so
+  a pick read as doing nothing. Closed, a `SearchComponent` is now a select's field: it shows the chosen option as a select does
+  (icon, second line and badge), else its placeholder, with the chevron, the clear button, the caption, validation, read-only and
+  disabled as a select's. Open, its text field stands pinned at the top of the list and only the options scroll; everything the
+  field did stays — its own options narrowed, `OnSearch` and the server's answered list, debounce, `MinSearchLength`, `AutoSearch`,
+  the two-way `SearchText`, the empty template, composed (IME) input. After a pick the list closes, the keyboard is back on the
+  closed field and it shows the value. The term stays between openings and is selected as the list opens, so typing replaces it
+  and the list always answers what the field says; a chosen option that answer leaves out stays drawn on the closed field.
+  Keys as on a select: Enter, Space, ArrowDown, ArrowUp and Alt+ArrowDown open the list with the keyboard in the field, a
+  character typed on the closed field opens it with that character as the term; in the field the arrows move the current option
+  (named by `aria-activedescendant`) while the field keeps the keyboard, Enter chooses it — with no current option, Enter asks the
+  server at once, past the debounce, the one way a search with `AutoSearch` off asks, and the list stays open —, Escape closes it with the keyboard back on
+  the closed field, Tab closes it and moves on. A finger's tap opens the list without raising the on-screen keyboard — a tap in the field does. The field's
+  hint is the framework's new word `ui.search.field` ("Search", in Russian and Chinese too); the author's `Placeholder` is the
+  closed field's, as a select's. **Breaking:** `UISearchSelectionDisplayMode`, `SearchComponent.SelectionDisplayMode` and its
+  setter and binder are gone, with the `ui-search-mode--keep`/`--replace` classes, `WebClassNames.SearchSelectionMode`,
+  `WebDomConverters.SearchSelectionModeClass` and `WebAttributes.SelectTriggerMode`; a select's list wears `ui-select__list`
+  beside `ui-select__popup`, a search's popup holds `ui-search__field` over its `ui-select__list`, and
+  `SelectComponentRenderer.RenderTrigger` is public and `RenderPopup` takes a `head` pinned over the list.
+- **A popup stays above a phone's on-screen keyboard.** A popup placed by the framework took the window's height as its room,
+  which an on-screen keyboard does not shrink, so one opened low on a phone stood under the keys; the room is now the part of the
+  window the reader sees (the visual viewport, unless the page is zoomed), and a popup moves again as the keyboard comes and goes.
+- **A press beside an email or a number field focuses it.** A press on the box's empty space threw in the browser for those two
+  types, which keep no selection a page can set, and left the field unfocused; it now focuses the field and leaves the caret to
+  the browser.
+- **Escape while dragging in a colour input's picker puts the colour back and sends nothing.** It set the colour under the point
+  the drag began at and sent it.
+- **A disabled day in a calendar dims by the theme's `DisabledOpacity`,** as every other disabled thing does, not a fixed 0.55.
+- **A date pattern names its day.** `UITemporalOptions.DateFormat` took a weekday's name (`ddd`, `dddd`) for the day, so
+  `dddd, MMMM yyyy` passed and the page could never read a typed date back; a date pattern now needs `d` or `dd`, a month and
+  `yyyy`, token by token, and a culture's own pattern without them falls back to the canonical one.
+- **A switch or a checkbox its author named keeps that name.** A pushed `Title` wrote over the `AccessibleName` the author gave
+  ("Match case" became "Aa" again); the caption now names the box only where no `AccessibleName` is set or bound, as a button's.
+- **A `DropTargetId` the view lacks is refused when the view compiles**, beside `SubmitOnEnter`'s checks, rather than at the
+  first render; the renderer writes the id the compiler gave the component.
+- **A pushed `Rows`, `MaxRows` or `MaxLines` of zero or less writes nothing,** as the first paint does — a text area's, a
+  paragraph's and a code field's — rather than `rows="0"` or a stray line cap. **New:** the converters `positiveCount`,
+  `positiveFlagAttribute` and `maxLinesClass` (`WebDomConverters`).
+- **A number that trims its zeros shows them trimmed from the first paint.** `TrimTrailingZeros` trimmed only once the reader had
+  left the field after an edit: a `1.500m` value showed `1.500 ms` until then. The server writes the trimmed value and the page
+  shows a pushed one trimmed; a read-only field shows it trimmed too and still sends nothing.
+- **A slider a finger only scrolled past keeps its value.** A swipe that started on a slider's track moved the value to the
+  finger and sent it, though the browser handed the gesture to the page's scroll; a press the browser takes back puts the value
+  back and sends nothing.
+- **An upright slider keeps its labels and readout inside its height.** Its row took the whole height under its caption, so the
+  maximum label or the readout stood past the slider's end and was cut.
+- **A period's calendar toggle stays at the field's end on a phone.** Too narrow for both ends, the field wrapped the toggle alone
+  onto a second line; the end of the period now wraps under its start and the toggle stands at the end, the field's middle.
+- **A date field written in digits asks a phone for its digit keyboard** (`inputmode="numeric"`, for a format with no month or
+  weekday name and no AM or PM), and one separator stands for another as the reader types — a dash for the format's dot — since a
+  phone's digit keyboard has a dash, a dot and a comma, not always the format's own.
+- **A key-value list on a phone leaves its values room.** The key's column was as wide as the longest key, which left the values a
+  few letters; below the small breakpoint it is capped under half the row, its words ellipsised past it. An open row's editor
+  keeps the gap to its key: its field's box stood against the key.
+**Navigation**
+
+- **A phone's bottom bar keeps its count clear of the current entry's line.** On a phone a rail stands as the page's bottom bar,
+  its current entry marked by a 2 px line on the top edge; a count on an entry's glyph started 3 px below that edge, all but
+  touching the line. The bar's entries now stand a quarter rem lower, the count with them, and the bar is that much taller.
+- **On a phone the page scrolls the document, so the browser's toolbar folds away.** Below the medium breakpoint a
+  `ScrollContentOnly` page scrolls as a document, the sticky header and the bottom bar standing where they were; wider, the content
+  region scrolls by itself as before. A page whose content fills the height (its root `Fill`: a messenger whose panes scroll inside
+  themselves) keeps its regions' own scroll. A `ScrollEffect` on a part of such a page with nothing scrolling around it scrolls the
+  document.
+- **A phone's bottom bar steps aside while the on-screen keyboard is up**, rather than standing on the keyboard's edge and taking
+  a row from what is being written.
+- **A tab strip's "…" stands at the strip's end in a Tabs as in a TabsView**, not right after the last caption that fits.
+**Interactions**
+
+- **A component can follow another's value while the reader moves it — a slider previewing a picture's dim with no round
+  trip.** **New:** `InteractCopyValue(sourceId, target)` (the source's `Value`) and `InteractCopyValue(sourceId, source, target)`
+  on every component, `UIInteraction.CopyValue(…)` and `UIInteractionActionKind.CopyValue`: written on the component that
+  changes, as every `Interact*` is, it copies the source's value into any bindable property of it on the page — at a push of the
+  source, at the reader's committed edit, and, this kind alone, on every `input` while a slider is dragged or a field typed in,
+  at most once a frame. Nothing is sent per step: the field's own binding sends the value it is let go on, and a target bound to
+  the same state gets the server's value after it as before. The value lands as it is, through the property's own converters, so
+  the view refuses a target that cannot take it when it compiles — a number takes a number (a whole-number target no fraction),
+  a text property the reader's words, anything else its own type — as it refuses a target that is not bindable. Other
+  interactions keep hearing the committed value once.
+- **A tree's node moves from the keyboard.** In a tree whose nodes move (`Draggable`), Alt+Right puts the keyboard's node into
+  the folder just above it at its level and Alt+Left takes it out of its folder into the one around it, through the drop's own
+  path — `DropTarget` written, `OnNodeMove` raised — and refused where a drop would be; where in the folder it lands is the
+  controller's, as for a drop.
+- **Escape in an open dialog is the dialog's, not an action bar's behind it.** The action bar read only a native `<dialog>` as
+  one, so Escape in a framework dialog also took away the bar of a row outside it.
+- **A menu's single-key shortcut fires while a checkbox, a switch or a slider holds the focus.** Any input counted as typing.
+- **A long press's spent `contextmenu` is only the held part's own:** one raised elsewhere afterwards (a keyboard's menu key)
+  opens as it should.
+- **A drawer closed from inside gives its button the focus as a popup does**, a press's opening's without a keyboard ring.
+- **A toast's close is named in the page's language after a switch**, as its message is.
+- **A tree's node moves to a place, not only into a folder.** A drag between two nodes drops it there — a line on a row's edge,
+  a folder's outer quarters and a file's halves — and Alt+Up and Alt+Down move the keyboard's node past its sibling; Alt+Left puts
+  it right after the folder it left and Alt+Right into the folder above as its last node. `move` carries the index the node takes
+  among the nodes of the folder its `DropTarget` names, read as a row's move is. **Breaking:** `OnNodeMoveWithItemKey(command,
+  keyArgumentName, indexArgumentName)` passes the index as `index` (a command with no such parameter is unaffected), and
+  `DropTarget` names the folder the node went into, not the node it was dropped on; a controller places the node at the index.
+  Refused where a drop into that folder would be, and among siblings while a sort orders them.
+- **A failed submit takes the reader to the first field in error**, focused and brought into view — its own rules refusing it,
+  or the server answering with a field's error. A message alone moves nothing.
+- **A copy of nothing gives the target its authored value back.** `InteractCopyValue` from a field the reader cleared, or left
+  blank, wrote the blank into the target: a heading following a name field disappeared. It now writes what the target was authored
+  with (else its registered default), as a bound `null` renders it.
+- **A row's grip drags its row after a text selection across rows**: the browser dragged the selected words instead.
+- **A key-value list whose rows load already open takes no focus**: the last open row pulled the focus, and the page, down to it.
+- **A long press on a canvas opens its menu and leaves it open.** A canvas that takes every touch for itself had the release's
+  click land on the menu just opened under the finger, which closed it; that click is spent wherever it lands, unless the finger
+  slid to an entry after the menu opened.
+- **Escape from an action bar gives the keyboard back** where the element it came from can no longer take the focus (a component
+  root made focusable for one return), rather than to nothing.
+- **A dialog a finger opens does not raise the phone's keyboard.** Its first field took the focus, and the keyboard covered the
+  dialog's own answers; the surface holds the focus until the reader taps a field.
+- **A grid splitter never leaves a pane a sliver.** A pane dragged to nothing kept its words one to a line and stretched the row to
+  their height (a box 1,666 px tall); a pane with no room is now taken out, and one dragged under 120 px folds to nothing or opens
+  past it.
+**Security and sessions**
+
+- **A command answers to its route over its controller's class attributes.** A command read its controller's
+  `[UIAllowAnonymous]`/`[UIAuthorize]` as its own, so a route closed by `.Require(rule)` or `.AllowAnonymous(false)` over an
+  `[UIAllowAnonymous]` controller ran its commands with no check at all — a role revoked while the page stayed open went on
+  working — and a route opened by `.AllowAnonymous()` over an `[UIAuthorize]` controller refused every command. A command's own
+  attributes are now its method's; the controller's reach it through the route, which folds them in, so `Require` and
+  `AllowAnonymous` decide for the commands as for the page. **Breaking:** a command that leaned on its controller's attribute
+  against its route's answer now follows the route; mark the method itself.
+- **One address rule, a picture relative to the page included.** A picture — an image's source, an icon's, a background's, a
+  Markdown image — is a path of this site, absolute or now relative to the page (`img/x.png`, `x.png`), `http(s)` or a
+  `data:image/…` address, by the one rule on both sides (`WebUrlSafety` ↔ `url-safety.ts`, held by the new
+  `url-safety-corpus.json`); an icon's picture names a folder or a scheme besides, since a bare word is a glyph's name. A
+  background picture pushed live is held to the check its first paint is: an address no picture may come from no longer reaches
+  the page's style, and the surface is marked as showing a picture only when it shows one (**New:** `WebDomConverters`
+  `backgroundImageAttribute`). A return address refuses a C1 control character on the page as the server does.
+- **An open tab touches its session by the rule a page load does.** Its commands and leave checks moved the last-seen time at
+  most once every tenth of the idle timeout — days, under a long one — and a page load at most once a `TouchResolution`; both now
+  follow `TouchResolution`, at most a tenth of the timeout, `TimeSpan.Zero` writing every time.
+- **A theme is light, dark or auto,** and the hub refuses any other name, as it refuses a language it does not translate into;
+  a theme it could not store is logged as a language is. **Theme colours read strictly:** a member they do not have is refused,
+  as a moment's is.
+
+**Components and rendering**
+
+- **A button group that scrolls shows there is more.** A strip longer than its room scrolled sideways with no cue, its last
+  segment simply cut at the edge. It now fades toward each end it can still scroll to, following its own scroll (a scroll-driven
+  animation), so a strip that fits shows no fade; a browser without scroll-driven animations scrolls it as before.
+
+- **New:** `IDraggableRowsComponent` — `Draggable`, `DragHandle` and `DragHandlePlacement` with their property keys, which the
+  items view and the table both take (their `SetDragHandle`, `OnItemMove…` and `OnRowMove…` unchanged) — and one renderer helper,
+  `ItemsCollectionRendererBase.RenderDraggableRows`. A table reads whether its rows draw a grip once, not per row. **Breaking:**
+  `RenderDragHandlePlacement(context, root, property)` is gone and `DrawsRowGrip(context)` takes no properties;
+  `TableComponentRenderer.RenderRow` takes the grip as a parameter.
+- **New:** `IBoundedInputComponent` (`MinProperty`, `MaxProperty`), `IPeriodInputComponent` (`IsRangeProperty`,
+  `EndValueProperty`) and `IOpenableComponent` (`IsOpenProperty`) — the keys the server's value checks read, taken by the number,
+  slider, temporal inputs, calendar and flyout.
+- **New:** the classes the page finds elements by are `WebClassNames` constants — `Button`, `Select`, `SelectTrigger`,
+  `TextInput`, `Invalid`, `Hidden`, `Menu`, `MenuRail`, `MenuItem`, `MenuItemChecked`, `MenuItemSelected`, `TableRow`,
+  `TableScroll`, `TableHeader`, `TableResizer`, `Tree`, `TreeRow`, `RowGrip`, `DialogSurface`, `FlyoutContent` — and no renderer
+  spells one of them again.
+- **Breaking:** `TimestampComponentRenderer.FormatName` and `FirstPaint`, and `WebTemporalFormat.Tokens`, are gone — read
+  `UIMomentJsonConverter.FormatName`, `WebMoments.FirstPaint` and `UITemporalPattern.Tokens`. A first paint reads its culture's
+  patterns and names once per culture and options rather than per timestamp.
+- **A sized sheet stays inside a phone's window.** A side sheet with an authored `Width` wider than the window ran off its edge;
+  it is capped at the window as a centred dialog is.
+- **A table whose columns outgrow it scrolls sideways.** **Breaking:** `TableComponent`'s `HorizontalScroll` defaults to `Auto`, so
+  columns whose floors pass the table's width scroll with their header rather than being cut at its edge; `Disabled` clips as
+  before.
+- **A picture behind a card is dimmed to its edge**: one or two pixels of the undimmed picture showed along the border, the picture
+  drawn over the border box and its veil over the padding box.
+- **A row that wraps lays each line where it stands**: `UIButtons.Pair`'s primary, wrapped under its partner on a phone, stood at
+  the near edge while the pair is at the far one.
+- **A popup is never wider than the window** less the margin its placement keeps — a flyout of wide content ran past a phone's
+  window.
+- **A list drawn on Background takes its holder's ground.** A key-value list, a table or a tree on its default `Surface` painted
+  the page's colour as a block inside a grey pane or a raised card; it now leaves the holder's ground showing, as its keys line up
+  with the holder's inset. A list with a colour or a theme of its own keeps the page's.
+**Styling and the plugin surface**
+
+- **A menu's caption takes an authored `Margin` and `Padding`,** and a phone's bottom bar an authored `Padding`: their own space
+  (a caption's room above it, the bar's room over the home bar) is the default of the responsive chain rather than a flat rule
+  that outranked the author.
+- **New** on the plugin surface: `urls.isSafeLink(address)` and `urls.isExternalLink(address)`, the framework's link rule
+  beside its picture rule, which CodeInput's Markdown now follows.
+- **New** on the plugin surface: `uploads.accepts(accept, file)` and `uploads.takeWithinSizeLimit(root, files, several)` — the
+  file inputs' own `accept` rule and size refusal (the limit read off `NativeInputRendererBase.RenderMaxFileSize`'s attribute, the
+  words `ui.file.oversized`/`ui.file.leftout` on the field's validation line, written again at a language switch), which
+  CodeInput's pasted pictures use rather than a copy.
+- **A package's validation mark on a field that holds fields of its own lands on that field's line.** The words went to the first
+  message line inside it — a code field's find box, hidden — so a code field's mark and a bound validation's message showed
+  nothing; the field's own line is now found first.
+- **New** on the plugin surface: `focus.first(container)` — the first element inside a container the keyboard can stand on, the
+  core's own reading (DataGrid's cell editor and Graph's parameter rows use it). In the contract's Less: `@ui-tinted-fill`,
+  `@ui-part-radius`/`@ui-part-radius-sm` (a small part's corner, scaling with the theme's shape), the stacking ladder
+  `@ui-z-action-bar` … `@ui-z-notification` (`.ui-popup-surface()`'s default is `@ui-z-popup`), `.ui-picture-glass()` (the dark
+  glass under a picture's pencil or cross) and `.ui-user-select()`. `.ui-field-actions()` carries the half step into the field's
+  padding and its `--leading` group itself.
+- **New** on the plugin surface: `focus.stops(container)` — the places Tab stands on in a container, as the framework's dialogs wrap
+  round them; Graph's node picker wraps its Tab through it. A control taken out of the order (`tabindex="-1"`, a field's picker
+  toggle) is no stop: a dialog whose last control was one let Tab out of it.
+
 ## 1.4.0-rc.4
 
 A fourth release candidate: what NE.Home found on 1.4.0-rc.3 (GitHub issues #66–#70) — a rail on a phone, a tree's press and its

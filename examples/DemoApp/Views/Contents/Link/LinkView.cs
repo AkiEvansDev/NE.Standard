@@ -74,8 +74,8 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("What it is for",
             new SurfaceComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(372))
                 .SetContent(UILayout.Stack(14)
-                    .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(new ParagraphComponent()
                         .SetTitle("Rollout paused")
                         .SetTitleType(UITextAppearance.Subtitle)
@@ -112,8 +112,8 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Against a Link-typed button",
             new SurfaceComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(372))
                 .SetContent(UILayout.Stack(12)
-                    .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(UIText.Label("LinkComponent — an address"))
                     .AddChild(new LinkComponent()
                         .SetTitle("Read the change policy")
@@ -137,11 +137,11 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Against a link inside a sentence",
             new SurfaceComponent()
                 .SetContent(UILayout.Columns(32,
-                        UIPage.Labelled("Inside the sentence", new ParagraphComponent()
+                        DemoUI.CreateLabelled("Inside the sentence", new ParagraphComponent()
                             .SetDescription("The rollout pauses itself if the error rate doubles in any region, and the thresholds are in [the rollout plan](https://docs.orvane.example/rollout).")
                             .SetDescriptionType(UITextAppearance.Body)
                         ),
-                        UIPage.Labelled("Beside it", UILayout.Stack(12,
+                        DemoUI.CreateLabelled("Beside it", UILayout.Stack(12,
                                 new ParagraphComponent()
                                     .SetDescription("The rollout pauses itself if the error rate doubles in any region.")
                                     .SetDescriptionType(UITextAppearance.Body),

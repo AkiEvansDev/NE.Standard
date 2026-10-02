@@ -52,8 +52,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                 new ImageComponent()
                     .SetSource(DemoImages.Avatar)
                     .SetAltText("Robin Hale")
-                    .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(18))
+                    .SetShape(UIImageShape.Circle)
                     .SetWidth(UILayoutLength.Absolute(36))
                     .SetHeight(UILayoutLength.Absolute(36)),
                 UIText.Body("Robin Hale", "Admin · six minutes to read")
@@ -125,7 +124,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     /// <summary>The neighbours: links, since they only go somewhere.</summary>
     private static ContainerComponent CreateNeighbours()
         => UILayout.Columns(16,
-            new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ChevronRight)).SetTitle("The deploy calendar, and why it is on a wall").SetUrl("/screens/inbox"),
+            new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowBack)).SetTitle("Why the deploy calendar is on a wall").SetUrl("/screens/inbox"),
             new LinkComponent().SetTitle("Four plans, and how to pick one").SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetUrl("/screens/catalogue").SetHorizontalAlignment(UIAlignment.End)
         );
 }

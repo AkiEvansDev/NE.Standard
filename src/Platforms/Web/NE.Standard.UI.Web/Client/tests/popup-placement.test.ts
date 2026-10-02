@@ -7,10 +7,16 @@ import test from "node:test";
 import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 const viewport = { innerWidth: 1000, innerHeight: 300 };
+// The size observer's callback, called by hand: a popup's own size changing.
+let observed: ((entries: readonly { readonly target: unknown }[]) => void) | null = null;
 
 installFakeDom({
     window: Object.assign(viewport, { addEventListener: () => undefined }),
     ResizeObserver: class {
+        public constructor(callback: (entries: readonly { readonly target: unknown }[]) => void) {
+            observed = callback;
+        }
+
         public observe(): void {
         }
 
@@ -20,12 +26,12 @@ installFakeDom({
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none" })
 });
 
-const { placeAnchoredPopup, releaseAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
+const { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
 
 type Placed = { readonly side: string; readonly left: number; readonly top: number };
 
 /** Places a popup of the given size against an anchor at the given box, in a window of the given size. */
-function place(anchor: { left: number; top: number; width: number; height: number }, popup: { width: number; height: number }, view: { width: number; height: number }, placement: "bottom-start" | "top" | "right" = "bottom-start"): Placed {
+function place(anchor: { left: number; top: number; width: number; height: number }, popup: { width: number; height: number }, view: { width: number; height: number }, placement: "bottom-start" | "top" | "right" = "bottom-start", extra: readonly FakeElement[] = []): Placed {
     viewport.innerWidth = view.width;
     viewport.innerHeight = view.height;
 
@@ -35,7 +41,7 @@ function place(anchor: { left: number; top: number; width: number; height: numbe
     anchorElement.rect = anchor;
     popupElement.rect = { left: 0, top: 0, ...popup };
     fakeDocument.body.children.length = 0;
-    fakeDocument.body.append(anchorElement, popupElement);
+    fakeDocument.body.append(anchorElement, popupElement, ...extra);
 
     placeAnchoredPopup(real(anchorElement), real(popupElement), { placement, gap: 4 });
     releaseAnchoredPopup(real(popupElement));
@@ -93,4 +99,68 @@ test("a boundary is the room a side is chosen in: a popup the window has room fo
 
     assert.equal(popup.dataset.uiPlacement, "bottom-end");
     assert.equal(Number.parseFloat(String(popup.style.top)), 256);
+});
+
+test("an on-screen keyboard's room is not the popup's: one that fitted below flips above it, and one that fits nowhere stays clear of it", () => {
+    // A phone of 765 px with a keyboard taking the bottom 300: the visual viewport ends at 465, the window still at 765.
+    Object.assign(viewport, { visualViewport: { scale: 1, offsetTop: 0, height: 465, addEventListener: () => undefined } });
+
+    try {
+        const flipped = place({ left: 16, top: 380, width: 358, height: 44 }, { width: 358, height: 300 }, { width: 390, height: 765 });
+
+        assert.equal(flipped.side, "top-start");
+        assert.equal(flipped.top, 76);
+
+        const kept = place({ left: 16, top: 200, width: 358, height: 44 }, { width: 358, height: 300 }, { width: 390, height: 765 });
+
+        // Neither side has the room: the popup is held inside what the keyboard leaves, over its anchor rather than under the keys.
+        assert.equal(kept.top + 300 <= 465 - 4, true);
+
+        // Zoomed in, the page keeps the window's room, as before.
+        Object.assign(viewport, { visualViewport: { scale: 2, offsetTop: 0, height: 200, addEventListener: () => undefined } });
+
+        assert.equal(place({ left: 16, top: 200, width: 358, height: 44 }, { width: 358, height: 300 }, { width: 390, height: 765 }).side, "bottom-start");
+    }
+    finally {
+        Object.assign(viewport, { visualViewport: undefined });
+    }
+});
+
+test("a phone's bottom bar is not the popup's room: one that fitted below over the bar flips above, and a side column takes nothing", () => {
+    const bar = FakeElement.of("", { "data-ui-bottom-bar": "" });
+
+    // The composer's button above the bar: 120 px to the window's foot, 66 to the bar's top.
+    bar.rect = { left: 0, top: 790, width: 390, height: 54 };
+    assert.equal(place({ left: 90, top: 690, width: 36, height: 36 }, { width: 200, height: 110 }, { width: 390, height: 844 }, "bottom-start", [bar]).side, "top-start");
+
+    // The same region from the drawer breakpoint up: the page's side column, the rail's width.
+    bar.rect = { left: 0, top: 64, width: 72, height: 780 };
+    assert.equal(place({ left: 90, top: 690, width: 36, height: 36 }, { width: 200, height: 110 }, { width: 390, height: 844 }, "bottom-start", [bar]).side, "bottom-start");
+});
+
+test("an open popup keeps its side while it fits there: a list narrowed above its field does not jump below it", () => {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 300;
+
+    const anchor = FakeElement.of("field");
+    const popup = FakeElement.of("list");
+
+    anchor.rect = { left: 100, top: 220, width: 200, height: 30 };
+    popup.rect = { left: 0, top: 0, width: 200, height: 150 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(anchor, popup);
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom-start", gap: 4 });
+    assert.equal(popup.dataset.uiPlacement, "top-start");
+
+    // Narrowed to one row, which its size observer hears: below would have the room now, and it stays above.
+    popup.rect = { left: 0, top: 0, width: 200, height: 40 };
+    observed?.([{ target: popup }]);
+    assert.equal(popup.dataset.uiPlacement, "top-start");
+
+    // Its anchor moved instead: the side is chosen afresh.
+    repositionAnchoredPopup(real(popup));
+    assert.equal(popup.dataset.uiPlacement, "bottom-start");
+
+    releaseAnchoredPopup(real(popup));
 });

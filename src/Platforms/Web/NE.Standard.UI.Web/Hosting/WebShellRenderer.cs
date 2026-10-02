@@ -139,12 +139,15 @@ public static class WebShellRenderer
             _ = head.Element("script", script => script.Attribute("src", ResolvePublicPath(asset)));
     }
 
-    /// <summary>The assets of one kind in the order the shell links them, by <see cref="WebAssetDescriptor.Order"/> and then key.</summary>
+    /// <summary>The assets of one kind, in the order the context holds them: the registry's, sorted once (<see cref="WebShellContext.Assets"/>).</summary>
     private static IEnumerable<WebAssetDescriptor> EnumerateAssets(WebShellContext context, UIWebAssetKind kind)
-        => context.Assets
-            .Where(asset => asset.Kind == kind)
-            .OrderBy(static asset => asset.Order)
-            .ThenBy(static asset => asset.Key, StringComparer.Ordinal);
+    {
+        foreach (WebAssetDescriptor asset in context.Assets)
+        {
+            if (asset.Kind == kind)
+                yield return asset;
+        }
+    }
 
     // Inter is only the default theme's face: a theme naming another never draws with it, and a preload would fetch it for nothing.
     private static bool IsDrawnWith(WebAssetDescriptor font, UITheme theme)

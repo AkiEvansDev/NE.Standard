@@ -18,6 +18,10 @@ public sealed record UIViewOptions
     /// <summary>
     /// Gets whether the page keeps the viewport's height, so the header and sides stand and only the content region scrolls.
     /// </summary>
+    /// <remarks>
+    /// From the medium breakpoint up: narrower, the document scrolls, so a phone's browser can fold its toolbar away, the header still
+    /// sticky — unless the content's root fills the height, whose regions keep their own scroll.
+    /// </remarks>
     public bool ScrollContentOnly { get; init; }
 
     /// <summary>

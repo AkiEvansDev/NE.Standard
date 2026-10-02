@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Primitives.Localization;
@@ -18,6 +19,10 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 /// </remarks>
 public static class WebMoments
 {
+    // A grid's column of timestamps paints one per row: the patterns and the culture's names are read once per culture and options,
+    // keyed by the options' values, since the options are a mutable class an application may change between renders.
+    private static readonly ConcurrentDictionary<(string Culture, bool HasOptions, bool FollowCulture, UIHourCycle HourCycle, string? Date, string? Time), MomentPaint> Paints = new();
+
     /// <summary>
     /// The instant in UTC in the page's names and the application's patterns, said to be UTC where it shows a clock; a relative one as
     /// the day and the time, since how long ago it was depends on when the page is read, and a relative day as the day.
@@ -26,16 +31,30 @@ public static class WebMoments
     {
         ArgumentNullException.ThrowIfNull(culture);
 
-        WebTemporalPatterns patterns = WebTemporalPatterns.Resolve(culture, options, ownCulture: false);
-        WebTemporalCulturePack names = WebTemporalCulturePack.FromCulture(culture);
+        MomentPaint paint = Paints.GetOrAdd(
+            (culture.Name, options is not null, options?.FollowCulture ?? false, options?.HourCycle ?? default, options?.DateFormat, options?.TimeFormat),
+            static (_, read) => MomentPaint.Read(read.Culture, read.Options),
+            (Culture: culture, Options: options)
+        );
         DateTime utc = instant.UtcDateTime;
 
         return format switch
         {
-            UITimestampFormat.Date or UITimestampFormat.RelativeDate => WebTemporalFormat.Format(utc, patterns.Date, names),
-            UITimestampFormat.Time => $"{WebTemporalFormat.Format(utc, patterns.ShortTime, names)} UTC",
-            _ => $"{WebTemporalFormat.Format(utc, patterns.DateTime(seconds: false), names)} UTC"
+            UITimestampFormat.Date or UITimestampFormat.RelativeDate => WebTemporalFormat.Format(utc, paint.Date, paint.Names),
+            UITimestampFormat.Time => $"{WebTemporalFormat.Format(utc, paint.Time, paint.Names)} UTC",
+            _ => $"{WebTemporalFormat.Format(utc, paint.DateTime, paint.Names)} UTC"
         };
+    }
+
+    /// <summary>The patterns a first paint writes in, and the culture's names it writes with.</summary>
+    private sealed record MomentPaint(string Date, string Time, string DateTime, WebTemporalCulturePack Names)
+    {
+        public static MomentPaint Read(CultureInfo culture, UITemporalOptions? options)
+        {
+            WebTemporalPatterns patterns = WebTemporalPatterns.Resolve(culture, options, ownCulture: false);
+
+            return new MomentPaint(patterns.Date, patterns.ShortTime, patterns.DateTime(seconds: false), WebTemporalCulturePack.FromCulture(culture));
+        }
     }
 
     /// <summary>

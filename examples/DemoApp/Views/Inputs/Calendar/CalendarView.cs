@@ -83,12 +83,12 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A day, and a period",
             UILayout.Row(32)
-                .AddChild(UIPage.Labelled("One day", new CalendarComponent()
+                .AddChild(DemoUI.CreateLabelled("One day", new CalendarComponent()
                     .SetTitle("Release date")
                     .SetValue(Release)
                     )
                 )
-                .AddChild(UIPage.Labelled("A period: the first press is its start, the second its end", new CalendarComponent()
+                .AddChild(DemoUI.CreateLabelled("A period: the first press is its start, the second its end", new CalendarComponent()
                     .SetTitle("Freeze")
                     .SetIsRange()
                     .SetValue(Release.AddDays(-5))
@@ -118,12 +118,12 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Marked days",
             UILayout.Stack(16)
-                .AddChild(UIPage.Labelled("Marked: a dot under the paydays, every day still on offer", new CalendarComponent()
+                .AddChild(DemoUI.CreateLabelled("Marked: a dot under the paydays, every day still on offer", new CalendarComponent()
                     .SetMarkedDays(Paydays)
                     .SetValue(new DateOnly(2026, 8, 20))
                     )
                 )
-                .AddChild(UIPage.Labelled("Only the marked days on offer", new CalendarComponent()
+                .AddChild(DemoUI.CreateLabelled("Only the marked days on offer", new CalendarComponent()
                     .SetMarkedDays(Paydays)
                     .SetMarkedDaysOnly()
                     .SetValue(Release)
@@ -141,7 +141,7 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
                 .SetTitle("Show the deploys of")
                 .BindValue(nameof(CalendarPickGroupContext.Day), UIBindingScope.Relative)
                 .OnChange(nameof(CalendarController.Picked)),
-            note: "`OnChange` runs on every press on a day, the day already on the bound value; the line above the calendar is the command's.",
+            note: "`OnChange` runs on every press on a day, the day already on the bound value; the line under the calendar is the command's.",
             context: PickGroup
         );
     }

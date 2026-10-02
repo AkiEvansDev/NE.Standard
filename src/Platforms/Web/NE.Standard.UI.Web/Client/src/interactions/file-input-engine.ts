@@ -176,8 +176,15 @@ export class FileInputEngine {
     private show(field: HTMLInputElement, value: string | (() => string)): void {
         if (typeof value === "string")
             this.shownWords.delete(field);
-        else
+        else {
+            // Rewritten only at a language switch: a field gone from the page meanwhile is let go of here too.
+            for (const shown of this.shownWords.keys()) {
+                if (!shown.isConnected)
+                    this.shownWords.delete(shown);
+            }
+
             this.shownWords.set(field, value);
+        }
 
         field.value = typeof value === "string" ? value : value();
     }

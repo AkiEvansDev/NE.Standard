@@ -135,7 +135,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                     .OnNodeMoveWithItemKey(nameof(TreeController.MoveNode))
                     .OnNodeRemoveWithItemKey(nameof(TreeController.DeleteNode))
                 ),
-            note: "Type in the box and only the matching objects stay, under the folders that hold them. Right-click a folder or an object for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. incident-report.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where.",
+            note: "Type in the box and only the matching objects stay, under the folders that hold them. Right-click or long-press a folder or an object for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. incident-report.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where.",
             context: FilesGroup
         );
     }
@@ -158,15 +158,19 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
                         .SetTitle("No notes")
                         .SetDescription("Bring them back from the actions.")
+                        .SetWrapMode(UITextWrapMode.Wrap)
                     )
-                    .OnNodeClickWithItemKey(nameof(TreeController.OpenNote)),
+                    .SetDraggable(true)
+                    .OnNodeClickWithItemKey(nameof(TreeController.OpenNote))
+                    .OnNodeMoveWithItemKey(nameof(TreeController.MoveNote)),
                 new TextComponent()
                     .BindTitle($"{NotesGroup}.{nameof(TreeNotesGroupContext.OpenTitle)}")
                     .AsBody()
                     .BindDescription($"{NotesGroup}.{nameof(TreeNotesGroupContext.OpenText)}")
                     .SetDescriptionColor(UIThemeColor.Muted)
+                    .SetWrapMode(UITextWrapMode.Wrap)
             ),
-            note: "Press a note: the command opens it on the right and its answer shows a notification. A folder is never chosen: a press on it only folds it, so the chosen row is always the open note. Clear the notes and the tree shows its empty template; bring them back and it goes.",
+            note: "Press a note: the command opens it beside the tree and its answer shows a notification. A folder is never chosen: a press on it only folds it, so the chosen row is always the open note. Drag a note between two others or onto a folder, or move it with Alt and an arrow — Up and Down among its neighbours, Left out of its folder, Right into the folder above: the move carries the place, and the controller puts it there. Clear the notes and the tree shows its empty template; bring them back and it goes.",
             context: NotesGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {

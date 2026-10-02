@@ -25,6 +25,11 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty IconSizeProperty { get; } = new(nameof(IconSize));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ITextBaseModel.IconShape"/>.
+    /// </summary>
+    static UIProperty IconShapeProperty { get; } = new(nameof(IconShape));
+
+    /// <summary>
     /// Gets the registered property key for <see cref="ITextBaseModel.Title"/>.
     /// </summary>
     static UIProperty TitleProperty { get; } = new(nameof(Title));

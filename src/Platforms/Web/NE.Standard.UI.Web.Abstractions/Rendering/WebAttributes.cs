@@ -225,6 +225,12 @@ public static class WebAttributes
     /// <summary>On an image input's root beside <see cref="ImageCrop"/>: the side, in pixels, the cropped picture is written at.</summary>
     public const string ImageCropSize = "data-ui-image-crop-size";
 
+    /// <summary>
+    /// On a surface whose background picture is blurred: it draws the blur's layer and isolates its stacking
+    /// (<c>mixins/surface-image.less</c>), and a popup inside it is lifted into the top layer (<c>anchored-popup.ts</c>).
+    /// </summary>
+    public const string SurfaceImageBlur = "data-ui-surface-image-blur";
+
     public const string MenuGroup = "data-ui-menu-group";
 
     public const string MenuItemKind = "data-ui-menu-item-kind";
@@ -310,9 +316,6 @@ public static class WebAttributes
     /// <summary>On a multi-select's root: how many options it takes at most.</summary>
     public const string SelectMax = "data-ui-select-max";
 
-    /// <summary>On a select-shaped trigger that is a text field: a click in it places the caret rather than closing the list.</summary>
-    public const string SelectTriggerMode = "data-ui-select-trigger-mode";
-
     public const string SelectContent = "data-ui-select-content";
 
     public const string SelectValue = "data-ui-select-value";
@@ -387,7 +390,7 @@ public static class WebAttributes
     /// <summary>On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down.</summary>
     public const string RowsDraggable = "data-ui-rows-draggable";
 
-    /// <summary>On an items view's or a table's root: a row is dragged only by the grip at its end (<c>DragHandle</c>).</summary>
+    /// <summary>On an items view's or a table's root: a row is dragged only by its grip (<c>DragHandle</c>), at whichever edge it stands.</summary>
     public const string RowsDragHandle = "data-ui-rows-drag-handle";
 
     /// <summary>On a part inside a row that is not the row's to lift — a grid's open detail: a press there never drags the row.</summary>

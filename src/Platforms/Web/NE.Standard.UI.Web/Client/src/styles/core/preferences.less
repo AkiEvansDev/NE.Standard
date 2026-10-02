@@ -29,6 +29,11 @@
         animation-duration: @ui-loading-ring-turn !important;
         animation-iteration-count: infinite !important;
     }
+
+    // A strip's end fade follows the reader's own scroll, no movement of its own; a zero duration would pin it at its end state.
+    .ui-button-group {
+        animation-duration: auto !important;
+    }
 }
 
 // Forced colours drop box-shadows and force grounds to Canvas, so a state drawn as a wash, an inset mark or a filled pseudo-element
@@ -108,12 +113,49 @@
         outline-offset: -1px;
     }
 
-    // Where a dragged tree node would land, the node or the tree's own ground.
-    .ui-tree__row[data-ui-tree-drop],
+    // Where a dragged tree node would land, the node or the tree's own ground, or the line between two nodes.
+    .ui-tree__row[data-ui-tree-drop=""],
     .ui-tree__host[data-ui-tree-drop] {
         outline: 2px dashed Highlight;
         outline-offset: -2px;
     }
+
+    .ui-tree__row:is([data-ui-tree-drop="before"], [data-ui-tree-drop="after"])::after {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+
+    // Where a dragged row would land among its own: a line that is a pseudo-element's ground, and a table's an inset edge on its
+    // cells, which the mode drops — drawn there as a line of each cell's own, a pinned cell keeping its sticky place.
+    :is(@{ui-row-drop})::after,
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop] > .ui-row__grip::after {
+        forced-color-adjust: none;
+        background: Highlight;
+    }
+
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop] > .ui-table__cell:not(.ui-table__cell--pinned) {
+        position: relative;
+    }
+
+        .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop] > .ui-table__cell::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            z-index: 1;
+            height: 2px;
+            forced-color-adjust: none;
+            background: Highlight;
+            pointer-events: none;
+        }
+
+        .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="before"] > .ui-table__cell::before {
+            top: 0;
+        }
+
+        .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="after"] > .ui-table__cell::before {
+            bottom: 0;
+        }
 
     // The current tab's line is a pseudo-element's ground, the colour popup's chosen pane's too.
     .ui-tab-header--selected::after,
@@ -153,6 +195,16 @@
         outline: 1px solid CanvasText;
         outline-offset: -1px;
     }
+
+    // A marked day's dot is a pseudo-element's ground: the text colour, the chosen day's own on a chosen one.
+    .ui-temporal-input__day--marked::after {
+        forced-color-adjust: none;
+        background: CanvasText;
+    }
+
+        .ui-temporal-input__day--marked.ui-temporal-input__day--selected::after {
+            background: HighlightText;
+        }
 
     // The time dial's band across the chosen readings, and a time segment holding the focus, which is the field's only caret.
     .ui-temporal-input__time-columns::before {
@@ -239,7 +291,8 @@
         outline: 1px solid CanvasText;
     }
 
-    .ui-progress--linear > .ui-progress__track > .ui-progress__fill {
+    .ui-progress--linear > .ui-progress__track > .ui-progress__fill,
+    .ui-image-input__tile.ui-loading > .ui-image-input__progress {
         forced-color-adjust: none;
         background: Highlight;
     }

@@ -99,6 +99,32 @@ function hasDayNumberToken(format: string): boolean {
     return false;
 }
 
+/** The marks between a format's numbers that stand for one another when the reader types them. */
+const Separators = /^[-./:,]$/;
+
+/** The tokens written as words — a month's or a weekday's name, AM and PM — which a field of digits alone cannot take. */
+const WordTokens = new Set(["MMMM", "MMM", "dddd", "ddd", "tt"]);
+
+/**
+ * Whether a format is written in digits and separators alone, so the field asks a phone for its digit keyboard (`inputmode="numeric"`):
+ * no month or weekday by name, no AM or PM, no other letter.
+ */
+export function isDigitFormat(format: string): boolean {
+    for (let index = 0; index < format.length;) {
+        const token = matchTemporalToken(format, index);
+
+        if (token !== null && WordTokens.has(token))
+            return false;
+
+        if (token === null && !Separators.test(format[index]) && !/\s/.test(format[index]))
+            return false;
+
+        index += token?.length ?? 1;
+    }
+
+    return format.trim().length > 0;
+}
+
 export function matchTemporalToken(format: string, index: number): string | null {
     for (const token of TemporalTokens) {
         if (format.startsWith(token, index))
@@ -297,6 +323,15 @@ function readLiteral(input: string, read: ReadFields, literal: string): boolean 
         while (read.position < input.length && /\s/.test(input[read.position]))
             read.position++;
 
+        return true;
+    }
+
+    // Any separator for another: a phone's digit keyboard has a dash, a dot and a comma, but not always the format's own.
+    if (Separators.test(literal)) {
+        if (read.position >= input.length || !Separators.test(input[read.position]))
+            return false;
+
+        read.position++;
         return true;
     }
 

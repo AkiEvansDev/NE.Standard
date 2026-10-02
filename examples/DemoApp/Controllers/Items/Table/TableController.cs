@@ -238,7 +238,7 @@ internal sealed partial class TableRowsGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// The row a click or a cell's button named, written where the group's header shows it.
+/// The row a click or a cell's button named, written in the line under the group.
 /// </summary>
 internal sealed partial class TableOpenGroupContext : DemoGroupContext
 {

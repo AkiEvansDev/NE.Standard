@@ -31,6 +31,12 @@
     flex-wrap: wrap;
 }
 
+// A row that wraps lays each of its lines where it stands itself: a pair of buttons at a form's far edge keeps the one that wrapped
+// under the other at that edge too (UIButtons.Pair), rather than at the near one with the line above it.
+.ui-stack-panel--wrap.ui-orientation--horizontal {
+    justify-content: var(--ui-align-h, normal);
+}
+
 // The row rule uses :where() so a control's own align-self default wins; the column rule does not, so HorizontalAlignment takes effect.
 :where(.ui-stack-panel.ui-orientation--horizontal) > [data-ui-id] {
     align-self: var(--ui-align-v, normal);

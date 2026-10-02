@@ -10,12 +10,7 @@ export type SubtreeObserverInit = {
 /** Past this many components in one batch, finding them costs more than sweeping the root for them. */
 const SweepThreshold = 32;
 
-export function observeComponents(
-    root: ParentNode,
-    selector: string,
-    init: SubtreeObserverInit,
-    handler: (components: Iterable<HTMLElement>) => void
-): MutationObserver | null {
+export function observeComponents(root: ParentNode, selector: string, init: SubtreeObserverInit, handler: (components: Iterable<HTMLElement>) => void): MutationObserver | null {
     if (!(root instanceof Node))
         return null;
 

@@ -4,7 +4,7 @@
 // field with `OnEnter`, one line or several, an entry field whose controller takes what was typed and clears it for the next — its
 // Enter runs that command and presses no form's button, and in a text area Shift+Enter still breaks the line.
 
-import { FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import { cssAttributeValue, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { isCaretInput } from "./caret-fields.ts";
 import { isInert } from "./interactive-state.ts";
@@ -127,7 +127,7 @@ export class FieldKeysEngine {
         if (formId === null || formId.length === 0)
             return;
 
-        const button = this.root.querySelector<HTMLElement>(`[${SubmitFormIdAttribute}="${CSS.escape(formId)}"]`);
+        const button = this.root.querySelector<HTMLElement>(`[${SubmitFormIdAttribute}="${cssAttributeValue(formId)}"]`);
 
         if (button !== null && !isInert(button))
             button.click();

@@ -356,7 +356,16 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 .Append("  ")
                 .Append(interaction.Target is UIPropertyAddress target ? target.ToString() : $"effect:{interaction.Effect?.Kind}")
                 .Append(" <= ")
-                .Append(interaction.SourceKind == UIInteractionSourceKind.Property ? interaction.Source : interaction.SourceEvent)
+                .Append(interaction.SourceKind == UIInteractionSourceKind.Property ? interaction.Source : interaction.SourceEvent);
+
+            // A copy compares nothing: the target takes whatever the source holds.
+            if (interaction.ActionKind == UIInteractionActionKind.CopyValue)
+            {
+                _ = builder.AppendLine(" copy");
+                continue;
+            }
+
+            _ = builder
                 .Append(' ')
                 .Append(interaction.Operator);
 

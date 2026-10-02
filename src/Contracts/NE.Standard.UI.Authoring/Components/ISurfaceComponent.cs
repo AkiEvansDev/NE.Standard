@@ -32,6 +32,21 @@ public interface ISurfaceComponent : IVisualComponent
     static UIProperty BackgroundImageFitProperty { get; } = new UIProperty(nameof(BackgroundImageFit));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="BackgroundImageDim"/>.
+    /// </summary>
+    static UIProperty BackgroundImageDimProperty { get; } = new UIProperty(nameof(BackgroundImageDim));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="BackgroundImageDimMode"/>.
+    /// </summary>
+    static UIProperty BackgroundImageDimModeProperty { get; } = new UIProperty(nameof(BackgroundImageDimMode));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="BackgroundImageBlur"/>.
+    /// </summary>
+    static UIProperty BackgroundImageBlurProperty { get; } = new UIProperty(nameof(BackgroundImageBlur));
+
+    /// <summary>
     /// Gets the surface's background colour; unset leaves whatever the theme paints underneath.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
@@ -55,4 +70,24 @@ public interface ISurfaceComponent : IVisualComponent
     /// </summary>
     [UIComponentProperty(DefaultValue = UIImageFit.Cover)]
     UIImageFit? BackgroundImageFit { get; }
+
+    /// <summary>
+    /// Gets how far the picture is dimmed, from 0 (not at all) to 1 (gone): the ground the content reads on, laid over it — darker in
+    /// a dark theme, lighter in a light one. Drawn by the browser; unset, the picture is not dimmed.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    double? BackgroundImageDim { get; }
+
+    /// <summary>
+    /// Gets how <see cref="BackgroundImageDim"/> is spread over the picture: evenly, or at the edges alone.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIBackgroundDimMode.Uniform)]
+    UIBackgroundDimMode? BackgroundImageDimMode { get; }
+
+    /// <summary>
+    /// Gets the blur of the picture, in the platform's device-independent units, zero or more; the content over it stays sharp.
+    /// Drawn by the browser; unset, the picture is not blurred.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    double? BackgroundImageBlur { get; }
 }

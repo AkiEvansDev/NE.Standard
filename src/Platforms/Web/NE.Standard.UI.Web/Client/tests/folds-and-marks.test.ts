@@ -63,7 +63,7 @@ test("a quote paragraph's line is its own box, out of the reach of a tile's wash
 test("a chosen row with pinned cells draws its mark once, above them", () => {
     const row = ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]";
 
-    assert.match(declarations(`${row}:has(> .ui-table__cell--pinned)::after`) ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-color-primary\)\)\);/);
+    assert.match(declarations(`${row}:has(> .ui-table__cell--pinned)::after`) ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
     assert.match(declarations(`${row} > .ui-table__cell--pinned`) ?? "", /box-shadow: none;/, "each pinned cell draws the mark again");
     assert.doesNotMatch(css, /\.ui-table \[data-ui-items-host\] > \.ui-table__row/, "a table row rule reaches a nested table's rows");
 });

@@ -4,7 +4,6 @@
 
 // `.ts` on the value imports: `node --test` runs this module directly.
 import { ComponentKeyAttribute, ComponentSelector, GroupAnchorAttribute, GroupHeaderAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
-import { ReaderScrollEvents } from "../interactions/scroll-anchor-engine.ts";
 import { viewportOf } from "./items-viewport.ts";
 
 /** Where along the viewport the row stands: the block of a scroll into view. */
@@ -15,11 +14,9 @@ type HeldRow = {
     readonly block: RevealBlock;
 };
 
-// By host: the row each host holds in view, until the reader scrolls it or the row leaves the page.
-const held = new WeakMap<Element, HeldRow>();
-
-// The hosts whose viewport already hears the reader's own scroll.
-const listening = new WeakSet<Element>();
+// By host: the row each host holds in view, until the reader scrolls it or the row leaves the page. A map, not a weak one: the reader's
+// every wheel asks it, and it holds a host or two at most, a host off the page let go of at the next.
+const held = new Map<Element, HeldRow>();
 
 /** The items host a component draws its rows in: the component itself, else its own host — not one of a list nested in its rows. */
 export function itemsHostOf(component: Element): Element | null {
@@ -43,7 +40,6 @@ export function revealItem(host: Element, key: string, block: RevealBlock, behav
 
     held.set(host, { key, block });
     bringIntoView(host, row, block, behavior);
-    listenForReader(host);
 
     return true;
 }
@@ -103,17 +99,6 @@ function offsetFor(block: RevealBlock, top: number, bottom: number, height: numb
     }
 }
 
-/** The reader's own scroll gesture in the host's viewport — a wheel, a touch, a press on a row or the scrollbar, a key — lets go of its row. */
-function listenForReader(host: Element): void {
-    if (listening.has(host))
-        return;
-
-    listening.add(host);
-
-    for (const type of ReaderScrollEvents)
-        viewportOf(host).addEventListener(type, () => held.delete(host), { capture: true, passive: true });
-}
-
 /** Puts a held row back where it was asked to stand, once the window around it was laid out again; lets go of one no longer drawn. */
 export function keepHeldRow(host: Element): void {
     const hold = held.get(host);
@@ -134,4 +119,18 @@ export function keepHeldRow(host: Element): void {
 /** Lets go of the row a host holds, for a scroll the page was asked for elsewhere (a jump to the end). */
 export function letGoOfRow(host: Element): void {
     held.delete(host);
+}
+
+/**
+ * The reader's own scroll gesture — a wheel, a touch, a press on a row or the scrollbar, a key — lets go of the row held in the
+ * viewport it happened in; the scroll anchor's one listener on the page hears it (`ReaderScrollEvents`).
+ */
+export function letGoOfRowsUnder(target: EventTarget | null): void {
+    if (held.size === 0 || !(target instanceof Node))
+        return;
+
+    for (const host of [...held.keys()]) {
+        if (!host.isConnected || viewportOf(host).contains(target))
+            held.delete(host);
+    }
 }

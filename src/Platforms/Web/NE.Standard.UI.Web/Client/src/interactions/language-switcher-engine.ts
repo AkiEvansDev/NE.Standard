@@ -7,6 +7,7 @@ import type { DomRegistry } from "../addressing/dom-registry.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
 import { ClientEffectKinds } from "../metadata/metadata-index.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
+import type { ClientStringKey } from "../runtime/client-strings.ts";
 import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusByPointer, focusOpenedList } from "./popup-focus.ts";
@@ -29,8 +30,8 @@ const ChoiceClass = "ui-language-switcher__choice";
 const OpenClass = "ui-language-switcher--open";
 const MenuGap = 4;
 // The button's name: with two languages what it switches to, with more the page's language alone (the list says the rest).
-const SwitchKey = "ui.language.switch";
-const CurrentKey = "ui.language.current";
+const SwitchKey: ClientStringKey = "ui.language.switch";
+const CurrentKey: ClientStringKey = "ui.language.current";
 
 export class LanguageSwitcherEngine {
     private readonly options: LanguageSwitcherEngineOptions;

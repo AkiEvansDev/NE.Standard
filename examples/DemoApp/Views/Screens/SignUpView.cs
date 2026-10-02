@@ -45,11 +45,13 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     .Required("An address is how you get in.", UIValidationTrigger.Submit)
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                 UIForm.Field(CreatePasswordField(), "Eight characters or more. A phrase beats a word."),
-                new SwitchComponent(CompanySwitchId)
-                    .SetTitle("I'm signing up for a company")
-                    .SetDescription("Invoices carry its name, and VAT goes by its country.")
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                    .BindValue(nameof(SignUpController.ForCompany)),
+                // A sentence a toggle's one-line description would cut on a phone goes under it, starting where its title does.
+                UILayout.Stack(2,
+                    new SwitchComponent(CompanySwitchId)
+                        .SetTitle("I'm signing up for a company")
+                        .BindValue(nameof(SignUpController.ForCompany)),
+                    UIText.Note("Invoices carry its name, and VAT goes by its country.").SetMargin(UIThickness.All(44, 0, 0, 0))
+                ),
                 // Revealed by the switch, in the browser: nothing here is required, so the fields can stay folded away.
                 UILayout.Stack(16,
                     new TextInputComponent()
@@ -78,14 +80,16 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                         .BindValue(nameof(SignUpController.Country))
                 )
                 .ShownWhen(CompanySwitchId),
-                // The links live in the description: a title is one line of plain words, a description takes inline marks.
-                new CheckboxComponent()
-                    .SetTitle("I agree to the terms")
-                    .SetDescription("The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each.")
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                    .SetFormId(FormId)
-                    .BindValue(nameof(SignUpController.AcceptsTerms))
-                    .Required("You have to agree before we can make the account.", UIValidationTrigger.Submit),
+                // The links live in a note under the box, which takes inline marks and runs on; a title is one line of plain words.
+                UILayout.Stack(2,
+                    new CheckboxComponent()
+                        .SetTitle("I agree to the terms")
+                        .SetFormId(FormId)
+                        .BindValue(nameof(SignUpController.AcceptsTerms))
+                        .Required("You have to agree before we can make the account.", UIValidationTrigger.Submit),
+                    UIText.Note("The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each.")
+                        .SetMargin(UIThickness.All(26, 0, 0, 0))
+                ),
                 UIButtons.Pair(
                     UIButtons.Link("I already have an account"),
                     UIButtons.Primary("Create account")

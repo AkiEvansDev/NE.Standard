@@ -387,6 +387,27 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
+    /// Copies another component's value into a target property of this one on the page, live while the reader drags or types — a
+    /// slider previewing a picture's dim with no round trip.
+    /// </summary>
+    public TComponent InteractCopyValue(string sourceComponentId, UIProperty target)
+        => InteractCopyValue(sourceComponentId, IInputComponent.ValueProperty, target);
+
+    /// <summary>
+    /// Copies another component's property into a target property of this one on the page, live while the reader moves the source.
+    /// </summary>
+    /// <remarks>The two properties' types are checked when the view compiles: a number takes a number, anything else its own type.</remarks>
+    public TComponent InteractCopyValue(string sourceComponentId, UIProperty source, UIProperty target)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceComponentId);
+
+        EnsureBindingAllowed(target, UIBindingMode.OneWay);
+
+        _interactions.Add(UIInteraction.CopyValue(sourceComponentId, source, target));
+        return Self;
+    }
+
+    /// <summary>
     /// Adds an interaction triggered before this component's click event command.
     /// </summary>
     public TComponent InteractBeforeClick(UIProperty target, object? value)

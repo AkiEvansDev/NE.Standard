@@ -32,6 +32,10 @@ export class RangeValueEngine {
     // The value each range last stood at by the server's push or the reader's own move: what a refused move is put back to.
     private readonly settled = new WeakMap<HTMLInputElement, string>();
 
+    // The value a range stood at when a press began, and the ranges whose press the browser took back for a scroll.
+    private readonly pressedFrom = new WeakMap<HTMLInputElement, string>();
+    private readonly cancelled = new WeakSet<HTMLInputElement>();
+
     public constructor(options: RangeValueEngineOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
@@ -39,7 +43,13 @@ export class RangeValueEngine {
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
 
         // The bubble is fixed, so it is placed against the handle whenever either moves and released after.
-        this.root.addEventListener("pointerdown", domEvent => this.placeBubble(domEvent.target), true);
+        this.root.addEventListener("pointerdown", domEvent => {
+            this.notePress(domEvent.target);
+            this.placeBubble(domEvent.target);
+        }, true);
+        this.root.addEventListener("pointercancel", domEvent => this.takeBackPress(domEvent.target), true);
+        // Ahead of the value binding, which listens on the root: the change a taken-back press still raises is no move of the reader's.
+        (this.root === document ? window : this.root).addEventListener("change", domEvent => this.refuseCancelledChange(domEvent), true);
         this.root.addEventListener("focusin", domEvent => this.placeBubble(domEvent.target), true);
         this.root.addEventListener("focusout", domEvent => this.releaseBubble(domEvent.target), true);
 
@@ -66,6 +76,48 @@ export class RangeValueEngine {
         });
     }
 
+    private notePress(target: EventTarget | null): void {
+        const input = rangeInput(target);
+
+        if (input === null)
+            return;
+
+        this.cancelled.delete(input);
+        this.pressedFrom.set(input, input.value);
+    }
+
+    /**
+     * A finger set down on a track moves the value at once, and the browser cancels the press when the finger goes on to scroll the
+     * page: that value is put back, since the reader was scrolling, not sliding.
+     */
+    private takeBackPress(target: EventTarget | null): void {
+        const input = rangeInput(target);
+        const from = input === null ? undefined : this.pressedFrom.get(input);
+
+        if (input === null || from === undefined)
+            return;
+
+        this.pressedFrom.delete(input);
+
+        if (input.value === from)
+            return;
+
+        input.value = from;
+        this.cancelled.add(input);
+        this.settled.set(input, from);
+        this.writeReadings(input);
+    }
+
+    private refuseCancelledChange(domEvent: Event): void {
+        const input = rangeInput(domEvent.target);
+
+        if (input === null || !this.cancelled.has(input))
+            return;
+
+        this.cancelled.delete(input);
+        domEvent.stopImmediatePropagation();
+    }
+
     private reportClamped(input: HTMLInputElement, pushed: unknown): void {
         // A range the reader cannot move only shows the clamp: the value stays the server's.
         if (pushed === null || pushed === undefined || input.value === String(pushed) || isFixed(input))
@@ -79,6 +131,9 @@ export class RangeValueEngine {
             return;
 
         const input = domEvent.target;
+
+        // A move after a taken-back press is the reader's own, and so is the change it raises.
+        this.cancelled.delete(input);
 
         // A move no key or pointer made (a screen reader's increment) on a range the reader cannot move is put back; its `change`
         // is refused ahead of every engine.
@@ -122,6 +177,10 @@ export class RangeValueEngine {
         else
             this.releaseBubble(input);
     }
+}
+
+function rangeInput(target: EventTarget | null): HTMLInputElement | null {
+    return target instanceof HTMLInputElement && target.classList.contains(RangeInputClass) ? target : null;
 }
 
 /** Whether the reader may not move a range: read-only, disabled or loading. */

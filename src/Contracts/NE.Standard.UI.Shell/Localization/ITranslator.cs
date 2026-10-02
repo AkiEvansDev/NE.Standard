@@ -54,7 +54,11 @@ public interface ITranslator
     /// <summary>
     /// Translates a key for the language and fills its <c>{name}</c> slots; a numeric <c>count</c> picks the plural form.
     /// </summary>
-    /// <remarks>A key is always looked up here, whatever the prefixes; an author's text among the arguments by the plain rule.</remarks>
+    /// <remarks>
+    /// A key named here is a key, so the framework's translator looks it up whatever the prefixes; this default asks
+    /// <see cref="Translate(string, string?)"/>, which honours them, so a translator of an application's own overrides it to do the
+    /// same. An author's text among the arguments is read by the plain rule.
+    /// </remarks>
     string? Translate(string language, string? key, IReadOnlyDictionary<string, object?>? arguments)
     {
         if (string.IsNullOrWhiteSpace(key))

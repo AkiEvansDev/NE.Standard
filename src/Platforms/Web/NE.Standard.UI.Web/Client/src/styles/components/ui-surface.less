@@ -75,6 +75,17 @@
     --ui-popup-ground: initial;
 }
 
+// A list drawn on Background (a key-value list, a table's box, a tree; every one by default) is the ground of what holds it, not a block
+// of the page cut into a grey pane or a raised card: no fill, and its holder's ground, ink and popups' level handed on unchanged. A list
+// with a colour of its own, or under a theme of its own, where the holder's ground is the other theme's, keeps the page's ground.
+:is(.ui-key-value-action, .ui-table__scroll, .ui-tree).ui-surface--background:not([data-ui-theme], [data-ui-theme]:not(:root) *, [style*="--ui-surface-color"]) {
+    --ui-surface-fill: inherit;
+    --ui-faint-base: inherit;
+    --ui-ground: inherit;
+    --ui-popup-ground: inherit;
+    background-color: transparent;
+}
+
 .ui-surface--raised {
     --ui-surface-fill: var(--ui-surface-color, var(--ui-surface-raised));
     background-color: var(--ui-surface-fill);
@@ -85,14 +96,14 @@
     .ui-elevation-1();
 }
 
-// 20% keeps the hue visible and the contrast intact in both themes; mixed into the surface ground so the tint follows the element's theme.
+// The mode's share keeps the hue visible and the contrast intact in both themes; mixed into the mode's ground, read on the element,
+// so the tint follows the element's theme.
 .ui-surface--tinted {
-    // The colour at the mode's share over the mode's ground (WebThemeCssBuilder): the page's on a light palette; the raised one at a
-    // larger share on a dark one, where a fifth over the near-black page read as a black green.
-    --ui-surface-fill: color-mix(in srgb, var(--ui-surface-color, var(--ui-color-primary)) var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)));
+    @ui-tint-color: var(--ui-surface-color, var(--ui-color-primary));
+    --ui-surface-fill: @ui-tinted-fill;
     background-color: var(--ui-surface-fill);
-    // A fifth of the colour over the page reads in the page's ink, so the Background's on-colour written inline must not apply,
-    // nor its colour as the ground: the ground is the mix.
+    // The tint reads in the mode's own ink, so the Background's on-colour written inline must not apply, nor its colour as the
+    // ground: the ground is the mix.
     --ui-faint-base: initial !important;
     --ui-ground: var(--ui-surface-fill) !important;
     // Mostly the page's ground, so a popup opened here is the page's.

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,15 +13,17 @@ namespace DemoApp.Controllers.Overlays;
 /// </summary>
 internal sealed partial class ConfirmGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.overlays.dialog.";
+
     private static readonly int[] AllReleases = [479, 480, 481];
 
     private readonly List<int> _releases = [.. AllReleases];
 
     [RecursiveMember]
-    public partial string Releases { get; set; } = string.Empty;
+    public partial UIPhrase? Releases { get; set; }
 
     [RecursiveMember]
-    public partial string Question { get; set; } = string.Empty;
+    public partial UIPhrase? Question { get; set; }
 
     public ConfirmGroupContext()
     {
@@ -30,7 +33,7 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
     public bool HasReleases => _releases.Count > 0;
 
     public void Ask()
-        => Question = $"Release #{_releases[^1]} and its image go for good. The deploys that used it keep their logs.";
+        => Question = UIPhrase.Of(Words + "confirm.question", ("release", _releases[^1]));
 
     public void Delete()
     {
@@ -38,24 +41,24 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
 
         _releases.RemoveAt(_releases.Count - 1);
         Describe();
-        LogEvent($"deleted #{release}");
+        LogEvent(UIPhrase.Of(Words + "log.deleted", ("release", release)));
     }
 
     public void Keep()
-        => LogEvent("kept — the dialog was answered with Cancel");
+        => LogEvent(UIPhrase.Of(Words + "log.kept"));
 
     public void Restore()
     {
         _releases.Clear();
         _releases.AddRange(AllReleases);
         Describe();
-        LogEvent("all three are back");
+        LogEvent(UIPhrase.Of(Words + "log.restored"));
     }
 
     private void Describe()
         => Releases = _releases.Count == 0
-            ? "No releases left."
-            : $"{_releases.Count} release{(_releases.Count == 1 ? "" : "s")} kept: {string.Join(", ", _releases.Select(release => $"#{release}"))}";
+            ? UIPhrase.Of(Words + "confirm.none")
+            : UIPhrase.Of(Words + "confirm.kept", ("releases", string.Join(", ", _releases.Select(release => $"#{release}"))));
 }
 
 /// <summary>
@@ -63,6 +66,8 @@ internal sealed partial class ConfirmGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class EditGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.overlays.dialog.";
+
     [RecursiveMember]
     public partial string Name { get; set; } = "Billing";
 
@@ -85,11 +90,11 @@ internal sealed partial class EditGroupContext : DemoGroupContext
     {
         Name = DraftName.Trim();
         Owner = DraftOwner.Trim();
-        LogEvent($"saved — '{Name}', owned by {Owner}");
+        LogEvent(UIPhrase.Of(Words + "log.saved", ("name", Name), ("owner", Owner)));
     }
 
     public void Cancel()
-        => LogEvent("cancelled — the card kept its values, the draft is thrown away");
+        => LogEvent(UIPhrase.Of(Words + "log.cancelled"));
 }
 
 /// <summary>
@@ -98,6 +103,7 @@ internal sealed partial class EditGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class FiltersGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.overlays.dialog.";
     private const int AllDeploys = 144;
 
     [RecursiveMember]
@@ -110,7 +116,7 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
     public partial bool LastDay { get; set; } = true;
 
     [RecursiveMember]
-    public partial string Summary { get; set; } = string.Empty;
+    public partial UIPhrase? Summary { get; set; }
 
     public FiltersGroupContext()
     {
@@ -127,19 +133,25 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
         if (!IncludeRetries)
             count -= count / 3;
 
-        List<string> active = [];
+        List<UIPhrase> active = [];
 
         if (OnlyFailures)
-            active.Add("failures only");
+            active.Add(UIPhrase.Of(Words + "filters.active.failures"));
 
         if (IncludeRetries)
-            active.Add("retries included");
+            active.Add(UIPhrase.Of(Words + "filters.active.retries"));
 
         if (LastDay)
-            active.Add("last 24 hours");
+            active.Add(UIPhrase.Of(Words + "filters.active.last-day"));
 
-        Summary = $"Showing {count} of {AllDeploys} deploys" + (active.Count == 0 ? ", no filter." : $" — {string.Join(", ", active)}.");
+        Summary = active.Count == 0
+            ? UIPhrase.Of(Words + "filters.summary.none", ("count", count), ("all", AllDeploys))
+            : UIPhrase.Of(Words + "filters.summary", ("count", count), ("all", AllDeploys), ("filters", Join(active, 0)));
     }
+
+    // A list in the reader's own way of listing: each pair joined by a phrase, the first to the rest.
+    private static UIPhrase Join(List<UIPhrase> parts, int from)
+        => from == parts.Count - 1 ? parts[from] : UIPhrase.Of(Words + "filters.join", ("first", parts[from]), ("rest", Join(parts, from + 1)));
 }
 
 /// <summary>
@@ -147,6 +159,7 @@ internal sealed partial class FiltersGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class DetailsGroupContext : DemoGroupContext
 {
+    // The deploys are the sample's data, shown as written in every language; only the page's own words are keys.
     private static readonly (string Id, string Service, string Status, string Details)[] Deploys =
     [
         ("billing", "billing", "healthy", "Release #481 · deployed 14 minutes ago by release-bot · 12 replicas, all passing the health check."),
@@ -190,7 +203,7 @@ internal sealed partial class DetailsGroupContext : DemoGroupContext
         SelectedStatus = status;
         SelectedDetails = details;
         SelectedColor = ColorOf(status);
-        LogEvent($"opened {service}");
+        LogEvent(UIPhrase.Of("demo.overlays.dialog.log.opened", ("service", service)));
     }
 
     private static UIThemeColor ColorOf(string status)
@@ -208,11 +221,13 @@ internal sealed partial class DetailsGroupContext : DemoGroupContext
 internal sealed partial class ProgressGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string Published { get; set; } = "Not published yet.";
+    public partial UIPhrase? Published { get; set; } = UIPhrase.Of("demo.overlays.dialog.progress.none");
 }
 
 internal sealed partial class DialogTestController() : DemoController
 {
+    private const string Words = "demo.overlays.dialog.";
+
     /// <summary>The keys the view declares its dialogs under.</summary>
     internal const string ConfirmKey = "overlay-dialog-confirm";
     internal const string EditKey = "overlay-dialog-edit";
@@ -239,7 +254,7 @@ internal sealed partial class DialogTestController() : DemoController
     public UICommandResult AskBeforeDelete()
     {
         if (!ConfirmGroup.HasReleases)
-            return UICommandResult.Ok([new ShowNotificationEffect("Nothing left to delete.", UIColorStyle.Info)]);
+            return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.nothing"), UIColorStyle.Info)]);
 
         ConfirmGroup.Ask();
 
@@ -255,7 +270,7 @@ internal sealed partial class DialogTestController() : DemoController
 
         ConfirmGroup.Delete();
 
-        return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect("The release is gone.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect(UIPhrase.Of(Words + "toast.gone"), UIColorStyle.Success)]);
     }
 
     [UICommand]
@@ -286,7 +301,7 @@ internal sealed partial class DialogTestController() : DemoController
     {
         EditGroup.Save();
 
-        return UICommandResult.Ok([new CloseDialogEffect(EditKey), new ShowNotificationEffect($"Saved '{EditGroup.Name}'.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new CloseDialogEffect(EditKey), new ShowNotificationEffect(UIPhrase.Of(Words + "toast.saved", ("name", EditGroup.Name)), UIColorStyle.Success)]);
     }
 
     [UICommand]
@@ -328,7 +343,7 @@ internal sealed partial class DialogTestController() : DemoController
     [UICommand]
     public async Task<UICommandResult> PublishAsync(CancellationToken cancellationToken)
     {
-        ProgressGroup.LogEvent("publishing — the dialog was pushed mid-command");
+        ProgressGroup.LogEvent(UIPhrase.Of(Words + "log.publishing"));
 
         _ = await Context.Dialogs.ShowAsync(Context.Handle, ProgressKey, cancellationToken).ConfigureAwait(false);
 
@@ -342,9 +357,9 @@ internal sealed partial class DialogTestController() : DemoController
             _ = await Context.Dialogs.HideAsync(Context.Handle, ProgressKey, CancellationToken.None).ConfigureAwait(false);
         }
 
-        ProgressGroup.Published = $"Published at {DateTime.Now:HH:mm:ss}.";
-        ProgressGroup.LogEvent("done — the same service hid it");
+        ProgressGroup.Published = UIPhrase.Of(Words + "progress.done", ("time", DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)));
+        ProgressGroup.LogEvent(UIPhrase.Of(Words + "log.published"));
 
-        return UICommandResult.Ok([new ShowNotificationEffect("Release #481 published.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.published"), UIColorStyle.Success)]);
     }
 }

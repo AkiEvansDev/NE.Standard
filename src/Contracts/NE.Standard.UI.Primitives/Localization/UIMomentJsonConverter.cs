@@ -92,15 +92,16 @@ public sealed class UIMomentJsonConverter : JsonConverter<UIMoment>
         if (value.ValueKind != JsonValueKind.String)
             throw new JsonException("A moment's format is a timestamp's name for it.");
 
-        return value.GetString() switch
+        var name = value.GetString();
+
+        // By the names FormatName writes, so the two sides of the wire cannot drift apart.
+        foreach (UITimestampFormat format in Enum.GetValues<UITimestampFormat>())
         {
-            "date-time" => UITimestampFormat.DateTime,
-            "date" => UITimestampFormat.Date,
-            "time" => UITimestampFormat.Time,
-            "relative" => UITimestampFormat.Relative,
-            "relative-date" => UITimestampFormat.RelativeDate,
-            var name => throw new JsonException($"A moment has no format '{name}'.")
-        };
+            if (string.Equals(FormatName(format), name, StringComparison.Ordinal))
+                return format;
+        }
+
+        throw new JsonException($"A moment has no format '{name}'.");
     }
 
     /// <inheritdoc />

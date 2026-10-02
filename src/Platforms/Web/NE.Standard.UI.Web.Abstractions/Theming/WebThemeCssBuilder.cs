@@ -156,6 +156,9 @@ public static class WebThemeCssBuilder
         // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
         // None on a dark page, where a neutral one would read as the pointer's: there the group's short mark says it alone (ui-menu.less).
         Append(builder, "wash-descendant", dark ? "transparent" : "color-mix(in srgb, var(--ui-color-primary) 8%, transparent)");
+        // The brand's line on a chosen entry: its ink, which reads on the page whatever the primary. Not lifted on a dark page,
+        // where the ink lifted for a tint read as a white line (docs/DECISIONS.md); a mode variable so a theme can set either.
+        Append(builder, "mark-selected", "var(--ui-color-primary-ink)");
         Append(builder, "popup-base", dark ? "color-mix(in srgb, var(--ui-color-surface) 96%, var(--ui-color-on-surface) 4%)" : "var(--ui-color-surface)");
         Append(builder, "tint-ground", dark ? "var(--ui-surface-raised)" : "var(--ui-color-background)");
         Append(builder, "tint-share", dark ? "28%" : "20%");

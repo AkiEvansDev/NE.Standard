@@ -146,7 +146,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                 ),
                 // A narrow width on each, in its own half: the point is how each answers a column too narrow for the words.
                 UILayout.Columns(16,
-                    UIPage.Labelled("The same words as text content", new TextComponent()
+                    DemoUI.CreateLabelled("The same words as text content", new TextComponent()
                         .SetIcon(DemoIcons.FileText)
                         .SetTitle(LongTitle)
                         .SetDescription(LongMarkup)
@@ -154,7 +154,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                         .SetBadgeStyle(UIBadgeType.Success)
                         .SetMaxWidth(UILayoutLength.Absolute(290))
                     ),
-                    UIPage.Labelled("As a paragraph", new ParagraphComponent()
+                    DemoUI.CreateLabelled("As a paragraph", new ParagraphComponent()
                         .SetIcon(DemoIcons.FileText)
                         .SetTitle(LongTitle)
                         .SetDescription(LongMarkup)
@@ -216,7 +216,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("When a run of prose must not push everything down",
             UILayout.Columns(16,
-                UIPage.Labelled("Unclamped", UILayout.Stack(10)
+                DemoUI.CreateLabelled("Unclamped", UILayout.Stack(10)
                     .SetMaxWidth(UILayoutLength.Absolute(360))
                     .AddChildren(FeedEntries.Select(entry => new ParagraphComponent()
                         .SetIcon(DemoIcons.FileText)
@@ -226,7 +226,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     ))
                 ),
-                UIPage.Labelled("Two lines each", UILayout.Stack(10)
+                DemoUI.CreateLabelled("Two lines each", UILayout.Stack(10)
                     .SetMaxWidth(UILayoutLength.Absolute(360))
                     .AddChildren(FeedEntries.Select(entry => new ParagraphComponent()
                         .SetIcon(DemoIcons.FileText)
@@ -260,7 +260,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                         .SetDescription("**Provisioner 2.4** ships *incremental* resizing. The old __stop and copy__ path still works and is ~~supported~~ scheduled for removal in 2.6."),
                     new ParagraphComponent()
                         .SetTitle("Prose that only looks like markup")
-                        .SetDescription(@"Retries are computed as *3 * 4* per region and written to ~~deploy_log~~, and a \* on its own is just an asterisk."),
+                        .SetDescription(@"Retries are computed as 3 * 4 per region, written to deploy_log_eu and spaced ~ 2 minutes apart, and a \* on its own is just an asterisk."),
                     new ParagraphComponent()
                         .SetTitle("Clamped, with markup in the cut part")
                         .SetDescription("**Provisioner 2.4** ships one-minute servers in Europe North, a rewritten disk allocator and forty-one fixes, of which [nine](https://docs.orvane.example/releases/provisioner-2.4) were reported by customers; the rollout pauses itself if the error rate doubles in any region.")
@@ -273,8 +273,8 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                     // Built from the constants: a name spelt by hand would be a mark that silently never draws.
                     new ParagraphComponent()
                         .SetTitle("A mark standing in the sentence")
-                        .SetDescription($"Green ![{DemoIcons.Check}] means every gate answered, amber ![{DemoIcons.Clock}] means one has not answered yet, "
-                            + $"and red ![{DemoIcons.Alert}] means one answered no. A mark is not a word, and it is not read aloud with them: "
+                        .SetDescription($"A tick ![{DemoIcons.Check}] means every gate answered, a clock ![{DemoIcons.Clock}] means one has not answered yet, "
+                            + $"and a warning ![{DemoIcons.Alert}] means one answered no. A mark is not a word, and it is not read aloud with them: "
                             + @"!\[the bracket escaped] reads as the text it is."
                         ),
                     // A fold's text is markup of its own, folds included; nothing about it reaches the server.

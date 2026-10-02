@@ -6,7 +6,7 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Inputs.Search;
 
 /// <summary>
-/// What the user has typed, and the four knobs that decide when that typing becomes a search.
+/// What the user has typed, and the three knobs that decide when that typing becomes a search.
 /// </summary>
 /// <remarks><c>SearchText</c> is two-way, which is how the command below reads the term.</remarks>
 internal sealed partial class SearchTermGroupContext : DemoGroupContext
@@ -24,7 +24,7 @@ internal sealed partial class SearchTermGroupContext : DemoGroupContext
     public partial int? MinSearchLength { get; set; }
 
     [RecursiveMember]
-    public partial UISearchSelectionDisplayMode? SelectionDisplayMode { get; set; } = UISearchSelectionDisplayMode.KeepSearchInput;
+    public partial UIInputAppearance? SearchFieldAppearance { get; set; }
 
     public SearchTermGroupContext()
     {
@@ -32,7 +32,7 @@ internal sealed partial class SearchTermGroupContext : DemoGroupContext
         AddOption(nameof(AutoSearch), ToggleAutoSearch, () => AutoSearch);
         AddOption(nameof(DebounceMilliseconds), CycleDebounce, () => DebounceMilliseconds);
         AddOption(nameof(MinSearchLength), CycleMinSearchLength, () => MinSearchLength);
-        AddOption(nameof(SelectionDisplayMode), CycleSelectionDisplayMode, () => SelectionDisplayMode);
+        AddOption(nameof(SearchFieldAppearance), CycleSearchFieldAppearance, () => SearchFieldAppearance);
     }
 
     // The last step matches nothing on purpose: an empty result is otherwise hard to reach.
@@ -48,8 +48,8 @@ internal sealed partial class SearchTermGroupContext : DemoGroupContext
     public void CycleMinSearchLength()
         => SetLastChange(nameof(MinSearchLength), MinSearchLength = CycleValue(MinSearchLength, 2, 4, 0, null));
 
-    public void CycleSelectionDisplayMode()
-        => SetLastChange(nameof(SelectionDisplayMode), SelectionDisplayMode = CycleEnum(SelectionDisplayMode));
+    public void CycleSearchFieldAppearance()
+        => SetLastChange(nameof(SearchFieldAppearance), SearchFieldAppearance = CycleEnum(SearchFieldAppearance));
 }
 
 /// <summary>
@@ -78,9 +78,6 @@ internal sealed partial class SearchFieldGroupContext : OptionsFieldGroupContext
 {
     public SearchFieldGroupContext() : base("Search regions", DemoIcons.Search, DemoIcons.Filter)
     {
-        // A search opens with its magnifier already in place, which is what says what the field is for.
-        PrefixIcon = DemoIcons.Search;
-
         AddAppearanceOption();
         AddPlaceholderOption();
         AddAffixIconOptions();
@@ -136,7 +133,7 @@ internal sealed partial class SearchResultsGroupContext : DemoGroupContext
 /// <summary>
 /// One search box's state: what is typed, what the server answered, and what was picked out of it.
 /// </summary>
-/// <remarks>One per box on the page: the boxes differ only in how they show a selection.</remarks>
+/// <remarks>One per box on the page: the boxes differ only in when they ask.</remarks>
 internal sealed partial class SearchListContext : RecursiveObservable
 {
     private static readonly ServiceEntry[] Catalogue =
@@ -217,10 +214,7 @@ internal sealed partial class SearchController() : DemoStandardController
     public partial SearchListContext ServicesList { get; set; } = new();
 
     [RecursiveMember]
-    public partial SearchListContext KeepTextList { get; set; } = new();
-
-    [RecursiveMember]
-    public partial SearchListContext ReplaceTextList { get; set; } = new();
+    public partial SearchListContext PickList { get; set; } = new();
 
     [RecursiveMember]
     public partial SearchListContext MinLengthList { get; set; } = new();
@@ -250,8 +244,7 @@ internal sealed partial class SearchController() : DemoStandardController
     private SearchListContext ResolveList(string list)
         => list switch
         {
-            nameof(KeepTextList) => KeepTextList,
-            nameof(ReplaceTextList) => ReplaceTextList,
+            nameof(PickList) => PickList,
             nameof(MinLengthList) => MinLengthList,
             nameof(ManualList) => ManualList,
             _ => ServicesList

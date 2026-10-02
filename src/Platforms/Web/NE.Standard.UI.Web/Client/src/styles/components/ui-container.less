@@ -31,6 +31,12 @@
     .ui-responsive-property(grid-template-rows, --ui-split-rows, ~"var(--ui-rows, minmax(0, 1fr))");
 }
 
+// A child a splitter took to no width or height (grid-splitter-engine.ts): squeezed to nothing, its words stood one a line and
+// stretched the row to their height. Gone rather than clipped, so nothing in it keeps a tab stop; its place is its tracks', not its own.
+.ui-container > [data-ui-split-folded] {
+    display: none;
+}
+
 .ui-responsive-grid-line-base(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
     @{property}: var(~"@{prefix}-@{position-suffix}", auto) / span var(~"@{prefix}-@{span-suffix}", @span-default);
 }

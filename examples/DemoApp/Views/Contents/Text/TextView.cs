@@ -17,7 +17,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     private const string BadgeGroup = nameof(TextController.BadgeGroup);
 
     // Short enough that a host at half the page (a row, with its badge and chevron) shows it whole.
-    private const string Description = "Adds a second step on a new device.";
+    private const string Description = "Asked on a new device.";
 
     /// <summary>A description too long for one line of a narrow column, so where it wraps and where it is cut shows.</summary>
     private const string LongDescription = "A blind priestess. She does not see faces, but she hears a lie before it is finished, and the city's guilds pay her to sit in on every contract.";
@@ -107,14 +107,14 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("The same body, worn by five controls",
             UILayout.Split(
                 UILayout.Stack(24,
-                    UIPage.Labelled("On its own", new TextComponent()
+                    DemoUI.CreateLabelled("On its own", new TextComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription(Description)
                         .SetBadgeText("Recommended")
                         .SetBadgeStyle(UIBadgeType.Info)
                     ),
-                    UIPage.Labelled("As a card's header", new CardComponent()
+                    DemoUI.CreateLabelled("As a card's header", new CardComponent()
                         .ConfigureDefaultHeader(header => header
                             .SetIcon(DemoIcons.Shield)
                             .SetTitle("Two-factor authentication")
@@ -124,7 +124,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                         )
                         .SetContent(UIText.Note("The card gives it a band and a rule; the body inside is unchanged."))
                     ),
-                    UIPage.Labelled("As an expander's header", new ExpanderComponent()
+                    DemoUI.CreateLabelled("As an expander's header", new ExpanderComponent()
                         .SetCollapsed()
                         .ConfigureDefaultHeader(header => header
                             .SetIcon(DemoIcons.Shield)
@@ -137,7 +137,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                     )
                 ),
                 UILayout.Stack(24,
-                    UIPage.Labelled("As a button's label", new ButtonComponent()
+                    DemoUI.CreateLabelled("As a button's label", new ButtonComponent()
                         .SetType(UIButtonType.Outline)
                         .SetHorizontalAlignment(UIAlignment.Stretch)
                         .SetTextAlignment(UITextAlignment.Start)
@@ -149,7 +149,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                         .SetBadgeStyle(UIBadgeType.Info)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     ),
-                    UIPage.Labelled("As a row that points somewhere", new ActionComponent()
+                    DemoUI.CreateLabelled("As a row that points somewhere", new ActionComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription(Description)
@@ -157,7 +157,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                         .SetBadgeStyle(UIBadgeType.Info)
                     ),
                     // The one host that does not carry the whole body: a field's caption has no description.
-                    UIPage.Labelled("As an input's caption — no description", new TextInputComponent()
+                    DemoUI.CreateLabelled("As an input's caption — no description", new TextInputComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetBadgeText("Recommended")
@@ -184,7 +184,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Where the parts go",
             UILayout.Columns(24,
-                UIPage.Labelled("The small line first — an Overline title over a Subtitle description", UILayout.Row(16,
+                DemoUI.CreateLabelled("The small line first — an Overline title over a Subtitle description", UILayout.Row(16,
                         new CardComponent()
                             .SetWidth(UILayoutLength.Absolute(220))
                             .ConfigureDefaultHeader(header => header
@@ -221,7 +221,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                             )
                     )
                 ),
-                UIPage.Labelled("The alignments, where the answer is not obvious", UILayout.Stack(16,
+                DemoUI.CreateLabelled("The alignments, where the answer is not obvious", UILayout.Stack(16,
                         new TextComponent()
                             .SetIcon(DemoIcons.Shield)
                             .SetIconAlignment(UITextIconAlignment.Title)
@@ -259,24 +259,24 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Long text in a narrow column",
             UILayout.Columns(24,
                 UILayout.Stack(16,
-                    UIPage.Labelled("A text, as it comes", new TextComponent()
+                    DemoUI.CreateLabelled("A text, as it comes", new TextComponent()
                         .SetTitle("Sister Ilse of the Lantern Quarter")
                         .SetDescription(LongDescription)
                     ),
-                    UIPage.Labelled("SetWrapMode(Wrap)", new TextComponent()
+                    DemoUI.CreateLabelled("SetWrapMode(Wrap)", new TextComponent()
                         .SetTitle("Sister Ilse of the Lantern Quarter")
                         .SetDescription(LongDescription)
                         .SetWrapMode(UITextWrapMode.Wrap)
                     )
                 ),
                 UILayout.Stack(16,
-                    UIPage.Labelled("SetTitleWrap(true)", new TextComponent()
+                    DemoUI.CreateLabelled("SetTitleWrap(true)", new TextComponent()
                         .SetTitle("Sister Ilse of the Lantern Quarter, keeper of the Hall of Oaths")
                         .SetTitleWrap(true)
                         .SetDescription(LongDescription)
                         .SetWrapMode(UITextWrapMode.Wrap)
                     ),
-                    UIPage.Labelled("An expander's header", new ExpanderComponent()
+                    DemoUI.CreateLabelled("An expander's header", new ExpanderComponent()
                         .SetCollapsed()
                         .ConfigureDefaultHeader(header => header
                             .SetTitle("Sister Ilse")
@@ -285,7 +285,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                         .SetContent(UIText.Note("The header's description wraps by itself, beside the chevron."))
                     )
                 ),
-                UIPage.Labelled("A card's header", new CardComponent()
+                DemoUI.CreateLabelled("A card's header", new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Sister Ilse")
                         .SetDescription(LongDescription)

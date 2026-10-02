@@ -49,12 +49,12 @@ internal sealed partial class ButtonProgressGroupContext : DemoGroupContext
     public partial bool Busy { get; set; }
 
     [RecursiveMember]
-    public partial string Stage { get; set; } = "Not started";
+    public partial UIPhrase? Stage { get; set; } = UIPhrase.Of("demo.mechanisms.commands.progress.not-started");
 
     [RecursiveMember]
     public partial UIBadgeType StageStyle { get; set; } = UIBadgeType.Surface;
 
-    public void Enter(string stage, UIBadgeType style)
+    public void Enter(UIPhrase stage, UIBadgeType style)
     {
         Stage = stage;
         StageStyle = style;
@@ -116,16 +116,18 @@ internal sealed partial class ButtonBackgroundGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
 {
+    private const string Waiting = "demo.mechanisms.commands.decision.waiting";
+
     [RecursiveMember]
     public partial bool Open { get; set; } = true;
 
     [RecursiveMember]
-    public partial string Outcome { get; set; } = "Waiting for a decision";
+    public partial UIPhrase? Outcome { get; set; } = UIPhrase.Of(Waiting);
 
     [RecursiveMember]
     public partial UIBadgeType OutcomeStyle { get; set; } = UIBadgeType.Surface;
 
-    public void Decide(string outcome, UIBadgeType style)
+    public void Decide(UIPhrase outcome, UIBadgeType style)
     {
         Open = false;
         Outcome = outcome;
@@ -135,7 +137,7 @@ internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
     public void Reopen()
     {
         Open = true;
-        Outcome = "Waiting for a decision";
+        Outcome = UIPhrase.Of(Waiting);
         OutcomeStyle = UIBadgeType.Surface;
     }
 }
@@ -145,12 +147,14 @@ internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class CommandsController() : DemoController
 {
+    private const string Words = "demo.mechanisms.commands.";
+
     private static readonly (string Stage, UIBadgeType Style)[] ProvisioningStages =
     [
-        ("Allocating the disk", UIBadgeType.Info),
-        ("Installing the image", UIBadgeType.Info),
-        ("Running health checks", UIBadgeType.Warning),
-        ("Opening the firewall", UIBadgeType.Primary)
+        (Words + "progress.disk", UIBadgeType.Info),
+        (Words + "progress.image", UIBadgeType.Info),
+        (Words + "progress.checks", UIBadgeType.Warning),
+        (Words + "progress.firewall", UIBadgeType.Primary)
     ];
 
     [RecursiveMember]
@@ -180,11 +184,11 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public async Task DeployAsync(CancellationToken cancellationToken)
     {
-        LatencyGroup.LogEvent("the server heard the press");
+        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.heard"));
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-        LatencyGroup.LogEvent("finished two seconds later");
+        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.finished"));
     }
 
     /// <summary>
@@ -194,12 +198,12 @@ internal sealed partial class CommandsController() : DemoController
     public async Task DeployBoundAsync(CancellationToken cancellationToken)
     {
         LatencyGroup.Busy = true;
-        LatencyGroup.LogEvent("Busy = true, on its way to the browser");
+        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.busy-on"));
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
         LatencyGroup.Busy = false;
-        LatencyGroup.LogEvent("Busy = false, two seconds later");
+        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.busy-off"));
     }
 
     /// <summary>
@@ -209,7 +213,7 @@ internal sealed partial class CommandsController() : DemoController
     public async Task ChargeGuardedAsync(CancellationToken cancellationToken)
     {
         GuardGroup.CountGuarded();
-        GuardGroup.LogEvent("guarded — the button was off before the press left the browser");
+        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.guarded"));
 
         await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
 
@@ -220,7 +224,7 @@ internal sealed partial class CommandsController() : DemoController
     public async Task ChargePlainAsync(CancellationToken cancellationToken)
     {
         GuardGroup.CountPlain();
-        GuardGroup.LogEvent("bare — this press got through; a repeat would be dropped without a word");
+        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.plain"));
 
         await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
     }
@@ -231,7 +235,7 @@ internal sealed partial class CommandsController() : DemoController
         GuardGroup.GuardedCount = "0";
         GuardGroup.PlainCount = "0";
         GuardGroup.GuardedEnabled = true;
-        GuardGroup.LogEvent("both counters back to zero");
+        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.reset"));
     }
 
     /// <summary>
@@ -244,11 +248,11 @@ internal sealed partial class CommandsController() : DemoController
         if (!DecisionGroup.Open)
             return;
 
-        DecisionGroup.LogEvent("approving — the other button went off before this left the browser");
+        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.approving"));
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide("Approved", UIBadgeType.Success);
+        DecisionGroup.Decide(UIPhrase.Of(Words + "decision.approved"), UIBadgeType.Success);
     }
 
     [UICommand]
@@ -257,18 +261,18 @@ internal sealed partial class CommandsController() : DemoController
         if (!DecisionGroup.Open)
             return;
 
-        DecisionGroup.LogEvent("rejecting — the other button went off before this left the browser");
+        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.rejecting"));
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide("Rejected", UIBadgeType.Danger);
+        DecisionGroup.Decide(UIPhrase.Of(Words + "decision.rejected"), UIBadgeType.Danger);
     }
 
     [UICommand]
     public void ReopenRequest()
     {
         DecisionGroup.Reopen();
-        DecisionGroup.LogEvent("open again");
+        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.reopened"));
     }
 
     /// <summary>
@@ -283,17 +287,17 @@ internal sealed partial class CommandsController() : DemoController
         {
             foreach ((var stage, UIBadgeType style) in ProvisioningStages)
             {
-                ProgressGroup.Enter(stage, style);
+                ProgressGroup.Enter(UIPhrase.Of(stage), style);
 
                 await Task.Delay(800, cancellationToken).ConfigureAwait(false);
             }
 
-            ProgressGroup.Enter("Running", UIBadgeType.Success);
+            ProgressGroup.Enter(UIPhrase.Of(Words + "progress.running"), UIBadgeType.Success);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The tab that pressed it went away mid-way (a reload): the page that comes back finds it not started, not stuck half done.
-            ProgressGroup.Enter("Not started", UIBadgeType.Surface);
+            ProgressGroup.Enter(UIPhrase.Of(Words + "progress.not-started"), UIBadgeType.Surface);
             throw;
         }
         finally
@@ -311,17 +315,17 @@ internal sealed partial class CommandsController() : DemoController
     {
         using CancellationTokenSource running = BackgroundGroup.Begin(cancellationToken);
 
-        BackgroundGroup.LogEvent("backing up db-eu-west-1 — type a note or press Cancel meanwhile");
+        BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backing-up"));
 
         try
         {
             await Task.Delay(6000, running.Token).ConfigureAwait(false);
 
-            BackgroundGroup.LogEvent("backup of db-eu-west-1 finished, six seconds later");
+            BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backed-up"));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            BackgroundGroup.LogEvent("backup cancelled — the Cancel reached it while it ran");
+            BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backup-cancelled"));
         }
         finally
         {
@@ -339,8 +343,9 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public void FailUnhandled()
     {
-        ReportGroup.LogEvent("about to throw — nothing in the command reports it");
+        ReportGroup.LogEvent(UIPhrase.Of(Words + "log.throwing"));
 
+        // The exception's text is the developer's: the page shows the framework's own words unless IncludeExceptionDetail is on.
         throw new InvalidOperationException("The release gate refused: staging has been unhealthy for 90 seconds.");
     }
 
@@ -348,18 +353,18 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public UICommandResult FailReported()
     {
-        ReportGroup.LogEvent("refused, and said so in its own words");
+        ReportGroup.LogEvent(UIPhrase.Of(Words + "log.refused"));
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect("Staging has been unhealthy for 90 seconds — the release gate refused.", UIColorStyle.Warning)
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.refused"), UIColorStyle.Warning)
         ]);
     }
 
     [UICommand]
     public UICommandResult GoToButton()
     {
-        EffectGroup.LogEvent("NavigateEffect — the client changes page");
+        EffectGroup.LogEvent(UIPhrase.Of(Words + "log.navigate"));
 
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = "/actions/button" })]);
     }
@@ -370,7 +375,7 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public async Task DownloadReportAsync(CancellationToken cancellationToken)
     {
-        EffectGroup.LogEvent("staged, and handed over as a single-use path");
+        EffectGroup.LogEvent(UIPhrase.Of(Words + "log.download"));
 
         var content = Encoding.UTF8.GetBytes("stage,seconds\nallocate,0.8\ninstall,0.8\ncheck,0.8\nfirewall,0.8\n");
 

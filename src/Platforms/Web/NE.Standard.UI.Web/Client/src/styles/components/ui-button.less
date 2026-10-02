@@ -17,7 +17,8 @@
     border: 1px solid transparent;
     border-radius: var(--ui-radius-button);
     background-color: var(--ui-surface-color, transparent);
-    .ui-surface-image();
+    // The blur's layer on `::before`: `::after` is the press's wave (core/press.less).
+    .ui-surface-image(before);
     color: inherit;
     font: inherit;
     text-align: center;

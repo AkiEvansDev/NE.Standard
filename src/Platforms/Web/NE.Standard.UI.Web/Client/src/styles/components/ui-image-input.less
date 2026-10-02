@@ -181,7 +181,7 @@
         flex: 0 0 auto;
         width: 1.75rem;
         height: 1.75rem;
-        border-radius: 4px;
+        border-radius: @ui-part-radius;
     }
 
     .ui-image-input--inline .ui-image-input__placeholder {
@@ -249,7 +249,7 @@
     .ui-image-input--inline:is(.ui-input--ghost, .ui-input--underline) .ui-image-input__picture {
         width: 1.5rem;
         height: 1.5rem;
-        border-radius: 3px;
+        border-radius: @ui-part-radius-sm;
     }
 
 // A row's caption (ui-input.less), restated since the surface is not in `@ui-input-field`; text reads from the trailing edge.
@@ -317,7 +317,7 @@
         .ui-image-input--inline.ui-input--small .ui-image-input__picture {
             width: 1.125rem;
             height: 1.125rem;
-            border-radius: 3px;
+            border-radius: @ui-part-radius-sm;
         }
 
         .ui-image-input--inline.ui-input--small .ui-image-input__placeholder {
@@ -433,20 +433,10 @@
 
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.
 .ui-image-input__remove {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    .ui-picture-glass();
     padding: 0;
     border: 0;
-    background: color-mix(in srgb, black 45%, transparent);
-    color: white;
-    opacity: 0;
-    // Not pressable while it cannot be seen: on a touch screen the tap that brings the hover is also the click.
-    pointer-events: none;
     cursor: pointer;
-    transition: opacity @ui-motion-fast @ui-motion-ease;
     .ui-cross-glyph(@ui-glyph-lg);
 }
 
@@ -599,7 +589,7 @@
     cursor: grab;
     // The finger's drag and pinch are the picture's, not the page's scroll and zoom.
     touch-action: none;
-    user-select: none;
+    .ui-user-select(none);
 }
 
     // On a phone the dialog already fills the screen less its margin: the stage takes its whole width.
@@ -647,10 +637,3 @@
             .ui-visually-hidden();
         }
     }
-
-.ui-image-crop__actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: @ui-space-2;
-}

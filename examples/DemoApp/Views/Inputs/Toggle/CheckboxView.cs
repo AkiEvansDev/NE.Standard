@@ -116,7 +116,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                 .AddChild(new CheckboxComponent()
                     .SetIcon(DemoIcons.Shield)
                     .SetTitle("Two-factor authentication")
-                    .SetDescription("Adds a *second step* when signing in from a new device.")
+                    .SetDescription("A *second step* on a new device.")
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetBadgeText("Recommended")
                     .SetBadgeStyle(UIBadgeType.Success)
@@ -154,7 +154,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     {
         return DemoUI.CreateExample("What it is not",
             UILayout.Row(32)
-                .AddChild(UIPage.Labelled("Two checkboxes, two answers", UILayout.Stack(8)
+                .AddChild(DemoUI.CreateLabelled("Two checkboxes, two answers", UILayout.Stack(8)
                     .AddChild(new CheckboxComponent()
                         .SetTitle("Notify by email")
                         .SetValue(true)
@@ -165,7 +165,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                     )
                     )
                 )
-                .AddChild(UIPage.Labelled("A radio group, exactly one", new RadioGroupComponent()
+                .AddChild(DemoUI.CreateLabelled("A radio group, exactly one", new RadioGroupComponent()
                     .SetTitle("Notify me by")
                     .SetOptions(
                     [

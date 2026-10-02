@@ -32,7 +32,8 @@ public interface ITreeNodeModel : ITextBaseModel
     bool? Expanded { get; }
 
     /// <summary>
-    /// Gets the key of the node this one was dropped on, empty for the tree's ground; written by a drop, read on <c>move</c>.
+    /// Gets the key of the folder this one was moved into, empty for the tree's top level; written by a move, read on <c>move</c>, whose
+    /// event value is the place among that folder's nodes.
     /// </summary>
     string? DropTarget { get; }
 }

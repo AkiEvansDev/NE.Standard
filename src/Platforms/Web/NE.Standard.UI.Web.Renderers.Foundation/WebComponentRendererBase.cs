@@ -652,7 +652,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             UIValidationSeverity.Warning => "ui-validation--warning",
             UIValidationSeverity.Info => "ui-validation--info",
-            _ => "ui-invalid"
+            _ => WebClassNames.Invalid
         };
 
     private static string ValidationColor(UIValidationSeverity severity)

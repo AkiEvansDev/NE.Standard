@@ -1,7 +1,7 @@
 // The items variant of a tabs strip: captions and pages from one collection, keyed by the item, with a tab menu of its own.
 
 import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemKindAttribute, PassiveMenuEntrySelector,
+    BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector,
     TabCaptionAttribute, TabOrderAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
     UndraggableAttribute, TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
 } from "../addressing/dom-attributes";
@@ -41,7 +41,7 @@ const NoOverflowModifier = "ui-tabs-view--no-overflow";
 const PageClass = "ui-tab-item__page";
 const SelectedModifier = "ui-tab-item--selected";
 
-const MenuEntrySelector = ".ui-menu-item";
+const MenuEntrySelector = `.${MenuItemClass}`;
 
 /** An application's entry of the tab menu, raised on the strip: EventNames.TabMenuEntry. */
 const TabMenuEntryEventName = "tab-menu-entry";

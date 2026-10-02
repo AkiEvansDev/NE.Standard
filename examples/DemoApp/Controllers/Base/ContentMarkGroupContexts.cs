@@ -57,6 +57,9 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
     public partial UICornerRadius? CornerRadius { get; set; }
 
     [RecursiveMember]
+    public partial UIImageShape? Shape { get; set; }
+
+    [RecursiveMember]
     public partial string? AltText { get; set; } = SampleAltText;
 
     public ImageGroupContext()
@@ -64,6 +67,7 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
         AddOption(nameof(Source), CycleSource, () => Source);
         AddOption(nameof(Fit), CycleFit, () => Fit);
         AddOption(nameof(CornerRadius), CycleCornerRadius, () => CornerRadius);
+        AddOption(nameof(Shape), CycleShape, () => Shape);
         AddOption(nameof(AltText), ToggleAltText, () => AltText);
         AddTooltipOptions(SampleTooltip);
     }
@@ -77,6 +81,10 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
 
     public void CycleCornerRadius()
         => SetLastChange(nameof(CornerRadius), CornerRadius = CycleValue(CornerRadius, UICornerRadius.Uniform(8), UICornerRadius.Top(24), UICornerRadius.Uniform(999), null));
+
+    // A circle squares the box and crops to the middle; against a landscape source it shows what it takes.
+    public void CycleShape()
+        => SetLastChange(nameof(Shape), Shape = CycleEnum(Shape));
 
     public void ToggleAltText()
         => SetLastChange(nameof(AltText), AltText = CycleValue(AltText, null, SampleAltText));

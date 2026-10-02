@@ -6,9 +6,18 @@ import test from "node:test";
 
 import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-installFakeDom();
+installFakeDom({
+    MutationObserver: class {
+        public observe(): void {
+        }
+    }
+});
 
 const { itemsHostOf, keepHeldRow, letGoOfRow, revealItem } = await import("../src/items/item-reveal.ts");
+const { ScrollAnchorEngine } = await import("../src/interactions/scroll-anchor-engine.ts");
+
+// The page's one listener for the reader's own scroll, which lets go of a held row.
+new ScrollAnchorEngine({ root: real<ParentNode>(fakeDocument.body) });
 
 /** A windowed host 300 tall over 2000 of content, scrolled to `scrollTop`, its rows placed by the test in the viewport's coordinates. */
 function host(scrollTop: number, ...children: FakeElement[]): FakeElement {
@@ -88,11 +97,32 @@ test("the row stays where it was shown as the window around it is laid out again
     keepHeldRow(real<Element>(list));
     assert.equal(list.scrollTop, 680);
 
+    // A wheel in another list holds on: only the reader's own scroll of this one lets go.
+    const other = FakeElement.of("ui-items-view__host", { "data-ui-items-host": "" });
+
+    fakeDocument.body.append(other);
+    other.dispatchEvent(new FakeEvent("wheel"));
+    row.rect = { ...row.rect, top: 200 };
+    keepHeldRow(real<Element>(list));
+    assert.equal(list.scrollTop, 880);
+
     // The reader's own wheel lets go: the next layout moves nothing.
     row.dispatchEvent(new FakeEvent("wheel"));
     row.rect = { ...row.rect, top: 90 };
     keepHeldRow(real<Element>(list));
-    assert.equal(list.scrollTop, 680);
+    assert.equal(list.scrollTop, 880);
+});
+
+test("a host revealed again and again puts no listener of its own on its viewport", () => {
+    const list = host(0, rowAt("m1", 0));
+    let added = 0;
+
+    list.addEventListener = () => void added++;
+
+    for (let i = 0; i < 3; i++)
+        revealItem(real<Element>(list), "m1", "Start", "auto");
+
+    assert.equal(added, 0);
 });
 
 test("a scroll asked for elsewhere lets go of the row, and a row no longer drawn is let go of", () => {

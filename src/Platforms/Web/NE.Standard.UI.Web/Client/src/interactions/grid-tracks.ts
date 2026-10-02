@@ -225,7 +225,7 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
     if (lower > upper)
         return null;
 
-    const clamped = Math.min(Math.max(delta, lower), upper);
+    const clamped = snapSliver(Math.min(Math.max(delta, lower), upper), delta, before.total, after.total, lower, upper);
 
     if (clamped === 0)
         return null;
@@ -252,6 +252,26 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
     }
 
     return next;
+}
+
+/** Below this a run is a sliver: its words stood one a line and stretched the row, so it folds to nothing or opens to this. */
+const SliverPixels = 120;
+
+/**
+ * Keeps either run out of the sliver between nothing and `SliverPixels`: a move into it goes on to nothing when it shrinks that run,
+ * and stops at the edge of it when it grows one, within the bounds the move was clamped to.
+ */
+function snapSliver(move: number, delta: number, before: number, after: number, lower: number, upper: number): number {
+    let snapped = move;
+    const beforeNext = before + snapped;
+    const afterNext = after - snapped;
+
+    if (beforeNext > 0 && beforeNext < SliverPixels)
+        snapped = delta < 0 ? -before : SliverPixels - before;
+    else if (afterNext > 0 && afterNext < SliverPixels)
+        snapped = delta > 0 ? after : after - SliverPixels;
+
+    return Math.min(Math.max(snapped, lower), upper);
 }
 
 /** A run's size, each track's share of it, and the totals the tracks' bounds allow when it is scaled by share. */
@@ -353,4 +373,21 @@ export function pinOffsets(sizes: readonly number[], pinned: number): number[] {
 /** The tracks with the hidden columns' at zero and unbounded: a hidden column keeps its track, so every index after it stays true. */
 export function zeroTracks(tracks: readonly GridTrack[], hidden: ReadonlySet<number>): GridTrack[] {
     return tracks.map((track, index) => hidden.has(index) ? { kind: "px", value: 0 } : track);
+}
+
+/**
+ * Whether a child placed from grid line `start` to `end` (computed values: a line, `span N` or `auto`) covers only tracks of no
+ * size; a child the grid placed by itself (`auto`) is never one.
+ */
+export function coversNoRoom(start: string, end: string, sizes: readonly number[]): boolean {
+    const first = Number(start);
+
+    if (!Number.isInteger(first) || first < 1)
+        return false;
+
+    const spanned = /^span\s+(\d+)$/.exec(end.trim());
+    const line = Number(end);
+    const last = spanned !== null ? first + Number(spanned[1]) : Number.isInteger(line) && line > first ? line : first + 1;
+
+    return last - 1 <= sizes.length && sizes.slice(first - 1, last - 1).every(size => size < 1);
 }

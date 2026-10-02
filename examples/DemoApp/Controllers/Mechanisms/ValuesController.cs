@@ -7,15 +7,19 @@ namespace DemoApp.Controllers.Mechanisms;
 
 internal sealed partial class TextInputChangeGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     [RecursiveMember]
     public partial string? Value { get; set; } = "Billing worker";
 
     public void RecordChange()
-        => LogEvent($"change -> \"{Value}\"");
+        => LogEvent(UIPhrase.Of(Words + "log.change", ("value", Value)));
 }
 
 internal sealed partial class TextInputTrimGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     [RecursiveMember]
     public partial string? Value { get; set; } = "   Billing worker   ";
 
@@ -23,7 +27,7 @@ internal sealed partial class TextInputTrimGroupContext : DemoGroupContext
     /// Reports the length too, since trimming happens client-side before the value is sent.
     /// </summary>
     public void RecordChange()
-        => LogEvent($"received -> \"{Value}\" (length {Value?.Length ?? 0})");
+        => LogEvent(UIPhrase.Of(Words + "log.trimmed", ("value", Value), ("length", Value?.Length ?? 0)));
 }
 
 /// <summary>
@@ -31,6 +35,9 @@ internal sealed partial class TextInputTrimGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class TextInputFilterGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
+    // The services are the sample's data, shown as written in every language; only the page's own words are keys.
     private static readonly (string Id, string Title, string Description)[] Catalogue =
     [
         ("provisioner", "Provisioner", "Creates, resizes and deletes servers"),
@@ -61,7 +68,7 @@ internal sealed partial class TextInputFilterGroupContext : DemoGroupContext
                 Services.Add(ToItem(entry));
         }
 
-        LogEvent($"filtered by \"{query}\" -> {Services.Count} of {Catalogue.Length}");
+        LogEvent(UIPhrase.Of(Words + "log.filtered", ("query", query), ("count", Services.Count), ("all", Catalogue.Length)));
     }
 
     private static TextItem ToItem((string Id, string Title, string Description) entry)
@@ -70,6 +77,8 @@ internal sealed partial class TextInputFilterGroupContext : DemoGroupContext
 
 internal sealed partial class TextInputSubmitGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     private static readonly string[] TakenEmails = ["owner@orvane.example", "admin@orvane.example"];
 
     [RecursiveMember]
@@ -89,19 +98,21 @@ internal sealed partial class TextInputSubmitGroupContext : DemoGroupContext
     {
         if (Email is { } email && Array.Exists(TakenEmails, taken => string.Equals(taken, email.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
-            EmailValidation = UIValidationMessage.Error("That address already owns a service.");
-            LogEvent($"refused -> \"{Email}\" is taken");
+            EmailValidation = UIValidationMessage.Error(Words + "submit.taken");
+            LogEvent(UIPhrase.Of(Words + "log.submit.refused", ("email", Email)));
             return;
         }
 
         EmailValidation = null;
-        LogEvent($"submitted -> \"{Email}\", notes \"{Notes}\"");
+        LogEvent(UIPhrase.Of(Words + "log.submit.done", ("email", Email), ("notes", Notes)));
     }
 }
 
 /// <summary>The form whose errors stand under it in one paragraph; the submit only says what it received.</summary>
 internal sealed partial class TextInputBlockGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     [RecursiveMember]
     public partial string? Name { get; set; }
 
@@ -112,7 +123,7 @@ internal sealed partial class TextInputBlockGroupContext : DemoGroupContext
     public partial string? Email { get; set; }
 
     public void Submit()
-        => LogEvent($"created -> {Name} on {Port}, owner {Email ?? "nobody"}");
+        => LogEvent(UIPhrase.Of(Words + "log.block.created", ("name", Name), ("port", Port), ("owner", Email is null ? UIPhrase.Of(Words + "log.block.nobody") : Email)));
 }
 
 /// <summary>
@@ -126,11 +137,15 @@ internal sealed partial class NotedRowItem : KeyValueActionItem
 
 internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     private const string LimitId = "limit";
     private const string OwnerId = "owner";
+    private const string DailyLimit = Words + "daily-limit";
+    private const string Owner = Words + "owner";
 
     // A rule the reader cannot satisfy is a rule that says nothing, so the note names the shape it wants.
-    private const string OwnerNote = "A team cannot sign a change off: name a person, as an address — sam@orvane.example.";
+    private const string OwnerNote = Words + "note.owner";
 
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
@@ -139,7 +154,7 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
         new NotedRowItem
         {
             Id = LimitId,
-            Key = new TextItem { Title = "Daily limit", TitleColor = UIThemeColor.Muted },
+            Key = new TextItem { Title = DailyLimit, TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = "500" },
             EditValue = 500,
             InputTemplate = LimitId,
@@ -148,7 +163,7 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
         new NotedRowItem
         {
             Id = OwnerId,
-            Key = new TextItem { Title = "Owner", TitleColor = UIThemeColor.Muted },
+            Key = new TextItem { Title = Owner, TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = "on-call" },
             EditValue = "on-call",
             InputTemplate = OwnerId,
@@ -175,7 +190,7 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
                 noted.Note = text.Contains('@', StringComparison.Ordinal) ? null : UIValidationMessage.Warning(OwnerNote);
 
             row.ShowInput = false;
-            LogEvent($"saved {id} -> {text}");
+            LogEvent(UIPhrase.Of(Words + "log.note.saved", ("row", UIPhrase.Of(id == OwnerId ? Owner : DailyLimit)), ("value", text)));
             return;
         }
     }
@@ -183,6 +198,8 @@ internal sealed partial class KeyValueActionNoteGroupContext : DemoGroupContext
 
 internal sealed partial class KeyValueActionElsewhereGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     private const string LimitId = "limit";
     private const string RetriesId = "retries";
 
@@ -192,7 +209,7 @@ internal sealed partial class KeyValueActionElsewhereGroupContext : DemoGroupCon
         new KeyValueActionItem
         {
             Id = LimitId,
-            Key = new TextItem { Title = "Daily limit", TitleColor = UIThemeColor.Muted },
+            Key = new TextItem { Title = Words + "daily-limit", TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = "500" },
             EditValue = 500,
             InputTemplate = LimitId,
@@ -201,7 +218,7 @@ internal sealed partial class KeyValueActionElsewhereGroupContext : DemoGroupCon
         new KeyValueActionItem
         {
             Id = RetriesId,
-            Key = new TextItem { Title = "Retries", TitleColor = UIThemeColor.Muted },
+            Key = new TextItem { Title = Words + "retries", TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = "3" },
             EditValue = 3,
             InputTemplate = RetriesId,
@@ -225,6 +242,8 @@ internal sealed partial class KeyValueActionElsewhereGroupContext : DemoGroupCon
 /// </summary>
 internal sealed partial class ServerBoundsGroupContext : DemoGroupContext
 {
+    private const string Words = "demo.mechanisms.values.";
+
     /// <summary>The last day a snapshot may be kept until.</summary>
     public static readonly DateOnly Latest = new(2026, 9, 30);
 
@@ -235,10 +254,10 @@ internal sealed partial class ServerBoundsGroupContext : DemoGroupContext
     public partial DateOnly? KeepUntil { get; set; } = new(2026, 9, 15);
 
     public void ReplicasChanged()
-        => LogEvent($"the controller holds {Replicas?.ToString(CultureInfo.InvariantCulture) ?? "nothing"} replicas");
+        => LogEvent(Replicas is { } replicas ? UIPhrase.Of(Words + "log.replicas", ("count", replicas.ToString(CultureInfo.InvariantCulture))) : UIPhrase.Of(Words + "log.replicas.none"));
 
     public void KeepUntilChanged()
-        => LogEvent($"the controller holds {KeepUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "no day"}");
+        => LogEvent(KeepUntil is { } day ? UIPhrase.Of(Words + "log.keep-until", ("day", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))) : UIPhrase.Of(Words + "log.keep-until.none"));
 }
 
 /// <summary>

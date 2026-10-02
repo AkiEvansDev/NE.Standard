@@ -30,7 +30,7 @@
             position: fixed;
             top: 0;
             bottom: 0;
-            z-index: 50;
+            z-index: @ui-z-drawer;
             width: min(@ui-drawer-width, 85vw);
             overflow: auto;
             background: var(--ui-color-surface);
@@ -52,7 +52,7 @@
         [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"][data-ui-bottom-bar] {
             position: sticky;
             bottom: 0;
-            z-index: 30;
+            z-index: @ui-z-band;
             grid-column: 1;
             grid-row: 4;
             overflow: visible;
@@ -63,6 +63,12 @@
             [data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] [data-ui-id]:has(.ui-menu--rail) {
                 display: contents;
             }
+
+        // While the on-screen keyboard is up (screen-keyboard.ts) the bar steps aside: standing on the keyboard's edge, it took a
+        // row from what is being written and offered nothing a reader typing would reach for.
+        :root[data-ui-keyboard-up] [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"][data-ui-bottom-bar] {
+            display: none;
+        }
 
         [data-ui-root][data-ui-side-drawers] > [data-ui-region="right-side"] {
             right: 0;
@@ -115,7 +121,7 @@
     .ui-shell__drawer-backdrop {
         position: fixed;
         inset: 0;
-        z-index: 49;
+        z-index: @ui-z-drawer-veil;
         .ui-dialog-veil();
         opacity: 0;
         transition: opacity @ui-motion-normal @ui-motion-exit, display @ui-motion-normal allow-discrete;

@@ -1,5 +1,6 @@
 // Walking a menu from the keyboard, and firing an entry from its shortcut.
 
+import { isCaretField } from "./caret-fields.ts";
 import { findOpenModalDialog } from "./open-dialogs.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { focusByPointer } from "./popup-focus.ts";
@@ -11,10 +12,8 @@ import { isBottomBar, towardContent } from "./menu-group-engine.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { logWarn } from "../runtime/logger.ts";
-import { CollapsedAttribute, MenuItemClass as ItemClass, MenuRailClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector, TooltipAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuRailClass, MenuRootClass as RootClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector, TooltipAttribute } from "../addressing/dom-attributes.ts";
 
-const RootClass = "ui-menu";
-const SelectedModifier = "ui-menu-item--selected";
 const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
@@ -322,15 +321,12 @@ function touchesMenu(mutation: MutationRecord): boolean {
     return false;
 }
 
-/** Whether an unmodified press belongs to text the user is editing. */
+/** Whether an unmodified press belongs to text the user is editing: a caret field or an editable region, not a checkbox or a slider. */
 function isTypingTarget(domEvent: KeyboardEvent): boolean {
     if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
         return false;
 
     const target = domEvent.target;
 
-    if (!(target instanceof HTMLElement))
-        return false;
-
-    return target.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+    return isCaretField(target) || (target instanceof HTMLElement && target.isContentEditable);
 }

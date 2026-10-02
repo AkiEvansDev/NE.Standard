@@ -33,6 +33,20 @@ test("a toast's phrase is filled in the page's language and written again at a s
     assert.equal(words(toast), "Сохранено: Ann.");
 });
 
+test("a toast's close is named in the page's language and named again at a switch", () => {
+    clientStrings.useTable({ language: "en", complete: true, prefixes: [], words: { "ui.notification.close": "Close" } });
+
+    const toast = engine().show({ message: "Saved.", sticky: true });
+    const close = real<FakeElement>(toast.querySelector(".ui-notification__close"));
+
+    assert.equal(close.getAttribute("aria-label"), "Close");
+
+    clientStrings.useTable({ language: "ru", complete: true, prefixes: [], words: { "ui.notification.close": "Закрыть" } });
+    clientStrings.rewriteMarks(real<ParentNode>(fakeDocument.body));
+
+    assert.equal(close.getAttribute("aria-label"), "Закрыть");
+});
+
 test("a toast's author's text is looked up only where it could be a key: under prefixes, a prefixed one", () => {
     clientStrings.useTable({ language: "ru", complete: true, prefixes: ["home."], words: { "home.saved": "Сохранено.", "Saved.": "Сохранено!" } });
 

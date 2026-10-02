@@ -27,9 +27,11 @@
     .ui-responsive-property(min-width, --ui-min-width, 0);
 }
 
+// The room under the caption, not the root's whole height: 100% ran the row past the root by the caption and clipped its labels.
 .ui-slider.ui-orientation--vertical > .ui-slider__row {
     flex-direction: column;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 // The handle's own box, and the only thing the bubble can be positioned against, since a range input paints its handle inside itself.

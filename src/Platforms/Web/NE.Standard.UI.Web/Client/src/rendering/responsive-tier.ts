@@ -7,6 +7,9 @@ export type ResponsiveTier = (typeof responsiveTiers)[number];
 /** Where each tier starts, in CSS pixels — the same numbers as `@ui-breakpoint-*` in `core/tokens.less`, which `BreakpointSyncTests` holds equal. */
 export const responsiveBreakpoints: Readonly<Record<Exclude<ResponsiveTier, "base">, number>> = { sm: 640, md: 768, xl: 1280, xxl: 1536 };
 
+/** The drawer breakpoint as a media query, matching at it and above: below it the sides are drawers and a rail alone the bottom bar. */
+export const DrawerBreakpointQuery = `(min-width: ${responsiveBreakpoints.md}px)`;
+
 /** The tier the viewport is in now, judged the way the stylesheet's own `min-width` queries judge it. */
 export function currentResponsiveTier(matches: (query: string) => boolean = query => matchMedia(query).matches): ResponsiveTier {
     for (const tier of ["xxl", "xl", "md", "sm"] as const) {

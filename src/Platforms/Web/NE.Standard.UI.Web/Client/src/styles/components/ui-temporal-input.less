@@ -32,10 +32,16 @@
     display: inline-flex;
     flex-direction: column;
     align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-responsive-property(height, --ui-height, fit-content);
     gap: @ui-space-1;
     font: inherit;
+}
+
+// Never wider than the popup's grid, whatever room it is given (Fill, a stretched column, a dialog): its least width is the grid's
+// floor, so a stretch or a Width past it stops there and HorizontalAlignment places the rest; a long caption wraps at the grid.
+// On the root, to outrank the layouts' cap at their room (ui-container.less), which would let it fill that room.
+.ui-calendar[data-ui-id] {
+    max-width: min-content;
 }
 
 .ui-calendar__body {
@@ -71,6 +77,19 @@
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__stepper {
     margin-inline-start: auto;
 }
+
+// The calendar's toggle stands out of the wrap at the row's end, the room for it kept: as the row's last item it was what wrapped
+// first, alone onto a second line, while the period itself still fitted on the first.
+.ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row:has(> .ui-temporal-input__toggle) {
+    padding-inline-end: calc(@ui-space-3 + 1.25rem + @ui-space-2);
+}
+
+    .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row > .ui-temporal-input__toggle {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-end: @ui-space-3;
+        margin-block: auto;
+    }
 
     // With the caption inside the box, the period reads from the trailing edge, as a single value does: the spare width goes
     // between the caption and the period instead.
@@ -113,7 +132,7 @@
 
 .ui-temporal-input__segment {
     padding: 0 2px;
-    border-radius: 4px;
+    border-radius: @ui-part-radius;
     cursor: default;
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
@@ -176,6 +195,7 @@
     gap: @ui-space-2;
 }
 
+// The floor is also the in-place calendar's whole width (.ui-calendar's min-content cap above), so the two stay one size.
 .ui-temporal-input__calendar {
     display: flex;
     flex-direction: column;
@@ -287,7 +307,7 @@
     .ui-temporal-input__time-cell:disabled,
     .ui-temporal-input__nav:disabled {
         color: var(--ui-text-muted);
-        opacity: 0.55;
+        opacity: var(--ui-disabled-opacity);
         cursor: default;
     }
 

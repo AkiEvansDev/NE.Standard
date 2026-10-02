@@ -4,13 +4,15 @@
 // itself, as a menu button opens its list, without the bar's own entries where the host asks for the rest alone.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MarkedMenuEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MarkedMenuEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { ActionBarMoreClass, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { clampToViewport } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { isLongPressOpening, LongPress } from "./long-press.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
+import { shownRules } from "./tab-menu.ts";
+import type { MenuRow } from "./tab-menu.ts";
 import { FocusableSelector, focusBeforePress, focusOpenedList, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
 import { finishTransitions } from "../rendering/motion.ts";
 
@@ -19,8 +21,7 @@ const MenuAttribute = ContextMenuAttribute;
 
 // On a menu while it is open; the action bar reads it to keep "more" standing under the menu it opened.
 export const OpenClass = "ui-context-menu--open";
-const MenuRootClass = "ui-menu";
-const EntrySelector = `.ui-menu-item:not(${PassiveMenuEntrySelector})`;
+const EntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 const StripClass = `${ActionBarClass}--strip`;
 // "More" on a bar standing over its host, not in the row atop a menu.
 const MoreSelector = `.${ActionBarClass}:not(.${StripClass}) > .${ActionBarMoreClass}`;
@@ -285,27 +286,17 @@ function leaveOutBarEntries(host: HTMLElement): void {
             kept.push(entry);
     }
 
-    // A rule after an entry waits for one after it too; a rule before any entry, or beside one still waiting, goes.
-    let seenEntry = false;
-    let waiting: HTMLElement | null = null;
-
-    for (const entry of kept) {
+    // A rule stands between two runs of entries only; a caption counts as neither.
+    const rows = kept.map((entry): MenuRow => {
         const kind = entry.getAttribute(MenuItemKindAttribute);
 
-        if (kind === "separator") {
-            if (!seenEntry || waiting !== null)
-                leaveOut(entry);
-            else
-                waiting = entry;
-        }
-        else if (kind !== "header") {
-            seenEntry = true;
-            waiting = null;
-        }
-    }
+        return kind === "separator" ? "rule" : kind === "header" ? "hidden" : "shown";
+    });
 
-    if (waiting !== null)
-        leaveOut(waiting);
+    shownRules(rows).forEach((shownRule, index) => {
+        if (rows[index] === "rule" && !shownRule)
+            leaveOut(kept[index]);
+    });
 }
 
 /** Leaves an entry out of this opening: its row in the menu's list, so the list's gap goes with it. */

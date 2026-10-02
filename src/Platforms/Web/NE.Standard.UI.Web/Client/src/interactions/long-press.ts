@@ -40,6 +40,10 @@ export class LongPress {
     // What the press a menu opened for went down on, until the next press: its own `contextmenu` and its click are spent.
     private answered: Element | null = null;
 
+    // Where the finger stood as the menu opened, and whether it has slid past the slop since: a slide to an entry chooses it.
+    private openedAt: { readonly pointerId: number; readonly x: number; readonly y: number } | null = null;
+    private slid = false;
+
     public constructor(options: LongPressOptions) {
         this.opensMenu = options.opensMenu;
 
@@ -56,6 +60,8 @@ export class LongPress {
         const pointer = domEvent as Partial<PointerEvent>;
 
         this.answered = null;
+        this.openedAt = null;
+        this.slid = false;
 
         // A second finger is a pinch, not a held press.
         if (this.press !== null) {
@@ -76,6 +82,10 @@ export class LongPress {
     private handleMove(domEvent: Event): void {
         const pointer = domEvent as Partial<PointerEvent>;
         const press = this.press;
+        const opened = this.openedAt;
+
+        if (opened !== null && pointer.pointerId === opened.pointerId && Math.hypot((pointer.clientX ?? opened.x) - opened.x, (pointer.clientY ?? opened.y) - opened.y) > LongPressSlop)
+            this.slid = true;
 
         if (press === null || pointer.pointerId !== press.pointerId)
             return;
@@ -108,6 +118,7 @@ export class LongPress {
 
         // Spent only where a menu took it: with none, the browser's own menu, where it sends one, is the reader's as before.
         this.answered = opening.defaultPrevented ? press.target : null;
+        this.openedAt = this.answered === null ? null : { pointerId: press.pointerId, x: press.x, y: press.y };
     }
 
     /** The browser's own `contextmenu` for a press the timer answered is spent; one that comes first answers the press itself. */
@@ -115,7 +126,8 @@ export class LongPress {
         if (raised.has(domEvent))
             return;
 
-        if (this.answered !== null) {
+        // Only the one for what the finger held: a `contextmenu` raised anywhere else (a keyboard's menu key, a script) is not it.
+        if (this.answered !== null && domEvent.target instanceof Node && this.answered.contains(domEvent.target)) {
             domEvent.preventDefault();
             domEvent.stopImmediatePropagation();
             return;
@@ -124,12 +136,15 @@ export class LongPress {
         this.cancel();
     }
 
-    /** The click a long press's release may raise is not a press of what was under the finger; the menu's own entries are not it. */
+    /**
+     * The click a long press's release may raise presses nothing, wherever it lands — on what was under the finger, or on the menu that
+     * just opened there (a canvas that takes every touch for itself sends it over the menu, which took it for a press outside an entry
+     * and closed). A finger that slid to an entry after the menu opened chooses it.
+     */
     private handleClick(domEvent: Event): void {
-        const pressed = this.answered;
         const target = domEvent.target instanceof Element ? domEvent.target : null;
 
-        if (pressed === null || target === null || !pressed.contains(target) || target.closest(`[${ContextMenuAttribute}]`) !== null)
+        if (this.answered === null || target === null || (this.slid && target.closest(`[${ContextMenuAttribute}]`) !== null))
             return;
 
         this.answered = null;

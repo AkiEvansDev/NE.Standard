@@ -16,6 +16,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     private static readonly WebDomOperation[] AltTextOperations = [WebDomOperation.Attribute("alt")];
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageFitClass)];
     private static readonly WebDomOperation[] CornerRadiusOperations = [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)];
+    private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageShapeClass)];
 
     public override string ComponentTypeKey => ImageComponent.ComponentTypeKey;
 
@@ -58,6 +59,12 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
             if (value is UICornerRadius radius)
                 _ = target.Style("border-radius", WebCssValues.Radius(radius));
         }, CornerRadiusOperations);
+
+        _ = RenderProperty<UIImageShape?>(context, root, ImageComponent.ShapeProperty, static (target, value) =>
+        {
+            if (value is UIImageShape shape && WebClassNames.ImageShape(shape) is { Length: > 0 } className)
+                _ = target.Class(className);
+        }, ShapeOperations);
 
         RenderTooltip(context, root);
     }

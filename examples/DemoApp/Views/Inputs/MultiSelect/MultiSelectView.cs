@@ -128,7 +128,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
                     .SetPlaceholder("Pick the on-call staff")
                     .SetPrefixIcon(DemoIcons.Bell)
                     .SetOptions(Staff())
-                    .SetValue(["robin", "grace"])
+                    .SetValue(["robin", "grace", "alex", "ada"])
                     .SetWidth(UILayoutLength.Absolute(360))
                 )
                 .AddChild(UIText.Note("Chips wrap onto another line inside the field rather than run past its edge."))

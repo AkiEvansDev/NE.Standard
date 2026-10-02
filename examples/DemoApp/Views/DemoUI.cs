@@ -64,7 +64,7 @@ internal static class DemoUI
             ("/contents/badge", "demo.nav.contents.badge"),
             ("/contents/separator", "demo.nav.contents.separator"),
         ]),
-        ("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Navigation),
+        ("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Press),
         [
             ("/actions/button", "demo.nav.actions.button"),
             ("/actions/split-button", "demo.nav.actions.split-button"),
@@ -350,6 +350,18 @@ internal static class DemoUI
         => UILayout.Stack(spacing).SetPlacement(1, 1, 24, 1);
 
     /// <summary>
+    /// A sample under its label, as <c>UIPage.Labelled</c> lays it out, the label told to wrap: the demo's labels are sentences, which a
+    /// label keeps to one line unless the view says so.
+    /// </summary>
+    public static StackPanelComponent CreateLabelled(string label, IVisualComponent content)
+        => new StackPanelComponent()
+            .SetOrientation(UIOrientation.Vertical)
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetSpacing(6)
+            .AddChild(UIText.Label(label).SetTitleWrap(true))
+            .AddChild(content);
+
+    /// <summary>
     /// The heading over a component page's examples, across the page's width under a rule, so the options above read as finished.
     /// </summary>
     public static StackPanelComponent CreateSectionHeading(string title)
@@ -377,9 +389,12 @@ internal static class DemoUI
     /// <remarks>
     /// <paramref name="initControls"/> and its 220px column are optional, and <paramref name="controlsBelow"/> puts them under the
     /// content at every width, for a sample that needs the group's whole width; <paramref name="contentMinHeight"/>
-    /// reserves nothing unless a caller needs a fixed box; <paramref name="note"/> is the line under the title.
+    /// reserves nothing unless a caller needs a fixed box; <paramref name="note"/> is the line under the title. <paramref name="words"/>
+    /// is for a page whose groups are words rather than samples (the overlay pages, the mechanism pages): nothing in it is content, so
+    /// the unkeyed report, and with it <c>DemoWordsCoverageTests</c>, reads every static text of the group. <paramref name="context"/>
+    /// names the group's controller context, whose message stands under the group.
     /// </remarks>
-    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null, bool controlsBelow = false)
+    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null, bool controlsBelow = false, bool words = false)
     {
         var hasContext = !string.IsNullOrWhiteSpace(context);
         var hasNote = !string.IsNullOrWhiteSpace(note);
@@ -404,29 +419,30 @@ internal static class DemoUI
         // no room for a column of 220 pixels.
         var beside = controls is not null && !controlsBelow;
         var span = beside ? 23 : 24;
-        // The note under the title, the message's room under the note: an empty line reserved between a title and its note split them.
         var noteRow = hasNote ? 2 : 1;
-        var contextRow = noteRow + (hasContext ? 1 : 0);
-        var contentRow = contextRow + 1;
+        var contentRow = noteRow + 1;
+        // The message stands under the content, and under the controls a phone puts below it too, so one arriving moves neither.
+        var messageRow = contentRow + (controls is null ? 1 : 2);
+        // A group stretched to its taller neighbour's height takes the slack in a last, empty row, so the controls and the message stay
+        // right under the content and a message arriving moves nothing in the group.
+        var slackRow = messageRow + (hasContext ? 1 : 0);
 
         // No outline of its own: the preview and the options list each draw their own. No inline padding either, so a group's
         // content starts at the page's own edge, under its heading; the page's wrap keeps the groups apart.
         // The title row is as tall as the code button, so a group with the button starts its content where one without it does.
         // A sample, its title and its note are the author's prose and API names, shown as written: content for the unkeyed report.
         ContainerComponent group = new ContainerComponent()
-            .AsContentTree()
             .SetPadding(UIThickness.All(0, 12, 0, 12))
             .SetRow(1, UIGridUnit.Auto(min: 24))
             .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, columns, 1));
 
+        if (!words)
+            _ = group.AsContentTree();
+
         if (hasNote)
             _ = group.AddRow(UIGridUnit.Auto());
 
-        // Reserved for the message, so one arriving does not move the content.
-        if (hasContext)
-            _ = group.AddRow(UIGridUnit.Auto(min: 26));
-
-        _ = group.AddRow(UIGridUnit.Star());
+        _ = group.AddRow(UIGridUnit.Auto());
 
         // Centred in its row, as the code button beside it is: both stand on the row's middle with no offset tied to either's size.
         TextComponent header = new TextComponent()
@@ -446,19 +462,6 @@ internal static class DemoUI
 
         _ = group.AddChild(header);
 
-        // A row of its own rather than the title's description: sharing the title's cell would take the title off the row's middle.
-        if (hasContext)
-        {
-            _ = group.BindContext(context!);
-            _ = group.AddChild(new TextComponent()
-                .SetDescriptionType(UITextAppearance.Caption)
-                .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
-                .SetVerticalAlignment(UIAlignment.Start)
-                .BindDescription(nameof(DemoGroupContext.Message), UIBindingScope.Relative)
-                .SetPlacement(1, contextRow, 24, 1, md: UIGridPlacement.At(1, contextRow, span, 1))
-            );
-        }
-
         // Over the title's own cell rather than a column of its own, which would take a twenty-fourth of the width from every group.
         if (code is not null)
         {
@@ -472,9 +475,22 @@ internal static class DemoUI
 
         _ = group.AddChild(content);
 
-        if (controls is null)
-            return group;
+        if (controls is not null)
+            AddControls(group, controls, beside, contentRow, slackRow);
 
+        if (hasContext)
+            AddMessage(group, context!, messageRow, span);
+
+        return group.AddRow(UIGridUnit.Star());
+    }
+
+    /// <summary>The controls' panel: in the 220 px column beside the content from the medium breakpoint up, else under it.</summary>
+    /// <remarks>
+    /// Beside, the panel spans every row down to the slack row, so a panel taller than the content grows that row rather than sharing
+    /// its height out among the auto rows, the title's included.
+    /// </remarks>
+    private static void AddControls(ContainerComponent group, StackPanelComponent controls, bool beside, int contentRow, int slackRow)
+    {
         // A captioned block rather than a bare column of ghost buttons, and no frame: each control draws its own.
         ContainerComponent panel = new ContainerComponent()
             .SetVerticalAlignment(UIAlignment.Start)
@@ -483,8 +499,9 @@ internal static class DemoUI
             .AddRow(UIGridUnit.Auto())
             // The spacer keeps the frame the height of its rows rather than sharing the column's slack.
             .AddRow(UIGridUnit.Star())
+            // Centred in its row, as the group's title is in the row beside it, so the two captions stand on one line.
             .AddChild(UIText.Label("demo.group.actions")
-                .SetVerticalAlignment(UIAlignment.Start)
+                .SetVerticalAlignment(UIAlignment.Center)
                 .SetPlacement(1, 1, 24, 1)
             )
             .AddChild(new ContainerComponent()
@@ -493,15 +510,32 @@ internal static class DemoUI
                 .AddChild(controls)
                 .SetPlacement(1, 2, 24, 1)
             )
-            .SetPlacement(1, contentRow + 1, 24, 1, md: beside ? UIGridPlacement.At(24, 1, 1, contentRow) : null);
+            .SetPlacement(1, contentRow + 1, 24, 1, md: beside ? UIGridPlacement.At(24, 1, 1, slackRow) : null);
 
         if (beside)
             _ = group.SetColumn(24, UIGridUnit.Absolute(220));
 
-        return group
+        _ = group
             .AddRow(UIGridUnit.Auto())
             .AddChild(panel);
     }
+
+    /// <summary>
+    /// The line the group's controller writes, under everything else and reserving nothing: the sample never moves when a message
+    /// arrives, only the groups below it shift by a line, and the gap from the note to the sample is the same in every group.
+    /// </summary>
+    /// <remarks>Rejected: a row reserved under the note, which put 26 px between the note and the sample of every group with a controller.</remarks>
+    private static void AddMessage(ContainerComponent group, string context, int row, int span)
+        => _ = group
+            .AddRow(UIGridUnit.Auto())
+            .BindContext(context)
+            .AddChild(new TextComponent()
+                .SetDescriptionType(UITextAppearance.Caption)
+                .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                .SetMargin(UIThickness.All(0, 8, 0, 0))
+                .BindDescription(nameof(DemoGroupContext.Message), UIBindingScope.Relative)
+                .SetPlacement(1, row, 24, 1, md: UIGridPlacement.At(1, row, span, 1))
+            );
 
     /// <summary>
     /// The <c>&lt;/&gt;</c> button in a group's corner and the popup it opens: the sample's source, read-only, with a copy button.
@@ -645,8 +679,8 @@ internal static class DemoUI
     /// The source is the argument's own text, captured by the compiler, so the popup cannot drift from what runs; the price is that a
     /// sample is one expression, and the sample data it takes is named in it rather than shown.
     /// </remarks>
-    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, bool controlsBelow = false, [CallerArgumentExpression(nameof(example))] string code = "")
-        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code, controlsBelow);
+    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, bool controlsBelow = false, bool words = false, [CallerArgumentExpression(nameof(example))] string code = "")
+        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code, controlsBelow, words);
 
     /// <summary>
     /// The preview half of a component's own page: the component under test, alone, inside a fixed frame.
@@ -672,7 +706,7 @@ internal static class DemoUI
         foreach ((var caption, Action<ContainerComponent> initContent) in panes)
         {
             if (caption is not null)
-                _ = stack.AddChild(UIText.Label(caption));
+                _ = stack.AddChild(UIText.Label(caption).SetTitleWrap(true));
 
             ContainerComponent frame = new ContainerComponent()
                 .SetPadding(UIThickness.Uniform(12))
@@ -685,10 +719,10 @@ internal static class DemoUI
             _ = stack.AddChild(frame);
         }
 
-        // No "last change" line under the caption: every option row already prints its own value.
+        // No "last change" line under the caption: every option row already prints its own value. The frames hold the floor; one on the
+        // group as well would leave an empty band under them.
         return CreateGroup(null, "demo.group.preview",
             content => content.AddChild(stack),
-            contentMinHeight: contentMinHeight,
             columns: 14
         );
     }

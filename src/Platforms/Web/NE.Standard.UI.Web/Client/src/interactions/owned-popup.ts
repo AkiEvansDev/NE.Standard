@@ -10,7 +10,7 @@ import { isFocusable, isInert, isReadOnly } from "./interactive-state.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 import { PopupDismissal } from "./popup-dismissal.ts";
 import { PointerFocusAttribute } from "../addressing/dom-attributes.ts";
-import { focusAsLastInput, focusHolderAround, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
+import { focusableUntilLeft, focusAsLastInput, focusHolderAround, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
 
 /** One popup being opened: whose it is, what it is, and how it stands. */
 export type OwnedPopupOpening = {
@@ -273,11 +273,9 @@ function hasLiveFocus(): boolean {
     return active instanceof Element && active !== document.body && isFocusable(active);
 }
 
-/** Focuses a component's root, made focusable for it where its markup is not. */
+/** Focuses a component's root, made focusable for it where its markup is not, until the focus leaves it. */
 function focusRoot(owner: HTMLElement): void {
-    if (!owner.hasAttribute("tabindex") && owner.tabIndex < 0)
-        owner.tabIndex = -1;
-
+    focusableUntilLeft(owner);
     focusAsLastInput(owner);
 }
 

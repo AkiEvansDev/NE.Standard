@@ -52,7 +52,7 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     public string? RenamedTitle { get; set; }
 
     /// <summary>
-    /// Gets or sets the key of the node this one was dropped on, written by a drag; empty for the tree's own ground.
+    /// Gets or sets the key of the folder this one was moved into, written by a move; empty for the tree's top level.
     /// </summary>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,

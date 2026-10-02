@@ -58,7 +58,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(null, "demo.language.group.values",
             content => content.AddChild(UILayout.Stack(12)
-                .AddChild(new TextComponent().SetTitle("demo.language.static"))
+                .AddChild(new TextComponent().SetTitle("demo.language.static").SetTitleWrap(true))
                 .AddChild(UILayout.Row(8)
                     .AddChild(new BadgeComponent().BindText(nameof(WordsController.Label)))
                     .AddChild(new ButtonComponent().OnClick(nameof(WordsController.ShowCards)).SetType(UIButtonType.Ghost).SetTitle("demo.language.cards"))

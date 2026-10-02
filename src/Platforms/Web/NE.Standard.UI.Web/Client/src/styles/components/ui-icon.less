@@ -71,6 +71,13 @@
     border-radius: 0.1875em;
 }
 
+// IconShape Circle: a picture cut round — a person — and `cover`, so one of any proportion fills the circle; a glyph has no
+// `--image` and keeps its own shape.
+.ui-icon--image.ui-icon--circle::before {
+    border-radius: 50%;
+    background-size: cover;
+}
+
 // The three fixed sizes land on whole pixels: a fractional box puts the masked stroke on a fractional pixel and reads grey and ragged.
 .ui-icon-size--small {
     font-size: 0.875rem;

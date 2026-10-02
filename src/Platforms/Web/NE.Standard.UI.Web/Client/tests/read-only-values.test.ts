@@ -1,5 +1,5 @@
 // A field the reader cannot change raises no `change` of its own: a date pushed outside Min and Max is shown as it is rather than
-// clamped and reported, a slider's clamp only shows, a number's trailing zeros are not trimmed and sent on a plain focus and blur, and
+// clamped and reported, a slider's clamp only shows, a number's trailing zeros are only shown trimmed, never sent on a plain focus and blur, and
 // a read-only range moved by no key or pointer (a screen reader's increment) is put back. The editable field does each of them.
 
 import assert from "node:assert/strict";
@@ -82,7 +82,7 @@ function passThrough(field: FakeInput): void {
     field.dispatchEvent(new FakeEvent("blur"));
 }
 
-test("a number's trailing zeros are trimmed and sent on its blur while it is editable, and left as the server wrote them while it is not", () => {
+test("a number's trailing zeros are trimmed and sent on its blur while it is editable, and only shown trimmed while it is not", () => {
     const editable = numberField(Editable);
 
     passThrough(editable.field);
@@ -95,7 +95,7 @@ test("a number's trailing zeros are trimmed and sent on its blur while it is edi
         passThrough(fixed.field);
 
         assert.equal(fixed.changes.length, 0, `${state} sent its trimmed value`);
-        assert.equal(fixed.field.value, "1.50", `${state} trimmed what it shows`);
+        assert.equal(fixed.field.value, "1.5", `${state} showed its zeros`);
     }
 });
 
@@ -153,4 +153,44 @@ test("a read-only range moved by no key or pointer is put back where the server 
 
     assert.equal(editable.input.value, "60");
     assert.equal(fixed.input.value, "40");
+});
+
+test("a finger's press the browser takes back for a scroll puts the value back and sends nothing; a slide that ends sends its value", () => {
+    const input = new FakeInput("range");
+    const component = FakeElement.of("ui-slider", { "data-ui-id": "1" }).append(FakeElement.of("ui-slider__track").append(input));
+    const changes: FakeEvent[] = [];
+
+    input.classes.add("ui-slider__input");
+    input.value = "40";
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(component);
+    new RangeValueEngine({ root: real(component) });
+    // After the engine's, as the value binding listens after it.
+    component.addEventListener("change", domEvent => changes.push(domEvent));
+
+    // The finger lands on the track: the browser moves the value there, then cancels the press as the finger scrolls the page.
+    input.dispatchEvent(new FakeEvent("pointerdown"));
+    input.value = "75";
+    input.dispatchEvent(new FakeEvent("input"));
+    input.dispatchEvent(new FakeEvent("pointercancel"));
+    input.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(input.value, "40");
+    assert.equal(changes.length, 0);
+
+    input.dispatchEvent(new FakeEvent("pointerdown"));
+    input.value = "60";
+    input.dispatchEvent(new FakeEvent("input"));
+    input.dispatchEvent(new FakeEvent("pointerup"));
+    input.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(input.value, "60");
+    assert.equal(changes.length, 1);
+});
+
+test("a number that trims its zeros shows them trimmed from the first paint, before the reader has been in it", () => {
+    const { field, changes } = numberField(Editable);
+
+    assert.equal(field.value, "1.5");
+    assert.equal(changes.length, 0, "showing is not sending");
 });

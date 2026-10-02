@@ -53,8 +53,9 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public bool? RenameOnDoubleClick { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node can be dragged onto a folder (<c>IsFolder</c>, else a node holding children) or the tree's own
-    /// ground: the drop writes <c>DropTarget</c> and raises <c>move</c>; the controller moves the node, since nothing moves on the
+    /// Gets or sets whether a node can be dragged onto a folder (<c>IsFolder</c>, else a node holding children), between two nodes or
+    /// onto the tree's own ground, or moved by Alt with an arrow: the move writes <c>DropTarget</c> and raises <c>move</c> with the
+    /// node's place in that folder (<see cref="OnNodeMoveWithItemKey"/>); the controller moves the node, since nothing moves on the
     /// client.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
@@ -202,14 +203,20 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowTemplate(row => _ = row.On(EventNames.Rename, command, arguments));
 
     /// <summary>
-    /// Registers the command run after a drag wrote <c>DropTarget</c>, with the dragged node's key as an argument; the
-    /// controller moves the node or refuses by doing nothing.
+    /// Registers the command a node moved to another place raises — dropped onto a folder or between two nodes, or moved by Alt with an
+    /// arrow — with the node's key and the index it takes among the nodes of the folder it lands in, which its <c>DropTarget</c> names;
+    /// the controller moves the node or refuses by doing nothing.
     /// </summary>
-    public T OnNodeMoveWithItemKey(string command, string argumentName = "id")
-        => OnNodeMove(command, UIAction.ArgCurrentItemKey(argumentName));
+    /// <remarks>
+    /// The index counts that folder's own nodes in their order, the node itself taken out first, as <c>RecursiveCollection.Move</c>
+    /// counts; a drop onto a folder puts it after the folder's last node.
+    /// </remarks>
+    public T OnNodeMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
+        => OnNodeMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.ArgEventValue(indexArgumentName));
 
     /// <summary>
-    /// Registers the command run after a drag wrote the node's <c>DropTarget</c>.
+    /// Registers the command a node moved to another place raises, after its <c>DropTarget</c> was written; <c>UIAction.ArgEventValue</c>
+    /// reads the index it takes among that folder's nodes.
     /// </summary>
     public T OnNodeMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));

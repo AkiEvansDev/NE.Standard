@@ -35,8 +35,8 @@ public static class UIPage
                 .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), sm: UIGridPlacement.At(1, 1, span, 1)))
             );
 
-        // A paragraph rather than a text, whose description would run on without end: on a phone the line takes up to three lines
-        // and no more, so the page's content is not pushed off the screen.
+        // A paragraph rather than a text, which has no cap on its lines: the description stops at three at any width, so on a phone
+        // it does not push the page's content off the screen.
         if (description is not null)
         {
             _ = header.AddChild(new ParagraphComponent()

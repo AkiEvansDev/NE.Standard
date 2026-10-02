@@ -24,6 +24,68 @@ public static class WebClassNames
     /// </summary>
     public const string ContentText = "ui-content-text";
 
+    // The classes below are read by the client too (dom-attributes.ts); WebClassNamesSyncTests holds the two spellings to one.
+
+    /// <summary>A button's root, and the root of every control drawn as one: a menu entry, a tab's caption, a breadcrumb, an action, a switcher.</summary>
+    public const string Button = "ui-button";
+
+    /// <summary>A select's root, a multi-select's and a search's: the field whose list the reader picks from.</summary>
+    public const string Select = "ui-select";
+
+    /// <summary>The part of a select's field a press opens its list from.</summary>
+    public const string SelectTrigger = "ui-select__trigger";
+
+    /// <summary>A text input's root.</summary>
+    public const string TextInput = "ui-text-input";
+
+    /// <summary>On a field's root while its validation is an error.</summary>
+    public const string Invalid = "ui-invalid";
+
+    /// <summary>On a part a flag hides — a chevron an action or an expander does not show.</summary>
+    public const string Hidden = "ui-hidden";
+
+    /// <summary>A menu's root.</summary>
+    public const string Menu = "ui-menu";
+
+    /// <summary>On a menu's root drawn as a navigation rail (<c>UIMenuDisplay.Rail</c>).</summary>
+    public const string MenuRail = "ui-menu--rail";
+
+    /// <summary>A menu entry's root.</summary>
+    public const string MenuItem = "ui-menu-item";
+
+    /// <summary>On a check entry of a menu while it is on.</summary>
+    public const string MenuItemChecked = "ui-menu-item--checked";
+
+    /// <summary>On a menu entry while it is the current one.</summary>
+    public const string MenuItemSelected = "ui-menu-item--selected";
+
+    /// <summary>A table's row.</summary>
+    public const string TableRow = "ui-table__row";
+
+    /// <summary>A table's box: the element that scrolls, holding its header and its rows.</summary>
+    public const string TableScroll = "ui-table__scroll";
+
+    /// <summary>A table's header row.</summary>
+    public const string TableHeader = "ui-table__header";
+
+    /// <summary>The handle on a column's edge a resizable table's column is widened by.</summary>
+    public const string TableResizer = "ui-table__resizer";
+
+    /// <summary>A tree's root.</summary>
+    public const string Tree = "ui-tree";
+
+    /// <summary>A tree's node row.</summary>
+    public const string TreeRow = "ui-tree__row";
+
+    /// <summary>The grip a row of a draggable items view or table is dragged by (<c>DragHandle</c>).</summary>
+    public const string RowGrip = "ui-row__grip";
+
+    /// <summary>A dialog's card, inside its backdrop.</summary>
+    public const string DialogSurface = "ui-dialog__surface";
+
+    /// <summary>A flyout's popup content.</summary>
+    public const string FlyoutContent = "ui-flyout__content";
+
     public static string Color(UIColorStyle value)
         => value switch
         {
@@ -61,6 +123,9 @@ public static class WebClassNames
             UIIconSize.Large => "ui-icon-size--large",
             _ => string.Empty
         };
+
+    public static string IconShape(UIIconShape value)
+        => value == UIIconShape.Circle ? "ui-icon--circle" : string.Empty;
 
     public static string TextType(UITextType value)
         => value switch
@@ -245,6 +310,17 @@ public static class WebClassNames
             _ => string.Empty
         };
 
+    /// <summary>The search field's look in its open list (<c>SearchComponent.SearchFieldAppearance</c>).</summary>
+    public static string SearchFieldAppearance(UIInputAppearance value)
+        => value switch
+        {
+            UIInputAppearance.Filled => "ui-search__field--filled",
+            UIInputAppearance.Outline => "ui-search__field--outline",
+            UIInputAppearance.Underline => "ui-search__field--underline",
+            UIInputAppearance.Ghost => "ui-search__field--ghost",
+            _ => string.Empty
+        };
+
     public static string InputAppearance(UIInputAppearance value)
         => value switch
         {
@@ -310,19 +386,14 @@ public static class WebClassNames
             _ => string.Empty
         };
 
+    public static string ImageShape(UIImageShape value)
+        => value == UIImageShape.Circle ? "ui-image--circle" : string.Empty;
+
     public static string ProgressVariant(UIProgressVariant value)
         => value switch
         {
             UIProgressVariant.Linear => "ui-progress--linear",
             UIProgressVariant.Circular => "ui-progress--circular",
-            _ => string.Empty
-        };
-
-    public static string SearchSelectionMode(UISearchSelectionDisplayMode value)
-        => value switch
-        {
-            UISearchSelectionDisplayMode.KeepSearchInput => "ui-search-mode--keep",
-            UISearchSelectionDisplayMode.ReplaceWithSelectedItem => "ui-search-mode--replace",
             _ => string.Empty
         };
 

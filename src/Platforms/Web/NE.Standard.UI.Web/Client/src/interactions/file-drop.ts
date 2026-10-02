@@ -208,7 +208,7 @@ function refuse(domEvent: DragEvent): void {
 
 /** Whether the target would refuse everything the drag carries; an extension rule is let through, to be judged on the drop. */
 function refusesDrag(accept: string, transfer: DataTransfer | null): boolean {
-    const rules = accept.split(",").map(entry => entry.trim().toLowerCase()).filter(entry => entry.length > 0);
+    const rules = acceptRules(accept);
 
     // A drag exposes each file's type, never its name.
     if (transfer === null || rules.length === 0 || rules.some(rule => rule.startsWith(".")))
@@ -219,7 +219,17 @@ function refusesDrag(accept: string, transfer: DataTransfer | null): boolean {
     if (types.length === 0)
         return false;
 
-    return !types.some(type => rules.some(rule => rule.endsWith("/*") ? type.startsWith(rule.slice(0, -1)) : type === rule));
+    return !types.some(type => rules.some(rule => matchesType(rule, type)));
+}
+
+/** The native picker's `accept` as its rules, each trimmed and lower-cased; none takes anything. */
+function acceptRules(accept: string): string[] {
+    return accept.split(",").map(entry => entry.trim().toLowerCase()).filter(entry => entry.length > 0);
+}
+
+/** Whether a MIME type answers a type rule: a family (`image/*`) or the type itself. */
+function matchesType(rule: string, type: string): boolean {
+    return rule.endsWith("/*") ? type.startsWith(rule.slice(0, -1)) : type === rule;
 }
 
 function unmark(marked: Map<HTMLElement, string>, element: HTMLElement): void {
@@ -237,22 +247,14 @@ function unmarkAll(marked: Map<HTMLElement, string>): void {
 }
 
 /** Whether a dropped file matches the native picker's `accept`: a MIME family, a MIME type, or an extension. */
-function acceptsFile(accept: string, file: File): boolean {
-    if (accept.trim().length === 0)
+export function acceptsFile(accept: string, file: File): boolean {
+    const rules = acceptRules(accept);
+
+    if (rules.length === 0)
         return true;
 
     const name = file.name.toLowerCase();
     const type = file.type.toLowerCase();
 
-    return accept.split(",").some(entry => {
-        const rule = entry.trim().toLowerCase();
-
-        if (rule.length === 0)
-            return false;
-
-        if (rule.startsWith("."))
-            return name.endsWith(rule);
-
-        return rule.endsWith("/*") ? type.startsWith(rule.slice(0, -1)) : type === rule;
-    });
+    return rules.some(rule => rule.startsWith(".") ? name.endsWith(rule) : matchesType(rule, type));
 }

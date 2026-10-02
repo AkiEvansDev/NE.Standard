@@ -196,14 +196,15 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
         ), DemoIcons.Outline(DemoIcons.File))
             .SetVerticalAlignment(UIAlignment.Start);
 
+    // Placed by hand rather than as equal columns, which stand one under another on a phone: a sum and its name are one line at every width.
     private static ContainerComponent CreateSumRow(string label, string property, bool strong = false)
     {
+        TextComponent name = strong ? UIText.Subtitle(label) : UIText.Body(label).Muted();
         TextComponent amount = new TextComponent().SetTextAlignment(UITextAlignment.End).AsBody().BindTitle(property);
 
-        return UILayout.Columns(8,
-            strong ? UIText.Subtitle(label) : UIText.Body(label).Muted(),
-            strong ? amount.AsSubtitle() : amount
-        );
+        return new ContainerComponent()
+            .AddChild(name.SetVerticalAlignment(UIAlignment.Center).SetPlacement(1, 1, 14, 1))
+            .AddChild((strong ? amount.AsSubtitle() : amount).SetVerticalAlignment(UIAlignment.Center).SetPlacement(15, 1, 10, 1));
     }
 
     private static SurfaceComponent CreatePlaced()

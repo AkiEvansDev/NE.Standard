@@ -1,28 +1,85 @@
-@import "../mixins/interactive.less";
+@import "../core/tokens.less";
+@import "../mixins/field.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/popup.less";
 
-// Search reuses the Select shell with a live text input as trigger; the browser's cancel button goes, the select's clear stands for it.
+// A search is a select whose open list carries its field: the popup a column of the field over the listbox, and only the listbox
+// scrolls, so the field stays at the top however far the options go. The field's room comes on top of a select's list.
+.ui-search > .ui-select__popup {
+    gap: @ui-space-1;
+    max-height: min(18.5rem, calc(100dvh - 2 * @ui-popup-viewport-margin));
+    overflow: hidden;
+}
+
+.ui-search > .ui-select__popup > .ui-select__list {
+    display: flex;
+    .ui-entry-list();
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+// A size under the closed field's: it filters a list, it is not the value. Its look is `SearchFieldAppearance`, Ghost unless set.
+.ui-search__field {
+    .ui-input-field();
+    flex: 0 0 auto;
+    min-height: 2rem;
+    padding: 0 @ui-space-2;
+}
+
+    .ui-input--small .ui-search__field {
+        min-height: @ui-control-height-sm;
+    }
+
+    // Filled: a ground one step off the popup's, its edge the brand's while the keyboard types in it.
+    .ui-search__field--filled@{ui-field-focus},
+    .ui-search__field--outline@{ui-field-focus} {
+        border-color: var(--ui-color-primary);
+    }
+
+    .ui-search__field--outline {
+        border-color: var(--ui-color-border);
+        background: none;
+    }
+
+    .ui-search__field--underline {
+        border-style: none none solid none;
+        border-color: var(--ui-color-border);
+        border-radius: 0;
+        background: none;
+    }
+
+    // Ghost: no box, the popup's own ground, a line under it running the popup's width to part it from the options. The field holds
+    // the keyboard whenever the list is open, so no focus look either: its caret is the sign.
+    .ui-search__field:not(.ui-search__field--filled, .ui-search__field--outline, .ui-search__field--underline) {
+        margin: -@ui-space-1 -@ui-space-1 0;
+        border-style: none none solid none;
+        border-color: var(--ui-color-border);
+        border-radius: 0;
+        background: none;
+        min-height: 2.25rem;
+        padding: 0 @ui-space-3;
+    }
+
+.ui-search__glyph {
+    .ui-glyph-host();
+    color: var(--ui-text-muted);
+
+    &::before {
+        .ui-glyph(@ui-glyph-search; @ui-glyph-sm);
+    }
+}
+
+// Typing replaces the selected term, so the browser's own cancel would be a second cross for nothing.
 .ui-search__input::-webkit-search-cancel-button {
     display: none;
 }
 
-// Keep: the term wins whenever there is one, and open or focused the field is a text field. Only a field with no term and not in
-// use shows the chosen option, as Replace does, or a pick would leave no trace in the box. "No term" is `:placeholder-shown`, live
-// with the value whoever wrote it; the field always carries the attribute (SearchComponentRenderer, select-interaction-engine.ts).
-.ui-search:not(.ui-search-mode--replace):is(.ui-select--open, :focus-within, :has(.ui-search__input:not(:placeholder-shown))) .ui-select__trigger-content {
-    display: none !important;
-}
-
-// Only where the chosen option is drawn: a value whose option is not in the list leaves the empty field standing.
-.ui-search:not(.ui-search-mode--replace)[data-ui-select-value]:not(.ui-select--open, :focus-within):has(.ui-select__trigger-content):has(.ui-search__input:placeholder-shown) .ui-search__input {
-    .ui-visually-hidden();
-}
-
-// Closed, chosen and unfocused, the input hides behind the chosen option; focus counts as open, as the keyboard can land here directly.
-.ui-search.ui-search-mode--replace[data-ui-select-value]:not(.ui-select--open, :focus-within) .ui-search__input {
-    .ui-visually-hidden();
-}
-
-// Open or focused, it is a text field again: the picked-option template is hidden so it doesn't sit beside what's being typed.
-.ui-search.ui-search-mode--replace:is(.ui-select--open, :focus-within) .ui-select__trigger-content {
-    display: none !important;
+// The field reads from its start, whatever a caption inside the closed field does with the value it shows.
+.ui-input--title-inside .ui-search__field > .ui-search__input {
+    flex: 1 1 auto;
+    width: auto;
+    margin-inline-start: 0;
+    text-align: start;
+    field-sizing: fixed;
 }

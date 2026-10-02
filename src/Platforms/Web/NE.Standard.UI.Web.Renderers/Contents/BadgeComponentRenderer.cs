@@ -22,6 +22,7 @@ public sealed class BadgeComponentRenderer : WebComponentRendererBase
                 IconProperty = BadgeComponent.IconProperty,
                 IconColorProperty = BadgeComponent.IconColorProperty,
                 IconSizeProperty = BadgeComponent.IconSizeProperty,
+                IconShapeProperty = BadgeComponent.IconShapeProperty,
                 TextProperty = BadgeComponent.TextProperty,
                 TextTypeProperty = BadgeComponent.TextTypeProperty,
                 TooltipProperty = ITooltipComponent.TooltipProperty,

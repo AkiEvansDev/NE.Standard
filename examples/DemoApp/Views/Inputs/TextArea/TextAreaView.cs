@@ -99,7 +99,9 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Incident summary")
                     .SetIcon(DemoIcons.FileText)
                     .SetValue(Incident)
-                    .SetRows(4),
+                    .SetRows(4)
+                    // As tall as its prose at any width: four rows held a tablet's lines with the fifth showing through the padding.
+                    .SetAutoGrow(12),
                 new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.MessageSquare)
@@ -149,17 +151,17 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("How tall it starts, and who may change it",
             UILayout.Columns(24,
-                UIPage.Labelled("Two rows, fixed — a line in a dense form", new TextAreaComponent()
+                DemoUI.CreateLabelled("Two rows, fixed — a line in a dense form", new TextAreaComponent()
                     .SetValue("A note nobody should turn into an essay.")
                     .SetRows(2)
                     .SetResize(UITextAreaResizeMode.None)
                 ),
-                UIPage.Labelled("Four rows, the reader may pull it taller", new TextAreaComponent()
+                DemoUI.CreateLabelled("Four rows, the reader may pull it taller", new TextAreaComponent()
                     .SetValue(Incident)
                     .SetRows(4)
                     .SetResize(UITextAreaResizeMode.Vertical)
                 ),
-                UIPage.Labelled("Six rows — the writing is the page", new TextAreaComponent()
+                DemoUI.CreateLabelled("Six rows — the writing is the page", new TextAreaComponent()
                     .SetValue(Incident)
                     .SetRows(6)
                     .SetResize(UITextAreaResizeMode.Vertical)

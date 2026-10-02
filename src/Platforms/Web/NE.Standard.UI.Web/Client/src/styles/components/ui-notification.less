@@ -1,13 +1,11 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
 
-@ui-notification-z: 200;
-
 .ui-notification-host {
     position: fixed;
     right: 0;
     bottom: 0;
-    z-index: @ui-notification-z;
+    z-index: @ui-z-notification;
     display: flex;
     flex-direction: column;
     align-items: flex-end;

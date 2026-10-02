@@ -159,8 +159,8 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A rule with a word in it",
             new SurfaceComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(12)
-                    .SetWidth(UILayoutLength.Absolute(320))
                     .AddChild(new TextComponent()
                         .SetTitle("Billing")
                         .SetTitleType(UITextAppearance.Body)

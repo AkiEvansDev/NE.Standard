@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-    InvariantTemporalCulture, InvariantTemporalLetters, formatTemporal, localDate, parseWrittenMoment, readTemporal, readTemporalCulture, temporalPlaceholder,
+    InvariantTemporalCulture, InvariantTemporalLetters, formatTemporal, isDigitFormat, localDate, parseWrittenMoment, readTemporal, readTemporalCulture, temporalPlaceholder,
     writtenMomentDate
 } from "../src/rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLetters, WrittenMoment } from "../src/rendering/temporal-format.ts";
@@ -155,4 +155,20 @@ test("text in another shape, a field outside its range, or a format that names n
     assert.equal(typed("", "dd.MM.yyyy"), null);
     assert.equal(typed("14:35", "HH:mm"), null, "a time alone is the clock's");
     assert.equal(typed("13.09.0000", "dd.MM.yyyy"), null, "no year zero");
+});
+
+test("one separator stands for another, as a phone's digit keyboard types the ones it has", () => {
+    assert.equal(typed("13-09-2026", "dd.MM.yyyy"), "2026-09-13T00:00:00");
+    assert.equal(typed("2026.09.13 14.35", "yyyy-MM-dd HH:mm"), "2026-09-13T14:35:00");
+    assert.equal(typed("13a09.2026", "dd.MM.yyyy"), null, "a letter is no separator");
+});
+
+test("a format of digits and separators alone asks for the digit keyboard; a name or AM and PM does not", () => {
+    assert.equal(isDigitFormat("yyyy-MM-dd HH:mm"), true);
+    assert.equal(isDigitFormat("dd.MM.yyyy"), true);
+    assert.equal(isDigitFormat("d MMMM yyyy"), false);
+    assert.equal(isDigitFormat("ddd, dd.MM"), false);
+    assert.equal(isDigitFormat("h:mm tt"), false);
+    assert.equal(isDigitFormat("yyyy 'r.'"), false, "a quoted word is letters");
+    assert.equal(isDigitFormat(""), false);
 });

@@ -12,6 +12,7 @@ class FakeElement {
     public readonly classes: Set<string>;
     public readonly attributes = new Map<string, string>();
     public connected = true;
+    private readonly listeners = new Map<string, (domEvent: { readonly target: FakeElement }) => void>();
 
     public constructor(parent: FakeElement | null, options: FakeOptions = {}) {
         this.parent = parent;
@@ -53,6 +54,32 @@ class FakeElement {
 
     public hasAttribute(name: string): boolean {
         return this.attributes.has(name);
+    }
+
+    public removeAttribute(name: string): void {
+        this.attributes.delete(name);
+    }
+
+    /** As the browser reflects it: -1 unless an attribute says otherwise. */
+    public get tabIndex(): number {
+        return Number(this.attributes.get("tabindex") ?? -1);
+    }
+
+    public set tabIndex(value: number) {
+        this.attributes.set("tabindex", String(value));
+    }
+
+    public addEventListener(type: string, listener: (domEvent: { readonly target: FakeElement }) => void): void {
+        this.listeners.set(type, listener);
+    }
+
+    public removeEventListener(type: string): void {
+        this.listeners.delete(type);
+    }
+
+    /** The focus leaving this element itself. */
+    public blur(): void {
+        this.listeners.get("focusout")?.({ target: this });
     }
 
     public toggleAttribute(name: string, force: boolean): void {
@@ -306,6 +333,11 @@ test("a popup whose owner turned disabled gives the keyboard it held to the owne
     popups.closeStranded();
 
     assert.equal(fakeDocument.activeElement, at.owner);
+    assert.equal(at.owner.getAttribute("tabindex"), "-1");
+
+    // Focusable for that return alone: once the focus leaves, a press on the root's padding takes no focus.
+    at.owner.blur();
+    assert.equal(at.owner.hasAttribute("tabindex"), false);
 });
 
 test("a popup behind an open modal dialog stays open while the focus goes into the dialog", () => {

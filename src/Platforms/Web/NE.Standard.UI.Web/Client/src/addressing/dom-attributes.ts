@@ -84,6 +84,8 @@ export const ImageCaptionAttribute = "data-ui-image-caption";
 export const ImageCropAttribute = "data-ui-image-crop";
 /** Beside it: the side, in pixels, the cropped picture is written at. */
 export const ImageCropSizeAttribute = "data-ui-image-crop-size";
+/** On a surface whose background picture is blurred: it draws the blur's layer and isolates its stacking (mixins/surface-image.less). */
+export const SurfaceImageBlurAttribute = "data-ui-surface-image-blur";
 /** A split button's mode: "split" (the end part opens the menu) or "menu" (the whole button does). */
 export const SplitModeAttribute = "data-ui-split-mode";
 export const ItemsHostAttribute = "data-ui-items-host";
@@ -171,9 +173,11 @@ export const BottomBarAttribute = "data-ui-bottom-bar";
 export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
 export const MenuItemKindAttribute = "data-ui-menu-item-kind";
-/** A menu's entry, and a check entry turned on. */
+/** A menu's root, its entry, a check entry turned on, and the entry of the current page. */
+export const MenuRootClass = "ui-menu";
 export const MenuItemClass = "ui-menu-item";
 const MenuItemCheckedClass = "ui-menu-item--checked";
+export const MenuItemSelectedClass = "ui-menu-item--selected";
 /** A rail (UIMenuDisplay.Rail): it never folds and has no room inline, so its groups fly out, and a label it cuts shows as a tooltip. */
 export const MenuRailClass = "ui-menu--rail";
 /** A menu entry that runs nothing when pressed: a caption or a rule. */
@@ -205,6 +209,10 @@ export const TableRowClass = "ui-table__row";
 export const TableScrollClass = "ui-table__scroll";
 export const TableHeaderClass = "ui-table__header";
 export const TableResizerClass = "ui-table__resizer";
+/** A tree's root and its row, and a row its rules leave out. */
+export const TreeRootClass = "ui-tree";
+export const TreeRowClass = "ui-tree__row";
+export const TreeRowFilteredClass = "ui-tree__row--filtered";
 /** Client-only: on a table's root, the index of the row's last column, the one with no edge of its own to drag. */
 export const TableLastAttribute = "data-ui-table-last";
 /** Client-only: on a table's root while a column is being dragged, on the cell being dragged, and on the cell the drop line stands at. */
@@ -259,6 +267,10 @@ export const LanguageSwitcherAttribute = "data-ui-language-switcher";
 export const LanguageAttribute = "data-ui-language";
 /** Client-only: on a splitter while the pointer holds it, for the stylesheet's pressed look. */
 export const SplittingAttribute = "data-ui-splitting";
+/** Client-only: on the document element while a phone's on-screen keyboard is up, which the page's bottom bar steps aside for. */
+export const KeyboardUpAttribute = "data-ui-keyboard-up";
+/** Client-only: on a container's child whose tracks a splitter took to nothing, so its squeezed words lend the row no height. */
+export const SplitFoldedAttribute = "data-ui-split-folded";
 /** Client-only: on a handle the pointer focused, so no keyboard focus is drawn for it; a key or a blur takes it off. */
 export const PointerFocusAttribute = "data-ui-pointer-focus";
 
@@ -310,6 +322,8 @@ export const ListTriggerClass = "ui-select__trigger";
 const ListTriggerSelector = `.${ListTriggerClass}` as const;
 /** A button's root, a select family's root, a text input's root, and the mark of a field whose value was refused. */
 export const ButtonClass = "ui-button";
+/** A small ghost button's look, as the page draws one of its own (an action bar's icon, a strip's overflow entry). */
+export const SmallGhostButtonClasses = `${ButtonClass} ui-button--ghost ui-button--small`;
 export const SelectClass = "ui-select";
 const TextInputClass = "ui-text-input";
 export const InvalidClass = "ui-invalid";

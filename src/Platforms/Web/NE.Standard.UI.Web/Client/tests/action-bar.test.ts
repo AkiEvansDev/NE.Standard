@@ -262,6 +262,36 @@ test("the bar stands while its host is chosen: a press again or in the bar keeps
     assert.equal(barOf(at.host), null);
 });
 
+test("Escape in an open dialog the host is not in is the dialog's, and leaves the bar; in one holding the host it takes the bar away", () => {
+    const at = scene();
+    const dialog = FakeElement.of("ui-dialog", { "data-ui-dialog": "edit" });
+    const field = FakeElement.of("ui-text-input", {}, "input");
+
+    dialog.append(field);
+    fakeDocument.body.append(dialog);
+    press(at.text);
+
+    const bar = barOf(at.host);
+
+    assert.notEqual(bar, null);
+
+    key("Escape", field);
+    assert.equal(barOf(at.host), bar);
+
+    // A dialog shut is no longer the key's owner.
+    dialog.setAttribute("hidden", "");
+    key("Escape", field);
+    assert.equal(barOf(at.host), null);
+
+    dialog.removeAttribute("hidden");
+    into(dialog, at.host);
+    press(at.text);
+    assert.notEqual(barOf(at.host), null);
+
+    key("Escape", at.link);
+    assert.equal(barOf(at.host), null);
+});
+
 test("a right press elsewhere takes the bar away and chooses nothing; on the chosen host it keeps it", () => {
     const at = scene();
 
@@ -631,6 +661,26 @@ test("Tab from the list goes to the lit row's bar, the arrows walk it, Escape gi
     assert.equal(fakeDocument.activeElement, at.list);
 });
 
+test("Escape gives the keyboard back elsewhere when what it came from can take the focus no more", () => {
+    const at = listScene();
+
+    noteKey(real<Event>(new FakeKeyboardEvent("Tab")));
+    at.list.focus();
+    key("Tab");
+
+    const buttons = buttonsOf(barOf(at.hosts[0]));
+
+    assert.equal(fakeDocument.activeElement, buttons[0]);
+
+    // A root made focusable for one return gives its tab index back as the focus leaves it.
+    at.list.removeAttribute("tabindex");
+    key("Escape");
+
+    assert.equal(buttons.includes(real(fakeDocument.activeElement)), false, "the keyboard is out of the bar");
+    assert.notEqual(fakeDocument.activeElement, fakeDocument.body);
+    assert.notEqual(fakeDocument.activeElement, at.list, "not the element that took no focus");
+});
+
 test("a row drawn anew keeps its bar: replaced in place, or gone from the window and back; a press elsewhere forgets it", () => {
     const at = listScene();
 
@@ -869,6 +919,28 @@ test("more over a host asking for the rest opens the menu without the bar's entr
     at.text.dispatchEvent(new FakeMouseEvent("contextmenu"));
     assert.equal(at.menu.classes.has("ui-context-menu--open"), true);
     assert.deepEqual(leftOut(), []);
+    key("Escape", fakeDocument.documentElement);
+});
+
+test("more over a host asking for the rest keeps one rule between the entries left on either side of the bar's", () => {
+    const at = scene({ hostAttributes: { "data-ui-action-bar-rest": "" } });
+    const copy = entry("Copy text", false);
+    const paste = entry("Paste", false);
+    const rule = (): FakeElement => FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "separator" }, "a");
+    const [first, second] = [rule(), rule()];
+    const list = at.menu.children[0];
+
+    list.children.length = 0;
+    list.append(copy, first, second, at.pin, paste);
+
+    press(at.text);
+
+    const more = buttonsOf(barOf(at.host)).at(-1)!;
+
+    press(more);
+    more.click();
+
+    assert.deepEqual(list.children.filter(child => !child.hasAttribute("data-ui-menu-left-out")), [copy, first, paste]);
     key("Escape", fakeDocument.documentElement);
 });
 

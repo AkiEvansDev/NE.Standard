@@ -35,6 +35,81 @@ internal static class DemoStorageTree
             // Pinned: neither dragged nor removed, whatever the tree allows; a heading elsewhere refuses the choice the same way.
             new() { Id = "incident-report", Title = "incident-report.md", Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText), CanDrag = false, CanRemove = false },
         ];
+
+    /// <summary>
+    /// Lifts a node and everything under it out of the flat list and puts it back as the <paramref name="index"/>th node of the folder
+    /// <paramref name="folder"/> (the top level when null), in walking order; past the folder's last node, after its last descendant.
+    /// </summary>
+    public static void MoveSubtree(RecursiveCollection<TreeNode> items, TreeNode node, TreeNode? folder, int index)
+    {
+        List<TreeNode> subtree = [];
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i] == node || IsUnder(items, items[i], node.Id))
+                subtree.Add(items[i]);
+        }
+
+        for (var i = subtree.Count - 1; i >= 0; i--)
+            _ = items.Remove(subtree[i]);
+
+        node.ParentId = folder?.Id;
+
+        var position = AfterLastDescendant(items, folder);
+        var seen = 0;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].ParentId != folder?.Id)
+                continue;
+
+            if (seen++ == index)
+            {
+                position = i;
+                break;
+            }
+        }
+
+        for (var i = 0; i < subtree.Count; i++)
+            items.Insert(position + i, subtree[i]);
+    }
+
+    /// <summary>The index past a folder's last descendant in the flat list; the list's end for the top level.</summary>
+    private static int AfterLastDescendant(RecursiveCollection<TreeNode> items, TreeNode? folder)
+    {
+        if (folder is null)
+            return items.Count;
+
+        var index = items.IndexOf(folder) + 1;
+
+        while (index < items.Count && IsUnder(items, items[index], folder.Id))
+            index++;
+
+        return index;
+    }
+
+    /// <summary>Whether a node sits under the one keyed <paramref name="ancestorId"/>, by the parent keys the nodes carry.</summary>
+    public static bool IsUnder(RecursiveCollection<TreeNode> items, TreeNode node, string ancestorId)
+    {
+        for (var parentId = node.ParentId; parentId is not null; parentId = Find(items, parentId)?.ParentId)
+        {
+            if (parentId == ancestorId)
+                return true;
+        }
+
+        return false;
+    }
+
+    public static TreeNode? Find(RecursiveCollection<TreeNode> items, string id)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].Id == id)
+                return items[i];
+        }
+
+        return null;
+    }
 }
 
 /// <summary>
@@ -286,10 +361,11 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     }
 
     /// <summary>
-    /// The drop named where the node landed; the controller decides. A file stands for its folder, a node cannot go under itself,
-    /// and a move is the subtree lifted out and put back after the folder's last descendant, in walking order.
+    /// The move named the folder the node lands in and its place there; the controller decides. A file stands for its folder, a node
+    /// cannot go under itself, and a move is the subtree lifted out and put back at its place, in walking order — though the sort
+    /// rules order every folder's nodes on the page whatever place was asked.
     /// </summary>
-    public void Move(string id)
+    public void Move(string id, int index)
     {
         TreeNode? node = Find(id);
 
@@ -311,34 +387,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
             return;
         }
 
-        if (folder?.Id == node.ParentId)
-            return;
-
-        List<TreeNode> subtree = [];
-
-        for (var i = 0; i < Items.Count; i++)
-        {
-            if (Items[i] == node || IsUnder(Items[i], id))
-                subtree.Add(Items[i]);
-        }
-
-        for (var i = subtree.Count - 1; i >= 0; i--)
-            _ = Items.Remove(subtree[i]);
-
-        node.ParentId = folder?.Id;
-
-        var index = Items.Count;
-
-        if (folder is not null)
-        {
-            index = Items.IndexOf(folder) + 1;
-
-            while (index < Items.Count && IsUnder(Items[index], folder.Id))
-                index++;
-        }
-
-        for (var i = 0; i < subtree.Count; i++)
-            Items.Insert(index + i, subtree[i]);
+        DemoStorageTree.MoveSubtree(Items, node, folder, index);
 
         LogEvent($"Moved {node.Title} into {folder?.Title ?? "the root"}");
     }
@@ -462,6 +511,31 @@ internal sealed partial class TreeNotesGroupContext : DemoGroupContext
         folder.CanSelect = false;
 
         return folder;
+    }
+
+    /// <summary>
+    /// A note dragged between two others, onto a folder, or moved by Alt with an arrow stands where it was put: the folder its
+    /// <c>DropTarget</c> names, at the index the move carries. A folder stays at the top level.
+    /// </summary>
+    public void Move(string id, int index)
+    {
+        TreeNode? node = DemoStorageTree.Find(Items, id);
+
+        if (node is null)
+            return;
+
+        var target = node.DropTarget;
+
+        node.DropTarget = null;
+
+        TreeNode? folder = string.IsNullOrEmpty(target) ? null : DemoStorageTree.Find(Items, target);
+
+        // A folder stays at the top level; a note goes into a folder.
+        if (node.Kind == DemoStorageTree.FolderKind ? folder is not null : folder is null)
+            return;
+
+        DemoStorageTree.MoveSubtree(Items, node, folder, index);
+        LogEvent($"Moved {node.Title} to {folder?.Title ?? "the top"}, place {index + 1}");
     }
 
     /// <summary>A note opens beside the tree and says so; a folder only holds notes, and a press on it only folds it.</summary>
@@ -607,8 +681,12 @@ internal sealed partial class TreeController() : DemoStandardController
     }
 
     [UICommand]
-    public void MoveNode(string id)
-        => FilesGroup.Move(id);
+    public void MoveNode(string id, int index)
+        => FilesGroup.Move(id, index);
+
+    [UICommand]
+    public void MoveNote(string id, int index)
+        => NotesGroup.Move(id, index);
 
     [UICommand]
     public void DeleteNode(string id)

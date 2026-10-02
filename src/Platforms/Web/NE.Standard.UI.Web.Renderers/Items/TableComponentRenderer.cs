@@ -40,15 +40,15 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     public const string ParentViewport = "parent";
 
     /// <summary>The box that holds the table proper — the tracks, the frame, the ground — and scrolls; the root holds it and the chrome around it.</summary>
-    protected const string ScrollClassName = "ui-table__scroll";
+    protected const string ScrollClassName = WebClassNames.TableScroll;
 
-    protected const string HeaderClassName = "ui-table__header";
+    protected const string HeaderClassName = WebClassNames.TableHeader;
     protected const string HeaderCellClassName = "ui-table__header-cell";
     protected const string CaptionClassName = "ui-table__caption";
     protected const string CaptionIconClassName = "ui-table__caption-icon";
-    protected const string ResizerClassName = "ui-table__resizer";
+    protected const string ResizerClassName = WebClassNames.TableResizer;
     protected const string HostClassName = "ui-table__host";
-    protected const string RowClassName = "ui-table__row";
+    protected const string RowClassName = WebClassNames.TableRow;
     protected const string CellClassName = "ui-table__cell";
     protected const string PinnedModifier = "--pinned";
     protected const string PinnedEdgeModifier = "--pinned-edge";
@@ -80,7 +80,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderTracks(root, columns);
         RenderHiddenColumns(root, columns);
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, composite: composite, rowDecorator: DrawsRowGrip(context, TableComponent.DraggableProperty, TableComponent.DragHandleProperty) ? RowGripDecorator : null, announcesSelection: selectable);
+        RegisterItemsTemplateMetadata(context, composite: composite, rowDecorator: DrawsRowGrip(context) ? RowGripDecorator : null, announcesSelection: selectable);
         RegisterItemsFilterSortMetadata(context);
 
         RenderOverTable(context, root, columns);
@@ -119,9 +119,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-table--no-empty", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
         RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
-        RenderFlagAttribute(context, root, TableComponent.DraggableProperty, WebAttributes.RowsDraggable);
-        RenderFlagAttribute(context, root, TableComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
-        RenderDragHandlePlacement(context, root, TableComponent.DragHandlePlacementProperty);
+        RenderDraggableRows(context, root);
     }
 
     /// <summary>
@@ -435,6 +433,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         }, renderItems: host =>
         {
             HashSet<string> selected = ResolveSelectedKeys(context);
+            var grip = DrawsRowGrip(context);
             var virtualized = hostMode == UIItemsHostMode.Virtualized;
             var selectable = ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many;
 
@@ -444,7 +443,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             var count = virtualized && items.Count > VirtualizedFirstPaintRows ? VirtualizedFirstPaintRows : items.Count;
 
             for (var i = 0; i < count; i++)
-                RenderRow(context, host, items[i], composite, selected, selectable);
+                RenderRow(context, host, items[i], composite, selected, selectable, grip);
         });
     }
 
@@ -461,9 +460,10 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>
     /// One row: the slots of <paramref name="composite"/>, each in its cell, as the client draws a row of its own, then the grip it is
-    /// dragged by where the table draws one; a <paramref name="selectable"/> row says whether it is chosen.
+    /// dragged by where <paramref name="grip"/> (read once per table, <see cref="ItemsCollectionRendererBase.DrawsRowGrip"/>); a
+    /// <paramref name="selectable"/> row says whether it is chosen.
     /// </summary>
-    protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, WebRenderItemsCompositeMetadata composite, HashSet<string> selected, bool selectable)
+    protected virtual void RenderRow(WebRenderContext context, IHtmlElementBuilder host, object? item, WebRenderItemsCompositeMetadata composite, HashSet<string> selected, bool selectable, bool grip)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
@@ -487,7 +487,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
             // Past the cells, in a track the stylesheet adds before or after the columns' while the grip shows: a cell would be a column
             // the columns engine counts.
-            if (DrawsRowGrip(context, TableComponent.DraggableProperty, TableComponent.DragHandleProperty))
+            if (grip)
                 RenderRowGrip(context, row);
         });
     }

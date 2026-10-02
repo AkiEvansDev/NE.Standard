@@ -9,7 +9,8 @@
     border-width: 0;
     border-color: transparent;
     background-color: var(--ui-surface-color, transparent);
-    .ui-surface-image();
+    // `::before`, so the blur's layer comes ahead of the content it stays under while that scrolls.
+    .ui-surface-image(before; true);
 }
 
 .ui-scroll.ui-scroll-x--disabled {

@@ -150,7 +150,7 @@ test("the bar is a row of the page's own after the footer, standing at the viewp
 });
 
 test("the rail along the bar is the page's width, its ground under the home bar, its entries in one row", () => {
-    assert.match(declarations(phone, barRail) ?? "", /width: auto;\s*padding-bottom: env\(safe-area-inset-bottom, 0px\);/);
+    assert.match(declarations(phone, barRail) ?? "", /width: auto;\s*padding: var\(--ui-padding-xxl, var\(--ui-padding-xl, var\(--ui-padding-md, var\(--ui-padding-sm, var\(--ui-padding, 0 0 env\(safe-area-inset-bottom, 0px\)\)\)\)\)\);/);
     assert.match(declarations(phone, `${barRail} > .ui-menu__host`) ?? "", /flex-direction: row;\s*flex-wrap: nowrap;\s*align-items: stretch;/);
 });
 

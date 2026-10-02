@@ -26,12 +26,16 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     public const string OptionWrapperElementName = "div";
     public const string OptionWrapperClassName = "ui-select__option";
 
+    // The floating panel, and the listbox the options stand in: one element in a select, two in a search, whose field stands between.
+    private const string PopupClassName = "ui-select__popup";
+    private const string ListClassName = "ui-select__list";
+
     private const string ClearableClassName = "ui-select--clearable";
     private const string NoChevronClassName = "ui-select--no-chevron";
 
     public override string ComponentTypeKey => SelectComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-select";
+    protected override string ClassName => WebClassNames.Select;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -51,7 +55,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderTrigger(context, root, FindSelectedItem(items, currentValue));
+        RenderTrigger(context, root, items, currentValue);
         RenderValueInput(context, root, valueKind, currentValue, valueBinding);
         RenderPopup(context, root, items, isBound);
 
@@ -97,15 +101,28 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         return valueKind;
     }
 
-    /// <summary>The option the value names, or null where the list is client-side or nothing is chosen.</summary>
-    private static object? FindSelectedItem(IReadOnlyList<object?> items, object? currentValue)
+    /// <summary>
+    /// The field closed: a button showing the chosen option as the list draws it, else the placeholder, between the affix icons, with
+    /// the clear and the chevron — a select's and a search's alike.
+    /// </summary>
+    public static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, string? currentValue)
     {
-        if (currentValue is not string key || key.Length == 0)
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(items);
+
+        RenderTrigger(context, root, FindSelectedItem(items, currentValue));
+    }
+
+    /// <summary>The option the value names, or null where the list is client-side or nothing is chosen.</summary>
+    private static object? FindSelectedItem(IReadOnlyList<object?> items, string? currentValue)
+    {
+        if (string.IsNullOrEmpty(currentValue))
             return null;
 
         for (var i = 0; i < items.Count; i++)
         {
-            if (items[i] is IBindableItem item && string.Equals(item.Id, key, StringComparison.Ordinal))
+            if (items[i] is IBindableItem item && string.Equals(item.Id, currentValue, StringComparison.Ordinal))
                 return items[i];
         }
 
@@ -116,7 +133,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     {
         _ = root.Element("button", trigger =>
         {
-            _ = trigger.Class("ui-select__trigger");
+            _ = trigger.Class(WebClassNames.SelectTrigger);
             _ = trigger.Attribute("type", "button");
 
             // On the trigger, not the root: the trigger is this control's field, as on every other input.
@@ -222,20 +239,41 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>
     /// The list the field opens. Given the chosen keys it is a multi-select's: the listbox says it takes several, and every option
-    /// says whether it is chosen on the first paint.
+    /// says whether it is chosen on the first paint. Given a head (a search's field), the popup holds it pinned over the listbox,
+    /// and only the listbox scrolls.
     /// </summary>
-    public static void RenderPopup(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, bool isBound, IReadOnlySet<string>? chosenKeys = null)
+    public static void RenderPopup(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, bool isBound, IReadOnlySet<string>? chosenKeys = null, Action<IHtmlElementBuilder>? head = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(items);
 
-        RenderItemsHost(context, root, "ui-select__popup", items, isBound, OptionWrapperClassName, configureHost: popup =>
+        if (head is null)
         {
-            _ = popup.Attribute("role", "listbox");
+            RenderList(context, root, items, isBound, chosenKeys, isPopup: true);
+            return;
+        }
+
+        _ = root.Element("div", popup =>
+        {
+            _ = popup.Class(PopupClassName);
+
+            head(popup);
+            RenderList(context, popup, items, isBound, chosenKeys, isPopup: false);
+        });
+    }
+
+    private static void RenderList(WebRenderContext context, IHtmlElementBuilder parent, IReadOnlyList<object?> items, bool isBound, IReadOnlySet<string>? chosenKeys, bool isPopup)
+    {
+        RenderItemsHost(context, parent, isPopup ? PopupClassName : ListClassName, items, isBound, OptionWrapperClassName, configureHost: list =>
+        {
+            if (isPopup)
+                _ = list.Class(ListClassName);
+
+            _ = list.Attribute("role", "listbox");
 
             if (chosenKeys is not null)
-                _ = popup.Attribute("aria-multiselectable", "true");
+                _ = list.Attribute("aria-multiselectable", "true");
         }, OptionWrapperElementName, decorateItem: (optionRoot, item, index) =>
         {
             _ = optionRoot.Attribute("role", "option");

@@ -57,9 +57,9 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
     protected override void DrawColorsContent(WrapPanelComponent container)
     {
         _ = container
-            .AddChild(CreatePairGroup("Brand", BrandRoles))
-            .AddChild(CreatePairGroup("Surfaces", SurfaceRoles))
-            .AddChild(CreatePairGroup("Status", StatusRoles))
+            .AddChild(CreatePairGroup("demo.colors.semantic.brand", BrandRoles))
+            .AddChild(CreatePairGroup("demo.colors.semantic.surfaces", SurfaceRoles))
+            .AddChild(CreatePairGroup("demo.colors.semantic.status", StatusRoles))
             .AddChild(CreateInkGroup())
             .AddChild(CreateChromeGroup());
     }
@@ -77,22 +77,26 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreatePairCard(role));
 
                 _ = content.AddChild(grid);
-            });
+            },
+            words: true
+        );
     }
 
     private static StackPanelComponent CreatePairCard(RolePair role)
     {
         return UILayout.Stack(6)
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
+            // The role is the palette's own name, shown as written.
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
+                .AsContent(ITextBaseComponent.TitleProperty)
                 .SetTitleType(UITextAppearance.Body)
-                .SetDescription($"text drawn in {role.OnName}")
+                .SetDescription(UIPhrase.Of("demo.colors.semantic.drawn-in", ("role", UIPhrase.Text(role.OnName))))
                 .SetDescriptionType(UITextAppearance.Caption)
                 .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
             )
-            .AddChild(CreatePairSample("Light", UIThemeDefaults.LightPalette, role))
-            .AddChild(CreatePairSample("Dark", UIThemeDefaults.DarkPalette, role));
+            .AddChild(CreatePairSample(ThemeWord(false), UIThemeDefaults.LightPalette, role))
+            .AddChild(CreatePairSample(ThemeWord(true), UIThemeDefaults.DarkPalette, role));
     }
 
     private static ContainerComponent CreatePairSample(string label, UIColorPalette palette, RolePair role)
@@ -118,11 +122,13 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                 )
                 .AddChild(new TextComponent()
                     .SetTitle(baseVariant.ToHex())
+                    .AsContent(ITextBaseComponent.TitleProperty)
                     .SetTitleType(UITextAppearance.Caption)
                     .SetTitleColor(onColor)
                 )
                 .AddChild(new TextComponent()
                     .SetTitle(onVariant.ToHex())
+                    .AsContent(ITextBaseComponent.TitleProperty)
                     .SetTitleType(UITextAppearance.Caption)
                     .SetTitleColor(onColor)
                 )
@@ -134,7 +140,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateInkGroup()
     {
-        return DemoUI.CreateGroup(null, "Ink — the same colours as words",
+        return DemoUI.CreateGroup(null, "demo.colors.semantic.ink",
             content =>
             {
                 WrapPanelComponent grid = new WrapPanelComponent()
@@ -145,7 +151,9 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreateInkCard(role));
 
                 _ = content.AddChild(grid);
-            });
+            },
+            words: true
+        );
     }
 
     private static StackPanelComponent CreateInkCard(SingleRole role)
@@ -154,14 +162,15 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
+                .AsContent(ITextBaseComponent.TitleProperty)
                 .SetTitleType(UITextAppearance.Body)
             )
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(12)
                 .SetWrap(true)
-                .AddChild(CreateInkSample("Light", UIThemeDefaults.LightPalette, role))
-                .AddChild(CreateInkSample("Dark", UIThemeDefaults.DarkPalette, role))
+                .AddChild(CreateInkSample(ThemeWord(false), UIThemeDefaults.LightPalette, role))
+                .AddChild(CreateInkSample(ThemeWord(true), UIThemeDefaults.DarkPalette, role))
             );
     }
 
@@ -180,6 +189,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                 .SetTitle(label)
                 .SetTitleColor(UIThemeColor.FromColorVariant(ink))
                 .SetDescription(ink.ToHex())
+                .AsContent(ITextComponent.DescriptionProperty)
                 .SetDescriptionType(UITextAppearance.Caption)
                 .SetDescriptionColor(UIThemeColor.FromColorVariant(ink))
                 .SetPlacement(1, 1, 24, 1)
@@ -188,7 +198,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
 
     private static ContainerComponent CreateChromeGroup()
     {
-        return DemoUI.CreateGroup(null, "Interaction & chrome (no On* partner)",
+        return DemoUI.CreateGroup(null, "demo.colors.semantic.chrome",
             content =>
             {
                 WrapPanelComponent grid = new WrapPanelComponent()
@@ -199,7 +209,9 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                     _ = grid.AddChild(CreateSingleCard(role));
 
                 _ = content.AddChild(grid);
-            });
+            },
+            words: true
+        );
     }
 
     private static StackPanelComponent CreateSingleCard(SingleRole role)
@@ -211,14 +223,15 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
             .AddChild(new TextComponent()
                 .SetTitle(role.Name)
+                .AsContent(ITextBaseComponent.TitleProperty)
                 .SetTitleType(UITextAppearance.Body)
             )
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(12)
                 .SetWrap(true)
-                .AddChild(CreateSwatch("Light", light.ToHex(), UIThemeColor.FromColorVariant(light)))
-                .AddChild(CreateSwatch("Dark", dark.ToHex(), UIThemeColor.FromColorVariant(dark)))
+                .AddChild(CreateSwatch(ThemeWord(false), light.ToHex(), UIThemeColor.FromColorVariant(light)))
+                .AddChild(CreateSwatch(ThemeWord(true), dark.ToHex(), UIThemeColor.FromColorVariant(dark)))
             );
     }
 
@@ -237,6 +250,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
                 .SetTitle(label)
                 .SetTitleType(UITextAppearance.Caption)
                 .SetDescription(hex)
+                .AsContent(ITextComponent.DescriptionProperty)
                 .SetDescriptionType(UITextAppearance.Caption)
                 .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
             );

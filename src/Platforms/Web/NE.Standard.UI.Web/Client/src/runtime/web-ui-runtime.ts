@@ -9,7 +9,7 @@ import { InteractionEvaluator } from "../interactions/interaction-evaluator";
 import { InteractionIndex } from "../interactions/interaction-index";
 import { FlyoutInteractionEngine } from "../interactions/flyout-interaction-engine";
 import { FileInputEngine } from "../interactions/file-input-engine";
-import { FileUploads, fileUploads } from "../interactions/file-upload";
+import { FileUploads, createFileUploads } from "../interactions/file-upload";
 import { ItemSelection, itemSelection } from "../interactions/row-selection";
 import { ImageInputEngine } from "../interactions/image-input-engine";
 import { KeyValueActionEngine } from "../interactions/key-value-action-engine";
@@ -33,6 +33,7 @@ import { ContextMenuEngine } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
 import { MenuSearchEngine } from "../interactions/menu-search-engine";
+import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
@@ -60,6 +61,7 @@ import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
 import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
 import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
 import { Popups, popups } from "../interactions/popup-service";
+import { pluginFocus } from "../interactions/popup-focus";
 import { rovingFocus } from "../interactions/roving-focus";
 import { componentStates } from "../interactions/interactive-state";
 import { wheel } from "../interactions/wheel-notches";
@@ -106,7 +108,7 @@ import { writeBadgeCount } from "../rendering/web-dom-converters";
 import { numberFormatting } from "../rendering/number-format";
 import { temporalFormatting } from "../rendering/temporal-format";
 import { applyPageCultures } from "../rendering/page-culture";
-import { asBrowserReads, isImageSource, isLocalRoute } from "../rendering/url-safety";
+import { asBrowserReads, isExternalLink, isImageSource, isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { ClientStore } from "../state/client-store";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
 import { ValueConverterRegistration } from "../extensions/converters";
@@ -143,10 +145,12 @@ export type Badges = {
     writeCount(badge: Element, count: number): void;
 };
 
-/** Addresses judged by the framework's own rule, read as the browser reads them, so a package draws a picture from no other. */
+/** Addresses judged by the framework's own rule, read as the browser reads them, so a package draws a picture or a link by no other. */
 export type Urls = {
     isImageSource(address: string): boolean;
     asBrowserReads(address: string): string;
+    isSafeLink(address: string): boolean;
+    isExternalLink(address: string): boolean;
 };
 
 /** What a package's engine starts from: a built-in engine's services, plus what it cannot import from its own bundle. */
@@ -171,6 +175,7 @@ export type PluginEngineContext = EngineContext & {
     readonly selection: ItemSelection;
     readonly popups: Popups;
     readonly roving: typeof rovingFocus;
+    readonly focus: typeof pluginFocus;
     readonly states: typeof componentStates;
     readonly validation: FieldValidation;
     readonly wheel: typeof wheel;
@@ -219,6 +224,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["menu group", ({ root }) => new MenuGroupEngine({ root })],
     ["menu search", ({ root }) => new MenuSearchEngine({ root })],
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
+    ["screen keyboard", () => new ScreenKeyboardEngine()],
     ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
     ["accordion", ({ root }) => new AccordionEngine({ root })],
     ["tabs", ({ root }) => new TabsEngine({ root })],
@@ -555,7 +561,7 @@ export class WebUIRuntime {
             temporal: temporalFormatting,
             icons: { apply: applyIconValue },
             badges: { writeCount: writeBadgeCount },
-            urls: { isImageSource, asBrowserReads },
+            urls: { isImageSource, asBrowserReads, isSafeLink, isExternalLink },
             values: {
                 read: element => this.readPluginValue(element),
                 hold: element => valueBinding?.hold(element),
@@ -584,10 +590,11 @@ export class WebUIRuntime {
             renames: { open: openInlineRename },
             tables: this.tables,
             rows: createItemRows(itemsTemplates, itemsRenderer, this.virtualization),
-            uploads: fileUploads,
+            uploads: createFileUploads(validationEngine),
             selection: itemSelection,
             popups,
             roving: rovingFocus,
+            focus: pluginFocus,
             states: componentStates,
             validation: validationEngine,
             wheel,
@@ -1011,7 +1018,7 @@ export class WebUIRuntime {
         }
     }
 
-    /** Whether the runtime ended attached; false when the attach gave up or the page is reloading. */
+    /** Whether the runtime ended attached; false when the attach gave up, was left to the reconnect, or the page is reloading. */
     private async attachCoreAsync(): Promise<boolean> {
         if (this.connectionLost)
             return false;
@@ -1095,7 +1102,10 @@ export class WebUIRuntime {
         }
     }
 
-    /** Retries a failed attach with a growing backoff, so a hub call throwing on a live socket needs no reload; null once all failed. */
+    /**
+     * Retries a failed attach with a growing backoff, so a hub call throwing on a live socket needs no reload; null once all failed,
+     * `LeftToReconnect` where the connection dropped again meanwhile.
+     */
     private async attachWithRetryAsync(): Promise<AttachOutcome<WebUIAttachResult>> {
         // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
         const standIn = readStandInNavigation();

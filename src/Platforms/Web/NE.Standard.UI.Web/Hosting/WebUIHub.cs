@@ -178,7 +178,7 @@ internal sealed partial class WebUIHub : Hub
         [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Stored theme '{Theme}' on connection '{ConnectionId}'s session.")]
         public static partial void ThemeStored(ILogger logger, string theme, string connectionId);
 
-        [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Theme '{Theme}' was not stored: connection '{ConnectionId}' presented no session.")]
+        [LoggerMessage(EventId = 9, Level = LogLevel.Debug, Message = "Theme '{Theme}' was not stored: connection '{ConnectionId}' presented no stored session.")]
         public static partial void ThemeNotStored(ILogger logger, string theme, string connectionId);
 
         [LoggerMessage(EventId = 10, Level = LogLevel.Information, Message = "Web UI route '{Route}' presented view '{PageView}' where the compile is '{View}': the page reloads.")]
@@ -328,7 +328,7 @@ internal sealed partial class WebUIHub : Hub
 
         return new UserSessionInitData
         {
-            SessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions),
+            SessionId = ReadSessionId(http),
             ConnectionId = Context.ConnectionId,
             ClientWindowId = clientWindowId,
             Credential = Context.User?.Identity?.IsAuthenticated == true ? Context.User.Identity.Name : null,
@@ -338,6 +338,10 @@ internal sealed partial class WebUIHub : Hub
             TimeZone = timeZone
         };
     }
+
+    /// <summary>The session the page's cookie names, or none where the connection has no request or the request no cookie.</summary>
+    private string? ReadSessionId(HttpContext? http)
+        => http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
 
     private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
     {
@@ -355,22 +359,21 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Theme);
 
-        UIThemeMode? mode = WebCssValues.TryReadThemeName(request.Theme, out UIThemeMode value) ? value : null;
+        UIThemeMode? mode = WebCssValues.TryReadThemeName(request.Theme, out UIThemeMode value)
+            ? value
+            : request.Theme == WebCssValues.RootThemeName(null) ? null : throw new InvalidOperationException($"Theme '{request.Theme}' is not light, dark or auto.");
 
-        HttpContext? http = Context.GetHttpContext();
-        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
+        var sessionId = ReadSessionId(Context.GetHttpContext());
+        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+            ? null
+            : await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (written is null)
         {
-            // No cookie means no session to remember it in; the theme still applies for as long as the page lives.
+            // No session to remember it in; the theme still applies for as long as the page lives.
             Log.ThemeNotStored(_logger, request.Theme, Context.ConnectionId);
             return;
         }
-
-        UserSessionState? written = await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
-
-        if (written is null)
-            return;
 
         Log.ThemeStored(_logger, request.Theme, Context.ConnectionId);
 
@@ -403,8 +406,7 @@ internal sealed partial class WebUIHub : Hub
 
         request.Colors?.Validate();
 
-        HttpContext? http = Context.GetHttpContext();
-        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
+        var sessionId = ReadSessionId(Context.GetHttpContext());
         UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
             ? null
             : await _sessions.SetThemeColorsAsync(sessionId, request.Colors, Context.ConnectionAborted).ConfigureAwait(false);
@@ -436,13 +438,9 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
 
-        ITranslator translator = _application.Translator;
+        EnsureTranslatesInto(request.Language);
 
-        if (!translator.HasLanguage(request.Language))
-            throw new InvalidOperationException($"Language '{request.Language}' is not one the application translates into.");
-
-        HttpContext? http = Context.GetHttpContext();
-        var sessionId = http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
+        var sessionId = ReadSessionId(Context.GetHttpContext());
         UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
             ? null
             : await _sessions.SetLanguageAsync(sessionId, request.Language, Context.ConnectionAborted).ConfigureAwait(false);
@@ -468,6 +466,12 @@ internal sealed partial class WebUIHub : Hub
         };
     }
 
+    private void EnsureTranslatesInto(string language)
+    {
+        if (!_application.Translator.HasLanguage(language))
+            throw new InvalidOperationException($"Language '{language}' is not one the application translates into.");
+    }
+
     /// <summary>
     /// Answers the words a page's table lacked — a translator that cannot list them all, or a prefixed key missing where missing
     /// words are reported — with each key's plural forms; bounded per call, for a language the translator lists.
@@ -478,14 +482,12 @@ internal sealed partial class WebUIHub : Hub
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
         ArgumentNullException.ThrowIfNull(request.Keys);
 
-        ITranslator translator = _application.Translator;
-
-        if (!translator.HasLanguage(request.Language))
-            throw new InvalidOperationException($"Language '{request.Language}' is not one the application translates into.");
+        EnsureTranslatesInto(request.Language);
 
         if (request.Keys.Length > MaxTranslateKeys)
             throw new InvalidOperationException($"A page asks for at most {MaxTranslateKeys} words at a time.");
 
+        ITranslator translator = _application.Translator;
         UIWordTable table = translator.ListWords(request.Language);
         Dictionary<string, string> words = new(StringComparer.Ordinal);
 

@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
@@ -21,7 +22,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-button");
+        _ = root.Class(WebClassNames.Button);
 
         RenderButtonChrome(context, root);
         RenderButtonLabel(context, root);
@@ -38,7 +39,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
             {
                 _ = chevron.Class("ui-action__chevron");
 
-                RenderFlagClass(context, chevron, ActionComponent.ShowChevronProperty, "ui-hidden", WebValueCondition.IsFalse);
+                RenderFlagClass(context, chevron, ActionComponent.ShowChevronProperty, WebClassNames.Hidden, WebValueCondition.IsFalse);
             });
         });
     }

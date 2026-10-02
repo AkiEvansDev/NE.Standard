@@ -3,9 +3,9 @@
 // read as its one name, and a control inside one is lost to the reader; a surface holding controls is a group the reader walks into.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ActionBarClass, ComponentIdAttribute, DisabledClass, LoadingClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, DisabledClass, LoadingClass } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { ControlSelector, soleControlOf } from "./own-control.ts";
+import { ControlSelector, isOwnControlOf, soleControlOf } from "./own-control.ts";
 import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 // Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press.
@@ -131,9 +131,7 @@ function isRowsOneControl(surface: Element): boolean {
  */
 function holdsControl(surface: Element): boolean {
     for (const control of surface.querySelectorAll(ControlSelector)) {
-        const popup = control.closest(PopupRoleSelector);
-
-        if ((popup === null || !surface.contains(popup)) && control.closest(`.${ActionBarClass}`) === null)
+        if (isOwnControlOf(surface, control))
             return true;
     }
 

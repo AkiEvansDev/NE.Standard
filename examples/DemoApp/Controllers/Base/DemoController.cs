@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using NE.Standard.UI.Primitives.Recursive;
@@ -16,9 +17,10 @@ internal partial class DemoGroupContext : RecursiveObservable
 {
     private readonly Dictionary<string, DemoOption> _options = new(StringComparer.Ordinal);
 
-    // Empty rather than a placeholder: the header row already reserves the line, so nothing moves.
+    // Empty rather than a placeholder: the line stands under the group and reserves nothing, so a placeholder would only push the
+    // groups below. A phrase, so a page of words can write its line in the reader's language; every other page writes plain text.
     [RecursiveMember]
-    public partial string Message { get; set; } = string.Empty;
+    public partial UIPhrase? Message { get; set; }
 
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> OptionRows { get; } = [];
@@ -76,9 +78,13 @@ internal partial class DemoGroupContext : RecursiveObservable
     protected void SetLastChange<T>(string property, T value)
         => Message = $"{property} -> {value}";
 
-    /// <summary>Writes a timestamped line to the section's header, for what happened rather than what changed.</summary>
+    /// <summary>Writes a timestamped line under the group, for what happened rather than what changed.</summary>
     internal void LogEvent(string message)
         => Message = $"{DateTime.Now:HH:mm:ss} > {message}";
+
+    /// <summary>The same line from a key, in the reader's language.</summary>
+    internal void LogEvent(UIPhrase message)
+        => Message = UIPhrase.Of("demo.log", ("time", DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)), ("message", message));
 
     protected static T CycleEnum<T>(T current) where T : struct, Enum
     {

@@ -1,4 +1,5 @@
 // `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
+import { TreeRootClass, TreeRowClass, TreeRowFilteredClass } from "../addressing/dom-attributes.ts";
 import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 import { ensureEmptyState } from "./items-empty-renderer.ts";
@@ -12,9 +13,8 @@ import type { ItemsVirtualizationEngine } from "./items-virtualization-engine";
 
 /** Raised on a tree's host when its rules or their sources changed; the tree engine answers with a walk. */
 export const TreeRulesEventName = "ui-tree-rules";
-const TreeRootClass = "ui-tree";
 // A tree's node rows its walk has not filtered out; a row of waiting stands only beside a node, so it is never counted.
-const ShownTreeRowSelector = ":scope > .ui-tree__row:not(.ui-tree__row--filtered)";
+const ShownTreeRowSelector = `:scope > .${TreeRowClass}:not(.${TreeRowFilteredClass})`;
 
 export type ItemsHostSyncContext = {
     readonly metadata: MetadataIndex;

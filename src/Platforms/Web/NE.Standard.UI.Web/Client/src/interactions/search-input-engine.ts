@@ -10,7 +10,8 @@ const ManualAttribute = "data-ui-search-manual";
 // On the field of a search whose list is the server's answer to `OnSearch` (SearchComponentRenderer).
 const AnsweredAttribute = "data-ui-search-answered";
 const SearchInputClass = "ui-search__input";
-const PopupClass = "ui-select__popup";
+// The listbox the options stand in, under the field.
+const ListClass = "ui-select__list";
 const OptionClass = "ui-select__option";
 const TitleClass = "ui-text__title";
 const DefaultDebounceMilliseconds = 300;
@@ -29,6 +30,8 @@ export class SearchInputEngine {
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
         // A composed character arrives whole at its end; the keystrokes that build it are not a query yet.
         this.root.addEventListener("compositionend", domEvent => this.handleInput(domEvent), true);
+        // After the select engine's, whose Enter chooses the marked option; before FieldKeysEngine's, whose Enter leaves the field.
+        this.root.addEventListener("keydown", domEvent => this.handleEnter(domEvent), true);
     }
 
     private handleInput(domEvent: Event): void {
@@ -39,7 +42,7 @@ export class SearchInputEngine {
             return;
 
         const input = domEvent.target;
-        filterOptions(input);
+        narrowToTerm(input);
 
         const existing = this.timers.get(input);
 
@@ -52,10 +55,32 @@ export class SearchInputEngine {
         this.timers.set(input, window.setTimeout(() => this.commit(input), Number.isFinite(debounce) && debounce >= 0 ? debounce : DefaultDebounceMilliseconds));
     }
 
-    private commit(input: HTMLInputElement): void {
+    /** Enter no option took asks at once: a manual search's way to ask, an automatic one's past its debounce; the list stays open. */
+    private handleEnter(domEvent: Event): void {
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Enter" || domEvent.defaultPrevented || domEvent.isComposing)
+            return;
+
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass))
+            return;
+
+        const input = domEvent.target;
+        const existing = this.timers.get(input);
+
+        domEvent.preventDefault();
+
+        if (existing !== undefined) {
+            window.clearTimeout(existing);
+            this.timers.delete(input);
+        }
+
+        this.commit(input, true);
+    }
+
+    /** `asked`: the reader asked for the search, which a manual field waits for; a term under the least length still asks nothing. */
+    private commit(input: HTMLInputElement, asked = false): void {
         input.dispatchEvent(new Event("change", { bubbles: true }));
 
-        if (input.hasAttribute(ManualAttribute))
+        if (!asked && input.hasAttribute(ManualAttribute))
             return;
 
         const minLengthText = input.getAttribute(MinLengthAttribute);
@@ -68,23 +93,24 @@ export class SearchInputEngine {
     }
 }
 
-function filterOptions(input: HTMLInputElement): void {
+/** Narrows a search's own options to the term its field holds; a list the server answers stands as it is. */
+export function narrowToTerm(input: HTMLInputElement): void {
     // Narrowed here as well, the answer's own options could be hidden by a rule the server's match does not share.
     if (input.hasAttribute(AnsweredAttribute))
         return;
 
     const select = input.closest<HTMLElement>(`.${SelectClass}`);
-    const popup = select?.querySelector<HTMLElement>(`.${PopupClass}`);
+    const list = select?.querySelector<HTMLElement>(`.${ListClass}`);
 
-    if (select === null || select === undefined || popup === null || popup === undefined)
+    if (select === null || select === undefined || list === null || list === undefined)
         return;
 
     const minLengthText = input.getAttribute(MinLengthAttribute);
     const minLength = minLengthText === null ? 0 : Number(minLengthText);
     const terms = input.value.trim().length >= minLength ? searchTerms(input.value, input) : [];
-    const shown = narrow(popup, option => terms.length === 0 || matchesTerms(foldWords(optionWords(option), option), terms));
+    const shown = narrow(list, option => terms.length === 0 || matchesTerms(foldWords(optionWords(option), option), terms));
 
-    toggleNoMatchPlaceholder(select, popup, terms.length > 0 && shown === 0);
+    toggleNoMatchPlaceholder(select, list, terms.length > 0 && shown === 0);
 }
 
 /** The words an option shows as its name: its title where it has one, else all it draws — what the menu's search reads too. */
@@ -93,12 +119,12 @@ function optionWords(option: HTMLElement): string {
 }
 
 /** Shows the options `keep` keeps and hides the rest, a group's header standing while an option after it does; answers how many stayed. */
-function narrow(popup: HTMLElement, keep: (option: HTMLElement) => boolean): number {
+function narrow(list: HTMLElement, keep: (option: HTMLElement) => boolean): number {
     let header: HTMLElement | null = null;
     let headerKept = false;
     let kept = 0;
 
-    for (const row of popup.children) {
+    for (const row of list.children) {
         if (!(row instanceof HTMLElement))
             continue;
 
@@ -138,22 +164,14 @@ function show(row: HTMLElement, shown: boolean): void {
 
 /** The empty state, decided from what is in the list rather than from the query that narrowed it; a refill's headers follow its options. */
 export function refreshEmptyState(select: HTMLElement): void {
-    const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
+    const list = select.querySelector<HTMLElement>(`.${ListClass}`);
 
-    if (popup === null)
+    if (list === null)
         return;
 
-    const shown = narrow(popup, option => option.style.display !== "none");
+    const shown = narrow(list, option => option.style.display !== "none");
 
-    toggleNoMatchPlaceholder(select, popup, shown === 0);
-}
-
-/** Takes the query's filter off every option and header, leaving the empty state to `refreshEmptyState` alone. */
-export function clearOptionsFilter(select: HTMLElement): void {
-    const popup = select.querySelector<HTMLElement>(`.${PopupClass}`);
-
-    if (popup !== null)
-        narrow(popup, () => true);
+    toggleNoMatchPlaceholder(select, list, shown === 0);
 }
 
 /** Puts the owner's empty template in its list while a search leaves nothing there, and takes it out again — a select's, a menu's. */

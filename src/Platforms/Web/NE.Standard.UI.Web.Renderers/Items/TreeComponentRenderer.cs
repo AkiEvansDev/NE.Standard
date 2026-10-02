@@ -8,6 +8,7 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Items;
@@ -25,14 +26,13 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
     public const string DepthVariable = "--ui-tree-depth";
 
     private const string HostClassName = "ui-tree__host";
-    private const string RowClassName = "ui-tree__row";
     private const string FoldedClassName = "ui-tree__row--folded";
     private const string NodeClassName = "ui-tree__node";
 
     // The client mirror of RenderRow below: the row template as the row's identity, the node's face in one slot chosen by kind.
     private static readonly WebRenderItemsCompositeMetadata CompositeItem = new()
     {
-        ItemClassName = RowClassName,
+        ItemClassName = WebClassNames.TreeRow,
         ItemRole = "treeitem",
         HostSlotVariantKey = TemplateNames.Row,
         Slots =
@@ -43,7 +43,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
 
     public override string ComponentTypeKey => TreeComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tree";
+    protected override string ClassName => WebClassNames.Tree;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -85,7 +85,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderItemsHost(context, root, HostClassName, items, isBound, RowClassName, configureHost: host =>
+        RenderItemsHost(context, root, HostClassName, items, isBound, WebClassNames.TreeRow, configureHost: host =>
         {
             _ = host.Attribute("role", "presentation");
 
@@ -126,7 +126,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
 
         _ = host.Element("div", row =>
         {
-            _ = row.Class(RowClassName);
+            _ = row.Class(WebClassNames.TreeRow);
             _ = row.Attribute("role", "treeitem");
             _ = row.Attribute("aria-level", (depth + 1).ToString(CultureInfo.InvariantCulture));
             _ = row.Style(DepthVariable, depth.ToString(CultureInfo.InvariantCulture));

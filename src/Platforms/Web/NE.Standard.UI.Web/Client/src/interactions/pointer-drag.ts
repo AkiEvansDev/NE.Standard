@@ -26,6 +26,11 @@ export type PointerDragOptions<TContext> = {
     readonly move: (context: TContext, delta: number, point: { readonly x: number; readonly y: number }) => void;
     readonly end: (handle: HTMLElement, context: TContext) => void;
     /**
+     * Escape mid-drag: put back what `begin` found, the value sending nothing. Left out, the gesture goes back to the delta it began
+     * at and ends as any other — enough for a drag measured from its press, not for one that read the press point or pinched.
+     */
+    readonly cancel?: (handle: HTMLElement, context: TContext) => void;
+    /**
      * A second pointer pressed on the handle mid-drag, step by step; left out, a second pointer is passed over. Once either lifts,
      * the one left drags on, `move` measured afresh from where it stands.
      */
@@ -190,7 +195,7 @@ export class PointerDrag<TContext> {
         this.options.end(handle, context);
     }
 
-    /** Escape cancels the gesture in progress: back to the delta the drag began at, then released like any other end. */
+    /** Escape cancels the gesture in progress: the engine's own cancel, else back to the delta the drag began at and an end. */
     private handleKeyDown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || this.drag === null)
             return;
@@ -200,7 +205,6 @@ export class PointerDrag<TContext> {
         const { handle, context, pointerId, originPoint, second } = this.drag;
 
         this.drag = null;
-        this.options.move(context, 0, originPoint);
         handle.removeAttribute(SplittingAttribute);
 
         for (const held of second === null ? [pointerId] : [pointerId, second.pointerId]) {
@@ -212,6 +216,12 @@ export class PointerDrag<TContext> {
             }
         }
 
+        if (this.options.cancel !== undefined) {
+            this.options.cancel(handle, context);
+            return;
+        }
+
+        this.options.move(context, 0, originPoint);
         this.options.end(handle, context);
     }
 }

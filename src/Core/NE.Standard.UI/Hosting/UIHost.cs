@@ -489,7 +489,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// </summary>
     private static bool OnlyTouches(UserSessionState stored, UserSessionState next, UISessionOptions options)
     {
-        TimeSpan resolution = Min(options.TouchResolution, (stored.IsUnclaimed ? options.UnclaimedIdleTimeout : options.IdleTimeout) / 10);
+        TimeSpan resolution = LastSeenResolution(options, stored.IsUnclaimed);
 
         return resolution > TimeSpan.Zero
             && next.LastSeenAtUtc - stored.LastSeenAtUtc < resolution
@@ -498,6 +498,13 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             // Compared as records, so a field the session gains later is a change here without a line of its own.
             && next with { LastSeenAtUtc = stored.LastSeenAtUtc, Roles = stored.Roles, Permissions = stored.Permissions } == stored;
     }
+
+    /// <summary>
+    /// How far a session's last-seen time may lag behind, the one rule for a page load, an attach and hub traffic alike:
+    /// <see cref="UISessionOptions.TouchResolution"/>, at most a tenth of the timeout the session is under; zero writes every time.
+    /// </summary>
+    private static TimeSpan LastSeenResolution(UISessionOptions options, bool unclaimed)
+        => Min(options.TouchResolution, (unclaimed ? options.UnclaimedIdleTimeout : options.IdleTimeout) / 10);
 
     /// <summary>
     /// Whether the identity the request resolved came from a stored session that has been removed since — signed out, or ended
@@ -1184,8 +1191,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     }
 
     /// <summary>
-    /// Refreshes the session's last-seen time from hub traffic, throttled to a tenth of the idle timeout, so a chatty tab
-    /// isn't a write per message.
+    /// Refreshes the session's last-seen time from hub traffic, throttled by the rule a page load's is (<see cref="LastSeenResolution"/>),
+    /// so a chatty tab isn't a write per message.
     /// </summary>
     /// <remarks>
     /// Otherwise a tab that only sends events, never reloading, would idle out while the connection stays alive and lose
@@ -1196,7 +1203,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// </remarks>
     private async Task<bool> RefreshSessionActivityAsync(UIHandle handle, UIRuntimeEntry entry, CancellationToken cancellationToken)
     {
-        TimeSpan throttle = TimeSpan.FromTicks(_application.Sessions.IdleTimeout.Ticks / 10);
+        // An attached tab's session is claimed: it is under the full idle timeout.
+        TimeSpan throttle = LastSeenResolution(_application.Sessions, unclaimed: false);
 
         if (!entry.ShouldPersistSessionActivity(DateTime.UtcNow, throttle))
             return true;
@@ -1220,13 +1228,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
 
         if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
-        {
-            return new UICommandExecutionResult
-            {
-                Command = UICommandResult.Fail("The session has ended."),
-                Changes = ServerChangeSet.Empty
-            };
-        }
+            return SessionEndedResult();
 
         // Tagged with the route's template, not the address, so a route with parameters is one series and not one per id.
         var route = _application.Routes.TryGetEntry(handle.Instance.Navigation.Route, out UIRouteEntry? routeEntry)
@@ -1263,6 +1265,14 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         }
     }
 
+    /// <summary>The answer to a call whose session ended before it ran: nothing done, nothing changed.</summary>
+    private static UICommandExecutionResult SessionEndedResult()
+        => new()
+        {
+            Command = UICommandResult.Fail("The session has ended."),
+            Changes = ServerChangeSet.Empty
+        };
+
     /// <inheritdoc />
     public async Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle handle, string target, CancellationToken cancellationToken = default)
     {
@@ -1274,13 +1284,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
 
         if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
-        {
-            return new UICommandExecutionResult
-            {
-                Command = UICommandResult.Fail("The session has ended."),
-                Changes = ServerChangeSet.Empty
-            };
-        }
+            return SessionEndedResult();
 
         return await entry.Runtime.RequestLeaveAsync(handle, target, cancellationToken).ConfigureAwait(false);
     }
@@ -1418,18 +1422,27 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
                     Changes = ServerChangeSet.Empty
                 };
 
-                try
-                {
-                    await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    Log.SessionReachFailed(_logger, exception, viewer.Instance.Id);
-                }
+                await SendToViewerAsync(updates, viewer, result, Log.SessionReachFailed, cancellationToken).ConfigureAwait(false);
             }
 
             if (reached is not null && !ReferenceEquals(runtime, originRuntime))
                 connections.PostSessionChanged(reached);
+        }
+    }
+
+    /// <summary>
+    /// Pushes a result to one page, logging rather than throwing a send that fails: the page is told again, or goes, when it next
+    /// reaches the server, and one page's lost connection must not stop the rest being told.
+    /// </summary>
+    private async Task SendToViewerAsync(IUIUpdateSink updates, UIHandle viewer, UICommandExecutionResult result, Action<ILogger, Exception, string> failed, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            failed(_logger, exception, viewer.Instance.Id);
         }
     }
 
@@ -1515,14 +1528,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
                 Changes = new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] }
             };
 
-            try
-            {
-                await updates.SendCommandResultAsync(viewer, result, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception exception)
-            {
-                Log.SessionEndNoticeFailed(_logger, exception, viewer.Instance.Id);
-            }
+            await SendToViewerAsync(updates, viewer, result, Log.SessionEndNoticeFailed, CancellationToken.None).ConfigureAwait(false);
         }
     }
 

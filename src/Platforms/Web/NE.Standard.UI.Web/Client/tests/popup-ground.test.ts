@@ -39,7 +39,7 @@ test("a field in a dialog mixes its ground from the dialog's own fill, whatever 
     const grounds: Readonly<Record<string, string>> = {
         ".ui-dialog__surface": "var(--ui-surface-raised)",
         ".ui-dialog__surface[data-ui-dialog-surface=\"background\"]": "var(--ui-color-background)",
-        ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]": "color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background))"
+        ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]": "color-mix(in srgb, var(--ui-color-primary) var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)))"
     };
 
     for (const [surface, fill] of Object.entries(grounds))

@@ -45,6 +45,13 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     UIIconSize? IconSize { get; }
 
     /// <summary>
+    /// Gets the shape a leading icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar; a glyph
+    /// keeps its own.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
+    UIIconShape? IconShape { get; }
+
+    /// <summary>
     /// Gets the label text drawn as the title; nothing renders when it is unset.
     /// </summary>
     /// <remarks>

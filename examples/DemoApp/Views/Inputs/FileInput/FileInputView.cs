@@ -160,7 +160,7 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("What the empty field promises",
             // Three to a row at the page's width, each as wide as a form's field: at 320 the third wrapped onto a row alone.
             UILayout.Row(24)
-                .AddChild(UIPage.Labelled("One kind of file", new FileInputComponent()
+                .AddChild(DemoUI.CreateLabelled("One kind of file", new FileInputComponent()
                     .SetTitle("Deploy manifest")
                     .SetAccept(".yaml,.yml")
                     .SetPlaceholder("A single .yaml, up to 256 KB")
@@ -168,7 +168,7 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     )
                 )
-                .AddChild(UIPage.Labelled("A whole family of them", new FileInputComponent()
+                .AddChild(DemoUI.CreateLabelled("A whole family of them", new FileInputComponent()
                     .SetTitle("Screenshot")
                     .SetAccept("image/*")
                     .SetPlaceholder("Any image, up to 5 MB")
@@ -176,11 +176,11 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     )
                 )
-                .AddChild(UIPage.Labelled("Several, each within the limit", new FileInputComponent()
+                .AddChild(DemoUI.CreateLabelled("Several, each within the limit", new FileInputComponent()
                     .SetTitle("Attachments")
                     .SetMultiple(true)
                     .SetMaxFileSize(5 * Megabyte)
-                    .SetPlaceholder("Each of them at most 5 MB, not all of them together")
+                    .SetPlaceholder("Up to 5 MB each")
                     .SetWidth(UILayoutLength.Absolute(300))
                     )
                 ),
@@ -196,14 +196,14 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A file over the limit",
             UILayout.Row(24)
-                .AddChild(UIPage.Labelled("One file, 1 MB at most", new FileInputComponent()
+                .AddChild(DemoUI.CreateLabelled("One file, 1 MB at most", new FileInputComponent()
                     .SetTitle("Signed contract")
                     .SetPlaceholder("A PDF of 1 MB at most")
                     .SetMaxFileSize(Megabyte)
                     .SetWidth(UILayoutLength.Absolute(320))
                     )
                 )
-                .AddChild(UIPage.Labelled("Several, each 1 MB at most", new FileInputComponent()
+                .AddChild(DemoUI.CreateLabelled("Several, each 1 MB at most", new FileInputComponent()
                     .SetTitle("Receipts")
                     .SetMultiple(true)
                     .SetMaxFileSize(Megabyte)

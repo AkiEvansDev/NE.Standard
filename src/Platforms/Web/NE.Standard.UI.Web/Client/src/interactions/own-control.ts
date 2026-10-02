@@ -7,7 +7,10 @@ import { ActionBarClass, ListTriggerClass, PopupRoleSelector, RowGripClass } fro
 // The box a field draws around its input and its marks: `@ui-input-field-state` in styles/mixins/field.less, which a new field shape joins too.
 export const FieldBoxSelector = `.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .${ListTriggerClass}, .ui-field-box`;
 
-export const ControlSelector = `button, a, input, select, textarea, label, summary, [role='button'], [contenteditable=''], [contenteditable='true'], ${FieldBoxSelector}, ${PopupRoleSelector}, .${RowGripClass}`;
+/** The native controls, a button-like element and an editable region: what every list of a part's own controls starts from. */
+export const NativeControlSelector = "button, a, input, select, textarea, label, summary, [role='button'], [contenteditable=''], [contenteditable='true']";
+
+export const ControlSelector = `${NativeControlSelector}, ${FieldBoxSelector}, ${PopupRoleSelector}, .${RowGripClass}`;
 
 /** What presses like a button: the one kind of control a row may be as a whole. */
 const PressableSelector = "button, a, summary, [role='button']";
@@ -21,9 +24,7 @@ export function soleControlOf(row: Element): HTMLElement | null {
     const controls: Element[] = [];
 
     for (const control of row.querySelectorAll(ControlSelector)) {
-        const popup = control.closest(PopupRoleSelector);
-
-        if (control.classList.contains(RowGripClass) || (popup !== null && row.contains(popup)) || control.closest(`.${ActionBarClass}`) !== null || controls.some(outer => outer.contains(control)))
+        if (control.classList.contains(RowGripClass) || !isOwnControlOf(row, control) || controls.some(outer => outer.contains(control)))
             continue;
 
         controls.push(control);
@@ -35,6 +36,16 @@ export function soleControlOf(row: Element): HTMLElement | null {
     const sole = controls[0];
 
     return sole instanceof HTMLElement && sole.matches(PressableSelector) ? sole : null;
+}
+
+/**
+ * Whether a control found inside a row or a surface is one of its own: not in a popup it holds (its right-click menu), nor in that
+ * menu's action bar, which comes and goes with the pointer.
+ */
+export function isOwnControlOf(container: Element, control: Element): boolean {
+    const popup = control.closest(PopupRoleSelector);
+
+    return (popup === null || !container.contains(popup)) && control.closest(`.${ActionBarClass}`) === null;
 }
 
 /** The control of the row's own the event landed on, or null when the press or the key is the row's. */

@@ -33,16 +33,17 @@ public sealed class UIThemeColorsJsonConverter : JsonConverter<UIThemeColors>
 
             _ = reader.Read();
 
-            ColorVariant? color = ReadColor(ref reader);
-
+            // The name first, as a moment's: a member the colours do not have is refused before its value is read.
             if (string.Equals(name, LightPrimary, StringComparison.OrdinalIgnoreCase))
-                colors = colors with { LightPrimary = color };
+                colors = colors with { LightPrimary = ReadColor(ref reader) };
             else if (string.Equals(name, LightAccent, StringComparison.OrdinalIgnoreCase))
-                colors = colors with { LightAccent = color };
+                colors = colors with { LightAccent = ReadColor(ref reader) };
             else if (string.Equals(name, DarkPrimary, StringComparison.OrdinalIgnoreCase))
-                colors = colors with { DarkPrimary = color };
+                colors = colors with { DarkPrimary = ReadColor(ref reader) };
             else if (string.Equals(name, DarkAccent, StringComparison.OrdinalIgnoreCase))
-                colors = colors with { DarkAccent = color };
+                colors = colors with { DarkAccent = ReadColor(ref reader) };
+            else
+                throw new JsonException($"Theme colours have no member '{name}'.");
         }
 
         return colors;
@@ -54,10 +55,7 @@ public sealed class UIThemeColorsJsonConverter : JsonConverter<UIThemeColors>
             return null;
 
         if (reader.TokenType != JsonTokenType.String)
-        {
-            reader.Skip();
             throw new JsonException("A theme colour is a colour's text.");
-        }
 
         // A colour only: a role (`@Primary`) names no colour of its own.
         return UIThemeColor.TryParse(reader.GetString(), out UIThemeColor parsed) && parsed.Light is ColorVariant color

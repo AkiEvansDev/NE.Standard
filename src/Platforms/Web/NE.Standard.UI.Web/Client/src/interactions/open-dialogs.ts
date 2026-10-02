@@ -3,6 +3,9 @@
 
 export const DialogAttribute = "data-ui-dialog";
 export const ModalAttribute = "data-ui-dialog-modal";
+export const BackdropAttribute = "data-ui-dialog-backdrop";
+export const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
+export const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
 
 /** The open dialog on top, or null. */
 export function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {

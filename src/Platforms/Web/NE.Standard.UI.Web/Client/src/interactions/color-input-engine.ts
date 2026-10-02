@@ -61,6 +61,9 @@ type ColorDragContext = {
     readonly input: HTMLElement;
     readonly element: HTMLElement;
     readonly surface: "square" | "hue";
+    /** What the control held as the press began, which Escape puts back. */
+    readonly stateBefore: ColorState | undefined;
+    readonly valueBefore: string | null;
 };
 
 export type ColorInputEngineOptions = {
@@ -116,7 +119,13 @@ export class ColorInputEngine {
                 if (input === null)
                     return null;
 
-                const context: ColorDragContext = { input, element: handle, surface: handle.hasAttribute(SquareAttribute) ? "square" : "hue" };
+                const context: ColorDragContext = {
+                    input,
+                    element: handle,
+                    surface: handle.hasAttribute(SquareAttribute) ? "square" : "hue",
+                    stateBefore: this.states.get(input),
+                    valueBefore: input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.value ?? null
+                };
 
                 this.applyPoint(context, point);
 
@@ -124,7 +133,8 @@ export class ColorInputEngine {
             },
             move: (context, _, point) => this.applyPoint(context, point),
             // Every position along the way was drawn; the colour the pointer let go on is the one sent, not one round trip per move.
-            end: (_, context) => this.send(context.input)
+            end: (_, context) => this.send(context.input),
+            cancel: (_, context) => this.restore(context)
         });
     }
 
@@ -395,6 +405,17 @@ export class ColorInputEngine {
     }
 
     /** The square and the hue bar are read against their own box, at whatever the pointer's position is now. */
+    /** Puts back the colour the drag began on, drawn and in the hidden input, and sends nothing: the value never changed. */
+    private restore(context: ColorDragContext): void {
+        if (context.stateBefore !== undefined)
+            this.applyState(context.input, context.stateBefore);
+
+        const valueInput = context.input.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
+
+        if (valueInput !== null && context.valueBefore !== null)
+            valueInput.value = context.valueBefore;
+    }
+
     private applyPoint(context: ColorDragContext, point: { readonly x: number; readonly y: number }): void {
         const { input, element, surface } = context;
         const rect = element.getBoundingClientRect();

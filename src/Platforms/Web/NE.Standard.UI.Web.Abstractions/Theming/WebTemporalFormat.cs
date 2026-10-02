@@ -45,9 +45,6 @@ public sealed record WebTemporalCulturePack(IReadOnlyList<string> MonthNames, IR
 /// </remarks>
 public static class WebTemporalFormat
 {
-    /// <summary>The supported tokens, longest first: <see cref="UITemporalPattern.Tokens"/>, which the application's patterns are checked by.</summary>
-    public static readonly string[] Tokens = [.. UITemporalPattern.Tokens];
-
     /// <summary>Formats <paramref name="value"/>; a null or empty format returns the invariant round-trip form.</summary>
     public static string Format(DateTime value, string? format, WebTemporalCulturePack culture)
     {

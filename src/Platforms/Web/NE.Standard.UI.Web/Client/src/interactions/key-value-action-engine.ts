@@ -29,16 +29,17 @@ export class KeyValueActionEngine {
         this.options = options;
         this.root = options.root ?? document;
 
-        // A row may be rendered already editing — one the server added open — so rows are read as they arrive, and once at the start.
-        this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${RowClass}`));
-        observeComponents(this.root, `.${RowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows));
+        // A row may be rendered already editing — one the server added open — so rows are read as they arrive, and once at the start;
+        // a page that loads with rows open takes no focus for them, or the last one would pull the focus and the view down to itself.
+        this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${RowClass}`), false);
+        observeComponents(this.root, `.${RowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows, true));
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
     }
 
-    private handleRows(rows: Iterable<HTMLElement>): void {
+    private handleRows(rows: Iterable<HTMLElement>, focus: boolean): void {
         for (const row of rows) {
             if (row.hasAttribute(RowEditingAttribute))
-                this.open(row);
+                this.open(row, focus);
             else
                 this.close(row);
         }
@@ -62,8 +63,8 @@ export class KeyValueActionEngine {
         dispatchDraftDropped(row);
     }
 
-    /** Focuses an opened row's field, seeding a client-only open's draft with the value's text. */
-    private open(row: HTMLElement): void {
+    /** Seeds a client-only open's draft with the value's text and, for a row opened after the load, focuses its field. */
+    private open(row: HTMLElement, focus: boolean): void {
         const field = row.querySelector<HTMLElement>(`.${ValueInputClass} :is(input, textarea, select)`);
 
         if (field === null)
@@ -78,6 +79,9 @@ export class KeyValueActionEngine {
                 field.dispatchEvent(new Event("change", { bubbles: true }));
             }
         }
+
+        if (!focus)
+            return;
 
         field.focus({ preventScroll: true });
 

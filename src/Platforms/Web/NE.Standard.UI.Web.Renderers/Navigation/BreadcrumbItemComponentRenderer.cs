@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Actions;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
@@ -22,7 +23,7 @@ public sealed class BreadcrumbItemComponentRenderer : ButtonRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-button");
+        _ = root.Class(WebClassNames.Button);
 
         RenderButtonChrome(context, root);
 

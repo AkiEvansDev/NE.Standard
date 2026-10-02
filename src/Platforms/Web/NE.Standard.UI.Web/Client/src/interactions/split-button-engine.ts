@@ -1,6 +1,6 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under it, closed by the chosen entry.
 
-import { MarkedMenuEntrySelector, MenuItemClass, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes.ts";
+import { MarkedMenuEntrySelector, MenuItemClass, MenuRootClass as ListClass, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList } from "./popup-focus.ts";
@@ -10,7 +10,6 @@ const MainClass = "ui-split-button__main";
 const ToggleClass = "ui-split-button__toggle";
 const MenuClass = "ui-split-button__menu";
 const OpenClass = "ui-split-button--open";
-const ListClass = "ui-menu";
 const MenuGap = 4;
 
 export type SplitButtonEngineOptions = {

@@ -48,6 +48,13 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     public UICornerRadius? CornerRadius { get; set; }
 
     /// <summary>
+    /// Gets or sets the image's shape — <see cref="UIImageShape.Circle"/> for a person's avatar: a square box, cropped to its middle
+    /// unless <see cref="Fit"/> says otherwise; a circle outranks <see cref="CornerRadius"/>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIImageShape? Shape { get; set; }
+
+    /// <summary>
     /// Initializes the image with a centered alignment.
     /// </summary>
     protected ImageComponent(string? id = null) : base(id)

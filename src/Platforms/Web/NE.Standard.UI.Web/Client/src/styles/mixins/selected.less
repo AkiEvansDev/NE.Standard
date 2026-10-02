@@ -19,14 +19,16 @@
     --ui-row-wash: var(--ui-selected-background, @default);
 }
 
-// The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback.
-.ui-selected-ink(@default: var(--ui-color-primary-ink); @weight: inherit) {
+// The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback. The text's ink,
+// never the brand's: over the chosen wash the brand's words fell under 4.5:1 (3.2:1 on dark) — the brand stays in the mark.
+.ui-selected-ink(@default: @ui-text-ink; @weight: inherit) {
     color: var(--ui-selected-foreground, @default);
     font-weight: var(--ui-selected-font-weight, @weight);
 }
 
-// The mark's colour alone, for a control that draws the mark its own way (a tab's line) rather than via box-shadow.
-@ui-selected-mark-color: ~"var(--ui-selected-mark-color, var(--ui-color-primary))";
+// The mark's colour alone, for a control that draws the mark its own way (a tab's line) rather than via box-shadow: the mode's
+// (WebThemeCssBuilder), the brand's ink on light and that ink lifted for a tint on dark, where the raw brand read 2.1:1 on the wash.
+@ui-selected-mark-color: ~"var(--ui-selected-mark-color, var(--ui-mark-selected))";
 
 // The mark itself is a box-shadow so it takes no room and lies over the ground; these are the four edges WebCssValues.SelectionMark writes.
 @ui-selected-mark-left: ~"inset 2px 0 0 0 @{ui-selected-mark-color}";
@@ -48,11 +50,11 @@
     .ui-selected-mark(@ui-selected-mark-left);
 }
 
-// A chosen tile: a chosen row over the tile's own picture, which the row's `background` shorthand would reset (`.ui-tile-wash()`
+// A chosen tile: a chosen row over the tile's own picture and its dim, which the row's `background` shorthand would reset (`.ui-tile-wash()`
 // keeps it too).
 .ui-selected-tile() {
     .ui-selected-ground(@property: background-color);
-    background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), var(--ui-surface-image, none);
+    background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), var(--ui-surface-image-veil, none), var(--ui-surface-image, none);
     .ui-selected-ink(inherit);
     .ui-selected-mark();
 }
@@ -107,10 +109,10 @@
     }
 }
 
-// A wrapped view's tile (its row is display: contents): the row's inherited wash over the tile's own ground and picture. Painted at
+// A wrapped view's tile (its row is display: contents): the row's inherited wash over the tile's own ground, picture and dim. Painted at
 // rest too, transparent, so the wash fades out when the pointer leaves rather than going with the layer.
 .ui-tile-wash() {
-    background-image: linear-gradient(var(--ui-row-wash), var(--ui-row-wash)), var(--ui-surface-image, none);
+    background-image: linear-gradient(var(--ui-row-wash), var(--ui-row-wash)), var(--ui-surface-image-veil, none), var(--ui-surface-image, none);
 }
 
 // The pointer's wash on a list's entry, but not on the `@current` one, which keeps its ground so two never look current.

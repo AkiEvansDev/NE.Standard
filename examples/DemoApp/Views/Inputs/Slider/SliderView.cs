@@ -158,7 +158,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                     .SetShowValue()
                 )
                 .AddChild(new SliderComponent()
-                    .SetTitle("Both — the ends take the room, so the reading moves over the handle")
+                    .SetTitle("Both — the reading rides over the handle")
                     .SetRange(0, 100)
                     .SetValue(40)
                     .SetShowValue()
@@ -206,7 +206,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Against a number input",
             UILayout.Row(32)
-                .AddChild(UIPage.Labelled("Slider — the share of traffic", new SliderComponent()
+                .AddChild(DemoUI.CreateLabelled("Slider — the share of traffic", new SliderComponent()
                     .SetTitle("Traffic to the new release")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetRange(0, 100)
@@ -216,7 +216,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                     .SetShowRange()
                     )
                 )
-                .AddChild(UIPage.Labelled("Number input — the exact percentage", new NumberInputComponent()
+                .AddChild(DemoUI.CreateLabelled("Number input — the exact percentage", new NumberInputComponent()
                     .SetTitle("Traffic to the new release")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetRange(0, 100)

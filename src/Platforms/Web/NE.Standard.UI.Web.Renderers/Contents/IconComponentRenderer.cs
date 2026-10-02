@@ -24,6 +24,7 @@ public sealed class IconComponentRenderer : WebComponentRendererBase
         RenderTooltip(context, root);
 
         IconValueRenderer.RenderIconAppearance(context, root, IconComponent.SizeProperty, IconComponent.ColorProperty);
+        IconValueRenderer.RenderIconShape(context, root, IconComponent.ShapeProperty);
 
         _ = RenderProperty<string?>(context, root, IconComponent.IconProperty, (target, value) =>
         {

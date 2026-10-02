@@ -6,7 +6,7 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.Search;
 
 /// <summary>
-/// One search field and every property that can be bound to it; then a box over a catalogue the server answers for, and what the box says once an option is picked out of it.
+/// One search field and every property that can be bound to it; then a box over a catalogue the server answers for, and what the field keeps once an option is picked out of it.
 /// </summary>
 /// <remarks>The option list is exactly what the server answered through <c>OnSearch</c>; the client narrows nothing.</remarks>
 internal sealed class SearchView : DemoComponentView, IUIViewDefinition
@@ -20,8 +20,7 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
     private const string BadgeGroup = nameof(SearchController.BadgeGroup);
     private const string BorderGroup = nameof(SearchController.BorderGroup);
     private const string ServicesList = nameof(SearchController.ServicesList);
-    private const string KeepTextList = nameof(SearchController.KeepTextList);
-    private const string ReplaceTextList = nameof(SearchController.ReplaceTextList);
+    private const string PickList = nameof(SearchController.PickList);
     private const string MinLengthList = nameof(SearchController.MinLengthList);
     private const string ManualList = nameof(SearchController.ManualList);
 
@@ -51,7 +50,7 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
             .BindAutoSearch($"{TermGroup}.{nameof(SearchTermGroupContext.AutoSearch)}")
             .BindDebounceMilliseconds($"{TermGroup}.{nameof(SearchTermGroupContext.DebounceMilliseconds)}")
             .BindMinSearchLength($"{TermGroup}.{nameof(SearchTermGroupContext.MinSearchLength)}")
-            .BindSelectionDisplayMode($"{TermGroup}.{nameof(SearchTermGroupContext.SelectionDisplayMode)}")
+            .BindSearchFieldAppearance($"{TermGroup}.{nameof(SearchTermGroupContext.SearchFieldAppearance)}")
             .BindAppearance($"{FieldGroup}.{nameof(SearchFieldGroupContext.Appearance)}")
             .BindPlaceholder($"{FieldGroup}.{nameof(SearchFieldGroupContext.Placeholder)}")
             .BindPrefixIcon($"{FieldGroup}.{nameof(SearchFieldGroupContext.PrefixIcon)}")
@@ -96,7 +95,7 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
 
     // The two short groups side by side, then the two ways of asking across the page, in halves: paired, they stood alone in a row.
     protected override IVisualComponent[] CreateExamples()
-        => [.. DemoUI.CreateColumns([CreateCatalogueGroup()], [CreateSelectionGroup()]), CreateAskingGroup()];
+        => [.. DemoUI.CreateColumns([CreateCatalogueGroup()], [CreatePickGroup()]), CreateAskingGroup()];
 
     /// <summary>
     /// The ordinary case, over rich options, with the term narrowing the list as it is typed.
@@ -113,7 +112,6 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
                     .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", ServicesList))
                     .SetTitle("Service")
                     .SetPlaceholder("Search services")
-                    .SetPrefixIcon(DemoIcons.Search)
                     .SetDebounceMilliseconds(200)
                     .SetShowClearButton()
                 )
@@ -135,64 +133,53 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
                     .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", MinLengthList))
                     .SetTitle("Not before three letters")
                     .SetPlaceholder("Type \"dns\"")
-                    .SetPrefixIcon(DemoIcons.Search)
                     .SetMinSearchLength(3)
                     .SetDebounceMilliseconds(200)
                     .SetShowClearButton(),
-                // The field fills the row and the button stands at its end, level with the box rather than with the caption.
-                new ContainerComponent()
-                    .SetColumn(24, UIGridUnit.Auto())
-                    .AddChild(new SearchComponent()
-                        .BindOptions($"{ManualList}.{nameof(SearchListContext.Results)}")
-                        .BindSearchText($"{ManualList}.{nameof(SearchListContext.SearchText)}")
-                        .BindValue($"{ManualList}.{nameof(SearchListContext.Value)}")
-                        .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", ManualList))
-                        .SetTitle("Only when asked")
-                        .SetPlaceholder("Type, then press Search")
-                        .SetPrefixIcon(DemoIcons.Search)
-                        .SetAutoSearch(false)
-                        .SetPlacement(1, 1, 23, 1)
-                    )
-                    .AddChild(new ButtonComponent()
-                        .SetTitle("Search")
-                        .SetIcon(DemoIcons.Search)
-                        .OnClickLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", ManualList))
-                        .SetVerticalAlignment(UIAlignment.End)
-                        .SetMargin(UIThickness.All(8, 0, 0, 0))
-                        .SetPlacement(24, 1, 1, 1)
-                    )
+                new SearchComponent()
+                    .BindOptions($"{ManualList}.{nameof(SearchListContext.Results)}")
+                    .BindSearchText($"{ManualList}.{nameof(SearchListContext.SearchText)}")
+                    .BindValue($"{ManualList}.{nameof(SearchListContext.Value)}")
+                    .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", ManualList))
+                    .SetTitle("Only when asked")
+                    .SetPlaceholder("Type, then press Enter")
+                    .SetAutoSearch(false)
             ),
             columns: 24,
-            note: "A floor on the term saves the server the keystrokes that could only match everything; with AutoSearch off nothing is asked until something asks it, and the button reads the same two-way SearchText the box would have sent."
+            note: "A floor on the term saves the server the keystrokes that could only match everything; with AutoSearch off nothing is asked until the reader presses Enter in the field, which asks at once on any search, past its debounce."
         );
     }
 
-    /// <summary>The two answers to "what should the field say once something is picked?", one under the other.</summary>
-    private static ContainerComponent CreateSelectionGroup()
+    /// <summary>What the closed field shows and what the open one keeps: the pick drawn whole, and the term typed to find it.</summary>
+    private static ContainerComponent CreatePickGroup()
     {
-        return DemoUI.CreateExample("What the field says after the pick",
+        return DemoUI.CreateExample("The pick and the term",
             UILayout.Stack(12)
-                .AddChild(new SearchComponent()
-                    .BindOptions($"{KeepTextList}.{nameof(SearchListContext.Results)}")
-                    .BindSearchText($"{KeepTextList}.{nameof(SearchListContext.SearchText)}")
-                    .BindValue($"{KeepTextList}.{nameof(SearchListContext.Value)}")
-                    .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", KeepTextList))
-                    .SetTitle("Keeps what was typed")
-                    .SetPlaceholder("Try \"bill\"")
-                    .SetPrefixIcon(DemoIcons.Search)
-                    .SetSelectionDisplayMode(UISearchSelectionDisplayMode.KeepSearchInput)
-                )
                 // No prefix glyph: the chosen option brings its own icon into the closed field.
                 .AddChild(new SearchComponent()
-                    .BindOptions($"{ReplaceTextList}.{nameof(SearchListContext.Results)}")
-                    .BindSearchText($"{ReplaceTextList}.{nameof(SearchListContext.SearchText)}")
-                    .BindValue($"{ReplaceTextList}.{nameof(SearchListContext.Value)}")
-                    .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", ReplaceTextList))
-                    .SetTitle("Replaced by the chosen option")
-                    .SetPlaceholder("Try \"bill\"")
-                    .SetSelectionDisplayMode(UISearchSelectionDisplayMode.ReplaceWithSelectedItem)
+                    .BindOptions($"{PickList}.{nameof(SearchListContext.Results)}")
+                    .BindSearchText($"{PickList}.{nameof(SearchListContext.SearchText)}")
+                    .BindValue($"{PickList}.{nameof(SearchListContext.Value)}")
+                    .OnSearchLiteral(nameof(SearchController.SearchList), new KeyValuePair<string, object?>("list", PickList))
+                    .SetTitle("Service")
+                    .SetPlaceholder("Pick a service")
+                    .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("Replaced, the closed field shows the whole option — icon, second line and badge — and turns back into a text field the moment the keyboard reaches it, the chosen text selected, so what is typed replaces it."))
+                // What the box holds, read off its two bindings: the term is the field's, the value the option's key.
+                .AddChild(UILayout.Columns(12,
+                        new TextComponent()
+                            .SetTitle("Term")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .BindDescription($"{PickList}.{nameof(SearchListContext.SearchText)}")
+                            .SetDescriptionType(UITextAppearance.Body),
+                        new TextComponent()
+                            .SetTitle("Value")
+                            .SetTitleType(UITextAppearance.Caption)
+                            .BindDescription($"{PickList}.{nameof(SearchListContext.Value)}")
+                            .SetDescriptionType(UITextAppearance.Body)
+                    )
+                )
+                .AddChild(UIText.Note("Try \"bill\". Closed, the field shows the chosen option whole — icon, second line and badge — as a select does. Open it again: the term that found it is still there, selected, so typing replaces it, and the list is still the answer to it."))
         );
     }
 }

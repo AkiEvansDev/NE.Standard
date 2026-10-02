@@ -24,7 +24,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IEmptyStateComponent
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IEmptyStateComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -127,7 +127,7 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnItemMove"/>). Refused while a sort orders the
     /// rows, which would put the row back.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
     public bool? Draggable { get; set; }
 
     /// <summary>
@@ -135,13 +135,13 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
     /// rows by Alt+Up and Alt+Down. A wrapped layout draws no grip, and its tiles drag whole.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
     public bool? DragHandle { get; set; }
 
     /// <summary>
     /// Gets or sets where a row's grip stands (<see cref="DragHandle"/>): at its end by default, or at its start.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIDragHandlePlacement.End)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = UIDragHandlePlacement.End)]
     public UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
     /// <summary>

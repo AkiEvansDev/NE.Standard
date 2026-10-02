@@ -427,8 +427,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
                 {
                     Name = commandName,
                     Invoker = UICommandInvoker.Create(controllerType, method, commandName),
-                    AllowAnonymous = ResolveAllowAnonymous(controllerType, method),
-                    AccessRules = BuildAccessRules(controllerType, method),
+                    AllowAnonymous = ResolveAllowAnonymous(method),
+                    AccessRules = BuildAccessRules(method),
                     Filters = ReadCommandFilters(controllerType, method),
                     ConcurrencyMode = attribute.ConcurrencyMode
                 });
@@ -441,14 +441,18 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// An explicit attribute on the command or its controller wins; otherwise returns <see langword="null"/> to defer to the route.
+    /// An explicit attribute on the command itself wins; otherwise returns <see langword="null"/> to defer to the route.
     /// </summary>
-    private static bool? ResolveAllowAnonymous(Type controllerType, MethodInfo method)
+    /// <remarks>
+    /// The controller's own attributes reach the command through the route, which folds them in: read here as well, they would
+    /// override a route that <c>Require</c> or <c>AllowAnonymous</c> settled the other way.
+    /// </remarks>
+    private static bool? ResolveAllowAnonymous(MethodInfo method)
     {
-        if (controllerType.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true) || method.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
+        if (method.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
             return true;
 
-        if (controllerType.IsDefined(typeof(UIAuthorizeAttribute), inherit: true) || method.IsDefined(typeof(UIAuthorizeAttribute), inherit: true))
+        if (method.IsDefined(typeof(UIAuthorizeAttribute), inherit: true))
             return false;
 
         return null;
@@ -480,11 +484,9 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         }
     }
 
-    private static UIAccessRule[] BuildAccessRules(Type controllerType, MethodInfo method)
-        => UIAccessRule.FromAttributes(
-            controllerType.GetCustomAttributes<UIAuthorizeAttribute>(inherit: true),
-            method.GetCustomAttributes<UIAuthorizeAttribute>(inherit: true)
-        );
+    /// <summary>The command's own rules; the controller's are the route's, which <c>Require</c> may have replaced.</summary>
+    private static UIAccessRule[] BuildAccessRules(MethodInfo method)
+        => UIAccessRule.FromAttributes(method.GetCustomAttributes<UIAuthorizeAttribute>(inherit: true));
 
     /// <summary>Checks a command against the current session, not the snapshot taken when the connection attached.</summary>
     /// <remarks>A revoked or signed-out session must be refused immediately, not once an already-open tab reloads.</remarks>

@@ -23,7 +23,8 @@ function readIconSource(value: unknown): IconSource | null {
         candidate = candidate.slice(maskPrefix.length).trim();
     }
 
-    const source = readImageSource(candidate);
+    // A picture of an icon names a folder or a scheme, so it holds a slash; a bare word is a glyph's name, never a file beside the page.
+    const source = candidate.includes("/") ? readImageSource(candidate) : null;
 
     return source !== null ? { source, tinted } : null;
 }
@@ -40,7 +41,7 @@ export function toIconSourceCss(value: unknown): string {
 }
 
 /** `url("...")` with the address percent-encoded, so nothing in it can end the declaration or the attribute; mirrors `WebIconValue.ImageSourceCss`. */
-export function toCssUrl(source: string): string {
+function toCssUrl(source: string): string {
     let escaped = "";
 
     for (const character of source) {
@@ -66,9 +67,10 @@ export function toCssUrl(source: string): string {
     return `url("${escaped}")`;
 }
 
-/** The box an icon value is drawn in, and the mark that says a glyph is there — `.ui-icon::before` stays hidden without it. */
+/** The box an icon value is drawn in, the mark that says a glyph is there — `.ui-icon::before` stays hidden without it — and the picture's. */
 const iconClassName = "ui-icon";
-const iconAttribute = "data-ui-icon";
+export const IconMarkAttribute = "data-ui-icon";
+export const IconUrlProperty = "--ui-icon-url";
 
 /** Writes an icon value on a browser-built element as the server's `IconValueRenderer` does: the box, the glyph or picture, the mark. */
 export function applyIconValue(element: Element, value: unknown): void {
@@ -81,23 +83,23 @@ export function applyIconValue(element: Element, value: unknown): void {
     }
 
     if (element instanceof HTMLElement || element instanceof SVGElement)
-        element.style.removeProperty("--ui-icon-url");
+        element.style.removeProperty(IconUrlProperty);
 
     const className = toIconClassName(value);
 
     // Nothing rather than a refusal, as the server answers: a value from data may name nothing (an emoji, a stray symbol).
     if (className.length === 0) {
-        element.removeAttribute(iconAttribute);
+        element.removeAttribute(IconMarkAttribute);
         return;
     }
 
-    element.setAttribute(iconAttribute, "");
+    element.setAttribute(IconMarkAttribute, "");
     element.classList.add(className);
 
     const image = readIconSource(value);
 
     if (image !== null && (element instanceof HTMLElement || element instanceof SVGElement))
-        element.style.setProperty("--ui-icon-url", toCssUrl(image.source));
+        element.style.setProperty(IconUrlProperty, toCssUrl(image.source));
 }
 
 /** The prefix a pack's per-glyph rule is written under. */

@@ -18,6 +18,10 @@ public sealed class WebShellContext
     /// <summary>Gets the reader's own colours over <see cref="Theme"/>'s palettes, or none for the application's.</summary>
     public UIThemeColors? ThemeColors { get; init; }
 
+    /// <summary>
+    /// Gets the assets the shell links, in the order it links them — by <see cref="WebAssetDescriptor.Order"/>, then key, as
+    /// <see cref="IWebAssetRegistry.Assets"/> holds them, sorted once rather than on every page.
+    /// </summary>
     public required IReadOnlyList<WebAssetDescriptor> Assets { get; init; }
 
     public string Language { get; init; } = "en";

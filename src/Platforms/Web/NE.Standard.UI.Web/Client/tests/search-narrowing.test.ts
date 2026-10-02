@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({
     // The commit waits on the debounce, which these tests never reach.
@@ -12,7 +12,7 @@ installFakeDom({
     }
 });
 
-const { SearchInputEngine, clearOptionsFilter, refreshEmptyState } = await import("../src/interactions/search-input-engine.ts");
+const { SearchInputEngine, refreshEmptyState } = await import("../src/interactions/search-input-engine.ts");
 
 new SearchInputEngine({ root: real<ParentNode>(fakeDocument.body) });
 
@@ -53,9 +53,13 @@ function scene(answered = false): Scene {
     if (answered)
         input.setAttribute("data-ui-search-answered", "");
 
-    const select = FakeElement.of("ui-select", { "data-ui-id": "5", lang: "en" }).append(
-        FakeElement.of("ui-select__trigger").append(input),
-        FakeElement.of("ui-select__popup").append(...rows.values())
+    // As SearchComponentRenderer draws it: the field over the listbox, both in the popup.
+    const select = FakeElement.of("ui-search ui-select", { "data-ui-id": "5", lang: "en" }).append(
+        FakeElement.of("ui-select__trigger", {}, "button"),
+        FakeElement.of("ui-select__popup").append(
+            FakeElement.of("ui-search__field").append(input),
+            FakeElement.of("ui-select__list", { role: "listbox" }).append(...rows.values())
+        )
     );
 
     fakeDocument.body.children.length = 0;
@@ -106,14 +110,14 @@ test("a group's header goes with the last of its options and comes back with the
     assert.deepEqual(shown(at), [...at.rows.keys()]);
 });
 
-test("taking the filter off brings every option and every header back; the empty state follows what stands", () => {
+test("emptying the term brings every option and every header back; the empty state follows what stands", () => {
     const at = scene();
 
     type(at, "atlantis");
 
     assert.deepEqual(shown(at), []);
 
-    clearOptionsFilter(real(at.select));
+    type(at, "");
 
     assert.deepEqual(shown(at), [...at.rows.keys()]);
 
@@ -130,4 +134,33 @@ test("a search the server answers narrows nothing: its list stands until the ans
     type(at, "atlantis");
 
     assert.deepEqual(shown(at), [...at.rows.keys()]);
+});
+
+test("Enter no option took asks at once, a manual search included, and is taken so the field and its list stay", () => {
+    const at = scene(true);
+    const heard: string[] = [];
+
+    at.input.setAttribute("data-ui-search-manual", "");
+    at.select.addEventListener("change", () => heard.push("change"));
+    at.select.addEventListener("search", () => heard.push("search"));
+    type(at, "dns");
+
+    const enter = new FakeKeyboardEvent("Enter", at.input);
+
+    at.input.dispatchEvent(enter);
+
+    assert.deepEqual(heard, ["change", "search"]);
+    assert.equal(enter.defaultPrevented, true);
+});
+
+test("Enter under the least length commits the term and asks nothing", () => {
+    const at = scene(true);
+    const heard: string[] = [];
+
+    at.input.setAttribute("data-ui-search-min-length", "3");
+    at.select.addEventListener("search", () => heard.push("search"));
+    type(at, "dn");
+    at.input.dispatchEvent(new FakeKeyboardEvent("Enter", at.input));
+
+    assert.deepEqual(heard, []);
 });

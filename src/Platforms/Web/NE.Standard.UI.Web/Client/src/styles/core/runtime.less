@@ -1,9 +1,9 @@
 @import "./tokens.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
+@import "../mixins/interactive.less";
 
-// The page's own ground, which a band standing over the page (the sticky header, the phone's bottom bar) repeats. No brand glow:
-// on a phone's width the corner wash covered the whole screen and tinted the near-black ground.
+// The page's own ground, plain, which a band standing over the page (the sticky header, the phone's bottom bar) repeats.
 .ui-root-ground() {
     background: var(--ui-color-background);
 }
@@ -41,6 +41,24 @@
         flex-shrink: 0;
     }
 
+// Below the medium breakpoint the document scrolls rather than the content region: the sticky header and the bottom bar stay where
+// they are, and the phone's browser folds its own toolbar away as the reader scrolls, which it does for the document alone. Never
+// shorter than the window as it stands, so a short page does not scroll by the toolbar's height. A screen whose content fills the
+// height — its root's `Fill`, written `--ui-height: var(--ui-fill-height, 100%)`: a messenger whose panes scroll inside themselves —
+// keeps the regions' own scroll, since a filled height needs a page as tall as the window and no taller.
+@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+    [data-ui-root][data-ui-scroll-content]:not(:has(> [data-ui-region="content"] > [data-ui-id][style*="--ui-height: var(--ui-fill-height"])) {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+
+        > [data-ui-region="content"] {
+            overflow: visible;
+            scrollbar-gutter: auto;
+        }
+    }
+}
+
 [data-ui-region] {
     display: flex;
     flex-direction: column;
@@ -60,7 +78,7 @@
 [data-ui-region="header"][data-ui-sticky] {
     position: sticky;
     top: 0;
-    z-index: 30;
+    z-index: @ui-z-band;
     .ui-root-ground();
 }
 
@@ -233,12 +251,7 @@
 // Text selection, the one rule set (STYLING.md): the page is pressed, not read, so nothing selects but reading words — a Text's or a
 // Paragraph's body, a validation message, a package's rendered document (`.ui-content-text`, WebClassNames.ContentText) — and a field's
 // value. A component's TextSelectable (`data-ui-text-select`) sets the custom property its subtree reads, so the nearest one that says
-// wins; unset, the place decides. `-webkit-` too: Safari selects by the prefixed property alone.
-.ui-user-select(@value) {
-    -webkit-user-select: @value;
-    user-select: @value;
-}
-
+// wins; unset, the place decides. `.ui-user-select()` (mixins/interactive.less) writes the property.
 body {
     .ui-user-select(none);
 }

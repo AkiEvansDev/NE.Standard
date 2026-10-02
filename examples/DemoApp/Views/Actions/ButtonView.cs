@@ -59,20 +59,20 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(UILayout.Stack(16)
                     .SetWidth(UILayoutLength.Absolute(340))
-                    .AddChild(UIPage.Labelled("Saving something", UIButtons.Pair(UIButtons.Ghost("Cancel"), UIButtons.Primary("Save changes"))))
-                    .AddChild(UIPage.Labelled("Throwing something away", UIButtons.Pair(
+                    .AddChild(DemoUI.CreateLabelled("Saving something", UIButtons.Pair(UIButtons.Ghost("Cancel"), UIButtons.Primary("Save changes"))))
+                    .AddChild(DemoUI.CreateLabelled("Throwing something away", UIButtons.Pair(
                         UIButtons.Ghost("Keep it"),
                         UIButtons.Danger("Delete server", DemoIcons.Outline(DemoIcons.Alert))
                             )
                         )
                     )
-                    .AddChild(UIPage.Labelled("Two ways on, one of them the usual one", UIButtons.Pair(
+                    .AddChild(DemoUI.CreateLabelled("Two ways on, one of them the usual one", UIButtons.Pair(
                         UIButtons.Secondary("Use a password"),
                         UIButtons.Primary("Sign in with SSO", DemoIcons.Outline(DemoIcons.Lock))
                             )
                         )
                     )
-                    .AddChild(UIPage.Labelled("Leaving with something unsaved", UIButtons.Pair(UIButtons.Ghost("Discard"), UIButtons.Primary("Keep editing"))))
+                    .AddChild(DemoUI.CreateLabelled("Leaving with something unsaved", UIButtons.Pair(UIButtons.Ghost("Discard"), UIButtons.Primary("Keep editing"))))
                 ),
             note: "The pair at a form's or a dialog's foot is UIButtons.Pair: the safe answer first, the committing one last, at the far edge. The sign-up and the checkout under Screens end in one; when the buttons are the controller's, the same foot is a command bar set to the end."
         );

@@ -3,7 +3,7 @@
 
 import {
     BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
-    SelectedKeysAttribute, SelectionAttribute, TableRowClass, UnselectableAttribute
+    SelectedKeysAttribute, SelectionAttribute, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
 import { isItemDisabled } from "./interactive-state.ts";
 import { writeSelectedKey } from "./selected-key.ts";
@@ -11,8 +11,8 @@ import { writeSelectedKey } from "./selected-key.ts";
 const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
 
 // A root's rows are its own shape's, so a table in an items view's row chooses nothing outside itself.
-export const SelectionRootSelector = ".ui-items-view, .ui-table, .ui-tree";
-export const SelectionRowSelector = `.ui-items-view__item, .${TableRowClass}, .ui-tree__row`;
+export const SelectionRootSelector = `.ui-items-view, .ui-table, .${TreeRootClass}`;
+export const SelectionRowSelector = `.ui-items-view__item, .${TableRowClass}, .${TreeRowClass}`;
 
 // The hosts whose rows' keyboard is items-selection-engine.ts's; the tree walks its own.
 export const KeyboardRowsRootSelector = ".ui-items-view, .ui-table";

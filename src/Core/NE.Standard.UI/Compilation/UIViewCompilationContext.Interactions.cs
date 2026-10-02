@@ -8,6 +8,7 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -38,15 +39,65 @@ internal sealed partial class UIViewCompilationContext
             ? new UIPropertyAddress(GetComponentId(targetComponent.Id), targetProperty)
             : null;
 
+        // A copy of nothing writes the target's authored value back, as a bound null renders it.
+        var falseValue = interaction.ActionKind == UIInteractionActionKind.CopyValue
+            ? EnsureCopyable(targetComponent, interaction)
+            : interaction.FalseValue;
+
         return interaction.SourceKind switch
         {
-            UIInteractionSourceKind.Property => BuildPropertyInteraction(interaction, target),
+            UIInteractionSourceKind.Property => BuildPropertyInteraction(interaction, target, falseValue),
             UIInteractionSourceKind.Event => BuildEventInteraction(interaction, target),
             _ => throw new InvalidOperationException($"Unsupported interaction source kind '{interaction.SourceKind}'.")
         };
     }
 
-    private CompiledUIInteraction BuildPropertyInteraction(UIInteraction interaction, UIPropertyAddress? target)
+    /// <summary>
+    /// Refuses a copy whose target cannot take what its source holds: the page writes the value as it is, with no conversion. Answers
+    /// the target's authored value (else its registered default), which the page writes when the source holds nothing.
+    /// </summary>
+    private object? EnsureCopyable(IVisualComponent targetComponent, UIInteraction interaction)
+    {
+        if (interaction.SourceProperty is not UIProperty sourceProperty || interaction.TargetProperty is not UIProperty targetProperty)
+            throw new InvalidOperationException($"A value-copying interaction on component '{targetComponent.Id}' names no source or target property.");
+
+        IVisualComponent sourceComponent = GetComponent(interaction.ComponentId);
+        UIPropertyDefinition source = GetRequiredPropertyDefinition(sourceComponent.TypeKey, sourceProperty);
+        UIPropertyDefinition target = GetRequiredPropertyDefinition(targetComponent.TypeKey, targetProperty);
+
+        if (!target.IsBindable)
+            throw new InvalidOperationException($"Component '{targetComponent.Id}' copies a value into '{targetProperty.Name}', which does not support binding.");
+
+        Type from = Nullable.GetUnderlyingType(source.ValueType) ?? source.ValueType;
+        Type to = Nullable.GetUnderlyingType(target.ValueType) ?? target.ValueType;
+
+        if (!AcceptsCopy(from, to))
+            throw new InvalidOperationException($"Component '{targetComponent.Id}' copies '{interaction.ComponentId}.{sourceProperty.Name}' ({from.Name}) into '{targetProperty.Name}' ({to.Name}), which cannot take it.");
+
+        return UIPhrase.AsValue(target.Getter(targetComponent) ?? target.DefaultValue);
+    }
+
+    /// <summary>Whether a target property's type takes a source's value as the page holds it; both without their nullability.</summary>
+    private static bool AcceptsCopy(Type from, Type to)
+    {
+        if (to == typeof(object) || to.IsAssignableFrom(from))
+            return true;
+
+        // A number lands as the page holds it, unrounded: a whole-number target refuses a fraction rather than show one.
+        if (IsNumber(from) && IsNumber(to))
+            return IsWholeNumber(from) || !IsWholeNumber(to);
+
+        // The reader's words shown as written on a text property, a title's preview.
+        return from == typeof(string) && to == typeof(UIPhrase);
+    }
+
+    private static bool IsNumber(Type type)
+        => !type.IsEnum && Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.Decimal;
+
+    private static bool IsWholeNumber(Type type)
+        => Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
+
+    private CompiledUIInteraction BuildPropertyInteraction(UIInteraction interaction, UIPropertyAddress? target, object? falseValue)
     {
         if (interaction.SourceProperty is null)
             throw new InvalidOperationException("Property interaction source property is required.");
@@ -64,7 +115,7 @@ internal sealed partial class UIViewCompilationContext
             Operator = interaction.Operator,
             Value = interaction.Value,
             TrueValue = interaction.TrueValue,
-            FalseValue = interaction.FalseValue
+            FalseValue = falseValue
         };
     }
 

@@ -8,7 +8,10 @@ namespace DemoApp.Views.Overlays;
 /// Five things a page asks a dialog for, each answered on the page itself: a confirmation, an edit, a sheet of filters,
 /// a sheet of details, and a wait.
 /// </summary>
-/// <remarks>A dialog is declared by the view, rendered closed by the shell, and opened by key from a command.</remarks>
+/// <remarks>
+/// A dialog is declared by the view, rendered closed by the shell, and opened by key from a command. The page is words, not samples:
+/// every title, note, button and line is a key, in each of the demo's languages; the deploys it lists are its data.
+/// </remarks>
 internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
 {
     private const string ConfirmGroup = nameof(DialogTestController.ConfirmGroup);
@@ -16,6 +19,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
     private const string FiltersGroup = nameof(DialogTestController.FiltersGroup);
     private const string DetailsGroup = nameof(DialogTestController.DetailsGroup);
     private const string ProgressGroup = nameof(DialogTestController.ProgressGroup);
+    private const string Words = "demo.overlays.dialog.";
 
     public static string ViewKey => "demo.overlays.dialog.test";
 
@@ -29,13 +33,13 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.ConfirmKey,
-                Label = "Confirm",
+                Label = Words + "confirm.label",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
-                Content = CreatePanel("Delete this release?", $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
+                Content = CreatePanel(Words + "confirm.heading", $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
                     CreateButtons(
-                        CreateButton("Cancel", nameof(DialogTestController.KeepRelease), UIButtonType.Ghost),
-                        CreateButton("Delete", nameof(DialogTestController.DeleteRelease), UIButtonType.Danger)
+                        CreateButton(Words + "cancel", nameof(DialogTestController.KeepRelease), UIButtonType.Ghost),
+                        CreateButton(Words + "delete", nameof(DialogTestController.DeleteRelease), UIButtonType.Danger)
                     )
                 )
             },
@@ -43,18 +47,18 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
-                Label = "Edit",
+                Label = Words + "edit.label",
                 Width = UILayoutLength.Absolute(640),
-                Content = CreatePanel("Edit the service", null,
+                Content = CreatePanel(Words + "edit.heading", null,
                     new TextInputComponent()
-                        .SetTitle("Name")
+                        .SetTitle(Words + "edit.name")
                         .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftName)}"),
                     new TextInputComponent()
-                        .SetTitle("Owner")
+                        .SetTitle(Words + "edit.owner")
                         .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftOwner)}"),
                     CreateButtons(
-                        CreateButton("Cancel", nameof(DialogTestController.CancelEdit), UIButtonType.Ghost),
-                        CreateButton("Save", nameof(DialogTestController.SaveEdit), UIButtonType.Primary)
+                        CreateButton(Words + "cancel", nameof(DialogTestController.CancelEdit), UIButtonType.Ghost),
+                        CreateButton(Words + "save", nameof(DialogTestController.SaveEdit), UIButtonType.Primary)
                     )
                 )
             },
@@ -63,26 +67,25 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.FiltersKey,
-                Label = "Filters",
+                Label = Words + "filters",
                 Placement = UIDialogPlacement.Left,
                 Surface = UISurfaceStyle.Background,
                 Modal = false,
-                Content = CreatePanel("Filters", null,
-                    CreateFilter("Only failures", nameof(FiltersGroupContext.OnlyFailures)),
-                    CreateFilter("Include retries", nameof(FiltersGroupContext.IncludeRetries)),
-                    CreateFilter("Last 24 hours", nameof(FiltersGroupContext.LastDay)),
-                    CreateButtons(CreateButton("Close", nameof(DialogTestController.CloseFilters), UIButtonType.Outline))
+                Content = CreatePanel(Words + "filters", null,
+                    CreateFilter(Words + "filters.only-failures", nameof(FiltersGroupContext.OnlyFailures)),
+                    CreateFilter(Words + "filters.include-retries", nameof(FiltersGroupContext.IncludeRetries)),
+                    CreateFilter(Words + "filters.last-day", nameof(FiltersGroupContext.LastDay)),
+                    CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseFilters), UIButtonType.Outline))
                 )
             },
             // A sheet at the right edge over a backdrop: a click beside it, or Escape, puts the list back.
             new UIDialog
             {
                 Key = DialogTestController.DetailsKey,
-                Label = "Details",
+                Label = Words + "details.label",
                 Placement = UIDialogPlacement.Right,
                 Width = UILayoutLength.Absolute(480),
                 Content = UILayout.Stack(12)
-                    .AsContentTree()
                     .AddChild(new TextComponent()
                         .BindTitle($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedService)}")
                         .SetTitleType(UITextAppearance.Title)
@@ -92,18 +95,17 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .AddChild(new ParagraphComponent()
                         .BindDescription($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedDetails)}")
                     )
-                    .AddChild(CreateButtons(CreateButton("Close", nameof(DialogTestController.CloseDetails), UIButtonType.Outline)))
+                    .AddChild(CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseDetails), UIButtonType.Outline)))
             },
             // Nothing on it closes it: the command that showed it hides it when the work is done.
             new UIDialog
             {
                 Key = DialogTestController.ProgressKey,
-                Label = "Progress",
+                Label = Words + "progress.label",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = new SpinnerComponent()
-                    .SetLabel("Publishing release #481")
-                    .AsContentTree()
+                    .SetLabel(Words + "progress.spinner")
             }
         ];
 
@@ -113,25 +115,25 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
     /// <summary>The list on the page shrinks when the dialog says Delete and stays when it says Cancel.</summary>
     private static ContainerComponent CreateConfirmGroup()
     {
-        return DemoUI.CreateGroup(ConfirmGroup, "Ask before deleting",
+        return DemoUI.CreateGroup(ConfirmGroup, Words + "confirm.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(ConfirmGroupContext.Releases), UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
-                    .AddChild(CreateButton("Delete the latest release", nameof(DialogTestController.AskBeforeDelete), UIButtonType.Danger))
-                    .AddChild(CreateButton("Restore", nameof(DialogTestController.RestoreReleases), UIButtonType.Ghost))
+                    .AddChild(CreateButton(Words + "confirm.delete-latest", nameof(DialogTestController.AskBeforeDelete), UIButtonType.Danger))
+                    .AddChild(CreateButton(Words + "confirm.restore", nameof(DialogTestController.RestoreReleases), UIButtonType.Ghost))
                 )
             ),
-            contentMinHeight: 120,
-            note: "The button's command opens the dialog with an effect, so the button knows nothing of it and a menu entry could ask the same question. It closes on neither the backdrop nor Escape: a destructive question is answered, not dismissed."
+            note: Words + "confirm.note",
+            words: true
         );
     }
 
     /// <summary>The card shows the saved values; the dialog edits a draft, so Cancel really does cancel.</summary>
     private static ContainerComponent CreateEditGroup()
     {
-        return DemoUI.CreateGroup(EditGroup, "Edit on a form, read it on the card",
+        return DemoUI.CreateGroup(EditGroup, Words + "edit.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new TextComponent()
                     .BindTitle(nameof(EditGroupContext.Name), UIBindingScope.Relative)
@@ -139,17 +141,17 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .BindDescription(nameof(EditGroupContext.Owner), UIBindingScope.Relative)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                .AddChild(CreateButton("Edit", nameof(DialogTestController.BeginEdit), UIButtonType.Outline))
+                .AddChild(CreateButton(Words + "edit", nameof(DialogTestController.BeginEdit), UIButtonType.Outline))
             ),
-            contentMinHeight: 120,
-            note: "The fields bind to a draft the controller keeps beside the card, and Save is the one command that copies it over."
+            note: Words + "edit.note",
+            words: true
         );
     }
 
     /// <summary>The dialog is shown and hidden by the command, and the page says when it finished.</summary>
     private static ContainerComponent CreateProgressGroup()
     {
-        return DemoUI.CreateGroup(ProgressGroup, "Wait while a command works",
+        return DemoUI.CreateGroup(ProgressGroup, Words + "progress.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(ProgressGroupContext.Published), UIBindingScope.Relative)
@@ -158,33 +160,33 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .OnClickShowingLoading(nameof(DialogTestController.PublishAsync))
                     .SetType(UIButtonType.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
-                    .SetTitle("Publish")
+                    .SetTitle(Words + "progress.publish")
                 )
             ),
-            contentMinHeight: 120,
-            note: "Dialogs.ShowAsync and HideAsync push straight to the connection, so the dialog stands for as long as the command runs."
+            note: Words + "progress.note",
+            words: true
         );
     }
 
     /// <summary>The count on the page follows each switch while the sheet stays open beside it.</summary>
     private static ContainerComponent CreateFiltersGroup()
     {
-        return DemoUI.CreateGroup(FiltersGroup, "A sheet of filters at the left edge",
+        return DemoUI.CreateGroup(FiltersGroup, Words + "filters.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(FiltersGroupContext.Summary), UIBindingScope.Relative)
                 )
-                .AddChild(CreateButton("Filters", nameof(DialogTestController.OpenFilters), UIButtonType.Outline).SetIcon(DemoIcons.Outline(DemoIcons.Filter)))
+                .AddChild(CreateButton(Words + "filters", nameof(DialogTestController.OpenFilters), UIButtonType.Outline).SetIcon(DemoIcons.Outline(DemoIcons.Filter)))
             ),
-            contentMinHeight: 120,
-            note: "Placement = Left, Modal = false, Surface = Background: a drawer on the page's own ground that the page keeps working beside, the shape a hidden menu takes."
+            note: Words + "filters.note",
+            words: true
         );
     }
 
     /// <summary>A row opens the sheet with its own details; the list stays where it was.</summary>
     private static ContainerComponent CreateDetailsGroup()
     {
-        return DemoUI.CreateGroup(DetailsGroup, "A sheet of details at the right edge",
+        return DemoUI.CreateGroup(DetailsGroup, Words + "details.title",
             content => content.AddChild(new KeyValueActionComponent()
                 .SetShowActions(false)
                 .SetRowHoverable(true)
@@ -192,8 +194,8 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 .OnRowClickWithItemKey(nameof(DialogTestController.ShowDeploy))
                 .SetPlacement(1, 1, 24, 1)
             ),
-            contentMinHeight: 160,
-            note: "Placement = Right over a backdrop: a click beside the sheet, or Escape, closes it, and the row's own details are what it shows."
+            note: Words + "details.note",
+            words: true
         );
     }
 
@@ -235,9 +237,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         if (descriptionPath is not null)
             _ = heading.BindDescription(descriptionPath);
 
-        // A dialog is a sample as a whole, its copy shown as written: content for the unkeyed report.
         StackPanelComponent panel = UILayout.Stack(12)
-            .AsContentTree()
             .SetMinWidth(UILayoutLength.Absolute(320))
             .AddChild(heading);
 

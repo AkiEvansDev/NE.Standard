@@ -1,4 +1,5 @@
-// A native drag's marks — the class a dragged element wears, the payload a drag needs to start — for a tree's row and a tab's caption.
+// A native drag's marks — the class a dragged element wears, the payload a drag needs to start — for a list's or a table's row, a
+// tree's row and a tab's caption.
 
 /** Marks the element and its companions as dragged, clearing any stale mark first, and gives the drag its payload. */
 export function markDragStart(domEvent: Event, scope: Element, element: HTMLElement, draggingClass: string, key: string, companions: Iterable<HTMLElement> = []): void {

@@ -3,8 +3,10 @@
 // paragraph would otherwise outlive every press on the rows, the gaps and the panels around it. A control keeps it — a menu's Copy, a
 // button acting on what is selected — as does a field, which has a selection of its own; a finger's tap is the browser's own.
 
+import { NativeControlSelector } from "./own-control.ts";
+
 // What may act on a selection, or holds one of its own: native controls and editable regions, a button-like element, an open menu.
-const KeepsSelectionSelector = "button, a, input, select, textarea, label, summary, [role='button'], [role='menu'], [role='tab'], [contenteditable=''], [contenteditable='true']";
+const KeepsSelectionSelector = `${NativeControlSelector}, [role='menu'], [role='tab']`;
 
 export type TextSelectionEngineOptions = {
     readonly root?: ParentNode;

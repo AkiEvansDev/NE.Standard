@@ -10,6 +10,9 @@ public static class WebDomConverters
     /// </summary>
     public const string ThemeColorCanonical = "themeColorCanonical";
     public const string IconSizeClass = "iconSizeClass";
+
+    /// <summary>A picture icon's shape as its modifier: <c>ui-icon--circle</c>, or nothing for the default.</summary>
+    public const string IconShapeClass = "iconShapeClass";
     public const string TextTypeClass = "textTypeClass";
     public const string TextAppearanceClass = "textAppearanceClass";
     public const string TextAlignmentClass = "textAlignmentClass";
@@ -37,6 +40,9 @@ public static class WebDomConverters
     public const string ButtonSizeClass = "buttonSizeClass";
     public const string ButtonGroupSizeClass = "buttonGroupSizeClass";
     public const string InputAppearanceClass = "inputAppearanceClass";
+
+    /// <summary>A search field's appearance as its <c>ui-search__field--*</c> modifier.</summary>
+    public const string SearchFieldAppearanceClass = "searchFieldAppearanceClass";
     public const string InputSizeClass = "inputSizeClass";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
     public const string ColorTextFormatAttribute = "colorTextFormatAttribute";
@@ -90,14 +96,40 @@ public static class WebDomConverters
     /// <summary>Writes a bound value as an image source only when <c>WebUrlSafety.IsSafeImageSource</c> allows it.</summary>
     public const string SafeImageSource = "safeImageSource";
     public const string ImageFitClass = "imageFitClass";
+
+    /// <summary>An image's shape as its modifier: <c>ui-image--circle</c>, or nothing for the default.</summary>
+    public const string ImageShapeClass = "imageShapeClass";
     public const string BackgroundImageCss = "backgroundImageCss";
+
+    /// <summary>Present, and empty, while a background picture is one the page may load; otherwise removed.</summary>
+    public const string BackgroundImageAttribute = "backgroundImageAttribute";
     public const string ImageFitSizeCss = "imageFitSizeCss";
+
+    /// <summary>A background picture's dim as <c>WebCssValues.BackgroundImageDim</c> writes it: a share held to 0–1.</summary>
+    public const string BackgroundImageDimCss = "backgroundImageDimCss";
+
+    /// <summary><c>vignette</c> for a dim at the edges alone; the even default removes the attribute.</summary>
+    public const string BackgroundImageDimModeAttribute = "backgroundImageDimModeAttribute";
+
+    /// <summary>A background picture's blur as <c>WebCssValues.BackgroundImageBlur</c> writes it; none removes the property.</summary>
+    public const string BackgroundImageBlurCss = "backgroundImageBlurCss";
+
+    /// <summary>Present, and empty, while a background picture's blur draws anything; otherwise removed.</summary>
+    public const string BackgroundImageBlurAttribute = "backgroundImageBlurAttribute";
+
+    /// <summary>A count of rows or lines as its text while it is above zero, as the first paint writes it; otherwise nothing.</summary>
+    public const string PositiveCount = "positiveCount";
+
+    /// <summary>Present, and empty, while a count is above zero; otherwise removed.</summary>
+    public const string PositiveFlagAttribute = "positiveFlagAttribute";
+
+    /// <summary>A paragraph's <c>ui-text--max-lines</c> while its <c>MaxLines</c> is above zero; otherwise none.</summary>
+    public const string MaxLinesClass = "maxLinesClass";
     public const string ProgressVariantClass = "progressVariantClass";
     public const string ProgressValueText = "progressValueText";
 
     /// <summary>Inline markup as the plain text a reader sees — for an attribute that repeats a tooltip's words (<c>aria-label</c>).</summary>
     public const string InlineMarkupPlainText = "inlineMarkupPlainText";
-    public const string SearchSelectionModeClass = "searchSelectionModeClass";
     public const string TextAreaResizeCss = "textAreaResizeCss";
     public const string FlyoutPlacementClass = "flyoutPlacementClass";
 

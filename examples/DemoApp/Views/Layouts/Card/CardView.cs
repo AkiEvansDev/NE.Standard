@@ -26,8 +26,13 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
     private const string PressGroup = nameof(CardController.PressGroup);
     private const string HoverGroup = nameof(CardController.HoverGroup);
     private const string RefreshGroup = nameof(CardController.RefreshGroup);
+    private const string PictureGroup = nameof(CardController.PictureGroup);
 
     private const string HoverCardId = "card-hover-host";
+
+    // The sliders the third picture card copies while they are dragged.
+    private const string PictureDimId = "card-picture-dim";
+    private const string PictureBlurId = "card-picture-blur";
 
     public static string ViewKey => "demo.layouts.card";
 
@@ -53,6 +58,9 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             .BindBackground($"{CardGroup}.{nameof(CardSurfaceGroupContext.Background)}")
             .BindBackgroundImage($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImage)}")
             .BindBackgroundImageFit($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageFit)}")
+            .BindBackgroundImageDim($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageDim)}")
+            .BindBackgroundImageDimMode($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageDimMode)}")
+            .BindBackgroundImageBlur($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageBlur)}")
             .BindOverflow($"{CardGroup}.{nameof(CardSurfaceGroupContext.Overflow)}")
             .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
             .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
@@ -121,7 +129,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
 
     // The press beside the two short behaviours stacked, as tall together; the three-way comparison and the held content across the page.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateShapesGroup(), CreatePressGroup(), DemoUI.CreateHalf(CreateHoverGroup(), CreateRefreshGroup()), CreateBandsGroup(), CreateHeldGroup()];
+        => [CreateShapesGroup(), CreatePicturesGroup(), CreatePressGroup(), DemoUI.CreateHalf(CreateHoverGroup(), CreateRefreshGroup()), CreateBandsGroup(), CreateHeldGroup()];
 
     /// <summary>
     /// The shapes a card is actually written in — an article, a person, a reading, a request waiting on someone, and one a control
@@ -148,8 +156,9 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Robin Hale")
                         .SetDescription("Orvane Cloud staff")
-                        // The same Icon property carrying a picture, which with no size given fills the header's height.
+                        // The same Icon property carrying a picture, which with no size given fills the header's height; round, a person.
                         .SetIcon(DemoImages.Avatar)
+                        .SetIconShape(UIIconShape.Circle)
                         .SetBadgeText("Admin")
                     )
                     .SetContent(UILayout.Stack(8)
@@ -220,6 +229,65 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             columns: 24
         );
     }
+
+    /// <summary>
+    /// One picture behind three cards, dimmed by the browser toward the card's ground: on the edges alone to frame it, evenly for words
+    /// to read on, and blurred as well; the numbers hold in either theme, since the veil is the ground and not black. The third follows
+    /// its two sliders while they are dragged, and the controller stores what they are let go on.
+    /// </summary>
+    private static ContainerComponent CreatePicturesGroup()
+    {
+        return DemoUI.CreateExample("A picture behind the words",
+            UILayout.Stack(16)
+                .AddChild(UILayout.Row(16)
+                    // Words where the vignette dims, the top corner: its clear middle reaches the header's second half.
+                    .AddChild(CreatePictureCard("Northern harbour", "A vignette")
+                        .SetBackgroundImageDim(0.9)
+                        .SetBackgroundImageDimMode(UIBackgroundDimMode.Vignette)
+                    )
+                    .AddChild(CreatePictureCard("Release notes", "An even dim: the words read anywhere on it.")
+                        .SetBackgroundImageDim(0.7)
+                    )
+                    .AddChild(CreatePictureCard("Quiet hours", "Dimmed and blurred: the picture a colour, the words sharp.")
+                        .BindBackgroundImageDim(nameof(CardPictureGroupContext.Dim), UIBindingScope.Relative)
+                        .BindBackgroundImageBlur(nameof(CardPictureGroupContext.Blur), UIBindingScope.Relative)
+                        .InteractCopyValue(PictureDimId, ISurfaceComponent.BackgroundImageDimProperty)
+                        .InteractCopyValue(PictureBlurId, ISurfaceComponent.BackgroundImageBlurProperty)
+                    )
+                )
+                .AddChild(UILayout.Columns(16,
+                        new SliderComponent(PictureDimId)
+                            .SetTitle("Quiet hours: dim")
+                            .SetRange(0, 0.9m)
+                            .SetStep(0.05m)
+                            .SetShowValue()
+                            .BindValue(nameof(CardPictureGroupContext.Dim), UIBindingScope.Relative)
+                            .OnChange(nameof(CardController.StorePicture)),
+                        new SliderComponent(PictureBlurId)
+                            .SetTitle("Quiet hours: blur, pixels")
+                            .SetRange(0, 32)
+                            .SetStep(1)
+                            .SetShowValue()
+                            .BindValue(nameof(CardPictureGroupContext.Blur), UIBindingScope.Relative)
+                            .OnChange(nameof(CardController.StorePicture))
+                    )
+                ),
+            note: "BackgroundImageDim, BackgroundImageDimMode and BackgroundImageBlur on any surface with a BackgroundImage. The browser draws them over the picture it already has, so a bound value moves them with no new picture; the vignette frames a card, the even dim is the one for reading. "
+                + "Drag a slider and the third card follows it before you let go: InteractCopyValue copies the slider's value into the card on the page, and the controller stores the value it is let go on.",
+            columns: 24,
+            context: PictureGroup
+        );
+    }
+
+    private static CardComponent CreatePictureCard(string title, string description)
+        => new CardComponent()
+            .SetBackgroundImage(DemoImages.HarbourSky)
+            .SetWidth(UILayoutLength.Absolute(300))
+            .SetHeight(UILayoutLength.Absolute(200))
+            .ConfigureDefaultHeader(header => header
+                .SetTitle(title)
+                .SetDescription(description)
+            );
 
     /// <summary>
     /// Three targets in one card, where the pipeline stops at the innermost component that handles the event; and a clickable card
@@ -383,7 +451,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
         // Across the page: the comparison reads side by side, where at half the page the three stood one under another.
         return DemoUI.CreateExample("What a card adds to a surface",
             UILayout.Row(16)
-                .AddChild(UIPage.Labelled("SurfaceComponent", new SurfaceComponent()
+                .AddChild(DemoUI.CreateLabelled("SurfaceComponent", new SurfaceComponent()
                         .SetSurface(UISurfaceStyle.Raised)
                         .SetWidth(UILayoutLength.Absolute(260))
                         .SetContent(UILayout.Stack(8)
@@ -414,7 +482,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 )
-                .AddChild(UIPage.Labelled("CardComponent", new CardComponent()
+                .AddChild(DemoUI.CreateLabelled("CardComponent", new CardComponent()
                         .SetSurface(UISurfaceStyle.Raised)
                         .SetWidth(UILayoutLength.Absolute(260))
                         .ConfigureDefaultHeader(header => header
@@ -441,7 +509,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 )
-                .AddChild(UIPage.Labelled("A card with no header text and no footer", new CardComponent()
+                .AddChild(DemoUI.CreateLabelled("A card with no header text and no footer", new CardComponent()
                         .SetWidth(UILayoutLength.Absolute(260))
                         .SetHeaderAction(new ButtonComponent()
                             .SetType(UIButtonType.Ghost)

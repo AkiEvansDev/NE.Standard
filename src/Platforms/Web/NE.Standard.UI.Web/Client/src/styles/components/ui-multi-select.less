@@ -31,7 +31,8 @@
     padding: 0 0.125rem 0 @ui-space-2;
     border-radius: var(--ui-radius-input);
     background: color-mix(in srgb, var(--ui-color-primary) 14%, transparent);
-    color: var(--ui-color-primary-ink);
+    // The brand's ink lifted for its own tint, as a tinted badge's: the plain ink read 3.3:1 on the chip in dark, 3.8:1 in light.
+    color: var(--ui-color-primary-ink-on-tint);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
     cursor: default;
@@ -103,9 +104,9 @@
         min-width: 0;
     }
 
+    // In the option's ink, as a chosen entry's words: the brand's read 2.6:1 on the current option's ground in dark.
     .ui-multi-select .ui-select__option::after {
         .ui-check-glyph(@ui-glyph-md);
-        color: var(--ui-color-primary-ink);
         opacity: 0;
     }
 

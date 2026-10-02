@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
@@ -15,10 +16,6 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
-    // Any component's IsOpen, a package's popup included, not the flyout's alone: a popup's close arrives from an outside click or
-    // Escape, which nothing on the client refuses, so it is never answered with a reopening.
-    private static readonly UIProperty PopupOpenProperty = new("IsOpen");
-
     private UIComponentGateIndex Gates => field ??= UIComponentGateIndex.For(View);
 
     /// <summary>
@@ -53,7 +50,9 @@ internal abstract partial class UIRuntimeBase
     {
         UIComponentGateIndex gates = Gates;
 
-        if (gates.IsEmpty || (update.Address.Property == PopupOpenProperty && update.Value is false))
+        // Any component's IsOpen, a package's popup included, not the flyout's alone: a popup's close arrives from an outside click or
+        // Escape, which nothing on the client refuses, so it is never answered with a reopening.
+        if (gates.IsEmpty || (update.Address.Property == IOpenableComponent.IsOpenProperty && update.Value is false))
             return false;
 
         UIComponentId componentId = update.Address.Component.Id;
@@ -82,7 +81,7 @@ internal abstract partial class UIRuntimeBase
     {
         UIProperty property = update.Address.Property;
 
-        if (property != IInputComponent.ValueProperty && property != UIComponentGateIndex.PeriodEndProperty)
+        if (property != IInputComponent.ValueProperty && property != IPeriodInputComponent.EndValueProperty)
             return false;
 
         read ??= ReadClientValue(resolution.Binding, update.Value);

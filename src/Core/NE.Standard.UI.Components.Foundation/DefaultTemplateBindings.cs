@@ -32,6 +32,7 @@ public static class DefaultTemplateBindings
             .Bind(ITextBaseComponent.IconProperty, nameof(ITextBaseModel.Icon), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.IconColorProperty, nameof(ITextBaseModel.IconColor), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.IconSizeProperty, nameof(ITextBaseModel.IconSize), UIBindingScope.Relative, optional: true)
+            .Bind(ITextBaseComponent.IconShapeProperty, nameof(ITextBaseModel.IconShape), UIBindingScope.Relative, optional: true)
 
             .Bind(ITextBaseComponent.TitleProperty, nameof(ITextBaseModel.Title), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.TitleTypeProperty, nameof(ITextBaseModel.TitleType), UIBindingScope.Relative, optional: true)

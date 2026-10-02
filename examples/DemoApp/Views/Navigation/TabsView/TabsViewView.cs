@@ -202,7 +202,6 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                 ["Previous step"] = nameof(TabsViewController.PreviousStep),
                 ["Next step"] = nameof(TabsViewController.NextStep),
             }),
-            contentMinHeight: 160,
             columns: 24,
             note: "SelectedKey is a property, so a command walks the tabs as readily as a click does — and a click moves the same property back."
         );

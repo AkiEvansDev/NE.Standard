@@ -13,23 +13,29 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
 /// <summary>
-/// A search input that filters a bound list of options as the user types.
+/// A select whose open list carries a search field pinned over its options: the field narrows its own options, or asks the server
+/// (<c>OnSearch</c>) for the list it answers with, as the user types.
 /// </summary>
+/// <remarks>
+/// Closed, it is a select's field and shows the chosen option; the term is kept between openings and selected as the list opens, so
+/// typing replaces it and the list always answers what the field says. After a pick the list closes and the keyboard is back on the field.
+/// </remarks>
 public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id), IDebounceInputComponent
     where T : SearchComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
     /// <summary>
-    /// Gets or sets how the selected option is displayed in the search text after selection.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UISearchSelectionDisplayMode.KeepSearchInput)]
-    public UISearchSelectionDisplayMode? SelectionDisplayMode { get; set; }
-
-    /// <summary>
     /// Gets or sets what's currently typed into the search box, live as the user types.
     /// </summary>
     [UIComponentProperty(BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultValue = null, DefaultBindingMode = UIBindingMode.TwoWay)]
     public string? SearchText { get; set; }
+
+    /// <summary>
+    /// Gets or sets how the search field pinned over the open list is drawn: <see cref="UIInputAppearance.Ghost"/> unless set, its
+    /// line under it parting it from the options.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIInputAppearance.Ghost)]
+    public UIInputAppearance? SearchFieldAppearance { get; set; }
 
     /// <summary>
     /// Gets or sets the delay, in milliseconds, before a search is triggered after the last keystroke.
@@ -84,14 +90,14 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
 }
 
 /// <summary>
-/// A search input that filters a bound list of options as the user types.
+/// A select whose open list carries a search field pinned over its options.
 /// </summary>
 public abstract class SearchComponent<T>(string? id = null) : SearchComponent<T, OptionItem>(id)
     where T : SearchComponent<T>, IUIComponentDefinition
 { }
 
 /// <summary>
-/// A search input that filters a bound list of options as the user types.
+/// A select whose open list carries a search field pinned over its options.
 /// </summary>
 public sealed class SearchComponent(string? id = null) : SearchComponent<SearchComponent>(id), IUIComponentDefinition
 {

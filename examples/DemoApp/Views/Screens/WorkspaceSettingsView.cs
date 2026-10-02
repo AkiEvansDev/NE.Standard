@@ -86,7 +86,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
         => UIPage.Card("Notifications", "What reaches your mail, and when it stays quiet.", UILayout.Stack(16,
             CreateSwitch("Mentions", "Every time someone writes your name.", nameof(WorkspaceSettingsController.MentionMail)),
             CreateSwitch("The daily digest", "One mail with everything you missed.", nameof(WorkspaceSettingsController.DigestMail)),
-            CreateSwitch("Deploys", "When a release goes out, or comes back.", nameof(WorkspaceSettingsController.DeployMail)),
+            CreateSwitch("Deploys", "A release out, or rolled back.", nameof(WorkspaceSettingsController.DeployMail)),
             new RadioGroupComponent()
                 .SetTitle("Send the digest")
                 .SetOrientation(UIOrientation.Horizontal)
@@ -142,7 +142,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .EnableEditing(nameof(WorkspaceSettingsController.SaveRow), nameof(WorkspaceSettingsController.OpenRow)),
             new SeparatorComponent(),
             UILayout.Columns(16,
-                UIText.Body("Signed-in devices").BindDescription(nameof(WorkspaceSettingsController.DevicesLine)).SetDescriptionColor(UIThemeColor.Muted),
+                UIText.Body("Signed-in devices").BindDescription(nameof(WorkspaceSettingsController.DevicesLine)).SetDescriptionColor(UIThemeColor.Muted).SetWrapMode(UITextWrapMode.Wrap),
                 UIButtons.Toolbar(UIButtons.Secondary("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers)))
                     .SetHorizontalAlignment(UIAlignment.End)
             )

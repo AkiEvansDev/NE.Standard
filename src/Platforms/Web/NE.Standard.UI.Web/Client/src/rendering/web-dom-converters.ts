@@ -4,7 +4,7 @@
 import { BadgeSetAttribute, BadgeTextAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
-import { toCssUrl, toIconClassName, toIconSourceCss } from "./icon-value.ts";
+import { toIconClassName, toIconSourceCss } from "./icon-value.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
 import { inlineMarkupToPlainText } from "./inline-markup.ts";
@@ -69,8 +69,6 @@ const enumNames = new Map<string, string>([
     ["Card", "card"],
     ["Raised", "raised"],
     ["Circle", "circle"],
-    ["KeepSearchInput", "keep"],
-    ["ReplaceWithSelectedItem", "replace"],
     ["None", "none"],
     ["Both", "both"],
     ["BottomStart", "bottom-start"],
@@ -120,6 +118,7 @@ export function toColorToken(value: unknown): string {
 }
 
 const iconSizeTokens = ["small", "medium", "large"];
+const iconShapeTokens = ["default", "circle"];
 const textTypeTokens = ["display", "title", "subtitle", "body", "caption", "overline"];
 const textAlignmentTokens = ["start", "center", "end", "justify"];
 const textWrapTokens = ["nowrap", "wrap"];
@@ -191,8 +190,9 @@ const colorTextFormatTokens = ["hex", "rgb"];
 const colorInputVariantTokens = ["field", "swatch"];
 const imageFitTokens = ["fill", "contain", "cover", "none"];
 const imageFitSizeTokens = ["100% 100%", "contain", "cover", "auto"];
+const imageShapeTokens = ["default", "circle"];
+const backgroundDimModeTokens = ["uniform", "vignette"];
 const progressVariantTokens = ["linear", "circular"];
-const searchSelectionModeTokens = ["keep", "replace"];
 const textAreaResizeTokens = ["none", "vertical", "horizontal", "both"];
 const popupPlacementTokens = [
     "bottom-start", "bottom", "bottom-end",
@@ -213,6 +213,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     // Nothing stays nothing, so the attribute it writes is removed rather than emptied.
     ["inlineMarkupPlainText", value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
     ["iconSizeClass", value => `ui-icon-size--${toToken(value, iconSizeTokens)}`],
+    ["iconShapeClass", value => toToken(value, iconShapeTokens) === "circle" ? "ui-icon--circle" : ""],
     ["textTypeClass", value => `ui-text-type--${toToken(value, textTypeTokens)}`],
     ["textAppearanceClass", value => toTextAppearanceClass(value)],
     ["textAlignmentClass", value => `ui-text--align-${toToken(value, textAlignmentTokens)}`],
@@ -237,6 +238,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["hostViewport", value => toHostViewport(value)],
     ["scrollSnapClass", value => `ui-scroll-snap--${toToken(value, scrollSnapTokens)}`],
     ["inputAppearanceClass", value => `ui-input--${toToken(value, inputAppearanceTokens)}`],
+    ["searchFieldAppearanceClass", value => `ui-search__field--${toToken(value, inputAppearanceTokens)}`],
     ["inputSizeClass", value => `ui-input--${toToken(value, inputSizeTokens)}`],
     ["buttonSizeClass", value => `ui-button--${toToken(value, buttonSizeTokens)}`],
     ["buttonGroupSizeClass", value => `ui-button-group--${toToken(value, buttonSizeTokens)}`],
@@ -326,11 +328,19 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["gridPlacementXxlColumnSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "columnSpan")],
     ["gridPlacementXxlRowSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "rowSpan")],
     ["imageFitClass", value => `ui-image-fit--${toToken(value, imageFitTokens)}`],
+    ["imageShapeClass", value => toToken(value, imageShapeTokens) === "circle" ? "ui-image--circle" : ""],
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
+    ["backgroundImageAttribute", value => toBackgroundImageCss(value).length === 0 ? undefined : ""],
     ["imageFitSizeCss", value => toToken(value, imageFitSizeTokens)],
+    ["backgroundImageDimCss", value => toBackgroundImageDimCss(value)],
+    ["backgroundImageDimModeAttribute", value => toToken(value, backgroundDimModeTokens) === "vignette" ? "vignette" : undefined],
+    ["backgroundImageBlurCss", value => isBackgroundImageBlurred(value) ? `${Number(value)}px` : ""],
+    ["backgroundImageBlurAttribute", value => isBackgroundImageBlurred(value) ? "" : undefined],
+    ["positiveCount", value => toPositiveCount(value)?.toString()],
+    ["positiveFlagAttribute", value => toPositiveCount(value) === undefined ? undefined : ""],
+    ["maxLinesClass", value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"],
     ["progressVariantClass", value => `ui-progress--${toToken(value, progressVariantTokens)}`],
     ["progressValueText", value => toProgressValue(value)],
-    ["searchSelectionModeClass", value => `ui-search-mode--${toToken(value, searchSelectionModeTokens)}`],
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],
     ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, popupPlacementTokens)}`],
     ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)],
@@ -357,11 +367,33 @@ function toDayTokens(value: unknown): string | undefined {
     return days.length === 0 ? undefined : [...new Set(days)].sort().join(" ");
 }
 
-/** A surface's picture: the address quoted the way an icon's is, or nothing when none is set. */
+/**
+ * A surface's picture as `SurfaceStyleRenderer` reads it at first paint (`WebIconValue.TryReadImage`): the address quoted the way an
+ * icon's is, or nothing when none is set or no picture may be fetched from it, so a push is held to the check the first paint is.
+ */
 function toBackgroundImageCss(value: unknown): string {
-    const source = String(value ?? "").trim();
+    return toIconSourceCss(value);
+}
 
-    return source.length === 0 ? "" : toCssUrl(source);
+/** A surface's picture's dim as `WebCssValues.BackgroundImageDim` writes it: held to 0–1, nothing for a value that is not a number. */
+function toBackgroundImageDimCss(value: unknown): string {
+    const dim = typeof value === "number" ? value : Number(value ?? Number.NaN);
+
+    return Number.isNaN(dim) ? "" : String(Math.min(1, Math.max(0, dim)));
+}
+
+/** A count of rows or lines a pushed value names, as the first paint takes it: a whole number above zero, else none. */
+function toPositiveCount(value: unknown): number | undefined {
+    const count = typeof value === "number" ? value : Number(value ?? Number.NaN);
+
+    return Number.isInteger(count) && count > 0 ? count : undefined;
+}
+
+/** Whether a surface's picture's blur draws anything, as `WebCssValues.IsBackgroundImageBlurred` judges it: finite and above zero. */
+function isBackgroundImageBlurred(value: unknown): boolean {
+    const blur = typeof value === "number" ? value : Number(value ?? Number.NaN);
+
+    return Number.isFinite(blur) && blur > 0;
 }
 
 // Mirrors the NE.Colors palette in one place, so the by-name and by-value lookups below cannot drift apart.
@@ -697,13 +729,13 @@ function toSelectionMark(value: unknown): string {
 
     switch (toToken(value, selectionMarkTokens)) {
         case "left":
-            return "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+            return "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))";
         case "right":
-            return "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+            return "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))";
         case "top":
-            return "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+            return "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))";
         case "bottom":
-            return "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))";
+            return "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))";
         default:
             return "none";
     }

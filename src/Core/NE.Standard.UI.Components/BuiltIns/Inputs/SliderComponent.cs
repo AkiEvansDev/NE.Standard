@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A slider input that lets the user pick a numeric value by dragging a handle along a track.
 /// </summary>
-public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent
+public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent, IBoundedInputComponent
     where T : SliderComponent<T>, IUIComponentDefinition
 {
     /// <inheritdoc/>
@@ -22,14 +22,14 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// Gets or sets the minimum selectable value.
     /// </summary>
     /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMin"/>, which the value is checked against.</remarks>
-    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMin, GenerateSetter = false)]
+    [UIComponentProperty(Contract = typeof(IBoundedInputComponent), DefaultValue = (double)IOrderedRangeComponent.DefaultMin, GenerateSetter = false)]
     public decimal? Min { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum selectable value.
     /// </summary>
     /// <remarks>Unset, it is <see cref="IOrderedRangeComponent.DefaultMax"/>, which the value is checked against.</remarks>
-    [UIComponentProperty(DefaultValue = (double)IOrderedRangeComponent.DefaultMax, GenerateSetter = false)]
+    [UIComponentProperty(Contract = typeof(IBoundedInputComponent), DefaultValue = (double)IOrderedRangeComponent.DefaultMax, GenerateSetter = false)]
     public decimal? Max { get; set; }
 
     /// <summary>

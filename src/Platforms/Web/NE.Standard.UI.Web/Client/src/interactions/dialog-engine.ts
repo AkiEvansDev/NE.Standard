@@ -1,13 +1,11 @@
-import { ComponentSelector, DialogSurfaceClass } from "../addressing/dom-attributes";
+import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
+import { isCaretField } from "./caret-fields";
 import { isInRenameField } from "./inline-rename";
 import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
-import { firstFocusable, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
-import { DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
-const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
-const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
-const BackdropAttribute = "data-ui-dialog-backdrop";
+import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
+import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
@@ -39,7 +37,17 @@ export class DialogEngine {
 
         // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind. Its body
         // starts at the top, not where the last opening was scrolled to: the dialog is one per page, reused for every item it shows.
-        const previous = moveFocusIntoFromStart(dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog, firstFocusable(dialog));
+        const surface = dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog;
+        const first = firstFocusable(dialog);
+
+        // Opened by a finger, the surface holds the focus rather than a text field: the phone's keyboard would rise at once over the
+        // dialog's own answers (its Save); a tap on the field brings it up when the reader wants it.
+        const holdOnSurface = isTouchLast() && isCaretField(first);
+
+        if (holdOnSurface && !surface.hasAttribute("tabindex"))
+            surface.tabIndex = -1;
+
+        const previous = moveFocusIntoFromStart(surface, holdOnSurface ? surface : first);
 
         if (previous !== null)
             this.returnFocusByKey.set(key, previous);
@@ -72,9 +80,7 @@ export class DialogEngine {
     }
 
     private find(key: string): HTMLElement | null {
-        const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(key) : key;
-
-        return this.root.querySelector<HTMLElement>(`[${DialogAttribute}="${escaped}"]`);
+        return this.root.querySelector<HTMLElement>(`[${DialogAttribute}="${cssAttributeValue(key)}"]`);
     }
 
     private handleClick(domEvent: Event): void {

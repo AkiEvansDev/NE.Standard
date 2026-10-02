@@ -20,6 +20,7 @@ public static class IconValueRenderer
     ];
 
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
+    private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconShapeClass)];
 
     /// <summary>Writes the size class and colour a glyph wears.</summary>
     public static void RenderIconAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty sizeProperty, UIProperty colorProperty)
@@ -34,6 +35,19 @@ public static class IconValueRenderer
         }, SizeOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
+    }
+
+    /// <summary>Writes the shape a picture icon is drawn in (<see cref="UIIconShape"/>); the stylesheet leaves a glyph as it is.</summary>
+    public static void RenderIconShape(WebRenderContext context, IHtmlElementBuilder target, UIProperty shapeProperty)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(target);
+
+        _ = WebComponentRendererBase.RenderProperty<UIIconShape?>(context, target, shapeProperty, static (t, value) =>
+        {
+            if (value is UIIconShape shape && WebClassNames.IconShape(shape) is { Length: > 0 } className)
+                _ = t.Class(className);
+        }, ShapeOperations);
     }
 
     /// <summary>

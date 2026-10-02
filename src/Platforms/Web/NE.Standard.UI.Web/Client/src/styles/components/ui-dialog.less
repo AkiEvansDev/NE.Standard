@@ -4,12 +4,10 @@
 @import "../mixins/lift.less";
 @import "../mixins/responsive.less";
 
-@ui-dialog-z: 100;
-
 .ui-dialog {
     position: fixed;
     inset: 0;
-    z-index: @ui-dialog-z;
+    z-index: @ui-z-dialog;
     display: grid;
     // Named, since an implicit auto track grows to the panel and the panel's percentage guard would measure itself.
     grid-template-columns: minmax(0, 1fr);
@@ -85,7 +83,7 @@
 
 .ui-dialog__surface[data-ui-dialog-surface="tinted"] {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    --ui-surface-fill: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+    --ui-surface-fill: @ui-tinted-fill;
     background: var(--ui-surface-fill);
     --ui-ground: var(--ui-surface-fill);
     --ui-popup-ground: initial;
@@ -119,7 +117,8 @@
 
 .ui-dialog:is([data-ui-dialog-placement="left"], [data-ui-dialog-placement="right"]) > .ui-dialog__surface {
     .ui-responsive-property(width, --ui-width, min(420px, calc(100% - (@ui-space-4 * 2))));
-    .ui-responsive-property(max-width, --ui-max-width, none);
+    // The screen's guard, as a centred dialog's: an authored width wider than a phone stops at its edge.
+    .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-responsive-property(max-height, --ui-max-height, 100%);
     align-self: var(--ui-align-v, stretch);
 }
@@ -171,7 +170,8 @@
     margin: 0 0 @ui-space-4;
 }
 
-.ui-leave-dialog__actions {
+// A page dialog's answers (page-dialog.ts: the leave question's, the crop's), at the end of the surface.
+.ui-dialog__actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;

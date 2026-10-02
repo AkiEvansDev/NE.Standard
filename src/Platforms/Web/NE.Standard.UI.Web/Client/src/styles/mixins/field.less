@@ -94,11 +94,21 @@
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
+    // Half a step into the field's padding, as a wash touching the corner reads stuck.
+    margin-right: -@ui-space-1;
     cursor: default;
 
     > .ui-button,
     > .ui-flyout > .ui-flyout__anchor > .ui-button {
         .ui-field-action-button();
+    }
+
+    // The leading group (the caller's class with `--leading`) follows the value in the tab order and stands first all the same,
+    // before a caption inside too.
+    &--leading {
+        order: -1;
+        margin-right: 0;
+        margin-left: -@ui-space-1;
     }
 }
 
@@ -147,8 +157,18 @@
     }
 }
 
-// The veil over a replaceable picture: a pencil on dark glass, hidden; the caller shows it (pointer, keyboard, never when empty).
+// The veil over a replaceable picture: a pencil on the dark glass.
 .ui-picture-veil(@glyph: 1.5rem) {
+    .ui-picture-glass();
+
+    &::before {
+        .ui-pencil-glyph(@glyph; 0);
+    }
+}
+
+// Dark glass over a whole picture with its mark centred on it, hidden and not pressable while it cannot be seen (on a touch screen
+// the tap that brings the hover is also the click); the caller draws the mark and shows it (pointer, keyboard, never when empty).
+.ui-picture-glass() {
     position: absolute;
     inset: 0;
     display: flex;
@@ -159,10 +179,6 @@
     opacity: 0;
     transition: opacity @ui-motion-fast @ui-motion-ease;
     pointer-events: none;
-
-    &::before {
-        .ui-pencil-glyph(@glyph; 0);
-    }
 }
 
 // Where nothing hovers, a veil's mark stands in the picture's corner at all times instead of over the whole picture: a small round
@@ -196,7 +212,7 @@
     min-height: 0;
     padding: 0;
     border: none;
-    border-radius: 4px;
+    border-radius: @ui-part-radius;
     background: transparent;
     color: var(--ui-text-muted);
     cursor: pointer;

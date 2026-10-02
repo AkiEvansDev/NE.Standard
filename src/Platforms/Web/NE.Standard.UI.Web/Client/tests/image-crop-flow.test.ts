@@ -70,8 +70,11 @@ class FakeWheelEvent extends FakeEvent {
     }
 }
 
+// The window's key listeners, the drag's among them: it hears Escape before the dialog does.
+const windowKeys: ((domEvent: FakeEvent) => void)[] = [];
+
 installFakeDom({
-    window: { addEventListener: () => undefined, setTimeout, clearTimeout },
+    window: { addEventListener: (type: string, listener: (domEvent: FakeEvent) => void) => void (type === "keydown" && windowKeys.push(listener)), setTimeout, clearTimeout },
     MutationObserver: class {
         public observe(): void {
         }
@@ -115,6 +118,18 @@ clientStrings.setLanguage("en");
 
 /** A cover with a frame, as the renderer draws a single picture: the surface with the picture, the native picker, the handle. */
 function croppedPicture(frame: string, size?: number): { input: FakeElement; picture: FakeElement; native: FakeInput; selection: FakeInput } {
+    // The dialog stays on the page between tests, as it does between openings.
+    root.children.splice(0, root.children.length, ...root.children.filter(child => child.classes.has("ui-image-crop")));
+    marks.length = 0;
+    uploads.length = 0;
+    imaging.painted.length = 0;
+    imaging.written.length = 0;
+
+    return pictureInput(frame, size);
+}
+
+/** One more such cover on the page, beside the ones already there. */
+function pictureInput(frame: string, size?: number): { input: FakeElement; picture: FakeElement; native: FakeInput; selection: FakeInput } {
     const picture = FakeElement.of("ui-image-input__picture", { src: "/covers/old.png" }, "img");
     const native = new FakeInput("file");
     const selection = new FakeInput("hidden");
@@ -130,13 +145,7 @@ function croppedPicture(frame: string, size?: number): { input: FakeElement; pic
     const input = FakeElement.of("ui-image-input ui-image-input--picture", attributes)
         .append(FakeElement.of("ui-image-input__surface", { "data-ui-file-pick": "" }, "button").append(picture), native, selection);
 
-    // The dialog stays on the page between tests, as it does between openings.
-    root.children.splice(0, root.children.length, ...root.children.filter(child => child.classes.has("ui-image-crop")));
     root.append(input);
-    marks.length = 0;
-    uploads.length = 0;
-    imaging.painted.length = 0;
-    imaging.written.length = 0;
 
     return { input, picture, native, selection };
 }
@@ -319,4 +328,79 @@ test("a picture the browser cannot open is said on the field and uploads nothing
 
     assert.deepEqual(marks.at(-1), { field: input, severity: null, words: undefined });
     assert.equal(uploads.length, 1);
+});
+
+test("a second crop asked while the first picture decodes is refused, and the first opens, answers and lets its picture go", async () => {
+    const first = croppedPicture("square");
+    const second = pictureInput("circle");
+    const opened = dialogs.opened.length;
+    const released = imaging.released;
+
+    // Both picks land before the first picture is decoded: one dialog, one picture held.
+    pick(first.native, new File([new Uint8Array(40)], "first.png", { type: "image/png" }));
+    pick(second.native, new File([new Uint8Array(40)], "second.png", { type: "image/png" }));
+    await settle();
+
+    assert.equal(dialogs.opened.length, opened + 1);
+    assert.equal(cropDialog().stage.getAttribute("data-ui-image-crop-frame"), "square");
+
+    cropDialog().cancel.dispatchEvent(new FakeEvent("click"));
+    await settle();
+
+    assert.equal(imaging.released, released + 1);
+
+    // Neither input is left waiting on a crop that never answers: each opens the dialog again.
+    pick(first.native, new File([new Uint8Array(40)], "again.png", { type: "image/png" }));
+    await settle();
+
+    assert.equal(dialogs.opened.length, opened + 2);
+
+    cropDialog().apply.dispatchEvent(new FakeEvent("click"));
+    await settle();
+    pick(second.native, new File([new Uint8Array(40)], "later.png", { type: "image/png" }));
+    await settle();
+
+    assert.equal(dialogs.opened.length, opened + 3);
+    assert.equal(cropDialog().stage.getAttribute("data-ui-image-crop-frame"), "circle");
+
+    cropDialog().cancel.dispatchEvent(new FakeEvent("click"));
+    await settle();
+
+    assert.equal(imaging.released, released + 3);
+    assert.equal(root.querySelectorAll(".ui-image-crop").length, 1);
+});
+
+test("Escape mid-drag puts the picture back where the drag began, zoom and all, and leaves the dialog open", async () => {
+    const { native } = croppedPicture("square");
+
+    pick(native, new File([new Uint8Array(40)], "held.png", { type: "image/png" }));
+    await settle();
+
+    const { stage, zoom, apply } = cropDialog();
+
+    // A drag that turns into a pinch: moved, then zoomed to twice.
+    stage.dispatchEvent(new FakePointerEvent("pointerdown", 1, 137.5, 187.5));
+    stage.dispatchEvent(new FakePointerEvent("pointermove", 1, 157.5, 187.5));
+    stage.dispatchEvent(new FakePointerEvent("pointerdown", 2, 257.5, 187.5));
+    stage.dispatchEvent(new FakePointerEvent("pointermove", 2, 357.5, 187.5));
+
+    assert.equal(zoom.value, "2");
+
+    const escape = new FakeKeyboardEvent("Escape", stage);
+    const closed = dialogs.closed.length;
+
+    for (const listener of windowKeys)
+        listener(escape);
+
+    stage.dispatchEvent(escape);
+    await settle();
+
+    assert.equal(zoom.value, "1");
+    assert.equal(dialogs.closed.length, closed, "the drag's Escape closed the dialog too");
+
+    // Done writes the square the dialog opened on: the picture's middle, untouched.
+    apply.dispatchEvent(new FakeEvent("click"));
+    await settle();
+
+    assert.deepEqual(imaging.written, [{ rect: { x: 100, y: 0, side: 600 }, side: 600, type: "image/png" }]);
 });

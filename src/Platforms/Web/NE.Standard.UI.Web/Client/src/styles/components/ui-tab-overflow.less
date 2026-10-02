@@ -24,9 +24,14 @@
     display: inline-flex;
 }
 
+// At the strip's end in both strips, as a TabsView's stands: right after the last caption it moved with the captions' widths.
+.ui-tabs__strip > .ui-tab-overflow {
+    margin-inline-start: auto;
+}
+
 // The list behind it: every tab, the current one in the caption's weight; above the field popups, like a context menu.
 .ui-tab-overflow__menu {
-    .ui-popup-surface(40);
+    .ui-popup-surface(@ui-z-list);
     .ui-popup-scroll();
     .ui-popup-closed();
     .ui-entry-list();

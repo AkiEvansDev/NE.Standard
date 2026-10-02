@@ -1,10 +1,88 @@
+@import "../core/tokens.less";
+
 // A surface's picture, mixed in after `background-color` (a `background` shorthand would reset it); reset first, since the
 // properties inherit and a nested surface would wear its host's picture.
-.ui-surface-image() {
+//
+// Its dim and blur are the browser's, so a bound value moves them with no new picture (SurfaceStyleRenderer). The dim is a veil of
+// the ground the content reads on (`@ui-ground`: the surface's own, else the one it stands on) laid over the picture as a
+// background layer — darker in a dark theme, lighter in a light one, so one number reads in both — evenly, or on the edges alone
+// (`data-ui-surface-image-dim="vignette"`). The blur is a layer under the content blurring what the root paints beneath it
+// (`backdrop-filter`, which mirrors at the layer's edge, so nothing outside the box bleeds in and its corners stay the root's);
+// the root isolates its stacking for the layer to sit between its ground and its content. `@layer` is the pseudo-element the
+// root leaves free; `@scroller` keeps the layer over the visible part of a root that scrolls, as its picture stays there.
+.ui-surface-image(@layer: after; @scroller: false) {
     --ui-surface-image: none;
     --ui-surface-image-size: cover;
+    --ui-surface-image-dim: initial;
+    --ui-surface-image-blur: initial;
+    --ui-surface-image-veil: initial;
     background-image: var(--ui-surface-image);
     background-size: var(--ui-surface-image-size);
     background-position: center;
     background-repeat: no-repeat;
+    // Both layers over the border box: from the padding box, a cover picture ran past it into the border on one axis while the veil
+    // stopped at it, and a strip of the undimmed picture showed along two edges.
+    background-origin: border-box;
+
+    // With no dim the veil's reference is unset, so the veil is too and its fallback lays nothing.
+    &[data-ui-surface-image] {
+        --ui-surface-image-veil: linear-gradient(@ui-surface-image-veil, @ui-surface-image-veil);
+        background-image: var(--ui-surface-image-veil, none), var(--ui-surface-image);
+    }
+
+    &[data-ui-surface-image][data-ui-surface-image-dim="vignette"] {
+        --ui-surface-image-veil: radial-gradient(closest-side, transparent 45%, @ui-surface-image-veil);
+    }
+
+    // Not while loading or under a dragged row: the loading veil and ring, and the drop line, take the pseudo-elements; the picture
+    // shows as it is meanwhile.
+    &[data-ui-surface-image][data-ui-surface-image-blur]:not(.ui-loading, [data-ui-row-drop]) {
+        isolation: isolate;
+
+        & when (@scroller = false) {
+            position: relative;
+        }
+
+        // Nor while a wrapped tile that is a button is pressed: its wave takes `::before` too (core/press.less), as a row's does.
+        & when (@layer = before) {
+            &:not(.ui-items-view__item > .ui-pressing)::before {
+                .ui-surface-image-blur-layer(@scroller);
+            }
+        }
+
+        & when (@layer = after) {
+            &::after {
+                .ui-surface-image-blur-layer(@scroller);
+            }
+        }
+    }
 }
+
+.ui-surface-image-blur-layer(@scroller) {
+    content: "";
+    z-index: -1;
+    border-radius: inherit;
+    backdrop-filter: blur(var(--ui-surface-image-blur));
+    pointer-events: none;
+
+    & when (@scroller = false) {
+        position: absolute;
+        inset: 0;
+    }
+
+    // The scrollport's size, held at the top and start of what is in view and taking no room: an absolute layer would scroll away
+    // with the content, and one spanning the content would blur what lies beyond the box into its edges. The scrollbar's gutter is
+    // outside the scrollport, so the picture stays sharp under its transparent track; `background-clip` does not take it out there.
+    & when (@scroller = true) {
+        position: sticky;
+        top: 0;
+        inset-inline-start: 0;
+        float: inline-start;
+        width: 100%;
+        height: 100%;
+        margin-inline-end: -100%;
+    }
+}
+
+// The ground at the dim's share; a reference to a dim that is not set leaves the veil unset.
+@ui-surface-image-veil: color-mix(in srgb, @ui-ground calc(var(--ui-surface-image-dim) * 100%), transparent);

@@ -265,7 +265,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 _ = layer.Element("div", surface =>
                 {
                     _ = surface
-                        .Class("ui-dialog__surface")
+                        .Class(WebClassNames.DialogSurface)
                         .Attribute("role", "dialog")
                         .Attribute("tabindex", "-1");
 

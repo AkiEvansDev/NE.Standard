@@ -1,7 +1,7 @@
 // A splitter re-divides its container's tracks on the client and keeps the viewer's division in the browser: the
 // container's Columns/Rows are not bindable, and a drag is nobody's application state.
 
-import { ColumnLimitsAttribute, RowLimitsAttribute, SplitterStepAttribute } from "../addressing/dom-attributes";
+import { ColumnLimitsAttribute, RowLimitsAttribute, SplitFoldedAttribute, SplitterStepAttribute } from "../addressing/dom-attributes";
 import { currentResponsiveTier, ResponsiveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier";
 import { OnceWarner } from "../runtime/logger";
 import { ClientBootPatch, ClientStore } from "../state/client-store";
@@ -10,6 +10,7 @@ import { isInert } from "./interactive-state";
 import { PointerDrag } from "./pointer-drag";
 import {
     applyGridTrackLimits,
+    coversNoRoom,
     formatGridTracks,
     GridSplitRuns,
     GridTrack,
@@ -35,6 +36,7 @@ type SplitAxis = {
     readonly limits: string;
     readonly computed: "gridTemplateColumns" | "gridTemplateRows";
     readonly lineStart: "gridColumnStart" | "gridRowStart";
+    readonly lineEnd: "gridColumnEnd" | "gridRowEnd";
     readonly coordinate: "clientX" | "clientY";
     readonly decrease: string;
     readonly increase: string;
@@ -47,6 +49,7 @@ const Columns: SplitAxis = {
     limits: ColumnLimitsAttribute,
     computed: "gridTemplateColumns",
     lineStart: "gridColumnStart",
+    lineEnd: "gridColumnEnd",
     coordinate: "clientX",
     decrease: "ArrowLeft",
     increase: "ArrowRight"
@@ -59,6 +62,7 @@ const Rows: SplitAxis = {
     limits: RowLimitsAttribute,
     computed: "gridTemplateRows",
     lineStart: "gridRowStart",
+    lineEnd: "gridRowEnd",
     coordinate: "clientY",
     decrease: "ArrowUp",
     increase: "ArrowDown"
@@ -113,6 +117,14 @@ export class GridSplitterEngine {
         this.prepareEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         observeComponents(this.root, `.${RootClass}`, { childList: true }, splitters => this.prepareEach(splitters));
+
+        // Another width may bring another tier's tracks: a folded pane is measured again, and given back once its tracks have room.
+        window.addEventListener("resize", () => this.reportEach());
+    }
+
+    private reportEach(): void {
+        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`))
+            this.reportPosition(splitter);
     }
 
     private prepareEach(splitters: Iterable<HTMLElement>): void {
@@ -316,6 +328,25 @@ export class GridSplitterEngine {
         splitter.setAttribute("aria-valuemin", "0");
         splitter.setAttribute("aria-valuemax", "100");
         splitter.setAttribute("aria-valuenow", String(splitPercent(sizes, runs)));
+        foldEmptyPanes(container, axis, sizes);
+    }
+}
+
+/**
+ * Marks each child whose tracks on the axis are all nothing: squeezed to no width its words stood one a line and stretched the row
+ * to their height (`ui-container.less` takes the marked child away). Measured on the tracks, not on the child, so a folded child is
+ * found again once a drag or another width gives its tracks room.
+ */
+function foldEmptyPanes(container: HTMLElement, axis: SplitAxis, sizes: readonly number[]): void {
+    for (const child of container.children) {
+        if (!(child instanceof HTMLElement) || child.classList.contains(RootClass))
+            continue;
+
+        const style = getComputedStyle(child);
+        const folded = coversNoRoom(style[axis.lineStart], style[axis.lineEnd], sizes);
+
+        if (folded !== child.hasAttribute(SplitFoldedAttribute))
+            child.toggleAttribute(SplitFoldedAttribute, folded);
     }
 }
 

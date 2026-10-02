@@ -56,7 +56,8 @@ public static class WebIconValue
             candidate = candidate[MaskPrefix.Length..].Trim();
         }
 
-        if (!WebUrlSafety.TryReadImageSource(candidate, out source))
+        // A picture of an icon names a folder or a scheme, so it holds a slash; a bare word is a glyph's name, never a file beside the page.
+        if (!candidate.Contains('/') || !WebUrlSafety.TryReadImageSource(candidate, out source))
         {
             tinted = false;
             return false;

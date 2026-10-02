@@ -122,13 +122,13 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A row's press and its action's",
             UILayout.Stack(16)
-                .AddChild(UIPage.Labelled("Row click: the whole item", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("Row click: the whole item", new KeyValueActionComponent()
                     .SetRowHoverable(true)
                     .BindItems(nameof(KeyValueActionArgumentGroupContext.Items), UIBindingScope.Relative)
                     .OnRowClickWithItem(nameof(KeyValueActionController.ClickRowWithItem))
                     )
                 )
-                .AddChild(UIPage.Labelled("Action click: the item key", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("Action click: the item key", new KeyValueActionComponent()
                     .SetRowHoverable(true)
                     .BindItems(nameof(KeyValueActionArgumentGroupContext.Items), UIBindingScope.Relative)
                     .OnActionClickWithItemKey(nameof(KeyValueActionController.ClickActionWithKey))
@@ -181,7 +181,7 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A summary",
             UILayout.Stack(16)
-                .AddChild(UIPage.Labelled("StretchValue off: each value as wide as its words", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("StretchValue off: each value as wide as its words", new KeyValueActionComponent()
                     .SetStretchValue(false)
                     .SetRowHoverable(true)
                     .SetItems(
@@ -210,7 +210,7 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
                     ])
                     )
                 )
-                .AddChild(UIPage.Labelled("ShowActions off, no separators: a definition list", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("ShowActions off, no separators: a definition list", new KeyValueActionComponent()
                     .SetShowActions(false)
                     .SetShowRowSeparators(false)
                     .SetBorderThickness(UIThickness.Uniform(0))
@@ -249,7 +249,7 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Edit in place",
             UILayout.Stack(16)
-                .AddChild(UIPage.Labelled("Opened by the controller", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("Opened by the controller", new KeyValueActionComponent()
                     .BindItems(nameof(KeyValueActionEditGroupContext.Items), UIBindingScope.Relative)
                     .AddValueInputTemplate("number", new NumberInputComponent().SetAppearance(UIInputAppearance.Ghost))
                     .AddValueInputTemplate("switch", new SwitchComponent())
@@ -261,14 +261,13 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
                     .EnableEditing(nameof(KeyValueActionController.SaveRowAsync), nameof(KeyValueActionController.OpenRow))
                     )
                 )
-                .AddChild(UIPage.Labelled("Opened on the client", new KeyValueActionComponent()
+                .AddChild(DemoUI.CreateLabelled("Opened on the client", new KeyValueActionComponent()
                     .BindItems(nameof(KeyValueActionEditGroupContext.LocalItems), UIBindingScope.Relative)
                     .EnableEditing(nameof(KeyValueActionController.SaveLocalRow))
                     )
                 ),
             note: "EnableEditing(save, edit) with a typed input per row (InputTemplate): the draft comes back as the input sent it, and Cancel is the client's alone. EnableEditing(save) alone: the row's ShowInput still reaches the controller through its two-way binding, so the server knows what the page did.",
-            context: EditGroup,
-            contentMinHeight: 380
+            context: EditGroup
         );
     }
 }

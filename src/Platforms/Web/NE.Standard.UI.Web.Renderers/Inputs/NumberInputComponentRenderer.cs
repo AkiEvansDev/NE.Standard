@@ -100,10 +100,14 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 NativeInputRendererBase.RenderIsReadOnly(context, root, input);
                 RenderFieldLabel(context, input);
 
-                _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, static (target, value) =>
+                // Trimmed here too, so the first paint shows what the client shows once it runs; a push the client trims itself.
+                _ = ResolveRenderValue(context, NumberInputComponent.TrimTrailingZerosProperty, out bool? trim, out _);
+                var trimZeros = trim == true;
+
+                _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, (target, value) =>
                 {
                     if (value is decimal current)
-                        _ = target.Attribute("value", current.ToString(CultureInfo.InvariantCulture));
+                        _ = target.Attribute("value", trimZeros ? TrimTrailingZeros(current) : current.ToString(CultureInfo.InvariantCulture));
                 }, [WebDomOperation.Property("value")]);
             });
 
@@ -121,5 +125,13 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         });
 
         RenderValidationMessage(context, root);
+    }
+
+    /// <summary>A value's invariant text without the zeros its scale carries past the last digit (<c>1.500</c> as <c>1.5</c>).</summary>
+    internal static string TrimTrailingZeros(decimal value)
+    {
+        var text = value.ToString(CultureInfo.InvariantCulture);
+
+        return text.Contains('.', StringComparison.Ordinal) ? text.TrimEnd('0').TrimEnd('.') : text;
     }
 }

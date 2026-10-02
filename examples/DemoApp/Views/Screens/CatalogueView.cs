@@ -105,6 +105,7 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                 .SetIcon(DemoIcons.Outline(DemoIcons.Search))
                 .SetTitle("No offer matches")
                 .SetDescription("Loosen a filter or two.")
+                .SetWrapMode(UITextWrapMode.Wrap)
             );
 
     /// <summary>A share of the shelf's line rather than a fixed width, so the tiles end where the filter band does.</summary>

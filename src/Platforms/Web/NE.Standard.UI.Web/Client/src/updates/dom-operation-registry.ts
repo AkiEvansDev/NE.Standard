@@ -1,12 +1,14 @@
-import { ResolvedPropertyAddress } from "../addressing/address-resolver";
-import { isNullishValue, toDomString } from "../extensions/value-readers";
-import { getDomOperationKind, getValueCondition, WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index";
-import { isIconClassName, toIconClassName } from "../rendering/icon-value";
-import { applyInlineMarkup } from "../rendering/inline-markup";
-import { forgetWords } from "../runtime/client-strings";
-import { logWarn } from "../runtime/logger";
-import { FormOwnerOperationKind, writeFormOwner } from "./form-owner";
-import { TooltipNameOperationKind, writeTooltipName } from "./tooltip-name";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
+import { isNullishValue, toDomString } from "../extensions/value-readers.ts";
+import { getDomOperationKind, getValueCondition } from "../metadata/metadata-index.ts";
+import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index.ts";
+import { isIconClassName, toIconClassName } from "../rendering/icon-value.ts";
+import { applyInlineMarkup } from "../rendering/inline-markup.ts";
+import { forgetWords } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
+import { TooltipNameOperationKind, writeTooltipName } from "./tooltip-name.ts";
 
 export type DomOperationContext = {
     readonly resolved: ResolvedPropertyAddress;

@@ -126,14 +126,14 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("More than a name",
             UILayout.Row(48)
-                .AddChild(UIPage.Labelled("The default row — glyph, second line and badge", new RadioGroupComponent()
+                .AddChild(DemoUI.CreateLabelled("The default row — glyph, second line and badge", new RadioGroupComponent()
                     .SetTitle("Target environment")
                     .SetIcon(DemoIcons.Navigation)
                     .SetOptions(DemoSamples.Environments())
                     .SetValue("staging")
                     )
                 )
-                .AddChild(UIPage.Labelled("A template of your own, over the same options", new RadioGroupComponent()
+                .AddChild(DemoUI.CreateLabelled("A template of your own, over the same options", new RadioGroupComponent()
                     .SetTitle("Target environment")
                     .SetIcon(DemoIcons.Navigation)
                     .SetTemplate(new TextComponent()

@@ -1,3 +1,4 @@
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
@@ -7,19 +8,19 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// <summary>
 /// Base class for text input components with minimum, maximum, and formatting metadata.
 /// </summary>
-public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(string? id = null) : AffixedInputComponentBase<TComponent, TValue>(id), IFormattedInputComponent
+public abstract partial class MinMaxInputComponentBase<TComponent, TValue>(string? id = null) : AffixedInputComponentBase<TComponent, TValue>(id), IFormattedInputComponent, IBoundedInputComponent
     where TComponent : MinMaxInputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     /// <summary>
     /// Gets or sets the minimum allowed value.
     /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
+    [UIComponentProperty(Contract = typeof(IBoundedInputComponent), DefaultValue = null, GenerateSetter = false)]
     public TValue? Min { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum allowed value.
     /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
+    [UIComponentProperty(Contract = typeof(IBoundedInputComponent), DefaultValue = null, GenerateSetter = false)]
     public TValue? Max { get; set; }
 
     /// <summary>

@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "./interactive.less";
 
 // The core's glyph font (fonts/NEGlyphs.woff2, from glyphs/build.mjs), so a host needs no icon pack. Sizes in rem, not em: a mark
 // on a fractional pixel rasterises unlike its twin.
@@ -161,7 +162,7 @@
     text-transform: none;
     text-decoration: none;
     white-space: nowrap;
-    user-select: none;
+    .ui-user-select(none);
 }
 
 // An element whose whole content is a glyph on its `::before`: centres the mark in whatever size it was given.

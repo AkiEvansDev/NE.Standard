@@ -26,15 +26,19 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
+[UIComponentPropertyDefault(nameof(IScrollableComponent.HorizontalScroll), nameof(DefaultHorizontalScroll))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IEmptyStateComponent
+public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IEmptyStateComponent
     where T : TableComponent<T>, IUIComponentDefinition
 {
     // The table draws an edge where the contract leaves the stylesheet's own.
     private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
+
+    // Columns whose floors outrun the box scroll sideways with their header rather than being cut at its edge.
+    private const UIScrollMode DefaultHorizontalScroll = UIScrollMode.Auto;
 
     private readonly List<UITableColumn> _columns = [];
 
@@ -91,7 +95,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnRowMove"/>). Refused while a sort orders the
     /// rows, which would put the row back.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
     public bool? Draggable { get; set; }
 
     /// <summary>
@@ -99,14 +103,14 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
     /// rows by Alt+Up and Alt+Down.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
     public bool? DragHandle { get; set; }
 
     /// <summary>
     /// Gets or sets where the grips' column stands (<see cref="DragHandle"/>): past the last column by default, or before the first,
     /// pinned with it where the first column is pinned.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIDragHandlePlacement.End)]
+    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = UIDragHandlePlacement.End)]
     public UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
     /// <summary>

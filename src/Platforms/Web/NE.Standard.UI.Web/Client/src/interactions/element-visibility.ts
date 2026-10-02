@@ -1,3 +1,11 @@
+/** A box the reader scrolls along the axis, which a script may scroll too; a box that clips alone (`overflow: clip`) has nothing to scroll. */
+export function canScroll(element: Element, vertical: boolean): boolean {
+    const style = getComputedStyle(element);
+    const overflow = vertical ? style.overflowY : style.overflowX;
+
+    return overflow === "auto" || overflow === "scroll";
+}
+
 /** Whether the element itself takes part in layout, by its own computed display rather than its rects. */
 export function isLaidOut(element: Element): boolean {
     return getComputedStyle(element).display !== "none";
@@ -51,7 +59,7 @@ export function isClippedOut(element: Element): boolean {
  * list's scrolling box, a canvas — or null where none is. A box that only clips (`overflow: clip`, every container's default) cuts
  * its content off but shows no more of it, so a popup floating over the element may stand outside it.
  */
-export function viewportOf(element: Element): Element | null {
+export function viewBoxAround(element: Element): Element | null {
     let position = getComputedStyle(element).position;
 
     for (let current = element.parentElement; current !== null && position !== "fixed"; current = current.parentElement) {

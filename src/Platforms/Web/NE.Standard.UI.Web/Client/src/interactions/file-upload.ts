@@ -3,6 +3,7 @@
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
+import { acceptsFile } from "./file-drop.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logElapsed, logWarn } from "../runtime/logger.ts";
 import type { FieldValidation } from "./validation-engine.ts";
@@ -55,6 +56,11 @@ export function takeWithinSizeLimit(root: HTMLElement, files: readonly File[], s
     }
 
     const refusal: SizeRefusal = { validation, limit, names: several ? refused.map(file => file.name) : null };
+
+    for (const shown of refusals.keys()) {
+        if (!shown.isConnected)
+            refusals.delete(shown);
+    }
 
     refusals.set(root, refusal);
     sayRefusal(root, refusal);
@@ -169,11 +175,22 @@ export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: nu
 /** The framework's upload, answering with a selection id; a package never posts to the endpoint, whose path and shape are its own. */
 export type FileUploads = {
     uploadAsync(files: Iterable<File>, onProgress?: (percent: number) => void): Promise<UploadedSelection>;
+    /** Whether a file answers an `accept` list as a dropped one is judged: a MIME family, a MIME type, or an extension; empty takes any. */
+    accepts(accept: string, file: File): boolean;
+    /** `takeWithinSizeLimit` for a package's field, its refusal said through the page's validation engine. */
+    takeWithinSizeLimit(root: HTMLElement, files: readonly File[], several: boolean): File[];
 };
 
 const noProgress = (): void => { };
 
-export const fileUploads: FileUploads = { uploadAsync: (files, onProgress) => uploadFilesAsync(files, onProgress ?? noProgress) };
+/** The uploads the plugin surface hands out: the size refusal is the file and image inputs' own, words and language switch alike. */
+export function createFileUploads(validation: FieldValidation): FileUploads {
+    return {
+        uploadAsync: (files, onProgress) => uploadFilesAsync(files, onProgress ?? noProgress),
+        accepts: acceptsFile,
+        takeWithinSizeLimit: (root, files, several) => takeWithinSizeLimit(root, files, several, validation)
+    };
+}
 
 /** Writes a selection id through the hidden input it binds on, and raises the "change" a value set from script does not. */
 export function publishSelection(selection: HTMLInputElement | null, selectionId: string): void {

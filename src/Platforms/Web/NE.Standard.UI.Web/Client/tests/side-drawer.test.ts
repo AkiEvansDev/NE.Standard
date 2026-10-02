@@ -81,6 +81,8 @@ test("the drawer a press opened takes the focus itself, as a holder, and no fiel
 
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
     assert.equal(fakeDocument.activeElement, toggle);
+    // Given back as a pointer's opening gives it: no keyboard ring, no tooltip on the button.
+    assert.equal(toggle.hasAttribute("data-ui-pointer-focus"), true);
     assert.equal(drawer.hasAttribute("data-ui-focus-holder"), false);
     assert.equal(drawer.hasAttribute("tabindex"), false);
 });

@@ -1,6 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { cssAttributeValue } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import { formatTemporal, InvariantTemporalLetters, temporalPlaceholder } from "../rendering/temporal-format.ts";
+import { formatTemporal, InvariantTemporalLetters, isDigitFormat, temporalPlaceholder } from "../rendering/temporal-format.ts";
 import type { TemporalLetters } from "../rendering/temporal-format.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
@@ -215,10 +216,15 @@ export class TemporalPickerEngine {
             clampPushedValue(picker);
 
             const placeholder = temporalPlaceholder(readFormat(picker), placeholderLetters());
+            // A format of digits alone asks a phone for its digit keyboard rather than its letters.
+            const inputMode = isDigitFormat(readFormat(picker)) ? "numeric" : "text";
 
             for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
                 if (field.placeholder !== placeholder)
                     field.placeholder = placeholder;
+
+                if (field.inputMode !== inputMode)
+                    field.inputMode = inputMode;
 
                 // The reader's text is left alone once written; a picker drawn and focused at once (a cell's editor) is still unwritten.
                 if (field === document.activeElement && this.written.has(field))
@@ -704,7 +710,7 @@ export class TemporalPickerEngine {
 
         // A month chosen from the month pane is gone after the rebuild, and a page button that reached a bound is disabled, so the focus
         // of either falls to the day like any other.
-        const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${NavAttribute}="${CSS.escape(focusedNav)}"]:not(:disabled)`);
+        const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${NavAttribute}="${cssAttributeValue(focusedNav)}"]:not(:disabled)`);
 
         applyRovingDay(surface, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
         applyPeriodPreview(picker, state);

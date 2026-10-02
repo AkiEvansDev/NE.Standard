@@ -1,7 +1,14 @@
 @import "../core/tokens.less";
 
+// Whether the text under an element selects (runtime.less's one rule set, STYLING.md). `-webkit-` too: Safari reads the prefixed
+// property alone.
+.ui-user-select(@value) {
+    -webkit-user-select: @value;
+    user-select: @value;
+}
+
 .ui-interactive-base() {
-    user-select: none;
+    .ui-user-select(none);
     touch-action: manipulation;
 }
 

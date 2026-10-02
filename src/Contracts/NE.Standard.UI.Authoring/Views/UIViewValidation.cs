@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
@@ -70,7 +71,10 @@ internal static class UIViewValidation
 
             // A padding and a border hold no negative side; a margin may, which is why Margin is not checked here.
             if (component is ISurfaceComponent surface)
+            {
                 ValidateResponsive(owner, nameof(ISurfaceComponent.Padding), surface.Padding, static padding => padding.Validate());
+                ValidateBackgroundImage(owner, surface);
+            }
 
             if (component is IBorderedComponent { BorderThickness: UIThickness border })
                 ValidateResponsive<UIThickness>(owner, nameof(IBorderedComponent.BorderThickness), UIResponsive<UIThickness>.FromValue(border), static thickness => thickness.Validate());
@@ -113,6 +117,16 @@ internal static class UIViewValidation
         ValidateResponsive(owner, nameof(IVisualComponent.Height), height, static length => length.Validate());
         ValidateResponsive(owner, nameof(IVisualComponent.MinHeight), minHeight, static length => length.Validate());
         ValidateResponsive(owner, nameof(IVisualComponent.MaxHeight), maxHeight, static length => length.Validate());
+    }
+
+    // A bound value is clamped where it is drawn instead: it comes from the reader (a slider), and refusing it would end the page.
+    private static void ValidateBackgroundImage(string owner, ISurfaceComponent surface)
+    {
+        if (surface.BackgroundImageDim is double dim && !(dim >= 0 && dim <= 1))
+            throw new InvalidOperationException($"{owner} has an invalid {nameof(ISurfaceComponent.BackgroundImageDim)} '{dim.ToString(CultureInfo.InvariantCulture)}': it must be a number from 0 to 1.");
+
+        if (surface.BackgroundImageBlur is double blur && !(blur >= 0 && double.IsFinite(blur)))
+            throw new InvalidOperationException($"{owner} has an invalid {nameof(ISurfaceComponent.BackgroundImageBlur)} '{blur.ToString(CultureInfo.InvariantCulture)}': it must be a finite number of zero or more.");
     }
 
     private static void ValidateDialogLayout(UIViewBase view, UIDialog dialog)

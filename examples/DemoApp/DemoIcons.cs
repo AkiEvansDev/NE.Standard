@@ -25,6 +25,7 @@ public static class DemoIcons
     public const string ExternalLink = MaterialIcons.OpenInNew;
     public const string Link = MaterialIcons.Link;
     public const string Navigation = MaterialIcons.Navigation;
+    public const string Press = MaterialIcons.TouchApp;
 
     public const string Search = MaterialIcons.Search;
     public const string Filter = MaterialIcons.FilterAlt;

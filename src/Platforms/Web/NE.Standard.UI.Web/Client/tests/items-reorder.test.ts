@@ -161,6 +161,38 @@ test("a row dropped on the lower half of another lands after it, marked there wh
     assert.equal(real<{ draggable: boolean }>(first).draggable, false);
 });
 
+test("a press that lifts a row takes away a selection the reader left across rows, which the browser would drag instead", () => {
+    const view = list();
+
+    new ItemsReorderEngine({ root: real(view.root) });
+    fakeDocument.selection.isCollapsed = false;
+
+    view.rows[0].dispatchEvent(new FakePointerEvent("pointerdown"));
+
+    assert.equal(fakeDocument.selection.isCollapsed, true);
+    assert.equal(real<{ draggable: boolean }>(view.rows[0]).draggable, true);
+});
+
+test("a press the browser cancels gives the row back its own state; one cancelled by the drag it started keeps it lifted", () => {
+    const view = list();
+
+    new ItemsReorderEngine({ root: real(view.root) });
+
+    const [first, , third] = view.rows;
+
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+    first.dispatchEvent(new FakePointerEvent("pointercancel"));
+    assert.equal(real<{ draggable: boolean }>(first).draggable, false);
+
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", first);
+    first.dispatchEvent(new FakePointerEvent("pointercancel"));
+    assert.equal(real<{ draggable: boolean }>(first).draggable, true);
+
+    drag("drop", third, 27);
+    assert.equal(real<{ draggable: boolean }>(first).draggable, false);
+});
+
 test("a grouped view's row moves within its group: Alt at the group's edge does nothing and another group's row is no place", () => {
     // Drawn as the group renderer draws them: a and b under the first header, c under the second.
     const view = list({}, ["first", "first", "second"]);

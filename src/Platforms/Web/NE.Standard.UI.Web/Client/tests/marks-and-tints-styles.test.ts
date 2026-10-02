@@ -1,6 +1,7 @@
 // Read back from the compiled stylesheet: a chosen row of a list on the page draws the brand's line on its leading edge while a
-// popup's list draws none, a tint mixes over the mode's own ground at the mode's share, the page has no brand glow, a disabled day
-// still reads, a period with its caption inside reads from the trailing edge, and an underlined picture row starts at the rule.
+// popup's list draws none, a current entry writes in the text's ink, a tint mixes over the mode's own ground at the mode's share,
+// the page has no brand glow, a disabled day still reads, a period with its caption inside reads from the trailing edge, and an
+// underlined picture row starts at the rule.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,7 +12,7 @@ import less from "less";
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
-const leadingMark = "box-shadow: var(--ui-selected-mark, inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary)));";
+const leadingMark = "box-shadow: var(--ui-selected-mark, inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected)));";
 
 /** The declarations of the first rule whose selector is exactly `selector`, or null. */
 function declarations(selector: string): string | null {
@@ -39,19 +40,42 @@ test("a popup's list marks no line: a folded menu's flyout's current entry is it
     assert.doesNotMatch(declarations(".ui-select__option[aria-selected=\"true\"]") ?? "", /box-shadow/);
 });
 
-test("a folded group holding the current page wears a short, faint piece of the line on the current entry's edge", () => {
+test("a folded group holding the current page wears a short, whole piece of the line on the current entry's edge, its words in the ink", () => {
     const mark = /\.ui-menu__item\[data-ui-menu-group\]:not\(\[data-ui-menu-open\]\):has\(\.ui-menu-item--selected\) > \.ui-menu-item:not\(\.ui-menu-item--selected\):not\(\.ui-pressing\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(mark, /inset: var\(--ui-menu-group-mark-inset, 25% auto 25% 0\);/);
     assert.match(mark, /width: var\(--ui-menu-group-mark-width, 2px\);/);
-    assert.match(mark, /background: var\(--ui-selected-mark-color, var\(--ui-color-primary\)\);/);
-    assert.match(mark, /opacity: 0\.6;/);
+    assert.match(mark, /background: var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\);/);
+    assert.doesNotMatch(mark, /opacity/);
+    assert.doesNotMatch(/\.ui-menu__item\[data-ui-menu-group\]:not\(\[data-ui-menu-open\]\):has\(\.ui-menu-item--selected\) > \.ui-menu-item:not\(\.ui-menu-item--selected\),[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "", /--ui-color-primary-ink/);
     assert.match(declarations(".ui-menu.ui-side--right") ?? "", /--ui-menu-group-mark-inset: 25% 0 25% auto;/);
     assert.match(declarations(".ui-menu:is(.ui-side--top, .ui-side--bottom, .ui-orientation--horizontal)") ?? "", /--ui-menu-group-mark-inset: auto 25% 0 25%;/);
 });
 
+test("a current entry writes in the text's ink, never the brand's: the brand stays in its mark", () => {
+    const ink = "color: var(--ui-selected-foreground, var(--ui-faint-base, var(--ui-color-on-surface)));";
+
+    for (const entry of [
+        ".ui-menu-item--selected",
+        ".ui-button[data-ui-value-kind=\"pressed\"][aria-pressed=\"true\"]",
+        ".ui-language-switcher__choice[aria-checked=\"true\"]"
+    ])
+        assert.ok((declarations(entry) ?? "").includes(ink), `${entry} does not write in the text's ink`);
+
+    assert.doesNotMatch(css, /\.ui-menu-item--selected(?: [^{),]*)? \{[^}]*--ui-color-primary-ink/);
+    assert.doesNotMatch(declarations(".ui-multi-select .ui-select__option::after") ?? "", /--ui-color-primary-ink/);
+    assert.match(declarations(".ui-multi-select__chip") ?? "", /color: var\(--ui-color-primary-ink-on-tint\);/);
+});
+
 test("a tint mixes over the mode's own ground at the mode's share", () => {
     assert.match(declarations(".ui-surface--tinted") ?? "", /--ui-surface-fill: color-mix\(in srgb, var\(--ui-surface-color, var\(--ui-color-primary\)\) var\(--ui-tint-share, 20%\), var\(--ui-tint-ground, var\(--ui-color-background\)\)\);/);
+
+    // A tinted dialog and a tinted menu's popup mix the same, not a fifth over the page whatever the mode.
+    const modeTint = "color-mix(in srgb, var(--ui-color-primary) var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)))";
+
+    assert.ok((declarations(".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]") ?? "").includes(`--ui-surface-fill: ${modeTint};`));
+    assert.ok(css.includes(`.ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {\n  --ui-popup-ground: ${modeTint};`), "a tinted menu's popup mixes another tint");
+    assert.doesNotMatch(css, /color-mix\(in srgb, var\(--ui-color-primary\) 20%, var\(--ui-color-background\)\)/);
 });
 
 test("the page has no brand glow, and the bands over it repeat its plain ground", () => {
@@ -60,7 +84,7 @@ test("the page has no brand glow, and the bands over it repeat its plain ground"
 });
 
 test("a disabled day reads at more than half its muted ink, and a month or an arrow past a bound reads the same at rest", () => {
-    assert.match(css, /\.ui-temporal-input__day:disabled,\s*\.ui-temporal-input__month:disabled,\s*\.ui-temporal-input__time-cell:disabled,\s*\.ui-temporal-input__nav:disabled \{[^}]*color: var\(--ui-text-muted\);[^}]*opacity: 0\.55;/);
+    assert.match(css, /\.ui-temporal-input__day:disabled,\s*\.ui-temporal-input__month:disabled,\s*\.ui-temporal-input__time-cell:disabled,\s*\.ui-temporal-input__nav:disabled \{[^}]*color: var\(--ui-text-muted\);[^}]*opacity: var\(--ui-disabled-opacity\);/);
 });
 
 test("a period with its caption inside reads from the trailing edge, the spare width between the caption and the period", () => {

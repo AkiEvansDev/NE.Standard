@@ -7,7 +7,10 @@ namespace DemoApp.Views.Mechanisms;
 /// What a command does between the press and the answer: how the wait is shown, what a second press meets, progress, work that
 /// leaves the page free, a failure, and answers that are not state.
 /// </summary>
-/// <remarks>Most groups are the same command wired more than one way, since none of it is visible on its own.</remarks>
+/// <remarks>
+/// Most groups are the same command wired more than one way, since none of it is visible on its own. The page is words, not samples:
+/// every title, note, button and line is a key, in each of the demo's languages.
+/// </remarks>
 internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
 {
     private const string LatencyGroup = nameof(CommandsController.LatencyGroup);
@@ -17,6 +20,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private const string ReportGroup = nameof(CommandsController.ReportGroup);
     private const string EffectGroup = nameof(CommandsController.EffectGroup);
     private const string BackgroundGroup = nameof(CommandsController.BackgroundGroup);
+    private const string Words = "demo.mechanisms.commands.";
 
     // Authored ids, because one button names the other in a cross-component interaction.
     private const string ApproveId = "decision-approve";
@@ -42,38 +46,39 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLatencyGroup()
     {
-        return DemoUI.CreateGroup(LatencyGroup, "Three ways to say it is running",
+        return DemoUI.CreateGroup(LatencyGroup, Words + "latency.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClickShowingLoading(nameof(CommandsController.DeployAsync))
                     .SetType(UIButtonType.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
-                    .SetTitle("Deploy")
-                    .SetDescription("One call, two interactions, nothing bound")
+                    .SetTitle(Words + "latency.deploy")
+                    .SetDescription(Words + "latency.interactions")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetTooltip("OnClickShowingLoading: InteractBeforeClick(Loading, true) and InteractAfterClick(Loading, false)")
+                    .SetTooltip(Words + "latency.interactions.tooltip")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.DeployBoundAsync))
                     .BindLoading(nameof(ButtonLatencyGroupContext.Busy), UIBindingScope.Relative)
                     .SetType(UIButtonType.Outline)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
-                    .SetTitle("Deploy")
-                    .SetDescription("Bound, and the command writes it")
+                    .SetTitle(Words + "latency.deploy")
+                    .SetDescription(Words + "latency.bound")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetTooltip("BindLoading(Busy) — the spinner is the server's answer, not the round trip")
+                    .SetTooltip(Words + "latency.bound.tooltip")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.DeployAsync))
                     .SetType(UIButtonType.Outline)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
-                    .SetTitle("Deploy")
-                    .SetDescription("Neither")
+                    .SetTitle(Words + "latency.deploy")
+                    .SetDescription(Words + "latency.neither")
                     .SetDescriptionType(UITextAppearance.Caption)
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Press each of them: the first two spinners are the same round trip seen from the client and from the server, and the third button is what one looks like before either has been chosen."
+            note: Words + "latency.note",
+            words: true
         );
     }
 
@@ -82,39 +87,40 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateGuardGroup()
     {
-        return DemoUI.CreateGroup(GuardGroup, "Pressed twice",
+        return DemoUI.CreateGroup(GuardGroup, Words + "guard.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.ChargeGuardedAsync))
                     .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
                     .BindEnabled(nameof(ButtonGuardGroupContext.GuardedEnabled), UIBindingScope.Relative)
                     .SetType(UIButtonType.Primary)
-                    .SetTitle("Charge card")
-                    .SetDescription("Says it took the press")
+                    .SetTitle(Words + "guard.guarded")
+                    .SetDescription(Words + "guard.guarded.description")
                     .SetDescriptionType(UITextAppearance.Caption)
                     .BindBadgeText(nameof(ButtonGuardGroupContext.GuardedCount), UIBindingScope.Relative)
                     .SetBadgeStyle(UIBadgeType.Surface)
-                    .SetTooltip("Off before the press leaves the browser, on again when the command finishes")
+                    .SetTooltip(Words + "guard.guarded.tooltip")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.ChargePlainAsync))
                     .SetType(UIButtonType.Outline)
-                    .SetTitle("Charge card, bare")
-                    .SetDescription("Refused in silence")
+                    .SetTitle(Words + "guard.plain")
+                    .SetDescription(Words + "guard.plain.description")
                     .SetDescriptionType(UITextAppearance.Caption)
                     .BindBadgeText(nameof(ButtonGuardGroupContext.PlainCount), UIBindingScope.Relative)
                     .SetBadgeStyle(UIBadgeType.Surface)
-                    .SetTooltip("The client drops the repeat and tells nobody — the count is the only proof")
+                    .SetTooltip(Words + "guard.plain.tooltip")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.ResetCounts))
                     .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
-                    .SetTooltip("Back to zero")
+                    .SetTooltip(Words + "guard.reset")
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Press each three times as fast as you can. Both counters move once — the client refuses a command already in flight — but only one of the two buttons says so."
+            note: Words + "guard.note",
+            words: true
         );
     }
 
@@ -123,7 +129,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateDecisionGroup()
     {
-        return DemoUI.CreateGroup(DecisionGroup, "Two buttons, one decision",
+        return DemoUI.CreateGroup(DecisionGroup, Words + "decision.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent(ApproveId)
                     .OnClick(nameof(CommandsController.ApproveAsync))
@@ -132,7 +138,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .BindEnabled(nameof(ButtonDecisionGroupContext.Open), UIBindingScope.Relative)
                     .SetType(UIButtonType.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))
-                    .SetTitle("Approve")
+                    .SetTitle(Words + "decision.approve")
                 )
                 .AddChild(new ButtonComponent(RejectId)
                     .OnClick(nameof(CommandsController.RejectAsync))
@@ -141,7 +147,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .BindEnabled(nameof(ButtonDecisionGroupContext.Open), UIBindingScope.Relative)
                     .SetType(UIButtonType.Outline)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Close))
-                    .SetTitle("Reject")
+                    .SetTitle(Words + "decision.reject")
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
@@ -152,11 +158,12 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .OnClick(nameof(CommandsController.ReopenRequest))
                     .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
-                    .SetTooltip("Open the request again")
+                    .SetTooltip(Words + "decision.reopen")
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "One press turns both of them off before it leaves the browser, which a server-side flag could not do in time. The rule itself is still the server's: each command checks that the request is open, so a second press that gets through changes nothing."
+            note: Words + "decision.note",
+            words: true
         );
     }
 
@@ -165,7 +172,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateProgressGroup()
     {
-        return DemoUI.CreateGroup(ProgressGroup, "Progress, while it is still running",
+        return DemoUI.CreateGroup(ProgressGroup, Words + "progress.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.ProvisionAsync))
@@ -173,7 +180,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .BindLoading(nameof(ButtonProgressGroupContext.Busy), UIBindingScope.Relative)
                     .SetType(UIButtonType.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
-                    .SetTitle("Provision")
+                    .SetTitle(Words + "progress.provision")
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
@@ -182,7 +189,8 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "One command, five writes, arriving while it is still awaiting: a long command does not have to be silent until it returns."
+            note: Words + "progress.note",
+            words: true
         );
     }
 
@@ -191,34 +199,35 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBackgroundGroup()
     {
-        return DemoUI.CreateGroup(BackgroundGroup, "A long job that leaves the page free",
+        return DemoUI.CreateGroup(BackgroundGroup, Words + "background.title",
             content => content.AddChild(UILayout.Stack(12)
                 .AddChild(UILayout.Row(12)
                     .AddChild(new ButtonComponent()
                         .OnClickShowingLoading(nameof(CommandsController.BackUpAsync))
                         .SetType(UIButtonType.Primary)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Download))
-                        .SetTitle("Back up")
-                        .SetTooltip("[UICommand(ConcurrencyMode = Background)] — six seconds, and the spinner ends when its pushed result arrives")
+                        .SetTitle(Words + "background.back-up")
+                        .SetTooltip(Words + "background.back-up.tooltip")
                     )
                     .AddChild(new ButtonComponent()
                         .OnClick(nameof(CommandsController.CancelBackup))
                         .SetType(UIButtonType.Ghost)
-                        .SetTitle("Cancel")
+                        .SetTitle(Words + "background.cancel")
                     )
                 )
                 .AddChild(new TextInputComponent()
-                    .SetTitle("Note for the log")
+                    .SetTitle(Words + "background.note-field")
                     .BindValue(nameof(ButtonBackgroundGroupContext.Note), UIBindingScope.Relative)
                 )
                 .AddChild(new TextComponent()
-                    .SetTitle("The server holds")
+                    .SetTitle(Words + "background.server-holds")
                     .AsBody()
                     .BindDescription(nameof(ButtonBackgroundGroupContext.Note), UIBindingScope.Relative)
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "Press Back up, then type a note and leave the field: the line under it is the server's copy, and it changes while the backup still runs. Cancel reaches the backup the same way."
+            note: Words + "background.note",
+            words: true
         );
     }
 
@@ -227,25 +236,26 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFailureGroup()
     {
-        return DemoUI.CreateGroup(ReportGroup, "When it fails",
+        return DemoUI.CreateGroup(ReportGroup, Words + "failure.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.FailUnhandled))
                     .SetType(UIButtonType.Outline)
-                    .SetTitle("Throw")
-                    .SetDescription("Reported by the framework")
+                    .SetTitle(Words + "failure.throw")
+                    .SetDescription(Words + "failure.throw.description")
                     .SetDescriptionType(UITextAppearance.Caption)
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.FailReported))
                     .SetType(UIButtonType.Outline)
-                    .SetTitle("Refuse, in its own words")
-                    .SetDescription("Reported by the command")
+                    .SetTitle(Words + "failure.refuse")
+                    .SetDescription(Words + "failure.refuse.description")
                     .SetDescriptionType(UITextAppearance.Caption)
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "A command that throws still has to answer. The left button reports nothing itself and gets the framework's own notification; the right one takes the reporting over."
+            note: Words + "failure.note",
+            words: true
         );
     }
 
@@ -254,23 +264,24 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateEffectGroup()
     {
-        return DemoUI.CreateGroup(EffectGroup, "Answering with something other than state",
+        return DemoUI.CreateGroup(EffectGroup, Words + "effect.title",
             content => content.AddChild(UILayout.Row(12)
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.GoToButton))
                     .SetType(UIButtonType.Outline)
                     .SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight))
-                    .SetTitle("Go to the button's page")
+                    .SetTitle(Words + "effect.go")
                 )
                 .AddChild(new ButtonComponent()
                     .OnClick(nameof(CommandsController.DownloadReportAsync))
                     .SetType(UIButtonType.Outline)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Download))
-                    .SetTitle("Download the report")
+                    .SetTitle(Words + "effect.download")
                 )
                 .SetPlacement(1, 1, 24, 1)
             ),
-            note: "A page to go to and a file to keep: neither changes anything the controller holds, so neither could have been a binding. A question before something that cannot be undone is such an answer too, a dialog the view owns: the dialog page asks one."
+            note: Words + "effect.note",
+            words: true
         );
     }
 }

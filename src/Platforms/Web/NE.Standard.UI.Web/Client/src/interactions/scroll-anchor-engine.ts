@@ -1,6 +1,7 @@
 // `.ts` on the value imports: `node --test` runs this module directly.
 import { HostModeAttribute, VisibilityAttribute, WindowMoreAfterAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
+import { letGoOfRowsUnder } from "../items/item-reveal.ts";
 
 /** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
 const ScrollAnchorAttribute = "data-ui-scroll-anchor";
@@ -10,7 +11,7 @@ const EndAnchor = "End";
 const EndThreshold = 4;
 
 // What the reader does to scroll a list themselves, which lets go of a list held at its end, and of a row held in view (`item-reveal.ts`).
-export const ReaderScrollEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+const ReaderScrollEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
 
 // The containers a jump to the end stands at the end of — through the window it reads there, and whatever grows meanwhile — until the
 // reader scrolls: the scroll it causes and a window swapped under it are not the reader leaving the end.
@@ -177,6 +178,8 @@ export class ScrollAnchorEngine {
 
 /** The reader's own scroll gesture inside a held list lets it go; the scroll that follows says where it stands. */
 function letGo(domEvent: Event): void {
+    letGoOfRowsUnder(domEvent.target);
+
     const container = domEvent.target instanceof Element ? domEvent.target.closest(`[${ScrollAnchorAttribute}="${EndAnchor}"]`) : null;
 
     if (container !== null)

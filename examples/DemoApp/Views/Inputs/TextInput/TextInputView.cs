@@ -290,7 +290,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetSize(UIInputSize.Large)
                     .SetValue("billing")
                 )
-                .AddChild(UIPage.Labelled("Small, the caption inside, underlined — a dense panel", UILayout.Stack(4)
+                .AddChild(DemoUI.CreateLabelled("Small, the caption inside, underlined — a dense panel", UILayout.Stack(4)
                     .AddChild(new TextInputComponent()
                         .SetSize(UIInputSize.Small)
                         .SetTitlePlacement(UIInputTitlePlacement.Inside)
@@ -356,11 +356,11 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Edited where it is read",
             new SurfaceComponent()
                 .SetContent(UILayout.Columns(24,
-                        UIPage.Labelled("The release's name", new TextInputComponent()
+                        DemoUI.CreateLabelled("The release's name", new TextInputComponent()
                             .SetAppearance(UIInputAppearance.Ghost)
                             .SetValue("Release 2.4")
                         ),
-                        UIPage.Labelled("A line the reviewer reads", UILayout.Stack(8,
+                        DemoUI.CreateLabelled("A line the reviewer reads", UILayout.Stack(8,
                                 new TextInputComponent()
                                     .SetAppearance(UIInputAppearance.Ghost)
                                     .SetValue("Rolling, five per cent a minute")

@@ -99,9 +99,13 @@ export class NumberInputEngine {
         return this.keptValue(input) ?? readTyped(input) ?? input.value.trim();
     }
 
-    /** Writes the field's text for where it stands: the edit text under the caret, the formatted one at rest. */
+    /**
+     * Writes the field's text for where it stands: the edit text under the caret, the formatted one at rest. A field that trims its
+     * trailing zeros shows them trimmed from the first paint and every push on, not only once the reader has left it.
+     */
     private show(input: HTMLInputElement): void {
-        const value = this.values.get(input) ?? input.value;
+        const kept = this.values.get(input) ?? input.value;
+        const value = input.hasAttribute(TrimZerosAttribute) ? trimTrailingZeros(kept) : kept;
         const culture = readNumberCulture(input);
         const text = input === document.activeElement
             ? editNumberText(value, culture, formatOf(input))

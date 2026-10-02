@@ -75,7 +75,8 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] WrapModeOperations = [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)];
     private static readonly WebDomOperation[] TitleWrapOperations = [WebDomOperation.ToggleClass(TitleWrapClassName, condition: WebValueCondition.IsTrue)];
-    private static readonly WebDomOperation[] MaxLinesOperations = [WebDomOperation.Style(MaxLinesVariable), WebDomOperation.ToggleClass(MaxLinesClassName, condition: WebValueCondition.HasValue)];
+    // Through converters, so a pushed count of zero or less writes nothing, as the first paint does.
+    private static readonly WebDomOperation[] MaxLinesOperations = [WebDomOperation.Style(MaxLinesVariable, converter: WebDomConverters.PositiveCount), WebDomOperation.Class(converter: WebDomConverters.MaxLinesClass)];
     private static readonly WebDomOperation[] QuoteLineOperations = [WebDomOperation.ToggleClass(QuoteClassName, condition: WebValueCondition.IsTrue)];
     private static readonly WebDomOperation[] QuoteLineColorOperations = [WebDomOperation.Style(QuoteColorVariable, converter: WebDomConverters.ThemeColorCss)];
     private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconOnlyButtonAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
@@ -339,12 +340,18 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(field);
 
-        _ = field.Attribute(LabelledAttribute);
+        // Words the control does not show outrank its caption, then and on every push of it, so the caption's mark is left off.
+        WebRenderValueKind named = ResolveRenderValue(context, IAccessibleNameComponent.AccessibleNameProperty, out string? name, out _);
 
-        _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+        if (named != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(name))
+        {
+            _ = field.Attribute(LabelledAttribute);
 
-        if (!string.IsNullOrWhiteSpace(title))
-            _ = field.Attribute("aria-label", title);
+            _ = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+
+            if (!string.IsNullOrWhiteSpace(title))
+                _ = field.Attribute("aria-label", title);
+        }
 
         RenderAccessibleName(context, field);
 
@@ -550,6 +557,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         _ = icon.Class("ui-icon");
 
         IconValueRenderer.RenderIconAppearance(context, icon, ITextBaseComponent.IconSizeProperty, ITextBaseComponent.IconColorProperty);
+        IconValueRenderer.RenderIconShape(context, icon, ITextBaseComponent.IconShapeProperty);
 
         _ = RenderProperty<string?>(context, icon, ITextBaseComponent.IconProperty, (target, value) =>
         {

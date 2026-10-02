@@ -51,7 +51,7 @@ public static class FlyoutRenderer
 
         _ = flyout.Element("div", content =>
         {
-            _ = content.Class("ui-flyout__content");
+            _ = content.Class(WebClassNames.FlyoutContent);
             _ = content.Attribute("role", "dialog");
 
             // Focusable without being a tab stop, so an opened flyout has somewhere to put focus.

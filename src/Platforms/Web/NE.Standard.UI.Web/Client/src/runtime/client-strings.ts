@@ -55,7 +55,9 @@ export type ClientStringKey =
     | "ui.leave.confirm"
     | "ui.leave.stay"
     | "ui.actionbar.label"
-    | "ui.actionbar.more";
+    | "ui.actionbar.more"
+    | "ui.language.current"
+    | "ui.language.switch";
 
 /** A language's words as `/_ne/words/{language}.json` serves them. */
 export type WordsTable = {

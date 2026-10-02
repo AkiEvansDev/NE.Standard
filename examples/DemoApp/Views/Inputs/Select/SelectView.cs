@@ -220,7 +220,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("An option with more than a name",
             UILayout.Stack(16)
-                .AddChild(UIPage.Labelled("The default row — glyph, second line and badge", new SelectComponent()
+                .AddChild(DemoUI.CreateLabelled("The default row — glyph, second line and badge", new SelectComponent()
                     .SetTitle("Target environment")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetPlaceholder("Pick an environment")
@@ -229,7 +229,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                     .SetShowClearButton()
                     )
                 )
-                .AddChild(UIPage.Labelled("A template of your own, over the same options", new SelectComponent()
+                .AddChild(DemoUI.CreateLabelled("A template of your own, over the same options", new SelectComponent()
                     .SetTitle("Target environment")
                     .SetWidth(UILayoutLength.Absolute(320))
                     .SetPlaceholder("Pick an environment")

@@ -25,6 +25,9 @@ public sealed record WebBadgeRenderOptions
 
     public required UIProperty IconSizeProperty { get; init; }
 
+    /// <summary>The shape a picture icon is drawn in (<c>UIIconShape</c>), where the badge has one — a chip's, not a text's.</summary>
+    public UIProperty? IconShapeProperty { get; init; }
+
     public required UIProperty TextProperty { get; init; }
 
     public required UIProperty TextTypeProperty { get; init; }
@@ -105,6 +108,9 @@ public static class BadgeRenderer
             _ = icon.Class("ui-icon");
 
             IconValueRenderer.RenderIconAppearance(context, icon, options.IconSizeProperty, options.IconColorProperty);
+
+            if (options.IconShapeProperty is UIProperty shapeProperty)
+                IconValueRenderer.RenderIconShape(context, icon, shapeProperty);
 
             _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, options.IconProperty, (target, value) =>
             {

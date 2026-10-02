@@ -8,6 +8,7 @@ import { readComponentId } from "../addressing/dom-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue, getValidationTrigger } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
+import { prefersReducedMotion } from "../rendering/motion.ts";
 import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
 import { isPhrase } from "../runtime/words.ts";
@@ -348,6 +349,32 @@ export class ValidationEngine implements FieldValidation {
         return allValid;
     }
 
+    /**
+     * Takes the reader to the first field of a form still showing an error after a submit failed — refused by its own rules or by the
+     * server's answer — focused and brought into view; answers whether there was one. Never on a message alone: only a submit asks.
+     */
+    public focusFirstInvalid(formId: string): boolean {
+        for (const element of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
+            const resolved = this.options.dom.resolveNearestComponent(element, () => true);
+
+            if (resolved === null || !resolved.element.classList.contains(ErrorClass))
+                continue;
+
+            // The field's own control the reader types into, not a hidden value input or a popup's.
+            const control = [...resolved.element.querySelectorAll<HTMLElement>(FieldControlSelector)].find(candidate => candidate.closest(PopupRoleSelector) === null) ?? null;
+
+            if (control === null)
+                continue;
+
+            control.focus({ preventScroll: true });
+            control.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+
+            return true;
+        }
+
+        return false;
+    }
+
     // A controller's or a package's message gates no submit: its author judged the value and will judge it again.
     private hasError(componentId: number, element: Element): boolean {
         if (this.refusalByElement.get(element)?.severity === "Error")
@@ -408,7 +435,8 @@ function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, elemen
     else
         htmlElement.style.setProperty(SeverityColorProperty, `var(--ui-color-${SeverityColor[display.severity]})`);
 
-    const messageTarget = element.querySelector<HTMLElement>(`[${MessageAttribute}]`);
+    // The field's own line before any inside it: a composite field (a code field's find box) holds fields with lines of their own.
+    const messageTarget = element.querySelector<HTMLElement>(`:scope > [${MessageAttribute}]`) ?? element.querySelector<HTMLElement>(`[${MessageAttribute}]`);
 
     if (messageTarget === null)
         return;

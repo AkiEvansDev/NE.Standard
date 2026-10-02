@@ -123,9 +123,34 @@
     opacity: @ui-drag-ghost-opacity;
 }
 
-.ui-tree__row[data-ui-tree-drop] {
+.ui-tree__row[data-ui-tree-drop=""] {
     background-color: var(--ui-wash-selected);
 }
+
+// A place between two nodes: a line on the row's edge, from the indent of the level the node would land at (tree-engine.ts writes it),
+// as an items view's drop line is drawn.
+.ui-tree__row:is([data-ui-tree-drop="before"], [data-ui-tree-drop="after"]) {
+    position: relative;
+}
+
+    .ui-tree__row:is([data-ui-tree-drop="before"], [data-ui-tree-drop="after"])::after {
+        content: "";
+        position: absolute;
+        inset-inline-start: calc(var(--ui-tree-drop-depth, 0) * var(--ui-tree-indent, 16) * 1px + @ui-space-1);
+        inset-inline-end: 0;
+        height: 2px;
+        z-index: 1;
+        background: var(--ui-color-primary);
+        pointer-events: none;
+    }
+
+    .ui-tree__row[data-ui-tree-drop="before"]::after {
+        top: -1px;
+    }
+
+    .ui-tree__row[data-ui-tree-drop="after"]::after {
+        bottom: -1px;
+    }
 
 .ui-tree__host[data-ui-tree-drop] {
     background-color: var(--ui-wash-hover);
@@ -178,7 +203,7 @@
     height: @ui-tree-chevron-size;
     appearance: none;
     border: 0;
-    border-radius: 0.25rem;
+    border-radius: @ui-part-radius;
     background: none;
     padding: 0;
     color: @ui-text-muted;

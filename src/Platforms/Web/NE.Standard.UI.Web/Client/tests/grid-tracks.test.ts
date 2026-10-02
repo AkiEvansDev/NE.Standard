@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
     applyGridTrackLimits,
+    coversNoRoom,
     formatGridTracks,
     moveSplit,
     parseGridTrackLimits,
@@ -104,9 +105,9 @@ test("a floor on the other side holds the boundary too", () => {
 
 test("a run squeezed to nothing comes back", () => {
     const tracks = parseGridTracks("0px auto minmax(0, 1fr)")!;
-    const moved = moveSplit(tracks, [0, 8, 700], { before: [0], after: [2] }, 50)!;
+    const moved = moveSplit(tracks, [0, 8, 700], { before: [0], after: [2] }, 150)!;
 
-    assert.deepEqual(moved[0], { kind: "px", value: 50 });
+    assert.deepEqual(moved[0], { kind: "px", value: 150 });
 });
 
 test("a move of nothing is nothing", () => {
@@ -117,4 +118,26 @@ test("a move of nothing is nothing", () => {
 
 test("the reported position is the run before the bar in percent", () => {
     assert.equal(splitPercent([300, 8, 700], { before: [0], after: [2] }), 30);
+});
+
+test("a pane is folded only while every track it covers has no room, and one the grid placed itself never is", () => {
+    const sizes = [0, 8, 0.4, 0, 300];
+
+    assert.equal(coversNoRoom("1", "auto", sizes), true, "one track by default");
+    assert.equal(coversNoRoom("3", "span 2", sizes), true);
+    assert.equal(coversNoRoom("3", "6", sizes), false, "the last track has room");
+    assert.equal(coversNoRoom("2", "3", sizes), false, "the splitter's own track");
+    assert.equal(coversNoRoom("auto", "auto", sizes), false);
+    assert.equal(coversNoRoom("5", "span 3", sizes), false, "past the template: not read as folded");
+});
+
+test("a run is never left a sliver: shrunk into one it folds to nothing, grown out of nothing it opens past it", () => {
+    const tracks = parseGridTracks("minmax(0, 1fr) auto minmax(0, 1fr)")!;
+    const runs = { before: [0], after: [2] };
+    const width = (moved: ReturnType<typeof moveSplit>, sizes: readonly number[]): number => moved![0].value / (moved![0].value + moved![2].value) * (sizes[0] + sizes[2]);
+
+    assert.equal(Math.round(width(moveSplit(tracks, [150, 8, 450], runs, -60), [150, 8, 450])), 0, "90 would be a sliver: folded");
+    assert.equal(Math.round(width(moveSplit(tracks, [0, 8, 600], runs, 16), [0, 8, 600])), 120, "one key's step opens it to the sliver's edge");
+    assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, 280), [300, 8, 300])), 600, "the other run folds the same way");
+    assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, -100), [300, 8, 300])), 200, "outside the sliver a move is as it was");
 });

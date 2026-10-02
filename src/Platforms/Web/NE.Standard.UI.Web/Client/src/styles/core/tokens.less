@@ -39,6 +39,26 @@
 // A popup's corner: its entries' widened by the list's padding, so the two curves run parallel — 8 px by default.
 @ui-popup-radius: ~"calc(var(--ui-radius-button) * 2 / 3 + @{ui-space-1})";
 
+// A small part's corner inside a control — a row's grip, a stepper's half, a time segment, a tree's chevron, a field's own
+// picture: an entry's, so a theme's shape scales it too; a picture smaller than a line, half a button's (3 px by default).
+@ui-part-radius: @ui-list-entry-radius;
+@ui-part-radius-sm: ~"calc(var(--ui-radius-button) / 2)";
+
+// The page's stacking ladder, low to high, in one place: a new layer takes its step here, never a number of its own.
+// An action bar stands under the page's bands, so a sticky header covers one scrolled under it.
+@ui-z-action-bar: 29;
+// The sticky header and the phone's bottom bar, and a popup's own step (`.ui-popup-surface()`'s default).
+@ui-z-band: 30;
+@ui-z-popup: 30;
+// A list that opens over a popup or a band: a menu's flyout, a context menu, a split button's and the language switcher's lists.
+@ui-z-list: 40;
+// A side drawer over the page, its veil just under it.
+@ui-z-drawer-veil: 49;
+@ui-z-drawer: 50;
+@ui-z-tooltip: 60;
+@ui-z-dialog: 100;
+@ui-z-notification: 200;
+
 // A range's track: a step of the text over whatever ground it stands on, so it reads on the page, a card and a dialog alike (the
 // raised ground it was is the dialog's own, where it vanished); on the page it is the raised step it was.
 @ui-range-track: ~"color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)";
@@ -77,6 +97,12 @@
 // surface. A Background or Tinted ground is the page's level again and takes the step back; a popup on the body is handed its
 // opener's (`carryPopupGround`, anchored-popup.ts).
 @ui-popup-ground: var(--ui-popup-ground, var(--ui-popup-base, var(--ui-color-surface)));
+
+// A Tinted fill — a surface's, a dialog's, a tinted menu's popup: the colour at the mode's share over the mode's ground
+// (WebThemeCssBuilder), a fifth over the page on a light palette, more of it over the raised ground on a dark one, where a fifth
+// over the near-black page read as a black green. A rule mixing a colour of its own sets `@ui-tint-color` in its scope.
+@ui-tint-color: var(--ui-color-primary);
+@ui-tinted-fill: color-mix(in srgb, @ui-tint-color var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)));
 
 // A link on a filled ground: the brand ink could be the ground's own colour (1:1 on Primary), so there it takes the ground's ink,
 // as the text around it does, and its underline — at rest only there; on the page the hue says "link" and a hover draws the line.

@@ -16,7 +16,7 @@ internal sealed class AdminView : DemoScreenView, IUIViewDefinition
         => UILayout.Columns(16,
             UIPage.Card("Signing key", null, UILayout.Stack(12,
                 UIText.Note(string.Empty).BindDescription(nameof(AdminController.KeyLine)),
-                UIButtons.Toolbar(
+                UILayout.Row(8,
                     UIButtons.Primary("Rotate the key", DemoIcons.Outline(DemoIcons.Refresh))
                         .OnClick(nameof(AdminController.RotateKeyAsync))
                         .InteractBeforeClick(IVisualComponent.LoadingProperty, true)

@@ -201,10 +201,10 @@ public static class WebCssValues
         => value switch
         {
             UISelectionMark.None => "none",
-            UISelectionMark.Left => "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
-            UISelectionMark.Right => "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
-            UISelectionMark.Top => "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
-            UISelectionMark.Bottom => "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-color-primary))",
+            UISelectionMark.Left => "inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))",
+            UISelectionMark.Right => "inset -2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))",
+            UISelectionMark.Top => "inset 0 2px 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))",
+            UISelectionMark.Bottom => "inset 0 -2px 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected))",
             _ => string.Empty
         };
 
@@ -251,6 +251,18 @@ public static class WebCssValues
 
     public static string Pixels(double value)
         => string.Create(CultureInfo.InvariantCulture, $"{value}px");
+
+    /// <summary>A background picture's dim as the share its veil mixes in, held to 0–1; empty for a value that is not a number.</summary>
+    public static string BackgroundImageDim(double value)
+        => double.IsNaN(value) ? string.Empty : Math.Clamp(value, 0, 1).ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>A background picture's blur as a length; empty for none, below zero, or a value that is not finite.</summary>
+    public static string BackgroundImageBlur(double value)
+        => IsBackgroundImageBlurred(value) ? Pixels(value) : string.Empty;
+
+    /// <summary>Whether a background picture's blur draws anything: a finite length above zero.</summary>
+    public static bool IsBackgroundImageBlurred(double value)
+        => value > 0 && double.IsFinite(value);
 
     public static string Opacity(byte value)
         => (value / 255d).ToString("0.###", CultureInfo.InvariantCulture);

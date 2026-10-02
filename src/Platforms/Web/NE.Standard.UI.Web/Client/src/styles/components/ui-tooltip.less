@@ -4,7 +4,7 @@
 // One element for the whole page, built and positioned by TooltipEngine in place of the browser's `title`.
 .ui-tooltip {
     // Above everything, including an open popup. No scroll cap — the tail below is drawn outside the box.
-    .ui-popup-surface(60);
+    .ui-popup-surface(@ui-z-tooltip);
     .ui-popup-closed();
     max-width: 20rem;
     padding: @ui-space-1 @ui-space-2;

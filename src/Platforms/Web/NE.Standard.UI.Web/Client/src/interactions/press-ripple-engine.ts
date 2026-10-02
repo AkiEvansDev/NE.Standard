@@ -4,7 +4,7 @@
 // a rail's entry) also shrinks its icon while held, which the stylesheet draws off the held class.
 // Cheap: one listener per phase on the root, one rect read at the press, and two registered properties animated on the element.
 
-import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, UnselectableAttribute } from "../addressing/dom-attributes.ts";
+import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { isInert, isItemDisabled } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
@@ -12,7 +12,6 @@ import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selec
 
 const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice`;
 const KeyValueRowClass = "ui-key-value-action__row";
-const TreeRowClass = "ui-tree__row";
 const RowSelector = `${SelectionRowSelector}, .${KeyValueRowClass}`;
 const TargetSelector = `${EntrySelector}, ${RowSelector}`;
 

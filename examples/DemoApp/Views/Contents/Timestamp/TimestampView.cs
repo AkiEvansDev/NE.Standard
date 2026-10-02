@@ -75,26 +75,26 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("One moment, five ways",
             UILayout.Stack(12)
-                .AddChild(UIPage.Labelled("DateTime", new TimestampComponent()
+                .AddChild(DemoUI.CreateLabelled("DateTime", new TimestampComponent()
                     .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
                     )
                 )
-                .AddChild(UIPage.Labelled("Date", new TimestampComponent()
+                .AddChild(DemoUI.CreateLabelled("Date", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Date)
                     .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
                     )
                 )
-                .AddChild(UIPage.Labelled("Time", new TimestampComponent()
+                .AddChild(DemoUI.CreateLabelled("Time", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Time)
                     .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
                     )
                 )
-                .AddChild(UIPage.Labelled("Relative", new TimestampComponent()
+                .AddChild(DemoUI.CreateLabelled("Relative", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Relative)
                     .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
                     )
                 )
-                .AddChild(UIPage.Labelled("RelativeDate", new TimestampComponent()
+                .AddChild(DemoUI.CreateLabelled("RelativeDate", new TimestampComponent()
                     .SetFormat(UITimestampFormat.RelativeDate)
                     .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
                     )
@@ -117,24 +117,30 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
             new ItemsViewComponent()
                 .BindItems(nameof(ActivityGroupContext.Entries), UIBindingScope.Relative)
                 .SetSpacing(12)
-                .SetTemplate(UILayout.Split(
-                    new TextComponent()
+                // A plain grid, not a split, which stacks by the window's width: on a phone the moment stood alone between two rows.
+                .SetTemplate(new ContainerComponent()
+                    // The moment's column as wide as its words, the rest the text's; no spacing, which twenty-three gaps would take from
+                    // the moment on a phone, but the air on the moment's own side.
+                    .SetColumn(24, UIGridUnit.Auto())
+                    .AddChild(new TextComponent()
                         .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
                         .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
                         .AsBody()
                         .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted),
-                    new TimestampComponent()
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                        .SetPlacement(1, 1, 23, 1)
+                    )
+                    .AddChild(new TimestampComponent()
                         .SetFormat(UITimestampFormat.Relative)
                         .BindValue(nameof(DemoActivityItem.At), UIBindingScope.Relative)
                         .SetTextType(UITextAppearance.Caption)
                         .SetColor(UIThemeColor.Muted)
                         .SetHorizontalAlignment(UIAlignment.End)
-                        .SetVerticalAlignment(UIAlignment.Start),
-                    sideSpan: 6,
-                    spacing: 12
+                        .SetVerticalAlignment(UIAlignment.Start)
+                        .SetMargin(UIThickness.All(12, 0, 0, 0))
+                        .SetPlacement(24, 1, 1, 1)
                     )
                 ),
             note: "A moment ahead reads as one: the certificate expires \"in 3 days\".",

@@ -63,8 +63,9 @@
     .ui-responsive-reset-infix(--ui-placement, column-span);
 
     display: contents;
-    // The tile's wash lays the tile's own picture back under itself; a tile with none must not find an ancestor's here.
+    // The tile's wash lays the tile's own picture and dim back under itself; a tile with none must not find an ancestor's here.
     --ui-surface-image: none;
+    --ui-surface-image-veil: initial;
 }
 
 @ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";

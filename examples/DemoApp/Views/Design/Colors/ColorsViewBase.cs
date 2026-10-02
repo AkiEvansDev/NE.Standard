@@ -3,7 +3,8 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Design.Colors;
 
 /// <summary>
-/// Shared shell for the Colors reference pages, with a Palette/Semantic/Components/Theme strip of its own.
+/// Shared shell for the Colors reference pages, with a Palette/Semantic/Components/Theme strip of its own. The pages' own words are
+/// keys, as the mechanism pages' are; the palette's names, values and the sample compositions are the reference itself, content.
 /// </summary>
 internal abstract class ColorsViewBase : DemoView
 {
@@ -23,9 +24,12 @@ internal abstract class ColorsViewBase : DemoView
             ("demo.colors.theme", "/design/colors/theme"),
         ], CurrentTabUrl));
 
-        // The palette's names, values and sample compositions are the reference itself, shown as written: content for the unkeyed report.
-        DrawColorsContent(container.AsContentTree());
+        DrawColorsContent(container);
     }
 
     protected abstract void DrawColorsContent(WrapPanelComponent container);
+
+    /// <summary>A theme's name over its sample, in the page's language.</summary>
+    protected static string ThemeWord(bool dark)
+        => dark ? "demo.colors.dark" : "demo.colors.light";
 }

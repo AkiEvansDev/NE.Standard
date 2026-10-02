@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
@@ -11,7 +12,7 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// Base class for temporal input components with step and first-day-of-week metadata, and the period mode every one can take
 /// via <see cref="IsRange"/> and <see cref="EndValue"/>.
 /// </summary>
-public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : MinMaxInputComponentBase<TComponent, TValue>(id)
+public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : MinMaxInputComponentBase<TComponent, TValue>(id), IPeriodInputComponent
     where TComponent : TemporalInputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     /// <summary>
@@ -32,13 +33,13 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// Gets or sets whether the control edits a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.
     /// </summary>
     /// <remarks>Render-time only: how many fields the row holds is how the control is built.</remarks>
-    [UIComponentProperty(DefaultValue = false, IsBindable = false)]
+    [UIComponentProperty(Contract = typeof(IPeriodInputComponent), DefaultValue = false, IsBindable = false)]
     public bool? IsRange { get; set; }
 
     /// <summary>
     /// Gets or sets the end of the period; read only in range mode, two-way like <c>Value</c>.
     /// </summary>
-    [UIComponentProperty(BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultBindingMode = UIBindingMode.TwoWay, DefaultValue = null, GenerateSetter = false)]
+    [UIComponentProperty(Contract = typeof(IPeriodInputComponent), BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultBindingMode = UIBindingMode.TwoWay, DefaultValue = null, GenerateSetter = false)]
     public TValue? EndValue { get; set; }
 
     /// <summary>

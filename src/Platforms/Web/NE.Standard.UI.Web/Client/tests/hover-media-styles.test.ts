@@ -3,7 +3,7 @@
 // marks and selection stand outside it, so a phone still shows them.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -92,6 +92,28 @@ test("every hover look is drawn only where the pointer can hover", () => {
     const loose = rules.filter(rule => ownHover(rule.selector).includes(":hover") && !underHover(rule) && !rule.selector.includes(":-webkit-autofill"));
 
     assert.deepEqual(loose.map(rule => rule.selector), []);
+});
+
+// Every add-on's entry stylesheet, where the tree holds them: a slice's own mirror has the core alone.
+const addOns = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../../addons");
+const addOnEntries = existsSync(addOns) ? [
+    "Charts/src/NE.Standard.UI.Web.Charts/Client/src/styles/ui-charts.less",
+    "CodeInput/src/NE.Standard.UI.Web.CodeInput/Client/src/styles/ui-code-input.less",
+    "CodeInput/src/NE.Standard.UI.Web.CodeInput/Client/src/styles/ui-markdown.less",
+    "DataGrid/src/NE.Standard.UI.Web.DataGrid/Client/src/styles/ui-data-grid.less",
+    "Graph/src/NE.Standard.UI.Web.Graph/Client/src/styles/ui-graph.less"
+].map(entry => resolve(addOns, entry)) : [];
+
+// What a hover brings up that a finger needs, its tap's hover the only way there: a node's handle a link is pulled from.
+const fingerReveals = [".ui-graph:not(.ui-graph--connecting) .ui-graph__node:hover > .ui-graph__handle"];
+
+test("every add-on's hover look is drawn only where the pointer can hover too", async () => {
+    for (const entry of addOnEntries) {
+        const addOn = (await less.render(readFileSync(entry, "utf8"), { filename: entry })).css.replace(/\/\*[\s\S]*?\*\//g, "");
+        const loose = rulesOf(addOn).filter(rule => ownHover(rule.selector).includes(":hover") && !underHover(rule) && !fingerReveals.includes(rule.selector));
+
+        assert.deepEqual(loose.map(rule => rule.selector), [], entry);
+    }
 });
 
 test("a press, the keyboard's marks and selection are drawn for every pointer", () => {

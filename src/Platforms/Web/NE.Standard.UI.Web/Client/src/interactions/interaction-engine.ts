@@ -36,6 +36,12 @@ export type InteractionEngineOptions = {
     readonly writeBack?: (target: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown) => void;
 };
 
+/** What a field the reader edits drives: the interactions reading it, and the row it stands in. */
+type EditedSource = {
+    readonly interactions: readonly WebRenderInteractionMetadata[];
+    readonly dynamicParameters: readonly unknown[];
+};
+
 export class InteractionEngine {
     private readonly index: InteractionIndex;
     private readonly propertyPatchEngine: PropertyPatchEngine;
@@ -47,6 +53,10 @@ export class InteractionEngine {
     // browser raises its own when the reader leaves, with the same value: one edit, run once. A push moving the source resets it,
     // so the reader typing the old value again after it still runs.
     private readonly heard = new Map<string, unknown>();
+
+    // The fields the reader moved since the last frame: a slider raises an input per step, and the copies reading it follow once a frame.
+    private readonly moved = new Set<Element>();
+    private frameRequested = false;
 
     // Fields rather than parameter properties, which a type-stripping loader cannot run.
     public constructor(index: InteractionIndex, propertyPatchEngine: PropertyPatchEngine, evaluator: InteractionEvaluator, options: InteractionEngineOptions) {
@@ -61,6 +71,10 @@ export class InteractionEngine {
 
         for (const eventName of ValueSyncEventNames)
             root.addEventListener(eventName, domEvent => this.applyEditedValue(domEvent), true);
+
+        // Only a copy follows the reader mid-move; every other rule waits for the committed value, once per value.
+        if (index.hasCopyValues)
+            root.addEventListener("input", domEvent => this.queueMoved(domEvent), true);
     }
 
     public hasEvent(name: string): boolean {
@@ -83,26 +97,13 @@ export class InteractionEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const resolved = this.options.dom.resolveNearestComponent(domEvent.target, () => true);
+        const edited = this.resolveEdited(domEvent.target);
 
-        if (resolved === null)
-            return;
-
-        const writable = resolveWritableBinding(domEvent.target, this.options.metadata);
-        let interactions: readonly WebRenderInteractionMetadata[];
-
-        if (writable === null)
-            interactions = this.index.getValueInteractions(resolved.componentId);
-        else if (writable.binding === undefined)
-            return;
-        else
-            interactions = this.index.getPropertyInteractions(getIdValue(writable.binding.componentId), writable.binding.propertyId);
-
-        if (interactions.length === 0)
+        if (edited === null)
             return;
 
         const value = this.options.valueReaders.readBound(domEvent.target);
-        const key = sourceKey(interactions[0].source, resolved.dynamicParameters);
+        const key = sourceKey(edited.interactions[0].source, edited.dynamicParameters);
 
         if (this.heard.has(key) && areValuesEqual(this.heard.get(key), value))
             return;
@@ -110,9 +111,64 @@ export class InteractionEngine {
         this.heard.set(key, value);
 
         // Written back where the target binds so: the page changed that state itself, as an event interaction does.
-        for (const interaction of interactions)
-            this.applyInteraction(interaction, resolved.dynamicParameters, true, value);
+        for (const interaction of edited.interactions)
+            this.applyInteraction(interaction, edited.dynamicParameters, true, value);
     }
+
+    /** The interactions reading a field the reader edits, and the row it stands in; none for a field no rule reads. */
+    private resolveEdited(field: Element): EditedSource | null {
+        const resolved = this.options.dom.resolveNearestComponent(field, () => true);
+
+        if (resolved === null)
+            return null;
+
+        const writable = resolveWritableBinding(field, this.options.metadata);
+        let interactions: readonly WebRenderInteractionMetadata[];
+
+        if (writable === null)
+            interactions = this.index.getValueInteractions(resolved.componentId);
+        else if (writable.binding === undefined)
+            return null;
+        else
+            interactions = this.index.getPropertyInteractions(getIdValue(writable.binding.componentId), writable.binding.propertyId);
+
+        return interactions.length === 0 ? null : { interactions, dynamicParameters: resolved.dynamicParameters };
+    }
+
+    private queueMoved(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element))
+            return;
+
+        this.moved.add(domEvent.target);
+
+        if (this.frameRequested)
+            return;
+
+        this.frameRequested = true;
+        requestAnimationFrame(this.applyMoved);
+    }
+
+    /** The copies reading each field moved since the last frame, from the value it holds now. */
+    private readonly applyMoved = (): void => {
+        this.frameRequested = false;
+
+        for (const field of this.moved) {
+            const edited = field.isConnected ? this.resolveEdited(field) : null;
+
+            if (edited === null)
+                continue;
+
+            const value = this.options.valueReaders.readBound(field);
+
+            for (const interaction of edited.interactions) {
+                // A preview only, never written back: the field's own commit sends the value once the reader lets go.
+                if (getInteractionActionKind(interaction.actionKind) === "CopyValue" && isValidTarget(interaction.target))
+                    this.writeTarget(interaction.target, edited.dynamicParameters, copiedValue(interaction, value), true);
+            }
+        }
+
+        this.moved.clear();
+    };
 
     private applyPropertyInteractions(change: PropertyValueChange): void {
         if (this.applyDepth > 8) {
@@ -129,8 +185,12 @@ export class InteractionEngine {
             change.reference.propertyId
         );
 
-        if (interactions.length > 0)
-            this.heard.set(sourceKey(change.reference, change.dynamicParameters), change.value);
+        // Only a source the reader edited before: its rules ran for the pushed value too. A row only ever pushed records nothing, so the
+        // map holds what the reader touched, not every row a list draws.
+        const key = interactions.length > 0 ? sourceKey(change.reference, change.dynamicParameters) : null;
+
+        if (key !== null && this.heard.has(key))
+            this.heard.set(key, change.value);
 
         for (const interaction of interactions)
             this.applyInteraction(interaction, change.dynamicParameters, false, change.value);
@@ -142,7 +202,9 @@ export class InteractionEngine {
         local: boolean,
         sourceValue: unknown = true
     ): void {
-        if (getInteractionActionKind(interaction.actionKind) === "Effect") {
+        const actionKind = getInteractionActionKind(interaction.actionKind);
+
+        if (actionKind === "Effect") {
             this.applyEffectInteraction(interaction, dynamicParameters, sourceValue);
             return;
         }
@@ -152,20 +214,24 @@ export class InteractionEngine {
         if (!isValidTarget(target))
             return;
 
-        const nextValue = this.evaluator.evaluate(interaction, sourceValue);
+        const nextValue = actionKind === "CopyValue" ? copiedValue(interaction, sourceValue) : this.evaluator.evaluate(interaction, sourceValue);
 
-        this.applyDepth++;
-
-        try {
-            this.propertyPatchEngine.applyPropertyValue(target, dynamicParameters, nextValue, local);
-        }
-        finally {
-            this.applyDepth--;
-        }
+        this.writeTarget(target, dynamicParameters, nextValue, local);
 
         // Only what an event wrote: a property-sourced interaction answering a server change must not echo it back.
         if (local)
             this.options.writeBack?.(target, dynamicParameters, nextValue);
+    }
+
+    private writeTarget(target: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, local: boolean): void {
+        this.applyDepth++;
+
+        try {
+            this.propertyPatchEngine.applyPropertyValue(target, dynamicParameters, value, local);
+        }
+        finally {
+            this.applyDepth--;
+        }
     }
 
     /** Runs the client effect a command would have returned, without the round trip. */
@@ -185,6 +251,13 @@ export class InteractionEngine {
         if (this.evaluator.matches(interaction, sourceValue))
             this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters, this.options.dom), dom: this.options.dom, row: dynamicParameters });
     }
+}
+
+/** What a copy writes: the source's value, or the target's authored one (`falseValue`) while the source holds nothing or blank text. */
+function copiedValue(interaction: WebRenderInteractionMetadata, value: unknown): unknown {
+    const blank = value === null || value === undefined || (typeof value === "string" && value.trim().length === 0);
+
+    return blank && interaction.falseValue !== undefined ? interaction.falseValue : value;
 }
 
 /**

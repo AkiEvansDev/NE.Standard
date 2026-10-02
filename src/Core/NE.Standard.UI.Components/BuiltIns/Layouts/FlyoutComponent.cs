@@ -13,13 +13,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.
 /// </summary>
-public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id)
+public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), IOpenableComponent
     where T : FlyoutComponent<T>, IUIComponentDefinition
 {
     /// <summary>
     /// Whether the flyout is open; two-way, so an anchor click, an outside click or Escape syncs back.
     /// </summary>
-    [UIComponentProperty(DefaultValue = false, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
+    [UIComponentProperty(Contract = typeof(IOpenableComponent), DefaultValue = false, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
     public bool? IsOpen { get; set; }
 
     /// <summary>

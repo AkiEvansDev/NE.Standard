@@ -46,6 +46,7 @@ public static partial class UIStrings
     public const string SelectClear = "ui.select.clear";
     public const string SelectPlaceholder = "ui.select.placeholder";
     public const string SelectRemove = "ui.select.remove";
+    public const string SearchField = "ui.search.field";
     public const string InputClear = "ui.input.clear";
     public const string BreadcrumbsLabel = "ui.breadcrumbs.label";
     public const string FileUploading = "ui.file.uploading";
@@ -161,6 +162,7 @@ public static partial class UIStrings
         [SelectClear] = "Clear selection",
         [SelectPlaceholder] = "Select…",
         [SelectRemove] = "Remove {label}",
+        [SearchField] = "Search",
         [InputClear] = "Clear",
         [BreadcrumbsLabel] = "Breadcrumb",
         [FileUploading] = "Uploading… {percent}%",

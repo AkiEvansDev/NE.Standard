@@ -8,7 +8,7 @@ import { clientStrings } from "../runtime/client-strings.ts";
 import { focusAsLastInput } from "./popup-focus.ts";
 import { applyRovingTabIndex } from "./roving-focus.ts";
 import {
-    clampToRange, defaultMoment, isDayOffered, isRange, parseCanonical, readDayOffer, readValue, readValueOf, RootClass, toCanonical, writeValueOf
+    clampToRange, defaultMoment, FirstDayAttribute, isDayOffered, isRange, parseCanonical, readDayOffer, readValue, readValueOf, RootClass, toCanonical, writeValueOf
 } from "./temporal-dom.ts";
 import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, startOfDay } from "./temporal-range.ts";
 import type { DayOffer } from "./temporal-dom.ts";
@@ -17,7 +17,6 @@ import type { PeriodEnd } from "./temporal-range.ts";
 export const DayClass = "ui-temporal-input__day";
 const MonthClass = "ui-temporal-input__month";
 
-const FirstDayAttribute = "data-ui-temporal-first-day";
 export const NavAttribute = "data-ui-temporal-nav";
 export const DayAttribute = "data-ui-temporal-day";
 

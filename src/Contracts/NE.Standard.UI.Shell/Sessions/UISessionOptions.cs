@@ -24,7 +24,7 @@ public sealed class UISessionOptions
 
     /// <summary>
     /// Gets or sets how far a session's last-seen time may lag behind: a page load or an attach that would change nothing but
-    /// that time, moving it by less, writes nothing to the store.
+    /// that time, moving it by less, writes nothing to the store, and an open tab's traffic touches it at most this often.
     /// </summary>
     /// <remarks>
     /// Spares a store in a database a write per navigation — two per page load — when idle timeouts are minutes to days anyway;

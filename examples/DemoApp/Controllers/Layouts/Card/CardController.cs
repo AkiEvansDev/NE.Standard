@@ -30,6 +30,15 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
     public partial UIImageFit? BackgroundImageFit { get; set; }
 
     [RecursiveMember]
+    public partial double? BackgroundImageDim { get; set; }
+
+    [RecursiveMember]
+    public partial UIBackgroundDimMode? BackgroundImageDimMode { get; set; }
+
+    [RecursiveMember]
+    public partial double? BackgroundImageBlur { get; set; }
+
+    [RecursiveMember]
     public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
 
     public CardSurfaceGroupContext()
@@ -40,6 +49,9 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
         AddOption(nameof(Background), CycleBackground, () => Background);
         AddOption(nameof(BackgroundImage), CycleBackgroundImage, () => BackgroundImage);
         AddOption(nameof(BackgroundImageFit), CycleBackgroundImageFit, () => BackgroundImageFit);
+        AddOption(nameof(BackgroundImageDim), CycleBackgroundImageDim, () => BackgroundImageDim);
+        AddOption(nameof(BackgroundImageDimMode), CycleBackgroundImageDimMode, () => BackgroundImageDimMode);
+        AddOption(nameof(BackgroundImageBlur), CycleBackgroundImageBlur, () => BackgroundImageBlur);
         AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
     }
 
@@ -62,6 +74,16 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
 
     public void CycleBackgroundImageFit()
         => SetLastChange(nameof(BackgroundImageFit), BackgroundImageFit = CycleEnum(BackgroundImageFit));
+
+    // The browser draws the dim and the blur over the picture it already has: the ground's colour, so the text reads in either theme.
+    public void CycleBackgroundImageDim()
+        => SetLastChange(nameof(BackgroundImageDim), BackgroundImageDim = CycleValue(BackgroundImageDim, 0.3, 0.6, 0.9, null));
+
+    public void CycleBackgroundImageDimMode()
+        => SetLastChange(nameof(BackgroundImageDimMode), BackgroundImageDimMode = CycleEnum(BackgroundImageDimMode));
+
+    public void CycleBackgroundImageBlur()
+        => SetLastChange(nameof(BackgroundImageBlur), BackgroundImageBlur = CycleValue(BackgroundImageBlur, 4d, 12d, 32d, null));
 
     public void CycleOverflow()
         => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
@@ -93,6 +115,22 @@ internal sealed partial class CardPressGroupContext : DemoGroupContext
 
     public void ReportUnlocked()
         => LogEvent("the unlocked card was pressed");
+}
+
+/// <summary>
+/// The third picture card's dim and blur as the controller stores them: what its sliders send when they are let go, which the card is
+/// bound to as well; while a slider is dragged, the card copies it on the page.
+/// </summary>
+internal sealed partial class CardPictureGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial decimal Dim { get; set; } = 0.4m;
+
+    [RecursiveMember]
+    public partial decimal Blur { get; set; } = 16;
+
+    public void Store()
+        => LogEvent(string.Create(CultureInfo.InvariantCulture, $"stored: dim {Dim:0.00}, blur {Blur} px"));
 }
 
 /// <summary>
@@ -150,6 +188,9 @@ internal sealed partial class CardController() : DemoStandardController
     [RecursiveMember]
     public partial CardRefreshGroupContext RefreshGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial CardPictureGroupContext PictureGroup { get; set; } = new();
+
     [UICommand]
     public void CycleCardOption(string id)
         => CardGroup.CycleOption(id);
@@ -202,6 +243,10 @@ internal sealed partial class CardController() : DemoStandardController
         RefreshGroup.Fill(47 + (_reads * 3), 12 + _reads, DateTime.Now);
         RefreshGroup.Busy = false;
     }
+
+    [UICommand]
+    public void StorePicture()
+        => PictureGroup.Store();
 
     [UICommand]
     public void ViewPlan()

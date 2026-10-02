@@ -14,7 +14,7 @@ internal sealed partial class ActionController() : DemoStandardController
     public partial ActionGroupContext ActionGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Past-due invoices", "Due in the last seven days");
+    public partial TextContentGroupContext ContentGroup { get; set; } = new("Past-due invoices", "Due this week");
 
     [RecursiveMember]
     public partial TextLayoutGroupContext LayoutGroup { get; set; } = new();

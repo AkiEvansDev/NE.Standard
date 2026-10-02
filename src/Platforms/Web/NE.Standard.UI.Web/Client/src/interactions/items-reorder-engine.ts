@@ -137,7 +137,9 @@ export class ItemsReorderEngine {
 
         // Draggable only under a press: a row that is always draggable takes the text selection from every cell in it.
         this.root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
+        // A drag the browser starts cancels the pointer too, after `dragstart`: the row it lifted stays lifted for the drag.
         this.root.addEventListener("pointerup", () => this.release(), true);
+        this.root.addEventListener("pointercancel", () => this.release(), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         this.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
         this.root.addEventListener("dragover", domEvent => this.handleDragOver(domEvent), true);
@@ -169,6 +171,12 @@ export class ItemsReorderEngine {
             setRowFocus(found.root, shownRows(found.row.parentElement ?? found.root), found.row);
             found.root.focus({ preventScroll: true });
         }
+
+        // A selection the reader left across rows would be what the browser drags, and the row would not move.
+        const selection = document.getSelection();
+
+        if (selection !== null && !selection.isCollapsed)
+            selection.removeAllRanges();
 
         if (!box.draggable) {
             box.draggable = true;

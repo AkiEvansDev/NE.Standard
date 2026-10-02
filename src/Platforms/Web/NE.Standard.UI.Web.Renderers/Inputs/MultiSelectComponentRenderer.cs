@@ -11,6 +11,7 @@ using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Items;
 
@@ -33,7 +34,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-select");
+        _ = root.Class(WebClassNames.Select);
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
@@ -104,7 +105,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     {
         _ = root.Element("div", trigger =>
         {
-            _ = trigger.Class("ui-select__trigger");
+            _ = trigger.Class(WebClassNames.SelectTrigger);
             _ = trigger.Class("ui-multi-select__trigger");
 
             BorderStyleRenderer.RenderBorderStyle(context, trigger);

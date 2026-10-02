@@ -44,7 +44,7 @@ internal sealed partial class BackgroundGroupContext : DemoGroupContext
     public void Cycle()
     {
         Background = Background == UIThemeColor.Transparent ? UIThemeColor.Primary : Background == UIThemeColor.Primary ? null : UIThemeColor.Transparent;
-        LogEvent($"Background -> {(Background == UIThemeColor.Transparent ? "Transparent" : Background is null ? "(none)" : "Primary")}");
+        LogEvent(UIPhrase.Of(Background == UIThemeColor.Transparent ? "demo.colors.theme.background.log.transparent" : Background is null ? "demo.colors.theme.background.log.none" : "demo.colors.theme.background.log.primary"));
     }
 }
 
@@ -91,7 +91,7 @@ internal sealed partial class ColorsThemeController() : DemoController
     {
         UIThemeColors colors = ColorsGroup.ToColors();
 
-        ColorsGroup.LogEvent(colors.IsEmpty ? "no colour picked: the application's palette" : "the colours are the session's");
+        ColorsGroup.LogEvent(UIPhrase.Of(colors.IsEmpty ? "demo.colors.theme.own.log.none" : "demo.colors.theme.own.log.session"));
 
         return UICommandResult.Ok([new SetThemeColorsEffect(colors)]);
     }
@@ -101,7 +101,7 @@ internal sealed partial class ColorsThemeController() : DemoController
     public UICommandResult ResetColors()
     {
         ColorsGroup.Show(null);
-        ColorsGroup.LogEvent("back to the application's palette");
+        ColorsGroup.LogEvent(UIPhrase.Of("demo.colors.theme.own.log.reset"));
 
         return UICommandResult.Ok([new SetThemeColorsEffect()]);
     }

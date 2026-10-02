@@ -6,6 +6,7 @@ using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Actions;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
@@ -15,23 +16,22 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 {
     private const string ShortcutClass = "ui-menu-item__shortcut";
     private const string ValueClass = "ui-menu-item__value";
-    private const string CheckedClass = "ui-menu-item--checked";
 
     private static readonly WebDomOperation[] SelectedOperations =
     [
-        WebDomOperation.ToggleClass("ui-menu-item--selected", condition: WebValueCondition.IsTrue),
+        WebDomOperation.ToggleClass(WebClassNames.MenuItemSelected, condition: WebValueCondition.IsTrue),
         WebDomOperation.ToggleAttribute("aria-current", condition: WebValueCondition.IsTrue, value: "page")
     ];
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Text(target: "." + ValueClass)];
-    private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.ToggleClass(CheckedClass, condition: WebValueCondition.IsTrue), WebDomOperation.Attribute("aria-checked")];
+    private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.ToggleClass(WebClassNames.MenuItemChecked, condition: WebValueCondition.IsTrue), WebDomOperation.Attribute("aria-checked")];
     private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.MenuShortcut, target: "root"), WebDomOperation.Text(target: "." + ShortcutClass)];
 
     public override string ComponentTypeKey => MenuItemComponent.ComponentTypeKey;
 
     protected override string ElementName => "a";
 
-    protected override string ClassName => "ui-menu-item";
+    protected override string ClassName => WebClassNames.MenuItem;
 
     protected override bool IsButtonElement => false;
 
@@ -40,7 +40,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-button");
+        _ = root.Class(WebClassNames.Button);
 
         RenderButtonChrome(context, root);
 
@@ -60,7 +60,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         {
             if (value == true)
             {
-                _ = target.Class("ui-menu-item--selected");
+                _ = target.Class(WebClassNames.MenuItemSelected);
                 _ = target.Attribute("aria-current", "page");
             }
         }, SelectedOperations);
@@ -123,7 +123,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         _ = RenderProperty<bool?>(context, root, MenuItemComponent.CheckedProperty, static (target, value) =>
         {
             if (value == true)
-                _ = target.Class(CheckedClass);
+                _ = target.Class(WebClassNames.MenuItemChecked);
 
             _ = target.Attribute("aria-checked", value == true ? "true" : "false");
         }, CheckedOperations);

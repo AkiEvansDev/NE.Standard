@@ -7,6 +7,7 @@ using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
@@ -62,7 +63,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-button");
+        _ = root.Class(WebClassNames.Button);
 
         IReadOnlyList<string> languages = ResolveLanguages(context);
         var current = ResolveCurrent(context);

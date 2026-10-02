@@ -76,3 +76,20 @@ test("nothing in reach whose overflow could scroll leaves no scroller", () => {
 
     assert.equal(scroller(inner), null);
 });
+
+test("where nothing around the element scrolls but the document does — a phone's page — the document's own scroll is the scroller", () => {
+    const html = box("visible", 800, 2400);
+    const card = box("visible", 200, 200);
+
+    Object.assign(document, { scrollingElement: html });
+
+    try {
+        assert.equal(scroller(card), html);
+
+        Object.assign(html, { scrollHeight: 800 });
+        assert.equal(scroller(card), null, "a page that shows all it holds has nothing to scroll");
+    }
+    finally {
+        Object.assign(document, { scrollingElement: undefined });
+    }
+});

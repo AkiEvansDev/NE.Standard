@@ -50,6 +50,28 @@ internal sealed partial class UIViewCompilationContext
             throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
     }
 
+    /// <summary>
+    /// Refuses a file or image input whose <c>DropTargetId</c> names a component the view does not have: a misspelled id would leave the
+    /// composer silently taking nothing, so it is said when the view compiles, as a misspelled effect target is.
+    /// </summary>
+    private void EnsureDropTargetIsInView(IVisualComponent component)
+    {
+        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            UIPropertyDefinition definition = definitions[i];
+
+            if (!definition.Property.Equals(FileInputComponent.DropTargetIdProperty) && !definition.Property.Equals(ImageInputComponent.DropTargetIdProperty))
+                continue;
+
+            if (definition.Getter(component) is string { Length: > 0 } dropTarget && !_componentIdsByAuthoringId.ContainsKey(dropTarget))
+                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' names DropTargetId '{dropTarget}', which the view does not have.");
+
+            return;
+        }
+    }
+
     /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>
     private bool SubmitsOnEnter(IVisualComponent component)
     {

@@ -67,6 +67,21 @@ test("an error wears the invalid class and colour, says aria-invalid on the inpu
     assert.equal(line.textContent, "Not a pattern: unclosed group.");
 });
 
+test("a field holding fields of its own writes its words on its own line, not on the first one inside it", () => {
+    const inner = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
+    const own = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
+    const root = FakeElement.of("ui-code-input", { "data-ui-id": String(ComponentId) }).append(FakeElement.of("ui-text-input").append(new FakeInput(), inner), own);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+
+    engine.mark(real(root), "error", { text: "Too large" });
+
+    assert.equal(own.textContent, "Too large");
+    assert.equal(inner.textContent, "");
+    engine.mark(real(root), null);
+});
+
 test("null takes every part of the mark off", () => {
     const { root, input, line } = field();
 

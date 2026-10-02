@@ -24,6 +24,7 @@ import type { FieldMarkSeverity, FieldMarkWords, FieldValidation } from "../inte
 import type { wheel } from "../interactions/wheel-notches";
 import type { pluginDomNames } from "../addressing/dom-attributes";
 import type { InlineRenameOptions, InlineRenames } from "../interactions/inline-rename";
+import type { pluginFocus } from "../interactions/popup-focus";
 import type { PopupOptions, Popups } from "../interactions/popup-service";
 import type { rovingFocus } from "../interactions/roving-focus";
 import type { ItemRows } from "../items/item-rows";
@@ -60,6 +61,7 @@ export type HandedOut = [
     Assignable<InlineRenames, Contract.InlineRenames>,
     Assignable<Popups, Contract.Popups>,
     Assignable<typeof rovingFocus, Contract.RovingFocus>,
+    Assignable<typeof pluginFocus, Contract.Focus>,
     Assignable<typeof componentStates, Contract.ComponentStates>,
     Assignable<FieldValidation, Contract.FieldValidation>,
     Assignable<typeof wheel, Contract.WheelReading>,

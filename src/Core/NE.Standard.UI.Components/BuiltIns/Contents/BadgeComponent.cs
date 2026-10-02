@@ -49,6 +49,13 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     public UIIconSize? IconSize { get; set; }
 
     /// <summary>
+    /// Gets or sets the shape an icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar on a
+    /// chip; a glyph keeps its own.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIIconShape? IconShape { get; set; }
+
+    /// <summary>
     /// Gets or sets the short text drawn inside the badge, beside its icon.
     /// </summary>
     [Translatable]

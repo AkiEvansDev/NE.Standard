@@ -207,6 +207,21 @@ test("the browser's own contextmenu after the timer opened the menu is spent: th
     close(at);
 });
 
+test("a contextmenu elsewhere after a long press opened the menu is not spent: only the held part's own is", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text);
+    mock.timers.tick(500);
+    pointer("pointerup", at.text);
+
+    const elsewhere = new FakeMouseEvent("contextmenu", { pointerType: "mouse", button: 2 });
+
+    at.outside.dispatchEvent(elsewhere);
+
+    assert.equal(elsewhere.defaultPrevented, false);
+    close(at);
+});
+
 test("the browser's own contextmenu before the time opens the menu, and the timer then opens nothing more", () => {
     const at = scene();
 
@@ -222,25 +237,53 @@ test("the browser's own contextmenu before the time opens the menu, and the time
     close(at);
 });
 
-test("the click a long press's release raises presses nothing; a press on the menu's entry is its own", () => {
+function click(target: FakeElement): FakeEvent {
+    const domEvent = Object.assign(new FakeEvent("click"), { target });
+
+    for (const listener of windowClicks)
+        listener(domEvent);
+
+    return domEvent;
+}
+
+test("the click a long press's release raises presses nothing; a press on the menu's entry afterwards is its own", () => {
     const at = scene();
 
     pointer("pointerdown", at.text);
     mock.timers.tick(500);
     pointer("pointerup", at.text);
 
-    const onEntry = Object.assign(new FakeEvent("click"), { target: at.entry });
-    const release = Object.assign(new FakeEvent("click"), { target: at.text });
-
-    for (const listener of windowClicks)
-        listener(onEntry);
-
-    assert.equal(onEntry.stopped, false);
-
-    for (const listener of windowClicks)
-        listener(release);
+    const release = click(at.text);
 
     assert.equal(release.defaultPrevented, true);
     assert.equal(release.stopped, true);
+
+    pointer("pointerdown", at.entry);
+    pointer("pointerup", at.entry);
+    assert.equal(click(at.entry).stopped, false);
+    close(at);
+});
+
+test("the release's click over the menu that opened under the finger is spent too, so it does not close the menu", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text);
+    mock.timers.tick(500);
+    pointer("pointerup", at.text);
+
+    assert.equal(click(at.menu).stopped, true);
+    assert.equal(isOpen(at), true);
+    close(at);
+});
+
+test("a finger that slid to an entry after the menu opened chooses it with its release", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(500);
+    pointer("pointermove", at.entry, { x: 10, y: 60 });
+    pointer("pointerup", at.entry, { x: 10, y: 60 });
+
+    assert.equal(click(at.entry).stopped, false);
     close(at);
 });

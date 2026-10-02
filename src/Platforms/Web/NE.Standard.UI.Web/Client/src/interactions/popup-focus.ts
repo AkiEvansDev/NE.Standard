@@ -98,8 +98,15 @@ export function markPointerFocus(target: EventTarget | null, pointer: boolean): 
     if (!(target instanceof Element))
         return;
 
-    if (pointer)
+    if (pointer) {
+        // A finger alone never presses a key, which is what clears the marks: one on an element gone from the page goes here.
+        for (const element of marked) {
+            if (!element.isConnected)
+                marked.delete(element);
+        }
+
         marked.add(target);
+    }
     else
         marked.delete(target);
 
@@ -128,9 +135,18 @@ export function firstFocusable(container: ParentNode): HTMLElement | null {
     return null;
 }
 
-/** The places Tab stands on inside a container, in order; the focused element counts even while it cannot take the focus anew. */
+/** The keyboard's reading of a package's container, on the plugin surface as `focus`. */
+export const pluginFocus = {
+    first: firstFocusable,
+    stops: (container: ParentNode): HTMLElement[] => tabStops(container, document.activeElement)
+};
+
+/**
+ * The places Tab stands on inside a container, in order; the focused element counts even while it cannot take the focus anew. A
+ * control taken out of the order (`tabindex="-1"`: a field's picker toggle, a roving list's other entries) is none.
+ */
 export function tabStops(container: ParentNode, active: Element | null): HTMLElement[] {
-    const candidates = [...container.querySelectorAll<HTMLElement>(FocusableSelector)].filter(element => isFocusable(element) || element === active);
+    const candidates = [...container.querySelectorAll<HTMLElement>(FocusableSelector)].filter(element => element === active || (element.tabIndex >= 0 && isFocusable(element)));
     const groups = new Map<string, HTMLElement>();
 
     // A radio group is one stop, as the browser walks it: its checked radio, or its first while none is.
@@ -303,26 +319,32 @@ function focusableComponentRoot(element: HTMLElement): HTMLElement | null {
         if (!isFocusable(component))
             continue;
 
-        if (!component.hasAttribute("tabindex")) {
-            component.tabIndex = -1;
-
-            // For the return alone: a root left focusable would take the focus of every press on its padding afterwards. Its own
-            // focusout only, not one bubbling from a part of it — the menu inside it the focus is coming back from.
-            const release = (domEvent: Event): void => {
-                if (domEvent.target !== component)
-                    return;
-
-                component.removeAttribute("tabindex");
-                component.removeEventListener("focusout", release);
-            };
-
-            component.addEventListener("focusout", release);
-        }
+        focusableUntilLeft(component);
 
         return component;
     }
 
     return null;
+}
+
+/** Makes an element the markup does not make focusable take the focus once: until the focus leaves it again. */
+export function focusableUntilLeft(element: HTMLElement): void {
+    if (element.hasAttribute("tabindex") || element.tabIndex >= 0)
+        return;
+
+    element.tabIndex = -1;
+
+    // For the return alone: a root left focusable would take the focus of every press on its padding afterwards. Its own focusout
+    // only, not one bubbling from a part of it — the menu inside it the focus is coming back from.
+    const release = (domEvent: Event): void => {
+        if (domEvent.target !== element)
+            return;
+
+        element.removeAttribute("tabindex");
+        element.removeEventListener("focusout", release);
+    };
+
+    element.addEventListener("focusout", release);
 }
 
 /**

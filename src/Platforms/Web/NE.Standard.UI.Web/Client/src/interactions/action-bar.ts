@@ -2,28 +2,22 @@
 // The bar over a host and the row of icons atop a menu a long press opened are both drawn here; a press is always the entry's own.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, PassiveMenuEntrySelector, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
 import { isInert } from "./interactive-state.ts";
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
-import { isIconClassName } from "../rendering/icon-value.ts";
+import { IconMarkAttribute, IconUrlProperty, isIconClassName } from "../rendering/icon-value.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 
 export const ActionBarButtonClass = `${ActionBarClass}__button`;
 export const ActionBarMoreClass = `${ActionBarClass}__more`;
 
-// The look of a small ghost button: the framework's button classes, as a package draws one; ui-action-bar.less squares an icon's.
-const ButtonLookClass = "ui-button ui-button--ghost ui-button--small";
 
 const EntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 // The entry's own icon and title: an entry holds no other text component.
 const TextIconClass = "ui-text__icon";
 const IconSelector = `.ui-button__content .${TextIconClass}`;
 const TitleSelector = ".ui-button__content .ui-text__title";
-
-// What draws a glyph standing alone (ui-icon.less), as an icon value writes it.
-const IconAttribute = "data-ui-icon";
-const IconUrlProperty = "--ui-icon-url";
 
 /** The menu's entries a bar shows, and whether the menu holds an entry shown and not among them, for "more". */
 export type ActionBarEntries = {
@@ -134,7 +128,7 @@ function entryIcon(entry: HTMLElement): HTMLElement | null {
 
     glyph.className = icon.className;
     glyph.classList.remove(TextIconClass);
-    glyph.setAttribute(IconAttribute, "");
+    glyph.setAttribute(IconMarkAttribute, "");
     glyph.setAttribute("aria-hidden", "true");
 
     const picture = icon.style.getPropertyValue(IconUrlProperty);
@@ -159,7 +153,8 @@ function createButton(className: string): HTMLElement {
     const button = document.createElement("button");
 
     button.setAttribute("type", "button");
-    button.className = `${className} ${ButtonLookClass}`;
+    // ui-action-bar.less squares an icon's.
+    button.className = `${className} ${SmallGhostButtonClasses}`;
     button.tabIndex = -1;
 
     return button;

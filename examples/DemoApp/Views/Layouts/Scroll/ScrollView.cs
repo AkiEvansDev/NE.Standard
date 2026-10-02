@@ -87,7 +87,7 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
             UILayout.Stack(16,
                 UILayout.Columns(16,
                     // Down only: sideways would take each row's trailing state out of sight.
-                    UIPage.Labelled("Down only — more rows than room", new ScrollContainerComponent()
+                    DemoUI.CreateLabelled("Down only — more rows than room", new ScrollContainerComponent()
                         .SetHeight(UILayoutLength.Absolute(280))
                         .SetPadding(UIThickness.Uniform(12))
                         .SetBorderThickness(UIThickness.Uniform(1))
@@ -96,7 +96,7 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
                         .AddChild(CreateDeployRows())
                     ),
                     // Sideways only: the rows are as tall as they need to be and the page carries them.
-                    UIPage.Labelled("Sideways only — more columns than room", new ScrollContainerComponent()
+                    DemoUI.CreateLabelled("Sideways only — more columns than room", new ScrollContainerComponent()
                         .HorizontalScrollOnly()
                         .SetPadding(UIThickness.Uniform(12))
                         .SetBorderThickness(UIThickness.Uniform(1))
@@ -105,7 +105,7 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
                     )
                 ),
                 // Both axes at once: the picture keeps its size and the box moves over it.
-                UIPage.Labelled("Both ways — a picture larger than its box", new ScrollContainerComponent()
+                DemoUI.CreateLabelled("Both ways — a picture larger than its box", new ScrollContainerComponent()
                     .SetHeight(UILayoutLength.Absolute(240))
                     .SetPadding(UIThickness.Uniform(12))
                     .SetBorderThickness(UIThickness.Uniform(1))
@@ -131,7 +131,7 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
             (DemoIcons.Check, UIColorStyle.Success, "billing · #481", "Deployed 4 minutes ago"),
             (DemoIcons.Undo, UIColorStyle.Danger, "dns · #127", "Rolled back"),
             (DemoIcons.Clock, UIColorStyle.Warning, "panel · #902", "Waiting on approval"),
-            (DemoIcons.Check, UIColorStyle.Success, "billing-worker · #58", "Deployed 20 minutes ago"),
+            (DemoIcons.Check, UIColorStyle.Success, "billing-worker · #58", "Deployed 20 min ago"),
             (DemoIcons.Check, UIColorStyle.Success, "status-page · #311", "Deployed an hour ago"),
             (DemoIcons.Clock, UIColorStyle.Warning, "identity · #76", "Waiting on approval"),
             (DemoIcons.Check, UIColorStyle.Success, "edge-router · #1204", "Deployed two hours ago"),
@@ -219,11 +219,11 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Stays at the end",
             UILayout.Stack(16,
                 UILayout.Columns(16,
-                    UIPage.Labelled("End — follows what arrives", CreateChat(anchored: true)),
-                    UIPage.Labelled("None — stays where it was", CreateChat(anchored: false))
+                    DemoUI.CreateLabelled("End — follows what arrives", CreateChat(anchored: true)),
+                    DemoUI.CreateLabelled("None — stays where it was", CreateChat(anchored: false))
                 ),
                 // A job that has not finished: the anchor alone keeps the newest line in sight.
-                UIPage.Labelled("End — a job that is still running", new ScrollContainerComponent()
+                DemoUI.CreateLabelled("End — a job that is still running", new ScrollContainerComponent()
                     .VerticalScrollOnly()
                     .AnchorToEnd()
                     .SetHeight(UILayoutLength.Absolute(200))

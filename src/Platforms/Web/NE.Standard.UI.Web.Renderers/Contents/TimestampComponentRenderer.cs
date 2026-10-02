@@ -3,7 +3,6 @@ using System.Globalization;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -38,7 +37,7 @@ public sealed class TimestampComponentRenderer : WebComponentRendererBase
         UITimestampFormat shown = format ?? UITimestampFormat.DateTime;
 
         // Render-time only: the page reads it once, as the temporal inputs read their step.
-        _ = root.Attribute(WebAttributes.TimestampFormat, FormatName(shown));
+        _ = root.Attribute(WebAttributes.TimestampFormat, UIMomentJsonConverter.FormatName(shown));
 
         TextAppearanceRenderer.RenderTextAppearance(context, root, TimestampComponent.TextTypeProperty);
         ThemeColorRenderer.RenderThemeColor(context, root, TimestampComponent.ColorProperty);
@@ -60,19 +59,7 @@ public sealed class TimestampComponentRenderer : WebComponentRendererBase
                 return;
 
             _ = target.Attribute("datetime", UIMomentJsonConverter.InstantText(instant));
-            _ = text!.Text(FirstPaint(instant, shown, culture, context.Temporal));
+            _ = text!.Text(WebMoments.FirstPaint(instant, shown, culture, context.Temporal));
         }, [WebDomOperation.Attribute("datetime")]);
     }
-
-    /// <summary>The name the page reads a format by — a moment's in words too.</summary>
-    public static string FormatName(UITimestampFormat format)
-        => UIMomentJsonConverter.FormatName(format);
-
-    /// <summary>
-    /// The instant as the server can write it, in UTC in the page's names and the application's patterns, until the page writes it
-    /// in the reader's zone; a relative one as the day and the time, since how long ago it was depends on when the page is read, and a
-    /// relative day as the day.
-    /// </summary>
-    public static string FirstPaint(DateTimeOffset instant, UITimestampFormat format, CultureInfo culture, UITemporalOptions? options)
-        => WebMoments.FirstPaint(instant, format, culture, options);
 }

@@ -18,10 +18,18 @@
     padding: 0;
 }
 
-// Rows share the list's tracks by subgrid; key and value use minmax() so neither collapses the other.
+// Rows share the list's tracks by subgrid; key and value use minmax() so neither collapses the other. On a phone the key's track is
+// capped at under half the row, its words ellipsised past it: as wide as its longest key, it left the values a few letters.
 .ui-key-value-action__host {
+    --ui-key-value-key-track: minmax(8rem, max-content);
     display: grid;
-    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr) auto;
+    grid-template-columns: var(--ui-key-value-key-track) minmax(0, 1fr) auto;
+}
+
+@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+    .ui-key-value-action__host {
+        --ui-key-value-key-track: fit-content(45%);
+    }
 }
 
 // The list's inset, a step wider than a field's, so the wash leaves the key some air.
@@ -105,16 +113,16 @@
 
 // With StretchValue off, the value takes only what it needs and the action closes up behind it.
 .ui-key-value-action--no-stretch .ui-key-value-action__host {
-    grid-template-columns: minmax(8rem, max-content) minmax(0, max-content) auto;
+    grid-template-columns: var(--ui-key-value-key-track) minmax(0, max-content) auto;
 }
 
 // The track goes with the cell, so the row doesn't keep a column's worth of air where the action would be.
 .ui-key-value-action--no-actions .ui-key-value-action__host {
-    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+    grid-template-columns: var(--ui-key-value-key-track) minmax(0, 1fr);
 }
 
 .ui-key-value-action--no-actions.ui-key-value-action--no-stretch .ui-key-value-action__host {
-    grid-template-columns: minmax(8rem, max-content) minmax(0, max-content);
+    grid-template-columns: var(--ui-key-value-key-track) minmax(0, max-content);
 }
 
     .ui-key-value-action--no-actions .ui-key-value-action__action {
@@ -158,9 +166,10 @@
         .ui-responsive-property(min-width, --ui-min-width, 0);
     }
 
-    // Set back by the field's own inset, whatever its appearance, so its text starts where the value's did.
+    // Set back by the field's own inset, whatever its appearance, so its text starts near where the value's did — never further than
+    // the column gap less a step, or a field's box closed up against the key.
     .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
-        .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px)))));
+        .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * min(var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px))), @ui-space-3 - @ui-space-1)));
     }
 
     // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.

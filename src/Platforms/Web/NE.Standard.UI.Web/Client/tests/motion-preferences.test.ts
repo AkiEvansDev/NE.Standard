@@ -78,6 +78,24 @@ test("every loading ring shows its turn in forced colours", () => {
         assert.ok(drawn.selectors.includes(selector), `${selector} wears the ring but turns unseen in forced colours`);
 });
 
+test("a drop line, a marked day's dot and an upload's bar are redrawn in system colours in forced colours", () => {
+    const forcedRules = forcedColors.flatMap(rulesOf);
+    // By the selector list's text: a selector with `:is()` holds commas of its own.
+    const drawn = (selector: string, colour: string): boolean => forcedRules.some(rule => rule.selectors.join(", ").includes(selector) && rule.body.includes("forced-color-adjust: none") && rule.body.includes(`background: ${colour};`));
+    const host = ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row";
+
+    for (const selector of [
+        ":is(.ui-items-view > [data-ui-items-host] > [data-ui-row-drop], .ui-items-view > [data-ui-items-host] > .ui-items-view__item > [data-ui-row-drop])::after",
+        `${host}[data-ui-row-drop] > .ui-row__grip::after`,
+        `${host}[data-ui-row-drop] > .ui-table__cell::before`,
+        ".ui-image-input__tile.ui-loading > .ui-image-input__progress"
+    ])
+        assert.ok(drawn(selector, "Highlight"), `${selector} vanishes in forced colours`);
+
+    assert.ok(drawn(".ui-temporal-input__day--marked::after", "CanvasText"), "a marked day's dot vanishes in forced colours");
+    assert.ok(forcedRules.some(rule => rule.selectors.includes(".ui-temporal-input__day--marked.ui-temporal-input__day--selected::after") && rule.body.includes("background: HighlightText;")));
+});
+
 test("a component root with a transition list of its own still fades for Show and Hide", () => {
     for (const selector of [".ui-button", ".ui-link", ".ui-surface--clickable", ".ui-button-group"]) {
         const own = allRules.find(rule => rule.selectors.length === 1 && rule.selectors[0] === selector && /(^|;)\s*transition:/.test(rule.body));

@@ -84,7 +84,8 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     .SetSide(UISide.Left)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
-                    .SetWidth(UILayoutLength.Absolute(220))
+                    // The whole line while the panes stand one under another, a side's width once they stand beside the work.
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: UILayoutLength.Absolute(220)))
                     // The pane's title beside its switch, gone with the content when the pane folds.
                     .SetToggleContent(UIText.Label("Filters"))
                     .SetContent(UILayout.Stack(8)
@@ -108,7 +109,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     .SetSide(UISide.Right)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
-                    .SetWidth(UILayoutLength.Absolute(240))
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: UILayoutLength.Absolute(240)))
                     // The pane's title beside its switch, gone with the content when the pane folds.
                     .SetToggleContent(UIText.Label("Detail"))
                     // A detail pane is read, not operated: the key-value list, as a summary anywhere else would be.
@@ -149,7 +150,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(16)
                         .SetVerticalAlignment(UIAlignment.Center)
-                        .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetTitle("Maintenance window").SetDescription("Saturday 02:00–04:00 UTC — deploys are held while it runs."))
+                        .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetTitle("Maintenance window").SetDescription("Saturday 02:00–04:00 UTC — deploys are held while it runs.").SetWrapMode(UITextWrapMode.Wrap))
                     )
                     .SetPlacement(1, 1, 24, 1)
                 )

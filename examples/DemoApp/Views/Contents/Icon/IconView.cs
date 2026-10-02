@@ -110,9 +110,9 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
 
     /// <summary>
     /// A picture as an icon: one string, three readings on the component — a glyph from the pack, a picture in its own colours, that
-    /// picture masked — and the same string carried by a text body's <c>Icon</c> property.
+    /// picture masked — and the same string carried by a text body's <c>Icon</c> property; a person's picture drawn round by its shape.
     /// </summary>
-    /// <remarks>With no size given, text content draws the picture as a square the height of the block.</remarks>
+    /// <remarks>With no size given, text content draws the picture as a square the height of the block, or a circle as tall.</remarks>
     private static ContainerComponent CreatePictureGroup()
     {
         return DemoUI.CreateExample("A picture as an icon",
@@ -164,29 +164,56 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
+                .AddChild(new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetSpacing(12)
+                    .SetVerticalAlignment(UIAlignment.Center)
+                    .AddChild(new IconComponent()
+                        .SetIcon(DemoImages.Avatar)
+                        .SetShape(UIIconShape.Circle)
+                        .SetColor(null)
+                        .SetWidth(UILayoutLength.Absolute(32))
+                    )
+                    .AddChild(new TextComponent()
+                        .SetTitle("A person's picture, round")
+                        .SetTitleType(UITextAppearance.Body)
+                        .SetVerticalAlignment(UIAlignment.Center)
+                    )
+                )
                 .AddChild(new SeparatorComponent())
                 .AddChild(UIText.Label("On a text body — the same string in its Icon"))
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.Avatar)
                     .SetTitle("Robin Hale")
                     .SetDescription("A square photograph, no size given: a tile the block's height.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                 )
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.SunsetRuins)
                     .SetTitle("A landscape")
                     .SetDescription("Wider than it is tall, in the same square tile.")
                 )
+                // A person: the shape cuts the picture round, and a portrait fills the circle rather than hanging in it.
+                .AddChild(new TextComponent()
+                    .SetIcon(DemoImages.NightStreet)
+                    .SetIconShape(UIIconShape.Circle)
+                    .SetTitle("Alex Warren")
+                    .SetDescription("IconShape Circle: a portrait, round and filling the circle.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
+                )
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.Logo)
                     .SetTitle("A size given")
                     .SetDescription("The picture obeys it, like a glyph — no tile, no square.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                     .SetIconSize(UIIconSize.Medium)
                 )
                 // A line that is already coloured does not get muted on top: it would fall below contrast.
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.Mask(DemoImages.Mark))
                     .SetTitle("Tinted picture")
-                    .SetDescription("Written mask: — a monochrome SVG follows the text's colour.")
+                    .SetDescription("A monochrome SVG written as `mask:` follows the text's colour.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                     .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                     .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.OnSurface))
                 ),

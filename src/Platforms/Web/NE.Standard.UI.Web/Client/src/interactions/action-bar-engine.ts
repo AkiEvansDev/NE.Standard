@@ -5,19 +5,21 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, NoRowDragAttribute, RowFocusAttribute } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, RowFocusAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { ActionBarButtonClass, ActionBarButtonWords, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
 import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./context-menu-engine.ts";
-import { isClippedOut, viewportOf } from "./element-visibility.ts";
+import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
-import { isPointerLast, liveFocusReturn } from "./popup-focus.ts";
+import { DialogAttribute } from "./open-dialogs.ts";
+import { FocusableSelector, isPointerLast, liveFocusReturn } from "./popup-focus.ts";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
 import { SelectionRootSelector } from "./row-selection.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 
 const HostSelector = `[${ActionBarAttribute}]`;
+const OpenDialogSelector = `[${DialogAttribute}]:not([hidden]), dialog[open]`;
 const BarSelector = `.${ActionBarClass}`;
 
 // On a bar whose host the scroll took wholly out of sight: it stays chosen, and shows again as the host comes back.
@@ -29,10 +31,7 @@ const BarGap = 6;
 const BarGapProperty = "--ui-action-bar-gap";
 
 // What a change in the menu may alter in its entries as a bar shows them; the tab stops the menu engine moves are not among them.
-const EntryStateAttributes = [
-    "class", "style", "hidden", "aria-disabled", "aria-checked", "data-ui-in-action-bar",
-    "data-ui-visibility", "data-ui-visibility-sm", "data-ui-visibility-md", "data-ui-visibility-xl", "data-ui-visibility-xxl"
-];
+const EntryStateAttributes = ["class", "style", "hidden", "aria-disabled", "aria-checked", InActionBarAttribute, ...VisibilityTierAttributes];
 
 type ShownBar = {
     readonly bar: HTMLElement;
@@ -220,9 +219,10 @@ export class ActionBarEngine {
             return;
         }
 
-        // Escape no popup took is the bar's: it goes. One in a dialog the host is not in is the dialog's.
+        // Escape no popup took is the bar's: it goes. One in an open dialog the host is not in — the framework's, or a package's own
+        // `<dialog>` — is the dialog's.
         if (domEvent.key === "Escape") {
-            const dialog = target.closest("dialog[open]");
+            const dialog = target.closest(OpenDialogSelector);
 
             if (dialog === null || (this.chosen !== null && dialog.contains(this.chosen)))
                 this.choose(null);
@@ -257,7 +257,8 @@ export class ActionBarEngine {
                 return;
 
             const host = this.hostOfBar(bar);
-            const back = this.cameFrom !== null && this.cameFrom.isConnected && host !== null && (host.contains(this.cameFrom) || this.cameFrom.contains(host))
+            // Only while it can still take the focus: a root made focusable for one return has given its tab index back since.
+            const back = this.cameFrom !== null && this.cameFrom.isConnected && takesFocus(this.cameFrom) && host !== null && (host.contains(this.cameFrom) || this.cameFrom.contains(host))
                 ? this.cameFrom
                 : liveFocusReturn(host);
 
@@ -299,9 +300,9 @@ export class ActionBarEngine {
      */
     private makeRoomAbove(host: HTMLElement): void {
         const shown = this.shown.get(host);
-        const box = viewportOf(host);
+        const box = viewBoxAround(host);
 
-        if (shown === undefined || box === null || !isScrollBox(box))
+        if (shown === undefined || box === null || !canScroll(box, true))
             return;
 
         const top = Math.max(0, box.getBoundingClientRect().top + box.clientTop);
@@ -402,7 +403,7 @@ export class ActionBarEngine {
         // Inside the host, before the host's own menu, which a renderer writes last in the host: the host's content keeps its last
         // child, and the bar's events still pass through the host. Placed fixed, so no box around the host clips it.
         host.insertBefore(bar, ownMenuHost(host));
-        placeAnchoredPopup(host, bar, { placement: barPlacement(host), gap: barGapOf(host), boundary: viewportOf(host) ?? undefined });
+        placeAnchoredPopup(host, bar, { placement: barPlacement(host), gap: barGapOf(host), boundary: viewBoxAround(host) ?? undefined });
         bar.classList.toggle(OutClass, isClippedOut(host));
 
         // An entry's words, state and mark change while the bar stands — a push, a language switch: the bar is drawn again.
@@ -607,13 +608,6 @@ function findByIdentity(identity: HostIdentity): HTMLElement | null {
     return null;
 }
 
-/** A box the reader scrolls, which a script may scroll too; a box that clips alone (`overflow: clip`) has nothing to scroll. */
-function isScrollBox(box: Element): boolean {
-    const overflow = getComputedStyle(box).overflowY;
-
-    return overflow === "auto" || overflow === "scroll";
-}
-
 /** Above the host, at its end, its start or its middle as the host says, the page's direction mirroring start and end. */
 function barPlacement(host: HTMLElement): AnchoredPopupPlacement {
     const alignment = host.getAttribute(ActionBarAttribute);
@@ -700,4 +694,9 @@ function openMenuFrom(button: HTMLElement): void {
     const rect = button.getBoundingClientRect();
 
     button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: rect.left, clientY: rect.bottom }));
+}
+
+/** Whether a script's focus would land on the element: focusable by its markup or by a tab index of any value. */
+function takesFocus(element: HTMLElement): boolean {
+    return element.matches(FocusableSelector) || element.hasAttribute("tabindex");
 }

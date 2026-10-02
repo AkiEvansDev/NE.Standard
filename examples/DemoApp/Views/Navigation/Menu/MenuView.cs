@@ -185,7 +185,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 ]).SetSurface(UISurfaceStyle.Background).OnItemClickWithItemKey(nameof(MenuController.RunCardAction), "entry"))
                 // A paragraph: the explanation is prose, which a text's one line would cut.
                 .SetContent(new ParagraphComponent()
-                    .SetTitle("Right-click this card")
+                    .SetTitle("Right-click or long-press this card")
                     .SetDescription("The menu is set on the card itself — it compiles with the card and opens where the pointer is; Surface = Background puts it on the page's ground.")
                 ),
             context: ContextGroup
@@ -240,11 +240,11 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddChild(UILayout.Row(48)
-                    .AddChild(UIPage.Labelled("Side = Left, no ground", CreateRail()))
-                    .AddChild(UIPage.Labelled("Side = Right", CreateRail().SetSide(UISide.Right)))
-                    .AddChild(UIPage.Labelled("Surface = Tinted", CreateRail().SetSurface(UISurfaceStyle.Tinted)))
-                    .AddChild(UIPage.Labelled("Size = Small", CreateRail().SetSize(UIButtonSize.Small)))
-                    .AddChild(UIPage.Labelled("Size = Large", CreateRail().SetSize(UIButtonSize.Large)))
+                    .AddChild(DemoUI.CreateLabelled("Side = Left, no ground", CreateRail()))
+                    .AddChild(DemoUI.CreateLabelled("Side = Right", CreateRail().SetSide(UISide.Right)))
+                    .AddChild(DemoUI.CreateLabelled("Surface = Tinted", CreateRail().SetSurface(UISurfaceStyle.Tinted)))
+                    .AddChild(DemoUI.CreateLabelled("Size = Small", CreateRail().SetSize(UIButtonSize.Small)))
+                    .AddChild(DemoUI.CreateLabelled("Size = Large", CreateRail().SetSize(UIButtonSize.Large)))
                 ),
             columns: 24,
             note: "`SetOrientation(UIOrientation.Horizontal)` lays the entries along a bar. `SetDisplay(UIMenuDisplay.Rail)`: each entry its icon over a one-line label, the badge on the icon's corner — a count on Chat, an empty `BadgeText` as the dot on Profile. "

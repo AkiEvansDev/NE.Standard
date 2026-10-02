@@ -27,6 +27,10 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// <summary>The composer's panel, where dropped and pasted files land on the shelf.</summary>
     private const string ComposerPanelId = "chat-composer-panel";
 
+    /// <summary>The wallpaper dialog's sliders, which the messages' ground copies while they are dragged.</summary>
+    private const string WallpaperDimId = "chat-wallpaper-dim";
+    private const string WallpaperBlurId = "chat-wallpaper-blur";
+
     private static readonly string[] Emoji = ["😀", "😂", "😍", "🤔", "😢", "👍", "👀", "🙏", "🎉", "🔥", "🚀", "✅"];
 
     /// <summary>Shown only below the wide breakpoint, where the conversation stands in the list's place.</summary>
@@ -76,12 +80,46 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetDescription("The days with messages are marked; a press on one goes there.")
                     )
                     .AddChild(new CalendarComponent()
+                        .SetHorizontalAlignment(UIAlignment.Center)
                         .BindValue(nameof(ChatController.JumpDay))
                         .BindMin(nameof(ChatController.FirstDay))
                         .BindMax(nameof(ChatController.LastDay))
                         .BindMarkedDays(nameof(ChatController.MessageDays))
                         .SetMarkedDaysOnly()
                         .OnChange(nameof(ChatController.GoToDayAsync))
+                    )
+            },
+            new UIDialog
+            {
+                Key = ChatController.WallpaperKey,
+                Label = "Wallpaper",
+                Content = UILayout.Stack(16)
+                    .AsContentTree()
+                    .AddChild(new ParagraphComponent()
+                        .SetTitle("Wallpaper")
+                        .SetTitleType(UITextAppearance.Title)
+                        .SetDescription("A picture behind the messages, dimmed toward the page's ground so they read in either theme.")
+                    )
+                    .AddChild(new SwitchComponent()
+                        .SetTitle("Show a picture")
+                        .BindValue(nameof(ChatController.WallpaperShown))
+                        .OnChange(nameof(ChatController.UpdateWallpaper))
+                    )
+                    .AddChild(new SliderComponent(WallpaperDimId)
+                        .SetTitle("Dim")
+                        .SetRange(0, 0.9m)
+                        .SetStep(0.05m)
+                        .SetShowValue()
+                        .BindValue(nameof(ChatController.WallpaperDim))
+                        .OnChange(nameof(ChatController.UpdateWallpaper))
+                    )
+                    .AddChild(new SliderComponent(WallpaperBlurId)
+                        .SetTitle("Blur, pixels")
+                        .SetRange(0, 32)
+                        .SetStep(1)
+                        .SetShowValue()
+                        .BindValue(nameof(ChatController.WallpaperBlur))
+                        .OnChange(nameof(ChatController.UpdateWallpaper))
                     )
             }
         ];
@@ -147,6 +185,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                     .SetIcon(DemoIcons.Outline(DemoIcons.MessageSquare))
                     .SetTitle("No chat matches")
                     .SetDescription("Search by a name or by the last words.")
+                    .SetWrapMode(UITextWrapMode.Wrap)
                 )
                 .VerticalScrollOnly()
                 .BindVisibility(nameof(ChatController.ChatsVisibility))
@@ -212,15 +251,11 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             // Rows, not a stack: the messages take what the header and the composer leave, so the composer never drops out of sight.
             .SetContent(new ContainerComponent()
                 .SetRow(1, UIGridUnit.Auto())
-                .AddRow(UIGridUnit.Auto())
                 .AddRow(UIGridUnit.Star())
                 .AddRow(UIGridUnit.Auto())
-                .AddRow(UIGridUnit.Auto())
                 .AddChild(CreateConversationHeader().SetPlacement(1, 1, 24, 1))
-                .AddChild(new SeparatorComponent().SetPlacement(1, 2, 24, 1))
-                .AddChild(CreateMessages().SetPlacement(1, 3, 24, 1))
-                .AddChild(new SeparatorComponent().SetPlacement(1, 4, 24, 1))
-                .AddChild(CreateComposer().SetPlacement(1, 5, 24, 1))
+                .AddChild(CreateWallpaper().SetPlacement(1, 2, 24, 1))
+                .AddChild(CreateComposer().SetPlacement(1, 3, 24, 1))
             );
 
     /// <summary>The back arrow on a narrow screen, the picture, the name over who they are, and the conversation's own menu.</summary>
@@ -269,6 +304,26 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 .SetVerticalAlignment(UIAlignment.Center)
                 .SetPlacement(24, 1, 1, 1)
             );
+
+    /// <summary>
+    /// The reader's wallpaper behind the messages alone, evenly dimmed in the theme's ground so the words read in either theme, and
+    /// blurred as the wallpaper dialog says; the browser draws both, so a slider's step is the value and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// The dim and the blur follow the dialog's sliders on the page while they are dragged, with no round trip; the bindings carry what
+    /// the controller stores once a slider is let go. Its own edges are the lines under the header and over the composer: a separator
+    /// keeps air around its line, which would stand as a band of the panel's ground between the line and the picture.
+    /// </remarks>
+    private static ContainerComponent CreateWallpaper()
+        => new ContainerComponent()
+            .SetBorderThickness(UIThickness.All(0, 1, 0, 1))
+            .SetBorderColor(UIThemeColor.Border)
+            .BindBackgroundImage(nameof(ChatController.WallpaperImage))
+            .BindBackgroundImageDim(nameof(ChatController.WallpaperDimShare))
+            .BindBackgroundImageBlur(nameof(ChatController.WallpaperBlurLength))
+            .InteractCopyValue(WallpaperDimId, ISurfaceComponent.BackgroundImageDimProperty)
+            .InteractCopyValue(WallpaperBlurId, ISurfaceComponent.BackgroundImageBlurProperty)
+            .AddChild(CreateMessages().SetPlacement(1, 1, 24, 1));
 
     /// <summary>
     /// The messages, a window of thirty read from the end: theirs on the page's ground with the author's name in a group, the reader's
@@ -413,11 +468,10 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 .SetPlacement(1, 1, 24, 1)
             );
 
-    /// <summary>A face, or a name's initials, in a circle: square, cropped rather than fitted, with a full radius.</summary>
+    /// <summary>A face, or a name's initials, in a circle: its shape squares the box and crops the picture rather than fitting it.</summary>
     private static ImageComponent CreateAvatar(double size)
         => new ImageComponent()
-            .SetFit(UIImageFit.Cover)
-            .SetCornerRadius(UICornerRadius.Uniform(999))
+            .SetShape(UIImageShape.Circle)
             .SetWidth(UILayoutLength.Absolute(size))
             .SetHeight(UILayoutLength.Absolute(size))
             .SetVerticalAlignment(UIAlignment.Center);

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
@@ -13,10 +14,10 @@ internal sealed partial class DeployGroupContext : DemoGroupContext
     private int _release = 481;
 
     [RecursiveMember]
-    public partial string Staging { get; set; } = "Staging: nothing deployed yet.";
+    public partial UIPhrase? Staging { get; set; } = UIPhrase.Of("demo.overlays.notification.deploy.staging.none");
 
     [RecursiveMember]
-    public partial string Production { get; set; } = "Production: nothing deployed yet.";
+    public partial UIPhrase? Production { get; set; } = UIPhrase.Of("demo.overlays.notification.deploy.production.none");
 
     public int NextRelease()
         => ++_release;
@@ -28,23 +29,23 @@ internal sealed partial class DeployGroupContext : DemoGroupContext
 internal sealed partial class JobGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial string LastRun { get; set; } = "The migration has not run yet.";
+    public partial UIPhrase? LastRun { get; set; } = UIPhrase.Of("demo.overlays.notification.job.none");
 }
 
 /// <summary>
-/// One command with three things to say, and a counter for the ones pushed one at a time.
+/// One command with three things to say, and a counter for every toast pushed, the three included.
 /// </summary>
 internal sealed partial class StackGroupContext : DemoGroupContext
 {
     private int _pushed;
 
     [RecursiveMember]
-    public partial string Pushed { get; set; } = "Nothing pushed yet.";
+    public partial UIPhrase? Pushed { get; set; } = UIPhrase.Of("demo.overlays.notification.stack.none");
 
-    public int Push()
+    public int Push(int count)
     {
-        _pushed++;
-        Pushed = $"{_pushed} pushed so far; each keeps its own timer.";
+        _pushed += count;
+        Pushed = UIPhrase.Of("demo.overlays.notification.stack.pushed", ("count", _pushed));
 
         return _pushed;
     }
@@ -52,6 +53,8 @@ internal sealed partial class StackGroupContext : DemoGroupContext
 
 internal sealed partial class NotificationTestController() : DemoController
 {
+    private const string Words = "demo.overlays.notification.";
+
     [RecursiveMember]
     public partial DeployGroupContext DeployGroup { get; set; } = new();
 
@@ -69,10 +72,10 @@ internal sealed partial class NotificationTestController() : DemoController
     {
         var release = DeployGroup.NextRelease();
 
-        DeployGroup.Staging = $"Staging: release #{release}, deployed {DateTime.Now:HH:mm:ss}.";
-        DeployGroup.LogEvent($"ShowNotification (Success) for #{release}");
+        DeployGroup.Staging = UIPhrase.Of(Words + "deploy.staging.done", ("release", release), ("time", Now()));
+        DeployGroup.LogEvent(UIPhrase.Of(Words + "log.success", ("release", release)));
 
-        return UICommandResult.Ok([new ShowNotificationEffect($"Release #{release} deployed to staging.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.staging", ("release", release)), UIColorStyle.Success)]);
     }
 
     /// <summary>
@@ -85,33 +88,33 @@ internal sealed partial class NotificationTestController() : DemoController
 
         if (release % 2 == 0)
         {
-            DeployGroup.Production = $"Production: release #{release}, deployed {DateTime.Now:HH:mm:ss}.";
-            DeployGroup.LogEvent($"ShowNotification (Success) for #{release}");
+            DeployGroup.Production = UIPhrase.Of(Words + "deploy.production.done", ("release", release), ("time", Now()));
+            DeployGroup.LogEvent(UIPhrase.Of(Words + "log.success", ("release", release)));
 
-            return UICommandResult.Ok([new ShowNotificationEffect($"Release #{release} is live in production.", UIColorStyle.Success)]);
+            return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.production", ("release", release)), UIColorStyle.Success)]);
         }
 
-        DeployGroup.Production = $"Production: release #{release} rolled back {DateTime.Now:HH:mm:ss} — the health check never went green.";
-        DeployGroup.LogEvent($"ShowNotification (Warning, Danger) for #{release}");
+        DeployGroup.Production = UIPhrase.Of(Words + "deploy.production.failed", ("release", release), ("time", Now()));
+        DeployGroup.LogEvent(UIPhrase.Of(Words + "log.warning-danger", ("release", release)));
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect($"Release #{release} is being health-checked.", UIColorStyle.Warning),
-            new ShowNotificationEffect($"Release #{release} rolled back: the health check never went green.", UIColorStyle.Danger)
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.checking", ("release", release)), UIColorStyle.Warning),
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.rolled-back", ("release", release)), UIColorStyle.Danger)
         ]);
     }
 
     [UICommand]
     public async Task<UICommandResult> RunMigrationAsync(CancellationToken cancellationToken)
     {
-        JobGroup.LogEvent("running — nothing shows until the work is done");
+        JobGroup.LogEvent(UIPhrase.Of(Words + "log.running"));
 
         await Task.Delay(1800, cancellationToken).ConfigureAwait(false);
 
-        JobGroup.LastRun = $"Last run {DateTime.Now:HH:mm:ss}: 12 tables migrated, nothing to roll back.";
-        JobGroup.LogEvent("ShowNotification (Success) once the work was done");
+        JobGroup.LastRun = UIPhrase.Of(Words + "job.done", ("time", Now()));
+        JobGroup.LogEvent(UIPhrase.Of(Words + "log.finished"));
 
-        return UICommandResult.Ok([new ShowNotificationEffect("The migration finished: 12 tables.", UIColorStyle.Success)]);
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.migrated"), UIColorStyle.Success)]);
     }
 
     /// <summary>
@@ -120,34 +123,36 @@ internal sealed partial class NotificationTestController() : DemoController
     [UICommand]
     public UICommandResult NotifyThree()
     {
-        StackGroup.LogEvent("three effects in one result");
+        _ = StackGroup.Push(3);
+        StackGroup.LogEvent(UIPhrase.Of(Words + "log.three"));
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect("Queued.", UIColorStyle.Info),
-            new ShowNotificationEffect("Health-checked.", UIColorStyle.Primary),
-            new ShowNotificationEffect("Deployed.", UIColorStyle.Success)
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.queued"), UIColorStyle.Info),
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.checked"), UIColorStyle.Primary),
+            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.deployed"), UIColorStyle.Success)
         ]);
     }
 
     [UICommand]
     public UICommandResult NotifyOneMore()
     {
-        var pushed = StackGroup.Push();
+        var pushed = StackGroup.Push(1);
 
-        StackGroup.LogEvent($"pushed #{pushed}");
+        StackGroup.LogEvent(UIPhrase.Of(Words + "log.pushed", ("count", pushed)));
 
-        return UICommandResult.Ok([new ShowNotificationEffect($"Pushed notification #{pushed}.", UIColorStyle.Accent)]);
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.pushed", ("count", pushed)), UIColorStyle.Accent)]);
     }
 
     [UICommand]
     public UICommandResult NotifyLong()
     {
-        WrapGroup.LogEvent("a message that has to wrap");
+        WrapGroup.LogEvent(UIPhrase.Of(Words + "log.long"));
 
-        return UICommandResult.Ok(
-        [
-            new ShowNotificationEffect("The staging deploy was rolled back because the health check at https://staging.orvane.example/healthz answered 503 for ninety seconds, which is longer than the window the release gate allows.", UIColorStyle.Danger)
-        ]);
+        return UICommandResult.Ok([new ShowNotificationEffect(UIPhrase.Of(Words + "toast.long"), UIColorStyle.Danger)]);
     }
+
+    // The server's clock as written, the same in every language.
+    private static string Now()
+        => DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
 }

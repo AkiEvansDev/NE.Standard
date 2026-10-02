@@ -50,6 +50,20 @@ test("a press on the box's empty space focuses its field, the caret after the la
     assert.equal(domEvent.defaultPrevented, true);
 });
 
+test("a press on an email or a number field's box focuses the field and leaves its caret to the browser", () => {
+    for (const type of ["email", "number"]) {
+        const { box, field } = numberField("a@b.c");
+
+        field.type = type;
+
+        const domEvent = press(box);
+
+        assert.equal(fakeDocument.activeElement, field, type);
+        assert.equal(field.selection, null, type);
+        assert.equal(domEvent.defaultPrevented, true, type);
+    }
+});
+
 test("a press on a part inside the box that is no control, a caption, reaches the field too", () => {
     const { header, field } = numberField("7");
 

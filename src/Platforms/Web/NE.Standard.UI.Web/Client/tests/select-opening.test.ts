@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
@@ -29,31 +29,25 @@ const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts"
 
 new SelectInteractionEngine({ root: real<ParentNode>(fakeDocument.body) });
 
-type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[]; readonly input: FakeInput | null };
+type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[] };
 
-function scene(options: { readonly search?: boolean; readonly value?: string } = {}): Scene {
-    const field = options.search === true ? Object.assign(new FakeInput("search"), { className: "ui-search__input" }) : null;
-    const trigger = FakeElement.of("ui-select__trigger", options.search === true ? { "data-ui-select-trigger-mode": "input" } : {}, options.search === true ? "div" : "button");
+function scene(options: { readonly value?: string } = {}): Scene {
+    const trigger = FakeElement.of("ui-select__trigger", {}, "button");
     const list = ["amsterdam", "ashburn", "singapore"].map(key => FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" }));
-    const popup = FakeElement.of("ui-select__popup", { role: "listbox" }).append(...list);
+    const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...list);
     const select = FakeElement.of("ui-select", { "data-ui-id": "3" }).append(trigger, popup);
-
-    if (field !== null)
-        trigger.append(field);
 
     fakeDocument.body.children.length = 0;
     fakeDocument.body.append(select);
     fakeDocument.activeElement = fakeDocument.body;
 
-    return { select, trigger, options: list, input: field };
+    return { select, trigger, options: list };
 }
 
 function press(at: Scene): void {
-    const target = at.input ?? at.trigger;
-
-    notePress(real(target));
-    target.focus();
-    target.dispatchEvent(new FakeEvent("click"));
+    notePress(real(at.trigger));
+    at.trigger.focus();
+    at.trigger.dispatchEvent(new FakeEvent("click"));
 }
 
 function openByKey(at: Scene): void {
@@ -154,19 +148,6 @@ test("a capped list opens scrolled to its chosen option, and one already in view
     close(at);
 });
 
-test("a search a press opened marks no option while its field keeps the keyboard; ArrowDown then enters at the first", () => {
-    const at = scene({ search: true });
-
-    press(at);
-
-    assert.equal(active(at), null);
-    assert.equal(fakeDocument.activeElement, at.input);
-
-    arrow("ArrowDown");
-
-    assert.equal(active(at), "amsterdam");
-});
-
 test("an arrow on a closed select opens it on its chosen option, else ArrowDown on the first and ArrowUp on the last", () => {
     const at = scene();
 
@@ -192,34 +173,4 @@ test("an arrow on a closed select opens it on its chosen option, else ArrowDown 
 
     assert.equal(active(chosen), "ashburn");
     close(chosen);
-});
-
-test("a press that focuses a Replace search selects its label, as the keyboard's arrival does, but leaves a drag's selection", () => {
-    // A press on the field itself, on the chosen option drawn over it whose box hands the field the focus, or one whose opening does.
-    for (const [caret, expected, onField, focusedFirst] of [[[14, 14], [0, 14], true, true], [[14, 14], [0, 14], false, true], [[14, 14], [0, 14], false, false], [[0, 7], [0, 7], true, true]] as const) {
-        const at = scene({ search: true, value: "ashburn" });
-        const input = Object.assign(at.input!, { selectionStart: 0, selectionEnd: 0 });
-
-        input.select = () => {
-            input.selectionStart = 0;
-            input.selectionEnd = input.value.length;
-        };
-
-        at.select.classes.add("ui-search-mode--replace");
-        at.select.setAttribute("data-ui-select-value", "ashburn");
-        at.options[1].textContent = "Ashburn (east)";
-
-        notePress(real(input));
-        input.value = "Ashburn (east)";
-
-        if (focusedFirst)
-            input.focus();
-
-        // Where the press put the caret, or what a drag selected.
-        [input.selectionStart, input.selectionEnd] = caret;
-        (onField ? input : at.trigger).dispatchEvent(new FakeEvent("click"));
-
-        assert.deepEqual([input.selectionStart, input.selectionEnd], expected);
-        close(at);
-    }
 });

@@ -25,46 +25,46 @@ internal sealed class ColorsThemeView : ColorsViewBase, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateColorsGroup()
     {
-        return DemoUI.CreateGroup(ColorsGroup, "Your own colours",
+        return DemoUI.CreateGroup(ColorsGroup, "demo.colors.theme.own.title",
             content => content.AddChild(DemoUI.CreateStack(16)
                 .AddChild(new ColorInputComponent()
-                    .SetTitle("Primary")
+                    .SetTitle("demo.colors.theme.own.primary")
                     .BindValue(nameof(ReaderColorsGroupContext.Primary), UIBindingScope.Relative)
                 )
                 .AddChild(new ColorInputComponent()
-                    .SetTitle("Accent")
+                    .SetTitle("demo.colors.theme.own.accent")
                     .BindValue(nameof(ReaderColorsGroupContext.Accent), UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Primary)
-                        .SetTitle("Apply")
+                        .SetTitle("demo.colors.theme.own.apply")
                         .OnClick(nameof(ColorsThemeController.ApplyColors))
                     )
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
-                        .SetTitle("Reset")
+                        .SetTitle("demo.colors.theme.own.reset")
                         .OnClick(nameof(ColorsThemeController.ResetColors))
                     )
                 )
-                .AddChild(UIText.Label("What wears them"))
+                .AddChild(UIText.Label("demo.colors.theme.own.wears"))
                 .AddChild(UILayout.Row(12)
                     .AddChild(new ButtonComponent()
                         .SetType(UIButtonType.Primary)
-                        .SetTitle("A primary button")
+                        .SetTitle("demo.colors.theme.own.button")
                     )
                     .AddChild(new SwitchComponent()
-                        .SetTitle("A switch")
+                        .SetTitle("demo.colors.theme.own.switch")
                         .SetValue(true)
                     )
                     .AddChild(new BadgeComponent()
-                        .SetText("accent")
+                        .SetText("demo.colors.theme.own.badge")
                         .SetType(UIBadgeType.Accent)
                     )
                 )
             ),
-            note: "Pick a pale yellow for the primary and Apply: the button's text still reads, since what stands on the colour is derived by the palette's own rule and held to contrast. "
-                + "The colours are the session's: open another page, or reload, and they are there; Reset returns to the application's palette."
+            note: "demo.colors.theme.own.note",
+            words: true
         );
     }
 
@@ -73,7 +73,7 @@ internal sealed class ColorsThemeView : ColorsViewBase, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBackgroundGroup()
     {
-        return DemoUI.CreateGroup(BackgroundGroup, "A background bound off and on",
+        return DemoUI.CreateGroup(BackgroundGroup, "demo.colors.theme.background.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ContainerComponent()
                     .SetPadding(UIThickness.All(12, 8, 12, 8))
@@ -81,15 +81,16 @@ internal sealed class ColorsThemeView : ColorsViewBase, IUIViewDefinition
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .BindBackground(nameof(BackgroundGroupContext.Background), UIBindingScope.Relative)
                     .AddChild(new TextComponent()
-                        .SetTitle("See you at eight 🎉")
+                        .SetTitle("demo.colors.theme.background.message")
                     )
                 )
             ),
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                ["Next background"] = nameof(ColorsThemeController.CycleBackground)
+                ["demo.colors.theme.background.next"] = nameof(ColorsThemeController.CycleBackground)
             }),
-            note: "A chat message as a bubble or bare, one block for both: `UIThemeColor.Transparent` switches the fill off and the text takes the page's ink; `Primary` fills it and the text takes the colour's own ink; `null` removes the binding's colour, back to the default."
+            note: "demo.colors.theme.background.note",
+            words: true
         );
     }
 
@@ -98,14 +99,14 @@ internal sealed class ColorsThemeView : ColorsViewBase, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateHeardGroup()
     {
-        return DemoUI.CreateGroup(HeardGroup, "What the controller heard",
+        return DemoUI.CreateGroup(HeardGroup, "demo.colors.theme.heard.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(HeardGroupContext.Heard), UIBindingScope.Relative)
                 )
             ),
-            note: "Switch the theme or the language in the header: `OnThemeChangedAsync` and `OnLanguageChangedAsync` write this line, through the translator, in the session's language. "
-                + "Switch the language on another page and come back: the page kept its runtime, and the line is already in the new language before it paints."
+            note: "demo.colors.theme.heard.note",
+            words: true
         );
     }
 }

@@ -187,7 +187,7 @@
         }
     }
 
-// The mark that an entry has more under it: lighter than a control's chevron, a note on a row; whole pixels, or the mask reads cut off.
+// The mark that an entry has more under it: lighter than a control's chevron, a note on a row.
 [data-ui-menu-group] > .ui-menu-item::after {
     .ui-chevron(@ui-glyph-md);
     .ui-chevron-right();
@@ -206,7 +206,7 @@
 
 // Collapsed, a group's entries fly out beside the icon; the flyout mark outlasts the open one by the fade (menu-group-engine.ts).
 .ui-menu__submenu[data-ui-menu-flyout] {
-    .ui-popup-surface(40);
+    .ui-popup-surface(@ui-z-list);
     .ui-popup-scroll();
     .ui-popup-closed();
     block-size: auto;
@@ -225,8 +225,9 @@
 
 // A caption is not a control: it neither reacts nor takes focus, it just names the entries under it.
 .ui-menu-item[data-ui-menu-item-kind="header"] {
-    margin-top: @ui-space-3;
-    padding-bottom: 0;
+    // Through the chain, an entry's padding but its foot: an authored Margin or Padding still wins.
+    .ui-responsive-property(margin, --ui-margin, @ui-space-3 0 0);
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2 0);
     background: none;
     color: @ui-text-muted;
     .ui-text-type--overline();
@@ -239,7 +240,7 @@
     }
 
 .ui-menu__host > *:first-child > .ui-menu-item[data-ui-menu-item-kind="header"] {
-    margin-top: 0;
+    .ui-responsive-property(margin, --ui-margin, 0);
 }
 
 // A rule has no content, but its content region still renders: out of the flow, so it takes no line.
@@ -264,8 +265,10 @@
     border-left: 1px solid var(--ui-color-border);
 }
 
-// :empty rather than a render-time decision, so a bound Shortcut can appear and disappear with the data.
-.ui-menu-item__shortcut {
+// A shortcut, and a select entry's value, at the row's end in the muted caption's type. :empty rather than a render-time decision,
+// so a bound Shortcut or value can appear and disappear with the data.
+.ui-menu-item__shortcut,
+.ui-menu-item__value {
     margin-left: auto;
     padding-left: @ui-space-4;
     color: @ui-text-muted;
@@ -273,7 +276,8 @@
     white-space: nowrap;
 }
 
-    .ui-menu-item__shortcut:empty {
+    .ui-menu-item__shortcut:empty,
+    .ui-menu-item__value:empty {
         display: none;
     }
 
@@ -346,18 +350,19 @@
 
 // A group whose current entry is out of sight carries the mark itself, as a layer over its ground: the pointer's and a press's
 // washes stay that ground, as on its neighbours, so a rule quieting them (a key holding this entry or another) never takes the mark.
+// Its words and icon are the ink, as the current entry's: the brand's ink read 2.9:1 on a tinted rail; the brand is the mark.
 .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected),
 @{ui-menu-folded} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
     background-image: linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
-    color: var(--ui-color-primary-ink);
 
     // The keyboard's wash over the mark, not in its place.
     &@{ui-button-live}@{ui-keyboard-focus} {
         background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
     }
 
-    // "Current inside": a short, faint piece of the current entry's line on the same edge, half its length, so it never reads as the
-    // current entry itself nor as the pointer's wash — on a dark palette, whose descendant wash is none, it is the group's one mark.
+    // "Current inside": a short piece of the current entry's line on the same edge, half its length, so it never reads as the
+    // current entry itself nor as the pointer's wash — on a dark palette, whose descendant wash is none, it is the group's one mark,
+    // so it is whole: at 0.6 it read 1.8:1.
     // Not while a press's wave plays: the wave is the same pseudo-element (core/press.less).
     &:not(.ui-pressing)::before {
         content: "";
@@ -366,7 +371,6 @@
         width: var(--ui-menu-group-mark-width, 2px);
         height: var(--ui-menu-group-mark-height, auto);
         background: @ui-selected-mark-color;
-        opacity: 0.6;
         pointer-events: none;
     }
 }
@@ -433,19 +437,7 @@
     opacity: 1;
 }
 
-// A select entry's value sits at the row's end, muted like a shortcut; its chevron stays right while open, as the choices fly out.
-.ui-menu-item__value {
-    margin-left: auto;
-    padding-left: @ui-space-4;
-    color: @ui-text-muted;
-    font-size: var(--ui-text-caption-font-size);
-    white-space: nowrap;
-}
-
-    .ui-menu-item__value:empty {
-        display: none;
-    }
-
+// A select entry's value stands at the row's end as a shortcut does (above); its chevron stays right while open, as the choices fly out.
 // A word and a mark (shortcut+check, value+chevron) would split the free space between two `margin-left: auto`, stranding the word.
 .ui-menu-item:has(> :is(.ui-menu-item__shortcut, .ui-menu-item__value):not(:empty))::after {
     margin-left: @ui-space-2;
@@ -487,7 +479,7 @@
 .ui-context-menu:has(> .ui-menu.ui-surface--tinted),
 .ui-split-button__menu:has(> .ui-menu.ui-surface--tinted),
 .ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {
-    --ui-popup-ground: color-mix(in srgb, var(--ui-color-primary) 20%, var(--ui-color-background));
+    --ui-popup-ground: @ui-tinted-fill;
 }
 
 // The search takes the entries' width and asks for none: an input's own twenty characters would widen a sidebar.
@@ -616,7 +608,7 @@
     // rather than a pixel below it.
     @{ui-menu-bottom-bar} {
         width: auto;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
+        .ui-responsive-property(padding, --ui-padding, 0 0 env(safe-area-inset-bottom, 0px));
         box-shadow: inset 0 1px 0 0 var(--ui-color-border);
         // A folded group's short mark stands on the top edge, with the current entry's line.
         --ui-menu-group-mark-width: auto;
@@ -627,6 +619,12 @@
 
         @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item--selected {
             .ui-selected-mark(@ui-selected-mark-top);
+        }
+
+        // The line on the top edge would all but meet a count on the glyph's corner: the column steps down, the count with it.
+        @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item > .ui-button__content,
+        @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
+            margin-block-start: @ui-space-1;
         }
 }
 

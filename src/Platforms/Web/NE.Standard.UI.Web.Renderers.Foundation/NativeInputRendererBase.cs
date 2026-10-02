@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
@@ -21,8 +22,8 @@ public static class NativeInputRendererBase
     /// </summary>
     public static WebDomOperation ReadOnlyMarkOperation { get; } = WebDomOperation.ToggleClass(WebClassNames.ReadOnly, target: "root", condition: WebValueCondition.IsTrue);
 
-    private static readonly WebDomOperation[] FormIdOperations = [WebDomOperation.Attribute(WebAttributes.FormId), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
-    private static readonly WebDomOperation[] FormMarkOperations = [WebDomOperation.Attribute(WebAttributes.FormId)];
+    // One per attribute a form's id is written under, its writers built once: a form id is rendered on every field of the page.
+    private static readonly ConcurrentDictionary<string, FormIdMark> FormIdMarks = new(StringComparer.Ordinal);
     private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
     private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
@@ -43,29 +44,61 @@ public static class NativeInputRendererBase
     /// group's root), so it carries the framework's form alone.
     /// </summary>
     public static void RenderFormId(WebRenderContext context, IHtmlElementBuilder element, bool joinsForm)
+        => RenderFormId(context, element, IInputComponent.FormIdProperty, WebAttributes.FormId, joinsForm);
+
+    /// <summary>
+    /// A form's id read from <paramref name="property"/> and written under <paramref name="attribute"/> — a field's form, a submit
+    /// button's — and, where <paramref name="joinsForm"/>, the browser's own form the element joins by <c>form</c>.
+    /// </summary>
+    public static void RenderFormId(WebRenderContext context, IHtmlElementBuilder element, UIProperty property, string attribute, bool joinsForm)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(element);
+        ArgumentException.ThrowIfNullOrWhiteSpace(attribute);
 
-        if (!joinsForm)
+        FormIdMark mark = FormIdMarks.GetOrAdd(attribute, static name => new FormIdMark(name));
+
+        _ = joinsForm
+            ? WebComponentRendererBase.RenderProperty(context, element, property, mark.WriteJoined, mark.JoinedOperations)
+            : WebComponentRendererBase.RenderProperty(context, element, property, mark.Write, mark.Operations);
+    }
+
+    /// <summary>The writers and patches of a form's id under one attribute, alone or with the <c>form</c> the element joins by.</summary>
+    private sealed class FormIdMark
+    {
+        private readonly string _attribute;
+
+        public FormIdMark(string attribute)
         {
-            _ = WebComponentRendererBase.RenderProperty<string?>(context, element, IInputComponent.FormIdProperty, static (target, value) =>
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                    _ = target.Attribute(WebAttributes.FormId, value);
-            }, FormMarkOperations);
-
-            return;
+            _attribute = attribute;
+            Operations = [WebDomOperation.Attribute(attribute)];
+            JoinedOperations = [WebDomOperation.Attribute(attribute), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
+            Write = WriteMark;
+            WriteJoined = WriteMarkAndForm;
         }
 
-        _ = WebComponentRendererBase.RenderProperty<string?>(context, element, IInputComponent.FormIdProperty, static (target, value) =>
+        public WebDomOperation[] Operations { get; }
+
+        public WebDomOperation[] JoinedOperations { get; }
+
+        public Action<IHtmlElementBuilder, string?> Write { get; }
+
+        public Action<IHtmlElementBuilder, string?> WriteJoined { get; }
+
+        private void WriteMark(IHtmlElementBuilder target, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _ = target.Attribute(_attribute, value);
+        }
+
+        private void WriteMarkAndForm(IHtmlElementBuilder target, string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return;
 
-            _ = target.Attribute(WebAttributes.FormId, value);
+            _ = target.Attribute(_attribute, value);
             _ = target.Attribute("form", WebForms.ElementId(value));
-        }, FormIdOperations);
+        }
     }
 
     /// <summary>
@@ -201,8 +234,10 @@ public static class NativeInputRendererBase
         }, MaxFileSizeOperations);
     }
 
-    /// <summary>The component whose dropped and pasted files the input takes, as the id it is found by on the page; render-time only.</summary>
-    /// <exception cref="InvalidOperationException">The view has no component of that id.</exception>
+    /// <summary>
+    /// The component whose dropped and pasted files the input takes, as the id the compiler gave it and the page finds it by;
+    /// render-time only. The view refused an id it lacks when it compiled.
+    /// </summary>
     public static void RenderDropTargetId(WebRenderContext context, IHtmlElementBuilder root, UIProperty dropTargetIdProperty)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -210,12 +245,8 @@ public static class NativeInputRendererBase
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, dropTargetIdProperty, out string? dropTarget, out _);
 
-        if (string.IsNullOrWhiteSpace(dropTarget))
+        if (string.IsNullOrWhiteSpace(dropTarget) || !context.ViewResolution.View.Graph.TryGetComponentId(dropTarget, out UIComponentId target))
             return;
-
-        // A misspelled id would leave the composer silently taking nothing: said at once, as a misspelled effect target is.
-        if (!context.ViewResolution.View.Graph.TryGetComponentId(dropTarget, out UIComponentId target))
-            throw new InvalidOperationException($"DropTargetId names component '{dropTarget}', which the view does not have.");
 
         _ = root.Attribute(WebAttributes.FileDropTargetId, target.Value.ToString(CultureInfo.InvariantCulture));
     }
